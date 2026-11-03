@@ -6,6 +6,13 @@ date: '2026-11-01'
 superseded_by: —
 ---
 
+> **Amended 2026-11-01 by [D-20261101-no-mutation-in-gha](./D-20261101-no-mutation-in-gha.md).**
+> Mutation left GitHub Actions altogether: `mutation.yml` and the `Mutation (changed lines)` job in
+> `Quality (Full) Gate` are removed. The full run is `npm run mutation:weekly` on the owner's
+> machine (Saturday 02:30 local, launchd), and the changed lines are mutated in pre-push. Every row
+> and schedule line below that names `mutation.yml` or the changed-lines job is read through that
+> decision; the rest of this one stands.
+
 **The owner, 2026-11-01:** "ensure we're not running heavy tasks during CI-CD, benchmarks, etc
 should be running through a scheduler over night".
 

@@ -23,6 +23,7 @@ import { fileURLToPath } from 'node:url';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { dev } from './dev.js';
 
 const DEBOUNCE_MS = 5;
@@ -38,7 +39,7 @@ export const program = defineProgram({ name: 'reloaddemo', description: 'a CLI t
 
 let dir = '';
 afterEach(() => {
-  if (dir !== '') rmSync(dir, { recursive: true, force: true });
+  if (dir !== '') discard(dir);
   dir = '';
 });
 

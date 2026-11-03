@@ -11,12 +11,13 @@
  * through a spawn. They are pure in their input (a string, or a path), so they are asked here
  * directly; `windows.test.ts` drives the same read through `parse()`.
  */
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterAll, describe, expect, it, vi } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { readShebang, shebangCommand } from './shebang.js';
 
 const WINDOWS = process.platform === 'win32';
@@ -84,7 +85,7 @@ describe('shebangCommand — shebang-command, case for case', () => {
 });
 
 const dir = mkdtempSync(join(tmpdir(), 'bellpull-shebang-'));
-afterAll(() => rmSync(dir, { recursive: true, force: true }));
+afterAll(() => discard(dir));
 
 /** Longer than the 150 bytes read, so the read is a prefix and not the whole file. */
 const script = join(dir, 'script');

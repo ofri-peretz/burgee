@@ -7,7 +7,7 @@
  *
  * And the reload report's two quieter lines: a removed command, and a program with no root node.
  */
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { PassThrough } from 'node:stream';
@@ -15,6 +15,7 @@ import { fileURLToPath } from 'node:url';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { dev, load, report } from './dev.js';
 import { defineCommand, defineProgram } from './execute.js';
 import { Manifest } from './manifest.js';
@@ -22,7 +23,7 @@ import { Manifest } from './manifest.js';
 const src = dirname(fileURLToPath(import.meta.url));
 const spec = (file: string): string => JSON.stringify(resolve(src, file));
 const dir = mkdtempSync(join(tmpdir(), 'burgee-dev-load-'));
-afterAll(() => rmSync(dir, { recursive: true, force: true }));
+afterAll(() => discard(dir));
 
 let n = 0;
 const entry = (source: string): string => {

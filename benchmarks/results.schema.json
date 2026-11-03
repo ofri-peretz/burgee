@@ -8,6 +8,7 @@
   "additionalProperties": false,
   "properties": {
     "schema": { "const": 1 },
+    "arm": { "type": "string", "description": "A B1 arm run on its own with `npm run bench -- --axis agent --arm <id>`, written to benchmarks/results/agent-cli-bench-<id>/: that arm's records only, and no band or claim (D-20261101-b1-oxmutate-arm)." },
     "suite": { "enum": ["cli-benchmarks", "agent-cli-bench", "external-floor"] },
     "measured": { "type": "string", "format": "date-time" },
     "commit": { "type": "string", "description": "The commit the numbers describe, or `unknown` outside a checkout — never a guess." },

@@ -16,6 +16,7 @@ import { isMainThread } from 'node:worker_threads';
 
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { LoaderError } from './load.js';
 import { parse, rc } from './rc.js';
 
@@ -33,7 +34,7 @@ const dir = mkdtempSync(join(tmpdir(), 'seniority-rc-'));
 const NAME = 'rctest';
 
 afterAll(() => {
-  rmSync(dir, { recursive: true, force: true });
+  discard(dir);
 });
 
 describe("rc's own test/test.js, with the environment as an argument", () => {

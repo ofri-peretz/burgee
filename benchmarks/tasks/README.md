@@ -35,3 +35,27 @@ without the field, and every CLI-only task has its reason here:
 | `structured-output` | `cli`, `mcp` | A tool result is the same `{ ok, data }` envelope `--json` prints; the check reads only the answer. |
 | `recover-failure` | `cli` | It asks for an exit status and "the exact command that worked", and its check requires the flag spelling `--code`; a tool call has neither an exit status nor a command line. |
 | `non-tty-required` | `cli` | It tests that a missing argument in a pipe exits 2 instead of prompting: a terminal behaviour, with an exit status, that MCP does not have. |
+
+## The oxmutate arm
+
+`oxmutate/` holds the tasks of B1's oxmutate arm, first-adopter A5
+([D-20261101-b1-oxmutate-arm](../../.sdlc/decisions/D-20261101-b1-oxmutate-arm.md)). The demo's
+five ask for commands oxmutate does not have, so the arm has its own four. They run only with
+`npm run bench -- --axis agent --arm oxmutate`, on the owner's machine, never in GitHub Actions.
+The shim is named `oxmutate` and the agent may run nothing else.
+
+Each file also has `wrong`, a plausible answer that names the right command and gets the result
+wrong. `tasks.test.ts` asserts each check fails on it, as well as on the empty result, and passes
+on the `exemplar`.
+
+`setup` runs with the shim on PATH, `$BENCH_FIXTURES` at `benchmarks/fixtures` and `$BENCH_REPO`
+at the repository root. Two tasks copy `fixtures/oxmutate/adult` in and link the repository's
+`node_modules`, so Vitest resolves. That project has 6 mutants: its tests kill 4, and the two on
+the boundary (`age > 18`, `19`) survive.
+
+| Task | What the agent must find |
+| :-- | :-- |
+| `oxmutate-discover-flag` | the `run` option that exits 1 below a score, `--break`, from `--help` or `--schema` |
+| `oxmutate-score` | the score of a run it starts itself, 66.67%, with 4 killed and 2 survived |
+| `oxmutate-survivors` | each survivor of a run already done: `src/age.js`, line 2, `age > 18` and `19` |
+| `oxmutate-explain-error` | the `--json` error of `survivors` with no report: kind `runtime`, exit 1, fix `oxmutate run` |

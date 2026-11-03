@@ -1,8 +1,31 @@
 # Design — `first-adopter`
 
-Intent: [`intent.md`](./intent.md). **Status:** approved (2026-10-25).
+Intent: [`intent.md`](./intent.md). **Status:** shipped (2026-11-02).
 
 ---
+
+## A5 graded 2026-11-02: met, so the intent ships
+
+B1 now runs against oxmutate as well as the demo
+([D-20261101-b1-oxmutate-arm](../../decisions/D-20261101-b1-oxmutate-arm.md)). The arm has its own
+four tasks, a shim named `oxmutate`, and runs on the owner's machine only, by the owner's "No
+oxmutate in GHA": `npm run bench -- --axis agent --arm oxmutate`. So A5 is graded on three local
+readings, not on the scheduled run the gap expected. Each was 20 task-runs at `d71dcb0`, whose
+oxmutate source is `oxmutate@1.1.0`'s, with load below 30 throughout.
+
+| A5 reading | median of 3 | range |
+| :-- | --: | :-- |
+| success rate, gated at 0.8 | **1.00** | 0.95–1.00 |
+| tokens per task | 62,795 | 62,535–94,273 |
+| turns per task | 3 | 2–4 |
+| tokens per reading (20 runs) | 2,155,006 | 1,923,261–2,158,733 |
+| list-price cost per reading | $1.90 | $1.78–$1.91 |
+
+The files are in `benchmarks/results/agent-cli-bench-oxmutate/`, and the third carries the
+graded `success-rate-readings-median`. One earlier reading, taken before the arm allowed
+`npx oxmutate`, is kept under `superseded/` and not graded; the decision says why. With A1–A4 held
+and A6 a recorded miss carried by [C3](../../gaps/C3.md), A5 was the last criterion, and the intent
+is stamped `shipped`.
 
 ## Graded on oxmutate 2026-11-01
 
@@ -17,10 +40,12 @@ else's repository: A1 closes on oxmutate, which is published from this one.
 | A2 | met; time is a calendar span, not an effort figure | [`.sdlc/research/adoption/oxmutate.md`](../../research/adoption/oxmutate.md) |
 | A3 | met by concurrently's proof; does not apply to oxmutate | [`.sdlc/research/adoption/concurrently.md`](../../research/adoption/concurrently.md) |
 | A4 | met | five gaps and one decision filed 2026-11-01, listed in the decision |
-| A5 | **open** | [B-20261101-b1-real-cli-arm-oxmutate](../../gaps/B-20261101-b1-real-cli-arm-oxmutate.md) |
+| A5 | **met** 2026-11-02 (was **open**): success rate median 1.00, range 0.95–1.00, over three local readings | [D-20261101-b1-oxmutate-arm](../../decisions/D-20261101-b1-oxmutate-arm.md); gap [B-20261101-b1-real-cli-arm-oxmutate](../../gaps/B-20261101-b1-real-cli-arm-oxmutate.md), closed |
 | A6 | **not met**, moved to C3 | [C3](../../gaps/C3.md) |
 
 The intent ships when A5 holds: the real-CLI arm is built and a scheduled B1 run lands a reading.
+*Restated 2026-11-02: the arm runs locally only, so three local readings, by
+D-20261101-b1-oxmutate-arm. A5 holds; see § A5 graded 2026-11-02.*
 
 ---
 
@@ -100,6 +125,9 @@ automated gate on purpose — the finding here is qualitative, and a green pipel
 tell us nothing about whether adoption was pleasant.
 
 A5 is automated: `npm run bench -- --axis agent` gains a variant pointing at the real CLI.
+*Built 2026-11-01 as `npm run bench -- --axis agent --arm oxmutate`, run locally only
+(D-20261101-b1-oxmutate-arm); `benchmarks/oxmutate-arm.test.ts` and `benchmarks/tasks.test.ts`
+hold the harness and the checks.*
 
 ## Rejected alternatives
 

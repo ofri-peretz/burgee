@@ -23,12 +23,13 @@
  * `Q:` rather than `C:`: on a Windows runner a path that misses the table goes to the real
  * disk, and a drive nobody has is a miss there too.
  */
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterAll, describe, expect, it, vi } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { isExecutable } from './executable.js';
 import { run } from './run.js';
 import { type Runtime } from './runtime.js';
@@ -259,7 +260,7 @@ describe('parse on Windows, when the command resolves', () => {
  */
 describe('run on Windows: what ran, and what bellpull says ran', () => {
   const cwd = mkdtempSync(join(tmpdir(), 'bellpull-windows-'));
-  afterAll(() => rmSync(cwd, { recursive: true, force: true }));
+  afterAll(() => discard(cwd));
 
   /** The real environment, so a child on a real Windows runner still has `SystemRoot`. */
   const inherited: Record<string, string | undefined> = {};

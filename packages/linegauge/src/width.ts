@@ -136,11 +136,12 @@ function inTable(table: readonly number[], codePoint: number): boolean {
   return false;
 }
 
-function isWide(codePoint: number): boolean {
+/** Exported for the sweep in `width.test.ts`, which is what tests the tables at run time. */
+export function isWide(codePoint: number): boolean {
   return inTable(WIDE, codePoint);
 }
 
-function isAmbiguous(codePoint: number): boolean {
+export function isAmbiguous(codePoint: number): boolean {
   return inTable(AMBIGUOUS, codePoint);
 }
 

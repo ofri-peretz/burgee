@@ -11,7 +11,6 @@
  * **The svgo case below was run against `migrate.ts` before this change and failed there**: it
  * pinned `^1.0.4` and its note named no date for 1.1.0.
  */
-import { spawn } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -19,16 +18,17 @@ import { fileURLToPath } from 'node:url';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { familyVersions, migrate, subpathFloors } from './migrate.js';
 
 /**
- * Every project this file makes, handed after its last test to an `rm` of its own that the hook does
- * not wait for — under the pre-push load, unlinking a scratch directory from Node took 64.9 s
+ * Every project this file makes, `discard`ed after its last test, which the hook does not wait
+ * for — under the pre-push load, unlinking a scratch directory from Node took 64.9 s
  * (#1137). Before this they were never removed: ~15k `burgee-migrate-*` a day in `$TMPDIR`.
  */
 const scratch: string[] = [];
 afterAll(() => {
-  if (scratch.length > 0 && process.platform !== 'win32') spawn('rm', ['-rf', ...scratch], { detached: true, stdio: 'ignore' }).unref();
+  discard(...scratch);
 });
 
 function project(files: Record<string, string>): string {

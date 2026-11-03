@@ -1248,6 +1248,17 @@ export default [
     },
   },
   {
+    // B1's oxmutate arm copies this project into a scratch directory for the agent to mutate
+    // (D-20261101-b1-oxmutate-arm). Its numbers are the fixture: the boundary at 18 and the two
+    // ages either side of it decide which mutants survive, and the task checks name them.
+    files: ["benchmarks/fixtures/oxmutate/**"],
+    rules: {
+      "import-next/no-unused-modules": "off",
+      "import-next/no-extraneous-dependencies": "off",
+      "conventions/no-magic-numbers": "off",
+    },
+  },
+  {
     // Each of these specs *is* its misbehaviour: `spin` loops for ever so a server is mid-runaway
     // when its coordinator is killed, and `slow` stalls 4 s, past the warm watchdog and the first
     // isolated budget but inside 3x that.

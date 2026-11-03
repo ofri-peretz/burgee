@@ -14,7 +14,7 @@
  * so the 35 files burgee stopped publishing on 2026-10-11 cannot creep back one module at a
  * time. `pack-list-lock.test.ts` checks the other direction from the tarball itself.
  */
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -23,12 +23,13 @@ import ts from 'typescript';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { declarationBeside, entryDeclarations, expectedTypes, pruneDeclarations, reachableDeclarations, type TypedPackage, unreachableDeclarations, withLegacyTypes } from './declaration-reach.mjs';
+import { discard } from './scratch-dir.js';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 let made: string[] = [];
 afterEach(() => {
-  for (const dir of made) rmSync(dir, { recursive: true, force: true });
+  discard(...made);
   made = [];
 });
 
@@ -290,7 +291,7 @@ describe('every typed subpath resolves under each moduleResolution', () => {
     for (const { dir, pkg } of published) symlinkSync(join(REPO_ROOT, 'packages', dir), join(consumer, 'node_modules', pkg.name!), 'junction');
     writeFileSync(join(consumer, 'index.ts'), `${specifiers.map((spec, i) => `import type * as m${i} from '${spec}';`).join('\n')}\nexport type All = [${specifiers.map((_, i) => `typeof m${i}`).join(', ')}];\n`);
   });
-  afterAll(() => rmSync(consumer, { recursive: true, force: true }));
+  afterAll(() => discard(consumer));
 
   it('imports the root and every typed subpath of every published package', () => {
     expect(specifiers).toContain('burgee/commander');

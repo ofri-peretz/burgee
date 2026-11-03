@@ -8,17 +8,18 @@
  * the two shapes a plugin module can export, and the one error `check` does not own and must
  * not swallow.
  */
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { check, EXIT_OK, EXIT_RUNTIME, EXIT_USAGE } from './check.js';
 import { overrides, register, setOverrides } from './plugin.js';
 
 const dir = mkdtempSync(join(tmpdir(), 'linegauge-check-'));
-afterAll(() => rmSync(dir, { recursive: true, force: true }));
+afterAll(() => discard(dir));
 
 /** Registration is global, so every case starts and ends with nothing registered. */
 afterEach(() => {

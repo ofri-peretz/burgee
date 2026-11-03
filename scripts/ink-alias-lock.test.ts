@@ -25,7 +25,7 @@
  *
  * It reads `dist/`, so it needs the packages built, as the independence install does.
  */
-import { execFile, spawn } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -33,6 +33,8 @@ import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
+import { discard } from './scratch-dir.js';
 
 const run = promisify(execFile);
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -77,10 +79,6 @@ function npm(args: string[], cwd: string): Promise<{ stdout: string }> {
   return run(WINDOWS ? 'npm.cmd' : 'npm', args, { ...io, shell: WINDOWS });
 }
 
-/** Deleting two installs goes to a detached process, as the independence install's does. */
-function discard(dir: string): void {
-  spawn(process.execPath, ['-e', 'require("node:fs").rmSync(process.argv[1], { recursive: true, force: true })', dir], { detached: true, stdio: 'ignore' }).unref();
-}
 
 interface Outcome {
   /** Where `node_modules/ink` lands in the install: the example's own shim, or the path of whatever npm put there. */

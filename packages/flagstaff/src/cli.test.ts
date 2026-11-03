@@ -1,11 +1,13 @@
 /** R8 — `flagstaff check <file>`: a plugin file in, every contribution in every mode out; exit 1 with the fix on a refusal. */
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
+import { discard } from './__fixtures__/scratch-dir.js';
 
 const cli = fileURLToPath(new URL('../dist/cli.js', import.meta.url));
 const dist = (file: string): string => new URL(`../dist/${file}`, import.meta.url).href;
@@ -45,7 +47,7 @@ beforeAll(() => {
   );
 });
 
-afterAll(() => rmSync(dir, { recursive: true, force: true }));
+afterAll(() => discard(dir));
 
 /** A tty frame as `check` prints it: one synchronized-output block, escapes made visible. */
 const synced = (bytes: string): string => `␛[?2026h${bytes}␛[?2026l`;

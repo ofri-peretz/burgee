@@ -14,6 +14,7 @@ import { join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { DirtyTreeError, majorOf, migrate, REQUIRE_NAMESPACE, rewriteSource, scan } from './migrate.js';
 
 const specifiers = (source: string): string[] => scan(source).sites.map((s) => s.specifier);
@@ -88,7 +89,7 @@ describe('a require() whose two sides return different kinds of value (A29)', ()
 
 describe('the report', () => {
   let dir = '';
-  afterEach(() => rmSync(dir, { recursive: true, force: true }));
+  afterEach(() => discard(dir));
   const project = (lockfile?: string): string => {
     dir = mkdtempSync(join(tmpdir(), 'burgee-migrate-pm-'));
     writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'p', dependencies: { chalk: '^6.0.0' } }));

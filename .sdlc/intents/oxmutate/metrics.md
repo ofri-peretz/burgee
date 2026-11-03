@@ -37,7 +37,7 @@ A4 and A8 are the outcome. A1, A3, A5 and A7 are what we control on every PR to 
 | S1 | **Per-mutant execution time** | Leading | Median ms per executed mutant per worker, mutation phase only | ~160 ms (caique `decide.ts`, 74 mutants, 4 workers, 2026-10-25) | ≤ 20 ms (M0 gate) |
 | S2 | **Instrumentation time** | Leading | Wall-clock from start to an instrumented build, per 1,000 source lines | ~2 s for 134–2,900 lines (roundel and caique samples) | ≥ 5x faster (M1) |
 | S3 | **Whole-run time, cold** | Lagging | Wall-clock of a full run, no cache, on the fixture | TBM (M0 baseline, 5 runs) | ≥ 5x faster (M1), ≥ 10x (M3) |
-| S4 | **Burgee full run on CI** | Lagging | Wall-clock of burgee's full weekly run on the CI runner | 186.21 min (2026-10-24, 13,738 mutants) | ≤ 30 min (M3) |
+| S4 | **Burgee full run on CI** | Lagging | Wall-clock of burgee's full weekly run on the CI runner; on the owner's machine, with Stryker beside it, since [`D-20261101-no-mutation-in-gha`](../../decisions/D-20261101-no-mutation-in-gha.md) | 186.21 min (2026-10-24, 13,738 mutants) | ≤ 30 min (M3) |
 | S5 | **PR lane p95** | Lagging | 95th percentile wall-clock of the changed-lines lane on burgee PRs | TBM from `quality-full.yml` history (budget 15 min) | ≤ 5 min |
 | S6 | **Rerun after a one-file change** | Lagging | Wall-clock of an incremental run after editing one source file | TBM (`--incremental`) | ≥ 10x faster |
 
@@ -123,7 +123,8 @@ D1–D4. Each waits for the milestone that first needs it.
 
 1. **One script measures both tools.** `npm run bench:mutation` produces every Speed, Trust and CI
    number for Stryker and `oxmutate` in one run, with the machine spec and command lines. A number
-   from anywhere else is not published.
+   from anywhere else is not published. Since [`D-20261101-no-mutation-in-gha`](../../decisions/D-20261101-no-mutation-in-gha.md) that run is on the owner's
+   machine (`bench/burgee-pair.mts`), both engines back to back, with the load average recorded.
 2. **Baselines before targets move.** A `TBM` baseline is measured in M0 or the milestone that first
    needs it, before anyone claims a gain on that metric.
 3. **A miss is reported.** A metric below target ships as a miss, with the measured value, not tuned

@@ -80,8 +80,8 @@ jobs:
         with:
           turbo-cache: "false"
 
-      # The runner images ship rustup and a stable toolchain (mutation.yml and oxmutate-bench.yml
-      # build the same crate on it). No toolchain action: nothing unpinned is installed.
+      # The runner images ship rustup and a stable toolchain (quality-full.yml's `test` builds the
+      # same crate on it). No toolchain action: nothing unpinned is installed.
       - name: Rust target ${{ matrix.target }}
         run: |
           set -euo pipefail

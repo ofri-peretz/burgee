@@ -12,10 +12,10 @@ name: Models · Quint
 on:
   push:
     branches: [main]
-    paths: ['**/*.qnt', 'packages/closeout/src/**', 'packages/flagstaff/src/ora.ts', 'packages/burgee/src/dev.ts', 'packages/burgee/src/migrate.ts', 'packages/burgee/src/migrate-majors.ts', '.github/workflows/release.yml', '.github/workflows/changesets-pr.yml', 'packages/caique/src/clack-core.ts', 'packages/caique/src/inquirer-search.ts', 'packages/seniority/src/precedence.ts', 'packages/seniority/src/plugin.ts', 'packages/seniority/src/truth-table.ts', 'packages/burgee/src/complete-dynamic.ts', 'packages/oxmutate/src/runner.ts', 'packages/oxmutate/src/coordinator.ts', 'packages/oxmutate/src/scheduler.ts', '.github/workflows/models.yml']
+    paths: ['**/*.qnt', 'packages/closeout/src/**', 'packages/flagstaff/src/ora.ts', 'packages/burgee/src/dev.ts', 'packages/burgee/src/migrate.ts', 'packages/burgee/src/migrate-majors.ts', '.github/workflows/release.yml', '.github/workflows/changesets-pr.yml', 'packages/caique/src/clack-core.ts', 'packages/caique/src/inquirer-search.ts', 'packages/seniority/src/precedence.ts', 'packages/seniority/src/plugin.ts', 'packages/seniority/src/truth-table.ts', 'packages/burgee/src/complete-dynamic.ts', 'packages/oxmutate/src/runner.ts', 'packages/oxmutate/src/coordinator.ts', 'packages/oxmutate/src/scheduler.ts', 'packages/oxmutate/src/heartbeat.ts', '.github/workflows/models.yml']
   pull_request:
     branches: [main]
-    paths: ['**/*.qnt', 'packages/closeout/src/**', 'packages/flagstaff/src/ora.ts', 'packages/burgee/src/dev.ts', 'packages/burgee/src/migrate.ts', 'packages/burgee/src/migrate-majors.ts', '.github/workflows/release.yml', '.github/workflows/changesets-pr.yml', 'packages/caique/src/clack-core.ts', 'packages/caique/src/inquirer-search.ts', 'packages/seniority/src/precedence.ts', 'packages/seniority/src/plugin.ts', 'packages/seniority/src/truth-table.ts', 'packages/burgee/src/complete-dynamic.ts', 'packages/oxmutate/src/runner.ts', 'packages/oxmutate/src/coordinator.ts', 'packages/oxmutate/src/scheduler.ts', '.github/workflows/models.yml']
+    paths: ['**/*.qnt', 'packages/closeout/src/**', 'packages/flagstaff/src/ora.ts', 'packages/burgee/src/dev.ts', 'packages/burgee/src/migrate.ts', 'packages/burgee/src/migrate-majors.ts', '.github/workflows/release.yml', '.github/workflows/changesets-pr.yml', 'packages/caique/src/clack-core.ts', 'packages/caique/src/inquirer-search.ts', 'packages/seniority/src/precedence.ts', 'packages/seniority/src/plugin.ts', 'packages/seniority/src/truth-table.ts', 'packages/burgee/src/complete-dynamic.ts', 'packages/oxmutate/src/runner.ts', 'packages/oxmutate/src/coordinator.ts', 'packages/oxmutate/src/scheduler.ts', 'packages/oxmutate/src/heartbeat.ts', '.github/workflows/models.yml']
   workflow_dispatch:
 
 concurrency:
@@ -163,6 +163,32 @@ jobs:
           done
           if $QUINT run "$m" --invariant=rawNeverHolds --max-steps=30 --max-samples=20000 >/dev/null; then
             echo "::error::context.qnt: rawNeverHolds now holds — no line puts a value in raw, so sameRaw holds vacuously"
+            exit 1
+          fi
+      # oxmutate's idle/busy split (stall.qnt, D-20261101-idle-stall-is-timeout): the design that
+      # re-ran idle stops still fails `safety`, and some idle stall's verdict still flips, so `safety`
+      # is not holding because no stall is ever idle.
+      - name: oxmutate idle stalls — re-running them still fails, and some verdict still flips
+        run: |
+          m=.sdlc/intents/oxmutate/stall.qnt
+          if $QUINT run "$m" --main=stallBefore --invariant=safety --max-steps=30 --max-samples=20000 >/dev/null; then
+            echo "::error::stall.qnt: safety holds under stallBefore — the model no longer distinguishes the shipped design from the one it replaced"
+            exit 1
+          fi
+          if $QUINT run "$m" --invariant=neverFlips --max-steps=30 --max-samples=20000 >/dev/null; then
+            echo "::error::stall.qnt: neverFlips now holds — no idle stall is ever scored, so safety holds vacuously"
+            exit 1
+          fi
+      # oxmutate's grouped static canary (staticwarm.qnt): holding verdicts until their group's
+      # canary keeps `safety` (grouped, groupedVisible), and reporting them before it does not.
+      - name: oxmutate static canary — grouped verdicts held hold, unheld ones still fail
+        run: |
+          m=.sdlc/intents/oxmutate/staticwarm.qnt
+          for s in grouped groupedVisible; do
+            $QUINT run "$m" --main="$s" --invariant=safety --max-steps=30 --max-samples=20000
+          done
+          if $QUINT run "$m" --main=groupedNoHold --invariant=safety --max-steps=30 --max-samples=20000 >/dev/null; then
+            echo "::error::staticwarm.qnt: safety holds under groupedNoHold — the model no longer shows why a grouped verdict is held"
             exit 1
           fi
       # An open question, pinned: closeout's late add() is silently dropped today. When the

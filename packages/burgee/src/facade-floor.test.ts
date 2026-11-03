@@ -18,11 +18,13 @@
  * not exist on the commander façade, and on the yargs façade it was an empty seam).
  */
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterAll, describe, expect, it } from 'vitest';
+
+import { discard } from './__fixtures__/scratch-dir.js';
 
 /** An import specifier for a built module, as the program file will write it. */
 function dist(file: string): string {
@@ -49,7 +51,7 @@ function spawnRun(file: string, argv: string[]): Run {
 const STACK = /\n\s+at /u;
 
 const dir = mkdtempSync(join(tmpdir(), 'burgee-facade-floor-'));
-afterAll(() => rmSync(dir, { recursive: true, force: true }));
+afterAll(() => discard(dir));
 
 /**
  * One program per façade and per `call` appended to its construction. The commander program

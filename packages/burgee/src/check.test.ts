@@ -4,19 +4,20 @@
  * cases here are the report's rows and each way a plugin is refused, read off the returned
  * document rather than off prose.
  */
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { type CheckRefusal, type CheckReport, checkPlugin, LAYERS } from './check.js';
 import { ExitCode } from './exit-code.js';
 import { MESSAGES } from './messages.js';
 
 const dir = mkdtempSync(join(tmpdir(), 'burgee-check-'));
-afterAll(() => rmSync(dir, { recursive: true, force: true }));
+afterAll(() => discard(dir));
 
 let n = 0;
 /** A plugin module on disk, since `checkPlugin` takes a path and imports it. */

@@ -37,7 +37,7 @@
  * `node_modules/@tailwindcss/oxide-wasm32-wasi -> @emnapi/core`, which is the error above.
  */
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -46,6 +46,7 @@ import { load as loadYaml } from 'js-yaml';
 import { describe, expect, it } from 'vitest';
 
 import { type Lock, unresolved } from './lockfile-resolves.js';
+import { discard } from './scratch-dir.js';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -110,7 +111,43 @@ describe('the fast lane asks it before anything installs', () => {
       expect(refused.out).toMatch(/node_modules\/\S+ -> @emnapi\/(core|runtime) has no entry to resolve to/);
       expect(run(join(dir, 'committed.json'))).toEqual({ status: 0, out: expect.any(String) as string });
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      discard(dir);
     }
+  });
+});
+
+/**
+ * The cause, not the symptom (D-20261102-dependabot-npm-from-packagemanager). Every Dependabot
+ * group PR arrived pruned (#1416, #1438) because Dependabot installs the npm `packageManager`
+ * names with corepack and writes the lock with it. Its job log for #1438 shows
+ * `corepack npm@11.6.2 install three@0.187.0 … --package-lock-only`. Replaying that command
+ * reproduced #1438's lock byte for byte, and with npm 11.16.0 it gave main's lock plus the bump
+ * alone. So each npm that writes the lock for us must be one that keeps the entries.
+ */
+describe('every npm that writes the lock for us keeps the entries', () => {
+  /** The first release measured to keep them: 11.6.2 prunes, 11.16.0 leaves the lock byte-identical. */
+  const FLOOR = [11, 16, 0] as const;
+  const keepsEntries = (version: string): boolean => {
+    const parts = version.split('.').map(Number);
+    for (let i = 0; i < FLOOR.length; i++) if ((parts[i] ?? 0) !== FLOOR[i]) return (parts[i] ?? 0) > FLOOR[i]!;
+    return true;
+  };
+  const manifest = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf8')) as { packageManager?: string; scripts: Record<string, string> };
+
+  it('packageManager, which Dependabot installs with corepack, names one', () => {
+    const version = /^npm@(\d+\.\d+\.\d+)$/.exec(manifest.packageManager ?? '')?.[1];
+    expect(version, `packageManager is ${String(manifest.packageManager)}, not an exact npm@x.y.z`).toBeDefined();
+    expect(keepsEntries(version!), `Dependabot writes every lock with npm@${version!}, which prunes the @emnapi entries; set packageManager to npm@${FLOOR.join('.')} or later`).toBe(true);
+  });
+
+  it('changeset:version regenerates the lock with one', () => {
+    const version = /npx -y npm@(\d+\.\d+\.\d+) install --package-lock-only/.exec(manifest.scripts['changeset:version'] ?? '')?.[1];
+    expect(version, 'changeset:version no longer regenerates the lock with a pinned `npx -y npm@x.y.z`').toBeDefined();
+    expect(keepsEntries(version!)).toBe(true);
+  });
+
+  it('the floor can fail: the npm that wrote #1438 is refused', () => {
+    expect(['11.6.2', '11.15.9', '10.99.0'].map(keepsEntries)).toEqual([false, false, false]);
+    expect(['11.16.0', '11.21.1', '12.0.0'].map(keepsEntries)).toEqual([true, true, true]);
   });
 });

@@ -5,8 +5,9 @@ run-name: >-
   Quality (Full) · ${{ github.event_name == 'pull_request' && format('PR #{0} · {1}', github.event.pull_request.number, github.event.pull_request.title) || (github.event_name == 'schedule' && 'Weekly drift scan' || github.event_name) }}
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Heavy half of the gate — Tests, Build, Typecheck, Coverage, Mutation. Ported from
-# ofri-peretz/eslint/quality-full.yml.
+# Heavy half of the gate — Tests, Build, Typecheck, Coverage. Ported from
+# ofri-peretz/eslint/quality-full.yml. Mutation is not here: it runs locally
+# (D-20261101-no-mutation-in-gha).
 #
 # Runs on: push to main (post-merge verification), non-draft PRs, PRs labelled
 # `run-full-ci`, manual dispatch, weekly Sunday 04:00 UTC. Draft PRs without
@@ -20,7 +21,12 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
-    types: [opened, reopened, ready_for_review, labeled, synchronize]
+    # No `labeled`/`unlabeled`: a label event is a second run, and a second check suite, on the same
+    # head commit. Its cancelled twin can be the newer suite, which branch protection reads, and the
+    # PR sits BLOCKED with everything green (#1418). A label added at `gh pr create` is in the
+    # `opened` run; one changed later reaches it through pr-labels.yml, which re-runs this run.
+    # scripts/pr-trigger-lock.test.ts.
+    types: [opened, reopened, ready_for_review, synchronize]
   # Required check — see the note in quality.yml. Every job's `if:` already answers true
   # for any event that is not a pull request, so a queue entry runs the full set.
   merge_group:
@@ -60,6 +66,10 @@ jobs:
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false || contains(github.event.pull_request.labels.*.name, 'run-full-ci')
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    # `pull-requests: read`: a step below reads the `run-full-ci` label back live.
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -89,12 +99,17 @@ jobs:
           EVENT: ${{ github.event_name }}
           BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || '' }}
           FULL: ${{ contains(github.event.pull_request.labels.*.name, 'run-full-ci') }}
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
           # Four suites at once leave no quiet moment to re-measure a slow case in, so each run
           # leaves its over-budget cases here and the next step judges them (D-20261101-tests-under-5s).
           VITEST_CASE_BUDGET_DEFER: ${{ runner.temp }}/case-budget
         run: |
           set -euo pipefail
           args=(--event "$EVENT" --base "$BASE")
+          # The label read back live: a re-run from pr-labels.yml keeps the event it re-runs, and a
+          # label added since is not in it (pr-trigger-lock). The event's value stands if the read fails.
+          if [ -n "$PR_NUMBER" ] && live=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json labels --jq 'any(.labels[]; .name == "run-full-ci")'); then FULL=$live; fi
           if [ "$FULL" = true ]; then args+=(--full); fi
           set_json=$(node scripts/affected.mts "${args[@]}")
           echo "$set_json"
@@ -158,6 +173,10 @@ jobs:
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false || contains(github.event.pull_request.labels.*.name, 'run-full-ci')
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # `pull-requests: read`: a step below reads the `run-full-ci` label back live.
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -185,10 +204,15 @@ jobs:
           EVENT: ${{ github.event_name }}
           BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || '' }}
           FULL: ${{ contains(github.event.pull_request.labels.*.name, 'run-full-ci') }}
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
           REQUIRE_SHELLS: "1"
         run: |
           set -euo pipefail
           args=(--event "$EVENT" --base "$BASE")
+          # The label read back live: a re-run from pr-labels.yml keeps the event it re-runs, and a
+          # label added since is not in it (pr-trigger-lock). The event's value stands if the read fails.
+          if [ -n "$PR_NUMBER" ] && live=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json labels --jq 'any(.labels[]; .name == "run-full-ci")'); then FULL=$live; fi
           if [ "$FULL" = true ]; then args+=(--full); fi
           mapfile -t pkgs < <(node scripts/affected.mts "${args[@]}" | jq -r '.packages[]')
           if [ "${#pkgs[@]}" -eq 0 ]; then echo "No package changed against $BASE; nothing to cover."; exit 0; fi
@@ -211,42 +235,16 @@ jobs:
             ' "$report"
           done
 
-  # A surviving mutant is a test suite that passes on broken code (.sdlc/intents/mutation-tested/).
-  # Stryker mutates only the lines this pull request added or changed, in the packages
-  # `scripts/affected.mts` names, and the job fails when one of those mutants is not detected —
-  # unless its line carries `// Stryker disable next-line <Mutator>: <reason>`. A PR that changes
-  # no package source, and every event that is not a pull request, reports success from a step;
-  # the weekly `mutation.yml` measures main in full.
-  #
-  # Budget (R3): 15 minutes for the job, 11 of them for Stryker (`PR_BUDGET` in the script). A
-  # pull request whose changed lines need longer fails saying so rather than passing unmeasured.
-  mutation:
-    name: Mutation (changed lines)
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false || contains(github.event.pull_request.labels.*.name, 'run-full-ci')
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-      - uses: ./.github/actions/setup
-      # The lane is one script, `scripts/mutation-changed.sh`, and this step runs it the way a
-      # laptop does, through `npm run mutation:changed` (which pre-push runs): plan, then, only
-      # when a source line changed, build every package and oxmutate's Rust core (the runner image
-      # ships rustup) and mutate. `mutation-changed-lock.test.ts` fails when a step here does part
-      # of the lane itself, so CI and a laptop cannot drift apart.
-      - name: Mutate the changed lines
-        env:
-          MUTATION_EVENT: ${{ github.event_name }}
-          MUTATION_BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || (github.event_name == 'merge_group' && github.event.merge_group.base_sha || '') }}
-          MUTATION_CONCURRENCY: 4
-        run: npm run mutation:changed
+  # No mutation job: mutation runs on the owner's machine, never in GitHub Actions
+  # (D-20261101-no-mutation-in-gha). The changed lines are mutated by pre-push
+  # (`npm run mutation:changed`), and every package in full by `npm run mutation:weekly`.
+  # `mutation-local-only-lock.test.ts` fails if a step here mutates again.
 
   quality-full-gate:
     name: Quality (Full) Gate
     runs-on: ubuntu-latest
     timeout-minutes: 2
-    needs: [test, build, typecheck, coverage, mutation]
+    needs: [test, build, typecheck, coverage]
     if: always() && (github.event_name != 'pull_request' || github.event.pull_request.draft == false || contains(github.event.pull_request.labels.*.name, 'run-full-ci'))
     steps:
       - name: Render gate report
@@ -255,12 +253,11 @@ jobs:
           R_BUILD: ${{ needs.build.result }}
           R_TYPECHECK: ${{ needs.typecheck.result }}
           R_COVERAGE: ${{ needs.coverage.result }}
-          R_MUTATION: ${{ needs.mutation.result }}
         run: |
           set -euo pipefail
           icon() { case "$1" in success) echo "✅";; failure) echo "❌";; cancelled) echo "⏹";; skipped) echo "⏭";; *) echo "⚠️";; esac; }
           all_pass=true
-          for r in "$R_TEST" "$R_BUILD" "$R_TYPECHECK" "$R_COVERAGE" "$R_MUTATION"; do [ "$r" = "success" ] || all_pass=false; done
+          for r in "$R_TEST" "$R_BUILD" "$R_TYPECHECK" "$R_COVERAGE"; do [ "$r" = "success" ] || all_pass=false; done
           {
             if $all_pass; then echo "# ✅ All heavy quality gates passed"; else echo "# ❌ One or more heavy quality gates failed"; fi
             echo ""
@@ -270,7 +267,6 @@ jobs:
             echo "| Build | $(icon "$R_BUILD") $R_BUILD |"
             echo "| Typecheck | $(icon "$R_TYPECHECK") $R_TYPECHECK |"
             echo "| Coverage thresholds (changed packages) | $(icon "$R_COVERAGE") $R_COVERAGE |"
-            echo "| Mutation (changed lines) | $(icon "$R_MUTATION") $R_MUTATION |"
             echo ""
             echo "_Run \`npm run ci:local\` to mirror these gates locally._"
           } >> "$GITHUB_STEP_SUMMARY"

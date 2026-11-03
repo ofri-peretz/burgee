@@ -1,0 +1,11 @@
+{
+  "id": "oxmutate-survivors",
+  "requirement": "O1 — a list an agent acts on, one record per item, read back from the last run",
+  "prompt": "A mutation run has already been done in the current directory. Using `oxmutate`, list the mutants that survived it: for each one, the file, the line, and what the code was changed to.",
+  "setup": ["cp -R \"$BENCH_FIXTURES/oxmutate/adult/.\" .", "ln -s \"$BENCH_REPO/node_modules\" node_modules", "oxmutate run --quiet > /dev/null 2>&1"],
+  "check": "grep -q 'age\\.js' \"$BENCH_RESULT\" && grep -qiE 'line[^0-9]{0,4}2([^0-9]|$)|age\\.js[^0-9a-z]{0,6}2([^0-9]|$)' \"$BENCH_RESULT\" && grep -q 'age > 18' \"$BENCH_RESULT\" && grep -qE '(^|[^0-9.])19([^0-9]|$)' \"$BENCH_RESULT\"",
+  "maxTurns": 12,
+  "modalities": ["cli"],
+  "exemplar": "Two survived, both in src/age.js on line 2: `age >= 18` became `age > 18`, and the literal 18 became 19.",
+  "wrong": "No mutant survived: src/age.js had all 6 mutants killed."
+}

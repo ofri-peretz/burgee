@@ -5,7 +5,8 @@
   a separate CI job, so run it independently.
 - `npm test` — vitest at the root config, then `turbo run test` per package.
 - `npm run bench` — `tsx benchmarks/run.ts`.
-- `npm run mutation:changed` — CI's changed-lines mutation lane on a laptop, the same script, against `origin/main` (pre-push runs it last; needs cargo).
+- `npm run mutation:changed` — the changed-lines mutation lane against `origin/main`, the per-PR mutation gate (pre-push runs it last; needs cargo). No GitHub Actions workflow mutates (D-20261101-no-mutation-in-gha).
+- `npm run mutation:weekly` — every package's full mutation run on a clean worktree of `origin/main`, landing the ratchet PR; launchd starts it Saturdays 02:30 (`tools/launchd/`). `-- --dry-run` prints the plan.
 
 # Workflow
 

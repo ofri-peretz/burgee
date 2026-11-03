@@ -15,7 +15,7 @@
  * one cell.
  */
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -23,6 +23,7 @@ import { fileURLToPath } from 'node:url';
 import { load as loadYaml } from 'js-yaml';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { discard } from './scratch-dir.js';
 import { type DurationReport, durationsProblems, readReports, slowCases } from './slow-cases.mjs';
 import DurationsReporter from './vitest-durations-reporter.js';
 
@@ -44,7 +45,7 @@ const dir = (): string => {
   return at;
 };
 afterEach(() => {
-  for (const at of scratch.splice(0)) rmSync(at, { recursive: true, force: true });
+  discard(...scratch.splice(0));
 });
 
 const run = (...args: string[]): { status: number | null; stdout: string } => {

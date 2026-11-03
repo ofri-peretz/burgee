@@ -5,18 +5,19 @@
  * Plugin files are real `.mjs` files in a temp directory, because the command's first act is an
  * `import()` of a path, and a path is what a user hands it.
  */
-import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { check, EXIT_OK, EXIT_RUNTIME, EXIT_USAGE } from './check.js';
 import { register, registered, reset } from './plugin.js';
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), 'seniority-check-')));
 afterAll(() => {
-  rmSync(root, { recursive: true, force: true });
+  discard(root);
 });
 beforeEach(() => {
   reset();

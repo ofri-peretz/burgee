@@ -1,7 +1,7 @@
 ---
 id: B-20261101-b1-real-cli-arm-oxmutate
 section: B
-status: open
+status: closed
 source: first-adopter A5, graded open in D-20261101-first-adopter-is-oxmutate
 recommendation: 'Give the agent axis a real-CLI arm for oxmutate: its own task files (`benchmarks/tasks/oxmutate/*.json`, each check proven red on the empty result and green on its exemplar by `tasks.test.ts`), a shim named `oxmutate` (the name its help prints, per D-20261008-b1-tool-name), a `success-rate` record that is reported but not gated, as the MCP arm''s are, and absolute tokens, turns and success with no ratio, because oxmutate has no off build. Opt-in by a repository variable, as `B1_MCP_ARM` is, so merging the harness spends nothing. A5 is met by the first scheduled run that lands a reading for it'
 ---
@@ -26,3 +26,12 @@ A variant that is only data and config cannot measure it:
 So the arm needs code in the harness (a task set per variant, a shim name per variant, an ungated
 record) and a paid weekly spend. That is a decision before a build, so this is B. The MCP arm
 went the same way: its own intent, `.sdlc/intents/b1-mcp-arm/`, and a spend bound the owner set.
+
+**Closed 2026-11-02** by [D-20261101-b1-oxmutate-arm](../decisions/D-20261101-b1-oxmutate-arm.md).
+The arm is built as recommended in three respects (its own tasks under `benchmarks/tasks/oxmutate/`,
+a shim named `oxmutate`, absolute numbers with no ratio) and departs in two, both for the owner's
+"No oxmutate in GHA" (2026-11-01). It runs locally only, with `npm run bench -- --axis agent --arm
+oxmutate`, never by a repository variable or on the schedule. And since it runs alone, its
+success rate is gated at 0.8 as the CLI arms' is. A5 is graded on three local readings at
+`d71dcb0`: success rate median 1.00 (range 0.95–1.00), tokens per task median 62,795
+(62,535–94,273), in `benchmarks/results/agent-cli-bench-oxmutate/`.

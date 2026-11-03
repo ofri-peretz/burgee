@@ -9,7 +9,7 @@
  * a keystroke script drives it and the terminal itself says it was handed back cooked.
  */
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PassThrough } from 'node:stream';
@@ -207,7 +207,11 @@ const PTY_CASE_MS = 60_000;
 
 describe.skipIf(python === undefined)('the dashboard, on a real terminal', () => {
   const dir = mkdtempSync(join(tmpdir(), 'dashboard-pty-'));
-  afterAll(() => rmSync(dir, { recursive: true, force: true }));
+  // A detached `rm` this hook does not wait for: an unlink can stall past the hook's timeout on a
+  // machine whose endpoint security inspects every deletion. This block only runs where a pty does.
+  afterAll(() => {
+    if (process.platform !== 'win32') spawn('rm', ['-rf', dir], { detached: true, stdio: 'ignore' }).unref();
+  });
 
   it('→, s and q do what the hints say, and the terminal comes back cooked, off the alternate screen, cursor shown', async () => {
     const program = join(dir, 'after.mjs');

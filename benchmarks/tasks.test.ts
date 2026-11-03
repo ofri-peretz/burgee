@@ -12,7 +12,7 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { isPosix, POSIX_ONLY, readTasks, type Task } from './axes/agent.js';
+import { ARMS, isPosix, POSIX_ONLY, readTasks, type Task } from './axes/agent.js';
 import { scratchDirs } from './scratch-dir.js';
 
 /** Every scratch directory this file makes, removed after its last test (`scratch-dir.ts`). */
@@ -61,5 +61,54 @@ describe.skipIf(!isPosix())('the B1 task set', () => {
 
   it.each(tasks)('$id fails on a confident wrong answer, not just on silence', (task) => {
     expect(check(task, 'I could not work out how to do that with the tool available.')).not.toBe(0);
+  });
+});
+
+interface ArmTask extends TaskWithExemplar {
+  /** A plausible answer that is wrong: the check must refuse it, as it refuses silence. */
+  wrong: string;
+}
+
+const oxmutateTasks = readTasks(ARMS.oxmutate.tasksDir) as ArmTask[];
+
+/**
+ * The oxmutate arm's own tasks (D-20261101-b1-oxmutate-arm): the demo's five ask for commands
+ * oxmutate does not have. Each check runs three ways: on silence, on a plausible wrong answer
+ * that names the right command, and on a correct one. A check that refused only silence would
+ * pass an agent that guessed.
+ */
+describe.skipIf(!isPosix())('the oxmutate arm\'s task set', () => {
+  it('has the four tasks the decision names, none of them the demo\'s', () => {
+    expect(oxmutateTasks.map((t) => t.id).toSorted()).toEqual(['oxmutate-discover-flag', 'oxmutate-explain-error', 'oxmutate-score', 'oxmutate-survivors']);
+    for (const t of oxmutateTasks) expect(tasks.map((d) => d.id)).not.toContain(t.id);
+  });
+
+  it.each(oxmutateTasks)('$id names the tool the agent can run, and no other', (task) => {
+    expect(task.prompt).toContain('`oxmutate');
+    expect(task.prompt).not.toMatch(/\bdemo\b/u);
+    expect(task.maxTurns).toBeGreaterThan(0);
+  });
+
+  it.each(oxmutateTasks)('$id fails on the un-run state', (task) => {
+    expect(check(task, '')).not.toBe(0);
+  });
+
+  it.each(oxmutateTasks)('$id fails on a plausible wrong answer', (task) => {
+    expect(task.wrong).not.toBe('');
+    expect(check(task, task.wrong)).not.toBe(0);
+  });
+
+  it.each(oxmutateTasks)('$id passes on a correct answer', (task) => {
+    expect(check(task, task.exemplar)).toBe(0);
+  });
+
+  // Reading 2 (2026-11-01, d71dcb0) failed one correct answer: it put the line in a table column,
+  // so neither `line 2` nor `age.js:2` was in the text. A check that refuses a right answer is as
+  // wrong as one that passes a wrong one.
+  it('oxmutate-survivors passes a correct answer that puts the line in a table column', () => {
+    const survivors = oxmutateTasks.find((t) => t.id === 'oxmutate-survivors') as ArmTask;
+    const table = '| File | Line | Mutation | Changed To |\n|------|------|----------|------------|\n| `src/age.js` | 2 | EqualityOperator | `age > 18` |\n| `src/age.js` | 2 | NumericLiteral | `19` |';
+    expect(check(survivors, table)).toBe(0);
+    expect(check(survivors, table.replaceAll('| 2 |', '| 3 |'))).not.toBe(0);
   });
 });

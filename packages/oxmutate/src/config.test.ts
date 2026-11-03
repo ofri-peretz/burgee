@@ -1,17 +1,18 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { afterAll, describe, expect, it, vi } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { disables, loadOptions, type Options } from './config.js';
 
 const cores = vi.hoisted(() => ({ n: 4 }));
 vi.mock('node:os', async (original) => ({ ...(await original<typeof import('node:os')>()), availableParallelism: () => cores.n }));
 
 const base = mkdtempSync(path.join(tmpdir(), 'oxmutate-config-'));
-afterAll(() => rmSync(base, { recursive: true, force: true }));
+afterAll(() => discard(base));
 let n = 0;
 /** A fresh project directory holding the given files. */
 const project = (files: Record<string, unknown> = {}): string => {
@@ -306,7 +307,7 @@ describe('options from a Vite (Vite+) config', () => {
     for (const [name, body] of Object.entries(files)) writeFileSync(path.join(dir, name), body);
     return dir;
   };
-  afterAll(() => rmSync(runDir, { recursive: true, force: true }));
+  afterAll(() => discard(runDir));
 
   it.each(['vite.config.ts', 'vite.config.mts', 'vite.config.cts', 'vite.config.js', 'vite.config.mjs', 'vite.config.cjs', 'vitest.config.ts', 'vitest.config.mts', 'vitest.config.cts', 'vitest.config.js', 'vitest.config.mjs', 'vitest.config.cjs'])('finds %s', async (name) => {
     const body = name.endsWith('cjs') || name.endsWith('cts') ? "module.exports = { mutate: { include: ['a.ts'] } };" : "export default { mutate: { include: ['a.ts'] } };";

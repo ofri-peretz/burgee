@@ -12,7 +12,7 @@
  * Every check is run against a deliberately broken fixture in the second block below, so a
  * check that stops being able to fail fails itself.
  */
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -35,6 +35,7 @@ import {
   scaffold,
   serializeGap,
 } from './ledgers.js';
+import { discard } from './scratch-dir.js';
 
 const { entries, problems } = readGaps();
 const GAPS_MD = readFileSync(join(REPO_ROOT, '.sdlc/GAPS.md'), 'utf8');
@@ -84,7 +85,7 @@ describe('gap ledger', () => {
 describe('each gaps check fails on a broken fixture', () => {
   const dirs: string[] = [];
   afterAll(() => {
-    for (const d of dirs) rmSync(d, { recursive: true, force: true });
+    discard(...dirs);
   });
 
   it('half-written: an empty body, an empty column', () => {

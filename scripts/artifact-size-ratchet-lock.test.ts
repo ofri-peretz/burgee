@@ -21,7 +21,7 @@
  *
  * The `unpacked` case below is the one that fails on the old single-dimension check.
  */
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -37,6 +37,7 @@ import {
   type PackEntry,
   type Pkg,
 } from "./check-published-artifacts";
+import { discard } from "./scratch-dir.js";
 
 const pkg: Pkg = { name: "demo" };
 
@@ -132,7 +133,7 @@ describe("the ratchet measures a tarball without its native cores", () => {
       expect(measured.unpackedSize).toBe(without.unpackedSize);
       expect(measured.size).toBe(without.size);
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      discard(dir);
     }
   });
 });

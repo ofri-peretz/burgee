@@ -12,7 +12,8 @@
  * this holds the places it has to be: every vitest config in a workspace loads it (through
  * `timeouts`, or `caseBudget` for a config with its own clocks), the required `Unit Tests` job and
  * the pre-push hook run those configs without turning it off, and `NIGHTLY_ONLY` — the one
- * exemption — names only cases that really are kept off a pull request and really do run at night.
+ * exemption — names only cases that really are kept off a pull request and really do run in the
+ * weekly local run (`npm run mutation:weekly`; D-20261101-no-mutation-in-gha moved them out of CI).
  *
  * Proven red on main's state before the cases were fixed: the root suite alone exited 1 naming
  * `plan-progress-lock.test.ts`'s two cases at 47.6 s and 21.9 s.
@@ -152,14 +153,21 @@ describe('the required check and the pre-push hook run it', () => {
   });
 });
 
-describe('NIGHTLY_ONLY names only cases that run at night', () => {
+describe('NIGHTLY_ONLY names only cases that run in the weekly local run', () => {
   const entries = Object.entries(NIGHTLY_ONLY);
-  const heavy = readWorkflow('compat.yml').jobs['heavy-tests'];
-  const heavyText = JSON.stringify(heavy);
+  // Each of these runs oxmutate end to end, and no mutation runs in GitHub Actions
+  // (D-20261101-no-mutation-in-gha): `npm run mutation:weekly` runs them, not a workflow.
+  const weekly = readFileSync(join(REPO_ROOT, 'scripts/mutation-weekly.sh'), 'utf8')
+    .split('\n')
+    .filter((l) => !l.trimStart().startsWith('#'))
+    .join('\n');
+  const run = /env BURGEE_NIGHTLY=1 OXMUTATE_REQUIRE_NATIVE=1 npm exec -w oxmutate -- vitest run ([^\n;]+)/u.exec(weekly)?.[1] ?? '';
 
-  it('the nightly job runs on the schedule and a dispatch, never on a pull request, with BURGEE_NIGHTLY set', () => {
-    expect(heavy?.if).toBe("github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'");
-    expect(heavyText).toContain('"BURGEE_NIGHTLY":"1"');
+  it('the weekly run sets BURGEE_NIGHTLY for them, and no workflow does', () => {
+    expect(run, 'scripts/mutation-weekly.sh runs no BURGEE_NIGHTLY vitest run').not.toBe('');
+    const workflows = readdirSync(join(REPO_ROOT, '.github/workflows')).filter((f) => /\.ya?ml$/u.test(f));
+    const setting = workflows.filter((f) => /^[^#\n]*\bBURGEE_NIGHTLY\b/mu.test(readFileSync(join(REPO_ROOT, '.github/workflows', f), 'utf8')));
+    expect(setting).toEqual([]);
   });
 
   it.each(entries)('%s', (key, reason) => {
@@ -171,7 +179,8 @@ describe('NIGHTLY_ONLY names only cases that run at night', () => {
     expect(source).toContain("process.env['BURGEE_NIGHTLY'] === '1'");
     const title = names.at(-1) ?? '';
     expect([title, title.replaceAll("'", "\\'")].some((t) => source.includes(t)), `${file} has no case titled "${title}"`).toBe(true);
-    // And run at night: the nightly job names the file.
-    expect(heavyText).toContain(file.replace('packages/oxmutate/', ''));
+    // And run weekly: the local run's BURGEE_NIGHTLY step names the file.
+    expect(file.startsWith('packages/oxmutate/'), `${file}: the weekly step runs in packages/oxmutate`).toBe(true);
+    expect(run.split(/\s+/u)).toContain(file.replace('packages/oxmutate/', ''));
   });
 });

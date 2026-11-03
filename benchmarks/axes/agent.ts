@@ -27,7 +27,7 @@
  * to the local 3) is a different agent's, not a regression (D-20260930-b1-ci-environment).
  * Every record now names the `claude` version and the environment it ran in.
  */
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -75,6 +75,13 @@ export interface Variant {
   floor: boolean;
   /** How the agent reaches the build. Absent is `cli`: `Bash(demo:*)` on a shim named `demo`. */
   modality?: Modality;
+  /**
+   * The shim's name on the agent's PATH, and so the one command `Bash(<tool>:*)` allows: the name
+   * the CLI prints (D-20261008-b1-tool-name). Absent is `demo`, the name both demos print.
+   */
+  tool?: string;
+  /** More `--allowedTools` patterns, each reaching the same build some other way. Absent on the demo arms. */
+  allow?: readonly string[];
 }
 
 const BURGEE_DEMO = 'examples/demo-cli-burgee/dist/bin.js';
@@ -162,16 +169,17 @@ export function parseClaudeJson(stdout: string): ClaudeUsage {
   };
 }
 
-export const readTasks = (): Task[] =>
-  readdirSync(TASKS_DIR)
+/** The task files directly in `dir`: the demo's five by default. An arm's set is a subdirectory, which this does not descend into. */
+export const readTasks = (dir: string = TASKS_DIR): Task[] =>
+  readdirSync(dir)
     .filter((f) => f.endsWith('.json'))
     .toSorted()
-    .map((f) => JSON.parse(readFileSync(join(TASKS_DIR, f), 'utf8')) as Task);
+    .map((f) => JSON.parse(readFileSync(join(dir, f), 'utf8')) as Task);
 
-/** A scratch PATH holding one executable called `demo` — the name both demo CLIs declare and print, so the command an agent reads in their help and errors is the one it can run (D-20261008-b1-tool-name). */
-export function installTool(binPath: string): string {
+/** A scratch PATH holding one executable called `demo` — the name both demo CLIs declare and print, so the command an agent reads in their help and errors is the one it can run (D-20261008-b1-tool-name). An arm names its own. */
+export function installTool(binPath: string, name: string = TOOL_NAME): string {
   const dir = mkdtempSync(join(tmpdir(), 'bench-tool-'));
-  const shim = join(dir, TOOL_NAME);
+  const shim = join(dir, name);
   writeFileSync(shim, `#!/bin/sh\nexec "${process.execPath}" "${binPath}" "$@"\n`);
   const EXECUTABLE = 0o755;
   chmodSync(shim, EXECUTABLE);
@@ -179,6 +187,9 @@ export function installTool(binPath: string): string {
 }
 
 const TOOL_NAME = 'demo';
+const toolOf = (variant: Variant): string => variant.tool ?? TOOL_NAME;
+/** What a CLI run of the variant is allowed: its shim, and any other way it reaches the same build. */
+const allowedOf = (variant: Variant): { tool: string; allow?: readonly string[] } => ({ tool: toolOf(variant), ...(variant.allow === undefined ? {} : { allow: variant.allow }) });
 
 /** An MCP client configuration, the `mcpServers` shape `claude --mcp-config` reads. */
 export interface McpConfig {
@@ -292,15 +303,22 @@ export function serverStatus(transcript: string, server: string): string {
   return 'no init event';
 }
 
-let guardFile: string | undefined;
-/** The `--settings` file whose PreToolUse hook lets only the tool run, written once a process. */
-function guardSettings(): string {
-  if (guardFile !== undefined) return guardFile;
+const guardFiles = new Map<string, string>();
+/**
+ * The `--settings` file whose PreToolUse hook lets only `commands` run (`bash-guard.ts`), one file
+ * a process for each list.
+ */
+function guardSettings(commands: readonly string[]): string {
+  const key = commands.join('\n');
+  const known = guardFiles.get(key);
+  if (known !== undefined) return known;
   const guard = fileURLToPath(new URL('bash-guard.ts', import.meta.url));
-  const settings = { hooks: { PreToolUse: [{ matcher: 'Bash', hooks: [{ type: 'command', command: `"${process.execPath}" "${guard}" ${TOOL_NAME}` }] }] } };
-  guardFile = join(mkdtempSync(join(tmpdir(), 'bench-guard-')), 'settings.json');
-  writeFileSync(guardFile, `${JSON.stringify(settings, null, 2)}\n`);
-  return guardFile;
+  const command = [process.execPath, guard, ...commands].map((a) => `"${a}"`).join(' ');
+  const settings = { hooks: { PreToolUse: [{ matcher: 'Bash', hooks: [{ type: 'command', command }] }] } };
+  const file = join(mkdtempSync(join(tmpdir(), 'bench-guard-')), 'settings.json');
+  writeFileSync(file, `${JSON.stringify(settings, null, 2)}\n`);
+  guardFiles.set(key, file);
+  return file;
 }
 
 /**
@@ -311,8 +329,9 @@ function guardSettings(): string {
  * command. The MCP arm has no built-in tool, loads one server from `--mcp-config` (with
  * `--strict-mcp-config` in `ISOLATION`, nothing else) and allows that server's tools, `mcp__<server>`.
  */
-export function toolArgs(modality: Modality, mcp?: McpSpawn): string[] {
-  if (modality === 'cli') return ['--tools', 'Bash', '--allowedTools', 'Bash(demo:*)', '--settings', guardSettings()];
+export function toolArgs(modality: Modality, mcp?: McpSpawn, tool: string = TOOL_NAME, allow: readonly string[] = []): string[] {
+  const allowed = [`Bash(${tool}:*)`, ...allow];
+  if (modality === 'cli') return ['--tools', 'Bash', '--allowedTools', ...allowed, '--settings', guardSettings(allowed.flatMap((a) => /^Bash\((.+):\*\)$/u.exec(a)?.[1] ?? []))];
   if (mcp === undefined) throw new Error('the MCP arm needs a config to spawn with');
   return ['--tools', '', '--mcp-config', mcp.file, '--allowedTools', `mcp__${mcp.server}`];
 }
@@ -329,6 +348,10 @@ export interface RunOne {
   /** Defaults to `cli`. `mcp` needs `mcp`, the config `writeMcpConfig` wrote. */
   modality?: Modality;
   mcp?: McpSpawn;
+  /** The shim's name in `toolDir`, which the CLI arms allow Bash on. Defaults to `demo`. */
+  tool?: string;
+  /** The variant's further `--allowedTools` patterns (`Variant.allow`). */
+  allow?: readonly string[];
 }
 
 export interface Attempt extends ClaudeUsage {
@@ -573,6 +596,15 @@ export function agentEnv(env: NodeJS.ProcessEnv, toolDir: string): NodeJS.Proces
   return { ...Object.fromEntries(kept), PATH: `${toolDir}:${env['PATH'] ?? ''}` };
 }
 
+const FIXTURES_DIR = join(BENCH_ROOT, 'fixtures');
+
+/**
+ * Where a task's `setup` runs: the agent's environment, so the tool is on PATH, plus where the
+ * fixtures and the repository are, so a task can copy a project in and link `node_modules` for
+ * the project's own test runner. The demo's tasks have no setup.
+ */
+const setupEnv = (env: NodeJS.ProcessEnv, toolDir: string): NodeJS.ProcessEnv => ({ ...agentEnv(env, toolDir), BENCH_FIXTURES: FIXTURES_DIR, BENCH_REPO: REPO_ROOT });
+
 /**
  * One task, once. The agent sees Bash on `demo` and nothing else (intent constraint 2):
  * no file reads, so the CLI's own output is the only channel through which it can learn
@@ -581,8 +613,8 @@ export function agentEnv(env: NodeJS.ProcessEnv, toolDir: string): NodeJS.Proces
  */
 export function runOne(opts: RunOne): Attempt {
   const { claudeBin, task, toolDir, workdir, model, timeoutMs } = opts;
-  for (const cmd of task.setup) execFile(SHELL, ['-c', cmd], { cwd: workdir, stdio: 'ignore' });
-  const argv = ['-p', task.prompt, ...toolArgs(opts.modality ?? 'cli', opts.mcp), '--max-turns', String(task.maxTurns), ...OUTPUT_FORMAT, '--model', model, ...ISOLATION];
+  for (const cmd of task.setup) execFile(SHELL, ['-c', cmd], { cwd: workdir, stdio: 'ignore', env: setupEnv(opts.env ?? process.env, toolDir) });
+  const argv = ['-p', task.prompt, ...toolArgs(opts.modality ?? 'cli', opts.mcp, opts.tool, opts.allow), '--max-turns', String(task.maxTurns), ...OUTPUT_FORMAT, '--model', model, ...ISOLATION];
   const r = spawnSync(claudeBin, argv, {
     cwd: workdir,
     encoding: 'utf8',
@@ -1024,6 +1056,138 @@ export interface AgentOptions {
    * and uploads the directory, so the last run's every turn can be read after the fact.
    */
   transcriptDir?: string;
+  /** Run one arm of `ARMS` alone, on its own tasks (`npm run bench -- --axis agent --arm <id>`). */
+  arm?: string;
+  /** The arm's earlier readings. Defaults to its results directory (`armResultsDir`). */
+  readingsDir?: string;
+}
+
+/**
+ * A B1 arm that runs on its own: a CLI that is not the demo, its own tasks, and what it must do
+ * before a paid run. oxmutate is the first (first-adopter A5, D-20261101-b1-oxmutate-arm).
+ */
+export interface Arm {
+  variant: Variant;
+  tasksDir: string;
+  /** Shell commands run with the tool on PATH in a scratch directory; all must exit 0 before any agent run is spent. */
+  preflight: readonly string[];
+}
+
+/** The fixture the oxmutate tasks copy in: six mutants, four killed, two survivors on the boundary. */
+const OXMUTATE_FIXTURE = ['cp -R "$BENCH_FIXTURES/oxmutate/adult/." .', 'ln -s "$BENCH_REPO/node_modules" node_modules'];
+
+export const ARMS: { readonly oxmutate: Arm } = {
+  oxmutate: {
+    // `npx oxmutate` in the fixture reaches the same build through the linked `node_modules/.bin`,
+    // and it is what an agent in a project with `node_modules` reaches for: reading 1 lost four of
+    // five `oxmutate-score` runs to its denial, which measured the sandbox, not the CLI.
+    variant: { id: 'oxmutate', bin: 'packages/oxmutate/dist/bin.js', floor: true, tool: 'oxmutate', allow: ['Bash(npx oxmutate:*)'] },
+    tasksDir: join(TASKS_DIR, 'oxmutate'),
+    preflight: [...OXMUTATE_FIXTURE, 'oxmutate run --quiet'],
+  },
+};
+
+/** Own entries only: `toString` is on every object and is not an arm. */
+const ARM_BY_ID: ReadonlyMap<string, Arm> = new Map(Object.entries(ARMS));
+
+/** The arm, or a throw naming the ones there are: a typo must not run the demo arms instead. */
+export function armOf(id: string): Arm {
+  const arm = ARM_BY_ID.get(id);
+  if (arm === undefined) throw new Error(`unknown arm: ${id} (have ${Object.keys(ARMS).join(', ')})`);
+  return arm;
+}
+
+/** Each arm's readings, beside the agent suite's own directory and never in it. */
+export const armResultsDir = (id: string): string => `${RESULTS_DIR}-${id}`;
+
+/**
+ * The owner, 2026-11-01: "No oxmutate in GHA" (PR #1421). An arm runs on the owner's machine:
+ * under GitHub Actions, or any CI, it is refused before anything is spent. `oxmutate-arm.test.ts`
+ * also holds that no workflow asks for one.
+ */
+const isSet = (v: string | undefined): boolean => !['', '0', 'false'].includes((v ?? '').trim().toLowerCase());
+const localOnly = (env: NodeJS.ProcessEnv, id: string): string | undefined =>
+  isSet(env['GITHUB_ACTIONS']) || isSet(env['CI']) ? `the ${id} arm runs on the owner's machine only, never in GitHub Actions or another CI (owner, 2026-11-01: "No oxmutate in GHA"); run \`npm run bench -- --axis agent --arm ${id}\` locally` : undefined;
+
+/** The arm's own CLI runs its own fixture, or the reason it cannot, before a paid run. */
+function preflight(arm: Arm, variant: Variant, env: NodeJS.ProcessEnv): string | undefined {
+  const toolDir = installTool(resolve(REPO_ROOT, variant.bin), toolOf(variant));
+  const dir = mkdtempSync(join(tmpdir(), 'bench-preflight-'));
+  try {
+    for (const cmd of arm.preflight) {
+      const r = spawnSync(SHELL, ['-c', cmd], { cwd: dir, encoding: 'utf8', env: setupEnv(env, toolDir), timeout: DEFAULT_TIMEOUT_MS });
+      if (r.status !== 0) return `the ${variant.id} arm's CLI did not run its own fixture: \`${cmd}\` exited ${String(r.status ?? r.signal)}: ${redact(excerptOf(r.stderr || r.stdout || ''), env)}; no agent run was spent on it`;
+    }
+    return undefined;
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+/** One reading of an arm, as its results directory holds it. */
+export interface ArmReading {
+  file: string;
+  successRate: number;
+  tokensPerTask: number;
+}
+
+/** Every earlier reading of `id` in `dir`, oldest first by name. Anything else in the directory is not one. */
+export function armReadings(dir: string, id: string): ArmReading[] {
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir)
+    .filter((f) => f.endsWith('.json'))
+    .toSorted()
+    .flatMap((file) => {
+      const doc = tryParse(readFileSync(join(dir, file), 'utf8'));
+      if (doc?.['arm'] !== id || !Array.isArray(doc['records'])) return [];
+      const records = doc['records'] as BenchRecord[];
+      const pick = (metric: string): number | undefined => records.find((r) => r.variant === id && r.metric === metric)?.median;
+      const successRate = pick('success-rate');
+      const tokensPerTask = pick('tokens-per-task');
+      return successRate === undefined || tokensPerTask === undefined ? [] : [{ file, successRate, tokensPerTask }];
+    });
+}
+
+/** Never one reading (D-20261009-b1-totals-and-explain): an arm is graded on at least this many, as their median and range. */
+export const ARM_READINGS_FOR_GRADE = 3;
+
+/** What `claude` says the run cost, as its result reports it; a run that did not say counts 0. */
+const costOf = (a: Attempt): number => num(resultObject(a.transcript)?.['total_cost_usd']);
+const COST_PLACES = 4;
+
+/**
+ * An arm's own records beyond the variant's three: what its runs cost, and, once there are
+ * `ARM_READINGS_FOR_GRADE` readings with this one, their median success rate and tokens per task
+ * with the range. The success rate's median is gated where a reading's is: it is the grade.
+ */
+interface ArmOwn {
+  variant: VariantId;
+  attempts: readonly Attempt[];
+  /** The reading's records so far: the variant's success rate and tokens per task are read off them. */
+  records: readonly BenchRecord[];
+  prior: readonly ArmReading[];
+  detail: Detail;
+}
+
+function armOwnRecords({ variant, attempts, records, prior, detail }: ArmOwn): BenchRecord[] {
+  const ran = measured(attempts);
+  const cost = round(sum(ran, costOf), COST_PLACES);
+  const out: BenchRecord[] = [
+    { axis: 'agent', variant, metric: 'cost-usd-total', unit: 'usd', samples: ran.length, median: cost, p95: cost, note: `\`total_cost_usd\` as \`claude\` reported it, summed over ${String(ran.length)} task-runs; on a subscription login it is the list-price equivalent, not a charge`, detail },
+  ];
+  const pick = (metric: string): number => records.find((r) => r.variant === variant && r.metric === metric)?.median ?? Number.NaN;
+  const readings = [...prior, { file: 'this reading', successRate: pick('success-rate'), tokensPerTask: pick('tokens-per-task') }];
+  if (readings.length < ARM_READINGS_FOR_GRADE) return out;
+  const files = readings.map((r) => `${r.file}=${String(r.successRate)}/${String(r.tokensPerTask)}`).join(', ');
+  const graded = (metric: string, unit: string, xs: number[], gate?: BenchRecord['gate']): BenchRecord => {
+    const mid = round(midpoint(xs), RATIO_PLACES);
+    return { axis: 'agent', variant, metric, unit, samples: xs.length, median: mid, p95: p95(xs), note: `the median of ${String(xs.length)} readings, this one included; never one run`, detail: { ...detail, min: Math.min(...xs), max: Math.max(...xs), readings: files }, ...(gate === undefined ? {} : { gate }) };
+  };
+  out.push(
+    graded('success-rate-readings-median', 'ratio', readings.map((r) => r.successRate), { min: SUCCESS_FLOOR, why: `the arm's grade (first-adopter A5): the median success rate of at least ${String(ARM_READINGS_FOR_GRADE)} readings, held to the floor every reading is held to` }),
+    graded('tokens-per-task-readings-median', 'tokens', readings.map((r) => r.tokensPerTask)),
+  );
+  return out;
 }
 
 /**
@@ -1054,7 +1218,7 @@ interface Sweep {
  * says so without spending a run.
  */
 function sweep({ variant, tasks, runs, claudeBin, model, timeoutMs, env, transcriptDir }: Sweep): Attempt[] | { broken: string } {
-  const toolDir = installTool(resolve(REPO_ROOT, variant.bin));
+  const toolDir = installTool(resolve(REPO_ROOT, variant.bin), toolOf(variant));
   const modality = variant.modality ?? 'cli';
   const mcp = modality === 'mcp' ? writeMcpConfig(toolDir) : undefined;
   if (mcp !== undefined) {
@@ -1067,7 +1231,7 @@ function sweep({ variant, tasks, runs, claudeBin, model, timeoutMs, env, transcr
     for (let i = 0; i < runs; i++) {
       const workdir = mkdtempSync(join(tmpdir(), `bench-${task.id}-`));
       mkdirSync(workdir, { recursive: true });
-      const attempt = runOne({ claudeBin, task, toolDir, workdir, model, timeoutMs, env, modality, ...(mcp === undefined ? {} : { mcp }) });
+      const attempt = runOne({ claudeBin, task, toolDir, workdir, model, timeoutMs, env, modality, ...allowedOf(variant), ...(mcp === undefined ? {} : { mcp }) });
       if (transcriptDir !== undefined) writeFileSync(join(transcriptDir, `${variant.id}-${task.id}-${String(i)}.jsonl`), redact(attempt.transcript, env));
       attempts.push(attempt);
     }
@@ -1207,23 +1371,53 @@ function noReading(variant: Variant, attempts: readonly Attempt[], detail: Detai
   return unread === undefined ? undefined : armNoReading(variant, attempts, detail, unread);
 }
 
+/**
+ * Why the axis cannot run, checked before anything is spent: for an arm, that it is local-only
+ * first, then the blockers every arm has, then that its CLI runs its own fixture.
+ */
+function stoppedBy(arm: Arm | undefined, env: NodeJS.ProcessEnv, claudeBin: string, variants: readonly Variant[]): string | undefined {
+  const refused = arm === undefined ? undefined : localOnly(env, arm.variant.id);
+  if (refused !== undefined) return refused;
+  const blocked = blockers(env, claudeBin, variants);
+  if (blocked.length > 0) return blocked.join('; ');
+  return arm === undefined ? undefined : variants.map((variant) => preflight(arm, variant, env)).find((reason) => reason !== undefined);
+}
+
+/** An arm's own records, read against its earlier readings. */
+function armRecordsOf(arm: Arm, swept: { records: BenchRecord[]; byVariant: Map<VariantId, Attempt[]> }, readingsDir: string | undefined, detail: Detail): BenchRecord[] {
+  const id = arm.variant.id;
+  const prior = armReadings(readingsDir ?? armResultsDir(id), id);
+  return [...swept.byVariant].flatMap(([variant, attempts]) => armOwnRecords({ variant, attempts, records: swept.records, prior, detail }));
+}
+
 export function run(options: AgentOptions = {}): { records: BenchRecord[] } | { reason: string } {
-  const variants = options.variants ?? variantsFor(options.env ?? process.env);
-  const claudeBin = options.claudeBin ?? defaultClaudeBin();
+  const arm = options.arm === undefined ? undefined : armOf(options.arm);
   const env = options.env ?? process.env;
-  const stopped = blockers(env, claudeBin, variants);
-  if (stopped.length > 0) return { reason: stopped.join('; ') };
+  const variants = options.variants ?? (arm === undefined ? variantsFor(env) : [arm.variant]);
+  const claudeBin = options.claudeBin ?? defaultClaudeBin();
+  const stopped = stoppedBy(arm, env, claudeBin, variants);
+  if (stopped !== undefined) return { reason: stopped };
   const model = options.model ?? DEFAULT_MODEL;
   const transcriptDir = options.transcriptDir ?? (env['BENCH_AGENT_TRANSCRIPTS'] || undefined);
-  const common = { tasks: options.tasks ?? readTasks(), runs: options.runs ?? RUNS_PER_TASK, claudeBin, model, timeoutMs: options.timeoutMs ?? DEFAULT_TIMEOUT_MS, env, transcriptDir };
+  const common = { tasks: options.tasks ?? readTasks(arm?.tasksDir), runs: options.runs ?? RUNS_PER_TASK, claudeBin, model, timeoutMs: options.timeoutMs ?? DEFAULT_TIMEOUT_MS, env, transcriptDir };
   const detail = invocationDetail(model, claudeBin);
   const swept = sweepAll(variants, common, detail);
   if ('reason' in swept) return swept;
+  // An arm runs alone: it has no off build to divide by, and no MCP arm beside it.
+  if (arm !== undefined) return { records: [...swept.records, ...armRecordsOf(arm, swept, options.readingsDir, detail)] };
   const { records, byVariant } = swept;
   records.push(...ratioRecords(byVariant, detail), ...totalRecords(byVariant, detail));
   const mapped = tasksFor('mcp', common.tasks).map((t) => t.id);
   records.push(...armRecords(byVariant, mapped, detail, options.readings ?? priorReadings()));
   return { records };
+}
+
+/** How an arm run alone measured, for its document's `method` (D-20261101-b1-oxmutate-arm). */
+export function armMethod(id: string): string {
+  const arm = armOf(id);
+  const tool = toolOf(arm.variant);
+  const allowed = [`Bash(${tool}:*)`, ...(arm.variant.allow ?? [])].map((a) => `'${a}'`).join(' ');
+  return `The ${id} arm, run alone on the owner's machine and never in CI: for each of its ${String(readTasks(arm.tasksDir).length)} tasks (\`benchmarks/tasks/${id}/\`), the same \`claude -p\` spawn as the CLI arms with \`--allowedTools ${allowed}\` and a hook that refuses any other Bash call, in a scratch directory with \`${arm.variant.bin}\` installed as \`${tool}\`, ${String(RUNS_PER_TASK)} times; a task's setup runs with that shim on PATH. Before the first run the arm runs \`${arm.preflight.join(' && ')}\`, and spends nothing if it fails. The task's own \`check\` decides success. Tokens, turns and success are absolute, with no ratio: the CLI has no build without burgee. \`cost-usd-total\` sums \`total_cost_usd\` as \`claude\` reports it. Once ${String(ARM_READINGS_FOR_GRADE)} readings are in \`benchmarks/results/agent-cli-bench-${id}/\`, the median of their success rates, with the range, is the grade, gated at ${String(SUCCESS_FLOOR)}.`;
 }
 
 export const method = `For each of the ${String(readTasks().length)} tasks and each of the two CLI builds, \`claude -p <prompt> --tools Bash --allowedTools 'Bash(demo:*)' --settings <file> --max-turns <n> --output-format stream-json --verbose --setting-sources project,local --strict-mcp-config\` — the \`claude\` pinned in \`.github/tools/claude-code\` when it is installed there — is spawned in a scratch directory with the build installed as \`demo\`, ${String(RUNS_PER_TASK)} times, in the caller's environment minus \`CI\`, \`GITHUB_*\`, \`RUNNER_*\` and \`ACTIONS_*\`; the task's own \`check\` decides success. Bash is the only built-in tool, and the settings file's PreToolUse hook (\`benchmarks/axes/bash-guard.ts\`) refuses every Bash call that is not \`demo\` with arguments, with no other shell syntax but \`2>&1\`, so the CLI's own output is the agent's only channel. Tokens are input + cache + output as the CLI reports them; turns is its \`num_turns\`, including runs that ended at the turn limit; a run that reported no usage is left out of the medians and totals and counted as a failure. The claims are settled on each build's tokens and turns summed over its task-runs, burgee's over commander's (per run, which is the ratio of the totals when both measured the same number); the pooled medians are reported beside them. The model and the \`claude\` version are recorded per results file, and a change of either starts a new band history. On the weekly schedule, a \`bench:agent\` PR and an owner's dispatch with \`mcp-arm\` set only (\`${MCP_ARM_OPT_IN}=1\`), a third arm, \`burgee-mcp\`, runs the same burgee build over \`--mcp\` on the ${String(tasksFor('mcp', readTasks()).length)} tasks that hold word for word without a shell, with \`--tools '' --mcp-config <file> --allowedTools mcp__demo\` in place of Bash and its hook, so no built-in tool at all, and every other flag the same; it is compared with \`burgee\` over those tasks only. The config takes the server's name and arguments from the demo's \`--mcp --print-config\` and starts the same shim; before the arm's first run the harness starts that server and asks for its tools, and a server that lists none spends no run. A run whose \`init\` event does not report the server \`connected\` is a failure in no median, and the arm leaves a ratio only when every run connected and at least ${String(SUCCESS_FLOOR)} of them passed.`;

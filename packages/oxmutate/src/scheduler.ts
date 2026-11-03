@@ -14,6 +14,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import type { ServerConfig, Unit } from './child.js';
+import { beatFile, classifyStall, CPU_WINDOW_MS, cpuShare, readBeat, type CpuSample, type Stall } from './heartbeat.js';
+import { env, stderr } from './runtime.js';
 
 const childJs = fileURLToPath(new URL('./child.js', import.meta.url));
 /** The tail of a server's stderr kept for an error message. */
@@ -35,22 +37,33 @@ function inFlight(progress: string): string | undefined {
 export interface UnitOutcome {
   /** The mutant in flight when the watchdog fired. */
   killedFor?: string | undefined;
+  /** What the stopped run was doing: waiting with its worker idle, or busy (heartbeat.ts). */
+  stall?: Stall | undefined;
   crashed?: boolean | undefined;
   /** The mutant in flight when the server crashed. */
   crashedFor?: string | undefined;
   stderr: string;
 }
 
+const PERCENT = 100;
+/** How many CPU samples a server keeps: a little over the window. */
+const CPU_SAMPLES_KEPT = 8;
+
 class Server {
   readonly child: ChildProcess;
   readonly ready: Promise<boolean>;
   stderr = '';
+  /** Where this server's test workers beat (heartbeat.ts). */
+  readonly beat: string;
+  /** The server's latest CPU readings, oldest first (child.ts sends them). */
+  private readonly cpu: CpuSample[] = [];
   private onMessage?: ((m: { type: string }) => void) | undefined;
   private onExit?: ((code: number | null) => void) | undefined;
   exited = false;
 
-  constructor(configFile: string, cwd: string, execArgv: string[]) {
+  constructor(configFile: string, cwd: string, execArgv: string[], workDir: string) {
     this.child = fork(childJs, [configFile], { cwd, stdio: ['ignore', 'ignore', 'pipe', 'ipc'], execArgv });
+    this.beat = beatFile(workDir, this.child.pid);
     this.child.stderr?.on('data', (d: Buffer) => (this.stderr = (this.stderr + d.toString()).slice(-STDERR_TAIL)));
     this.ready = new Promise((resolve) => {
       const first = (m: { type: string }) => {
@@ -62,7 +75,14 @@ class Server {
       this.child.on('message', first);
       this.child.once('exit', () => resolve(false));
     });
-    this.child.on('message', (m: { type: string }) => this.onMessage?.(m));
+    this.child.on('message', (m: { type: string; at?: number; us?: number }) => {
+      if (m.type === 'cpu') {
+        this.cpu.push({ at: m.at ?? 0, us: m.us ?? 0 });
+        if (this.cpu.length > CPU_SAMPLES_KEPT) this.cpu.shift();
+        return;
+      }
+      this.onMessage?.(m);
+    });
     this.child.once('exit', (code) => {
       this.exited = true;
       this.onExit?.(code);
@@ -90,9 +110,18 @@ class Server {
         }
         if (!line) return;
         const [id = '', since = '0'] = line.split(' ');
-        if (Date.now() - Number(since) > budget(id)) {
+        const now = Date.now();
+        if (now - Number(since) > budget(id)) {
+          // Read before the kill: an idle stop is a Timeout as it stands, a busy one is re-run (heartbeat.ts).
+          const beat = readBeat(this.beat, now);
+          const share = cpuShare(this.cpu, now);
+          const stall = classifyStall({ beat, cpuShare: share });
+          if (env['OXMUTATE_DEBUG_WATCHDOG']) {
+            const cpu = share === undefined ? '?' : `${String(Math.round(share * PERCENT))}%`;
+            stderr.write(`oxmutate watchdog: stop ${id} after ${String(now - Number(since))} ms; ${stall}; beat ${Number.isFinite(beat.age) ? `${String(beat.age)} ms ago` : 'never'}${beat.inTest ? ' in a test' : ''}; cpu ${cpu} over ${String(CPU_WINDOW_MS)} ms\n`);
+          }
           this.child.kill('SIGKILL');
-          finish({ killedFor: id, stderr: this.stderr });
+          finish({ killedFor: id, stall, stderr: this.stderr });
         }
       }, WATCHDOG_POLL_MS);
       this.onMessage = (m) => {
@@ -123,19 +152,25 @@ export interface Pool {
     prepare?: (unit: Unit) => boolean,
   ): Promise<void>;
   close(): void;
-  stats: { spawned: number; killed: number; crashed: number };
+  /** `idle`: stops whose worker was idle (heartbeat.ts), of `killed`. */
+  stats: { spawned: number; killed: number; idle: number; crashed: number };
 }
 
 export function createPool(config: ServerConfig, size: number, workDir: string, tag: string): Pool {
   const configFile = path.join(workDir, `server-${tag}.json`);
   writeFileSync(configFile, JSON.stringify(config));
-  const stats = { spawned: 0, killed: 0, crashed: 0 };
+  const stats = { spawned: 0, killed: 0, idle: 0, crashed: 0 };
   const spawn = (): Server => {
     stats.spawned++;
-    return new Server(configFile, config.root, config.nodeArgs ?? []);
+    return new Server(configFile, config.root, config.nodeArgs ?? [], workDir);
   };
   const servers: Server[] = Array.from({ length: size }, spawn);
   let spare: Server | undefined = spawn();
+  const tally = (outcome: UnitOutcome): void => {
+    if (outcome.killedFor) stats.killed++;
+    if (outcome.stall === 'idle') stats.idle++;
+    if (outcome.crashed) stats.crashed++;
+  };
   const replacement = (): Server => {
     const next = spare ?? spawn();
     spare = spawn();
@@ -176,8 +211,7 @@ export function createPool(config: ServerConfig, size: number, workDir: string, 
               await server.ready;
             }
             const outcome = await server.run(unit, (id) => budget(unit, id));
-            if (outcome.killedFor) stats.killed++;
-            if (outcome.crashed) stats.crashed++;
+            tally(outcome);
             if (outcome.killedFor || outcome.crashed) {
               servers[slot] = replacement();
             }

@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { applyMutant, batches, checkSurvivors, parseDiagnostics, tsgoBin, type CheckMutant } from './checker.js';
 
 // The real-compiler case — `npx tsc` per batch, 15.1 s on a contended CI runner — runs on the nightly
@@ -71,7 +72,7 @@ describe('the type checker', () => {
  * goes to stdout; the diagnostics go to stderr, after that unterminated line.
  */
 const tmp = realpathSync(mkdtempSync(path.join(tmpdir(), 'oxmutate-checker-')));
-afterAll(() => rmSync(tmp, { recursive: true, force: true }));
+afterAll(() => discard(tmp));
 const fake = path.join(tmp, 'fake-tsc.mjs');
 writeFileSync(
   fake,

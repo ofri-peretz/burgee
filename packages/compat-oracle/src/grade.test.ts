@@ -17,7 +17,7 @@
  * control run resolves the incumbent the way the vendored tree does — by walking up to the
  * workspace's `node_modules`.
  */
-import { type ExecFileSyncOptions, spawn } from 'node:child_process';
+import { type ExecFileSyncOptions } from 'node:child_process';
 import { cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
@@ -26,6 +26,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { type SpawnOptions } from 'bellpull/cross-spawn';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { type Host } from './hosts.js';
 import { ALIAS_HOOK, aliasHook, cjsLoad, DEPS_MARKER, entryBody, grade, installSuiteDeps, internalShimBody, jestGlobals, peerHook, readBaseline, targetInternalBody } from './run.js';
 
@@ -92,12 +93,9 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  // Removed by an `rm` of its own that this hook does not wait for, as run.test.ts's tsd runner
-  // removes its own: under the pre-push load, unlinking a scratch directory of a handful of files
-  // took 64.9 s (2026-10-19), past the hook's timeout. `spawn` is the real one; the seam only
-  // replaces `execFileSync`. A run killed first leaves a `.grade-*` directory, which `.gitignore`
-  // already covers.
-  if (process.platform !== 'win32') spawn('rm', ['-rf', vendorDir], { detached: true, stdio: 'ignore' }).unref();
+  // Discarded, not waited on: under the pre-push load, unlinking a scratch directory of a handful
+  // of files took 64.9 s (2026-10-19), past the hook's timeout.
+  discard(vendorDir);
   vi.unstubAllEnvs();
 });
 

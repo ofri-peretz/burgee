@@ -14,13 +14,14 @@
  * importing from source would not prove that a stranger can do this.
  */
 import { execFileSync } from 'node:child_process';
-
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
+import { discard } from './__fixtures__/scratch-dir.js';
 
 /** npm on Windows is `npm.cmd`, which Node will only spawn through a shell. */
 const WINDOWS = process.platform === 'win32';
@@ -138,7 +139,7 @@ beforeAll(() => {
   writeFileSync(join(dir, 'cli.mjs'), ONE_FILE);
 }, 120_000);
 
-afterAll(() => rmSync(dir, { recursive: true, force: true }));
+afterAll(() => discard(dir));
 
 describe('Z1 — one file, npm i, no build step', () => {
   describe.each(Object.entries(QUICKSTARTS))('%s "Start here"', (readme, { source, transcript }) => {
@@ -149,7 +150,7 @@ describe('Z1 — one file, npm i, no build step', () => {
       symlinkSync(join(dir, 'node_modules'), join(at, 'node_modules'), 'junction');
       writeFileSync(join(at, 'cli.mjs'), source);
     });
-    afterAll(() => rmSync(at, { recursive: true, force: true }));
+    afterAll(() => discard(at));
 
     it('has a file and a transcript to run', () => {
       expect(source, readme).toContain("from 'burgee'");
@@ -249,7 +250,7 @@ describe('Z1 — one file, npm i, no build step', () => {
       });
       expect(stdout).toContain('hello, ada');
     } finally {
-      rmSync(plain, { recursive: true, force: true });
+      discard(plain);
     }
   }, 120_000);
 

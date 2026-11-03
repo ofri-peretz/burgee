@@ -33,12 +33,30 @@
  *   quint run staticwarm.qnt --main=noInline    --invariant=safety   violated
  *   quint run staticwarm.qnt --invariant=noFallback                  violated (witness: leaks are
  *     caught and sent to the fresh-worker path, so `safety` is not holding vacuously)
+ *
+ * GROUPED (2026-11-01, sc8-profile.md): the canary runs after the first mutant and then after every
+ * `EVERY` (runner.ts caps the doubling at 4), and the verdicts since the last clean canary are held,
+ * not reported. A canary that fails sends every held mutant to the fresh-worker path with the rest.
+ * A visible leak can then reach the next mutants' verdicts, but those verdicts are held and dropped
+ * when the canary at the group's end sees it. The snapshot diff still runs after every mutant. As
+ * before, a leak is assumed to stay once made (a later mutant does not undo it).
+ *
+ *   quint run staticwarm.qnt --main=grouped           --invariant=safety   holds
+ *   quint run staticwarm.qnt --main=groupedInPlace    --invariant=safety   violated, as withInPlace:
+ *     the residual risk is the same one, an in-place leak the unmutated tests do not see
+ *   quint run staticwarm.qnt --main=groupedVisible    --invariant=safety   holds: every in-place
+ *     leak the tests see is caught by its group's canary before a flipped verdict is reported
+ *   quint run staticwarm.qnt --main=groupedNoHold     --invariant=safety   violated: reporting a
+ *     verdict before its group's canary reports one a visible leak flipped
  */
 module staticWarm {
   const SNAPSHOT: bool
   const INLINE: bool
   const CANARY: bool
   const IN_PLACE: bool     // can a module change an existing object in place
+  const EVERY: int         // mutants between canaries (1 = after each)
+  const HOLD: bool         // verdicts wait for their group's canary before they are reported
+  const VISIBLE: bool      // every leak breaks the unmutated tests (what isolates HOLD's effect)
 
   type Leak = NoLeak | GlobalKey | InPlace | DepState
   pure val MUTANTS = 1.to(3)
@@ -50,12 +68,15 @@ module staticWarm {
   var dirty: bool                // an undetected leak that matters is live in the worker
   var wrong: int                 // verdicts reported that differ from a fresh worker's
   var fallback: bool             // the batch went to the fresh-worker path
+  var held: int                  // verdicts decided since the last canary
+  var heldWrong: int             // of those, the ones a live leak flipped
+  var seen: bool                 // a leak since the last canary that the canary will see
 
   action init = {
     nondet l = MUTANTS.setOfMaps(if (IN_PLACE) Set(NoLeak, GlobalKey, InPlace, DepState) else Set(NoLeak, GlobalKey, DepState)).oneOf()
     nondet m = MUTANTS.setOfMaps(Set(true, false)).oneOf()
-    nondet v = MUTANTS.setOfMaps(Set(true, false)).oneOf()
-    all { leakOf' = l, matters' = m, visible' = v, cursor' = 1, dirty' = false, wrong' = 0, fallback' = false }
+    nondet v = MUTANTS.setOfMaps(if (VISIBLE) Set(true) else Set(true, false)).oneOf()
+    all { leakOf' = l, matters' = m, visible' = v, cursor' = 1, dirty' = false, wrong' = 0, fallback' = false, held' = 0, heldWrong' = 0, seen' = false }
   }
 
   // Decide mutant `cursor`: its verdict is wrong if a leak from an earlier mutant is live and matters.
@@ -63,18 +84,30 @@ module staticWarm {
   action decide = all {
     not(fallback), cursor <= 3,
     val leak = if (INLINE and leakOf.get(cursor) == DepState) NoLeak else leakOf.get(cursor)
-    val caught = (SNAPSHOT and leak == GlobalKey) or (CANARY and leak != NoLeak and visible.get(cursor))
+    val snapped = SNAPSHOT and leak == GlobalKey
+    val seenNow = seen or (CANARY and leak != NoLeak and not(snapped) and visible.get(cursor))
+    val heldNow = held + 1
+    val heldWrongNow = if (dirty) heldWrong + 1 else heldWrong
+    // The canary runs after the first mutant, then after every EVERY, and after the last.
+    val check = cursor == 1 or heldNow >= EVERY or cursor == 3
+    val caught = snapped or (check and seenNow)
     all {
-      wrong' = if (dirty) wrong + 1 else wrong,
-      dirty' = (dirty or (leak != NoLeak and not(caught) and matters.get(cursor))),
+      // A held verdict is reported when its group's canary passes; without HOLD, at once.
+      // Without HOLD a verdict is out before the canary that would have caught its leak runs.
+      wrong' = if (snapped) wrong else if (not(HOLD)) (if (dirty) wrong + 1 else wrong) else if (check and not(seenNow)) wrong + heldWrongNow else wrong,
+      dirty' = (dirty or (leak != NoLeak and not(snapped) and matters.get(cursor))),
       fallback' = caught,
+      held' = if (check) 0 else heldNow,
+      heldWrong' = if (check) 0 else heldWrongNow,
+      seen' = if (check) false else seenNow,
       cursor' = cursor + 1,
       leakOf' = leakOf, matters' = matters, visible' = visible,
     },
   }
 
   action idle = all { fallback or cursor > 3,
-    leakOf' = leakOf, matters' = matters, visible' = visible, cursor' = cursor, dirty' = dirty, wrong' = wrong, fallback' = fallback }
+    leakOf' = leakOf, matters' = matters, visible' = visible, cursor' = cursor, dirty' = dirty, wrong' = wrong, fallback' = fallback,
+    held' = held, heldWrong' = heldWrong, seen' = seen }
 
   action step = any { decide, idle }
 
@@ -84,7 +117,11 @@ module staticWarm {
   val noFallback = not(fallback)
 }
 
-module staticwarm { import staticWarm(SNAPSHOT = true, INLINE = true, CANARY = true, IN_PLACE = false).* }
-module withInPlace { import staticWarm(SNAPSHOT = true, INLINE = true, CANARY = true, IN_PLACE = true).* }
-module resetOnly { import staticWarm(SNAPSHOT = false, INLINE = false, CANARY = false, IN_PLACE = false).* }
-module noInline { import staticWarm(SNAPSHOT = true, INLINE = false, CANARY = true, IN_PLACE = false).* }
+module staticwarm { import staticWarm(SNAPSHOT = true, INLINE = true, CANARY = true, IN_PLACE = false, EVERY = 1, HOLD = true, VISIBLE = false).* }
+module withInPlace { import staticWarm(SNAPSHOT = true, INLINE = true, CANARY = true, IN_PLACE = true, EVERY = 1, HOLD = true, VISIBLE = false).* }
+module resetOnly { import staticWarm(SNAPSHOT = false, INLINE = false, CANARY = false, IN_PLACE = false, EVERY = 1, HOLD = true, VISIBLE = false).* }
+module noInline { import staticWarm(SNAPSHOT = true, INLINE = false, CANARY = true, IN_PLACE = false, EVERY = 1, HOLD = true, VISIBLE = false).* }
+module grouped { import staticWarm(SNAPSHOT = true, INLINE = true, CANARY = true, IN_PLACE = false, EVERY = 2, HOLD = true, VISIBLE = false).* }
+module groupedInPlace { import staticWarm(SNAPSHOT = true, INLINE = true, CANARY = true, IN_PLACE = true, EVERY = 2, HOLD = true, VISIBLE = false).* }
+module groupedVisible { import staticWarm(SNAPSHOT = true, INLINE = true, CANARY = true, IN_PLACE = true, EVERY = 2, HOLD = true, VISIBLE = true).* }
+module groupedNoHold { import staticWarm(SNAPSHOT = true, INLINE = true, CANARY = true, IN_PLACE = true, EVERY = 2, HOLD = false, VISIBLE = true).* }

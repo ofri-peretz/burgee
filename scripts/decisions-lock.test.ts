@@ -28,7 +28,7 @@
  * and one guards the move itself: every path to an entry resolves.
  */
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -55,6 +55,7 @@ import {
   scaffold,
   serializeDecision,
 } from './ledgers.js';
+import { discard } from './scratch-dir.js';
 
 const { entries, problems } = readDecisions();
 const LEDGER_MD = readFileSync(join(REPO_ROOT, '.sdlc/DECISIONS.md'), 'utf8');
@@ -157,7 +158,7 @@ describe('each decisions check fails on a broken fixture', () => {
     return dir;
   };
   afterAll(() => {
-    for (const d of dirs) rmSync(d, { recursive: true, force: true });
+    discard(...dirs);
   });
 
   it('the ceiling: one open question against a ceiling of zero', () => {

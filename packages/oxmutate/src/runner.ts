@@ -26,6 +26,7 @@ import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 
+import { BEAT_ENV, markTest, realNow, startHeartbeat } from './heartbeat.js';
 import { resolveEsm } from './resolve.js';
 import { ACTIVE_MUTANT_ENV, FILE_KEY, NAMESPACE, cwd, env, type Namespace } from './runtime.js';
 
@@ -93,6 +94,7 @@ const { Base, statics } = await loadBase();
 const mode = env['OXMUTATE_MODE'] ?? 'dry';
 const resultsPath = env['OXMUTATE_RESULTS'];
 const progressPath = env['OXMUTATE_PROGRESS'];
+startHeartbeat(env[BEAT_ENV]); // the watchdog tells a wait from a loop by it (heartbeat.ts)
 const ns = ((globalThis as Record<string, unknown>)[NAMESPACE] ??= {}) as Namespace;
 ns.mutantCoverage ??= { static: {}, perTest: {} };
 
@@ -166,6 +168,8 @@ let pristine: Map<string, unknown> | undefined;
 
 /** Set when a mutant left state behind; the rest of this context runs no mutants. */
 let polluted = false;
+/** `static` mode: the most mutants decided between two unarmed re-collections (staticwarm.qnt `grouped`). */
+const STATIC_CANARY_MAX = 4;
 /** Mutants between canaries; doubles while the canary stays clean, back to 1 when it fails. */
 let canaryEvery = 1;
 const MAX_CANARY_EVERY = 8;
@@ -290,7 +294,13 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
     if (!fn) throw new Error(`oxmutate: no function for test ${test.name}`);
     if (mode !== 'mutant') {
       if (only && !only.has(test.id)) return;
-      await fn();
+      // Only a wait inside a test body can be an idle stall; collection at low CPU is a slow machine.
+      markTest(true);
+      try {
+        await fn();
+      } finally {
+        markTest(false);
+      }
       return;
     }
     const context = test.context;
@@ -357,7 +367,9 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
     };
     for (const id of ids) {
       if (done.has(id)) continue;
-      if (progressPath) writeFileSync(progressPath, `${id} ${String(Date.now())}\n`);
+      // The real clock: a test that froze it (`vi.useFakeTimers()`, never undone) made every later
+      // mutant read as running since the freeze, and the watchdog stopped it at once (caique, 2026-11-02).
+      if (progressPath) writeFileSync(progressPath, `${id} ${String(realNow())}\n`);
       let { status, ms } = await runArmed(id);
       // A kill that follows unchecked runs may be one of their leftovers, which this run's own cleanup
       // (a `finally`) then wipes, so the batch canary would pass and vouch for a wrong kill. Survivors
@@ -452,18 +464,35 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
         ns.hitLimit = undefined;
       }
     };
+    // Verdicts since the last clean unarmed re-collection are held, not emitted: the re-collection runs
+    // after the first mutant, then after every 2, then every STATIC_CANARY_MAX while it stays clean, and
+    // one that fails sends every held mutant back with the rest. Each mutant's own snapshot diff still
+    // runs at once. The re-collection runs the file's tests unarmed, and after every mutant it was half
+    // of the live static phase, 6,713 s of compat-oracle's 11,193 s weekly run (sc8-profile.md,
+    // staticwarm.qnt `grouped`).
+    let held: { id: string; verdict: Awaited<ReturnType<typeof evaluate>> }[] = [];
+    let every = 1;
+    const back = (reason: string, keys: string[] = []): void => {
+      rest.unshift(...held.map((h) => h.id));
+      held = [];
+      fallback(reason, keys);
+    };
     while (rest.length) {
-      const id = rest[0] as string;
-      if (progressPath) writeFileSync(progressPath, `${id} ${String(Date.now())}\n`);
-      const verdict = await evaluate(id);
+      const id = rest.shift() as string;
+      // The real clock, as above: the file's tests run again here, and may freeze it.
+      if (progressPath) writeFileSync(progressPath, `${id} ${String(realNow())}\n`);
+      held.push({ id, verdict: await evaluate(id) });
       const left = snapshotDiff(before, snapshot());
-      if (left.length) return fallback('the mutant left a trace', left);
+      if (left.length) return back('the mutant left a trace', left);
+      if (held.length < every && rest.length) continue;
       const unarmed = await evaluate(undefined);
-      if (unarmed.failed.length > 0) return fallback('the unarmed re-collection failed', unarmed.error ? [unarmed.error] : []);
+      emit({ type: 'recollection' });
+      if (unarmed.failed.length > 0) return back('the unarmed re-collection failed', unarmed.error ? [unarmed.error] : []);
       const after = snapshotDiff(before, snapshot());
-      if (after.length) return fallback('the unarmed re-collection left a trace', after);
-      rest.shift();
-      emit({ type: 'isolated', id, killed: verdict.failed.length > 0 && !verdict.timeout, failed: verdict.failed, ran: verdict.ran, ...(verdict.timeout && { timeout: true }) });
+      if (after.length) return back('the unarmed re-collection left a trace', after);
+      for (const { id: done, verdict } of held) emit({ type: 'isolated', id: done, killed: verdict.failed.length > 0 && !verdict.timeout, failed: verdict.failed, ran: verdict.ran, ...(verdict.timeout && { timeout: true }) });
+      held = [];
+      every = Math.min(STATIC_CANARY_MAX, every * 2);
     }
     if (progressPath) writeFileSync(progressPath, '');
     vi.resetModules();

@@ -6,6 +6,12 @@ date: '2026-11-01'
 superseded_by: —
 ---
 
+> **Amended 2026-11-01 by [D-20261101-no-mutation-in-gha](./D-20261101-no-mutation-in-gha.md).**
+> No mutation runs in GitHub Actions any more. `SC11`'s week reads from the local weekly full run
+> (`npm run mutation:weekly`, whose ratchet PR replaces `mutation.yml`'s) and from the pre-push
+> changed-lines run of every PR merged to `main` in the window, in place of the workflow runs named
+> below. `SC8` is measured locally, both engines on the same machine. `S3` is unchanged.
+
 **S3 is graded on the fixture its definition names, and it is met.** `metrics.md` defines `S3` as
 "wall-clock of a full run, no cache, **on the fixture**", targeting ≥ 5x at M1 and ≥ 10x at M3. The
 fixture is es-toolkit `src/array` (720 mutants). `m1-results.md` measures it cold at **19.6 s

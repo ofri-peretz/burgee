@@ -27,6 +27,7 @@
     "./packages": "./src/packages.ts",
     "./root-layout": "./src/root-layout.tsx",
     "./routes": "./src/routes.ts",
+    "./scratch-dir": "./src/scratch-dir.ts",
     "./site": "./src/site.ts",
     "./source": "./src/source.ts",
     "./source-config": "./src/source-config.mjs",
@@ -37,12 +38,12 @@
     "fumadocs-mdx": "^15.4.10",
     "fumadocs-ui": "^16.17.1",
     "next": "^16.4.3",
-    "posthog-js": "1.438.21",
+    "posthog-js": "1.443.0",
     "react": "^19.3.0"
   },
   "devDependencies": {
     "@types/mdx": "^2.0.14",
-    "@types/node": "^26.6.5",
+    "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "typescript": "^5.7.0",
     "vitest": "^5.0.1"

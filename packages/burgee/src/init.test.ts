@@ -12,13 +12,14 @@
  * either one's reading of the README fails this file rather than agreeing with itself.
  */
 import { execFileSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { ExitCode, runCommand } from './index.js';
 import { quickstart } from './init.js';
 import { program as burgee } from './program.js';
@@ -48,7 +49,7 @@ function scratch(prefix = 'burgee-init-'): string {
   return at;
 }
 afterAll(() => {
-  for (const at of dirs) rmSync(at, { recursive: true, force: true });
+  discard(...dirs);
 });
 
 /**

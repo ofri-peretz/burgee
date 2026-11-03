@@ -7,7 +7,7 @@
  * stream, a bare scalar counted as an envelope, bytes counted on one stream, and a hang
  * scored as a correct exit.
  */
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,6 +16,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 
 import { judge, measure, method, type RunOutcome, SCHEMA_BYTES_BUDGET, SKILL_BYTES_BUDGET, type Task } from './axes/reliability.js';
 import { gateFailures } from './record.js';
+import { discard } from './scratch-dir.js';
 
 const run = (over: Partial<RunOutcome> = {}): RunOutcome => ({ hung: false, status: 0, stdout: '', stderr: '', ...over });
 const task = (over: Partial<Task> = {}): Task => ({ id: 't', args: [], expect: 'ok', json: false, ...over });
@@ -108,7 +109,7 @@ const skillOf = (records: ReturnType<typeof measure>): (typeof records)[number] 
  */
 describe('skill-bytes, measured and gated (agent-skill R6)', () => {
   const dir = mkdtempSync(join(tmpdir(), 'bench-skill-'));
-  afterAll(() => rmSync(dir, { recursive: true, force: true }));
+  afterAll(() => discard(dir));
   /** A program that answers `--skill` with `bytes` bytes of skill, and nothing else. */
   const bin = (name: string, bytes: number | undefined): string => {
     const file = join(dir, `${name}.mjs`);
@@ -153,7 +154,7 @@ const schemaOf = (records: ReturnType<typeof measure>): (typeof records)[number]
  */
 describe('schema-bytes, measured in bytes and gated (schema-bytes-gated)', () => {
   const dir = mkdtempSync(join(tmpdir(), 'bench-schema-'));
-  afterAll(() => rmSync(dir, { recursive: true, force: true }));
+  afterAll(() => discard(dir));
   /**
    * A program that answers `--schema` with a JSON object of exactly `bytes` UTF-8 bytes, padded
    * with two-byte characters so a count of characters and a count of bytes disagree.
@@ -210,7 +211,7 @@ describe('schema-bytes, measured in bytes and gated (schema-bytes-gated)', () =>
  */
 describe('schema-bytes-pretty, the figure the compact schema is read against (agent-headroom C1)', () => {
   const dir = mkdtempSync(join(tmpdir(), 'bench-pretty-'));
-  afterAll(() => rmSync(dir, { recursive: true, force: true }));
+  afterAll(() => discard(dir));
   const file = join(dir, 'pretty.mjs');
   writeFileSync(file, "const doc = { a: [1, 2], b: { c: 'd' } };\nif (process.argv.includes('--schema')) process.stdout.write(JSON.stringify(doc, null, process.argv.includes('--format=json-pretty') ? 2 : 0));");
 

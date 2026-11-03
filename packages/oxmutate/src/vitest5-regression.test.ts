@@ -10,13 +10,15 @@
  * so the first case's assertion would fail.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { afterAll, describe, expect, it } from 'vitest';
+
+import { discard } from './__fixtures__/scratch-dir.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const pkg = path.join(here, '..');
@@ -45,7 +47,7 @@ interface Mutant {
 }
 
 const out = mkdtempSync(path.join(tmpdir(), 'oxmutate-sc7-'));
-afterAll(() => rmSync(out, { recursive: true, force: true }));
+afterAll(() => discard(out));
 
 /** The built CLI on the fixture, with `vitestConfig` (an absolute path) replacing the fixture's Vitest config file. */
 const run = (name: string, vitestConfig?: string): { status: number | null; out: string; mutants: Mutant[] } => {

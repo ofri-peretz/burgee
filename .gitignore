@@ -47,3 +47,6 @@ packages/compat-oracle/.grade-*/
 stryker-setup-*.js
 # scripts/mutation.ts writes each run's vitest config here, inside the package, and removes it.
 .mutation/
+
+# A test cleanup that could not rename its tree into the OS temporary directory leaves it beside the original (scratch-dir.ts discard()) until its detached rm ends.
+.burgee-discard-*

@@ -63,10 +63,10 @@
       "//": "graded-override-targets R5, 2026-10-11: cli-truncate 6.1.1's own suite, 12 / 12. One symbol bundles 14,202 against cli-truncate's 20,669 (cli-truncate, slice-ansi, string-width and their tree); the whole surface is held against the incumbent's by scripts/subpath-weight-lock.test.ts. 35,239 -> 35,641 (+402) on 2026-11-01 (D-20261101-upstream-issues-2026-11-01): cli-truncate 6.2.0 (17 / 17) finds `preferTruncationOnSpace`'s space by terminal column, which takes a column map over `strip` and the shared segmenter, both already reached through `width` and `slice`. Net of `slice.js` losing slice-ansi 9's `positions()` rule, and of `strip` carrying ansi-regex 6.5.0's pattern (+49)."
     },
     "widest-line.js": {
-      "distBytes": 11902,
+      "distBytes": 11916,
       "bundledBytes": 5752,
       "replaces": "widest-line",
-      "//": "graded-override-targets R6, 2026-10-11: widest-line 6.0.0's own suite, 1 / 1. One symbol bundles 5,752 against widest-line's 6,073 (widest-line and string-width's tree); the whole surface is held against the incumbent's by scripts/subpath-weight-lock.test.ts. 11,853 -> 11,902 (+49) on 2026-11-01 (D-20261101-upstream-issues-2026-11-01): `strip` carries ansi-regex 6.5.0's pattern, which strip-ansi 7.2.0 now resolves, and every entry that measures reaches it; this one had no headroom."
+      "//": "graded-override-targets R6, 2026-10-11: widest-line 6.0.0's own suite, 1 / 1. One symbol bundles 5,752 against widest-line's 6,073 (widest-line and string-width's tree); the whole surface is held against the incumbent's by scripts/subpath-weight-lock.test.ts. 11,853 -> 11,902 (+49) on 2026-11-01 (D-20261101-upstream-issues-2026-11-01): `strip` carries ansi-regex 6.5.0's pattern, which strip-ansi 7.2.0 now resolves, and every entry that measures reaches it; this one had no headroom. 11,902 -> 11,916 (+14) on 2026-11-01 (D-20261101-mutation-floors-numericliteral-restate): `width.ts` exports `isWide` and `isAmbiguous` so `width.test.ts` can sweep the loaded East Asian Width tables over every code point, which kills 604 table mutants `--check` could not see."
     },
     "strip.js": {
       "distBytes": 17908,

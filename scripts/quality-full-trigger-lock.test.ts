@@ -17,7 +17,7 @@
  *
  * Two ways that goes wrong, both locked here:
  *  - a heavy job grows a `needs:` again and the hop is back;
- *  - the five copies of the condition drift, or stop meaning what the gate meant. The
+ *  - the copies of the condition drift, or stop meaning what the gate meant. The
  *    gate's rule is restated below as the function it computed, and each job's `if:` is
  *    evaluated against it over every combination of event, draft and label.
  */
@@ -34,7 +34,8 @@ const WORKFLOW = join(REPO_ROOT, '.github/workflows/quality-full.yml');
 type Job = { name?: string; needs?: string | string[]; if?: string };
 const jobs = (loadYaml(readFileSync(WORKFLOW, 'utf8')) as { jobs: Record<string, Job> }).jobs;
 
-const HEAVY = ['test', 'build', 'typecheck', 'coverage', 'mutation'] as const;
+// `mutation` left with D-20261101-no-mutation-in-gha: the changed lines are mutated in pre-push.
+const HEAVY = ['test', 'build', 'typecheck', 'coverage'] as const;
 const AGGREGATE = 'quality-full-gate';
 
 interface Event {

@@ -14,10 +14,10 @@ Intent: [`intent.md`](./intent.md). **Status:** approved.
   survived + no coverage; ignored and invalid mutants are out of it. Every survived or
   uncovered mutant on a changed line fails the lane and is printed `file:line:column`, mutator,
   replacement. *Check:* "scoring a report".
-- **R3 — A budget.** Job `timeout-minutes: 15`; Stryker gets 11 (`PR_BUDGET.wallClockMinutes`),
-  `timeoutMS` 10 000 per mutant, a 4-minute dry run, concurrency 4 on the runner. Over budget
-  fails with "over the lane's budget", never passes. *Check:* the workflow (`lint-workflows`
-  requires the timeout) and the self-test below.
+- **R3 — A budget.** The engine gets 11 minutes (`PR_BUDGET.wallClockMinutes`), `timeoutMS`
+  10 000 per mutant, a 4-minute dry run, concurrency 2 capped by the load average on the
+  owner's machine. Over budget fails with "over the lane's budget", never passes. *Check:* the
+  self-test below. (Until 2026-11-01 a 15-minute CI job held it too; see R7.)
 - **R4 — An escape that has to explain itself.** A line may carry
   `// Stryker disable next-line <Mutator>: <reason>` (Stryker's own syntax, so Stryker
   honours it as `Ignored`). Every `Stryker disable` in `packages/*/src` names a mutator or
@@ -27,16 +27,21 @@ Intent: [`intent.md`](./intent.md). **Status:** approved.
   `measured` with `floor`, `history` and `observations`, or `unmeasured` with a `reason`. The
   floor is the last history step; a step below the one before it cites a newer decision; the
   committed history and observations are append-only. *Check:* "the mutation ratchets".
-- **R6 — Measured weekly on `main`.** `mutation.yml` runs `full` per package on Saturdays and on
-  dispatch, then `record`: appends the observation, raises a floor the run beat (rounded down to
-  one decimal), sets a first floor for a newly measured package, lands it as a PR, and fails
-  when a measured package scored below its floor or produced no score. The matrix is exactly
-  the ratchet file's packages. *Check:* "recording a weekly run" and "are what the weekly
-  workflow measures".
-- **R7 — Reported like the other heavy gates, not required.** `Mutation (changed lines)` is a
-  job in `quality-full.yml` with the same trigger expression as `test`, `build`, `typecheck` and
-  `coverage`, a row in the `Quality (Full) Gate` summary, and a `needs` edge into it. It is not in
-  `REQUIRED_CHECKS`. *Check:* `quality-full-trigger-lock.test.ts` (`HEAVY` gains `mutation`).
+- **R6 — Measured weekly on `main`.** `npm run mutation:weekly` (`scripts/mutation-weekly.sh`),
+  started by launchd on Saturdays at 02:30 and by hand, runs `full` per package on a clean
+  worktree of `origin/main`, then `record`: appends the observation, raises a floor the run beat
+  (rounded down to one decimal), sets a first floor for a newly measured package, lands it as a
+  PR, and exits non-zero when a measured package scored below its floor or produced no score. The
+  packages are exactly the ratchet file's. *Check:* "recording a weekly run", "are what the local
+  weekly run measures", and `mutation-local-only-lock.test.ts`. Until 2026-11-01 this was
+  `mutation.yml` ([D-20261101-no-mutation-in-gha](../../decisions/D-20261101-no-mutation-in-gha.md)).
+- **R7 — Gated before the push, never in GitHub Actions.** The changed-lines lane runs in
+  pre-push (`npm run mutation:changed`, after the battery and the root suite), and no workflow or
+  composite action mutates: the owner's ruling of 2026-11-01
+  ([D-20261101-no-mutation-in-gha](../../decisions/D-20261101-no-mutation-in-gha.md)). Until then
+  `Mutation (changed lines)` was a job in `quality-full.yml` reported in `Quality (Full) Gate`,
+  never a required check. *Check:* `mutation-changed-lock.test.ts` and
+  `mutation-local-only-lock.test.ts`.
 - **R8 — A report that measured nothing is refused.** A survivor with coverage and zero tests
   completed fails the run as an instrument fault. *Check:* "refuses a covered survivor that ran
   no test", built from the real report that exposed the runner defect.
@@ -108,25 +113,29 @@ not restore), and such a run's report is refused. Compared with the text before 
 with git, so uncommitted work is neither flagged nor lost — the first seed run of `roundel`
 was refused by a `git status` check for exactly that.
 
-**The PR lane** (`quality-full.yml` → `mutation`): a `--plan` step decides whether any source
-line changed; only then are packages built and Stryker run. A PR that changes no package source,
-and every event other than a pull request or a merge-queue entry, reports success from a step.
-The merge queue diffs against `merge_group.base_sha`. The plan, the builds and the run are one
-script, `scripts/mutation-changed.sh`, which the job runs as `npm run mutation:changed` and a
-laptop runs the same way (pre-push runs it last, against `origin/main`);
-`mutation-changed-lock.test.ts` fails when the workflow does part of the lane itself.
+**The PR lane** (pre-push → `npm run mutation:changed`): a `--plan` step decides whether any
+source line changed against `origin/main`; only then are packages built and the engine run. A
+push that changes no package source ends in seconds. The plan, the builds and the run are one
+script, `scripts/mutation-changed.sh`; `mutation-changed-lock.test.ts` holds pre-push to it and
+every workflow away from it. Until 2026-11-01 `quality-full.yml` → `mutation` ran the same script
+in CI.
 
-**The weekly run** (`mutation.yml`): one matrix cell per package, `max-parallel: 3`, 300-minute
-cells, results uploaded as artifacts; `record` folds them and lands a PR on the same credential
-chain as `control-bands.yml`, then fails on a breach. A failed run of an `unmeasured` package
-records its error as the reason and does not fail the workflow; the same of a `measured` one is
-a breach.
+**The weekly run** (`npm run mutation:weekly`, launchd Saturday 02:30 local): a clean detached
+worktree of `origin/main`, every package built and oxmutate's native core, then one package at a
+time — each after the load average is below 50 and more than 15 GB of disk is free, its temp dirs
+removed after — with results kept under `~/Library/Logs/burgee-mutation-weekly/<date>/`; `record`
+folds them and lands a PR with the owner's `gh` (pushed with the hooks on, auto-merge armed unless
+held), then exits 2 on a breach. A failed run of an `unmeasured` package records its error as the
+reason and does not fail the run; the same of a `measured` one is a breach. A package that could
+not be run at all is logged `NOT RUN` and fails the run with 1. Until 2026-11-01 this was
+`mutation.yml`, a 12-cell matrix on GitHub's runners.
 
 ## Verification
 
 ```sh
-npx vitest run --config vitest.root.config.ts scripts/mutation-lock.test.ts scripts/quality-full-trigger-lock.test.ts
+npx vitest run --config vitest.root.config.ts scripts/mutation-lock.test.ts scripts/mutation-changed-lock.test.ts scripts/mutation-local-only-lock.test.ts
 npx tsx scripts/lint-workflows.ts
+npm run mutation:weekly -- --dry-run
 npx tsx scripts/mutation.ts full --package roundel --concurrency 2
 ```
 

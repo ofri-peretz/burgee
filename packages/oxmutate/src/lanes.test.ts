@@ -1,10 +1,11 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { changedLines, type MutateRange, parseDiff, parseMutateSpec, parseShard, shardOf, touches, withinRange } from './lanes.js';
 
 describe('the PR lane reads changed lines from git diff -U0', () => {
@@ -55,7 +56,7 @@ describe('the PR lane reads changed lines from git diff -U0', () => {
 
 describe('changedLines runs git diff against a ref', () => {
   const repo = mkdtempSync(path.join(tmpdir(), 'oxmutate-lanes-'));
-  afterAll(() => rmSync(repo, { recursive: true, force: true }));
+  afterAll(() => discard(repo));
   const git = (...args: string[]): string => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', ...args], { cwd: repo, encoding: 'utf8' });
   git('init', '-q');
   writeFileSync(path.join(repo, 'a.ts'), 'one\ntwo\nthree\n');

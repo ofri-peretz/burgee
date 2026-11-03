@@ -15,6 +15,7 @@ import { join } from 'node:path';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 // eslint-disable-next-line import-next/no-namespace -- The namespace object *is* the thing under test: the graded case reads `Object.keys()` of the module, so a named-import list would assert what this file typed rather than what the module publishes.
 import * as facade from './lilconfig.js';
 
@@ -25,7 +26,7 @@ const deep = join(root, 'a', 'b');
 mkdirSync(deep, { recursive: true });
 
 afterAll(() => {
-  rmSync(root, { recursive: true, force: true });
+  discard(root);
 });
 
 describe('the export shape is the compatibility claim', () => {

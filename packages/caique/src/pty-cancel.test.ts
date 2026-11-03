@@ -43,13 +43,15 @@
  * second press.
  */
 import { execFileSync, spawn } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { stripVTControlCharacters } from 'node:util';
 
 import { afterAll, describe, expect, it } from 'vitest';
+
+import { discard } from './__fixtures__/scratch-dir.js';
 
 const HOST = fileURLToPath(new URL('../../../scripts/pty-host.py', import.meta.url));
 const windows = process.platform === 'win32';
@@ -70,7 +72,7 @@ function python(): string | undefined {
 
 const exe = python();
 const dir = mkdtempSync(join(tmpdir(), 'caique-pty-'));
-afterAll(() => rmSync(dir, { recursive: true, force: true }));
+afterAll(() => discard(dir));
 
 const QUESTION = 'Who should I greet?';
 const built = (file: string): string => JSON.stringify(new URL(`../dist/${file}`, import.meta.url).href);

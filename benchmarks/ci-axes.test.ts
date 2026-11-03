@@ -122,12 +122,16 @@ interface Event {
   approval?: string;
   /** `inputs.mcp-arm`: a boolean on a manual dispatch, absent (GitHub's `null`) on every other event. */
   mcpArm?: boolean;
+  /** `github.event.action` on a pull request: `opened` unless set. */
+  action?: string;
+  /** `github.event.label.name`: the label a `labeled`/`unlabeled` pull request event is about. */
+  label?: string;
 }
 
 /**
  * The GitHub expression grammar this condition may use: `||`, `&&`, `!`, parentheses, `==`/`!=`,
- * string literals, `github.event_name`, `github.event.schedule` and
- * `contains(github.event.pull_request.labels.*.name, '…')`.
+ * string literals, `github.event_name`, `github.event.schedule`, `github.event.action`,
+ * `github.event.label.name` and `contains(github.event.pull_request.labels.*.name, '…')`.
  * Anything else throws, so a later edit cannot slip a term past the test by being unreadable.
  */
 /** GitHub's truthiness: `''`, `false`, `null` and `0` are false. */
@@ -139,6 +143,8 @@ const TERMS: Record<string, (ev: Event) => unknown> = {
   'github.event.schedule': (ev) => (ev.event_name === 'schedule' ? (ev.schedule ?? null) : null),
   'vars.B1_MCP_ARM': (ev) => ev.approval ?? '',
   'inputs.mcp-arm': (ev) => (ev.event_name === 'workflow_dispatch' ? (ev.mcpArm ?? false) : null),
+  'github.event.action': (ev) => (ev.event_name === 'pull_request' ? (ev.action ?? 'opened') : null),
+  'github.event.label.name': (ev) => (ev.event_name === 'pull_request' && (ev.action === 'labeled' || ev.action === 'unlabeled') ? (ev.label ?? null) : null),
 };
 
 function evaluate(expression: string, ev: Event): unknown {
@@ -347,6 +353,13 @@ describe('B1 runs weekly and on request, never per push (D-20261019-b1-weekly-no
     expect(jobRunsFor({ event_name: 'pull_request', labels: [label] })).toBe(true);
     expect(jobRunsFor({ event_name: 'pull_request', labels: [] })).toBe(false);
     expect(jobRunsFor({ event_name: 'pull_request', labels: ['documentation'] })).toBe(false);
+  });
+
+  // `gh pr create --label skip-changeset` on a `bench:agent` PR raises a `labeled` event for the other
+  // label too; that run must not spend a second B1 reading beside the `opened` one (pr-trigger-lock).
+  it('runs on the label being applied, and not on another label applied to a bench:agent PR', () => {
+    expect(jobRunsFor({ event_name: 'pull_request', action: 'labeled', label, labels: [label] })).toBe(true);
+    expect(jobRunsFor({ event_name: 'pull_request', action: 'labeled', label: 'skip-changeset', labels: [label, 'skip-changeset'] })).toBe(false);
   });
 
   it('would fail against the condition it replaced — the old `if:` runs on every push', () => {

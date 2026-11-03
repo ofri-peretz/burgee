@@ -14,17 +14,18 @@
  * answers — a miss runs, a pass is remembered and then hit, a failure is not remembered, and CI and
  * `BURGEE_LOCKS_FULL=1` always run — against a cache directory of their own.
  */
-import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
 import { installStamp, type Outcome } from './family-install.js';
+import { discard } from './scratch-dir.js';
 
 const made: string[] = [];
 afterAll(() => {
-  for (const dir of made) rmSync(dir, { recursive: true, force: true });
+  discard(...made);
 });
 
 /** A cache, a lock file and two tarballs of its own, so no case reads what another wrote. */

@@ -1,0 +1,11 @@
+{
+  "id": "oxmutate-explain-error",
+  "requirement": "E1/E2 — a failure as a --json error envelope that names its kind, its exit code and its own remedy",
+  "prompt": "Run `oxmutate survivors --json` in the current directory. It fails. Tell me the error's kind, the exit code, and what the error says to do to fix it.",
+  "setup": [],
+  "check": "grep -qi 'runtime' \"$BENCH_RESULT\" && grep -qiE '(exit|code|status)[^0-9]{0,24}1([^0-9]|$)' \"$BENCH_RESULT\" && grep -q 'oxmutate run' \"$BENCH_RESULT\"",
+  "maxTurns": 8,
+  "modalities": ["cli"],
+  "exemplar": "The error kind is `runtime`, exit code 1: there is no report at reports/mutation/mutation.json, and the fix is to run `oxmutate run` first.",
+  "wrong": "It is a usage error with exit code 2: `survivors` does not take --json, so drop the flag and retry."
+}

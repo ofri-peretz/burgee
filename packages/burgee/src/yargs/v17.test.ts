@@ -5,13 +5,14 @@
  * in `compat-oracle` (`yargs-17`); this pins each switch in process. The `require()` singleton
  * (R4) is `v17-require.test.ts`.
  */
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterAll, describe, expect, it, vi } from 'vitest';
 
+import { discard } from '../__fixtures__/scratch-dir.js';
 import Current from '../yargs.js';
 
 import { yargs17 } from './v17-factory.js';
@@ -20,7 +21,7 @@ import Yargs17, { Parser } from './v17.js';
 
 const root = mkdtempSync(join(tmpdir(), 'burgee-v17-'));
 afterAll(() => {
-  rmSync(root, { recursive: true, force: true });
+  discard(root);
 });
 
 /** A command module, as CommonJS, at `rel` under a fresh directory. */

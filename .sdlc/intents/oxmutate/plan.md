@@ -142,7 +142,7 @@ WP-I and WP-K both touch the per-mutant run path; WP-K owns the runner file and 
 | **WP-X** Parity & speed | `bench/mutation.ts`, `bench/results/`, `bench/disagreements.json` | SC1–SC3. Five runs each. | `npm run bench:mutation -- --parity` and `npm run bench:mutation` | Needs both tools on the same machine; runs alone. |
 | **WP-Y** Compat grade | `compat/mutation/**` | SC9 via `compat-oracle` | `npm run compat:mutation` | Parallel with X. |
 | **WP-Z** CI lanes (branch-only) | `.github/workflows/oxmutate-*.yml` (new files only) | `changed` lane beside the Stryker job; `full --shard` matrix; SARIF upload. Nothing removes the Stryker job. | `actionlint` plus a `workflow_dispatch` run on the branch | Parallel with X and Y. Needs the integrator to approve the workflow files. |
-| **WP-DOG** Dogfood week | `.sdlc/bands/mutation-ratchets.json` (integrator only) | Burgee's `mutation.yml` runs the tool for one week; observation recorded in the existing schema. | SC11, one green week | Calendar-gated. The Stryker job is retired only after it. |
+| **WP-DOG** Dogfood week | `.sdlc/bands/mutation-ratchets.json` (integrator only) | Burgee's weekly run (`mutation.yml`; local `npm run mutation:weekly` since [`D-20261101-no-mutation-in-gha`](../../decisions/D-20261101-no-mutation-in-gha.md)) runs the tool for one week; observation recorded in the existing schema. | SC11, one green week | Calendar-gated. The Stryker job is retired only after it. |
 
 ---
 

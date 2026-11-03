@@ -23,6 +23,7 @@ import { describe, expect, it } from 'vitest';
 
 import { observations, publishedResults } from './published.js';
 import { resultsName, selected } from './run.js';
+import { discard } from './scratch-dir.js';
 
 const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const tsxCli = createRequire(import.meta.url).resolve('tsx/cli');
@@ -47,7 +48,7 @@ describe('publishedResults', () => {
     try {
       expect(publishedResults(dir)).toBe('2026-09-09.json');
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      discard(dir);
     }
   });
 
@@ -56,7 +57,7 @@ describe('publishedResults', () => {
     try {
       expect(observations(dir).toSorted()).toEqual(['2026-09-09-4c97680.json', '2026-09-09.json']);
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      discard(dir);
     }
   });
 
@@ -65,7 +66,7 @@ describe('publishedResults', () => {
     try {
       expect(publishedResults(dir)).toBe('2026-09-10.json');
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      discard(dir);
     }
   });
 
@@ -183,7 +184,7 @@ describe('a document names itself', () => {
       writeFileSync(join(dir, name), '{}');
       expect(publishedResults(dir), 'the writer and the reader disagree about what an observation looks like').toBeUndefined();
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      discard(dir);
     }
   });
 });

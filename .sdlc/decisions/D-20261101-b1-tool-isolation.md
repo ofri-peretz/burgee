@@ -66,6 +66,12 @@ not compared with one after it.
 `priorReadings` (the MCP arm's grade over landed CI readings) does not yet tell the two harnesses
 apart; until it does, the landed readings dated 2026-10-27 and earlier belong to the old one.
 
-The oxmutate arm (D-20261101-b1-oxmutate-arm, unmerged) allows `Bash(npx oxmutate:*)` as well:
-the guard takes every allowed command on its argv, so that arm names both. It runs on the owner's
-machine only, never in GitHub Actions; nothing here adds a run anywhere.
+**The oxmutate arm** (D-20261101-b1-oxmutate-arm, #1426) allows `Bash(npx oxmutate:*)` beside
+the shim, so `toolArgs` hands the guard every command `--allowedTools` allows: `oxmutate` and
+`npx oxmutate` there, `demo` on the demo arms. Its three graded readings (`d71dcb0`, success 0.95,
+1.00, 1.00) were taken on the old spawn, where the agent could also read the fixture. They stay in
+`benchmarks/results/agent-cli-bench-oxmutate/` for now, because moving them would reopen
+first-adopter's A5 and gap B-20261101-b1-real-cli-arm-oxmutate, and a reading can only be taken on
+the owner's machine (60 sessions, about $6 at list price, on the subscription login). They are
+replaced, by the same rule as reading 1, when three readings on this spawn exist. The arm still
+never runs in GitHub Actions; nothing here adds a run anywhere.

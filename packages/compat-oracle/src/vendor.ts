@@ -507,7 +507,7 @@ export function vendor(host: Host, into: string, version = host.pinnedVersion ??
     // files vendored" and four others lost their grades the same day. A vendor step that
     // deletes before it knows it can replace turns a bad fetch into data loss.
     const live = join(into, host.name);
-    const staging = `${live}.vendoring`;
+    const staging = join(into, `${host.name}.vendoring`);
     rmSync(staging, { recursive: true, force: true });
     // Upstream's own directory name, because suites use cwd-relative paths into it.
     const dest = join(staging, host.testDir);

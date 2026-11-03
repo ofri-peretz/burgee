@@ -13,6 +13,8 @@ import { fileURLToPath } from 'node:url';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
+
 /** npm on Windows is `npm.cmd`, which Node will only spawn through a shell. */
 const WINDOWS = process.platform === 'win32';
 function npm(args: string[], options: Parameters<typeof execFileSync>[2]): string {
@@ -52,7 +54,7 @@ const SPAWN = 30_000;
 // Teardown gets setup's clock, not a spawn's. It is one `rmSync` of a small install, and under
 // the pre-push battery — every package's suite at once — it still ran past 30 s: vitest
 // reported "Hook timed out in 30000ms", and this was the only hook declaring 30 s.
-afterAll(() => rmSync(dir, { recursive: true, force: true }), 120_000);
+afterAll(() => discard(dir), 120_000);
 
 describe('Z1 — one file, npm i, no build step', { timeout: SPAWN }, () => {
   it('runs a child found on PATH and reports a non-zero exit as data, not an exception', () => {

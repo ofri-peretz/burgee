@@ -13,6 +13,8 @@ import { fileURLToPath } from 'node:url';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
+
 /** npm on Windows is `npm.cmd`, which Node will only spawn through a shell. */
 const WINDOWS = process.platform === 'win32';
 function npm(args: string[], options: Parameters<typeof execFileSync>[2]): string {
@@ -60,7 +62,7 @@ beforeAll(() => {
   writeFileSync(join(dir, 'cli.mjs'), ONE_FILE);
 }, 120_000);
 
-afterAll(() => rmSync(dir, { recursive: true, force: true }));
+afterAll(() => discard(dir));
 
 describe('Z1 — one file, npm i, no build step', () => {
   it('prints one line per state through a pipe: no carriage return, no escape', () => {

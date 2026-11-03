@@ -23,13 +23,14 @@
  * Each case below was run red against the unfixed tree first.
  */
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Readable } from 'node:stream';
 
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { Command } from './commander.js';
 import { AuthError, defineCommand, defineProgram, ExitCode } from './index.js';
 import { runBurgee } from './testing.js';
@@ -333,7 +334,7 @@ await program.parseAsync(process.argv);
 const h = {${HANDLERS}};
 await run(defineProgram({ name: 'app', commands: Object.entries(h).map(([name, fn]) => defineCommand({ name, effects: 'read_only', run: fn })) }));
 `);
-  afterAll(() => rmSync(dir, { recursive: true, force: true }));
+  afterAll(() => discard(dir));
 
   const runs = CASES.flatMap((c) => (['commander', 'native'] as const).map((front) => ({ ...c, front })));
   it.each(runs)('$front $name --json: one envelope on stdout, no stack anywhere, exit per contract', ({ front, name, exit, message }) => {

@@ -6,7 +6,7 @@
  * `strip-comments.mjs`.
  */
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,10 +16,11 @@ import ts from 'typescript';
 import { afterAll, describe, expect, it } from 'vitest';
 
 import { DECLARATION, KEPT_TAGS, measureLine, measurePackage, multiParagraphBlocks, proseParagraphs, summariseBlock, summariseDeclaration } from './declaration-summaries.mts';
+import { discard } from './scratch-dir.js';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const scratch = mkdtempSync(join(tmpdir(), 'decl-summaries-test-'));
-afterAll(() => rmSync(scratch, { recursive: true, force: true }));
+afterAll(() => discard(scratch));
 
 /** The scratch copies `measurePackage` makes, by their prefix. */
 const ours = (): string[] => readdirSync(tmpdir()).filter((name) => name.startsWith('declaration-summaries-'));

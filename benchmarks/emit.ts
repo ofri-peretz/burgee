@@ -70,6 +70,11 @@ export interface ClaimEntry {
 
 export interface ResultsDoc {
   schema: 1;
+  /**
+   * Present on a B1 arm run on its own with `--arm` (D-20261101-b1-oxmutate-arm): the arm's id.
+   * Such a document holds that arm's records only, and no band or claim.
+   */
+  arm?: string;
   suite: SuiteName;
   measured: string;
   commit: string;
@@ -130,16 +135,24 @@ export interface BuildInput {
   records: BenchRecord[];
   /** Injectable so a test can pin the document; defaults to now. */
   measured?: string;
+  /** A B1 arm run alone (`--arm`): see `ResultsDoc.arm`. */
+  arm?: string;
 }
 
-const bandsFor = (suite: SuiteName): readonly BandSpec[] => BANDS.filter((b) => b.suite === suite);
-const claimsFor = (suite: SuiteName): readonly ClaimSpec[] => CLAIMS.filter((c) => suiteOf(c.from.axis) === suite);
+/**
+ * The bands and claims a document must carry. A B1 arm run alone has none: the suite's read the
+ * demo's variants, settled on the CI series, and an arm's reading is neither
+ * (D-20261101-b1-oxmutate-arm).
+ */
+const bandsFor = (suite: SuiteName, arm?: string): readonly BandSpec[] => (arm === undefined ? BANDS.filter((b) => b.suite === suite) : []);
+const claimsFor = (suite: SuiteName, arm?: string): readonly ClaimSpec[] => (arm === undefined ? CLAIMS.filter((c) => suiteOf(c.from.axis) === suite) : []);
 
 export function buildDocument(input: BuildInput): ResultsDoc {
-  const bands = new Map(bandsFor(input.suite).map((spec) => [spec.id, bandEntry(spec, input.axes, input.records)]));
-  const claims = new Map(claimsFor(input.suite).map((spec) => [spec.id, claimEntry(spec, input.axes, input.records)]));
+  const bands = new Map(bandsFor(input.suite, input.arm).map((spec) => [spec.id, bandEntry(spec, input.axes, input.records)]));
+  const claims = new Map(claimsFor(input.suite, input.arm).map((spec) => [spec.id, claimEntry(spec, input.axes, input.records)]));
   const doc: ResultsDoc = {
     schema: SCHEMA_VERSION,
+    ...(input.arm === undefined ? {} : { arm: input.arm }),
     suite: input.suite,
     measured: input.measured ?? new Date().toISOString(),
     commit: input.commit,
@@ -206,15 +219,15 @@ function claimProblems(spec: ClaimSpec, doc: ResultsDoc): string[] {
  * problems rather than throwing, so `emit.test.ts` can assert on each one by name.
  */
 export function honestyProblems(doc: ResultsDoc): string[] {
-  const known = new Set(bandsFor(doc.suite).map((s) => s.id));
+  const known = new Set(bandsFor(doc.suite, doc.arm).map((s) => s.id));
   return [
     ...(Object.entries(doc.axes) as [AxisName, AxisState][]).flatMap(([axis, state]) => axisProblems(axis, state, doc)),
     ...doc.records.flatMap((record) => recordProblems(record, doc)),
     ...Object.keys(doc.bands)
       .filter((id) => !known.has(id))
       .map((id) => `band ${id} is not declared in bands.ts for suite ${doc.suite}`),
-    ...bandsFor(doc.suite).flatMap((spec) => bandProblems(spec, doc)),
-    ...claimsFor(doc.suite).flatMap((spec) => claimProblems(spec, doc)),
+    ...bandsFor(doc.suite, doc.arm).flatMap((spec) => bandProblems(spec, doc)),
+    ...claimsFor(doc.suite, doc.arm).flatMap((spec) => claimProblems(spec, doc)),
   ];
 }
 

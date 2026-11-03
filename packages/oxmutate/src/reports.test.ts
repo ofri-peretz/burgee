@@ -1,15 +1,16 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { loadOptions } from './config.js';
 import { type MutantResult, type RunResult, type RunStats } from './coordinator.js';
 import { VERSION, describe as describeMutant, htmlReport, sarifReport, strykerReport, textSummary, writeReports } from './reports.js';
 
 const root = mkdtempSync(path.join(tmpdir(), 'oxmutate-reports-'));
-afterAll(() => rmSync(root, { recursive: true, force: true }));
+afterAll(() => discard(root));
 
 const stats = (s: Partial<RunStats> = {}): RunStats => ({
   files: 2,
@@ -17,10 +18,13 @@ const stats = (s: Partial<RunStats> = {}): RunStats => ({
   instrumentMs: 3.4,
   dryRunMs: 1250,
   mutationMs: 4049,
+  staticMs: 500,
+  staticRecollections: 0,
   isolatedMs: 951,
   wallMs: 6789,
   testExecutions: 0,
   watchdogKills: 0,
+  idleStalls: 0,
   crashes: 0,
   canaryFiles: 0,
   pollutionRestarts: 0,
@@ -205,7 +209,7 @@ describe('the terminal summary', () => {
         `oxmutate ${VERSION}: 9 mutants in 2 files, 6.8 s`,
         '  mutation score 60.00% (covered 75.00%)',
         '  killed 2 · timeout 1 · survived 1 · no coverage 1 · ignored 1 · errors 3',
-        '  instrument 3 ms · dry run 1.3 s · mutants 4.0 s · isolated 1.0 s',
+        '  instrument 3 ms · dry run 1.3 s · mutants 4.0 s · static 0.5 s · isolated 1.0 s',
         '',
         'Survivors (2):',
         '  src/b.js:4:9  Regex  → /a b/  (flaky)',
@@ -318,7 +322,7 @@ describe('the HTML report', () => {
       expect(html).toContain('\n  <script>customElements.define("x", class {});</script>\n</head>');
       expect(html).not.toContain('cdn.jsdelivr.net');
     } finally {
-      rmSync(project, { recursive: true, force: true });
+      discard(project);
     }
   });
 });

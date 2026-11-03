@@ -20,6 +20,7 @@ import { checkSurvivors } from './checker.js';
 import type { Unit } from './child.js';
 import { runCommandMutants } from './command-runner.js';
 import { disables, type Options } from './config.js';
+import { rangeDisables } from './directives.js';
 import { globToRegExp, matchFiles } from './files.js';
 import type { FrozenOracle } from './frozen.js';
 import { changedLines, parseMutateSpec, shardOf, touches, withinRange, type MutateRange } from './lanes.js';
@@ -63,10 +64,16 @@ export interface RunStats {
   instrumentMs: number;
   dryRunMs: number;
   mutationMs: number;
+  /** Static mutants decided in live workers (section 5b), between the warm and the isolated phases. */
+  staticMs: number;
+  /** Unarmed re-collections in that phase, the guard each live static verdict waits on (runner.ts). */
+  staticRecollections: number;
   isolatedMs: number;
   wallMs: number;
   testExecutions: number;
   watchdogKills: number;
+  /** Of `watchdogKills`, the stops whose worker was idle, waiting (heartbeat.ts). In an isolated run each is a Timeout as it stands. */
+  idleStalls: number;
   crashes: number;
   canaryFiles: number;
   /** Contexts restarted because a mutant left state behind (the per-execution canary fired). */
@@ -106,13 +113,15 @@ export class InstrumentFault extends Error {}
 /** One mutant's verdict from its isolated runs. */
 interface Verdict {
   status: Status;
+  /** A Timeout from an idle stop: the test waited past its budget on an idle worker (heartbeat.ts). */
+  idle?: boolean | undefined;
   killedBy?: string[] | undefined;
   /** Tests that ran across its files: Stryker's `testsCompleted`. */
   testsCompleted?: number | undefined;
 }
 
 interface ChildRecord {
-  type: 'dry' | 'mutant' | 'polluted' | 'isolated' | 'static-fallback';
+  type: 'dry' | 'mutant' | 'polluted' | 'isolated' | 'static-fallback' | 'recollection';
   id?: string;
   /** `isolated`: the run stopped on the mutant's hit-count limit: a runaway, scored Timeout. */
   timeout?: boolean;
@@ -154,6 +163,8 @@ const sha = (s: string): string => createHash('sha256').update(s).digest('hex').
  * (2026-10-30). Smaller stays better for a pollution restart, which re-runs the rest of a unit.
  */
 const UNIT_PAIRS = 400;
+/** How many times its isolated budget a busy stop gets on its re-run. */
+const RERUN_SLACK = 3;
 const MS_PER_MINUTE = 60_000;
 const PERCENT = 100;
 
@@ -174,8 +185,8 @@ export async function run(options: Options): Promise<RunResult> {
   const { root } = options;
   const work = mkdtempSync(path.join(tmpdir(), 'oxmutate-'));
   const stats: RunStats = {
-    files: 0, mutants: 0, instrumentMs: 0, dryRunMs: 0, mutationMs: 0, isolatedMs: 0, wallMs: 0, testExecutions: 0,
-    watchdogKills: 0, crashes: 0, canaryFiles: 0, pollutionRestarts: 0, survivorsOverturned: 0, timeoutsOverturned: 0, compileErrors: 0, isolatedRuns: 0, reused: 0, flakyTests: 0, flakyMutants: 0, units: 0, serversSpawned: 0,
+    files: 0, mutants: 0, instrumentMs: 0, dryRunMs: 0, mutationMs: 0, staticMs: 0, staticRecollections: 0, isolatedMs: 0, wallMs: 0, testExecutions: 0,
+    watchdogKills: 0, idleStalls: 0, crashes: 0, canaryFiles: 0, pollutionRestarts: 0, survivorsOverturned: 0, timeoutsOverturned: 0, compileErrors: 0, isolatedRuns: 0, reused: 0, flakyTests: 0, flakyMutants: 0, units: 0, serversSpawned: 0,
   };
   let unitSeq = 0;
   const fileFor = (kind: string, ext: string): string => path.join(work, `${kind}-${String(unitSeq++)}.${ext}`);
@@ -205,21 +216,23 @@ export async function run(options: Options): Promise<RunResult> {
     const directiveErrors: string[] = [];
     for (const f of instrumented) {
       const { disables: offs, errors } = disables(sources[f.path] ?? '', f.path);
+      const ranged = rangeDisables(sources[f.path] ?? '', f.path);
       const ranges = rangesFor(f.path);
-      directiveErrors.push(...errors);
+      directiveErrors.push(...errors, ...ranged.errors);
       let any = false;
       for (const m of f.mutants) {
         if (changed && !touches(changed, f.path, m.start.line, m.end.line)) continue;
         if (ranges && !ranges.some((r) => withinRange(r, m.start, m.end))) continue;
         if (options.shard && shardOf(m.id, options.shard.count) !== options.shard.index) continue;
         const off = offs.find((d) => d.line === m.start.line && (d.mutators === 'all' || d.mutators.includes(m.mutatorName)));
+        const inRange = ranged.reasonFor(m.start.line, m.mutatorName);
         const excluded = options.excludedMutations.includes(m.mutatorName);
         mutants.push({
           ...m,
           file: f.path,
           coveredBy: [],
-          status: off || excluded || m.ignoredReason ? 'Ignored' : 'NoCoverage',
-          statusReason: off?.reason ?? m.ignoredReason ?? (excluded ? `excluded mutator ${m.mutatorName}` : undefined),
+          status: off || inRange !== undefined || excluded || m.ignoredReason ? 'Ignored' : 'NoCoverage',
+          statusReason: off?.reason ?? inRange ?? m.ignoredReason ?? (excluded ? `excluded mutator ${m.mutatorName}` : undefined),
         });
         any = true;
       }
@@ -641,6 +654,7 @@ export async function run(options: Options): Promise<RunResult> {
         const file = unit.files[0] ?? '';
         const decided = new Set<string>();
         for (const r of readRecords(unit.results)) {
+          if (r.type === 'recollection') stats.staticRecollections++;
           if (r.type === 'static-fallback') for (const id of r.ids ?? []) back.add(id);
           if (r.type !== 'isolated' || !r.id) continue;
           decided.add(r.id);
@@ -708,7 +722,7 @@ export async function run(options: Options): Promise<RunResult> {
             else if (rec.killed) verdicts.set(rec.id, { status: 'Killed', killedBy: [...(prev?.killedBy ?? []), ...(rec.failed ?? [])], testsCompleted });
             else verdicts.set(rec.id, { status: prev?.status ?? 'Survived', killedBy: prev?.killedBy, testsCompleted });
           }
-          if (outcome.killedFor) verdicts.set(outcome.killedFor, { status: 'Timeout' });
+          if (outcome.killedFor) verdicts.set(outcome.killedFor, { status: 'Timeout', idle: outcome.stall === 'idle' });
           if (outcome.crashed && outcome.crashedFor) verdicts.set(outcome.crashedFor, { status: 'RuntimeError' });
           if (!outcome.killedFor && !outcome.crashed) return [];
           const done = new Set([...verdicts.keys()]);
@@ -724,7 +738,9 @@ export async function run(options: Options): Promise<RunResult> {
     // ms: 29 of 35 s on burgee/paratext (2026-10-30). A live worker re-evaluates the project's modules
     // per mutant instead; whatever it cannot vouch for comes back here for the fresh-worker path.
     // OXMUTATE_ISOLATE_STATIC=1 sends every static mutant down the fresh-worker path, as before.
+    const s0 = performance.now();
     const staticBack = env['OXMUTATE_ISOLATE_STATIC'] ? staticMutants : await decideStaticLive(staticMutants);
+    stats.staticMs = performance.now() - s0;
     isolatedQueue.push(...staticBack);
     progress.phase(`isolated runs (static mutants and stragglers: ${String(isolatedQueue.length)})`);
     const i0 = performance.now();
@@ -732,8 +748,12 @@ export async function run(options: Options): Promise<RunResult> {
     // A watchdog stop on a loaded machine is a slow test, not a runaway: 31 of them on one
     // burgee/paratext run while the load average sat at 40, all Survived for Stryker (2026-10-27).
     // Each stop gets one more run with 3x the budget; only one that is stopped again is a Timeout.
-    const stopped = isolatedQueue.filter((m) => first.get(m.id)?.status === 'Timeout');
-    const again = await runIsolated(stopped, 3);
+    // An idle stop is not re-run: its worker was waiting with its event loop turning and no CPU spent,
+    // on something the mutant never lets happen, which no budget cures; it is a Timeout as Stryker
+    // scores it. Re-run at 3x, 375 of them on caique's 10-31 run "finished" only because Vitest's 30 s
+    // test timeout failed the test (D-20261101-idle-stall-is-timeout, stall.qnt).
+    const stopped = isolatedQueue.filter((m) => first.get(m.id)?.status === 'Timeout' && !first.get(m.id)?.idle);
+    const again = await runIsolated(stopped, RERUN_SLACK);
     for (const m of stopped) {
       const v = again.get(m.id);
       if (v && v.status !== 'Timeout' && v.status !== 'RuntimeError') {
@@ -747,7 +767,7 @@ export async function run(options: Options): Promise<RunResult> {
         m.status = v.status;
         m.killedBy = v.killedBy;
         m.testsCompleted = v.testsCompleted;
-        if (v.status === 'Timeout') m.statusReason = 'stopped by the watchdog twice, the second time with 3x the budget';
+        if (v.status === 'Timeout') m.statusReason = v.idle ? 'its test waited past the budget with the worker idle: a hang, not a slow test' : 'stopped by the watchdog twice, the second time with 3x the budget';
       }
     }
 
@@ -765,8 +785,8 @@ export async function run(options: Options): Promise<RunResult> {
     // A timeout here is a watchdog stop like any other, and a loaded machine makes them: two
     // closeout survivors were reported killed this way while a docs build shared the machine
     // (2026-10-27). The same rule as section 6: one more run at 3x the budget before believing it.
-    const stoppedHere = survivors.filter((m) => confirmed.get(m.id)?.status === 'Timeout');
-    const recheck = await runIsolated(stoppedHere, 3);
+    const stoppedHere = survivors.filter((m) => confirmed.get(m.id)?.status === 'Timeout' && !confirmed.get(m.id)?.idle);
+    const recheck = await runIsolated(stoppedHere, RERUN_SLACK);
     for (const m of stoppedHere) {
       const v = recheck.get(m.id);
       if (v) confirmed.set(m.id, v);
@@ -818,6 +838,7 @@ export async function run(options: Options): Promise<RunResult> {
     }
     stats.isolatedMs = performance.now() - i0;
     stats.watchdogKills = pool.stats.killed;
+    stats.idleStalls = pool.stats.idle;
     stats.crashes = pool.stats.crashed;
 
     // ── 8. Score, cache, result ───────────────────────────────────────────────────────────────

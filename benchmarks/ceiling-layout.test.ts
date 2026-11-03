@@ -20,13 +20,14 @@
  * them stay unchanged and keep the two edits apart.
  */
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
 import { BUNDLED_CEILING, RATIO_CEILING } from './axes/weight.js';
+import { discard } from './scratch-dir.js';
 
 const TABLES = { BUNDLED_CEILING, RATIO_CEILING } as const;
 const SOURCE = readFileSync(new URL('axes/weight.ts', import.meta.url), 'utf8');
@@ -79,7 +80,7 @@ const PAIRINGS: [string, string][] = [
 /** `git` with no `GIT_*` variables from a hook or a parent repository steering it. */
 const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('GIT_')));
 const scratch = mkdtempSync(join(tmpdir(), 'ceiling-layout-'));
-afterAll(() => rmSync(scratch, { recursive: true, force: true }));
+afterAll(() => discard(scratch));
 
 /** Whether two edits of `base` merge three ways with no conflict. */
 function merges(base: string, ours: string[], theirs: string[]): boolean {

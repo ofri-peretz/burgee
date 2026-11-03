@@ -7,6 +7,10 @@
  *   npm run bench -- --check           exit 1 when a measured number is outside its gate
  *   npm run bench -- --no-write        do not touch results/
  *   npm run bench -- --no-oracle       B3 reads results.json or skips; never runs the oracle
+ *   npm run bench -- --axis agent --arm oxmutate
+ *                                      one B1 arm alone, on its own tasks, locally only
+ *                                      (D-20261101-b1-oxmutate-arm); written to
+ *                                      results/agent-cli-bench-<arm>/, one file a reading
  *
  * Three documents come out, because the axes run on three cadences: `cli-benchmarks` (perf,
  * compat, weight, reliability, runtime — free, gate every PR), `agent-cli-bench` (B1 — costs
@@ -18,7 +22,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { method as agentMethod, run as runAgent } from './axes/agent.js';
+import { method as agentMethod, armMethod, armOf, armResultsDir, run as runAgent } from './axes/agent.js';
 import { method as compatMethod, run as runCompat } from './axes/compat.js';
 import { method as floorMethod, run as runFloor } from './axes/floor.js';
 import { method as perfMethod, run as runPerf } from './axes/perf.js';
@@ -35,6 +39,9 @@ const REPO_ROOT = resolve(BENCH_ROOT, '..');
 const RESULTS_DIR = join(BENCH_ROOT, 'results');
 const ALL_AXES: AxisName[] = ['perf', 'compat', 'weight', 'reliability', 'agent', 'floor', 'runtime'];
 const ISO_DATE = 10;
+/** `hh:mm:ss` in an ISO timestamp. */
+const ISO_TIME_FROM = 11;
+const ISO_TIME_TO = 19;
 /** Matches `${GITHUB_SHA::7}` in `bench.yml`, so one run cannot produce two spellings. */
 const SHORT_SHA = 7;
 
@@ -46,13 +53,29 @@ interface Args {
   write: boolean;
   oracle: boolean;
   rounds?: number;
+  /** One B1 arm run alone (`--arm <id>`), with `--axis agent` and no other axis. */
+  arm?: string;
+}
+
+/** `--arm <id>` or `--arm=<id>`, or nothing. */
+function armArg(argv: readonly string[]): string | undefined {
+  const at = argv.indexOf('--arm');
+  if (at !== -1) return argv[at + 1] ?? '';
+  return argv.find((a) => a.startsWith('--arm='))?.slice('--arm='.length);
 }
 
 export function parseArgs(argv: readonly string[]): Args {
   const picked = argv.filter((a, i) => argv[i - 1] === '--axis') as AxisName[];
   for (const a of picked) if (!ALL_AXES.includes(a)) throw new Error(`unknown axis: ${a} (have ${ALL_AXES.join(', ')})`);
   const roundsAt = argv.indexOf('--rounds');
+  const arm = armArg(argv);
+  if (arm !== undefined) {
+    armOf(arm);
+    // An arm's document carries that arm and nothing else, so it is never mixed with another axis.
+    if (picked.length !== 1 || picked[0] !== 'agent') throw new Error('--arm runs one B1 arm alone: pass it with --axis agent and no other axis');
+  }
   return {
+    ...(arm === undefined ? {} : { arm }),
     axes: picked.length > 0 ? picked : ALL_AXES,
     check: argv.includes('--check'),
     publish: argv.includes('--publish'),
@@ -80,7 +103,7 @@ function runAxis(axis: AxisName, args: Args): AxisOutcome {
     case 'runtime':
       return { records: runRuntime() };
     default:
-      return runAgent();
+      return runAgent(args.arm === undefined ? {} : { arm: args.arm });
   }
 }
 
@@ -104,12 +127,13 @@ function collect(args: Args): { axes: Map<AxisName, AxisState>; records: BenchRe
     }
     console.warn(`\n▶ ${axis}`);
     const outcome = runAxis(axis, args);
+    const method = axis === 'agent' && args.arm !== undefined ? armMethod(args.arm) : (METHOD.get(axis) ?? '');
     if ('reason' in outcome) {
-      axes.set(axis, { status: 'skipped', reason: outcome.reason, method: METHOD.get(axis) ?? '' });
+      axes.set(axis, { status: 'skipped', reason: outcome.reason, method });
       console.warn(`⏭️ skipped: ${outcome.reason}`);
       continue;
     }
-    axes.set(axis, { status: 'measured', method: METHOD.get(axis) ?? '' });
+    axes.set(axis, { status: 'measured', method });
     records.push(...outcome.records);
     console.warn(`✓ ${String(outcome.records.length)} record(s)`);
   }
@@ -180,7 +204,7 @@ function printTable(doc: ResultsDoc): void {
  * directory and read every observation; only the docs care which one is published.
  */
 function write(doc: ResultsDoc, publish: boolean): string {
-  const dir = join(RESULTS_DIR, doc.suite);
+  const dir = doc.arm === undefined ? join(RESULTS_DIR, doc.suite) : armResultsDir(doc.arm);
   mkdirSync(dir, { recursive: true });
   const name = resultsName(doc, publish);
   writeFileSync(join(dir, name), `${JSON.stringify(doc, null, 2)}\n`);
@@ -194,6 +218,9 @@ export function resultsName(doc: ResultsDoc, publish = false): string {
   // `-ci`/`-local`: a sha names a commit, not a run, and two machines' runs of one commit
   // shared a path until 2026-09-22 — landing either deleted the other (D-142).
   const where = (doc.machine as Partial<Machine>).ci === true ? 'ci' : 'local';
+  // An arm's readings are graded as a set, several of one commit on one day, so each is its own
+  // file, and none is ever the published name (D-20261101-b1-oxmutate-arm).
+  if (doc.arm !== undefined) return `${date}-${doc.commit.slice(0, SHORT_SHA)}-${doc.measured.slice(ISO_TIME_FROM, ISO_TIME_TO).replaceAll(':', '')}-${where}.json`;
   return complete && publish ? `${date}.json` : `${date}-${doc.commit.slice(0, SHORT_SHA)}-${where}.json`;
 }
 
@@ -211,7 +238,8 @@ function documents(args: Args): { docs: ResultsDoc[]; axes: Map<AxisName, AxisSt
   const docs = Object.values(SUITE).map((suite: SuiteName) => {
     const mine = ALL_AXES.filter((a) => suiteOf(a) === suite);
     const subset = Object.fromEntries(mine.map((a) => [a, axes.get(a) as AxisState]));
-    return buildDocument({ suite, commit: commit(REPO_ROOT), machine: machine(), axes: subset, records: records.filter((r) => mine.includes(r.axis)) });
+    const arm = suite === SUITE.agent && args.arm !== undefined ? { arm: args.arm } : {};
+    return buildDocument({ suite, commit: commit(REPO_ROOT), machine: machine(), axes: subset, records: records.filter((r) => mine.includes(r.axis)), ...arm });
   });
   return { docs, axes };
 }

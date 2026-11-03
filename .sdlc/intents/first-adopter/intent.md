@@ -1,6 +1,6 @@
 # Intent — `first-adopter`: a CLI we did not write uses the layer
 
-**Status:** approved · **Opened:** `2026-09-06` · **Owner:** `@ofri-peretz`
+**Status:** shipped (2026-11-02, A1–A5 held on `oxmutate@1.1.0` and three local B1 readings of it, A6 a recorded miss carried by [C3](../../gaps/C3.md); [`D-20261101-b1-oxmutate-arm`](../../decisions/D-20261101-b1-oxmutate-arm.md)) · **Opened:** `2026-09-06` · **Owner:** `@ofri-peretz`
 
 > **Accepted at the Design→Build gate 2026-10-25** by the coordinator under the owner's delegation
 > ([`D-20261025-first-adopter-design-accepted`](../../decisions/D-20261025-first-adopter-design-accepted.md)): the design rewritten off `commander-agent` onto the published family and the U12 trial's lessons. See
@@ -94,6 +94,19 @@ this program does not stamp a criterion that waits on a scheduled run. A5 waits 
 first scheduled reading. **A6 is not met.** oxmutate depends on `burgee` itself and is ours, so the
 miss moves to [C3](../../gaps/C3.md), which now carries it. concurrently#639 and igir#2249 go on as
 outreach, outside the gate.
+
+**Shipped 2026-11-02: A5 is met, so every criterion is held or a recorded miss.** B1 now runs
+against oxmutate as well as the demo
+([D-20261101-b1-oxmutate-arm](../../decisions/D-20261101-b1-oxmutate-arm.md)). The arm has four
+tasks of its own, a shim named `oxmutate`, and a success rate gated at 0.8, and it runs on the
+owner's machine only, by the owner's "No oxmutate in GHA". So A5 is graded on three local
+readings rather than a scheduled one. They ran at `d71dcb0`, whose oxmutate source is
+`oxmutate@1.1.0`'s: success rate median 1.00 (range 0.95–1.00), 62,795 tokens per task (range
+62,535–94,273), 3 turns per task (range 2–4), about $1.90 a reading at list price. The one failed
+run was the check refusing a correct answer, now fixed. A1–A4 hold as graded on 2026-11-01, and
+A6 stays a measured miss that [C3](../../gaps/C3.md) carries, as that day's decision recorded.
+This intent's own "Why now" asked whether a real CLI would take the layer; for one CLI we wrote,
+it did, and an outside one still has not.
 
 **State assigned 2026-09-09** from repo evidence, at the owner’s direction. **Why `review` until 2026-10-25:** no external CLI has been migrated; A1–A5 are all open.
 

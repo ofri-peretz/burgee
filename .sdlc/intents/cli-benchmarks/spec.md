@@ -6,6 +6,25 @@ Intent: [`intent.md`](./intent.md). **Status:** approved (2026-10-25).
 
 ---
 
+## B1's oxmutate arm, 2026-11-02
+
+B1 runs against a real CLI as well as the demo: `npm run bench -- --axis agent --arm oxmutate`
+([D-20261101-b1-oxmutate-arm](../../decisions/D-20261101-b1-oxmutate-arm.md), first-adopter A5).
+It is an arm, not a variant of the weekly job. It has its own four tasks
+(`benchmarks/tasks/oxmutate/`), a shim named `oxmutate`, and absolute numbers with no ratio,
+because oxmutate has no build without burgee. It runs on the owner's machine only. The axis
+refuses it under `GITHUB_ACTIONS` or `CI`, and `benchmarks/oxmutate-arm.test.ts` fails if a file
+under `.github/` passes `--arm`. Its readings land in `benchmarks/results/agent-cli-bench-oxmutate/`,
+one file a reading, with no band and no claim, so the demo's bands, claims and CI series are
+untouched. B6's cadences are unchanged.
+
+| reading at `d71dcb0`, 20 task-runs each | median of 3 | range |
+| :-- | --: | :-- |
+| success rate (gated at 0.8, as the CLI arms are) | 1.00 | 0.95–1.00 |
+| tokens per task | 62,795 | 62,535–94,273 |
+| turns per task | 3 | 2–4 |
+| list-price cost per reading | $1.90 | $1.78–$1.91 |
+
 ## Design gate 2026-10-25
 
 **Accepted for Build**

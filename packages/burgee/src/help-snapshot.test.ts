@@ -26,6 +26,7 @@ import { join } from 'node:path';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { SHELLS } from './completions.js';
 import { renderHelp } from './help-entry.js';
 import { defineCommand, defineProgram, ExitCode, runCommand } from './index.js';
@@ -300,7 +301,7 @@ describe('the root help carries the exit codes, completion and examples (agent-l
  */
 describe('the root help names AGENTS.md when it sits beside the bin (agent-skill R4)', () => {
   const project = mkdtempSync(join(tmpdir(), 'burgee-agents-'));
-  afterAll(() => rmSync(project, { recursive: true, force: true }));
+  afterAll(() => discard(project));
   mkdirSync(join(project, 'dist'));
   const entry = join(project, 'dist', 'cli.js');
   writeFileSync(entry, '');

@@ -15,7 +15,7 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { AGENT_ENV_RULE, agentEnv, armRecords, type Attempt, blockers, classifyFailure, installTool, ISOLATION, isPosix, MCP_ARM_OPT_IN, type McpConfig, mcpConfig, MODALITIES, nothingCameBack, OUTPUT_FORMAT, parseClaudeJson, perTaskDetail, POSIX_ONLY, PRINT_CONFIG_TIMEOUT_MS, priorReadings, probeServer, type Reading, READINGS_METRIC, readTasks, redact, resultObject, run, runOne, serverStatus, STORED_LOGIN_OPT_IN, storedLogin, summariseFailures, type Task, tasksFor, totalRecords, type Variant, VARIANTS, variantsFor, writeMcpConfig } from './axes/agent.js';
+import { AGENT_ENV_RULE, agentEnv, armRecords, type Attempt, blockers, classifyFailure, installTool, ISOLATION, isPosix, MCP_ARM_OPT_IN, type McpConfig, mcpConfig, MODALITIES, nothingCameBack, OUTPUT_FORMAT, parseClaudeJson, perTaskDetail, POSIX_ONLY, PRINT_CONFIG_TIMEOUT_MS, priorReadings, probeServer, type Reading, READINGS_METRIC, readTasks, redact, resultObject, run, runOne, serverStatus, STORED_LOGIN_OPT_IN, storedLogin, summariseFailures, type Task, tasksFor, toolArgs, totalRecords, type Variant, VARIANTS, variantsFor, writeMcpConfig } from './axes/agent.js';
 import { allows } from './axes/bash-guard.js';
 import { SUITE } from './bands.js';
 import { CLAIMS } from './claims.js';
@@ -213,7 +213,7 @@ function hookOf(argv: string[]): string {
 }
 
 /** The guard's exit status for one hook input, as `claude` runs it: 0 lets the call run, 2 refuses it. */
-const verdict = (input: string): number | null => spawnSync(process.execPath, [BASH_GUARD, 'demo'], { input }).status;
+const verdict = (input: string, commands: readonly string[] = ['demo']): number | null => spawnSync(process.execPath, [BASH_GUARD, ...commands], { input }).status;
 
 describe.skipIf(!isPosix())('the agent reaches the build through the tool and nothing else', () => {
   it('leaves Bash the only built-in tool on the CLI arms, and hands claude the guard on `demo`', () => {
@@ -222,7 +222,7 @@ describe.skipIf(!isPosix())('the agent reaches the build through the tool and no
     const a = argv();
     expect(a[a.indexOf('--tools') + 1]).toBe('Bash');
     expect(a[a.indexOf('--allowedTools') + 1]).toBe('Bash(demo:*)');
-    expect(hookOf(a)).toBe(`"${process.execPath}" "${BASH_GUARD}" demo`);
+    expect(hookOf(a)).toBe(`"${process.execPath}" "${BASH_GUARD}" "demo"`);
   });
 
   it('runs `demo` and refuses what the 2026-11-01 transcripts read the config with', () => {
@@ -235,6 +235,17 @@ describe.skipIf(!isPosix())('the agent reaches the build through the tool and no
     expect(verdict(bashCall('demo greet'))).toBe(0);
     expect(verdict(bashCall('ls -la'))).toBe(BLOCKED);
     expect(verdict('not json')).toBe(BLOCKED);
+  });
+
+  // The oxmutate arm also allows `npx oxmutate` (D-20261101-b1-oxmutate-arm), so its guard names both.
+  it('lets each command `--allowedTools` allows through the guard, and nothing else', () => {
+    const a = toolArgs('cli', undefined, 'oxmutate', ['Bash(npx oxmutate:*)']);
+    expect(hookOf(a)).toBe(`"${process.execPath}" "${BASH_GUARD}" "oxmutate" "npx oxmutate"`);
+    const commands = ['oxmutate', 'npx oxmutate'];
+    expect(verdict(bashCall('oxmutate run'), commands)).toBe(0);
+    expect(verdict(bashCall('npx oxmutate run --json'), commands)).toBe(0);
+    expect(verdict(bashCall('cat oxmutate.config.json'), commands)).toBe(BLOCKED);
+    expect(verdict(bashCall('npx vitest run'), commands)).toBe(BLOCKED);
   });
 
   it('gives the MCP arm no built-in tool at all', () => {

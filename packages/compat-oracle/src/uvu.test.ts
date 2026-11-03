@@ -10,13 +10,14 @@
  * Proven red first (rule 4): with no `uvu` arm, a host declaring it fell through to mocha's
  * invocation and graded nothing.
  */
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { type Host } from './hosts.js';
 import { grade, installSuiteDeps, summarize, unsatisfiedPins } from './run.js';
 import { uvuCounts, type UvuRun, uvuTap } from './uvu.js';
@@ -157,7 +158,7 @@ describe('the uvu runner, end to end', () => {
   }, 300_000);
 
   afterAll(() => {
-    if (vendorDir !== '' && process.platform !== 'win32') spawn('rm', ['-rf', vendorDir], { detached: true, stdio: 'ignore' }).unref();
+    if (vendorDir !== '') discard(vendorDir);
   });
 
   it('grades two passes and a failure as exactly that, where uvu under `-r esm` cannot start at all', () => {

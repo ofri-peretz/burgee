@@ -7,13 +7,14 @@
  * could count — and an arm that read the exit code, as `exit-code` does, would grade every run
  * below a pass.
  */
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { type Host } from './hosts.js';
 import { grade, installSuiteDeps, summarize, unsatisfiedPins } from './run.js';
 import { type TwistRun, twistCounts, twistTap } from './twist.js';
@@ -184,7 +185,7 @@ describe.skipIf(process.platform === 'win32')('the twist runner, end to end', ()
   }, 300_000);
 
   afterAll(() => {
-    if (vendorDir !== '' && process.platform !== 'win32') spawn('rm', ['-rf', vendorDir], { detached: true, stdio: 'ignore' }).unref();
+    if (vendorDir !== '') discard(vendorDir);
   });
 
   it('grades two passes and a failure as exactly that, where twist itself exits 0', () => {

@@ -144,7 +144,8 @@ also has a test that fails without it.
 ## Next actions
 
 - Dispatch `oxmutate-bench.yml` once this lands: paratext, controlroom, roundel, linegauge and
-  caique, on the CI runner. Replace this document's wall column with those numbers. Owner: Ofri,
+  caique, on the CI runner. *Superseded: the workflow was removed by [`D-20261101-no-mutation-in-gha`](../../decisions/D-20261101-no-mutation-in-gha.md) before
+  it ran; the pair runs on the owner's machine (`bench/burgee-pair.mts`).* Replace this document's wall column with those numbers. Owner: Ofri,
   first run after merge.
 - Measure `T3` (three identical oxmutate runs against each other), `C3` (shard balance) and
   `A2`/`S6` (incremental loop) on the same lane. Owner: next oxmutate session, 2026-10-28.

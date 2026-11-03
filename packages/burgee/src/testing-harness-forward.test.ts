@@ -19,17 +19,18 @@
  * having: a harness defect is invisible by construction, because the thing it breaks is the
  * evidence.
  */
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { defineCommand, defineProgram } from './index.js';
 import { runBurgee } from './testing.js';
 
 const dir = mkdtempSync(join(tmpdir(), 'burgee-harness-'));
-afterAll(() => rmSync(dir, { recursive: true, force: true }));
+afterAll(() => discard(dir));
 
 describe('the harness forwards what the caller configured (T1)', () => {
   it('forwards TTY-ness, so `tty: true` is a terminal and not the agent floor', async () => {

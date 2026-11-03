@@ -256,11 +256,16 @@ const DISABLE = /Stryker\s+disable\b(.*)$/u;
 const WELL_FORMED = /^\s+(?:next-line\s+)?(?:all|[A-Za-z]+(?:\s*,\s*[A-Za-z]+)*)\s*:\s*(\S.*)$/u;
 /** A reason shorter than this is a label, not a reason. */
 export const MIN_DISABLE_REASON = 15;
+/** A line comment that is a Stryker directive (`disable`, `restore`, either scope). */
+const DIRECTIVE = /^\s*\/\/\s*Stryker\s+(?:disable|restore)\b/u;
+/** A line that starts by closing a bracket: a comment above it leads no node. */
+const CLOSES = /^\s*[}\])]/u;
 
-/** Every `Stryker disable` comment in `source` without a reason, as `file:line: why`. */
+/** Every `Stryker disable` comment in `source` without a reason, and every directive Stryker cannot see, as `file:line: why`. */
 export function disableProblems(file: string, source: string): string[] {
   const problems: string[] = [];
-  source.split('\n').forEach((text, i) => {
+  const lines = source.split('\n');
+  lines.forEach((text, i) => {
     const comment = /\/\/(.*)$|\/\*(.*?)\*\//u.exec(text);
     const body = comment?.[1] ?? comment?.[2];
     const hit = body === undefined ? null : DISABLE.exec(body);
@@ -268,6 +273,13 @@ export function disableProblems(file: string, source: string): string[] {
     const reason = WELL_FORMED.exec(hit[1] ?? '')?.[1]?.replace(/\*\/\s*$/u, '').trim();
     if (reason === undefined || reason.length < MIN_DISABLE_REASON) {
       problems.push(`${file}:${String(i + 1)}: \`Stryker disable\` needs \`<mutator>: <reason>\` — a reason of at least ${String(MIN_DISABLE_REASON)} characters saying why the mutant cannot be killed, not that it is inconvenient`);
+    }
+  });
+  lines.forEach((text, i) => {
+    if (!DIRECTIVE.test(text)) return;
+    const next = lines.slice(i + 1).find((l) => l.trim() !== '' && !/^\s*(?:\/\/|\/\*|\*)/u.test(l));
+    if (next !== undefined && CLOSES.test(next)) {
+      problems.push(`${file}:${String(i + 1)}: this Stryker directive leads no code — Stryker reads one only as the comment before the next statement or property, so above a closing bracket it is never seen (a \`disable\` then runs to the end of the file). fix: move it below the bracket, before the next element`);
     }
   });
   return problems;
@@ -576,7 +588,7 @@ const row = (u: Undetected): string => `| \`${u.file}:${String(u.line)}:${String
 /** The mutate specs for a pull request, or the sentence that says why there are none. */
 function changedSpecs(event: string, base: string): { specs: Map<string, string[]> } | { none: string; code: number } {
   if ((event !== 'pull_request' && event !== 'merge_group') || base === '') {
-    return { none: `Not a pull request (\`${event || 'none'}\`): nothing changed to mutate here. The weekly full run (\`mutation.yml\`) measures \`main\`.`, code: 0 };
+    return { none: `Not a pull request (\`${event || 'none'}\`): nothing changed to mutate here. The weekly full run (\`npm run mutation:weekly\`) measures \`main\`.`, code: 0 };
   }
   const set = affected({ root: REPO_ROOT, event: 'pull_request', base, log: (l) => process.stderr.write(`${l}\n`) });
   const diff = spawnSync('git', ['diff', '-U0', '--no-color', '--no-renames', '--diff-filter=AMR', `${base}...HEAD`, '--', 'packages/'], { cwd: REPO_ROOT, encoding: 'utf8', maxBuffer: DIFF_BUFFER_BYTES });

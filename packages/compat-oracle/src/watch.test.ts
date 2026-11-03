@@ -18,13 +18,14 @@
  * that `registry.test.ts` uses, so a drift in the tar writer fails both suites at once rather
  * than letting each agree with its own copy.
  */
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { fakeRegistry } from './__fixtures__/fake-registry.js';
+import { discard } from './__fixtures__/scratch-dir.js';
 import { type Seen } from './competitors.js';
 import { type Fingerprint, check, compare, fingerprint, moved, takeFingerprint } from './watch.js';
 
@@ -186,7 +187,7 @@ describe('check and fingerprint, over a workspace', () => {
   }
 
   afterEach(() => {
-    for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
+    discard(...roots.splice(0));
   });
 
   it('reports a competitor with no held fingerprint as unfingerprinted, and opens nothing', async () => {

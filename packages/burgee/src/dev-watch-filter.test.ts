@@ -4,13 +4,15 @@
  * (Linux and macOS name the file; some platforms and some events do not), and a recursive
  * watch over a temp directory would also report whatever else the machine writes there.
  */
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { PassThrough } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import { discard } from './__fixtures__/scratch-dir.js';
 
 type Listener = (event: string, filename: string | Buffer | null) => void;
 const watched = vi.hoisted(() => ({ listener: undefined as Listener | undefined, closed: 0 }));
@@ -31,7 +33,7 @@ export const program = defineProgram({ name: 'watched', commands: [defineCommand
 
 let dir = '';
 afterEach(() => {
-  rmSync(dir, { recursive: true, force: true });
+  discard(dir);
   vi.useRealTimers();
 });
 

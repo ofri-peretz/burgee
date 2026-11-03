@@ -7,7 +7,7 @@
  * small node program that edits the file it is handed, so the whole round trip — temporary
  * file, spawn, read back, validate — runs as it does for a person.
  */
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { stripVTControlCharacters } from 'node:util';
@@ -15,6 +15,7 @@ import { stripVTControlCharacters } from 'node:util';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 
 import { render } from './__fixtures__/inquirer-render.js';
+import { discard } from './__fixtures__/scratch-dir.js';
 import { editAsync, editorCommand } from './inquirer-editor.js';
 import { editor } from './inquirer-prompts.js';
 import { TICK } from './inquirer-theme.js';
@@ -41,7 +42,7 @@ afterEach(() => {
 });
 
 afterAll(() => {
-  rmSync(scratch, { recursive: true, force: true });
+  discard(scratch);
 });
 
 const frame = (...lines: string[]): string => lines.join('\n');

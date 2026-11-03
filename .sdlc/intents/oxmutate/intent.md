@@ -165,14 +165,19 @@ Each line is a command or a file a reviewer can check.
   original defect.
 - `SC8` — **CI budget:** a full run of burgee (13,738 mutants, the 2026-10-24 baseline) completes
   in ≤ 30 minutes on the CI runner, sharded across ≤ 8 matrix jobs. The PR lane completes in
-  ≤ 10 minutes on a 500-line change. Both measured on the runner, not on a laptop.
+  ≤ 10 minutes on a 500-line change. Both measured on the runner, not on a laptop. *Amended
+  2026-11-01 by [`D-20261101-no-mutation-in-gha`](../../decisions/D-20261101-no-mutation-in-gha.md): no mutation runs in GitHub Actions, so both are measured
+  on the owner's machine, Stryker and the tool back to back on the same machine, with the machine
+  spec and load average recorded.*
 - `SC9` — **compat-oracle grade:** the Stryker-compat claim is graded against Stryker's own tests at
   100% of the cases the oracle runs, or the gap is listed.
 - `SC10` — **frozen oracle:** on a fixture where a change weakens a test, the lane reports the drop;
   on a fixture where the change only adds a test, the lane reports no drop.
 - `SC11` — **dogfood:** burgee's `mutation.yml` runs the tool for one full week and records the
   observation in `mutation-ratchets.json` with the same schema. The Stryker job is removed only
-  after that week is green.
+  after that week is green. *Amended 2026-11-01 by [`D-20261101-no-mutation-in-gha`](../../decisions/D-20261101-no-mutation-in-gha.md): `mutation.yml` is
+  now the local `npm run mutation:weekly`, and the week also reads every merged PR's pre-push
+  changed-lines run.* *Restated 2026-11-02 by the owner in [`D-20261102-sc11-one-green-full-run`](../../decisions/D-20261102-sc11-one-green-full-run.md): no calendar week; one complete green `mutation:weekly` run over every package, its ratchet PR merged.*
 
 ## Open questions
 
@@ -208,17 +213,17 @@ Each criterion below was checked by a reviewer that did not write the tool.
 
 | Criterion | State | Evidence, or the check that closes it |
 | :-- | :-- | :-- |
-| `SC1` | open | `M0` published medians of 5 runs with the machine spec, but `npm run bench:mutation` does not exist, and `oxmutate-bench.yml` has not published a runner number |
+| `SC1` | open | `M0` published medians of 5 runs with the machine spec, but `npm run bench:mutation` does not exist, and `oxmutate-bench.yml` never published a runner number before it was removed ([`D-20261101-no-mutation-in-gha`](../../decisions/D-20261101-no-mutation-in-gha.md)); the pair now runs on the owner's machine (`packages/oxmutate/bench/burgee-pair.mts`) |
 | `SC2` | met | 17.9x warm, median of 5, on es-toolkit (`m0-results.md`); cold 8.2x beside it (`m1-results.md`) |
 | `SC3` | open | Agreement 99.90–99.92% (met). Disagreements are listed in `m1-results.md`, and controlroom `screen.ts:224` still has no reason |
 | `SC4` | met | #1355: `src/schemas.test.ts` validates both reports of a real run against the vendored schemas (`test/schemas/`: Stryker report schema 3.8.4, SARIF 2.1.0) |
 | `SC5` | met | #1355: `src/sensitivity.test.ts` (`npm run test:sensitivity`) on `test/fixtures/sensitivity-weak` (3 survivors) and `sensitivity-closed` (none) |
 | `SC6` | unmet as written | Runtime deps `burgee` and `bellpull` (family only); cores bundled, not `optionalDependencies`; `"*"` ranges, fix in progress as 1.0.1 |
 | `SC7` | met | #1355: `src/vitest5-regression.test.ts` on `test/fixtures/vitest5-regression/`: every mutant Killed under Vitest 5, and Stryker's name filter put back makes all of them Survived |
-| `SC8` | open (missed) | Weekly run 40818077916 (2026-10-29): compat-oracle 203.4 min and caique 135.4 min of engine time, against Stryker's 58 and 80 min (2026-10-24). Engine fixes in progress: pollution restarts, runaway watchdog, 3x timeout re-runs |
+| `SC8` | open (missed) | Weekly run 41185206028 (2026-10-31, 1.1.0): compat-oracle 186.6 min and caique 107.5 min, against Stryker's 57.7 and 80.2 min (2026-10-24), on unequal mutant sets: Stryker dropped 1,298 compat-oracle mutants it never reported (a `restore` comment it cannot see). Local round 1 on caique (2026-11-02, equal sets, load means 26.9 and 24.6): **a measured loss**, oxmutate 8,084 s against Stryker's 4,153 s (1.95x). The cause was a defect: a test's frozen fake clock made the watchdog stop later mutants at once. Fixed in #1436. Round 2 on main `a96446c7a`: S1 Stryker 4,835 s, O1 3,147 s, O2 3,143 s, so oxmutate was **1.54x faster** on the one comparable pair. S2 was not run, so there is no median, and SC8 is **not graded met**. Open: a survivor diff of 69 mutants Stryker detected and oxmutate scores Survived, 48 of them static StringLiteral constants in caique's `clack-core.ts`, Stryker's verdict (Killed or Timeout) not yet read. compat-oracle is not yet measured. Profile, fixes and the equal-set comparison: [`sc8-profile.md`](./sc8-profile.md). Re-measured locally, both engines alternating on one quiet machine ([`D-20261101-no-mutation-in-gha`](../../decisions/D-20261101-no-mutation-in-gha.md)); the head-to-head is pending |
 | `SC9` | open | No compat-oracle grade for oxmutate |
 | `SC10` | met | `e2e.test.ts` "the frozen oracle (R14, SC10)", both cases; 161 / 161 green, natives present |
-| `SC11` | open | One green week: it starts at the first green weekly full run under oxmutate and closes 7 days later if every oxmutate mutation run on `main` in that window is green ([`D-20261101-oxmutate-s3-fixture-sc11-week`](../../decisions/D-20261101-oxmutate-s3-fixture-sc11-week.md)). Runs 40783405734, 40818077916 and 41185206028 were red (burgee and bellpull dry runs, fixed by #1373 and #1401) |
+| `SC11` | open | One complete green `npm run mutation:weekly` run on `origin/main` over every package, its ratchet PR merged, no calendar week ([`D-20261102-sc11-one-green-full-run`](../../decisions/D-20261102-sc11-one-green-full-run.md), replacing the week in [`D-20261101-oxmutate-s3-fixture-sc11-week`](../../decisions/D-20261101-oxmutate-s3-fixture-sc11-week.md)). Runs 40783405734, 40818077916 and 41185206028 were red (burgee and bellpull dry runs, fixed by #1373 and #1401). Read from the local weekly run (`npm run mutation:weekly`) and every merged PR's pre-push changed-lines run since [`D-20261101-no-mutation-in-gha`](../../decisions/D-20261101-no-mutation-in-gha.md) |
 | `S3` (`metrics.md`) | met | On its fixture, es-toolkit `src/array`, cold: 19.6 s against Stryker's 160.6 s, 8.2x ≥ 5x (`m1-results.md`); M3's 10x not yet. Burgee-scale wall clock is `S4` and `SC8` ([`D-20261101-oxmutate-s3-fixture-sc11-week`](../../decisions/D-20261101-oxmutate-s3-fixture-sc11-week.md)) |
 
 **What remains before `shipped`:** the open criteria, each closed by the check

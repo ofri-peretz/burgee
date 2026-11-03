@@ -4,13 +4,14 @@
  * fires above itself. A budget that has never failed is not a budget (`ratchet.test.ts`).
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
 import { answerProblem, msRecord, programSource, proveFixtures, ratioRecord, SCALE_RATIO_CEILING, scaleRounds, SIZES, SURFACES, writeFixtures } from './axes/scale.js';
 import { gateFailures } from './record.js';
+import { discard } from './scratch-dir.js';
 
 /**
  * Under `benchmarks/`, as the bench's own fixtures are, because a fixture imports `burgee` and only
@@ -23,7 +24,7 @@ const scratch = (prefix: string): string => {
   return dir;
 };
 afterAll(() => {
-  for (const dir of made) rmSync(dir, { recursive: true, force: true });
+  discard(...made);
 });
 
 describe('the scale fixtures are generated, not committed (Z5, design gate 2026-10-25)', () => {

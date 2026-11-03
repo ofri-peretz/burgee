@@ -227,8 +227,13 @@ describe('each shell exercises its script (D4)', () => {
     expect(bash('demo greet ada --')).not.toContain(SENTINEL);
   });
 
-  it.runIf(has('zsh'))('zsh: a real TAB in a pseudo-terminal completes the command and lists options with descriptions', { timeout: 120_000 }, () => {
+  // One zsh per case: each call is a pty shell running compinit, and two in one case cost
+  // over 7 s alone on macOS, past the 5 s case budget.
+  it.runIf(has('zsh'))('zsh: a real TAB in a pseudo-terminal completes the command', { timeout: 120_000 }, () => {
     expect(zsh('demo con')).toContain('demo config');
+  });
+
+  it.runIf(has('zsh'))('zsh: a real TAB in a pseudo-terminal lists options with descriptions', { timeout: 120_000 }, () => {
     const options = zsh('demo greet --');
     for (const w of ['--greeting', '--shout', '--json', '--help']) expect(options).toContain(w);
     expect(options).toContain('the greeting word');
@@ -316,10 +321,13 @@ describe('typed-positionals R4 — each shell offers a positional its choices, i
     expect(at('choosy deploy --r')).toEqual(['--region']);
   });
 
-  it.runIf(has('zsh'))('zsh', { timeout: 120_000 }, () => {
+  it.runIf(has('zsh'))('zsh: the first slot offers its own choices', { timeout: 120_000 }, () => {
     const first = zsh('choosy deploy ', choosy);
     for (const w of ['staging', 'prod']) expect(first).toContain(w);
     expect(first).not.toContain('free');
+  });
+
+  it.runIf(has('zsh'))('zsh: the third slot, past an option, offers its own choices', { timeout: 120_000 }, () => {
     const third = zsh('choosy deploy -r eu prod hi ', choosy);
     for (const w of ['free', 'pro']) expect(third).toContain(w);
     expect(third).not.toContain('staging');

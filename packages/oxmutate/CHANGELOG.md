@@ -1,5 +1,43 @@
 # oxmutate
 
+## 1.2.3
+
+### Patch Changes
+
+- [#1449](https://github.com/ofri-peretz/burgee/pull/1449) [`ee9f7b1`](https://github.com/ofri-peretz/burgee/commit/ee9f7b10639d0c295b617dd491220b2062e5bd42) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - **The command runner's sandbox keeps a tsconfig `extends` that climbs out of the project resolvable.**
+  The sandbox is a copy of the project under `<root>/.oxmutate-tmp/sandbox-*/`, two directories deeper
+  than the project itself. A tsconfig's relative `extends` is resolved from the file that holds it, so a
+  monorepo package's `"extends": "../../tsconfig.base.json"` pointed at nothing once copied, Vite failed
+  to load the config, and the dry run stopped with "make the command pass on the unmutated project
+  first" on a project whose command passes. Each copied `tsconfig*.json` now has its relative `extends`
+  rewritten to reach the same file from its new place.
+
+  Found running oxmutate over the eslint monorepo (`ofri-peretz/eslint`): every package there extends
+  the root `tsconfig.base.json`, so `testRunner: "command"` could not start in any of them. With the
+  fix, `eslint-plugin-vercel-ai-security`'s `require-max-steps` ran end to end: 165 mutants, 81.8%.
+
+## 1.2.2
+
+### Patch Changes
+
+- [#1444](https://github.com/ofri-peretz/burgee/pull/1444) [`a96446c`](https://github.com/ofri-peretz/burgee/commit/a96446c7a0a9439a70d450c85d06d701af1d8d0d) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A Vitest server whose run is killed while it is still loading Vitest now exits at once. Before, it listened for its coordinator going away only after Vitest had loaded, and on a busy machine that takes seconds. A server whose coordinator was already gone before it started also exits now.
+
+## 1.2.1
+
+### Patch Changes
+
+- [#1436](https://github.com/ofri-peretz/burgee/pull/1436) [`a6b9f9a`](https://github.com/ofri-peretz/burgee/commit/a6b9f9aeec8962ee81bf96fb4cdd04c5dcf99077) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The watchdog now times each mutant by the real clock. Before, a test that froze the clock with `vi.useFakeTimers()` and never restored it made every later mutant in that file look as if it had been running since the freeze. The watchdog then stopped it however briefly it had run, and each stop cost a killed server and an isolated run. On a full caique run, such stops read 100 to 1,055 s "elapsed". Verdicts do not change, because a stopped mutant is decided again in an isolated run.
+
+- [#1436](https://github.com/ofri-peretz/burgee/pull/1436) [`a6b9f9a`](https://github.com/ofri-peretz/burgee/commit/a6b9f9aeec8962ee81bf96fb4cdd04c5dcf99077) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The tarball no longer ships comments in its JavaScript. The build now runs the same comment stripper every other package in the family runs. Excluding the native core, the pack shrinks from 63,247 to 49,937 bytes gzipped. Declarations keep their summaries.
+
+## 1.2.0
+
+### Minor Changes
+
+- [#1427](https://github.com/ofri-peretz/burgee/pull/1427) [`cbe1c2f`](https://github.com/ofri-peretz/burgee/commit/cbe1c2f1d57b65f42c041ed858633086dec5b219) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A mutant that leaves its test waiting on an idle worker is now a Timeout at its budget, as Stryker scores it. This changes verdicts. Such a test waits on something the mutant never lets happen, such as a prompt awaiting a keypress: the worker is inside the test body, its event loop still turns, and its server burns almost no CPU. Before, the watchdog re-ran it with 3x the budget, and it came out Killed only when the test's own timeout (Vitest's, 30 s in burgee) fell inside that window. On caique that was about 375 mutants. Those verdicts move from Killed to Timeout, and the mutation score does not change, because a Timeout counts as detected. A stop whose worker was busy, a loop or a slow test on a loaded machine, keeps its re-run at 3x. The watchdog tells the two apart from a heartbeat the test worker writes and from the server's CPU time over the last second: idle is a live heartbeat from inside a test body and under 25% of a core. A worker still loading its test file is never idle (`.sdlc/decisions/D-20261101-idle-stall-is-timeout.md`, `.sdlc/intents/oxmutate/stall.qnt`).
+
+  The run's stats gain `staticMs`, the time spent deciding static mutants in live workers, and the summary line prints it. That time was missing before, so the phases now add up to the run. The stats also gain `idleStalls`. `OXMUTATE_DEBUG_WATCHDOG=1` prints each stop with its heartbeat age and CPU share.
+
 ## 1.1.0
 
 ### Minor Changes

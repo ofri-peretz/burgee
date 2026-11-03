@@ -25,11 +25,12 @@ import { basename, dirname, join } from 'node:path';
 
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { cosmiconfig, cosmiconfigSync, type CosmiconfigResult, type Options } from './cosmiconfig.js';
 
 const roots: string[] = [];
 afterAll(() => {
-  for (const root of roots) rmSync(root, { recursive: true, force: true });
+  discard(...roots);
 });
 
 /** A fresh directory holding `files`; a key ending in `/` is an empty directory. Real path, so results compare exactly. */

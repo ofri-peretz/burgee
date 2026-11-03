@@ -820,8 +820,8 @@ export const HOSTS: Host[] = [
     target: 'roundel',
     status: 'active',
     note: "Graded against roundel, as chalk, picocolors and supports-color are. `roundel/colorette` decides colour by colorette's own rule — a *present* `NO_COLOR` or `FORCE_COLOR`, the flags, Windows, a terminal with a `TERM`, three CI vendors — not by `roundel/policy`'s.",
-    // Stryker restore all
   },
+  // Stryker restore all
   {
     // `roundel/kleur`'s grader (`colour-facades` R1). Upstream's `npm test` is
     // `uvu -r esm -i utils -i xyz` from the repository root: uvu's default pattern, every `.js` in
@@ -848,8 +848,8 @@ export const HOSTS: Host[] = [
     target: 'roundel',
     status: 'active',
     note: "Graded against roundel, as chalk, colorette, picocolors and supports-color are. `roundel/kleur` decides colour by kleur's own rule — `NODE_DISABLE_COLORS`, a present `NO_COLOR`, `TERM=dumb`, then `FORCE_COLOR` other than `0` or a terminal on stdout — not by `roundel/policy`'s.",
-    // Stryker restore all
   },
+  // Stryker restore all
   {
     // `roundel/picocolors`' grader (`graded-override-targets` R7). picocolors' own `npm test` is
     // `node tests/test.js` and nothing else: `tests/environments.js` is not in it, so the glob
@@ -892,8 +892,8 @@ export const HOSTS: Host[] = [
     target: 'roundel',
     status: 'active',
     note: 'Graded against roundel, as chalk and picocolors are: `roundel/supports-color` answers in supports-color 11\'s order, where `roundel/policy` keeps its own (a `--no-color` beats `FORCE_COLOR=3` there, and `NO_COLOR` is honoured).',
-    // Stryker restore all
   },
+  // Stryker restore all
   {
     // `roundel/yoctocolors`' grader (`colour-facades` R3). Upstream's `npm test` is
     // `xo && ava && tsd`; the ava half is graded, as supports-color's is, and the declarations are
@@ -919,8 +919,8 @@ export const HOSTS: Host[] = [
     target: 'roundel',
     status: 'active',
     note: "Graded against roundel, as chalk, picocolors and supports-color are. `roundel/yoctocolors` decides colour by yoctocolors' own rule — Node's `hasColors()`, once at import — not by `roundel/policy`'s.",
-    // Stryker restore all
   },
+  // Stryker restore all
   {
     name: 'ora',
     repo: 'https://github.com/sindresorhus/ora',

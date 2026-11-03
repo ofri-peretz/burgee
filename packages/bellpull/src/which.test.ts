@@ -41,12 +41,13 @@
  * same case exercises the `PATHEXT` branch there and the mode branch here — which is the
  * first time either half of `executableByName` has been run by anything.
  */
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { type Runtime } from './runtime.js';
 import { extensionCandidates, NotFoundError, resolveExecutable, runPath, searchPath, whichAllSync, whichOrThrowSync, whichSync } from './which.js';
 
@@ -122,7 +123,7 @@ beforeAll(() => {
   executable(writable, 'tool', 'owned');
 });
 
-afterAll(() => rmSync(root, { recursive: true, force: true }), 60_000);
+afterAll(() => discard(root), 60_000);
 
 describe('the differentiator: where it was found, not just what', () => {
   it('reports the PATH entry that answered', () => {

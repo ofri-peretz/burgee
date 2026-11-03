@@ -50,12 +50,13 @@
  * whole string arrived as one entry and nothing resolved. `node:path`'s own `delimiter` is
  * the value that agrees with the platform the runtime is describing.
  */
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { format, toEvent, toJson } from './project.js';
 import { DEFAULT_TIMEOUT, run, startDeadline, type ExitHost, type Killable, type Result } from './run.js';
 import { type Runtime } from './runtime.js';
@@ -158,7 +159,7 @@ setInterval(() => {}, 1000);`,
 }, 60_000);
 
 // 60 s like everything else here that touches the filesystem under this suite's own load.
-afterAll(() => rmSync(dir, { recursive: true, force: true }), 60_000);
+afterAll(() => discard(dir), 60_000);
 
 describe('a result, not a string and a thrown error (R1)', () => {
   it('resolves on success with the output and the resolved executable', async () => {

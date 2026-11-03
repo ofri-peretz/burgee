@@ -19,10 +19,11 @@
  * `CLAUDECODE` or the like) and a laptop run the same example.
  */
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { discard } from 'docs-chassis/scratch-dir';
 import { afterAll, describe, expect, it } from 'vitest';
 
 const APP = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -63,7 +64,7 @@ const scripted = filesOf('guides/asking.mdx').get('scripted.mjs');
 const shared = new Map([...filesOf('getting-started.mdx'), ...(scripted === undefined ? [] : [['scripted.mjs', scripted] as const])]);
 const scratch: string[] = [];
 afterAll(() => {
-  for (const dir of scratch) rmSync(dir, { recursive: true, force: true });
+  discard(...scratch);
 });
 
 /** What `decide()`, roundel's `interactive()` and the output policy read; cleared unless a command sets it. */

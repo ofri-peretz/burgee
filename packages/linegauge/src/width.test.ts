@@ -8,10 +8,11 @@
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
+import { eastAsianWidthType } from 'get-east-asian-width';
 import stringWidth from 'string-width';
 import { describe, expect, it } from 'vitest';
 
-import { INVISIBLE_CLASSES, leadingInvisible, lineCount, measure, width } from './width.js';
+import { INVISIBLE_CLASSES, isAmbiguous, isWide, leadingInvisible, lineCount, measure, width } from './width.js';
 
 const ESC = '\u001B';
 const ZWSP = '\u200B';
@@ -246,6 +247,19 @@ describe('the width tables are the ones the pinned get-east-asian-width publishe
     const script = fileURLToPath(new URL('../scripts/generate-width-tables.mjs', import.meta.url));
     const run = spawnSync(process.execPath, [script, '--check'], { encoding: 'utf8' });
     expect(run.status, `${run.stdout}${run.stderr}`).toBe(0);
+  });
+
+  // `--check` reads the file's text, so it cannot see a table changed in memory: the weekly
+  // mutation run (2026-10-31) left 621 of `WIDE` and `AMBIGUOUS`'s numbers mutated and alive.
+  // This asks the loaded tables about every code point.
+  it('the loaded tables answer as the pinned package does for every code point', () => {
+    const wrong: string[] = [];
+    // eslint-disable-next-line secure-coding/no-unchecked-loop-condition -- a fixed bound: Unicode's 1,114,112 code points, ~0.5 s
+    for (let cp = 0; cp <= 0x10_ff_ff; cp++) {
+      const type = eastAsianWidthType(cp);
+      if (isWide(cp) !== (type === 'wide' || type === 'fullwidth') || isAmbiguous(cp) !== (type === 'ambiguous')) wrong.push(cp.toString(16));
+    }
+    expect(wrong.slice(0, 10)).toEqual([]);
   });
 
   it('measures a Unicode 17 wide code point as two columns, as string-width does', () => {

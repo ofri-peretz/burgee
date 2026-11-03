@@ -41,8 +41,9 @@
  *   report), and the budget is held in one CI place, `Unit Tests`.
  *
  * `NIGHTLY_ONLY` is the only exemption, and it is not for a slow case that runs on a pull
- * request: a case belongs there only when it was moved to the nightly workflow, and the reason
- * says what heavy operation it needs (D-20261101-heavy-ci-runs-nightly).
+ * request: a case belongs there only when it was moved behind BURGEE_NIGHTLY, which only the weekly
+ * local run (`npm run mutation:weekly`) sets, and the reason says what heavy operation it needs
+ * (D-20261101-heavy-ci-runs-nightly; D-20261101-no-mutation-in-gha moved the run out of CI).
  */
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -83,6 +84,8 @@ export const NIGHTLY_ONLY: Readonly<Record<string, string>> = {
   [
     "packages/oxmutate/src/vitest5-regression.test.ts > the Vitest 5 regression (SC7) > reproduces the defect: with Stryker 10.0.0's name filter put back, the same mutants are Survived having run no test"
   ]: `${MUTATION_RUN}, twice, the second with every mutant surviving into its confirmation run; 28.7 s`,
+  [`${E2E} > scores a mutant whose test waits on an idle worker Timeout at its budget, with no 3x re-run`]: `${MUTATION_RUN}, waiting out a 4.5 s budget on purpose: a shorter one is reached while a loaded runner still loads the test file, which reads as a slow machine and flaked on CI (2026-11-02); 9.2 s`,
+  [`${E2E} > keeps a survivor whose confirmation run was only slow, not killed`]: `${MUTATION_RUN}, whose fixture stalls 6 s on purpose so the confirmation's 3x re-run is what decides; 5.8 s`,
   ['packages/oxmutate/src/checker.test.ts > the type checker > refuses the mutants that do not compile, with the error, and passes the ones that do']:
     'the real TypeScript compiler, `npx tsc` once per batch, over the fixture project; 15.1 s on a contended CI runner',
 };
@@ -122,7 +125,7 @@ export function describeOverBudget(slow: readonly CaseDuration[], budget: number
     `\n✗ ${slow.length} test case${slow.length === 1 ? '' : 's'} over the ${budget} ms per-case budget (D-20261101-tests-under-5s):`,
     ...lines,
     '  Make the case fast without weakening it — share a spawn in beforeAll, import instead of spawning, shrink the fixture —',
-    '  or, if it truly needs a heavy operation, move it to the nightly workflow and name it in NIGHTLY_ONLY',
+    '  or, if it truly needs a heavy operation, move it behind BURGEE_NIGHTLY (npm run mutation:weekly runs it) and name it in NIGHTLY_ONLY',
     '  (scripts/vitest-case-budget-reporter.ts) with the reason.\n',
   ].join('\n');
 }
