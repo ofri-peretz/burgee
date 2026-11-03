@@ -9,3 +9,8 @@ export function sign(n: number): string {
   if (n < 0) return 'negative';
   return 'zero';
 }
+
+// Only the RuleTester-shaped block in mixed.spec.ts covers it.
+export function isOdd(n: number): boolean {
+  return n % 2 !== 0;
+}

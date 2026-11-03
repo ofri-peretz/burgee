@@ -179,12 +179,12 @@ const MAX_CANARY_EVERY = 8;
  * Test files whose tests run once per collection. ESLint's RuleTester records each case as its test
  * runs and fails one it has seen ("detected duplicate test case"), so every canary failed and read as
  * pollution: each mutant cost a context restart (eslint-plugin-mongodb-security, 279 mutants in 69 min,
- * 13,868 restarts, 2026-11-03). The dry run finds them by running each file's first passing test
- * twice. In mutant mode each run after a test's first takes the test from a fresh collection of the
+ * 13,868 restarts, 2026-11-03). The dry run finds them by running the first passing test of each
+ * suite twice: a file can open with plain tests and hold a RuleTester block further down. In mutant mode each run after a test's first takes the test from a fresh collection of the
  * file (rerun.qnt). The imports stay evaluated, so a mutant's leftovers in them still fail the canary.
  */
 const runOnce = new Set<string>(mode === 'mutant' ? (plan.runOnce ?? []) : []);
-/** `dry`: files whose first passing test has been run a second time. */
+/** `dry`: suites (or files, for a test outside any) whose first passing test has been run a second time. */
 const probed = new Set<string>();
 /** A `runOnce` file's fresh collections; each test takes its own copy from each, in order. */
 const collections = new Map<string, AnyTask[]>();
@@ -230,11 +230,12 @@ function takeCopy(test: AnyTask): AnyTask | undefined {
 /** `dry`: the probe's hits are counted here and dropped, or they would double the hit limits. */
 const PROBE_ID = '__oxmutate_probe__';
 
-/** `dry`: run a file's first passing test again, with its hooks, as the canary will. Failing there, the file is run-once. */
+/** `dry`: run a suite's first passing test again, with its hooks, as the canary will. Failing there, its file is run-once. */
 async function probe(test: AnyTask, fn: () => unknown): Promise<void> {
   const file = test.file?.filepath;
-  if (!file || probed.has(file)) return;
-  probed.add(file);
+  const scope = test.suite?.id ?? file;
+  if (!file || !scope || probed.has(scope) || runOnce.has(file)) return;
+  probed.add(scope);
   await afterEach(test, test.context, []);
   const cleanups = await beforeEach(test, test.context);
   ns.currentTestId = PROBE_ID;
