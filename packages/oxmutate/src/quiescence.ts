@@ -30,6 +30,8 @@ import timers from 'node:timers';
 import promiseTimers from 'node:timers/promises';
 import { promisify } from 'node:util';
 
+import { env, stderr } from './runtime.js';
+
 /** How often the worker samples itself. */
 export const SAMPLE_MS = 100;
 /** Under this share of a sample in this thread's CPU, the thread did nothing. */
@@ -251,7 +253,7 @@ export function watch(): Watch {
       pendingTimers,
       withinFloor: withinFloor(resources(), floor),
     };
-    if (process.env['OXMUTATE_DEBUG_QUIET']) process.stderr.write(`quiet? ${JSON.stringify(reading)} res=${JSON.stringify([...resources()])} floor=${JSON.stringify([...floor])}\n`);
+    if (env['OXMUTATE_DEBUG_QUIET']) stderr.write(`quiet? ${JSON.stringify(reading)} res=${JSON.stringify([...resources()])} floor=${JSON.stringify([...floor])}\n`);
     if (!quiet(reading)) {
       quietSince = undefined;
       return;
