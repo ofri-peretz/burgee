@@ -191,6 +191,18 @@ jobs:
             echo "::error::staticwarm.qnt: safety holds under groupedNoHold — the model no longer shows why a grouped verdict is held"
             exit 1
           fi
+      # oxmutate's run-once files (rerun.qnt): a fresh collection per run keeps `safety`, re-running
+      # the same closure (1.2.2) does not, and pollution still restarts (neverRestarts violated).
+      - name: oxmutate run-once files — fresh copies hold, reused closures still fail
+        run: |
+          m=.sdlc/intents/oxmutate/rerun.qnt
+          for inv in "v122 safety" "rerun neverRestarts"; do
+            set -- $inv
+            if $QUINT run "$m" --main="$1" --invariant="$2" --max-steps=30 --max-samples=20000 >/dev/null; then
+              echo "::error::rerun.qnt: $2 holds under $1 — the model no longer distinguishes the fix"
+              exit 1
+            fi
+          done
       # An open question, pinned: closeout's late add() is silently dropped today. When the
       # code changes and this starts holding, the step fails and the question gets answered.
       - name: closeout late add() is still dropped (open question, see spec.md)

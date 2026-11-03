@@ -93,6 +93,26 @@ it.skipIf(!native || !existsSync(bin) || !nightly)('decides no kill on a previou
   expect(spare.map((m) => `${String(m.location.start.line)}:${m.mutatorName}:${m.status}`)).toEqual(spare.map((m) => `${String(m.location.start.line)}:${m.mutatorName}:Survived`));
 }, 60_000);
 
+// ESLint's RuleTester fails a case it has seen, so a test run again from the same collection fails
+// whatever the mutant: every canary read as pollution and each mutant cost a restart. The fixture's
+// survivors show the runs after the first were decided on the mutant, not on that failure (rerun.qnt).
+it.skipIf(!native || !existsSync(bin) || !nightly)('runs a run-once test file (ESLint\'s RuleTester) from fresh collections, with no restart', () => {
+  const dir = path.join(pkg, 'test/fixtures/run-once');
+  const reportDir = path.join(dir, 'reports');
+  rmSync(reportDir, { recursive: true, force: true });
+  execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: dir, stdio: 'pipe' });
+  const report = JSON.parse(readFileSync(path.join(reportDir, 'mutation.json'), 'utf8')) as {
+    files: Record<string, { mutants: ReportMutant[] }>;
+    'x-oxmutate': { stats: { pollutionRestarts: number } };
+  };
+  rmSync(reportDir, { recursive: true, force: true });
+  const mutants = report.files['src/parity.ts']?.mutants ?? [];
+  expect(report['x-oxmutate'].stats.pollutionRestarts).toBe(0);
+  const zeroLine = 9; // `if (n < 0)`: zero is never checked
+  expect(mutants.filter((m) => m.status === 'Survived').map((m) => m.location.start.line)).toContain(zeroLine);
+  expect(mutants.filter((m) => m.location.start.line < zeroLine - 1).map((m) => m.status)).toEqual(mutants.filter((m) => m.location.start.line < zeroLine - 1).map(() => 'Killed'));
+}, 60_000);
+
 // The mutant is armed through `beforeEach`, as Stryker arms it. A fixture builder only a hook calls was
 // planned for the test (the dry run credits hook code to it) but run with the hooks unarmed, so each of
 // its mutants survived the warm run and cost an isolated process to be killed.

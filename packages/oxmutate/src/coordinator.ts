@@ -143,6 +143,8 @@ interface ChildRecord {
   tests?: (TestInfo & { state: string })[];
   coverage?: { static: Record<string, number>; perTest: Record<string, Record<string, number>> };
   fileErrors?: { file: string; error: string }[];
+  /** `dry`: test files whose tests run once per collection (runner.ts `runOnce`). */
+  runOnce?: string[];
 }
 
 function readRecords(file: string): ChildRecord[] {
@@ -274,7 +276,7 @@ export async function run(options: Options): Promise<RunResult> {
     if (options.specOracles.length) env[SPEC_TRACES_ENV] = JSON.stringify(traceDirs);
     const dryPool = createPool({ root, vitestConfig: options.vitestConfig, workers: options.concurrency, instrumentedMap: mapFile, nodeArgs: options.testRunnerNodeArgs }, 1, work, 'dry');
     pools.push(dryPool);
-    const dryRun = async (): Promise<{ tests: (TestInfo & { state: string })[]; perTest: Record<string, Record<string, number>>; static: Record<string, number> }> => {
+    const dryRun = async (): Promise<{ tests: (TestInfo & { state: string })[]; perTest: Record<string, Record<string, number>>; static: Record<string, number>; runOnce: string[] }> => {
       const unit: Unit = { mode: 'dry', files: [], results: fileFor('dry', 'jsonl'), progress: fileFor('dry', 'progress') };
       let failure: UnitOutcome | undefined;
       let overBudget = false;
@@ -296,7 +298,7 @@ export async function run(options: Options): Promise<RunResult> {
       if (fileErrors.length) {
         throw new InstrumentFault(`${String(fileErrors.length)} test file(s) failed to load during the dry run, so their tests would be missing from every verdict: ${fileErrors.slice(0, 3).map((e) => `${path.relative(root, e.file)}: ${e.error}`).join('; ')}`);
       }
-      return { tests: recs.flatMap((r) => r.tests ?? []), perTest, static: stat };
+      return { tests: recs.flatMap((r) => r.tests ?? []), perTest, static: stat, runOnce: recs.flatMap((r) => r.runOnce ?? []) };
     };
     progress.phase('dry run');
     const d0 = performance.now();
@@ -438,7 +440,7 @@ export async function run(options: Options): Promise<RunResult> {
     const unfinished = new Set<string>();
     const makeUnit = (file: string, plan: Plan, depth = 0): Unit => {
       const unit: Unit = { mode: 'mutant', files: [file], results: fileFor('unit', 'jsonl'), progress: fileFor('unit', 'progress'), plan: fileFor('plan', 'json') };
-      writeFileSync(unit.plan as string, JSON.stringify({ tests: plan, hitLimits, skip: [], specTests: [...specOf.keys()] }));
+      writeFileSync(unit.plan as string, JSON.stringify({ tests: plan, hitLimits, skip: [], specTests: [...specOf.keys()], runOnce: dry.runOnce }));
       planUnits.set(unit.results, { file, plan, depth });
       stats.units++;
       return unit;
@@ -540,7 +542,7 @@ export async function run(options: Options): Promise<RunResult> {
       }
       if (Object.keys(left).length === 0) return false;
       entry.plan = left;
-      writeFileSync(unit.plan as string, JSON.stringify({ tests: left, hitLimits, skip: [], specTests: [...specOf.keys()] }));
+      writeFileSync(unit.plan as string, JSON.stringify({ tests: left, hitLimits, skip: [], specTests: [...specOf.keys()], runOnce: dry.runOnce }));
       return true;
     };
     await pool.drain(unitsForRound(toRun, (m) => fileOrder.get(m.id) ?? []), (_, id) => warmBudget(id), afterUnit, beforeUnit);
