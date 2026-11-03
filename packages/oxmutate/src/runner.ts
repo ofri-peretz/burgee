@@ -140,6 +140,8 @@ const ranAway = (): boolean => ns.hitCount !== undefined && ns.hitLimit !== unde
 const deadlocks = mode === 'dry' ? undefined : watch();
 /** `isolated`: the run's test deadlocked, so its mutant is a Timeout, as a runaway is. */
 let deadlocked = false;
+/** `mutant`: a deadlock tore this worker down; nothing more runs in it (runTask). */
+let tornDown = false;
 /**
  * How long a wait must stay quiet before it is a deadlock: twice the test's dry-run time (never under
  * MIN_CONFIRM_MS), stretched by the machine's load. Quiet already means nothing can resume the wait,
@@ -423,6 +425,8 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
       }
       return;
     }
+    // A deadlock tore this worker down: the file's other tests do not run beside its pending run.
+    if (tornDown) return;
     let current = test;
     let run = fn;
     let context = test.context;
@@ -541,8 +545,20 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
       // behind (a cache, a registry, a fixture) that would decide the next verdicts. Run after every
       // mutant at first, then every 2, 4, 8 while it stays clean: pollution is rare per test, and the
       // canary was half of all executions (burgee/paratext, 2026-10-27).
-      // A deadlocked run is still pending in this context: check it at once, not on the canary's schedule.
-      if ((deadlock || unchecked.length >= canaryEvery) && !(await canary())) break;
+      // A deadlocked run is still pending in this worker, its timers and handles with it: tear the
+      // context down. The unit ends here; the verdicts no canary has vouched for since the last
+      // clean one go back with the rest of the unit to a fresh context, and Vitest drops this worker.
+      if (deadlock) {
+        pollutedBy(new Error('torn down: a deadlocked run is still pending in this worker'));
+        tornDown = true;
+        break;
+      }
+      if (unchecked.length >= canaryEvery && !(await canary())) break;
+    }
+    // Torn down: nothing more runs in this worker, not even the test's own unmutated run.
+    if (tornDown) {
+      if (progressPath) writeFileSync(progressPath, '');
+      return;
     }
     if (!polluted) await canary();
     if (progressPath && ids.length) writeFileSync(progressPath, '');
@@ -647,6 +663,9 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
       // The real clock, as above: the file's tests run again here, and may freeze it.
       if (progressPath) writeFileSync(progressPath, `${id} ${String(realNow())}\n`);
       held.push({ id, verdict: await evaluate(id) });
+      // A deadlocked run is still pending in this worker: tear it down. The batch, held verdicts and
+      // all, goes back to the fresh-worker path, where each run has its own process.
+      if (held.at(-1)?.verdict.deadlock) return back('torn down: a deadlocked run is still pending in this worker');
       const left = snapshotDiff(before, snapshot());
       if (left.length) return back('the mutant left a trace', left);
       if (held.length < every && rest.length) continue;

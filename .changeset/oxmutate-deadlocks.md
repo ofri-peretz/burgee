@@ -14,3 +14,7 @@ On caique's three most hang-heavy files (964 mutants, back to back at comparable
 - no mutant changed between detected and undetected
 
 The status reason reads `its test deadlocked`, and `stats.deadlocks` counts them.
+
+A deadlock is also torn down. The unit ends where it was called; the verdicts no canary has vouched for go back, with the rest of the unit, to a fresh context; and the worker that holds the pending run is dropped, its timers and handles with it. A static batch goes back to the fresh-worker path.
+
+No single test execution is waited on for more than 5 seconds (`MAX_TEST_MS`). Every watchdog budget, including the 3× re-run of a busy stop, is capped at 5 seconds per test the run executes.

@@ -183,6 +183,14 @@ function timeoutReason(v: Verdict): string {
 
 /** How many times its isolated budget a busy stop gets on its re-run. */
 const RERUN_SLACK = 3;
+
+/**
+ * No single test execution is waited on past this (owner, 2026-11-04: "we should not wait longer than
+ * that"). Every watchdog budget is capped at it per test the run executes, the 3x re-run of a busy stop
+ * included. A hang is mostly called by its worker in about half a second (quiescence.ts); the cap
+ * bounds the waits it cannot judge.
+ */
+export const MAX_TEST_MS = 5000;
 const MS_PER_MINUTE = 60_000;
 const PERCENT = 100;
 
@@ -439,7 +447,7 @@ export async function run(options: Options): Promise<RunResult> {
     // The watchdog is for runaways, which loop in fast code; a slow test under a loaded machine is
     // not one. 3x the covering test's dry-run time, not Stryker's 1.5x: at 1.5x, subprocess-heavy
     // burgee/paratext tests were stopped as false timeouts (2026-10-27).
-    const warmBudget = (id: string): number => options.timeoutMS + Math.max(options.timeoutFactor, 3) * maxTestMs(id) + 250;
+    const warmBudget = (id: string): number => Math.min(MAX_TEST_MS, options.timeoutMS + Math.max(options.timeoutFactor, 3) * maxTestMs(id) + 250);
 
     // Files a mutant's covering tests live in, cheapest first (by the covering tests' time there).
     const fileOrder = new Map<string, string[]>();
@@ -632,6 +640,13 @@ export async function run(options: Options): Promise<RunResult> {
       const covering = byCost([...new Set(tests)]);
       return [...covering, ...byAffinity(m.file, [...loaders].filter((f) => !covering.includes(f)))];
     };
+    /** How many tests a mutant's isolated run executes: its covering tests, or every test of its files when static. */
+    const testsRun = (id: string): number => {
+      const m = byId.get(id);
+      const fs = m ? filesFor(m) : allTestFiles;
+      const covering = new Set(m && !m.static ? m.coveredBy : []);
+      return Math.max(1, dry.tests.filter((t) => fs.includes(t.file) && (covering.size === 0 || covering.has(t.id))).length);
+    };
     const isolatedBudget = (id: string): number => {
       const m = byId.get(id);
       const fs = m ? filesFor(m) : allTestFiles;
@@ -640,8 +655,10 @@ export async function run(options: Options): Promise<RunResult> {
       // where its covering tests take a fraction of that (2026-10-30). A static mutant runs them all.
       const covering = new Set(m && !m.static ? m.coveredBy : []);
       const ms = dry.tests.filter((t) => fs.includes(t.file) && (covering.size === 0 || covering.has(t.id))).reduce((sum, t) => sum + t.ms, 0);
-      return 1500 + options.timeoutMS + options.timeoutFactor * ms * 2;
+      return Math.min(MAX_TEST_MS * testsRun(id), 1500 + options.timeoutMS + options.timeoutFactor * ms * 2);
     };
+    /** `slack` times a mutant's isolated budget, still within MAX_TEST_MS per test it runs. */
+    const isolatedCapped = (id: string, slack: number): number => Math.min(slack * isolatedBudget(id), MAX_TEST_MS * testsRun(id));
     // A non-static mutant runs only its covering tests, armed across all of them in file order:
     // Stryker's semantics, so cross-test effects still show (a no-op reset() lets state pile up
     // for the next covering test). A static mutant runs every test of its files, because an
@@ -699,7 +716,7 @@ export async function run(options: Options): Promise<RunResult> {
       const open = (m: MutantResult): boolean => !killed.has(m.id) && !back.has(m.id);
       const rounds = [(m: MutantResult): string[] => filesFor(m).slice(0, 1), (m: MutantResult): string[] => (open(m) ? filesFor(m).slice(1) : [])];
       // the mutant's run and the unarmed canary after it
-      for (const round of rounds) await staticPool.drain(unitsFor(round), (_, id) => 2 * isolatedBudget(id), afterStatic, keepUndecided);
+      for (const round of rounds) await staticPool.drain(unitsFor(round), (_, id) => isolatedCapped(id, 2), afterStatic, keepUndecided);
       const undecided: MutantResult[] = [];
       for (const m of items) {
         const k = killed.get(m.id);
@@ -732,7 +749,7 @@ export async function run(options: Options): Promise<RunResult> {
       stats.isolatedRuns += items.length;
       await pool.drain(
         units,
-        (_, id) => slack * isolatedBudget(id),
+        (_, id) => isolatedCapped(id, slack),
         (unit, outcome) => {
           // Vitest reports per test file: a mutant is killed if any of its files failed.
           for (const rec of readRecords(unit.results)) {
