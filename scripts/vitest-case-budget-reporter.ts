@@ -72,6 +72,7 @@ export const NIGHTLY_ONLY: Readonly<Record<string, string>> = {
   [`${E2E} > re-runs file-level beforeEach hooks between mutants, so they read as no pollution`]: `${MUTATION_RUN}; 7.1 s`,
   [`${E2E} > decides no kill on a previous mutant's leftovers that a test cleaned up in finally`]: `${MUTATION_RUN}; 11.4 s`,
   [`${E2E} > kills a mutant a beforeEach hook reaches in the warm run, with no isolated run`]: `${MUTATION_RUN}; 6.6 s`,
+  [`${E2E} > runs a run-once test file (ESLint's RuleTester) from fresh collections, with no restart`]: `${MUTATION_RUN}; unmeasured`,
   [`${E2E} > static mutants keep their fresh-worker verdicts > an import-time constant decides its mutants; an unread one survives`]: `${MUTATION_RUN}, every static mutant in a fresh worker; 6.9 s`,
   [`${E2E} > static mutants keep their fresh-worker verdicts > a global set at import does not carry one mutant value into the next`]: `${MUTATION_RUN}, every static mutant in a fresh worker; 9.3 s`,
   [`${E2E} > confirms a watchdog stop with 3x the budget before reporting a timeout`]: `${MUTATION_RUN}, whose fixture stalls 8 s twice on purpose so the 3x confirmation is what decides; 14.6 s`,

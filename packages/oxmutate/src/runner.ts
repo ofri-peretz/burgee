@@ -106,6 +106,8 @@ interface Plan {
   skip: string[];
   /** A spec oracle's replay tests: they keep a verdict track of their own (spec-oracle.ts). */
   specTests?: string[];
+  /** Test files the dry run found run-once (rerun.qnt). */
+  runOnce?: string[];
 }
 const plan: Plan =
   mode === 'mutant' && env['OXMUTATE_PLAN'] ? (JSON.parse(readFileSync(env['OXMUTATE_PLAN'], 'utf8')) as Plan) : { tests: {}, hitLimits: {}, skip: [] };
@@ -173,6 +175,77 @@ const STATIC_CANARY_MAX = 4;
 /** Mutants between canaries; doubles while the canary stays clean, back to 1 when it fails. */
 let canaryEvery = 1;
 const MAX_CANARY_EVERY = 8;
+/**
+ * Test files whose tests run once per collection. ESLint's RuleTester records each case as its test
+ * runs and fails one it has seen ("detected duplicate test case"), so every canary failed and read as
+ * pollution: each mutant cost a context restart (eslint-plugin-mongodb-security, 279 mutants in 69 min,
+ * 13,868 restarts, 2026-11-03). The dry run finds them by running each file's first passing test
+ * twice. In mutant mode each run after a test's first takes the test from a fresh collection of the
+ * file (rerun.qnt). The imports stay evaluated, so a mutant's leftovers in them still fail the canary.
+ */
+const runOnce = new Set<string>(mode === 'mutant' ? (plan.runOnce ?? []) : []);
+/** `dry`: files whose first passing test has been run a second time. */
+const probed = new Set<string>();
+/** A `runOnce` file's fresh collections; each test takes its own copy from each, in order. */
+const collections = new Map<string, AnyTask[]>();
+/** test id → how many fresh collections it has taken a copy from. */
+const taken = new Map<string, number>();
+/**
+ * Runs of one test after its first, per mutant: the armed run, the canary and second armed run a kill
+ * after unchecked runs triggers, the interval canary. The loop's closing canary and the reported run
+ * add 2. Collecting this many copies before the test starts means a run-once test never runs out.
+ */
+const RUNS_PER_MUTANT = 4;
+const RUNS_AFTER = 2;
+type Collect = (specs: string[], runner: unknown) => Promise<AnyTask[]>;
+/** Vitest's public collect: from `vitest/internal/browser` on Vitest 5, `@vitest/runner` on Vitest 4. */
+async function findCollect(): Promise<Collect | undefined> {
+  const browser = (await fromProject('vitest/internal/browser').catch(() => ({}))) as { collectTests?: Collect };
+  if (browser.collectTests) return browser.collectTests;
+  const vitestDir = path.dirname(createRequire(path.join(cwd(), 'package.json')).resolve('vitest/package.json'));
+  return ((await fromProject('@vitest/runner', vitestDir).catch(() => ({}))) as { collectTests?: Collect }).collectTests;
+}
+let collector: Promise<Collect | undefined> | undefined;
+const loadCollect = (): Promise<Collect | undefined> => (collector ??= findCollect());
+
+const find = (t: AnyTask, id: string): AnyTask | undefined => (t.id === id ? t : t.tasks?.reduce<AnyTask | undefined>((hit, c) => hit ?? find(c, id), undefined));
+/** A suite-level hook ran once for the collection Vitest runs, never for a fresh one: such a file keeps the restart. */
+const hasAllHooks = (t: AnyTask): boolean => {
+  if (t.type === 'test') return false;
+  const hooks = statics.getSuiteHooks(t);
+  return hooks.beforeAll.length > 0 || hooks.afterAll.length > 0 || (t.tasks ?? []).some(hasAllHooks);
+};
+
+/** The test's copy from the next fresh collection of its file it has not run from. */
+function takeCopy(test: AnyTask): AnyTask | undefined {
+  const n = taken.get(test.id) ?? 0;
+  taken.set(test.id, n + 1);
+  const file = collections.get(test.file?.filepath ?? '')?.[n];
+  return file && find(file, test.id);
+}
+
+/** `dry`: the probe's hits are counted here and dropped, or they would double the hit limits. */
+const PROBE_ID = '__oxmutate_probe__';
+
+/** `dry`: run a file's first passing test again, with its hooks, as the canary will. Failing there, the file is run-once. */
+async function probe(test: AnyTask, fn: () => unknown): Promise<void> {
+  const file = test.file?.filepath;
+  if (!file || probed.has(file)) return;
+  probed.add(file);
+  await afterEach(test, test.context, []);
+  const cleanups = await beforeEach(test, test.context);
+  ns.currentTestId = PROBE_ID;
+  try {
+    await fn();
+  } catch {
+    runOnce.add(file);
+  } finally {
+    ns.currentTestId = test.id;
+    if (ns.mutantCoverage) delete ns.mutantCoverage.perTest[PROBE_ID];
+    for (const cleanup of cleanups.reverse()) await cleanup();
+  }
+}
+
 /** How much of a test's error a `polluted` record keeps, and of a file's collection error. */
 const POLLUTION_ERROR_CHARS = 300;
 const FILE_ERROR_CHARS = 500;
@@ -270,7 +343,11 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
   onBeforeCollect?(paths: string[]): unknown;
   importFile?(filepath: string, source: string): unknown;
   onBeforeRunSuite?(suite: AnyTask): unknown;
+  onBeforeRunTask?(test: AnyTask): unknown;
   onCollectStart?(file: unknown): unknown;
+  /** Vitest's own: the current task, and the module graph a test file is invalidated in (Vitest 4). */
+  workerState?: { current?: unknown; evaluatedModules?: { getModuleById: (id: string) => unknown; invalidateModule: (node: unknown) => void } };
+  _currentSpecification?: unknown;
   onBeforeTryTask?(test: AnyTask, options: { retry: number; repeats: number }): unknown;
   onAfterRunFiles?(files: AnyTask[]): unknown;
 }) {
@@ -298,12 +375,16 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
       markTest(true);
       try {
         await fn();
+        if (mode === 'dry') await probe(test, fn);
       } finally {
         markTest(false);
       }
       return;
     }
-    const context = test.context;
+    let current = test;
+    let run = fn;
+    let context = test.context;
+    let invoked = false;
     // Once a mutant has polluted this context, no further verdict from it can be trusted: the
     // rest of the unit is left unrun, and the coordinator re-queues it into a fresh context.
     const spec = specTests.has(test.id);
@@ -312,11 +393,21 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
     let cleanups: Hook[] = [];
     let attempt = 0;
     const teardown = async (): Promise<void> => {
-      await afterEach(test, context, cleanups);
+      await afterEach(current, context, cleanups);
       cleanups = [];
     };
     const setup = async (): Promise<void> => {
-      cleanups = await beforeEach(test, context);
+      // A run-once test runs from a fresh copy every time after its first; the copy's own hooks wrap it.
+      if (invoked && test.file && runOnce.has(test.file.filepath)) {
+        const copy = takeCopy(test);
+        // Unreachable: onBeforeRunTask collected a copy for every run this test can make.
+        if (!copy) throw new Error('oxmutate: a run-once test ran out of fresh collections');
+        current = copy;
+        run = statics.getTestFn(copy) ?? fn;
+        context = copy.context;
+      }
+      invoked = true;
+      cleanups = await beforeEach(current, context);
       await this.retryReset(test, ++attempt);
     };
     const fresh = async (): Promise<void> => {
@@ -330,7 +421,7 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
       if (!unchecked.length) return true;
       await fresh();
       try {
-        await fn();
+        await run();
         unchecked = [];
         canaryEvery = Math.min(MAX_CANARY_EVERY, canaryEvery * 2);
         return true;
@@ -355,7 +446,7 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
       let status: 'Killed' | 'Survived' | 'Timeout' = 'Survived';
       try {
         await setup();
-        await fn();
+        await run();
       } catch (e) {
         status = isHitLimit(e) ? 'Timeout' : 'Killed';
       } finally {
@@ -393,7 +484,7 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
     if (progressPath && ids.length) writeFileSync(progressPath, '');
     if (attempt > 0) await fresh();
     try {
-      await fn();
+      await run();
     } finally {
       for (const cleanup of cleanups.reverse()) await cleanup();
     }
@@ -498,6 +589,49 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
     vi.resetModules();
   }
 
+  /**
+   * Collected here, before Vitest marks the test running: it refuses `it()` inside a running test.
+   * A file whose copies cannot be collected falls back to the canary restarting its context.
+   */
+  async onBeforeRunTask(test: AnyTask): Promise<unknown> {
+    const filepath = test.file?.filepath;
+    if (mode === 'mutant' && !polluted && filepath && runOnce.has(filepath)) {
+      const done = specTests.has(test.id) ? decidedBySpec : decided;
+      const runs = (plan.tests[test.id] ?? []).filter((id) => !done.has(id)).length * RUNS_PER_MUTANT + RUNS_AFTER;
+      if (!(await this.collectCopies(filepath, (taken.get(test.id) ?? 0) + runs))) runOnce.delete(filepath);
+    }
+    return super.onBeforeRunTask?.(test);
+  }
+
+  /**
+   * Fresh collections of `filepath` until there are `count`. Only the test file is evaluated again
+   * (Vitest 5 re-imports it; on Vitest 4 its module is invalidated first), so each costs the file's
+   * own top level, not its imports.
+   */
+  private async collectCopies(filepath: string, count: number): Promise<boolean> {
+    const files = collections.get(filepath) ?? [];
+    collections.set(filepath, files);
+    if (files.length >= count) return true;
+    const collect = await loadCollect();
+    if (!collect) return false;
+    const { workerState } = this;
+    // Collecting points Vitest's current task and spec at the new file; the running file keeps them.
+    const was = { current: workerState?.current, spec: this._currentSpecification };
+    try {
+      while (files.length < count) {
+        const node = workerState?.evaluatedModules?.getModuleById(filepath);
+        if (node) workerState?.evaluatedModules?.invalidateModule(node);
+        const [file] = await collect([filepath], this);
+        if (!file || file.result?.state === 'fail' || hasAllHooks(file)) return false;
+        files.push(file);
+      }
+      return true;
+    } finally {
+      if (workerState) workerState.current = was.current;
+      this._currentSpecification = was.spec;
+    }
+  }
+
   /** Reset per-try state (snapshot counters, assertion counts) the way Vitest does for a retry. */
   private async retryReset(test: AnyTask, attempt: number): Promise<void> {
     await super.onBeforeTryTask?.(test, { retry: attempt, repeats: 0 });
@@ -518,7 +652,7 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
         const result = f.result as { state?: string; errors?: { message?: string }[] } | undefined;
         if (result?.state === 'fail' && !f.tasks?.length) fileErrors.push({ file: filepath, error: (result.errors?.[0]?.message ?? 'failed to collect').slice(0, FILE_ERROR_CHARS) });
       }
-      emit({ type: 'dry', tests, coverage: ns.mutantCoverage, fileErrors });
+      emit({ type: 'dry', tests, coverage: ns.mutantCoverage, fileErrors, runOnce: [...runOnce] });
     } else if (mode === 'isolated') {
       const failed: string[] = [];
       let ran = 0;
