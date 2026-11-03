@@ -24,7 +24,11 @@
  * `Timeout`, a child `PipeWrap` + `ProcessWrap`; a busy loop and a blocking `execFileSync` stop the
  * sampler itself (ELU 1.00), so they stay with the wall-clock watchdog, as before.
  */
+import { syncBuiltinESMExports } from 'node:module';
 import { performance } from 'node:perf_hooks';
+import timers from 'node:timers';
+import promiseTimers from 'node:timers/promises';
+import { promisify } from 'node:util';
 
 /** How often the worker samples itself. */
 export const SAMPLE_MS = 100;
@@ -47,7 +51,8 @@ export const isDeadlock = (e: unknown): e is DeadlockError => e instanceof Deadl
 
 type Usage = { user: number; system: number };
 type ThreadCpu = (previous?: Usage) => Usage;
-const threadCpuUsage = (process as unknown as { threadCpuUsage?: ThreadCpu }).threadCpuUsage?.bind(process);
+const { threadCpuUsage: threadCpu } = process as NodeJS.Process & { threadCpuUsage?: ThreadCpu };
+const threadCpuUsage = threadCpu?.bind(process);
 // Captured when this module is evaluated, before a test can install fake timers.
 const { setInterval: realSetInterval, clearInterval: realClearInterval } = globalThis;
 const realNow = performance.now.bind(performance);
@@ -91,77 +96,88 @@ const done = (id: number): void => {
   if (live.delete(id)) pendingTimers--;
 };
 
-type TimerFn = (cb: (...a: unknown[]) => unknown, ms?: number, ...args: unknown[]) => { [Symbol.toPrimitive](): number };
-type ClearFn = (handle?: unknown) => void;
-
-/** Wrap `setTimeout`/`setImmediate`/`setInterval` and their clears on `target` so pending timers are counted. */
-function wrapTimers(target: Record<string, unknown>): void {
-  const once = (name: 'setTimeout' | 'setImmediate', clear: 'clearTimeout' | 'clearImmediate'): void => {
-    const set = target[name] as TimerFn | undefined;
-    const unset = target[clear] as ClearFn | undefined;
-    if (!set || !unset || (set as { __oxmutate?: true }).__oxmutate) return;
-    const wrapped = (cb: (...a: unknown[]) => unknown, ...rest: unknown[]): unknown => {
-      let id = 0;
-      const handle = set((...a: unknown[]) => {
-        done(id);
-        return cb(...a);
-      }, ...(rest as [number | undefined]));
-      id = Number(handle);
-      live.set(id, true);
-      pendingTimers++;
-      return handle;
-    };
-    target[name] = Object.assign(wrapped, set, { __oxmutate: true });
-    target[clear] = (handle?: unknown): void => {
-      if (handle !== undefined && handle !== null) done(Number(handle));
-      unset(handle);
-    };
+/** The timer functions a module or the global object carries, as far as counting them needs. */
+interface TimerApi {
+  setTimeout: typeof setTimeout;
+  clearTimeout: typeof clearTimeout;
+  setImmediate: typeof setImmediate;
+  clearImmediate: typeof clearImmediate;
+  setInterval: typeof setInterval;
+  clearInterval: typeof clearInterval;
+}
+const WRAPPED = Symbol.for('oxmutate.timers');
+const isWrapped = (fn: unknown): boolean => typeof fn === 'function' && WRAPPED in fn;
+const mark = <F extends object>(fn: F): F => Object.assign(fn, { [WRAPPED]: true });
+/** A cleared timer stops being pending; an id that is not ours is ignored. */
+const clearing =
+  <H>(clear: (handle?: H) => void) =>
+  (handle?: H): void => {
+    if (handle !== undefined && handle !== null) done(Number(handle));
+    clear(handle);
   };
-  once('setTimeout', 'clearTimeout');
-  once('setImmediate', 'clearImmediate');
-  const every = target['setInterval'] as TimerFn | undefined;
-  const stopEvery = target['clearInterval'] as ClearFn | undefined;
-  if (every && stopEvery && !(every as { __oxmutate?: true }).__oxmutate) {
-    // An interval fires until cleared: pending for as long as it lives.
-    target['setInterval'] = Object.assign(
-      (cb: (...a: unknown[]) => unknown, ...rest: unknown[]): unknown => {
-        const handle = every(cb, ...(rest as [number | undefined]));
-        live.set(Number(handle), true);
-        pendingTimers++;
-        return handle;
-      },
-      every,
-      { __oxmutate: true },
-    );
-    target['clearInterval'] = (handle?: unknown): void => {
-      if (handle !== undefined && handle !== null) done(Number(handle));
-      stopEvery(handle);
-    };
-  }
+
+/**
+ * Wrap `api`'s timers so each one is pending from the call until it fires (a timeout, an immediate)
+ * or is cleared (an interval fires until then). Each handle is keyed by its numeric id, which Node
+ * gives every timer and every clear function accepts.
+ */
+/** A timer counted as pending from now, until `done` (it fired, or was cleared). */
+function pending<H>(handle: H): H {
+  live.set(Number(handle), true);
+  pendingTimers++;
+  return handle;
+}
+
+/** A timer `start` sets, pending until it fires and runs `cb`. */
+function oneShot<H>(start: (fire: () => void) => H, cb: (...a: unknown[]) => void, args: unknown[]): H {
+  const handle = start(() => {
+    done(Number(handle));
+    cb(...args);
+  });
+  return pending(handle);
+}
+
+/** A promised timer counted as pending until it settles. */
+function counted<T>(p: Promise<T>): Promise<T> {
+  pendingTimers++;
+  return p.finally(() => pendingTimers--);
+}
+
+/** `wrapper` in `original`'s place: marked, and still promisified the way `original` was (`util.promisify(setTimeout)`). */
+function standIn<F extends object>(wrapper: F, original: object): F {
+  const custom: unknown = Reflect.get(original, promisify.custom);
+  if (custom !== undefined) Reflect.defineProperty(wrapper, promisify.custom, { value: custom });
+  return mark(wrapper);
+}
+
+function wrapTimers(api: TimerApi): void {
+  if (isWrapped(api.setTimeout)) return;
+  const { setTimeout: later, setImmediate: soon, setInterval: every, clearTimeout: unlater, clearImmediate: unsoon, clearInterval: unevery } = api;
+  const timeout = (cb: (...a: unknown[]) => void, ms?: number, ...args: unknown[]): NodeJS.Timeout => oneShot((fire) => later(fire, ms), cb, args);
+  const immediate = (cb: (...a: unknown[]) => void, ...args: unknown[]): NodeJS.Immediate => oneShot((fire) => soon(fire), cb, args);
+  const interval = (cb: (...a: unknown[]) => void, ms?: number, ...args: unknown[]): NodeJS.Timeout => pending(every(cb, ms, ...args));
+  api.setTimeout = standIn(timeout, later) as typeof setTimeout;
+  api.setImmediate = standIn(immediate, soon) as typeof setImmediate;
+  api.setInterval = standIn(interval, every) as typeof setInterval;
+  api.clearTimeout = clearing(unlater);
+  api.clearImmediate = clearing(unsoon);
+  api.clearInterval = clearing(unevery);
 }
 
 /** `node:timers/promises`: each awaited timer is pending until it settles. */
-function wrapPromiseTimers(target: Record<string, unknown>): void {
-  for (const name of ['setTimeout', 'setImmediate'] as const) {
-    const fn = target[name] as ((...a: unknown[]) => Promise<unknown>) | undefined;
-    if (!fn || (fn as { __oxmutate?: true }).__oxmutate) continue;
-    target[name] = Object.assign(
-      (...a: unknown[]): Promise<unknown> => {
-        pendingTimers++;
-        return fn(...a).finally(() => pendingTimers--);
-      },
-      { __oxmutate: true },
-    );
-  }
+function wrapPromiseTimers(api: { setTimeout: typeof promiseTimers.setTimeout; setImmediate: typeof promiseTimers.setImmediate }): void {
+  if (isWrapped(api.setTimeout)) return;
+  const { setTimeout: later, setImmediate: soon } = api;
+  api.setTimeout = mark(<T>(...a: Parameters<typeof later<T>>) => counted(later<T>(...a)));
+  api.setImmediate = mark(<T>(...a: Parameters<typeof soon<T>>) => counted(soon<T>(...a)));
 }
 
 /** Count every timer the test or the code under test creates from here on. Idempotent. */
-export async function trackTimers(): Promise<void> {
-  wrapTimers(globalThis as unknown as Record<string, unknown>);
-  const { createRequire, syncBuiltinESMExports } = await import('node:module');
-  const require = createRequire(import.meta.url);
-  wrapTimers(require('node:timers') as Record<string, unknown>);
-  wrapPromiseTimers(require('node:timers/promises') as Record<string, unknown>);
+export function trackTimers(): void {
+  wrapTimers(globalThis);
+  wrapTimers(timers);
+  wrapPromiseTimers(promiseTimers);
+  // ESM importers of `node:timers` read the module's live bindings, updated from the object here.
   syncBuiltinESMExports();
 }
 
@@ -182,14 +198,14 @@ export function trackRpc(state: { rpc?: object } | undefined): void {
       if (key === '__oxmutateTracked') return true;
       const value: unknown = Reflect.get(target, key, receiver);
       if (typeof value !== 'function' || typeof key !== 'string' || key.startsWith('$')) return value;
-      const call = value as (...args: unknown[]) => unknown;
       const counted = (...args: unknown[]): unknown => {
-        const result = call(...args);
+        const result: unknown = Reflect.apply(value, target, args);
         if (!(result instanceof Promise)) return result;
         rpcInFlight++;
         return result.finally(() => rpcInFlight--);
       };
-      return Object.assign(counted, value);
+      // birpc's `asEvent` (fire and forget) rides on the function: keep it reachable.
+      return Object.defineProperties(counted, Object.getOwnPropertyDescriptors(value));
     },
   });
 }

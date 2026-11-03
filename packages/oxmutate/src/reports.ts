@@ -115,6 +115,7 @@ export function describe(m: MutantResult): string {
 function corrections(s: RunResult['stats']): string[] {
   return [
     s.watchdogKills && `${String(s.watchdogKills)} runaway(s) stopped`,
+    s.deadlocks && `${String(s.deadlocks)} deadlock(s) called by their worker`,
     s.pollutionRestarts && `${String(s.pollutionRestarts)} polluted context(s) restarted (in ${String(s.canaryFiles)} file(s))`,
     s.flakyMutants && `${String(s.flakyMutants)} flaky verdict(s)`,
     s.survivorsOverturned && `${String(s.survivorsOverturned)} survivor(s) killed by a whole-file re-run`,

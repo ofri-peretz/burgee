@@ -5,6 +5,17 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { DeadlockError, isDeadlock, MIN_CONFIRM_MS, pendingTimerCount, quiet, QUIET_OTHER_SHARE, QUIET_SELF_SHARE, takeFloor, trackTimers, watch } from './quiescence.js';
 
+/** Turn the event loop with immediates for `ms`: busy, every step settled, nothing pending between them. */
+const spin = (ms: number): Promise<void> =>
+  new Promise((resolve) => {
+    const end = performance.now() + ms;
+    const step = (): void => {
+      if (performance.now() >= end) resolve();
+      else setImmediate(step);
+    };
+    step();
+  });
+
 /** A reading every condition of a deadlock holds for; each case below breaks one. */
 const still = { selfShare: 0, otherShare: 0, rpcInFlight: 0, pendingTimers: 0, withinFloor: true };
 
@@ -26,8 +37,8 @@ describe('quiet: a sample is quiet only when every condition of a deadlock holds
 // The waits a mutant leaves behind, run in this test's own worker thread, as the runner runs them.
 describe('watch().guard: a deadlock is called within its confirm window; a wait that can end is never called one', () => {
   const deadlocks = watch();
-  beforeAll(async () => {
-    await trackTimers();
+  beforeAll(() => {
+    trackTimers();
     takeFloor();
   });
   afterAll(() => deadlocks.stop());
@@ -65,11 +76,7 @@ describe('watch().guard: a deadlock is called within its confirm window; a wait 
   });
 
   it('never calls a run that keeps its loop busy a deadlock', async () => {
-    const spin = async (): Promise<void> => {
-      const end = performance.now() + 1200;
-      while (performance.now() < end) await new Promise<void>((r) => setImmediate(r));
-    };
-    expect(await timed(spin)).toMatchObject({ deadlock: false });
+    expect(await timed(() => spin(1200))).toMatchObject({ deadlock: false });
   });
 
   it('calls a wait on fake timers nobody advances a deadlock: nothing will move that clock', async () => {

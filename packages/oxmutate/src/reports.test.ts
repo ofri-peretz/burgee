@@ -37,6 +37,7 @@ const stats = (s: Partial<RunStats> = {}): RunStats => ({
   flakyMutants: 0,
   units: 0,
   serversSpawned: 0,
+  deadlocks: 0,
   ...s,
 });
 
