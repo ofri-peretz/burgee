@@ -405,7 +405,7 @@ describe.skipIf(!native || !existsSync(bin))('a spec oracle (M3.5): model traces
 // mutant took two stops and a 3x re-run to come out Killed the same way.
 // In process, through the built package's API: the CLI's exit adds seconds this test does not need.
 // The mutant is static and sent straight to the fresh-worker path, whose watchdog this checks.
-it.skipIf(!native || !existsSync(bin))('scores a mutant whose test waits on an idle worker Timeout at its budget, with no 3x re-run', async () => {
+it.skipIf(!native || !existsSync(bin) || !nightly)('scores a mutant whose test waits on an idle worker Timeout at its budget, with no 3x re-run', async () => {
   const dir = path.join(pkg, 'test/fixtures/stall');
   // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the built package under test, present only after a build; the test is skipped without it
   const api = (await import(path.join(pkg, 'dist/index.js'))) as typeof import('./index.js');
@@ -454,7 +454,7 @@ it.skipIf(!native || !existsSync(bin))('times a mutant by the real clock, so a t
   expect(result.mutants.filter((m) => m.status === 'Timeout')).toEqual([]);
 }, 60_000);
 
-it.skipIf(!native || !existsSync(bin))('keeps a survivor whose confirmation run was only slow, not killed', () => {
+it.skipIf(!native || !existsSync(bin) || !nightly)('keeps a survivor whose confirmation run was only slow, not killed', () => {
   const dir = path.join(pkg, 'test/fixtures/slow-survivor');
   const reportDir = path.join(dir, 'reports');
   rmSync(reportDir, { recursive: true, force: true });
@@ -462,12 +462,14 @@ it.skipIf(!native || !existsSync(bin))('keeps a survivor whose confirmation run 
   execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: dir, stdio: 'pipe' });
   const report = JSON.parse(readFileSync(path.join(reportDir, 'mutation.json'), 'utf8')) as {
     files: Record<string, { mutants: ReportMutant[] }>;
-    'x-oxmutate': { stats: { survivorsOverturned: number } };
+    'x-oxmutate': { stats: { survivorsOverturned: number; watchdogKills: number } };
   };
   rmSync(reportDir, { recursive: true, force: true });
   // The slow survivor, and the NumericLiteral beside it, which no test checks either.
   expect(report.files['src/one.ts']?.mutants.map((m) => m.status)).toEqual(['Survived', 'Survived']);
-  expect(report['x-oxmutate'].stats.survivorsOverturned).toBe(0);
+  // The confirmation ran and was stopped once, and its 3x re-run finished: the path under test.
+  // With one covering test it never ran, and this case passed having checked nothing (2026-11-02).
+  expect(report['x-oxmutate'].stats).toMatchObject({ survivorsOverturned: 0, watchdogKills: 1 });
 }, 90_000);
 
 describe.skipIf(!native || !existsSync(bin))("Stryker's mutate ranges", () => {

@@ -141,3 +141,48 @@ server killed, and it was sent to an isolated run. The fix writes the start from
 captured at load (`realNow`, #1436). The `fake-clock` fixture reproduces the defect: 2 stops before
 the fix, 0 after. Continuing the S, O, O, S round on a build with a known defect would only have
 measured that defect, so the round was stopped after O1 and restarts on the fixed build.
+
+### caique, round 2 (build at main `a96446c7a`; S2 not run)
+
+Same method as round 1, on the build with every fix: the real clock (#1436), comment stripping, and
+the server-start fix (#1444). Each run started below a 1-min load of 30; the load was sampled every
+minute.
+
+| Run | Engine | Wall | Load: mean / median / max | Verdicts |
+| :-- | :-- | --: | :-- | :-- |
+| S1 | Stryker | 4,835 s (80.6 min) | 29.4 / 29.9 / 48.4 | killed 5,210 · timeout 490 · survived 688 · no coverage 2 |
+| O1 | oxmutate | 3,147 s (52.5 min) | 24.1 / 17.6 / 69.6 | killed 5,267 · timeout 370 · survived 747 · no coverage 2 · ignored 8 |
+| O2 | oxmutate | 3,143 s (52.4 min) | 35.7 / 38.7 / 71.1 | — |
+| S2 | Stryker | not run | — | stopped by the owner at about 35 min, before it finished |
+
+- **S1 against O1:** mean loads within 1.22x, so the pair is comparable. **oxmutate 1.54x faster**
+  (3,147 s against 4,835 s).
+- **O2** under a heavier load (mean 35.7) took the same time as O1.
+- **SC8 is not graded met.** S2 did not run, so there is no Stryker median and no second pair. The
+  head-to-head on compat-oracle has not been measured.
+
+#### The survivor diff is open
+
+oxmutate reports 59 more Survived than Stryker (747 against 688) and 120 fewer Timeout. By mutant
+location:
+
+- 69 mutants survive under oxmutate that Stryker detected.
+- 10 survive under Stryker but not under oxmutate (key mismatches in Stryker's summary, not yet
+  examined).
+- Of the 69, 49 are StringLiteral, 8 ArrayDeclaration, 5 LogicalOperator, 5 MethodExpression, 1
+  ConditionalExpression and 1 ObjectLiteral.
+- 48 are in `clack-core.ts`, almost all module-level constants: the step and bar glyphs
+  (`unicodeOr('◆', '*')` and the rest), the key aliases, and the instruction strings. They are
+  static mutants.
+
+What is known so far:
+
+- They were already survivors on 1.1.0, before any SC8 change (10-31 CI artifact).
+- oxmutate's live static path and its fresh-worker path (`OXMUTATE_ISOLATE_STATIC=1`) agree:
+  Survived on 6 of 6 sampled, lines 161–163.
+
+What is not known: whether Stryker scored them **Killed** or **Timeout**. Stryker runs every test of
+the package for a static mutant. A Timeout would mean a slow full-suite run, not a test that caught
+the mutant. The summary `scripts/mutation.ts` keeps does not say which. A Stryker run on those lines,
+with its JSON report kept, decides it. Until then, oxmutate missing real kills is not ruled out, and
+a missed kill outranks speed.
