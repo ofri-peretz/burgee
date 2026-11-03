@@ -198,6 +198,9 @@ export default [
       // .sdlc/intents/native-engine/spec.md, re-runnable through m0/reproduce.sh. The fixture is
       // a migrate input (bare `vi`, `jest`, `require`) on purpose, so no rule set fits it.
       ".sdlc/intents/native-engine/m0/**",
+      // oxmutate SC8 head-to-head harness, for the same reason: the exact scripts behind the runs
+      // in .sdlc/intents/oxmutate/sc8/RUNS.md. The ledger generator, scripts/sc8-ledger.mjs, is linted.
+      ".sdlc/intents/oxmutate/sc8/harness/**",
       "apps/*/next-env.d.ts",
       // Vendored upstream test suites (compat-oracle C6). They are the hosts' own
       // files, unmodified except one import specifier, and are graded, never linted:

@@ -1,0 +1,10 @@
+{
+  "sc8h2h-caique-S1": "superseded: round 1, before the oxmutate defect fixed in #1436",
+  "sc8h2h-caique-O1": "superseded: round 1 oxmutate build had the defect fixed in #1436 (1.95x slower)",
+  "sc8r2-caique-S2a": "stopped at 29% when the owner halted the loop (2026-11-02 ~18:20 local); Stryker reported an unexpected exit",
+  "sc8r2-co-a-S1": "pollution: a StringLiteral mutant on vendor.ts staging path overwrote packages/compat-oracle/package.json at ~02:12 (fixed in #1453); ~7 mutants/min afterwards, then EAGAIN",
+  "sc8r2-co-a-O1": "refused to start: dry run red from co-a-S1's on-disk pollution",
+  "sc8r2-co-a-O2": "refused to start: dry run red from co-a-S1's on-disk pollution",
+  "sc8r2-co-a-S2": "refused to start: dry run red from co-a-S1's on-disk pollution",
+  "sc8r2-co-b-S1": "stopped by hand: the Mac hibernated 09:44-12:18 local and load ran 55-92 from other sessions"
+}

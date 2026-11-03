@@ -1,0 +1,4 @@
+label=sc8r2-caique-S1 engine=stryker pkg=caique mode=
+start 2026-11-02T12:23:35Z load { 21.05 20.88 21.03 }
+end 2026-11-02T13:44:10Z load { 15.99 27.80 30.46 }
+wall_s 4835

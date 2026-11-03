@@ -1,0 +1,14 @@
+{"strykerSurvived":737,"oxSurvived":739,"both":727,"onlyOx":12,"onlyStryker":10,"onlyStrykerOxVerdicts":[["absent",10]],"onlyOxByMutator":[["LogicalOperator",5],["MethodExpression",5],["ConditionalExpression",1],["ObjectLiteral",1]]}
+ONLY-OX
+src/ask.ts:91:7:LogicalOperator:(Number.isInteger(index) && index >= 1) || index <= choices.length
+src/clack-date.ts:99:22:MethodExpression:this.segments.some((segment) => !this.get(segment).includes('_'))
+src/clack-list.ts:127:3:LogicalOperator:options .filter((option) => chosen.includes(option.value)) .map(labelOf) .join(', ') && empty
+src/clack-prompts.ts:289:12:MethodExpression:this.membersOf(name).some((row) => chosen.includes(row.value))
+src/clack-search.ts:104:16:MethodExpression:Math.min( this.filtered.findIndex((option) => option.value === this.focused), 0, )
+src/clack-search.ts:139:12:LogicalOperator:(this.mode.multiple && this.navigating) || key.name === 'space'
+src/inquirer-checkbox.ts:124:32:MethodExpression:items.every((choice) => isSelectable(choice) && !choice.checked)
+src/inquirer-choices.ts:22:103:ConditionalExpression:true
+src/inquirer-choices.ts:100:6:MethodExpression:[header, page, ' ', ...rest] .filter(Boolean) .join('\n') .trimStart()
+src/inquirer-theme.ts:105:12:ObjectLiteral:{}
+src/line-edit.ts:31:3:LogicalOperator:(key.ctrl !== true && key.meta !== true && char !== undefined) || char !== ''
+src/line-edit.ts:31:3:LogicalOperator:(key.ctrl !== true && key.meta !== true) || char !== undefined
