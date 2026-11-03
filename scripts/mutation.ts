@@ -54,13 +54,14 @@ const SETUP_FILE = path.join(SCRIPT_DIR, 'mutation-vitest-setup.ts');
 const WRAPPER_DIR = '.mutation';
 
 /**
- * The PR lane's budget (R3). The job's own `timeout-minutes` is 15; the build before this step
- * takes about two of them, so the mutants get eleven and the rest is headroom. A run that needs
- * more is a pull request too large to mutate in the lane, and it fails saying so — it does not
- * pass unmeasured.
+ * The PR lane's budget (R3). It runs in the pre-push hook only (D-20261101-no-mutation-in-gha), so
+ * the 11 minutes that fit a 15-minute GitHub job no longer bind it (D-20261104-local-mutation-lane):
+ * an oxmutate change of ~280 lines could not be measured in them on the owner's machine. A run that
+ * needs more than this is still a pull request too large to mutate in the lane, and it fails saying
+ * so — it does not pass unmeasured.
  */
 export const PR_BUDGET = {
-  wallClockMinutes: 11,
+  wallClockMinutes: 45,
   /** Added to a mutant's measured test time before Stryker calls it a timeout (an infinite loop). */
   timeoutMS: 10_000,
   dryRunTimeoutMinutes: 4,
@@ -412,7 +413,11 @@ export function runPackage(pkg: string, mutate: readonly string[], o: { concurre
     cwd: packageDir,
     stdio: 'inherit',
     timeout: o.budgetMs,
-    killSignal: 'SIGINT',
+    // Stryker mutates in place and restores the sources on SIGINT. oxmutate never writes them, and a
+    // SIGINT reaches burgee's shutdown layer, which runs its exit handlers first: a lane run told to
+    // stop at 11 minutes ran 354 (2026-11-03). SIGKILL ends it at the budget; its servers stop when
+    // their coordinator's IPC channel closes (child.ts).
+    killSignal: engine === 'oxmutate' ? 'SIGKILL' : 'SIGINT',
     env: { ...process.env, FORCE_COLOR: '0' },
   });
   const minutes = round((Date.now() - started) / MS_PER_MINUTE);
