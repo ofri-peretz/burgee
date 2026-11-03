@@ -1,0 +1,71 @@
+{"strykerSurvived":680,"oxSurvived":739,"both":670,"onlyOx":69,"onlyStryker":10,"onlyStrykerOxVerdicts":[["absent",10]],"onlyOxByMutator":[["StringLiteral",49],["ArrayDeclaration",8],["LogicalOperator",5],["MethodExpression",5],["ConditionalExpression",1],["ObjectLiteral",1]]}
+ONLY-OX
+src/ask.ts:91:7:LogicalOperator:(Number.isInteger(index) && index >= 1) || index <= choices.length
+src/clack-core.ts:98:69:StringLiteral:""
+src/clack-core.ts:98:78:StringLiteral:""
+src/clack-core.ts:102:5:ArrayDeclaration:[]
+src/clack-core.ts:102:6:StringLiteral:""
+src/clack-core.ts:102:11:StringLiteral:""
+src/clack-core.ts:103:5:ArrayDeclaration:[]
+src/clack-core.ts:103:6:StringLiteral:""
+src/clack-core.ts:103:11:StringLiteral:""
+src/clack-core.ts:161:40:StringLiteral:""
+src/clack-core.ts:161:45:StringLiteral:""
+src/clack-core.ts:162:40:StringLiteral:""
+src/clack-core.ts:162:45:StringLiteral:""
+src/clack-core.ts:163:39:StringLiteral:""
+src/clack-core.ts:163:44:StringLiteral:""
+src/clack-core.ts:165:38:StringLiteral:""
+src/clack-core.ts:165:43:StringLiteral:""
+src/clack-core.ts:167:41:StringLiteral:""
+src/clack-core.ts:168:44:StringLiteral:""
+src/clack-core.ts:168:49:StringLiteral:""
+src/clack-core.ts:169:47:StringLiteral:""
+src/clack-core.ts:170:41:StringLiteral:""
+src/clack-core.ts:171:43:StringLiteral:""
+src/clack-core.ts:171:48:StringLiteral:""
+src/clack-core.ts:172:44:StringLiteral:""
+src/clack-core.ts:172:49:StringLiteral:""
+src/clack-core.ts:173:46:StringLiteral:""
+src/clack-core.ts:173:51:StringLiteral:""
+src/clack-core.ts:174:51:StringLiteral:""
+src/clack-core.ts:178:41:StringLiteral:""
+src/clack-core.ts:178:46:StringLiteral:""
+src/clack-core.ts:180:47:StringLiteral:""
+src/clack-core.ts:180:52:StringLiteral:""
+src/clack-core.ts:181:49:StringLiteral:""
+src/clack-core.ts:182:33:StringLiteral:""
+src/clack-core.ts:183:41:StringLiteral:""
+src/clack-core.ts:185:34:StringLiteral:""
+src/clack-core.ts:207:36:ArrayDeclaration:[]
+src/clack-core.ts:207:37:StringLiteral:``
+src/clack-core.ts:207:53:StringLiteral:""
+src/clack-core.ts:207:75:StringLiteral:``
+src/clack-core.ts:207:91:StringLiteral:""
+src/clack-core.ts:208:41:ArrayDeclaration:[]
+src/clack-core.ts:208:42:StringLiteral:``
+src/clack-core.ts:208:58:StringLiteral:""
+src/clack-core.ts:208:80:StringLiteral:``
+src/clack-core.ts:208:96:StringLiteral:""
+src/clack-core.ts:208:116:StringLiteral:``
+src/clack-core.ts:208:132:StringLiteral:""
+src/clack-date.ts:31:8:ArrayDeclaration:[]
+src/clack-date.ts:31:9:StringLiteral:""
+src/clack-date.ts:31:18:StringLiteral:""
+src/clack-date.ts:31:25:StringLiteral:""
+src/clack-date.ts:99:22:MethodExpression:this.segments.some((segment) => !this.get(segment).includes('_'))
+src/clack-list.ts:43:3:ArrayDeclaration:[]
+src/clack-list.ts:43:4:StringLiteral:""
+src/clack-list.ts:117:103:ArrayDeclaration:[]
+src/clack-list.ts:117:135:StringLiteral:""
+src/clack-list.ts:117:166:ArrayDeclaration:[]
+src/clack-list.ts:127:3:LogicalOperator:options .filter((option) => chosen.includes(option.value)) .map(labelOf) .join(', ') && empty
+src/clack-prompts.ts:289:12:MethodExpression:this.membersOf(name).some((row) => chosen.includes(row.value))
+src/clack-search.ts:104:16:MethodExpression:Math.min( this.filtered.findIndex((option) => option.value === this.focused), 0, )
+src/clack-search.ts:139:12:LogicalOperator:(this.mode.multiple && this.navigating) || key.name === 'space'
+src/inquirer-checkbox.ts:124:32:MethodExpression:items.every((choice) => isSelectable(choice) && !choice.checked)
+src/inquirer-choices.ts:22:103:ConditionalExpression:true
+src/inquirer-choices.ts:100:6:MethodExpression:[header, page, ' ', ...rest] .filter(Boolean) .join('\n') .trimStart()
+src/inquirer-theme.ts:105:12:ObjectLiteral:{}
+src/line-edit.ts:31:3:LogicalOperator:(key.ctrl !== true && key.meta !== true && char !== undefined) || char !== ''
+src/line-edit.ts:31:3:LogicalOperator:(key.ctrl !== true && key.meta !== true) || char !== undefined
