@@ -16,6 +16,17 @@ const spin = (ms: number): Promise<void> =>
     step();
   });
 
+/** Each wait that can end lasts this long: past MIN_CONFIRM_MS, so a detector that misfires calls it a deadlock. */
+const WAIT_MS = MIN_CONFIRM_MS * 2;
+/** A confirm window past the shortest, to show the call waits for it. */
+const LONG_WINDOW_MS = MIN_CONFIRM_MS * 2;
+/**
+ * The cases that expect a deadlock wait on something that never ends. Bounded here, so a mutant of
+ * quiescence.ts that stops the detector fails its case in seconds instead of holding the mutation
+ * run until the package's 90 s test timeout (the PR lane ran 354 minutes on it, 2026-11-03).
+ */
+const DEADLOCK_CASE_MS = 5000;
+
 /** A reading every condition of a deadlock holds for; each case below breaks one. */
 const still = { selfShare: 0, otherShare: 0, rpcInFlight: 0, pendingTimers: 0, withinFloor: true };
 
@@ -54,7 +65,7 @@ describe('watch().guard: a deadlock is called within its confirm window; a wait 
     }
   };
 
-  it('calls a promise nothing can settle a deadlock, and promptly (a prompt awaiting a keypress)', async () => {
+  it('calls a promise nothing can settle a deadlock, and promptly (a prompt awaiting a keypress)', { timeout: DEADLOCK_CASE_MS }, async () => {
     const r = await timed(() => new Promise(() => undefined));
     expect(r.deadlock).toBe(true);
     // The old path waited its wall-clock budget, 10–12 s on caique.
@@ -62,24 +73,24 @@ describe('watch().guard: a deadlock is called within its confirm window; a wait 
   });
 
   it('never calls a wait on a real timer a deadlock, however long the timer', async () => {
-    expect(await timed(() => sleep(1500))).toMatchObject({ deadlock: false });
+    expect(await timed(() => sleep(WAIT_MS))).toMatchObject({ deadlock: false });
   });
 
   it('never calls a wait on an unref’d timer a deadlock: Node does not list it, the count does', async () => {
-    const r = await timed(() => new Promise((resolve) => setTimeout(resolve, 1200).unref()));
+    const r = await timed(() => new Promise((resolve) => setTimeout(resolve, WAIT_MS).unref()));
     expect(r.deadlock).toBe(false);
     expect(pendingTimerCount()).toBe(0);
   });
 
   it('never calls a wait on a child process a deadlock', async () => {
-    expect(await timed(() => new Promise((resolve) => spawn(process.execPath, ['-e', 'setTimeout(() => {}, 1200)']).on('exit', resolve)))).toMatchObject({ deadlock: false });
+    expect(await timed(() => new Promise((resolve) => spawn(process.execPath, ['-e', `setTimeout(() => {}, ${String(WAIT_MS)})`]).on('exit', resolve)))).toMatchObject({ deadlock: false });
   });
 
   it('never calls a run that keeps its loop busy a deadlock', async () => {
-    expect(await timed(() => spin(1200))).toMatchObject({ deadlock: false });
+    expect(await timed(() => spin(WAIT_MS))).toMatchObject({ deadlock: false });
   });
 
-  it('calls a wait on fake timers nobody advances a deadlock: nothing will move that clock', async () => {
+  it('calls a wait on fake timers nobody advances a deadlock: nothing will move that clock', { timeout: DEADLOCK_CASE_MS }, async () => {
     vi.useFakeTimers();
     try {
       const r = await timed(() => new Promise((resolve) => setTimeout(resolve, 50)));
@@ -89,10 +100,10 @@ describe('watch().guard: a deadlock is called within its confirm window; a wait 
     }
   });
 
-  it('holds a deadlock until its confirm window has passed: a longer window, a later call', async () => {
-    const r = await timed(() => new Promise(() => undefined), 1500);
+  it('holds a deadlock until its confirm window has passed: a longer window, a later call', { timeout: DEADLOCK_CASE_MS }, async () => {
+    const r = await timed(() => new Promise(() => undefined), LONG_WINDOW_MS);
     expect(r.deadlock).toBe(true);
-    expect(r.ms).toBeGreaterThanOrEqual(1500);
+    expect(r.ms).toBeGreaterThanOrEqual(LONG_WINDOW_MS);
   });
 
   it('passes a settled value and a thrown error through unchanged', async () => {
