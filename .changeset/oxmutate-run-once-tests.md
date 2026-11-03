@@ -1,5 +1,0 @@
----
-"oxmutate": patch
----
-
-A test file whose tests can run only once per collection now gets a fresh copy of the test for each run after the first, instead of a context restart for every mutant. ESLint's RuleTester is the common case: it records each case as its test runs and fails one it has already seen ("detected duplicate test case"). oxmutate re-runs a test once per mutant and again unmutated as the canary, so each canary failed, read as pollution and restarted the context. On one eslint-plugin helper with 279 mutants that cost 13,868 restarts and 69 minutes. The dry run now runs each file's first passing test a second time. If that second run fails, each later run takes its copy of the test from a fresh collection of the file, made before the test starts. Only the test file is evaluated again, so a mutant's leftovers in the code under test still fail the canary. A file with `beforeAll` hooks keeps the restart, because a fresh collection's `beforeAll` never ran. Each fresh collection's `afterAll` hooks run once its file is done. Verdicts do not change.
