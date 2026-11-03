@@ -209,12 +209,15 @@ let collector: Promise<Collect | undefined> | undefined;
 const loadCollect = (): Promise<Collect | undefined> => (collector ??= findCollect());
 
 const find = (t: AnyTask, id: string): AnyTask | undefined => (t.id === id ? t : t.tasks?.reduce<AnyTask | undefined>((hit, c) => hit ?? find(c, id), undefined));
-/** A suite-level hook ran once for the collection Vitest runs, never for a fresh one: such a file keeps the restart. */
-const hasAllHooks = (t: AnyTask): boolean => {
-  if (t.type === 'test') return false;
-  const hooks = statics.getSuiteHooks(t);
-  return hooks.beforeAll.length > 0 || hooks.afterAll.length > 0 || (t.tasks ?? []).some(hasAllHooks);
-};
+/** A `beforeAll` ran for the collection Vitest runs, never for a fresh one: such a file keeps the restart. */
+const hasBeforeAll = (t: AnyTask): boolean => t.type !== 'test' && (statics.getSuiteHooks(t).beforeAll.length > 0 || (t.tasks ?? []).some(hasBeforeAll));
+
+/** A fresh collection's `afterAll` hooks, innermost first, run once its file is done (the dual RuleTester registers one). */
+async function afterAllOf(t: AnyTask): Promise<void> {
+  if (t.type === 'test') return;
+  for (const c of t.tasks ?? []) await afterAllOf(c);
+  for (const hook of statics.getSuiteHooks(t).afterAll) await hook(t);
+}
 
 /** The test's copy from the next fresh collection of its file it has not run from. */
 function takeCopy(test: AnyTask): AnyTask | undefined {
@@ -343,6 +346,7 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
   onBeforeCollect?(paths: string[]): unknown;
   importFile?(filepath: string, source: string): unknown;
   onBeforeRunSuite?(suite: AnyTask): unknown;
+  onAfterRunSuite?(suite: AnyTask): unknown;
   onBeforeRunTask?(test: AnyTask): unknown;
   onCollectStart?(file: unknown): unknown;
   /** Vitest's own: the current task, and the module graph a test file is invalidated in (Vitest 4). */
@@ -500,6 +504,15 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
     return super.importFile?.(filepath, source);
   }
 
+  async onAfterRunSuite(suite: AnyTask): Promise<unknown> {
+    const copies = suite.filepath ? collections.get(suite.filepath) : undefined;
+    if (suite.filepath && copies) {
+      collections.delete(suite.filepath);
+      for (const copy of copies) await afterAllOf(copy);
+    }
+    return super.onAfterRunSuite?.(suite);
+  }
+
   async onBeforeRunSuite(suite: AnyTask): Promise<unknown> {
     if (mode === 'static' && suite.filepath && staticIds.length) await this.decideStatic(suite);
     return super.onBeforeRunSuite?.(suite);
@@ -622,7 +635,7 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
         const node = workerState?.evaluatedModules?.getModuleById(filepath);
         if (node) workerState?.evaluatedModules?.invalidateModule(node);
         const [file] = await collect([filepath], this);
-        if (!file || file.result?.state === 'fail' || hasAllHooks(file)) return false;
+        if (!file || file.result?.state === 'fail' || hasBeforeAll(file)) return false;
         files.push(file);
       }
       return true;
