@@ -148,12 +148,16 @@ const isObjectType = (schema: OutputSchema): boolean => schema['type'] === 'obje
  * property `dryRun`. This wrote `--${name}`, the canonical key with dashes in front, which the
  * engine and commander both refuse for every multi-word option.
  *
- * `false` for a boolean the command would otherwise read as `true` — a default, or an
- * environment variable behind it — goes as `--no-<name>`. Any other `false` is left unsaid:
- * a typed negation counts as *given* to a relation (S2), so sending one for every boolean an
- * agent spells out would trip `dependsOn` and `exclusive` on options nobody set.
+ * `false` for a boolean the command could otherwise read as `true` goes as `--no-<name>`: a
+ * default, an `env` of its own, or a layer that sets it without naming it — the program's
+ * `envPrefix` binds `PREFIX_NAME` to every option, and config discovery reads the config file
+ * and the package.json field *by name* (see `toParseConfig` in `execute.ts`). It looked at the
+ * first two alone, so `TIDY_COLOR=1` under `envPrefix: 'TIDY'` beat an agent's `color: false`.
+ * Any other `false` is left unsaid: a typed negation counts as *given* to a relation (S2), so
+ * sending one for every boolean an agent spells out would trip `dependsOn` and `exclusive` on
+ * options nobody set.
  */
-function optionArgs(node: CommandNode, args: Record<string, unknown>): string[] {
+function optionArgs(node: CommandNode, args: Record<string, unknown>, layered: boolean): string[] {
   const out: string[] = [];
   for (const [name, spec] of Object.entries(node.options)) {
     const value = args[name];
@@ -161,7 +165,7 @@ function optionArgs(node: CommandNode, args: Record<string, unknown>): string[] 
     const flag = `--${kebab(name)}`;
     if (spec.type !== 'boolean') out.push(flag, String(value));
     else if (value === true) out.push(flag);
-    else if (value === false && spec.negatable !== false && (spec.default === true || spec.env !== undefined)) out.push(`--no-${kebab(name)}`);
+    else if (value === false && spec.negatable !== false && (layered || spec.default === true || spec.env !== undefined)) out.push(`--no-${kebab(name)}`);
   }
   return out;
 }
@@ -190,10 +194,15 @@ function positionalArgs(node: CommandNode, args: Record<string, unknown>): strin
   return out;
 }
 
-/** A tool call's arguments back into argv: the command, its options, `--json`, then positionals in declared order. */
-export function argvOf(node: CommandNode, root: string[], args: Record<string, unknown>): string[] {
+/**
+ * A tool call's arguments back into argv: the command, its options, `--json`, then positionals in
+ * declared order. `program` is the manifest's say on the layers under the flag — an `envPrefix`
+ * or config discovery can turn any boolean on by name; without it, neither is assumed.
+ */
+export function argvOf(node: CommandNode, root: string[], args: Record<string, unknown>, program?: Pick<Manifest, 'envPrefix' | 'config'>): string[] {
   const command = typedName(node, root).split(' ').filter((s) => s !== '');
-  return [...command, ...optionArgs(node, args), '--json', ...positionalArgs(node, args)];
+  const layered = program?.envPrefix !== undefined || program?.config !== undefined;
+  return [...command, ...optionArgs(node, args, layered), '--json', ...positionalArgs(node, args)];
 }
 
 interface Session {
@@ -350,7 +359,7 @@ function callTool(session: Session, params: Record<string, unknown> | undefined,
       last = progress;
       session.reply({ method: 'notifications/progress', params: { progressToken: token, progress, total, message } });
     };
-  const ran = printedBy(call, () => invoke(argvOf(node, root, args)));
+  const ran = printedBy(call, () => invoke(argvOf(node, root, args, manifest)));
   return ran instanceof Promise ? ran.then((printed) => resultOf(node, printed)) : resultOf(node, ran);
 }
 

@@ -252,10 +252,23 @@ export function fieldId(brand: BurgeeBrand): string {
   // A shape is appended only when there is one, so adding the option did not
   // renumber every brand that does not use it — an id change is a diff in every
   // asset that carries it.
+  //
+  // Dropping the absent ones dropped their positions with them, so a lone value
+  // no longer said which field it was: `{ sheen: 0.5 }` and `{ bevel: 0.5 }`
+  // hashed alike, as did a shape and markings of the same text. A value is named
+  // only where it would be ambiguous — a bevel with no sheen before it, markings
+  // with nothing else beside them — so every id that was already unambiguous,
+  // the committed assets' among them (all carry a sheen and a bevel), stays put.
+  const { shape, sheen, bevel, markings } = brand;
   const base = [brand.field, brand.mark, brand.bordure, brand.charge];
-  const extra = [brand.shape, brand.sheen, brand.bevel, brand.markings].filter(
-    (v) => v !== undefined,
-  );
+  const extra = [
+    shape,
+    sheen,
+    sheen === undefined && bevel !== undefined ? ['bevel', bevel] : bevel,
+    shape === undefined && sheen === undefined && bevel === undefined && markings !== undefined
+      ? ['markings', markings]
+      : markings,
+  ].filter((v) => v !== undefined);
   const source = JSON.stringify(extra.length === 0 ? base : [...base, ...extra]);
   let h = HASH_SEED;
   for (let i = 0; i < source.length; i++) {

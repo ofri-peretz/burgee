@@ -29,6 +29,52 @@ describe('the scanner steps over each literal exactly', () => {
     expect(specifiers("const r = (a) / 2; import ora from 'ora'; const s = b / 2;\n")).toEqual(['ora']);
   });
 
+  /**
+   * A keyword ends in a word character, and the test for a division was "after a word". So
+   * `return /`/` read as `return` divided by something, the backtick opened a template, and the
+   * template ran to the end of the file over the `require('commander')` below it.
+   */
+  it.each(['return', 'typeof', 'case', 'in', 'of', 'instanceof', 'yield', 'await', 'void', 'delete', 'throw', 'else', 'new', 'do'])('reads a / after the keyword %s as a regular expression', (keyword) => {
+    expect(specifiers(`function f(c) { ${keyword} /\`/.test(c); }\nconst { Command } = require('commander');\n`)).toEqual(['commander']);
+  });
+
+  it('still reads a / after a name as a division', () => {
+    // `returned` is a name that starts with a keyword: `returned / 2 / x` divides twice.
+    expect(specifiers("const y = returned / 2 / x; import ora from 'ora';\n")).toEqual(['ora']);
+  });
+
+  /**
+   * An interpolation holds code, and code has braces: `({ n })` closed the `${` on its `}`, so
+   * the backtick of the template nested inside it closed the outer one, and the next real
+   * backtick opened a template to the end of the file over the import.
+   */
+  it('counts the braces and nested templates inside an interpolation', () => {
+    expect(specifiers("const s = `${xs.map(({ n }) => `it's ${n}`).join('')}\ndone`;\nimport { Command } from 'commander';\n")).toEqual(['commander']);
+    expect(specifiers("const s = `${f('}')}${{ a: 1 }.a}${\"`\"} import y from 'chalk'`;\nimport ora from 'ora';\n")).toEqual(['ora']);
+  });
+
+  /**
+   * The edges of the interpolation scan, each with the import right after it. A `$` or a `{`
+   * alone is template text, not an interpolation; a backtick in a single-quoted string inside
+   * one is the string's; and a nested template that ends at the `}` must leave that `}` to close
+   * the interpolation — one character too far or too short and the closing backtick opens a
+   * template that swallows the import.
+   */
+  it.each([
+    ['a $ not followed by {', 'const s = `$`;\n'],
+    ['a { with no $ before it', 'const s = `a{`;\n'],
+    ['a backtick in a quoted string inside ${}', "const s = `${f('`')}`;\n"],
+    ['a nested template that ends at the }', 'const s = `${`a`}`;\n'],
+  ])('ends a template at the right backtick past %s', (_, template) => {
+    expect(specifiers(`${template}import ora from 'ora';\n`)).toEqual(['ora']);
+  });
+
+  it('reads an interpolation left open at the end of the file as running to the end', () => {
+    // A file cut off mid-edit: what comes before still counts, and what follows `${` is code
+    // that never closed, not an import.
+    expect(specifiers("import ora from 'ora';\nconst s = `${f(\nimport x from 'chalk'")).toEqual(['ora']);
+  });
+
   it('honours an escaped quote inside a string', () => {
     // Were the string ended at `\'`, `from 'chalk'` would read as an import.
     expect(specifiers("const s = 'a\\' from 'chalk' b';\nimport ora from 'ora';\n")).toEqual(['ora']);

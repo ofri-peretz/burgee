@@ -244,6 +244,14 @@ export function createRegistry(options: RegistryOptions = {}): Registry {
   /** The asynchronous shutdown, once one has started — what every later `run` waits on. */
   let flight: Promise<ShutdownReport> | undefined;
 
+  /**
+   * The report an asynchronous run would give if it ended now — set beside `rest`, for the
+   * same caller. `runSync` arriving mid-run is the last word the process gets, and it used to
+   * answer with a blank report of its own (`unfinished: []`) and leave `report` unset: a lock
+   * still held in `flush` read as a shutdown that had finished cleanly.
+   */
+  let sofar: (() => ShutdownReport) | undefined;
+
   const shutdown = async (info: ExitInfo): Promise<ShutdownReport> => {
     state.started = true;
     const report = toReport(info);
@@ -265,6 +273,8 @@ export function createRegistry(options: RegistryOptions = {}): Registry {
     rest = () => {
       while (next < PHASES.length) invokeNext();
     };
+    const now = (): ShutdownReport => ({ ...report, timedOut: clock.expired, unfinished: tracking.filter((f) => !f.settled).map((f) => f.label) });
+    sofar = now;
 
     try {
       while (next < PHASES.length) {
@@ -290,8 +300,7 @@ export function createRegistry(options: RegistryOptions = {}): Registry {
       clock.cancel();
     }
 
-    const unfinished = tracking.filter((f) => !f.settled).map((f) => f.label);
-    const finished: ShutdownReport = { ...report, timedOut: clock.expired, unfinished };
+    const finished = now();
     state.finished = finished;
     if (finished.timedOut) onTimeout(finished);
     return finished;
@@ -327,8 +336,11 @@ export function createRegistry(options: RegistryOptions = {}): Registry {
          * holds nothing in the event loop — that clock is `unref`'d, so the loop drains and
          * Node leaves — or when something calls `process.exit()` while any run is parked.
          * Either way the `restore` phase the run had not reached would never be invoked.
+         * What it reports is the run's, with every handler that has not come back — a
+         * `restore` it has just invoked and that returned a promise among them.
          */
         rest?.();
+        if (state.finished === undefined && sofar !== undefined) state.finished = sofar();
         return alreadyRun(state.finished, info);
       }
       state.started = true;
