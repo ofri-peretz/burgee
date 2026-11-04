@@ -129,6 +129,7 @@ export const search = createPrompt(<Value>(config: SearchConfig<Value>, done: (v
 
   /** An arrow, once the results are in: the next answerable choice, stopping at either end. */
   const move = (rl: PromptReadline, up: boolean): void => {
+    // Stryker disable next-line NumericLiteral: readline's `Interface#clearLine()` takes no argument; the 0 is `@inquirer/core`'s call shape
     rl.clearLine(0);
     if (canMove(false, up, active, bounds)) setActive(step(results, active, up ? -1 : 1, isSelectable));
   };
@@ -139,6 +140,7 @@ export const search = createPrompt(<Value>(config: SearchConfig<Value>, done: (v
       if (chosen && status === 'idle') await submit(rl, chosen);
       else rl.write(term);
     } else if (isTabKey(key) && chosen) {
+      // Stryker disable next-line NumericLiteral: readline's `Interface#clearLine()` takes no argument; the 0 is `@inquirer/core`'s call shape
       rl.clearLine(0);
       rl.write(chosen.name);
       setTerm(chosen.name);

@@ -6,7 +6,13 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { flagOf, problemWith, type PromptSpec } from './spec.js';
+import { BUILT_IN_KINDS, flagOf, problemWith, type PromptSpec } from './spec.js';
+
+describe('BUILT_IN_KINDS', () => {
+  it('is the six widgets caique draws itself', () => {
+    expect([...BUILT_IN_KINDS]).toEqual(['text', 'confirm', 'select', 'multiselect', 'password', 'path']);
+  });
+});
 
 describe('flagOf', () => {
   it('is what a refusal has to say to be actionable', () => {

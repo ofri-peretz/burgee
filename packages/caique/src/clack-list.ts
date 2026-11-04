@@ -27,6 +27,7 @@ const lines = (text: string, format: Parameters<typeof paint>[0]): string =>
 
 /** `at` wrapped into `[0, length)`: past the end is the start, before the start is the end. */
 export function wrapIndex(at: number, length: number): number {
+  // Stryker disable next-line NumericLiteral: only an empty list floors at 0, and it has no row to land on at 0 or 1
   if (at < 0) return Math.max(length - 1, 0);
   if (at > length - 1) return 0;
   return at;
@@ -79,6 +80,7 @@ export interface Window<T> {
 export function windowOf<T>({ opts, options, cursor, style, footer }: Window<T>): string[] {
   const guide = guided(opts);
   const reserved = opts.message.split('\n').length + (guide ? 1 : 0) + footer + 1;
+  // Stryker disable next-line ConditionalExpression: an `output` of undefined takes `limitOptions`' default as surely as a missing one
   const output = opts.output === undefined ? {} : { output: opts.output };
   return limitOptions({ ...output, options, cursor, maxItems: opts.maxItems, columnPadding: guide ? GUIDE_COLUMNS : 0, rowPadding: reserved, style });
 }
@@ -96,7 +98,10 @@ export function radio(option: Choice, look: RadioLook): string {
 /** The look of an option in a single-choice list. */
 export const radioLook = (option: Choice, active: boolean): RadioLook => {
   if (option.disabled === true) return 'disabled';
-  return active ? 'active' : 'inactive';
+  return active
+    ? 'active'
+    : // Stryker disable next-line StringLiteral: `radio` draws any look but active and disabled as an inactive one
+      'inactive';
 };
 
 /** How a checkbox option is drawn, by whether the cursor is on it and whether it is chosen. */
@@ -127,6 +132,7 @@ export const REQUIRED = `Please select at least one option.\n${paint(['reset', '
 export const requiredCheck =
   <T>(required: boolean) =>
   (value: T[] | undefined): string | undefined =>
+    // Stryker disable next-line ConditionalExpression: every multi-selection starts as an array and stays one, so the value is never undefined
     required && (value === undefined || value.length === 0) ? REQUIRED : undefined;
 
 /** The labels of the chosen options, in list order: what a multi-selection shows once answered. */

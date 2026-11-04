@@ -657,3 +657,11 @@ describe('the line prompts, frame by frame', () => {
     expect(getScreen()).toBe(`${TICK} Go?:done <Yes>`);
   });
 });
+
+describe('isStepOf, between the two ways a number is written', () => {
+  it('reads a number written without an exponent at its own scale beside one written with it', () => {
+    // 0.000001 is written out, 4e-7 is not: two and a half steps, so not a step of it.
+    expect(isStepOf(0.000001, 4e-7, Number.NEGATIVE_INFINITY)).toBe(false);
+    expect(isStepOf(0.0000012, 4e-7, Number.NEGATIVE_INFINITY)).toBe(true);
+  });
+});

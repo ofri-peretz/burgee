@@ -55,9 +55,18 @@ export const cursorUp = (rows = 1): string => (rows > 0 ? up(rows) : '');
 export const cursorDown = (rows = 1): string => (rows > 0 ? down(rows) : '');
 
 /** Move the cursor to column `x` (zero-based), or to `(x, y)` when a row is given. A `NaN` row is no row. */
-export const cursorTo = (x: number, y?: number): string => to(x, typeof y === 'number' && !Number.isNaN(y) ? y : undefined);
+export const cursorTo = (x: number, y?: number): string =>
+  to(
+    x,
+    // Stryker disable next-line ConditionalExpression: `Number.isNaN(undefined)` is false too, so the type test only narrows the type
+    typeof y === 'number' &&
+      !Number.isNaN(y)
+      ? y
+      : undefined,
+  );
 
 /** Erase `lines` lines, ending on the first column of the topmost one. None for zero or fewer. */
+// Stryker disable next-line EqualityOperator: `ansi-escapes` erases nothing for zero lines either; the guard is for the negative counts
 export const eraseLines = (lines: number): string => (lines > 0 ? erase(lines) : '');
 
 const DEFAULT_WIDTH = 80;
@@ -143,7 +152,13 @@ export class MuteStream extends Stream implements Muteable {
  */
 export function outputWidth(output: { columns?: number | undefined } | undefined): number {
   const declared = output?.columns;
-  if (typeof declared === 'number' && declared > 0) return declared;
+  if (
+    // Stryker disable next-line ConditionalExpression: `undefined > 0` is false, so the type test only narrows the type
+    typeof declared === 'number' &&
+    declared > 0
+  )
+    return declared;
+  // Stryker disable next-line StringLiteral: any text that is not a number parses to NaN, as the empty string does
   const fromEnv = Number.parseInt(processRuntime().env['COLUMNS'] ?? '', DECIMAL);
   return Number.isNaN(fromEnv) || fromEnv <= 0 ? DEFAULT_WIDTH : fromEnv;
 }
@@ -225,6 +240,7 @@ export class ScreenManager {
     let output = body + (wrappedBottom ? `\n${wrappedBottom}` : '');
     const promptLineUpDiff = Math.floor(rawPromptLine.length / width) - this.#cursorPos.rows;
     const bottomContentHeight = promptLineUpDiff + (wrappedBottom ? height(wrappedBottom) : 0);
+    // Stryker disable next-line EqualityOperator,ConditionalExpression: `cursorUp` writes nothing for zero rows or fewer, so the guard only skips a no-op
     if (bottomContentHeight > 0) output += cursorUp(bottomContentHeight);
     output += cursorTo(this.#cursorPos.cols);
 

@@ -111,6 +111,7 @@ const fresh = (history: readonly string[], text: string): EditorState => ({
   cursor: text.length,
   history,
   at: history.length,
+  // Stryker disable next-line StringLiteral: the draft is written by the first step into the history, before anything reads it
   draft: '',
   paste: undefined,
   menu: undefined,

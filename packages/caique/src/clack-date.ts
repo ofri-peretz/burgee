@@ -34,16 +34,21 @@ const ORDER: Record<DateFormat, readonly Segment[]> = {
 
 const isSegment = (type: string): type is Segment => type === 'year' || type === 'month' || type === 'day';
 const widthOf = (segment: Segment): number => SHAPE[segment].width;
+// Stryker disable next-line StringLiteral: an empty field read as no characters is still 0 to every check, which refuses a 0 field, and is still drawn as its label
 const blankOf = (segment: Segment): string => '_'.repeat(widthOf(segment));
 
 /** Any date whose day is past twelve, so a locale's parts cannot be read ambiguously. */
+// Stryker disable next-line NumericLiteral: the probe is read for the order of its parts and the text between them, which every date in a locale shares
 const PROBE_YEAR = 2000;
+// Stryker disable next-line NumericLiteral: as above — no locale orders its fields by the date
 const PROBE_DAY = 15;
+// Stryker disable next-line NumericLiteral: as above
 const PROBE = new Date(Date.UTC(PROBE_YEAR, 0, PROBE_DAY));
 const DECIMAL = 10;
 const MONTHS = 12;
 const LAST_YEAR = 9999;
 /** The year a day count is taken in when no year has been typed: not a leap year. */
+// Stryker disable next-line NumericLiteral: every common year has the same month lengths
 const PLAIN_YEAR = 2001;
 const ISO_DATE = 10;
 
@@ -59,7 +64,9 @@ function layoutOf(format: DateFormat | undefined, locale: string | undefined): {
   return { segments, separator: literal.trim() === '' ? literal : literal.trim() };
 }
 
+// Stryker disable next-line StringLiteral: underscores only ever lead a field, and a leading 0 or nothing parse to the same number
 const numberOf = (digits: string): number => Number.parseInt(digits.replaceAll('_', '0'), DECIMAL) || 0;
+// Stryker disable next-line NumericLiteral: an empty month asked as 0 is December's day count and as 1 January's, both 31
 const daysIn = (year: number, month: number): number => new Date(Date.UTC(year || PLAIN_YEAR, month || 1, 0)).getUTCDate();
 const isoDay = (date: Date): string => date.toISOString().slice(0, ISO_DATE);
 
@@ -68,6 +75,7 @@ class Fields {
   private readonly values = new Map<Segment, string>();
   active = 0;
   /** Set when the cursor arrives at a field: the next digit replaces it rather than extending it. */
+  // Stryker disable next-line BooleanLiteral: a field starts either empty or full, and a digit into either starts it from nothing
   fresh = true;
 
   constructor(
@@ -97,7 +105,16 @@ class Fields {
     const month = numberOf(this.get('month'));
     const day = numberOf(this.get('day'));
     const complete = this.segments.every((segment) => !this.get(segment).includes('_'));
-    if (!complete || year < 1 || month < 1 || month > MONTHS || day < 1 || day > daysIn(year, month)) return undefined;
+    if (
+      !complete ||
+      // Stryker disable next-line ConditionalExpression,EqualityOperator,NumericLiteral: year 0 and month 0 also fail the round trip below — 0 is read as 1900, month 0 as the year before
+      year < 1 || month < 1 ||
+      // Stryker disable next-line ConditionalExpression: month 13 is January of the next year, which the round trip below refuses too
+      month > MONTHS ||
+      day < 1 ||
+      day > daysIn(year, month)
+    )
+      return undefined;
     const date = new Date(Date.UTC(year, month - 1, day));
     // `Date.UTC` reads a year below 100 as 19xx, so year 1 would come back as 1901. clack
     // refuses such a date rather than return a different one, and so does this.
@@ -125,9 +142,11 @@ class Fields {
     const { segment } = this;
     const [low, high] = this.range(segment);
     const blank = this.get(segment).replaceAll('_', '') === '';
+    // Stryker disable next-line EqualityOperator: a step is always one up or one down, never zero
     const start = by > 0 ? low : high;
     const next = blank ? start : Math.max(low, Math.min(high, numberOf(this.get(segment)) + by));
     this.values.set(segment, String(next).padStart(widthOf(segment), '0'));
+    // Stryker disable next-line BooleanLiteral: a stepped field is full, and a digit into a full field starts it from nothing either way
     this.fresh = true;
   }
 
@@ -139,6 +158,7 @@ class Fields {
     this.fresh = false;
     const next = current.includes('_') ? (current.replaceAll('_', '') + digit).padStart(width, '_') : digit.padStart(width, '_');
     this.values.set(segment, next);
+    // Stryker disable next-line ConditionalExpression,EqualityOperator,ArithmeticOperator,NumericLiteral: on the last field `moveBy` clamps, and the only thing it changes is `fresh`, which a full field does not read
     if (!next.includes('_') && this.active < this.segments.length - 1) this.moveBy(1);
   }
 
@@ -148,6 +168,7 @@ class Fields {
     if (this.get(segment).replaceAll('_', '') === '') this.moveBy(-1);
     else {
       this.values.set(segment, blankOf(segment));
+      // Stryker disable next-line BooleanLiteral: a cleared field is empty, and a digit into an empty field starts it from nothing either way
       this.fresh = true;
     }
   }
@@ -198,6 +219,7 @@ export const date = (opts: DateOptions): Answer<Date> => {
       if (key.name === 'backspace') fields.erase();
       else if (move !== 0) fields.moveBy(move);
       else if (action === 'up' || action === 'down') fields.step(action === 'up' ? 1 : -1);
+      // Stryker disable next-line ConditionalExpression: the pattern refuses `undefined` too, read as the text "undefined"; the check narrows the type
       else if (char !== undefined && /^\d$/.test(char)) fields.type(char);
       prompt.value = fields.date();
     },

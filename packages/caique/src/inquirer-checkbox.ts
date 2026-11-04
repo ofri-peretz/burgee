@@ -86,6 +86,7 @@ export const checkbox = createPrompt(<Value>(config: CheckboxConfig<Value>, done
   const [status, setStatus] = useState<Status>('idle');
   const prefix = usePrefix({ status, theme });
   const [items, setItems] = useState<readonly Item<Value>[]>(normalizeChoices(config.choices));
+  // Stryker disable next-line ArrayDeclaration: toggling a choice never changes which rows can be stood on, so the bounds of the first list hold
   const bounds = useMemo(() => boundsOf(items, 'checkbox'), [items]);
   const [active, setActive] = useState(bounds.first);
   const [errorMsg, setError] = useState<string>();
@@ -111,6 +112,7 @@ export const checkbox = createPrompt(<Value>(config: CheckboxConfig<Value>, done
     const moved = moveCursor(key, keybindings, { items, active, loop, bounds });
     if (isEnterKey(key)) await submit();
     else if (moved !== undefined) {
+      // Stryker disable next-line ConditionalExpression: clearing an error that is not there changes nothing drawn
       if (errorMsg) setError(undefined);
       setActive(moved);
     } else if (isSpaceKey(key)) {
@@ -124,6 +126,7 @@ export const checkbox = createPrompt(<Value>(config: CheckboxConfig<Value>, done
       setItems(items.map(check(items.some((choice) => isSelectable(choice) && !choice.checked))));
     } else if (key.name === shortcuts.invert) {
       setItems(items.map(toggle));
+    // Stryker disable next-line ConditionalExpression: any other key is no number, and `nthChoice` finds no choice at NaN
     } else if (isNumberKey(key)) {
       const position = nthChoice(items, Number(key.name));
       if (isSelectable(items[position])) {

@@ -60,6 +60,7 @@ export class Separator {
 
   /** Whether `choice` is a separator — by shape, never by class. */
   static isSeparator(choice: unknown): choice is Separator {
+    // Stryker disable next-line ConditionalExpression: `Boolean(null)` is false already; the null test narrows the type
     return Boolean(choice) && typeof choice === 'object' && choice !== null && 'type' in choice && (choice as { type: unknown }).type === 'separator';
   }
 }
@@ -71,6 +72,7 @@ export class Separator {
  * that resolves quickly from flickering a frame of spinner on its way past, and the graded
  * case advances fake timers by exactly `delay + interval` to see the first frame.
  */
+// Stryker disable next-line StringLiteral: a status no prefix names falls back to the idle prefix, as the default does
 export function usePrefix({ status = 'idle', theme }: { status?: Status; theme?: PartialTheme }): string {
   const [showLoader, setShowLoader] = useState(false);
   const [tick, setTick] = useState(0);
@@ -99,6 +101,7 @@ export function usePrefix({ status = 'idle', theme }: { status?: Status; theme?:
   if (showLoader === true) return spinner.frames[tick] ?? '';
   // Before the loader shows there is nothing to draw for `loading`, so it borrows `idle` —
   // which is why a prompt that settles inside 300 ms never shows a spinner frame at all.
+  // Stryker disable next-line StringLiteral: a name no prefix has falls back to the idle prefix, which is what loading borrows
   const iconName = status === 'loading' ? 'idle' : status;
   if (typeof prefix === 'string') return prefix;
   return prefix[iconName] ?? prefix['idle'] ?? '';
@@ -127,6 +130,7 @@ export function useKeypress(userHandler: (event: KeypressEvent, rl: PromptReadli
       ignore = true;
       rl.input.removeListener('keypress', handler);
     };
+    // Stryker disable next-line ArrayDeclaration: a list of constants never changes either, so the listener is still added once
   }, []);
 }
 
@@ -156,6 +160,7 @@ export type Prompt<Value, Config> = (config: Config, context?: Context) => Cance
  */
 function callerFile(): string | undefined {
   const saved = Error.prepareStackTrace;
+  // Stryker disable next-line ArrayDeclaration: reading `.stack` below replaces the list before anything reads it
   let frames: NodeJS.CallSite[] = [];
   try {
     Error.prepareStackTrace = (_error, callSites) => {
@@ -163,6 +168,7 @@ function callerFile(): string | undefined {
       return frames;
     };
     // Reading `.stack` is what runs the hook above; the value itself is not wanted.
+    // Stryker disable next-line StringLiteral: only the call sites are read, never the message
     void new Error('trace').stack;
   } catch {
     // `--frozen-intrinsics` makes `prepareStackTrace` unwritable. A prompt still works; the
@@ -258,6 +264,7 @@ function runPrompt<Value, Config>(view: ViewFunction<Value, Config>, origin: str
   const rl = readlineOver(input, output);
   // After `createInterface`, never before: readline writes its own setup bytes on some
   // platforms, and those have to reach the terminal.
+  // Stryker disable next-line CallExpression: every render mutes the stream again once drawn, and the first render comes before any key is read
   output.mute();
 
   const screen = new ScreenManager(rl);

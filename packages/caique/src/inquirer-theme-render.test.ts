@@ -7,6 +7,8 @@
  * The style functions are asserted in colour: the suite pins `NO_COLOR`, under which every
  * one of them would print its bare text and a swapped colour would pass unseen.
  */
+import { stripVTControlCharacters } from 'node:util';
+
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { defaultTheme, getDefaultTheme, makeTheme, Separator } from './inquirer.js';
@@ -130,5 +132,16 @@ describe('the tick on a Windows console', () => {
     expect(await tickOnWindows({ WT_SESSION: '1' })).toBe('✔');
     expect(await tickOnWindows({ TERM_PROGRAM: 'vscode' })).toBe('✔');
     expect(await tickOnWindows({ TERM: 'xterm-256color' })).toBe('✔');
+  });
+});
+
+describe('the default spinner', () => {
+  it('turns through the ten braille frames every 80 ms', () => {
+    expect(defaultTheme.spinner.interval).toBe(80);
+    expect(defaultTheme.spinner.frames.map((frame) => stripVTControlCharacters(frame))).toEqual(['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']);
+  });
+
+  it('a theme that sets a key to null replaces the default with it', () => {
+    expect(makeTheme({ prefix: null as never }).prefix).toBeNull();
   });
 });

@@ -231,3 +231,29 @@ describe('ScreenManager', () => {
     expect(rl.closed).toBe(1);
   });
 });
+
+describe('the edges of a width and a climb', () => {
+  it('takes a declared width of one column, and COLUMNS of one', () => {
+    vi.stubEnv('COLUMNS', '50');
+    expect(outputWidth({ columns: 1 })).toBe(1);
+    vi.stubEnv('COLUMNS', '1');
+    expect(outputWidth(undefined)).toBe(1);
+  });
+
+  it('moves the cursor down one row by default', () => {
+    expect(cursorDown()).toBe('\u001B[1B');
+  });
+
+  it('climbs back over a single line of bottom content', () => {
+    const out = sink({ columns: 80 });
+    const rl = readlineOn(out);
+    const screen = new ScreenManager(rl);
+    screen.render('? name', 'help');
+    expect(out.text()).toBe(`? name\nhelp${cursorUp(1)}${cursorTo(0)}`);
+  });
+
+  it('is a stream that can be read from and written to', () => {
+    const stream = new MuteStream();
+    expect([stream.readable, stream.writable]).toEqual([true, true]);
+  });
+});

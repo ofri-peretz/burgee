@@ -28,7 +28,11 @@ const NOT_TYPED = new Set(['return', 'enter', 'escape', 'tab', 'up', 'down']);
 
 /** Whether a key is text to insert rather than a command: printable, and no modifier held. */
 const printable = (char: string | undefined, key: EditKey): char is string =>
-  key.ctrl !== true && key.meta !== true && char !== undefined && char !== '' && !NOT_TYPED.has(key.name ?? '') && char >= ' ';
+  key.ctrl !== true &&
+  key.meta !== true &&
+  // Stryker disable next-line ConditionalExpression,StringLiteral: `char >= ' '` below refuses `undefined` and the empty string as well; these two narrow the type, and an unnamed key is in no set
+  char !== undefined && char !== '' && !NOT_TYPED.has(key.name ?? '') &&
+  char >= ' ';
 
 /** Where a key that only moves the cursor puts it, or `undefined` for any other key. */
 function moved(name: string | undefined, cursor: number, length: number): number | undefined {
@@ -41,6 +45,7 @@ function moved(name: string | undefined, cursor: number, length: number): number
       return 0;
     case 'end':
       return length;
+    // Stryker disable next-line ConditionalExpression: a key no case names falls out of the switch, which returns `undefined` all the same
     default:
       return undefined;
   }

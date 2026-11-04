@@ -5,11 +5,14 @@
  *
  * Colour is off (`vitest-colour-setup.ts`), so frames are compared as text.
  */
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { Readable, Writable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { CANCEL_SYMBOL } from './clack-core.js';
 import { findCursor, REQUIRED } from './clack-list.js';
 import { autocomplete, autocompleteMultiselect, path } from './clack-search.js';
@@ -53,6 +56,11 @@ async function drive<T>(start: (io: { input: Input; output: Output }) => Promise
   }
   return { answer: await answer, writes: output.buffer };
 }
+
+const scratch = scratchDirs();
+
+/** A filter that matches only the search `x`. */
+const onlyX = (search: string): boolean => search === 'x';
 
 const FRUIT = [{ value: 'apple' }, { value: 'banana' }, { value: 'cherry' }];
 
@@ -214,3 +222,227 @@ describe('path', () => {
     expect(writes.join('')).toContain('not a .ts file');
   });
 });
+
+/** Every escape a transcript holds, spelled so it can be read: a colour as `<36>`, a move or an erase as `<4A>`, `<1G>`, `<J>`. */
+const shown = (text: string): string => text.replaceAll(/\u001B\[([\d;?]*)([A-Za-z])/gu, (_, parameter: string, final: string) => `<${parameter}${final === 'm' ? '' : final}>`);
+
+/** Everything a search wrote while `keys` were pressed, readable. */
+async function transcript<T>(start: (io: { input: Input; output: Output }) => Promise<T>, keys: string[]): Promise<string> {
+  return shown((await drive(start, keys)).writes.join(''));
+}
+
+describe('every search, frame by frame, in colour', () => {
+  beforeEach(() => {
+    vi.stubEnv('NO_COLOR', undefined);
+    vi.stubEnv('FORCE_COLOR', '1');
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('autocomplete: typed, narrowed, moved, and answered by its label', async () => {
+    const options = [{ value: 'apple', hint: 'red' }, { value: 'banana', label: 'Banana' }, { value: 'cherry', disabled: true }];
+    expect(await transcript((io) => autocomplete({ message: 'm', options, placeholder: 'fruit', ...io }), ['a', 'n', 'down', 'return'])).toMatchInlineSnapshot(`
+      "<?25l><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <2>Search:<22> <7>f<27><2>ruit<22>
+      <36>│<39>  <32>●<39> apple <2>(red)<22>
+      <36>│<39>  <2>○<22> <2>Banana<22>
+      <36>│<39>  <90>○<39> <90>cherry<39>
+      <36>│<39>  <2>↑/↓<22> to select • <2>Enter:<22> confirm • <2>Type:<22> to search
+      <36>└<39>
+      <8A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <2>Search:<22> a█<2> (2 matches)<22>
+      <36>│<39>  <32>●<39> apple <2>(red)<22>
+      <36>│<39>  <2>○<22> <2>Banana<22>
+      <36>│<39>  <2>↑/↓<22> to select • <2>Enter:<22> confirm • <2>Type:<22> to search
+      <36>└<39>
+      <7A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <2>Search:<22> an█<2> (1 match)<22>
+      <36>│<39>  <32>●<39> Banana
+      <36>│<39>  <2>↑/↓<22> to select • <2>Enter:<22> confirm • <2>Type:<22> to search
+      <36>└<39>
+      <6A><1G><J><90>│<39>
+      <32>◇<39>  m
+      <90>│<39>  <2>Banana<22>
+      <?25h>"
+    `);
+  });
+
+  it('autocomplete: a search that matches nothing, then cancelled', async () => {
+    expect(await transcript((io) => autocomplete({ message: 'm', options: FRUIT, initialUserInput: 'zz', ...io }), ['escape'])).toMatchInlineSnapshot(`
+      "<?25l><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <2>Search:<22> zz█<2> (0 matches)<22>
+      <36>│<39>  <33>No matches found<39>
+      <36>│<39>  <2>↑/↓<22> to select • <2>Enter:<22> confirm • <2>Type:<22> to search
+      <36>└<39>
+      <6A><1G><J><90>│<39>
+      <31>■<39>  m
+      <90>│<39>
+      <?25h>"
+    `);
+  });
+
+  it('autocompleteMultiselect: toggled with tab and space, counted once answered', async () => {
+    expect(await transcript((io) => autocompleteMultiselect({ message: 'm', options: FRUIT, ...io }), ['tab', 'down', 'space', 'return'])).toMatchInlineSnapshot(`
+      "<?25l><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <2>Search:<22> <7><8>_<28><27>
+      <36>│<39>  <36>◻<39> apple
+      <36>│<39>  <2>◻<22> <2>banana<22>
+      <36>│<39>  <2>◻<22> <2>cherry<22>
+      <36>│<39>  <2>↑/↓<22> to select • <2>Tab:<22> select • <2>Enter:<22> confirm • <2>Type:<22> to search
+      <36>└<39>
+      <8A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <2>Search:<22> <7><8>_<28><27>
+      <36>│<39>  <32>◼<39> apple
+      <36>│<39>  <2>◻<22> <2>banana<22>
+      <36>│<39>  <2>◻<22> <2>cherry<22>
+      <36>│<39>  <2>↑/↓<22> to select • <2>Tab:<22> select • <2>Enter:<22> confirm • <2>Type:<22> to search
+      <36>└<39>
+      <8A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <2>Search:<22> <7><8>_<28><27>
+      <36>│<39>  <32>◼<39> <2>apple<22>
+      <36>│<39>  <36>◻<39> banana
+      <36>│<39>  <2>◻<22> <2>cherry<22>
+      <36>│<39>  <2>↑/↓<22> to select • <2>Tab:<22> select • <2>Enter:<22> confirm • <2>Type:<22> to search
+      <36>└<39>
+      <8A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <2>Search:<22> <7><8>_<28><27>
+      <36>│<39>  <32>◼<39> <2>apple<22>
+      <36>│<39>  <32>◼<39> banana
+      <36>│<39>  <2>◻<22> <2>cherry<22>
+      <36>│<39>  <2>↑/↓<22> to select • <2>Tab:<22> select • <2>Enter:<22> confirm • <2>Type:<22> to search
+      <36>└<39>
+      <8A><1G><J><90>│<39>
+      <32>◇<39>  m
+      <90>│<39>  <2>2 items selected<22>
+      <?25h>"
+    `);
+    expect(await transcript((io) => autocompleteMultiselect({ message: 'm', options: FRUIT, initialValues: ['banana'], ...io }), ['return'])).toMatchInlineSnapshot(`
+      "<?25l><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <2>Search:<22> <7><8>_<28><27>
+      <36>│<39>  <2>◻<22> <2>apple<22>
+      <36>│<39>  <32>◼<39> banana
+      <36>│<39>  <2>◻<22> <2>cherry<22>
+      <36>│<39>  <2>↑/↓<22> to select • <2>Tab:<22> select • <2>Enter:<22> confirm • <2>Type:<22> to search
+      <36>└<39>
+      <8A><1G><J><90>│<39>
+      <32>◇<39>  m
+      <90>│<39>  <2>1 item selected<22>
+      <?25h>"
+    `);
+  });
+
+  it('autocompleteMultiselect: a space typed before the arrows is a character of the search', async () => {
+    expect(await transcript((io) => autocompleteMultiselect({ message: 'm', options: FRUIT, required: false, ...io }), ['space', 'return'])).toMatchInlineSnapshot(`
+      "<?25l><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <2>Search:<22> <7><8>_<28><27>
+      <36>│<39>  <36>◻<39> apple
+      <36>│<39>  <2>◻<22> <2>banana<22>
+      <36>│<39>  <2>◻<22> <2>cherry<22>
+      <36>│<39>  <2>↑/↓<22> to select • <2>Tab:<22> select • <2>Enter:<22> confirm • <2>Type:<22> to search
+      <36>└<39>
+      <8A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <2>Search:<22>  █<2> (0 matches)<22>
+      <36>│<39>  <33>No matches found<39>
+      <36>│<39>  <2>↑/↓<22> to select • <2>Tab:<22> select • <2>Enter:<22> confirm • <2>Type:<22> to search
+      <36>└<39>
+      <6A><1G><J><90>│<39>
+      <32>◇<39>  m
+      <90>│<39>  <2>0 items selected<22>
+      <?25h>"
+    `);
+  });
+});
+
+/** A directory holding two directories and six files. */
+function tree(): string {
+  const root = scratch('caique-search-');
+  for (const name of ['d1', 'd2']) mkdirSync(join(root, name));
+  for (const name of ['f1', 'f2', 'f3', 'f4', 'f5', 'f6']) writeFileSync(join(root, name), '');
+  return root;
+}
+
+/** The rows of a frame that hold `needle`. */
+const rowsHolding = (frame: string, needle: string): number => frame.split('\n').filter((row) => row.includes(needle)).length;
+
+/** The list rows of a single search's frame: each radio, and the ellipsis standing for more. */
+const listRows = (frame: string): number => rowsHolding(frame, '○') + rowsHolding(frame, '●') + rowsHolding(frame, '...');
+
+describe('what a search answers, on the keys its other cases do not press', () => {
+  it('hands options given as a function the empty search before anything is typed', async () => {
+    const seen: unknown[] = [];
+    function options(this: { readonly userInput: string }) {
+      seen.push(this.userInput);
+      return FRUIT;
+    }
+    await drive((io) => autocomplete({ message: 'm', options, ...io }), ['escape']);
+    expect(seen[0]).toBe('');
+  });
+
+  it('shows every option before anything is typed, or once it is erased, whatever the filter says of the empty search', async () => {
+    expect((await drive((io) => autocomplete({ message: 'm', options: FRUIT, filter: onlyX, ...io }), ['return'])).answer).toBe('apple');
+    expect((await drive((io) => autocomplete({ message: 'm', options: FRUIT, filter: onlyX, ...io }), ['x', 'backspace', 'return'])).answer).toBe('apple');
+  });
+
+  it('keeps the focused option focused when it still matches what is typed', async () => {
+    expect((await drive((io) => autocomplete({ message: 'm', options: FRUIT, ...io }), ['down', 'down', 'e', 'return'])).answer).toBe('cherry');
+  });
+
+  it('takes the arrows over a search that matches nothing without failing', async () => {
+    expect((await drive((io) => autocomplete({ message: 'm', options: FRUIT, ...io }), ['z', 'down', 'escape'])).answer).toBe(CANCEL_SYMBOL);
+  });
+
+  it('does not complete a placeholder only a disabled option matches, nor one into a search already typed', async () => {
+    const options = [{ value: 'apple' }, { value: 'banana', disabled: true }];
+    expect((await drive((io) => autocomplete({ message: 'm', options, placeholder: 'ban', ...io }), ['tab', 'return'])).answer).toBe('apple');
+    expect((await drive((io) => autocomplete({ message: 'm', options: FRUIT, placeholder: 'ban', ...io }), ['c', 'tab', 'return'])).answer).toBe('cherry');
+  });
+
+  it('in a multiple search, a letter after the arrows is typed, and space after a letter or a completion is typed too', async () => {
+    expect((await drive((io) => autocompleteMultiselect({ message: 'm', options: FRUIT, ...io }), ['down', 'c', 'tab', 'return'])).answer).toEqual(['cherry']);
+    expect((await drive((io) => autocompleteMultiselect({ message: 'm', options: FRUIT, required: false, ...io }), ['b', 'space', 'return'])).answer).toEqual([]);
+    expect((await drive((io) => autocompleteMultiselect({ message: 'm', options: FRUIT, required: false, placeholder: 'ban', ...io }), ['tab', 'space', 'return'])).answer).toEqual([]);
+  });
+
+  it('counts the items chosen, one in the singular', async () => {
+    const one = await drive((io) => autocompleteMultiselect({ message: 'm', options: FRUIT, ...io }), ['tab', 'return']);
+    expect(one.writes.at(-3)).toContain('1 item selected');
+    const two = await drive((io) => autocompleteMultiselect({ message: 'm', options: FRUIT, ...io }), ['tab', 'down', 'tab', 'return']);
+    expect(two.writes.at(-3)).toContain('2 items selected');
+  });
+
+  it('a refusal on a short screen keeps two rows for itself', async () => {
+    const options = Array.from({ length: 12 }, (_, i) => ({ value: `option ${String(i)}` }));
+    const { writes } = await drive((io) => autocompleteMultiselect({ message: 'm', options, required: true, ...io, output: Object.assign(io.output, { rows: 14 }) }), ['return', 'escape']);
+    // 14 rows, less the message, the guide, the two rows of the refusal and one more: 9 rows of list.
+    expect(rowsHolding(writes.at(-4) ?? '', 'option ') + rowsHolding(writes.at(-4) ?? '', '...')).toBe(9);
+  });
+
+  it('path answers the first entry under a directory, lists five at a time, and completes the focused one on tab', async () => {
+    const root = tree();
+    expect((await drive((io) => path({ message: 'm', initialValue: `${root}/`, ...io }), ['return'])).answer).toBe(join(root, 'd1'));
+    const { writes } = await drive((io) => path({ message: 'm', initialValue: `${root}/`, ...io }), ['escape']);
+    expect(listRows(writes[1] ?? '')).toBe(5);
+    const completed = await drive((io) => path({ message: 'm', initialValue: `${root}/`, ...io }), ['down', 'tab', 'escape']);
+    expect(completed.writes.at(-4)).toContain(`${join(root, 'd2')}█`);
+  });
+
+  it('path lists only directories when asked for directories', async () => {
+    const root = tree();
+    const { writes } = await drive((io) => path({ message: 'm', initialValue: `${root}/`, directory: true, ...io }), ['escape']);
+    expect(listRows(writes[1] ?? '')).toBe(2);
+  });
+});
+

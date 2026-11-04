@@ -210,6 +210,11 @@ describe('rawlist', () => {
     numbered.events.type('7');
     numbered.events.keypress('enter');
     await expect(numbered.answer).resolves.toBe('x');
+    // A position is read in decimal: `10` is the tenth choice, not the eleventh.
+    const eleven = await render(rawlist, { message: 'Fruit', choices: Array.from({ length: 11 }, (_, i) => ({ value: `v${String(i + 1)}`, key: String.fromCodePoint(97 + i) })) });
+    eleven.events.type('10');
+    eleven.events.keypress('enter');
+    await expect(eleven.answer).resolves.toBe('v10');
   });
 
   it('draws a null choice as its own name', async () => {
