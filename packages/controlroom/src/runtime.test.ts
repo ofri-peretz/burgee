@@ -6,7 +6,7 @@ import process from 'node:process';
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { isProcessStdin, onceBeforeExit, processCwd, processEnv, processStreams } from './runtime.js';
+import { isProcessStdin, onceBeforeExit, processCwd, processEnv, processRuntime, processStreams } from './runtime.js';
 
 describe('runtime — the process, narrowed', () => {
   it('hands out the live streams, environment and working directory', () => {
@@ -26,4 +26,26 @@ describe('runtime — the process, narrowed', () => {
     expect(process.listenerCount('beforeExit')).toBe(before);
     expect(handler).not.toHaveBeenCalled();
   });
+
+  it('reads stdout’s isTTY when asked, not when the runtime was made', () => {
+    const tty = Object.getOwnPropertyDescriptor(process.stdout, 'isTTY');
+    const runtime = processRuntime();
+    try {
+      Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true });
+      expect(runtime.isTTY.stdout).toBe(true);
+      Object.defineProperty(process.stdout, 'isTTY', { value: false, configurable: true });
+      expect(runtime.isTTY.stdout).toBe(false);
+    } finally {
+      if (tty === undefined) Reflect.deleteProperty(process.stdout, 'isTTY');
+      else Object.defineProperty(process.stdout, 'isTTY', tty);
+    }
+  });
+
+  it('the clock’s schedule returns a cancel that stops the call', async () => {
+    const fn = vi.fn();
+    processRuntime().clock.schedule(fn, 1)();
+    await new Promise((done) => setTimeout(done, 20));
+    expect(fn).not.toHaveBeenCalled();
+  });
 });
+

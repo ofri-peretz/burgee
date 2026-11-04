@@ -136,6 +136,7 @@ export function pathExtensions(options: WhichOptions): string[] {
  */
 export function extensionCandidates(command: string, options: WhichOptions): string[] {
   const exts = pathExtensions(options);
+  // Stryker disable next-line ConditionalExpression: off Windows `exts` is `['']`, so the line below returns it unchanged anyway
   if (!isWindows(options.runtime)) return exts;
   return command.includes('.') && exts[0] !== '' ? ['', ...exts] : exts;
 }
@@ -162,6 +163,7 @@ export interface SearchEntry {
 export function searchPath(options: WhichOptions): SearchEntry[] {
   const { runtime } = options;
   const p = pathOps(runtime);
+  // Stryker disable next-line StringLiteral: `resolve` skips an empty segment, so `''` and `'.'` both resolve to `runtime.cwd`
   const against = p.resolve(runtime.cwd, options.cwd ?? '.');
   const raw = (options.path ?? pathOf(runtime)).split(pathDelimiter(runtime));
   const entries: SearchEntry[] = [];
@@ -214,6 +216,7 @@ function resolutions(command: string, options: WhichOptions, first: boolean): Re
   const { runtime } = options;
   const p = pathOps(runtime);
   const windows = isWindows(runtime);
+  // Stryker disable next-line StringLiteral: `resolve` skips an empty segment, so `''` and `'.'` both resolve to `runtime.cwd`
   const against = p.resolve(runtime.cwd, options.cwd ?? '.');
   const exts = pathExtensions(options);
   const candidates = extensionCandidates(command, options);
@@ -293,6 +296,7 @@ export function runPath(options: WhichOptions): string {
   const { runtime } = options;
   const p = pathOps(runtime);
   const parts: string[] = [];
+  // Stryker disable next-line StringLiteral: `resolve` skips an empty segment, so `''` and `'.'` both resolve to `runtime.cwd`
   let dir = p.resolve(runtime.cwd, options.cwd ?? '.');
   for (;;) {
     parts.push(p.join(dir, 'node_modules', '.bin'));

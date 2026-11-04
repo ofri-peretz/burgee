@@ -101,6 +101,13 @@ describe('readShebang — the first 150 bytes of a real file', () => {
     expect(readShebang(join(dir, 'absent'))).toBeUndefined();
   });
 
+  it('reads 150 bytes and no more, so a longer #! line is cut where shebang-command cuts it', () => {
+    const long = join(dir, 'long');
+    // 15 bytes of `#!/usr/bin/env ` and 136 of name: the 151st byte is the name's last.
+    writeFileSync(long, `#!/usr/bin/env ${'a'.repeat(136)}\n`);
+    expect(readShebang(long)).toBe('a'.repeat(135));
+  });
+
   it('is undefined for a file with no shebang', () => {
     const plain = join(dir, 'plain.txt');
     writeFileSync(plain, 'just text\n');

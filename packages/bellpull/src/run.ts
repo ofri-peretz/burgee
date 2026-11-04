@@ -147,6 +147,7 @@ export class SpawnError extends Error {
 }
 
 /** Decode a chunk. Buffers are concatenated first so a multi-byte character cannot be split. */
+// Stryker disable next-line ConditionalExpression: `Buffer.concat([])` decodes to `''` as well; the check only skips the allocation
 const decode = (chunks: Buffer[]): string => (chunks.length === 0 ? '' : Buffer.concat(chunks).toString('utf8'));
 
 /**
@@ -157,6 +158,7 @@ const decode = (chunks: Buffer[]): string => (chunks.length === 0 ? '' : Buffer.
  * signal, a breached deadline — resolves.
  */
 export async function run(command: string, args: readonly unknown[] = [], options: RunOptions): Promise<Result> {
+  // Stryker disable next-line StringLiteral: `child_process` reads a falsy `stdio` as `'pipe'`, so an empty default is the same default
   const { runtime, timeout = DEFAULT_TIMEOUT, grace = DEFAULT_GRACE, exitHost, stdio = 'pipe', ...rest } = options;
 
   /*
@@ -303,14 +305,17 @@ export function startDeadline(child: Killable, timeout: number, grace: number): 
     fired = true;
     child.kill('SIGTERM');
     hard = setTimeout(() => child.kill('SIGKILL'), grace);
+    // Stryker disable next-line OptionalChaining: a Node timer always has `unref`, and so does every fake-timer one the suite drives this with
     hard.unref?.();
   }, timeout);
+  // Stryker disable next-line OptionalChaining: a Node timer always has `unref`, and so does every fake-timer one the suite drives this with
   soft.unref?.();
 
   return {
     fired: () => fired,
     cancel: () => {
       clearTimeout(soft);
+      // Stryker disable next-line ConditionalExpression: `clearTimeout(undefined)` does nothing, so the check only reads as intent
       if (hard !== undefined) clearTimeout(hard);
     },
   };

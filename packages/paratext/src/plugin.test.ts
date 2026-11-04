@@ -10,7 +10,7 @@
  * `capabilities` registers and can then be emitted; anything another layer owns is ignored
  * rather than refused; and every refusal carries a family error code and a fix.
  */
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { registerBuiltins } from './builtins.js';
 import { type Capability, capabilities, capability, emit, reset as resetRegistry } from './capability.js';
@@ -137,4 +137,66 @@ describe('what it refuses, and with which code', () => {
     expect(error.code).toBe('E_PLUGIN_SCHEMA');
     expect(error.fix).toContain('paratext/schema.json');
   });
+
+  it('names the error class, as every host in the family does', () => {
+    expect(refusal(null)).toMatchObject({ name: 'PluginError' });
+  });
+
+  it.each([[[]], [null], ['acme']])('refuses %j as not a plain object, with the fix that says what to export', (candidate) => {
+    expect(refusal(candidate)).toMatchObject({ code: 'E_PLUGIN_SCHEMA', message: 'a plugin is a plain object', fix: 'export an object, not a function or an array' });
+  });
+
+  it.each([[{}], [{ name: '' }], [{ name: 3 }]])('refuses %j as unnamed, with the fix that says why a name matters', (candidate) => {
+    expect(refusal(candidate)).toMatchObject({ code: 'E_PLUGIN_SCHEMA', message: 'a plugin needs a name', fix: 'add `name: "…"` — it is how a shadowed capability is reported' });
+  });
+
+  it('accepts the one contract there is, and refuses a fraction of it', () => {
+    expect(CONTRACT).toBe(1);
+    expect(() => validate({ name: 'acme', contract: 1 })).not.toThrow();
+    expect(refusal({ name: 'acme', contract: 1.5 }).code).toBe('E_PLUGIN_CONTRACT');
+  });
+
+  it('says which contract it was given and which it knows', () => {
+    expect(refusal(plugin({ contract: 2 }))).toMatchObject({
+      message: 'plugin "acme-terminal" declares contract 2; this paratext knows 1',
+      fix: 'upgrade paratext, or lower the plugin’s contract',
+    });
+  });
+
+  it('reports one problem on its own, with no numbered list and no `problems`', () => {
+    const error = refusal(plugin({ capabilities: { 'kitty-image': { ...kitty, encode: '' } } }));
+    expect(error).toMatchObject({ message: 'plugin "acme-terminal": capabilities.kitty-image.encode: must not be empty', fix: 'compare the object against `paratext/schema.json`, which is the contract every host in the family ships' });
+    expect(error.problems).toBeUndefined();
+  });
+
+  it('reports every problem at once: the messages joined, the fixes numbered, each kept apart', () => {
+    const { fallback: _dropped, ...noFallback } = kitty;
+    const error = refusal(plugin({ capabilities: { 'kitty-image': noFallback, beep: 'beep' } }));
+    const first = { code: 'E_NO_STATIC_PROJECTION', message: 'plugin "acme-terminal": capabilities.kitty-image: fallback must be a template, even if it is empty — rule 6 has no opt-out', fix: 'add `fallback: "…"` — what prints where the terminal cannot do it; `""` is a legitimate answer, absence is not' };
+    const second = { code: 'E_PLUGIN_SCHEMA', message: 'plugin "acme-terminal": capabilities.beep is not an object', fix: 'a capability is `{ name, osc, when, encode, fallback }` — five fields of plain data' };
+    expect(error).toMatchObject({ code: first.code, message: `${first.message}; ${second.message}`, fix: `1. ${first.fix} 2. ${second.fix}` });
+    expect(error.problems).toEqual([first, second]);
+  });
+
+  it('gives a capability with no name of its own the fix that names its key', () => {
+    const { name: _dropped, ...unnamed } = kitty;
+    expect(refusal(plugin({ capabilities: { 'kitty-image': unnamed } }))).toMatchObject({
+      code: 'E_PLUGIN_SCHEMA',
+      message: 'plugin "acme-terminal": capabilities.kitty-image: a capability needs a name',
+      fix: 'add `name`, the same as its key',
+    });
+  });
+
+  it('shows both ways out of a key that is not the capability’s name', () => {
+    expect(refusal(plugin({ capabilities: { kitty: kitty } })).fix).toBe('key it by its own name — `"kitty-image": { … }` — or rename the capability to "kitty"');
+  });
 });
+
+describe('a fresh host', () => {
+  it('starts with no plugin registered', async () => {
+    vi.resetModules();
+    const fresh = await import('./plugin.js');
+    expect(fresh.registered()).toEqual([]);
+  });
+});
+

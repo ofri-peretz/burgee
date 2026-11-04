@@ -124,6 +124,7 @@ export function reset(): void {
 
 /** Copies of what has been registered: the only way in is `register()`. */
 export function registered(): { keymaps: Map<string, Required<KeymapDef>>; panes: Map<string, PaneDef> } {
+  // Stryker disable next-line ConditionalExpression: a plugin with only a name adds nothing, so registering it again once the built-ins are in changes nothing
   if (!builtIn) register({ name: 'controlroom' });
   return { keymaps: new Map(keymapRegistry), panes: new Map(paneRegistry) };
 }

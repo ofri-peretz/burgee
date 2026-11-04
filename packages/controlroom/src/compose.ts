@@ -52,7 +52,12 @@ export function collapse(tree: Layout, collapsed: ReadonlySet<string>): Layout {
   return {
     ...tree,
     parts: tree.parts.map(
-      (part): Part => (typeof part.content === 'string' && collapsed.has(part.content) ? { ...part, size: 0 } : { ...part, content: collapse(part.content, collapsed) }),
+      (part): Part =>
+        // Stryker disable next-line ConditionalExpression: a split is never one of the pane names in `collapsed`, so `has` answers no for it as this guard does
+        typeof part.content === 'string' &&
+        collapsed.has(part.content)
+          ? { ...part, size: 0 }
+          : { ...part, content: collapse(part.content, collapsed) },
     ),
   };
 }
@@ -117,9 +122,11 @@ export function compose(tree: Layout, panes: Panes, size: Frame, state?: Pick<Sc
     tree = grown;
     size = { ...size, rows: Math.max(size.rows, height) };
   }
+  // Stryker disable next-line MethodExpression: `layout` walks the tree depth first, left part before right, so the rectangles already arrive in x order on every row they share
   const rects = place(tree, text, size)
     .map(({ name, rect, text }) => {
       // `fit` stops the row at the last page, so `'end'` reads as any row past it, and nothing is below one.
+      // Stryker disable next-line NumericLiteral: a static frame is as tall as every pane's content, so `fit` clamps any offset back to row 0
       const from = size.live ? offset(state?.scroll.get(name), Infinity) : 0;
       const lines = fit(text, rect, from);
       const below = text.length - from - rect.height;
@@ -127,6 +134,7 @@ export function compose(tree: Layout, panes: Panes, size: Frame, state?: Pick<Sc
       if (below > 0 && name === state!.panes[state!.focused]) lines[rect.height - 1] = fit([`↓ ${below}`], { width: rect.width, height: 1 })[0]!;
       return { rect, lines };
     })
+    // Stryker disable next-line ArrowFunction,ArithmeticOperator: the same — the walk's order is already x order, so any comparator, or none, keeps it
     .sort((a, b) => a.rect.x - b.rect.x);
   return Array.from({ length: size.rows }, (_, y) => {
     let x = 0;

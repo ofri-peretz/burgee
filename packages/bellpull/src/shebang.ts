@@ -57,6 +57,7 @@ export function readShebang(file: string): string | undefined {
   try {
     fd = openSync(file, 'r');
     readSync(fd, buffer, 0, HEADER_BYTES, 0);
+    // Stryker disable next-line BlockStatement: a failed open or read leaves the buffer zeroed, and zeroes carry no `#!`, so falling through answers `undefined` too
   } catch {
     return undefined;
   } finally {

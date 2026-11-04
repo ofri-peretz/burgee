@@ -17,6 +17,7 @@ import { type Fields } from './capability.js';
 
 const FIELD = /\{([a-zA-Z][a-zA-Z0-9]*)(\|base64)?\}/g;
 const OPTIONAL = /\[([^[\]]*)\]/g;
+// Stryker disable next-line NumericLiteral: the bound only decides when the cache is emptied, and a split is the same whether kept or made again
 const CACHED = 255;
 
 /** Every field a template reads, so `check` can say what a capability needs. */
@@ -43,13 +44,16 @@ const split = new Map<string, string[]>();
  * worse output than `Done`.
  */
 export function render(template: string, fields: Fields): string {
-  const resolved = template.includes('[') ? template.replaceAll(OPTIONAL, (_match, group: string) => (fieldsUsed(group).every((name) => (fields[name] ?? '') !== '') ? group : '')) : template;
+  // Stryker disable next-line StringLiteral: a template with no `[` has no group for the pattern to find, so testing for any other text changes only the work done
+  const grouped = template.includes('[');
+  const resolved = grouped ? template.replaceAll(OPTIONAL, (_match, group: string) => (fieldsUsed(group).every((name) => (fields[name] ?? '') !== '') ? group : '')) : template;
+  // Stryker disable next-line EqualityOperator,ConditionalExpression,CallExpression: when the cache empties costs memory, never bytes — a split is a pure function of the template
   if (split.size > CACHED) split.clear();
   const parts = split.get(resolved) ?? (split.set(resolved, resolved.split(FIELD)).get(resolved) as string[]);
   let out = parts[0] as string;
   for (let i = 1; i < parts.length; i += 3) {
     const value = fields[parts[i] as string] ?? '';
-    out += (parts[i + 1] ? Buffer.from(value, 'utf8').toString('base64') : value) + (parts[i + 2] as string);
+    out += (parts[i + 1] ? Buffer.from(value).toString('base64') : value) + (parts[i + 2] as string);
   }
   return out;
 }

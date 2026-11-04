@@ -163,11 +163,13 @@ const raiseAfter = (proc: ProcessLike, signal: string, listener: (...args: never
   if (!standDown(proc, signal, listener)) return;
   try {
     proc.kill(proc.pid, signal);
+    // Stryker disable next-line BlockStatement: the exit below runs on this path too; on a real process the first exit() never returns, so a second is unreachable
   } catch {
     // The runtime refused it. Leaving with POSIX's number is the handling — not a silent
     // swallow and not a message either: a process on its way out of a signal it cannot
     // raise has nowhere useful to say so, and a warning on every closed console window on
     // Windows would be worse than the fact it reported.
+    // Stryker disable next-line CallExpression: the same exit(code) follows the catch; on a real process this one never returns, so dropping it changes nothing
     proc.exit(code);
   }
   // Reached only when `kill` returned *without* terminating us — a signal inherited as

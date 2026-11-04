@@ -70,6 +70,21 @@ describe('the ansi-escapes surface (R8)', () => {
     );
   });
 
+  /**
+   * Upstream writes `width` and `height` only when they are truthy (`if (options.width)`). Until
+   * 2026-11-04 paratext listed the falsy values instead and missed `NaN`, so a width computed
+   * from a missing measurement wrote `;width=NaN` into the sequence.
+   */
+  it.each([
+    ['NaN', { width: Number.NaN, height: Number.NaN }],
+    ['zero and empty', { width: 0, height: '' }],
+    ['a width and a height', { width: 40, height: '20px' }],
+    ['preserveAspectRatio true', { preserveAspectRatio: true }],
+  ] as const)('writes the incumbent’s image bytes for %s', async (_name, options) => {
+    const theirs = ((await import('ansi-escapes')) as unknown as { default: { image: (data: Uint8Array, o: object) => string } }).default;
+    expect(ansiEscapesFor(iterm).image(Buffer.from('A'), options)).toBe(theirs.image(Buffer.from('A'), options));
+  });
+
   it('defaults setCwd to the runtime’s cwd, as ansi-escapes defaults it to process.cwd()', () => {
     expect(ansiEscapesFor(iterm).setCwd()).toBe(`${OSC}50;CurrentDir=/work${BEL}${OSC}9;9;/work${BEL}`);
   });
@@ -177,6 +192,18 @@ describe('the root surface over the real process', () => {
     if (tty === undefined) Reflect.deleteProperty(process.stdout, 'isTTY');
     else Object.defineProperty(process.stdout, 'isTTY', tty);
     vi.resetModules();
+  });
+
+  it('reads each stream’s own isTTY into the process runtime', () => {
+    const err = Object.getOwnPropertyDescriptor(process.stderr, 'isTTY');
+    try {
+      Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true });
+      Object.defineProperty(process.stderr, 'isTTY', { value: false, configurable: true });
+      expect(processRuntime().isTTY).toEqual({ stdout: true, stderr: false });
+    } finally {
+      if (err === undefined) Reflect.deleteProperty(process.stderr, 'isTTY');
+      else Object.defineProperty(process.stderr, 'isTTY', err);
+    }
   });
 
   it('decides on the first call and keeps the answer, and still honours a re-registered capability', async () => {

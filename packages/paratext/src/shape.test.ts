@@ -219,4 +219,29 @@ describe('violations() over nodes the capability entry does not write yet', () =
   it('without `additionalProperties: false`, a key with no rule is allowed — refusing it is opt-in, as in JSON Schema', () => {
     expect(violations({ type: 'object', properties: {} }, { a: 1 }, 'n')).toEqual([]);
   });
+
+  it('a `number` refuses what is not a number at all', () => {
+    expect(violations({ type: 'number' }, 'two', 'n')).toEqual(['n: must be a number, not string']);
+  });
+
+  it('`minLength` reads a string’s length only, and `minimum` a number only', () => {
+    expect(violations({ minLength: 2 }, ['a'], 'n')).toEqual([]);
+    expect(violations({ minimum: 1 }, '', 'n')).toEqual([]);
+  });
+
+  it('a `minimum` refuses a number under it, and says the bound', () => {
+    expect(violations({ type: 'integer', minimum: 5 }, 3, 'n')).toEqual(['n: must be an integer ≥ 5']);
+  });
+
+  it('checks each element of an array against `items`, at its index', () => {
+    expect(violations({ type: 'array', items: { type: 'string' } }, ['a', 1], 'n')).toEqual(['n[1]: must be a string, not integer']);
+  });
+
+  it('reads `items` only on an array, and object keywords only on an object', () => {
+    expect(violations({ items: { type: 'string' } }, { a: 1 }, 'n')).toEqual([]);
+    expect(violations({ additionalProperties: false }, 'ab', 'n')).toEqual([]);
+    expect(violations({ additionalProperties: false }, ['a'], 'n')).toEqual([]);
+    expect(violations({ additionalProperties: false }, null, 'n')).toEqual([]);
+  });
 });
+

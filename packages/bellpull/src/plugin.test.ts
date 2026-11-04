@@ -7,7 +7,7 @@
 /**
  * The `resolvers` plugin host — PLAN step 1.5, `plugin-contract` R5a, R6, R7, R8.
  */
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { contributions, CONTRACT, directories, PluginError, register, registered, reset, substitute, validate } from './plugin.js';
 import { type Runtime } from './runtime.js';
@@ -242,6 +242,136 @@ describe('substitute, per platform', () => {
   it('splits on `;` on Windows, so a `:` in a drive letter is not a separator there', () => {
     expect(substitute('{TOOLS}', windows({ TOOLS: 'C:\\a;D:\\b' }))).toBeUndefined();
     expect(substitute('{TOOLS}', windows({ TOOLS: 'C:\\a' }))).toBe('C:\\a');
+  });
+});
+
+/**
+ * Every refusal, word for word. The message names the author's own text and the fix says what
+ * to write instead; a refusal that lost either would still throw, so each is pinned whole.
+ */
+const relativeFix =
+  'use an absolute path, or start it with a `{VAR}` that holds one — a relative entry means a different directory every time the program is run from somewhere else, including one somebody else can write to';
+const refusals: readonly (readonly [string, unknown, string, string, string])[] = [
+  ['not an object', null, 'E_PLUGIN_SCHEMA', 'a plugin is a plain object', 'export an object, not a function or an array'],
+  ['an empty name', { name: '' }, 'E_PLUGIN_SCHEMA', 'a plugin needs a name', 'add `name: "…"` — it is how a shadowed resolver is reported'],
+  ['a newer contract', { name: 'a', contract: 2 }, 'E_PLUGIN_CONTRACT', 'plugin "a" declares contract 2; this bellpull knows 1', 'upgrade bellpull, or lower the plugin’s contract'],
+  [
+    'resolvers that are not an object',
+    { name: 'a', resolvers: 1 },
+    'E_PLUGIN_SCHEMA',
+    'plugin "a": resolvers must be an object',
+    'map a resolver name to `{ rank, paths, extensions?, when? }` — compare it against `bellpull/schema.json`',
+  ],
+  [
+    'a resolver with an empty name',
+    { name: 'a', resolvers: { '': { rank: 0, paths: ['/o'] } } },
+    'E_PLUGIN_SCHEMA',
+    'plugin "a": a resolver’s name is empty',
+    'name it — the name is what a `plugin check` prints and what shadowing is reported by',
+  ],
+  ['a resolver that is not an object', { name: 'a', resolvers: { r: 1 } }, 'E_PLUGIN_SCHEMA', 'plugin "a": resolver "r" is not an object', 'a resolver is `{ rank, paths, extensions?, when? }`'],
+  [
+    'a resolver with no rank',
+    { name: 'a', resolvers: { r: { paths: ['/o'] } } },
+    'E_PLUGIN_SCHEMA',
+    'plugin "a": resolver "r" has no rank',
+    'add `rank: -10` to search before PATH, or a positive rank to search after it',
+  ],
+  [
+    'a resolver with no paths',
+    { name: 'a', resolvers: { r: { rank: 0, paths: [] } } },
+    'E_PLUGIN_SCHEMA',
+    'plugin "a": resolver "r" contributes no paths',
+    'add `paths: ["/opt/tool/bin"]` — a resolver is a search order, and an empty one cannot find anything',
+  ],
+  [
+    'a path that is not a string',
+    { name: 'a', resolvers: { r: { rank: 0, paths: [42] } } },
+    'E_PLUGIN_SCHEMA',
+    'plugin "a": resolver "r" has a path that is not a string',
+    'each path is a string; `{VAR}` is substituted from the environment',
+  ],
+  ['a relative path', { name: 'a', resolvers: { r: { rank: 0, paths: ['bin'] } } }, 'E_PLUGIN_SCHEMA', 'plugin "a": resolver "r": "bin" is not an absolute path', relativeFix],
+  // A drive letter only counts at the start: `tools/C:/bin` is relative, whatever follows.
+  ['a drive letter that is not at the start', { name: 'a', resolvers: { r: { rank: 0, paths: ['tools/C:/bin'] } } }, 'E_PLUGIN_SCHEMA', 'plugin "a": resolver "r": "tools/C:/bin" is not an absolute path', relativeFix],
+  [
+    'a `when` that is not an object',
+    { name: 'a', resolvers: { r: { rank: 0, paths: ['/o'], when: 'win32' } } },
+    'E_PLUGIN_SCHEMA',
+    'plugin "a": resolver "r" has a `when` that is not an object',
+    'a `when` is `{ platform?, envAny? }`, or leave it out and the resolver always applies',
+  ],
+  [
+    'a `when` with a key that is not a condition',
+    { name: 'a', resolvers: { r: { rank: 0, paths: ['/o'], when: { env: ['X'] } } } },
+    'E_PLUGIN_SCHEMA',
+    'plugin "a": resolver "r": `when.env` is not a condition bellpull reads',
+    'the keys a `when` allows are `platform` and `envAny`; rename it to one of them, or remove it',
+  ],
+  [
+    'a `when.platform` that is a string',
+    { name: 'a', resolvers: { r: { rank: 0, paths: ['/o'], when: { platform: 'win32' } } } },
+    'E_PLUGIN_SCHEMA',
+    'plugin "a": resolver "r": `when.platform` must be an array of strings',
+    'list them: `platform: ["…"]`',
+  ],
+  [
+    'a `when.platform` with one entry that is not a string',
+    { name: 'a', resolvers: { r: { rank: 0, paths: ['/o'], when: { platform: ['linux', 7] } } } },
+    'E_PLUGIN_SCHEMA',
+    'plugin "a": resolver "r": `when.platform` must be an array of strings',
+    'list them: `platform: ["…"]`',
+  ],
+  [
+    'a `when.envAny` that is a string',
+    { name: 'a', resolvers: { r: { rank: 0, paths: ['/o'], when: { envAny: 'NVM_BIN' } } } },
+    'E_PLUGIN_SCHEMA',
+    'plugin "a": resolver "r": `when.envAny` must be an array of strings',
+    'list them: `envAny: ["…"]`',
+  ],
+];
+
+describe('every refusal, word for word', () => {
+  it.each(refusals)('%s', (...[, plugin, code, message, fix]) => {
+    let caught: unknown;
+    try {
+      register(plugin);
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(PluginError);
+    const refused = caught as PluginError;
+    expect({ name: refused.name, code: refused.code, message: refused.message, fix: refused.fix }).toEqual({ name: 'PluginError', code, message, fix });
+    expect(registered()).toEqual([]);
+  });
+});
+
+describe('`envAny` decides on its own, with no `{VAR}` in the path to drop the entry for it', () => {
+  beforeEach(() => {
+    register({ name: 'nvm', resolvers: { nvm: { rank: -1, paths: ['/opt/nvm/bin'], when: { envAny: ['NVM_DIR', 'NVM_BIN'] } } } });
+  });
+
+  it('drops the resolver when none of the variables is set', () => {
+    expect(directories(linux())).toEqual([]);
+  });
+
+  it('keeps it when any one of them is set, not only when all are', () => {
+    expect(directories(linux({ NVM_BIN: '/x' }))).toEqual([{ dir: '/opt/nvm/bin', resolver: 'nvm', rank: -1 }]);
+  });
+});
+
+describe('substitute, with a drive letter that is not at the start', () => {
+  it('drops an expansion whose drive letter sits mid-value, because the value is still relative', () => {
+    expect(substitute('{TOOLS}\\bin', windows({ TOOLS: 'tools\\C:\\x' }))).toBeUndefined();
+  });
+});
+
+describe('a fresh import', () => {
+  it('starts with nothing registered', async () => {
+    vi.resetModules();
+    const fresh = await import('./plugin.js');
+    expect(fresh.registered()).toEqual([]);
+    expect(fresh.contributions()).toEqual([]);
   });
 });
 

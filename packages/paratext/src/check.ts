@@ -63,7 +63,12 @@ a usage error.
 
 /** The package's own version, read when asked for rather than on every run. */
 function version(): string {
-  return (JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }).version;
+  const text = readFileSync(
+    new URL('../package.json', import.meta.url),
+    // Stryker disable next-line StringLiteral: with no encoding the file is a Buffer, which `JSON.parse` reads as UTF-8 text all the same
+    'utf8',
+  );
+  return (JSON.parse(text) as { version: string }).version;
 }
 
 /**
@@ -114,10 +119,13 @@ async function inspect(argv: readonly string[], write: (s: string) => void): Pro
   if (typeof file === 'number') return file;
   const plugin: unknown = await load(resolve(file));
   reset();
+  // Stryker disable next-line CallExpression: `register` validates before it records, so the refusal is the same one without this call
   validate(plugin);
   register(plugin);
   const name = (plugin as { name: string }).name;
+  // Stryker disable next-line MethodExpression: the registry was emptied above and holds this one plugin, so every contribution is already its own
   const rows = contributions()
+    // Stryker disable next-line ConditionalExpression: the same — after `reset()` no other plugin has contributed anything
     .filter((c) => c.from === (plugin as { name: string }).name)
     // Both projections, because that is the point of a capability: the bytes for a terminal that
     // understands, and what it prints for one that does not. An author who only ever sees the

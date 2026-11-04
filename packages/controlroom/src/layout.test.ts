@@ -36,6 +36,11 @@ describe('distribute — one axis', () => {
 
   it('a zero fraction takes only its minimum', () => {
     expect(distribute(10, [{ fr: 0, min: 2 }, { fr: 1 }])).toEqual([2, 8]);
+    expect(distribute(10, [{ fr: 1 }, { fr: 0 }]), 'no minimum is a minimum of nothing').toEqual([10, 0]);
+  });
+
+  it('a minimum exactly equal to its share leaves the pool, so the rest share what is left', () => {
+    expect(distribute(6, [{ fr: 2, min: 3 }, { fr: 1 }, { fr: 1 }])).toEqual([3, 2, 1]);
   });
 
   it('negative and fractional totals are floored at zero cells', () => {

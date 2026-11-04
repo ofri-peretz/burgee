@@ -36,8 +36,10 @@ export const cursorMove = (x: number, y?: number): string => {
   let out = '';
   if (x < 0) out += `${ESC}${-x}D`;
   else if (x > 0) out += `${ESC}${x}C`;
-  if (y !== undefined && y < 0) out += `${ESC}${-y}A`;
-  else if (y !== undefined && y > 0) out += `${ESC}${y}B`;
+  // Upstream asks `y < 0` and `y > 0` of an absent `y`, and both are false: no move on that axis.
+  const dy = y ?? 0;
+  if (dy < 0) out += `${ESC}${-dy}A`;
+  else if (dy > 0) out += `${ESC}${dy}B`;
   return out;
 };
 
@@ -75,16 +77,19 @@ export const scrollDown = `${ESC}T`;
  * previous frame's height on every frame, and that height rarely changes (B5). Integers under
  * the bound only, so a fractional or huge count still takes the loop and its exact bytes.
  */
+// Stryker disable next-line NumericLiteral: the bound only decides which counts are kept, and a kept string is the one the loop builds
 const ERASED_BOUND = 64;
 const erased = new Map<number, string>();
 
 /** Erase `count` lines upward from the cursor's, then return to column one. */
 export const eraseLines = (count: number): string => {
   const kept = erased.get(count);
+  // Stryker disable next-line ConditionalExpression: a kept string is the loop's own output for that count, so skipping it rebuilds the same bytes
   if (kept !== undefined) return kept;
   let clear = '';
   for (let i = 0; i < count; i += 1) clear += eraseLine + (i < count - 1 ? cursorUp() : '');
   const out = count ? clear + cursorLeft : clear;
+  // Stryker disable next-line LogicalOperator,ConditionalExpression,EqualityOperator,NumericLiteral,CallExpression: which counts are kept costs memory, never bytes — any count's string is a pure function of the count
   if (Number.isInteger(count) && count >= 0 && count < ERASED_BOUND) erased.set(count, out);
   return out;
 };

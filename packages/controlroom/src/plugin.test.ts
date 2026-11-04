@@ -20,6 +20,7 @@ describe('validate', () => {
   it.each([
     [null, /non-empty `name`/u],
     [{ name: '' }, /non-empty `name`/u],
+    [{ name: 3 }, /non-empty `name`/u],
     [{ name: 'p', keymaps: [] }, /`keymaps` must be an object/u],
     [{ name: 'p', panes: 'x' }, /`panes` must be an object/u],
     [{ name: 'p', keymaps: { k: { keys: { h: 1 } } } }, /keymaps\.k\.keys must map/u],
@@ -42,8 +43,14 @@ describe('validate', () => {
     expect(error.fix).toMatch(/\[ctrl\+\]/u);
   });
 
-  it('a newer contract is refused with E_PLUGIN_CONTRACT', () => {
-    expect(refusal({ name: 'p', contract: CONTRACT + 1 }).code).toBe('E_PLUGIN_CONTRACT');
+  it('a newer contract is refused with E_PLUGIN_CONTRACT, saying which it knows and how to agree', () => {
+    expect(CONTRACT).toBe(1);
+    expect(refusal({ name: 'p', contract: CONTRACT + 1 })).toMatchObject({
+      name: 'PluginError',
+      code: 'E_PLUGIN_CONTRACT',
+      message: 'plugin declares contract 2; this controlroom knows 1',
+      fix: 'set `contract: 1`, or drop the field',
+    });
   });
 });
 
@@ -64,9 +71,10 @@ describe('register and registered', () => {
   });
 
   it('reset forgets every registration, and the built-in default comes back on the next use', () => {
-    register({ name: 'gone', keymaps: { temp: { keys: { t: 'x' } } } });
+    register({ name: 'gone', keymaps: { temp: { keys: { t: 'x' } } }, panes: { temp: { component: 'log-tail' } } });
     reset();
     expect(registered().keymaps.has('temp')).toBe(false);
+    expect(registered().panes.has('temp')).toBe(false);
     expect(registered().keymaps.has('default')).toBe(true);
   });
 

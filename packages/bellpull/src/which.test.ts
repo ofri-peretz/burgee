@@ -270,6 +270,14 @@ describe('Windows policy, from a Mac, because the platform is an argument', () =
     expect(extensionCandidates('whoami.cmd', { runtime: win({ PATHEXT: '.EXE;.CMD' }) })).toEqual(['', '.EXE', '.CMD']);
   });
 
+  it('does not put the bare name first twice when PATHEXT is empty, which already means the bare name', () => {
+    expect(extensionCandidates('whoami.cmd', { runtime: win({ PATHEXT: '.EXE' }), pathExt: '' })).toEqual(['']);
+  });
+
+  it('adds no bare name in front of a command with no dot in it', () => {
+    expect(extensionCandidates('npm', { runtime: win({ PATHEXT: ';.CMD' }) })).toEqual(['.CMD']);
+  });
+
   it('expands nothing off Windows, where a file is executable or it is not', () => {
     expect(extensionCandidates('npm', { runtime: posix() })).toEqual(['']);
   });
@@ -296,6 +304,13 @@ describe('Windows policy, from a Mac, because the platform is an argument', () =
 
   it('unquotes a PATH entry, which is how Windows carries a directory with a semicolon', () => {
     expect(searchPath({ runtime: win({ PATH: '"C:\\Program Files\\bin"' }) }).at(-1)?.dir).toBe('C:\\Program Files\\bin');
+  });
+
+  it('unquotes only an entry quoted at both ends, and takes one quoted at a single end as written', () => {
+    expect(searchPath({ runtime: posix({ env: { PATH: '"/a"x:/b"x"' } }) })).toEqual([
+      { raw: '"/a"x', skipped: 'relative' },
+      { raw: '/b"x"', dir: '/b"x"' },
+    ]);
   });
 
   it('searches the working directory first, as the platform does', () => {
@@ -358,6 +373,8 @@ describe('the throwing form', () => {
     } catch (error) {
       expect((error as NotFoundError).code).toBe('ENOENT');
       expect((error as NotFoundError).command).toBe('nothinghere');
+      expect((error as NotFoundError).message).toBe('not found: nothinghere');
+      expect((error as NotFoundError).name).toBe('NotFoundError');
     }
   });
 });

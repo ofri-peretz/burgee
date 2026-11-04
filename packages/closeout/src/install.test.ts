@@ -10,7 +10,7 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 
-import { install, type ProcessLike } from './index.js';
+import { alternateScreen, install, rawMode, SIGNALS, type ProcessLike } from './index.js';
 
 type Listener = (...args: never[]) => void;
 
@@ -79,6 +79,30 @@ const settle = async (): Promise<void> => {
   await Promise.resolve();
 };
 
+describe('the signals closeout listens for', () => {
+  it('are the five that end a program and can reach a listener — SIGKILL cannot', () => {
+    expect(SIGNALS).toEqual(['SIGINT', 'SIGTERM', 'SIGHUP', 'SIGQUIT', 'SIGBREAK']);
+  });
+});
+
+describe('the restores closeout registers for the terminal', () => {
+  it('go in the restore phase under a label a breach report can name', () => {
+    const closeout = install({ process: fakeProcess() });
+    const add = vi.spyOn(closeout.registry, 'add');
+    const tty = { isTTY: true, write: () => true };
+
+    closeout.hideCursor(tty);
+    alternateScreen(tty, closeout);
+    rawMode({ isTTY: true, isRaw: false, setRawMode: () => true }, closeout);
+
+    expect(add.mock.calls.map(([, spec]) => spec)).toEqual([
+      { phase: 'restore', label: 'closeout:restore-cursor' },
+      { phase: 'restore', label: 'closeout:leave-alternate-screen' },
+      { phase: 'restore', label: 'closeout:raw-mode-off' },
+    ]);
+  });
+});
+
 describe('a signal, when the program has not asked for it', () => {
   it('runs the handlers and re-raises the signal at this process', async () => {
     const proc = fakeProcess();
@@ -96,6 +120,9 @@ describe('a signal, when the program has not asked for it', () => {
     // them sets `WIFSIGNALED`. This case is what the fake can see; `signal.test.ts` grades
     // the consequence on a child that is really killed.
     expect(proc.raised, 'the signal goes back to this pid under its own name').toEqual([{ pid: 4242, signal: 'SIGINT' }]);
+    // A fake's `kill` returns, as a real one does for a signal inherited as SIG_IGN: the
+    // process still has to go, with POSIX's number, or shutdown hangs on a signal it ignored.
+    expect(proc.exited).toBe(130);
   });
 
   it('comes off the event before raising, so the raise cannot re-enter it', async () => {

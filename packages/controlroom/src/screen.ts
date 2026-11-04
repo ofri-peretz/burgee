@@ -72,7 +72,13 @@ function inputPane({ editor, pane }: InputOptions): Pane {
 
 /** Whether an editor step changed nothing a person could see. */
 const unchanged = (a: EditorState, b: EditorState): boolean =>
-  a.text === b.text && a.cursor === b.cursor && a.at === b.at && a.paste === b.paste && a.menu === b.menu && a.dismissed === b.dismissed;
+  a.text === b.text &&
+  a.cursor === b.cursor &&
+  a.at === b.at &&
+  a.paste === b.paste &&
+  a.menu === b.menu &&
+  // Stryker disable next-line ConditionalExpression: caique changes `dismissed` only with the menu or the word, so a step that changes it alone does not exist
+  a.dismissed === b.dismissed;
 
 export interface Screen {
   /** What `open()` decided, from roundel's policy. */
@@ -120,6 +126,7 @@ export function open(rt: Runtime, given: ScreenOptions): Screen {
   if (mode === 'tty' && canReadKeys(rt.stdin)) return live(rt, options);
   // ponytail: a tty whose stdin cannot go raw (`cmd < file` in a terminal) is projected
   // statically too, by telling flagstaff it is not a tty, rather than by a second policy.
+  // Stryker disable next-line ConditionalExpression,ObjectLiteral: every other mode is already static to flagstaff, and a stdout with no `isTTY` reads as not a tty, so either projects the same
   return projected(mode === 'tty' ? { ...rt, isTTY: { stdout: false } } : rt, options, mode);
 }
 
@@ -162,6 +169,7 @@ function panesOf(options: ScreenOptions): Panes {
       if (!('pane' in entry)) return [name, entry];
       const def = panes.get(entry.pane) ?? missing(`no pane named "${entry.pane}" is registered`, "register a plugin with `panes: { … }`");
       const component = components.get(def.component) ?? missing(`pane "${entry.pane}" draws with "${def.component}", which flagstaff has not registered`, 'register the plugin that provides that component before opening the screen');
+      // Stryker disable next-line ConditionalExpression: a `label` key holding `undefined` reads as no label everywhere a pane's label is read
       return [name, def.label === undefined ? { component, state: entry.state } : { component, state: entry.state, label: def.label }];
     }),
   );
@@ -196,6 +204,7 @@ function projected(rt: Runtime, options: Resolved, mode: OutputMode): Screen {
     update(name, next) {
       if (options.panes[name]?.liveOnly === true) return;
       const entry = hoisted.get(name) ?? unknownPane(name);
+      // Stryker disable next-line ObjectLiteral: nothing reads a hoisted entry's `pane` after it is hoisted; the projection holds the state
       entry.pane = { ...entry.pane, state: next };
       entry.hoisted.update(next);
     },
@@ -210,11 +219,14 @@ function projected(rt: Runtime, options: Resolved, mode: OutputMode): Screen {
       options.onAction?.(action, screen);
     },
     close() {
+      // Stryker disable next-line ConditionalExpression: flagstaff's `lower` is idempotent, so a second close lowers nothing either way
       if (closed) return;
+      // Stryker disable next-line BooleanLiteral: the same — a second `lower` of a hoisted projection writes nothing
       closed = true;
       for (const { hoisted: h } of hoisted.values()) h.lower();
       // Under --json a lowered projection emits its last state once more, which for the commit
       // log would be the last commit twice: each commit is its own event already.
+      // Stryker disable next-line ConditionalExpression: a static projection writes only lines it has not written, and the log's last state was written when it was committed
       if (mode !== 'json') commits?.lower();
     },
   };
@@ -262,6 +274,7 @@ function live(rt: Runtime, options: Resolved): Screen {
     // one would push the committed text up for nothing.
     // ponytail: trims trailing blank rows only; a layout that wants space below its content
     // asks for it with a fixed size.
+    // Stryker disable next-line NumericLiteral: flagstaff's frame writer paints one blank row and no rows as the same bytes
     while (lines.length > 0 && lines.at(-1)!.trim() === '') lines.pop();
     return lines;
   };

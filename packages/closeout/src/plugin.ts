@@ -139,6 +139,7 @@ function validateHandlers(handlers: unknown, name: string): void {
     }
     const phase = handler['phase'];
     if (phase === undefined) continue;
+    // Stryker disable next-line ConditionalExpression: a phase that is not a string is never in PLUGIN_PHASES, so `includes` refuses it the same way; the typeof is the type guard
     if (typeof phase !== 'string' || !(PLUGIN_PHASES as readonly string[]).includes(phase)) {
       throw new PluginError(
         'E_PLUGIN_SCHEMA',

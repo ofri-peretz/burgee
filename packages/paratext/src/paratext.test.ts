@@ -22,6 +22,8 @@ const OSC = '\u001B]';
 const iterm: Runtime = { env: { TERM_PROGRAM: 'iTerm.app', TERM: 'xterm-256color' }, isTTY: { stdout: true } };
 /** A pipe: no TTY, so nothing may put a control byte into it. */
 const pipe: Runtime = { env: {}, isTTY: { stdout: false } };
+/** A terminal, with nothing but `env` to say which one. */
+const tty = (env: Record<string, string>): Runtime => ({ env, isTTY: { stdout: true } });
 
 beforeEach(() => {
   reset();
@@ -40,6 +42,31 @@ describe('what it ships', () => {
     expect(emit(iterm, 'bell')).toBe(BEL);
     expect(emit(iterm, 'image', { base64: 'QQ==', caption: 'a chart' })).toBe(`${OSC}1337;File=inline=1:QQ==${BEL}`);
     expect(emit(iterm, 'cwd', { path: '/tmp' })).toBe(`${OSC}50;CurrentDir=/tmp${BEL}${OSC}9;9;/tmp${BEL}`);
+  });
+
+  it('files each under the OSC code it writes', () => {
+    expect(builtins.map((c) => [c.name, c.osc])).toEqual([
+      ['bell', 'BEL'],
+      ['clipboard', 52],
+      ['cwd', 50],
+      ['image', 1337],
+      ['link', 8],
+      ['notify', 9],
+      ['title', 0],
+    ]);
+  });
+
+  it('notifies in each terminal it names, and only on a tty there', () => {
+    for (const program of ['iTerm.app', 'WezTerm', 'ghostty']) expect(emit(tty({ TERM_PROGRAM: program }), 'notify', { title: 'Done' }), program).toBe(`${OSC}9;Done${BEL}`);
+    expect(emit({ env: { TERM_PROGRAM: 'iTerm.app' }, isTTY: { stdout: false } }, 'notify', { title: 'Done' })).toBe('Done');
+  });
+
+  it('draws an image only on a tty, even in iTerm2', () => {
+    expect(emit({ env: { TERM_PROGRAM: 'iTerm.app' }, isTTY: { stdout: false } }, 'image', { base64: 'QQ==', caption: 'a chart' })).toBe('a chart');
+  });
+
+  it('links under Windows Terminal, which names no TERM_PROGRAM', () => {
+    expect(emit(tty({ WT_SESSION: 'x' }), 'link', { text: 'Docs', url: 'https://x.dev' })).toBe(`${OSC}8;;https://x.dev${BEL}Docs${OSC}8;;${BEL}`);
   });
 
   it('includes an optional group only when its fields are there', () => {
@@ -87,6 +114,11 @@ describe('the projection, which is the point', () => {
     // The failure this guards is the one every incumbent ships: `]1337;File=inline=1;…`
     // printed across a user's screen, or an escape byte landing in a log file.
     expect(everything).not.toMatch(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/);
+  });
+
+  it('prints nothing at all for the chrome-only capabilities', () => {
+    // A title, a clipboard write, a working directory and a bell have nothing to say in a log.
+    expect([emit(pipe, 'title', { text: 't' }), emit(pipe, 'clipboard', { text: 'x' }), emit(pipe, 'cwd', { path: '/tmp' }), emit(pipe, 'bell')]).toEqual(['', '', '', '']);
   });
 
   it('refuses a capability with no projection, at registration rather than at output', () => {
@@ -137,9 +169,6 @@ describe('a capability is data, not code', () => {
   });
 });
 
-/** A terminal, with nothing but `env` to say which one. */
-const tty = (env: Record<string, string>): Runtime => ({ env, isTTY: { stdout: true } });
-
 /**
  * The support guess on a terminal, not a pipe. Every clause in `when` must hold, and
  * `termProgram` and `envAny` are ORs within themselves — the pipe cases above all stop at
@@ -160,6 +189,17 @@ describe('the support guess, past the tty', () => {
   it('reads a terminal that names no TERM_PROGRAM by its environment alone', () => {
     expect(supports(tty({ VTE_VERSION: '6003' }), link)).toBe(true);
     expect(emit(tty({}), 'link', { text: 'Docs', url: 'https://x.dev' })).toBe('Docs (https://x.dev)');
+  });
+
+  it('a `termProgram` with no `envAny` beside it is the whole of the guess', () => {
+    const iTermOnly = { when: { tty: true, termProgram: ['iTerm.app'] } };
+    expect(supports(tty({ TERM_PROGRAM: 'WezTerm' }), iTermOnly)).toBe(false);
+    // An absent TERM_PROGRAM is read as the empty name, which a clause may list.
+    expect(supports(tty({}), { when: { termProgram: [''] } })).toBe(true);
+  });
+
+  it('says no to a `when` of null rather than throwing on it', () => {
+    expect(supports(tty({}), { when: null as unknown as object })).toBe(false);
   });
 
   it('an `envAny` with no `termProgram` beside it is the whole of the guess', () => {
@@ -183,6 +223,11 @@ describe('the template language', () => {
     // More distinct templates than the cache keeps, so it clears at least once mid-run (B5).
     for (let i = 0; i < 600; i += 1) expect(render(`${String(i)}:{a}[ {b}]`, { a: 'x', b: i % 2 ? 'y' : '' })).toBe(`${String(i)}:x${i % 2 ? ' y' : ''}`);
     expect(render('{a}-{b}', { a: '1', b: '2' })).toBe('1-2');
+  });
+
+  it('drops a group when any one of its fields is absent, not only when all are', () => {
+    expect(render('<[x {a} {b}]>', { a: '1' })).toBe('<>');
+    expect(render('<[x {a} {b}]>', { a: '1', b: '2' })).toBe('<x 1 2>');
   });
 
   it('renders an absent field outside a group as nothing, never as `undefined`', () => {
@@ -222,6 +267,11 @@ describe('the schema is the contract, not a copy of it', () => {
     for (const example of schema.$defs.capability.examples) expect(refusals(check(example as Capability))).toEqual([]);
   });
 });
+
+/** The deprecation line `check` writes for a bare capability, under the label it reads. */
+const deprecated = (name: string): string => `deprecated: ${name}: a capability written as the whole document is the shape paratext had before the family schema absorbed it — move it under \`capabilities\`, keyed by its name; 1.0 stops accepting this`;
+/** The refusal of a capability with no `fallback`, under the label it reads. */
+const noFallback = (name: string): string => `${name}: fallback must be a template, even if it is empty — rule 6 has no opt-out`;
 
 /**
  * The fold (PLAN 1.1, design R10). paratext had its own schema whose root *was* one
@@ -292,6 +342,30 @@ describe('the fold into the family schema', () => {
       'a capability needs a name',
       '<unnamed>: fallback must be a template, even if it is empty — rule 6 has no opt-out',
     ]);
+  });
+
+  it('calls a bare capability by its own name, and an empty or non-string name `<unnamed>`', () => {
+    const { fallback: _dropped, ...broken } = link;
+    expect(check(broken)).toEqual([deprecated('link'), noFallback('link')]);
+    expect(check({ ...broken, name: '' })).toEqual([deprecated('<unnamed>'), noFallback('<unnamed>'), '<unnamed>.name: must not be empty']);
+    expect(check({ ...broken, name: 42 })).toEqual([deprecated('<unnamed>'), noFallback('<unnamed>'), '<unnamed>.name: must be a string, not integer']);
+  });
+
+  it('refuses a `capabilities` that is a string or null, as it refuses an array', () => {
+    expect(check({ name: 'x', capabilities: 'link' })).toEqual(['capabilities: must be an object of capabilities by name']);
+    expect(check({ name: 'x', capabilities: null })).toEqual(['capabilities: must be an object of capabilities by name']);
+    expect(check({ name: 'x', capabilities: { link: null } })).toEqual(['capabilities.link: must be an object']);
+  });
+
+  it('reads an empty plugin name as no name', () => {
+    expect(check({ name: '', capabilities: {} })).toEqual(['a plugin needs a name']);
+  });
+
+  it('throws a named CapabilityError, coded, from register', () => {
+    const { fallback: _dropped, ...broken } = link;
+    expect(() => register(broken as Capability)).toThrow(
+      expect.objectContaining({ name: 'CapabilityError', code: 'E_NO_STATIC_PROJECTION', message: 'link: fallback must be a template, even if it is empty — rule 6 has no opt-out' }),
+    );
   });
 
   it('still validates the pre-0.3 bare shape, and says that it is deprecated', () => {

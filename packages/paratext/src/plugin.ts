@@ -155,6 +155,7 @@ function problemsOf(key: string, candidate: unknown, name: string): Refusal[] {
    * code that needs a different fix in a different file is not one code (R8). A missing
    * field is the one place the fix is more specific than its code: it shows the field.
    */
+  // Stryker disable next-line ConditionalExpression: `MISSING` has no entry under `undefined`, so looking one up for a problem with no missing field falls back to `FIX` as skipping it does
   return capabilityProblems(candidate, at).map((p) => ({ code: p.code, message: p.line, fix: (p.missing === undefined ? undefined : MISSING[p.missing]) ?? FIX[p.code] }));
 }
 
@@ -163,6 +164,7 @@ const FIX: Record<PluginErrorCode, string> = {
   E_NO_STATIC_PROJECTION: 'add `fallback: "…"` — what prints where the terminal cannot do it; `""` is a legitimate answer, absence is not',
   E_PLUGIN_SCHEMA: 'compare the object against `paratext/schema.json`, which is the contract every host in the family ships',
   E_PLUGIN_CONTRACT: 'upgrade paratext, or lower the plugin’s contract',
+  // Stryker disable next-line StringLiteral: no refusal raised in this file carries `E_NO_CONTRIBUTION` — `check.ts` raises it with its own fix — so the entry is here only to keep the record total over the codes
   E_NO_CONTRIBUTION: 'add a `capabilities` section — a key another package in the family reads is allowed in the same object, but `paratext check` cannot show it',
 };
 

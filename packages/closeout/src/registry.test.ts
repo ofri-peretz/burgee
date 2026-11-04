@@ -15,8 +15,12 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { createRegistry } from './registry.js';
+import { timeoutMessage } from './report.js';
 
 const EXITED = { code: 0, signal: null };
+/** Timers that keep this process alive — an unref'd one is not listed. */
+const holding = (): number => process.getActiveResourcesInfo().filter((r) => r === 'Timeout').length;
+
 const INTERRUPTED = { code: null, signal: 'SIGINT' };
 
 describe('exactly once', () => {
@@ -42,6 +46,13 @@ describe('exactly once', () => {
     await registry.run(EXITED);
     expect(handler).not.toHaveBeenCalled();
     expect(registry.size).toBe(0);
+  });
+
+  it('counts every handler in every phase', () => {
+    const registry = createRegistry();
+    registry.add(() => undefined, 'flush');
+    registry.add(() => undefined, 'restore');
+    expect(registry.size).toBe(2);
   });
 
   it('reports whether shutdown has happened', async () => {
@@ -73,7 +84,8 @@ describe('every path', () => {
       seen.push(info);
     });
 
-    registry.runSync({ code: 3, signal: null });
+    // Nothing can time out on a path with no time at all: the report says so rather than guessing.
+    expect(registry.runSync({ code: 3, signal: null })).toMatchObject({ timedOut: false, unfinished: [] });
     expect(seen).toEqual([{ path: 'exit', code: 3, signal: null, error: null }]);
   });
 });
@@ -136,8 +148,48 @@ describe('bounded', () => {
     // Ctrl-C becomes a process the user has to kill twice — the second time with SIGKILL,
     // which runs no handlers at all.
     registry.add(() => new Promise<void>(() => undefined));
+    const said = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
-    await expect(registry.run(INTERRUPTED)).resolves.toMatchObject({ timedOut: true });
+    try {
+      const report = await registry.run(INTERRUPTED);
+      expect(report).toMatchObject({ timedOut: true });
+      // With no onTimeout of its own, the breach is printed — the named-handler sentence, not silence.
+      expect(said).toHaveBeenCalledWith(timeoutMessage(report, 10));
+    } finally {
+      said.mockRestore();
+    }
+  });
+
+  it('reports an async handler that resolved as finished', async () => {
+    const registry = createRegistry({ deadline: 10_000 });
+    registry.add(async function flushTheLog() {
+      await Promise.resolve();
+    });
+
+    await expect(registry.run(EXITED)).resolves.toMatchObject({ timedOut: false, unfinished: [] });
+  });
+
+  it.each([
+    ['holds the event loop on a signal, which leaves only once the run settles', INTERRUPTED, 1],
+    ['holds the event loop on an exit', EXITED, 1],
+    ['does not hold it on beforeExit, which was leaving on its own', { ...EXITED, path: 'beforeExit' as const }, 0],
+  ])('%s', async (_name, info, held) => {
+    const registry = createRegistry({ deadline: 20, onTimeout: () => undefined });
+    registry.add(() => new Promise<void>(() => undefined));
+    const before = holding();
+    const running = registry.run(info);
+    expect(holding() - before).toBe(held);
+    await running;
+  });
+
+  it('lets go of the event loop the moment the run settles, not when the deadline would have fired', async () => {
+    const registry = createRegistry({ deadline: 60_000 });
+    registry.add(async () => {
+      await Promise.resolve();
+    });
+    const before = holding();
+    await registry.run(INTERRUPTED);
+    expect(holding()).toBe(before);
   });
 
   it('does not wait out the deadline when every handler has settled', async () => {

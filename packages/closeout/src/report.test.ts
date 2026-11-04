@@ -17,7 +17,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { reportToEvent, reportToJson, timeoutMessage } from './index.js';
-import { toReport, type ShutdownReport } from './report.js';
+import { EXIT_PATHS, toReport, type ShutdownReport } from './report.js';
 
 const report = (over: Partial<ShutdownReport> = {}): ShutdownReport => ({
   path: 'signal',
@@ -27,6 +27,12 @@ const report = (over: Partial<ShutdownReport> = {}): ShutdownReport => ({
   timedOut: false,
   unfinished: [],
   ...over,
+});
+
+describe('the paths', () => {
+  it('are every door, in the order install() wires them', () => {
+    expect(EXIT_PATHS).toEqual(['exit', 'beforeExit', 'signal', 'uncaught', 'rejection']);
+  });
 });
 
 describe('the record a trigger fills out', () => {
@@ -41,9 +47,15 @@ describe('the record a trigger fills out', () => {
 });
 
 describe('the --json projection', () => {
-  it('flattens an Error into text rather than into {}', () => {
-    const parsed = JSON.parse(reportToJson(report({ path: 'uncaught', signal: null, code: 1, error: new Error('mid-render') }))) as { error: string };
-    expect(parsed.error).toContain('mid-render');
+  it('flattens an Error into its stack rather than into {}', () => {
+    const error = new Error('mid-render');
+    const parsed = JSON.parse(reportToJson(report({ path: 'uncaught', signal: null, code: 1, error }))) as { error: string };
+    expect(parsed.error).toBe(error.stack);
+  });
+
+  it.each([null, undefined])('renders error %s as null, not as the word', (error) => {
+    expect((JSON.parse(reportToJson(report({ error }))) as { error: unknown }).error).toBeNull();
+    expect(reportToEvent(report({ error })).error).toBeNull();
   });
 
   it('carries a non-Error rejection value, which is most of them', () => {

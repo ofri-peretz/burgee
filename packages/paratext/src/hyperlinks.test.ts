@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
+import { hasColor } from './hyperlinks.js';
 import { terminalLinkFor } from './terminal-link.js';
 
 interface Case {
@@ -93,6 +94,49 @@ const CASES: Record<string, Case> = {
   'TERM=dumb under Windows Terminal, TF_BUILD without AGENT_NAME': { env: { TERM: 'dumb', WT_SESSION: 'x', TF_BUILD: 'True' } },
   'truecolor with no TERM and no TERM_PROGRAM': { env: { COLORTERM: 'truecolor' } },
   'no environment at all': { env: {} },
+  // Every spelling in each flag table, each where it is the clause that decides.
+  '--no-hyperlinks in iTerm2': { env: iterm, argv: ['--no-hyperlinks'] },
+  '--hyperlink=false in iTerm2': { env: iterm, argv: ['--hyperlink=false'] },
+  '--hyperlink=never in iTerm2': { env: iterm, argv: ['--hyperlink=never'] },
+  '--no-hyperlink before --': { env: iterm, argv: ['--no-hyperlink', '--'] },
+  '--hyperlink=true, piped': { env: {}, argv: ['--hyperlink=true'], tty: false },
+  '--no-colors in iTerm2': { env: iterm, argv: ['--no-colors'] },
+  '--color=false in iTerm2': { env: iterm, argv: ['--color=false'] },
+  '--color=never in iTerm2': { env: iterm, argv: ['--color=never'] },
+  'TERM=dumb under Windows Terminal, --colors': { env: { TERM: 'dumb', WT_SESSION: 'x' }, argv: ['--colors'] },
+  'TERM=dumb under Windows Terminal, --color=true': { env: { TERM: 'dumb', WT_SESSION: 'x' }, argv: ['--color=true'] },
+  'TERM=dumb under Windows Terminal, --color=always': { env: { TERM: 'dumb', WT_SESSION: 'x' }, argv: ['--color=always'] },
+  'TERM=dumb under Windows Terminal, --color=16m': { env: { TERM: 'dumb', WT_SESSION: 'x' }, argv: ['--color=16m'] },
+  'TERM=dumb under Windows Terminal, --color=full': { env: { TERM: 'dumb', WT_SESSION: 'x' }, argv: ['--color=full'] },
+  'TERM=dumb under Windows Terminal, --color=truecolor': { env: { TERM: 'dumb', WT_SESSION: 'x' }, argv: ['--color=truecolor'] },
+  // `FORCE_COLOR` read as a level, on a terminal whose colour only the level can settle.
+  'FORCE_COLOR=-1 on a dumb ghostty': { env: { TERM: 'dumb', TERM_PROGRAM: 'ghostty', FORCE_COLOR: '-1' } },
+  'FORCE_COLOR=3 on a dumb ghostty': { env: { TERM: 'dumb', TERM_PROGRAM: 'ghostty', FORCE_COLOR: '3' } },
+  'FORCE_COLOR=9 on a dumb ghostty': { env: { TERM: 'dumb', TERM_PROGRAM: 'ghostty', FORCE_COLOR: '9' } },
+  'FORCE_HYPERLINK empty, piped': { env: { FORCE_HYPERLINK: '' }, tty: false },
+  // An empty `CI` is present for `supports-color` and absent for `supports-hyperlinks`, so the
+  // provider is the one thing deciding the colour of a terminal that would otherwise link.
+  ...Object.fromEntries(
+    ['GITHUB_ACTIONS', 'GITEA_ACTIONS', 'CIRCLECI', 'TRAVIS', 'APPVEYOR', 'GITLAB_CI', 'BUILDKITE', 'DRONE'].map((name) => [`an empty CI on ${name}, in ghostty`, { env: { CI: '', [name]: 'true', TERM_PROGRAM: 'ghostty' } }]),
+  ),
+  'an empty CI on Codeship, in ghostty': { env: { CI: '', CI_NAME: 'codeship', TERM_PROGRAM: 'ghostty' } },
+  'an empty TEAMCITY_VERSION in kitty': { env: { TEAMCITY_VERSION: '', TERM: 'xterm-kitty' } },
+  'TERM=dumb with COLORTERM=truecolor, in ghostty': { env: { TERM: 'dumb', COLORTERM: 'truecolor', TERM_PROGRAM: 'ghostty' } },
+  // Colour from `TERM` or `TERM_PROGRAM` alone, in a terminal that links whenever there is colour.
+  'TERM=wezterm in ghostty': { env: { TERM: 'wezterm', TERM_PROGRAM: 'ghostty' } },
+  'TERM=xterm in ghostty': { env: { TERM: 'xterm', TERM_PROGRAM: 'ghostty' } },
+  'TERM=foo-256 in ghostty': { env: { TERM: 'foo-256', TERM_PROGRAM: 'ghostty' } },
+  'TERM=foo-256x in ghostty': { env: { TERM: 'foo-256x', TERM_PROGRAM: 'ghostty' } },
+  ...Object.fromEntries(['myscreen', 'myxterm', 'myvt100', 'myvt220', 'myrxvt'].map((term) => [`TERM=${term} in ghostty`, { env: { TERM: term, TERM_PROGRAM: 'ghostty' } }])),
+  'iTerm2 3.1.0 with no TERM': { env: { TERM_PROGRAM: 'iTerm.app', TERM_PROGRAM_VERSION: '3.1.0' } },
+  'Terminal.app on VTE with no TERM': { env: { TERM_PROGRAM: 'Apple_Terminal', VTE_VERSION: '6003' } },
+  // Versions at the edges of upstream's reader.
+  'VTE 1.0.0': { env: { ...xterm, VTE_VERSION: '1.0.0' } },
+  'VTE 500': { env: { ...xterm, VTE_VERSION: '500' } },
+  'VTE 999': { env: { ...xterm, VTE_VERSION: '999' } },
+  'VTE x5001': { env: { ...xterm, VTE_VERSION: 'x5001' } },
+  'WezTerm from Nix, a suffix after the date': { env: { ...xterm, TERM_PROGRAM: 'WezTerm', TERM_PROGRAM_VERSION: '0-unstable-2021-01-01-x' } },
+  'WezTerm from Nix, a prefix before it': { env: { ...xterm, TERM_PROGRAM: 'WezTerm', TERM_PROGRAM_VERSION: 'xx0-unstable-2021-01-01' } },
 };
 
 const incumbentUrl = import.meta.resolve('supports-hyperlinks');
@@ -158,5 +202,26 @@ describe('paratext/terminal-link links where supports-hyperlinks 4.5.0 does (A27
     // `Runtime.argv` and `.platform` are optional, and every other caller of the type leaves
     // them out: a runtime built for the root must not lose its links here, or throw.
     expect(terminalLinkFor({ env: iterm, isTTY: { stdout: true } })('a', 'b')).toContain('\u001B]8;;');
+  });
+});
+
+/**
+ * TeamCity's colour, asked of `hasColor` directly: `supportsHyperlinks` refuses any non-empty
+ * `TEAMCITY_VERSION` after asking, so its answer never shows through a link. The expectations
+ * are supports-color 10.2.2's own, read from it on 2026-11-04: 9.1 and every later minor of 9,
+ * and every major of two digits, have colour.
+ */
+describe('TeamCity colour, by version', () => {
+  it.each([
+    ['9.1.0', true],
+    ['9.01.0', true],
+    ['9.10.0', true],
+    ['9.100.0', true],
+    ['2023.1', true],
+    ['9.0.1', false],
+    ['8.1.0', false],
+    ['x10.0', false],
+  ])('TEAMCITY_VERSION=%s has colour: %s', (version, expected) => {
+    expect(hasColor({ TEAMCITY_VERSION: version }, [], 'linux')).toBe(expected);
   });
 });
