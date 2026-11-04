@@ -5,10 +5,39 @@ import { promisify } from 'node:util';
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { confirmStep, DeadlockError, floorTaken, isDeadlock, MIN_CONFIRM_MS, pendingTimerCount, quiet, QUIET_OTHER_SHARE, QUIET_SELF_SHARE, rpcInFlightCount, takeFloor, trackRpc, trackTimers, watch, withinFloor } from './quiescence.js';
+import { confirmStep, DeadlockError, floorTaken, isDeadlock, MIN_CONFIRM_MS, pendingTimerCount, quiet, QUIET_OTHER_SHARE, QUIET_SELF_SHARE, rpcInFlightCount, takeFloor, trackRpc, trackTimers, watch, withinFloor, wrapPromiseTimers, wrapTimers, type TimerApi } from './quiescence.js';
 
 // The global setTimeout before any test tracks timers: a wait that the count never sees.
 const { setTimeout: untracked } = globalThis;
+
+// The timer functions as this file found them, before any test here tracks timers.
+const raw = { setTimeout, clearTimeout, setImmediate, clearImmediate, setInterval, clearInterval, sleep };
+const rawSetTimeout = ((...a: Parameters<typeof setTimeout>) => raw.setTimeout(...a)) as typeof setTimeout;
+const rawClearTimeout = (h?: Parameters<typeof clearTimeout>[0]): void => raw.clearTimeout(h);
+const rawSetImmediate = ((...a: Parameters<typeof setImmediate>) => raw.setImmediate(...a)) as typeof setImmediate;
+const rawClearImmediate = (h?: Parameters<typeof clearImmediate>[0]): void => raw.clearImmediate(h);
+const rawSetInterval = ((...a: Parameters<typeof setInterval>) => raw.setInterval(...a)) as typeof setInterval;
+const rawClearInterval = (h?: Parameters<typeof clearInterval>[0]): void => raw.clearInterval(h);
+const rawPromiseTimeout = <T>(ms?: number, v?: T): Promise<T> => raw.sleep(ms, v);
+const rawPromiseImmediate = <T>(v?: T): Promise<T> => raw.sleep(0, v);
+
+/**
+ * A timer api no one has wrapped: fresh functions over the ones this file found. Under oxmutate's own
+ * runner the globals are already wrapped by the runner's copy of this module, and a module that finds
+ * them wrapped leaves them be, so its own wrapping is tested here, on an api of its own.
+ */
+/** A promisified form to stand on a fresh api's setTimeout. */
+const promisedTimeout = (): Promise<void> => Promise.resolve();
+
+const freshApi = (): TimerApi => ({
+  // `bind` makes a new function each call: unmarked, so each api is wrapped afresh.
+  setTimeout: rawSetTimeout.bind(undefined) as typeof setTimeout,
+  clearTimeout: rawClearTimeout.bind(undefined),
+  setImmediate: rawSetImmediate.bind(undefined) as typeof setImmediate,
+  clearImmediate: rawClearImmediate.bind(undefined),
+  setInterval: rawSetInterval.bind(undefined) as typeof setInterval,
+  clearInterval: rawClearInterval.bind(undefined),
+});
 
 /** Turn the event loop with immediates for `ms`: busy, every step settled, nothing pending between them. */
 const spin = (ms: number): Promise<void> =>
@@ -272,5 +301,56 @@ describe('takeFloor and stop', () => {
       new Promise((resolve) => untracked(() => resolve('still waiting'), MIN_CONFIRM_MS * 3)),
     ]);
     expect(outcome).toBe('still waiting');
+  });
+});
+
+describe('wrapTimers and wrapPromiseTimers, on an api of their own', () => {
+  it('counts each kind of timer from the call until it fires or is cleared', async () => {
+    const api = freshApi();
+    wrapTimers(api);
+    const before = pendingTimerCount();
+    const t = api.setTimeout(() => undefined, 60_000);
+    const v = api.setInterval(() => undefined, 60_000);
+    const ran = new Promise<string>((resolve) => api.setImmediate(resolve, 'ran'));
+    expect(pendingTimerCount()).toBe(before + 3);
+    expect(await ran).toBe('ran');
+    api.clearTimeout(t);
+    api.clearInterval(v);
+    expect(pendingTimerCount()).toBe(before);
+  });
+
+  it('wraps an api once: a second call leaves the wrappers as they are', () => {
+    const api = freshApi();
+    wrapTimers(api);
+    const wrapped = api.setTimeout;
+    wrapTimers(api);
+    expect(api.setTimeout).toBe(wrapped);
+  });
+
+  it('keeps a timer’s promisified form where it had one, and adds none where it had not', () => {
+    const api = freshApi();
+    Object.defineProperty(api.setTimeout, promisify.custom, { value: promisedTimeout });
+    wrapTimers(api);
+    expect(Object.getOwnPropertyDescriptor(api.setTimeout, promisify.custom)?.value).toBe(promisedTimeout);
+    expect(Object.getOwnPropertyDescriptor(api.setInterval, promisify.custom)).toBeUndefined();
+  });
+
+  it('counts an awaited promise timer until it settles, and wraps it once', async () => {
+    const api = { setTimeout: rawPromiseTimeout.bind(undefined) as typeof rawPromiseTimeout, setImmediate: rawPromiseImmediate.bind(undefined) as typeof rawPromiseImmediate };
+    wrapPromiseTimers(api);
+    const wrapped = api.setTimeout;
+    wrapPromiseTimers(api);
+    expect(api.setTimeout).toBe(wrapped);
+    const before = pendingTimerCount();
+    const waiting = api.setTimeout(10, 'late');
+    const soon = api.setImmediate('soon');
+    expect(pendingTimerCount()).toBe(before + 2);
+    expect(await waiting).toBe('late');
+    expect(await soon).toBe('soon');
+    expect(pendingTimerCount()).toBe(before);
+  });
+
+  it('names its error, so a report can tell a deadlock from a failure', () => {
+    expect(new DeadlockError(1).name).toBe('DeadlockError');
   });
 });

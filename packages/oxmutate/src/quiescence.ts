@@ -99,7 +99,7 @@ const done = (id: number): void => {
 };
 
 /** The timer functions a module or the global object carries, as far as counting them needs. */
-interface TimerApi {
+export interface TimerApi {
   setTimeout: typeof setTimeout;
   clearTimeout: typeof clearTimeout;
   setImmediate: typeof setImmediate;
@@ -155,7 +155,8 @@ function standIn<F extends object>(wrapper: F, original: object): F {
   return mark(wrapper);
 }
 
-function wrapTimers(api: TimerApi): void {
+/** Exported for the tests, which wrap an api of their own: a runner's copy may already have wrapped the globals. */
+export function wrapTimers(api: TimerApi): void {
   if (isWrapped(api.setTimeout)) return;
   const { setTimeout: later, setImmediate: soon, setInterval: every, clearTimeout: unlater, clearImmediate: unsoon, clearInterval: unevery } = api;
   const timeout = (cb: (...a: unknown[]) => void, ms?: number, ...args: unknown[]): NodeJS.Timeout => oneShot((fire) => later(fire, ms), cb, args);
@@ -170,7 +171,7 @@ function wrapTimers(api: TimerApi): void {
 }
 
 /** `node:timers/promises`: each awaited timer is pending until it settles. */
-function wrapPromiseTimers(api: { setTimeout: typeof promiseTimers.setTimeout; setImmediate: typeof promiseTimers.setImmediate }): void {
+export function wrapPromiseTimers(api: { setTimeout: typeof promiseTimers.setTimeout; setImmediate: typeof promiseTimers.setImmediate }): void {
   if (isWrapped(api.setTimeout)) return;
   const { setTimeout: later, setImmediate: soon } = api;
   api.setTimeout = mark(<T>(...a: Parameters<typeof later<T>>) => counted(later<T>(...a)));
