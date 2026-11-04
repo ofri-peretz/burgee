@@ -226,11 +226,13 @@ describe('the terminal summary', () => {
   });
 
   it('names each correction the run made, in a fixed order', async () => {
-    const r = await run({ stats: stats({ watchdogKills: 1, deadlocks: 10, diskWrites: 11, pollutionRestarts: 2, canaryFiles: 3, flakyMutants: 4, survivorsOverturned: 5, timeoutsOverturned: 6, compileErrors: 7, reused: 8, crashes: 9 }) });
+    const r = await run({ stats: stats({ watchdogKills: 1, deadlocks: 10, diskWrites: 11, pollutionRestarts: 2, canaryFiles: 3, flakyMutants: 4, survivorsOverturned: 5, timeoutsOverturned: 6, compileErrors: 7, reused: 8, auditSampled: 12, auditDisagreed: 1, crashes: 9 }) });
     expect(textSummary(r).split('\n')[4]).toBe(
-      '  corrected: 1 runaway(s) stopped · 10 deadlock(s) called by their worker · 11 write(s) outside the sandbox put back, their units re-run · 2 polluted context(s) restarted (in 3 file(s)) · 4 flaky verdict(s) · 5 survivor(s) killed by a whole-file re-run · 6 timeout(s) that finished given 3x the time · 7 survivor(s) that do not type-check, out of the score · 8 verdict(s) reused · 9 worker crash(es)',
+      '  corrected: 1 runaway(s) stopped · 10 deadlock(s) called by their worker · 11 write(s) outside the sandbox put back, their units re-run · 2 polluted context(s) restarted (in 3 file(s)) · 4 flaky verdict(s) · 5 survivor(s) killed by a whole-file re-run · 6 timeout(s) that finished given 3x the time · 7 survivor(s) that do not type-check, out of the score · 8 verdict(s) reused (12 audited, 1 disagreeing) · 9 worker crash(es)',
     );
     expect(textSummary(await run({ stats: stats({ crashes: 1 }) })).split('\n')[4]).toBe('  corrected: 1 worker crash(es)');
+    // Verdicts reused with none audited (a cache too small to sample): no audit clause.
+    expect(textSummary(await run({ stats: stats({ reused: 3 }) })).split('\n')[4]).toBe('  corrected: 3 verdict(s) reused');
     expect(textSummary(await run())).not.toContain('corrected');
   });
 
