@@ -227,3 +227,28 @@ describe('an asynchronous trigger after the synchronous one', () => {
     expect(handler).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("'exit' arriving while an asynchronous run is parked", () => {
+  /**
+   * The synchronous trigger invokes the phases the run had not reached, and then has to say
+   * how the shutdown ended — it is the last word the process gets. It answered with a blank
+   * report of its own (`unfinished: []`) and left `report` unset, so a lock still held in
+   * `flush` read as a shutdown that finished cleanly, and the report was nowhere at all.
+   */
+  it('reports the handlers that never came back, and leaves that report behind', () => {
+    const restore = vi.fn();
+    // The run's clock is still counting when the test ends; its breach is not this case's.
+    const registry = createRegistry({ onTimeout: () => undefined });
+    registry.add(() => new Promise<void>(() => undefined), { phase: 'flush', label: 'lock' });
+    registry.add(() => new Promise<void>(() => undefined), { phase: 'restore', label: 'screen' });
+    registry.add(restore, 'restore');
+
+    void registry.run({ code: null, signal: 'SIGTERM' });
+    const final = registry.runSync(EXITED);
+
+    expect(restore).toHaveBeenCalledTimes(1);
+    // The shutdown that happened is the run's, as for any later trigger: SIGTERM, not this exit.
+    expect(final).toMatchObject({ signal: 'SIGTERM', timedOut: false, unfinished: ['lock', 'screen'] });
+    expect(registry.report).toBe(final);
+  });
+});

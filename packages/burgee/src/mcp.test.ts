@@ -12,7 +12,7 @@ import { Command } from './commander.js';
 import { renderCompletion, renderFigSpec } from './completions.js';
 import { defineCommand, defineProgram, execute, run } from './index.js';
 import { annotationsOf, MCP_PROTOCOL_VERSION, serveMcp, toolsOf } from './mcp-entry.js';
-import { SUPPORTED_REVISIONS } from './mcp.js';
+import { argvOf, SUPPORTED_REVISIONS } from './mcp.js';
 import { inputSchemaOf, Manifest, schemaOf } from './schema-entry.js';
 import { runBurgee } from './testing.js';
 
@@ -368,10 +368,10 @@ describe('a runnable command declares its effects, or declines out loud (N6)', (
 });
 
 /** One `tools/call` through the engine's own `--mcp`; the tool result's text and error flag. */
-async function call(manifest: Manifest, name: string, args: Record<string, unknown>): Promise<{ text: string; isError: boolean; printed: string }> {
+async function call(manifest: Manifest, name: string, args: Record<string, unknown>, env: Record<string, string> = {}): Promise<{ text: string; isError: boolean; printed: string }> {
   const input = new PassThrough();
   const out: string[] = [];
-  const running = execute(manifest, { argv: ['--mcp'], env: {}, stdin: input, stdout: { write: (s: string) => out.push(s) }, stderr: { write: () => true }, exit: () => undefined });
+  const running = execute(manifest, { argv: ['--mcp'], env, stdin: input, stdout: { write: (s: string) => out.push(s) }, stderr: { write: () => true }, exit: () => undefined });
   input.write(`${JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } })}\n`);
   input.end();
   await running;
@@ -413,7 +413,35 @@ describe('tools/call — multi-word options and negations', () => {
   it('says nothing for a false it does not need to, so a relation is not tripped by it', async () => {
     const r = await call(tidy, 'run', { dryRun: false });
     expect(JSON.parse(r.text)).toMatchObject({ ok: true, data: { color: true } });
-    expect((JSON.parse(r.text) as { data: { dryRun?: boolean } }).data.dryRun).not.toBe(true);
+    // Absent, not `false`: a `--no-dry-run` on the command line would have resolved it to
+    // `false` and counted as given — `not.toBe(true)` let exactly that through.
+    expect((JSON.parse(r.text) as { data: Record<string, unknown> }).data).not.toHaveProperty('dryRun');
+    expect(argvOf(tidy.commands[1]!, ['tidy'], { dryRun: false }, tidy)).toEqual(['run', '--json']);
+  });
+
+  /**
+   * A boolean with no default and no `env` of its own still arrives `true` from below the flag:
+   * the program's `envPrefix` binds `TIDY_COLOR`, and a config file or the package.json field
+   * sets it by name. The `false` was left unsaid there too, and the command read `true`.
+   */
+  it('turns off a boolean the program prefix turned on, when the agent says false', async () => {
+    const prefixed = defineProgram({
+      name: 'tidy',
+      envPrefix: 'TIDY',
+      commands: [defineCommand({ name: 'run', effects: 'read_only', options: { color: { type: 'boolean' } }, run: ({ options }) => ({ color: options.color }) })],
+    });
+    const r = await call(prefixed, 'run', { color: false }, { TIDY_COLOR: '1' });
+    expect(r.isError, r.text).toBe(false);
+    expect(JSON.parse(r.text)).toMatchObject({ ok: true, data: { color: false } });
+  });
+
+  it('sends the negation for a program with config discovery, which sets options by name', () => {
+    const configured = defineProgram({
+      name: 'tidy',
+      config: true,
+      commands: [defineCommand({ name: 'run', effects: 'read_only', options: { color: { type: 'boolean' } }, run: () => null })],
+    });
+    expect(argvOf(configured.commands[1]!, ['tidy'], { color: false }, configured)).toEqual(['run', '--no-color', '--json']);
   });
 });
 

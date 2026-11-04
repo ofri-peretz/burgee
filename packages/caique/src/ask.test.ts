@@ -100,10 +100,17 @@ describe('select · R5, a numbered list', () => {
     await expect(ask(select, io(['log-update']))).resolves.toEqual({ ok: true, value: 'log-update' });
   });
 
-  it.each(['0', '3', 'nope', ''])('re-asks on %j, naming the range', async (line) => {
+  it.each(['0', '3', 'nope', '', '2x', '1.5'])('re-asks on %j, naming the range', async (line) => {
     const world = io([line, '1']);
     await expect(ask(select, world)).resolves.toEqual({ ok: true, value: 'ora' });
     expect(world.transcript()).toContain('enter a number from 1 to 2');
+  });
+
+  // `parseInt` read the digits a label starts with as its number: `3 apples` was choice 3.
+  it('takes a label that starts with a digit as that label, not as an index', async () => {
+    const fruit: PromptSpec = { kind: 'select', message: 'How many?', choices: [{ value: 'one' }, { value: 'two' }, { value: 'three' }, { value: 'many', label: '2 apples' }] };
+    await expect(ask(fruit, io(['2 apples']))).resolves.toEqual({ ok: true, value: 'many' });
+    await expect(ask(fruit, io([' 2 ']))).resolves.toEqual({ ok: true, value: 'two' });
   });
 
   it('writes no escape sequence and no carriage return — it is the accessible mode', async () => {
@@ -126,6 +133,13 @@ describe('multiselect', () => {
     const world = io(['1, nope, 9', '2']);
     await expect(ask(multi, world)).resolves.toEqual({ ok: true, value: ['chalk'] });
     expect(world.transcript()).toContain('nope, 9 are not choices');
+  });
+
+  // Space-separated numbers are not the comma list it asked for, and `parseInt` heard `1 2` as `1`.
+  it('refuses numbers separated by spaces rather than reading the first of them', async () => {
+    const world = io(['1 2', '2']);
+    await expect(ask(multi, world)).resolves.toEqual({ ok: true, value: ['chalk'] });
+    expect(world.transcript()).toContain('1 2 is not a choice');
   });
 
   it('says "is not a choice" for one, because a message that cannot count reads as a bug', async () => {

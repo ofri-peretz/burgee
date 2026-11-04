@@ -42,6 +42,9 @@ const BURGEE: BurgeeBrand = {
   ],
 };
 
+/** {@link BURGEE}'s gradient id with the optional fields in `extra` added. */
+const idWith = (extra: Partial<BurgeeBrand>): string => fieldId({ ...BURGEE, ...extra });
+
 /** WCAG relative luminance, then the contrast ratio between two sRGB hexes. */
 function luminance(hex: string): number {
   const channels = [1, 3, 5]
@@ -245,6 +248,26 @@ describe('someone else\u2019s burgee', () => {
     const a = defineBurgee({ mark: OTHER, field: opposedField(OTHER) });
     const b = defineBurgee({ mark: OTHER, field: opposedField(OTHER), charge: '<rect/>' });
     expect(a.fieldId()).not.toBe(b.fieldId());
+  });
+
+  /**
+   * The optional fields were appended with the absent ones filtered out, so a value carried no
+   * record of which field it came from: `{ sheen: 0.5 }` and `{ bevel: 0.5 }` hashed alike, as
+   * did a shape and markings of the same text, and two such brands on one page shared their
+   * gradient, clip and sheen defs. The ids a brand already had are pinned beside it: every
+   * committed asset carries one, and an id change is a diff in each of them.
+   */
+  it('tells apart brands that differ only in which optional field holds a value', () => {
+    expect(idWith({ sheen: 0.5 })).not.toBe(idWith({ bevel: 0.5 }));
+    expect(idWith({ shape: 'M0 0' })).not.toBe(idWith({ markings: 'M0 0' }));
+    expect(idWith({ shape: 'M0 0', bevel: 0.5 })).not.toBe(idWith({ shape: 'M0 0', sheen: 0.5 }));
+    // Unchanged: no optional field, a shape alone, a sheen alone, a sheen with a bevel (every
+    // brand in `brand-assets/`), and a shape with markings.
+    expect(idWith({})).toBe('burgee-7009l0');
+    expect(idWith({ shape: 'M0 0' })).toBe('burgee-1wztb29');
+    expect(idWith({ sheen: 0.5 })).toBe('burgee-nhob1f');
+    expect(idWith({ sheen: 0.5, bevel: 0.3 })).toBe('burgee-1duhq4g');
+    expect(idWith({ shape: 'M0 0', markings: '<g/>' })).toBe('burgee-1pp4iht');
   });
 
   it('still projects every surface', () => {
