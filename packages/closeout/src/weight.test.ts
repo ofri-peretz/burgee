@@ -69,8 +69,10 @@ const RULES: Record<string, EntryRule> = {
   // bytes; what a bundler keeps is `benchmarks/axes/weight.ts`'s number, and the two new
   // pairings tree-shake out of it (D-163). Raised 14,500 -> 14,800 on 2026-10-12: `rawMode`
   // counts its holders, so a prompt opened while a spinner discards stdin keeps raw mode
-  // (.sdlc/models/save-restore.qnt). Measured 14,699 B after.
-  '.': { allow: [], budget: 14_800, denied: ['plugin.js', 'exit-hook.js', 'restore-cursor.js'] },
+  // (.sdlc/models/save-restore.qnt). Measured 14,699 B after. Raised 14,800 -> 14,950 on
+  // 2026-11-04: `runSync` arriving mid-run reports the handlers that never came back instead
+  // of a blank report. Measured 14,862 B after.
+  '.': { allow: [], budget: 14_950, denied: ['plugin.js', 'exit-hook.js', 'restore-cursor.js'] },
   // `onetime` + `mimic-fn` are 262 M downloads a week between them and this is the whole of
   // what they do: 441 B, reaching nothing at all. Measured 2026-09-14.
   './once': { allow: [], budget: 1_000, denied: ['index.js', 'registry.js', 'install.js', 'report.js', 'deadline.js'] },

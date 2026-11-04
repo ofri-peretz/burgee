@@ -466,7 +466,8 @@ const RULES: Record<string, EntryRule> = {
     // 28,400 on 2026-10-19 (D-20261019-typed-schema-surface-weight): a tool call that skips an optional positional fills it with its default, or is refused, instead of shifting every later value one place left. Measured 28,069 -> 28,364.
     // 28,500 on 2026-10-26 (D-20261026-typed-positionals-r4-weight): an argument's `inputSchema` property carries its JSON type and its default as that type. Measured 28,294 -> 28,428.
     // 30,800 on 2026-10-28 for A-20261027-yargs-parsesync-mcp-ended-by-exit (D-20261028-yargs-parsesync-mcp-serves-synchronously): `serveMcpSync`, the server a `.parseSync()` program gets, which reads descriptor 0 and answers synchronously so the program's own `process.exit()` cannot end it. Measured 28,428 -> 30,756, plus the ~32 B CI reads heavier, rounded up to the next 50.
-    budget: 30_800,
+    // 30,950 on 2026-11-04 for the mutation-survivor fixes: a `false` goes as `--no-<name>` when the program's `envPrefix` or config discovery could turn that boolean on, not only for a default or an `env` of its own. Measured 30,756 -> 30,891, plus the ~32 B CI reads heavier, rounded up to the next 50.
+    budget: 30_950,
     // 24,850 with the MCP stdout capture (#521) on top of D-122's 20,568. Measured 24,835.
     // 24,950 with D-140's MCP error classification on top of #521. Measured 24,900.
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel", "flagstaff", "caique"],
