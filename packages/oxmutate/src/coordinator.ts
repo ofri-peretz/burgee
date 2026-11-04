@@ -21,6 +21,7 @@ import type { Unit } from './child.js';
 import { runCommandMutants } from './command-runner.js';
 import { disables, type Options } from './config.js';
 import { rangeDisables } from './directives.js';
+import { guardDisk, isClean, type DiskChange } from './diskguard.js';
 import { globToRegExp, matchFiles } from './files.js';
 import type { FrozenOracle } from './frozen.js';
 import { changedLines, parseMutateSpec, shardOf, touches, withinRange, type MutateRange } from './lanes.js';
@@ -49,6 +50,8 @@ export interface MutantResult extends NativeMutant {
   flaky?: boolean | undefined;
   /** Reused from the incremental cache, not run. */
   reused?: boolean | undefined;
+  /** Paths this mutant's run wrote outside the sandbox, found in its unit and put back (diskguard.ts). */
+  wrote?: string[] | undefined;
 }
 
 export interface TestInfo {
@@ -78,6 +81,8 @@ export interface RunStats {
   canaryFiles: number;
   /** Contexts restarted because a mutant left state behind (the per-execution canary fired). */
   pollutionRestarts: number;
+  /** Units after which the project on disk had changed (diskguard.ts): put back, and their verdicts and those of the units running beside them re-run. */
+  diskWrites: number;
   /** Survivors of the warm run that a whole-file re-run killed (cross-test effects). */
   survivorsOverturned: number;
   /** Watchdog timeouts that finished when re-run with 3x the budget: the machine was slow, not the mutant. */
@@ -212,7 +217,7 @@ export async function run(options: Options): Promise<RunResult> {
   const work = mkdtempSync(path.join(tmpdir(), 'oxmutate-'));
   const stats: RunStats = {
     files: 0, mutants: 0, instrumentMs: 0, dryRunMs: 0, mutationMs: 0, staticMs: 0, staticRecollections: 0, isolatedMs: 0, wallMs: 0, testExecutions: 0,
-    watchdogKills: 0, idleStalls: 0, deadlocks: 0, crashes: 0, canaryFiles: 0, pollutionRestarts: 0, survivorsOverturned: 0, timeoutsOverturned: 0, compileErrors: 0, isolatedRuns: 0, reused: 0, flakyTests: 0, flakyMutants: 0, units: 0, serversSpawned: 0,
+    watchdogKills: 0, idleStalls: 0, deadlocks: 0, crashes: 0, canaryFiles: 0, pollutionRestarts: 0, diskWrites: 0, survivorsOverturned: 0, timeoutsOverturned: 0, compileErrors: 0, isolatedRuns: 0, reused: 0, flakyTests: 0, flakyMutants: 0, units: 0, serversSpawned: 0,
   };
   let unitSeq = 0;
   const fileFor = (kind: string, ext: string): string => path.join(work, `${kind}-${String(unitSeq++)}.${ext}`);
@@ -504,6 +509,48 @@ export async function run(options: Options): Promise<RunResult> {
     };
 
     const records: ChildRecord[] = [];
+    // ── Writes outside the sandbox (diskguard.ts) ──
+    // Units run side by side, so a write found when one unit ends may be any running unit's: every
+    // unit in flight then is tainted, its verdicts dropped when it ends and its work re-queued in
+    // halves. A unit down to one mutant that finds the write names that mutant.
+    const disk = env['OXMUTATE_NO_DISKGUARD'] ? undefined : await guardDisk(root);
+    const inFlight = new Set<string>();
+    const tainted = new Set<string>();
+    const writers = new Map<string, string[]>();
+    const diskWrittenDuring = async (unit: Unit): Promise<Unit[] | undefined> => {
+      const change: DiskChange | undefined = await disk?.check();
+      const dirty = change !== undefined && !isClean(change);
+      if (dirty) {
+        stats.diskWrites++;
+        if (!disk?.restore(change)) {
+          throw new InstrumentFault(`a mutant wrote outside the sandbox and the project could not be put back: ${[...change.changed, ...change.added, ...change.removed].join(', ')}. fix: restore them (git checkout / git clean), and see which test writes into the project`);
+        }
+        for (const other of inFlight) tainted.add(other);
+      }
+      if (!dirty && !tainted.delete(unit.results)) return undefined;
+      const entry = planUnits.get(unit.results);
+      if (!entry) return [];
+      const ids = [...new Set(Object.values(entry.plan).flat())];
+      const paths = change ? [...change.changed, ...change.added, ...change.removed] : [];
+      if (dirty && ids.length === 1) {
+        // One mutant left in the unit that found the write: it is named with the paths. Alone on the
+        // machine, it is the writer and its own verdict stands (its run began on a clean project);
+        // with units beside it, the isolated path decides it again.
+        const id = ids[0] as string;
+        writers.set(id, paths);
+        if (inFlight.size === 0) records.push(...readRecords(unit.results));
+        else unfinished.add(id);
+        return [];
+      }
+      if (entry.depth >= 40) {
+        for (const id of ids) unfinished.add(id);
+        return [];
+      }
+      if (ids.length < 2) return [makeUnit(entry.file, entry.plan, entry.depth + 1)];
+      const half = new Set(ids.slice(0, Math.ceil(ids.length / 2)));
+      const pick = (inHalf: boolean): Plan => Object.fromEntries(Object.entries(entry.plan).map(([t, l]) => [t, l.filter((id) => half.has(id) === inHalf)]).filter(([, l]) => (l as string[]).length > 0));
+      return [makeUnit(entry.file, pick(true), entry.depth + 1), makeUnit(entry.file, pick(false), entry.depth + 1)];
+    };
     const runaways = new Set<string>();
     const crashedIds = new Set<string>();
     // Dependencies inlined here too, so the static phase (5b) reuses these servers instead of starting its own.
@@ -511,7 +558,10 @@ export async function run(options: Options): Promise<RunResult> {
     pools.push(pool);
     /** Mutants decided on one verdict track: the tests', or a spec oracle's replay tests'. */
     const killedSoFar = (spec: boolean): Set<string> => new Set([...runaways, ...crashedIds, ...records.filter((r) => r.type === 'mutant' && r.status !== 'Survived' && Boolean(r.spec) === spec).map((r) => r.id ?? '')]);
-    const afterUnit = (unit: Unit, outcome: UnitOutcome): Unit[] => {
+    const afterUnit = async (unit: Unit, outcome: UnitOutcome): Promise<Unit[]> => {
+      inFlight.delete(unit.results);
+      const wrote = await diskWrittenDuring(unit);
+      if (wrote) return wrote;
       // Verdicts a failed canary cannot vouch for are dropped; their pairs are re-queued below.
       const raw = readRecords(unit.results);
       const suspect = new Set(raw.filter((r) => r.type === 'polluted').flatMap((r) => (r.suspects ?? []).map((id) => `${id}|${r.test ?? ''}`)));
@@ -557,6 +607,7 @@ export async function run(options: Options): Promise<RunResult> {
     // covering tests. 1,022 of 6,550 warm executions on burgee/paratext ran after the mutant's kill
     // (2026-10-30). Verdicts are unchanged: a Killed mutant needs no other pair (dispatch.qnt).
     const beforeUnit = (unit: Unit): boolean => {
+      inFlight.add(unit.results);
       const entry = planUnits.get(unit.results);
       if (!entry) return true;
       const decided = { tests: killedSoFar(false), spec: killedSoFar(true) };
@@ -566,7 +617,10 @@ export async function run(options: Options): Promise<RunResult> {
         const keep = ids.filter((id) => !done.has(id));
         if (keep.length) left[t] = keep;
       }
-      if (Object.keys(left).length === 0) return false;
+      if (Object.keys(left).length === 0) {
+        inFlight.delete(unit.results);
+        return false;
+      }
       entry.plan = left;
       writeFileSync(unit.plan as string, JSON.stringify({ tests: left, hitLimits, skip: [], specTests: [...specOf.keys()], runOnce: dry.runOnce, testMs: testMsOf(left) }));
       return true;
@@ -877,6 +931,10 @@ export async function run(options: Options): Promise<RunResult> {
     stats.isolatedMs = performance.now() - i0;
     stats.watchdogKills = pool.stats.killed;
     stats.idleStalls = pool.stats.idle;
+    for (const [id, paths] of writers) {
+      const m = byId.get(id);
+      if (m) m.wrote = paths;
+    }
     stats.deadlocks = mutants.filter((m) => m.statusReason === DEADLOCK_REASON).length;
     stats.crashes = pool.stats.crashed;
 

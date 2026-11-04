@@ -449,6 +449,30 @@ it.skipIf(!native || !existsSync(bin))('scores a mutant whose test deadlocks Tim
   }
 }, 60_000);
 
+// A mutant that writes into the project is caught after its unit, its write put back, and the verdicts
+// that ran on the changed project run again. compat-oracle's vendor step, its staging path emptied to
+// "", wrote a fake host's package.json over the package's own and every later mutant ran on a broken
+// package for four hours (#1453). Here the stray directory fails a suite that reads its project, so
+// without the guard every mutant after the write is a false kill (diskguard.ts).
+it.skipIf(!native || !existsSync(bin))('puts back what a mutant writes into the project, names it, and re-runs the verdicts the write could change', async () => {
+  const dir = path.join(pkg, 'test/fixtures/disk-write');
+  const stray = path.join(dir, 'copy');
+  // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the built package under test, present only after a build; the test is skipped without it
+  const api = (await import(path.join(pkg, 'dist/index.js'))) as typeof import('./index.js');
+  try {
+    const result = await api.run(await api.loadOptions(dir, { reporters: [] }, path.join(dir, 'oxmutate.config.json')));
+    expect(existsSync(stray)).toBe(false);
+    expect(result.stats.diskWrites).toBeGreaterThanOrEqual(1);
+    expect(result.mutants.filter((m) => m.wrote).map((m) => [m.mutatorName, m.wrote])).toEqual([['StringLiteral', ['copy']]]);
+    // No test pins `shout` down: on a clean project every one of its mutants survives.
+    const shout = result.mutants.filter((m) => m.start.line === 21 && m.status !== 'Ignored');
+    expect(shout.length).toBeGreaterThan(0);
+    expect([...new Set(shout.map((m) => m.status))]).toEqual(['Survived']);
+  } finally {
+    discard(stray);
+  }
+}, 60_000);
+
 // A range directive, `disable all` with a reason down to `restore all`, turns mutants off between
 // the two lines, as Stryker does. Before, oxmutate read only `disable next-line` and graded every mutant in a range:
 // 116 in compat-oracle's hosts.ts, rows graded in another process (sc8-profile.md).
