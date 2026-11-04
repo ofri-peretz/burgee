@@ -473,6 +473,33 @@ it.skipIf(!native || !existsSync(bin))('puts back what a mutant writes into the 
   }
 }, 60_000);
 
+// The incremental cache reuses a verdict only when nothing it rested on changed. The mutated file and
+// the test file stay the same here; the helper the test asserts through stops checking anything, so
+// the mutant that was killed now survives. The old fingerprint (mutated source + covering test files)
+// reused the stale Killed; the module graph of the test, from the dry run, is in the fingerprint now.
+it.skipIf(!native || !existsSync(bin))('decides a mutant afresh when a module its test imports changed, not from the cache', async () => {
+  const fixture = path.join(pkg, 'test/fixtures/incremental-graph');
+  // Inside the package, so the copy resolves Vitest as the fixture does.
+  const dir = mkdtempSync(path.join(pkg, 'test/fixtures/.incremental-graph-'));
+  // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the built package under test, present only after a build; the test is skipped without it
+  const api = (await import(path.join(pkg, 'dist/index.js'))) as typeof import('./index.js');
+  try {
+    for (const f of ['package.json', 'oxmutate.config.json', 'vitest.config.mjs', 'src/sum.ts', 'src/check.ts', 'src/sum.spec.ts']) {
+      mkdirSync(path.dirname(path.join(dir, f)), { recursive: true });
+      writeFileSync(path.join(dir, f), readFileSync(path.join(fixture, f)));
+    }
+    const run = async (): Promise<Awaited<ReturnType<typeof api.run>>> => api.run(await api.loadOptions(dir, { reporters: [] }, path.join(dir, 'oxmutate.config.json')));
+    const plus = (r: Awaited<ReturnType<typeof api.run>>): string | undefined => r.mutants.find((m) => m.mutatorName === 'ArithmeticOperator')?.status;
+    expect(plus(await run())).toBe('Killed');
+    writeFileSync(path.join(dir, 'src/check.ts'), 'export const TARGET = 5;\nexport const isTarget = (_got: number): boolean => true;\n');
+    const second = await run();
+    expect(plus(second)).toBe('Survived');
+    expect(second.mutants.find((m) => m.mutatorName === 'ArithmeticOperator')?.reused).toBeFalsy();
+  } finally {
+    discard(dir);
+  }
+}, 90_000);
+
 // A range directive, `disable all` with a reason down to `restore all`, turns mutants off between
 // the two lines, as Stryker does. Before, oxmutate read only `disable next-line` and graded every mutant in a range:
 // 116 in compat-oracle's hosts.ts, rows graded in another process (sc8-profile.md).
