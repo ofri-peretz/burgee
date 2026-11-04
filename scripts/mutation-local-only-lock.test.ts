@@ -20,7 +20,7 @@
  *    two npm scripts or their shell files, the oxmutate bin, the paired bench, Stryker;
  *  - `Quality (Full) Gate` naming a mutation job again;
  *  - the weekly script losing a step of what `mutation.yml` did, or doing them out of order;
- *  - the launchd agent not starting it on Saturday at 02:30 with Node 24 on PATH.
+ *  - the launchd agent not starting it with Node 24 on PATH, or starting it on a schedule.
  *
  * Building oxmutate's native cores for a release (`oxmutate-native.yml`) and running oxmutate's
  * own unit suite in `quality-full.yml` → `test` are not mutation runs, and are allowed.
@@ -224,17 +224,19 @@ describe('the weekly full run is a local script that does what mutation.yml did'
   });
 });
 
-describe('launchd starts it on Saturday at 02:30', () => {
+describe('launchd starts it by hand, never on a schedule', () => {
   let plist = '';
   beforeAll(() => {
     plist = readIfThere(PLIST);
   });
 
-  it('runs `npm run mutation:weekly` with Node 24 on PATH, weekly', () => {
+  // One full run, then deltas: a schedule re-measured hours of unchanged code every Saturday
+  // (D-20261104-mutation-full-once-then-deltas). `launchctl kickstart` starts it.
+  it('runs `npm run mutation:weekly` with Node 24 on PATH, and on no schedule', () => {
     expect(plist).toContain('<string>dev.burgee.mutation-weekly</string>');
     expect(plist).toMatch(/npm run mutation:weekly/u);
     expect(plist).toMatch(/\.nvm\/versions\/node\/v24\.[\d.]+\/bin/u);
-    expect(plist).toMatch(/<key>StartCalendarInterval<\/key>\s*<dict>\s*<key>Weekday<\/key>\s*<integer>6<\/integer>\s*<key>Hour<\/key>\s*<integer>2<\/integer>\s*<key>Minute<\/key>\s*<integer>30<\/integer>\s*<\/dict>/u);
+    expect(plist).not.toMatch(/<key>(?:StartCalendarInterval|StartInterval|KeepAlive)<\/key>|<key>RunAtLoad<\/key>\s*<true/u);
   });
 
   // The developer's checkout is usually on some feature branch, often without this script; the
