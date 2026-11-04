@@ -161,9 +161,9 @@ const leaveAfter = (proc: ProcessLike, event: string, listener: (...args: never[
  */
 const raiseAfter = (proc: ProcessLike, signal: string, listener: (...args: never[]) => void, code: number): void => {
   if (!standDown(proc, signal, listener)) return;
+  // Stryker disable BlockStatement: the exit after the try runs on the catch's path too, and on a real process the first exit() never returns, so the catch body changes nothing. It spans the whole try because Stryker reads no directive just above `} catch {`; the try block it also covers is one the raise tests kill
   try {
     proc.kill(proc.pid, signal);
-    // Stryker disable next-line BlockStatement: the exit below runs on this path too; on a real process the first exit() never returns, so a second is unreachable
   } catch {
     // The runtime refused it. Leaving with POSIX's number is the handling — not a silent
     // swallow and not a message either: a process on its way out of a signal it cannot
@@ -172,6 +172,7 @@ const raiseAfter = (proc: ProcessLike, signal: string, listener: (...args: never
     // Stryker disable next-line CallExpression: the same exit(code) follows the catch; on a real process this one never returns, so dropping it changes nothing
     proc.exit(code);
   }
+  // Stryker restore BlockStatement
   // Reached only when `kill` returned *without* terminating us — a signal inherited as
   // `SIG_IGN`, a runtime whose `kill` is a no-op. On every path where the raise does its
   // job the process is already gone by this line.

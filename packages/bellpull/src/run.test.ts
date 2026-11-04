@@ -244,10 +244,13 @@ describe('after the run', () => {
     'stands its deadline down, so a timer cannot signal a child that has already gone',
     async () => {
       const kill = vi.spyOn(ChildProcess.prototype, 'kill');
+      // A deadline a loaded machine's node start-up cannot reach (50 ms was, under the pre-push
+      // load), then a wait just past it: a deadline left armed would fire inside that wait.
+      const deadline = 2_000;
       try {
-        const result = await run(process.execPath, ['-e', '0'], { runtime, timeout: 50 });
+        const result = await run(process.execPath, ['-e', '0'], { runtime, timeout: deadline });
         expect(result.timedOut).toBe(false);
-        await new Promise((resolve) => setTimeout(resolve, 150));
+        await new Promise((resolve) => setTimeout(resolve, deadline + 100));
         expect(kill).not.toHaveBeenCalled();
       } finally {
         kill.mockRestore();
