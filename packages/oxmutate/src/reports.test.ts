@@ -39,6 +39,8 @@ const stats = (s: Partial<RunStats> = {}): RunStats => ({
   serversSpawned: 0,
   deadlocks: 0,
   diskWrites: 0,
+  auditSampled: 0,
+  auditDisagreed: 0,
   ...s,
 });
 

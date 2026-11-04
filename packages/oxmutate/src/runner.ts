@@ -247,6 +247,9 @@ function takeCopy(test: AnyTask): AnyTask | undefined {
   return file && find(file, test.id);
 }
 
+/** `dry`: each test file's module graph, project files only (onAfterRunSuite). */
+const dryModules = new Map<string, string[]>();
+
 /** `dry`: the probe's hits are counted here and dropped, or they would double the hit limits. */
 const PROBE_ID = '__oxmutate_probe__';
 
@@ -373,7 +376,7 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
   onBeforeRunTask?(test: AnyTask): unknown;
   onCollectStart?(file: unknown): unknown;
   /** Vitest's own: the current task, and the module graph a test file is invalidated in (Vitest 4). */
-  workerState?: { current?: unknown; evaluatedModules?: { getModuleById: (id: string) => unknown; invalidateModule: (node: unknown) => void } };
+  workerState?: { current?: unknown; evaluatedModules?: { getModuleById: (id: string) => unknown; invalidateModule: (node: unknown) => void; fileToModulesMap?: Map<string, unknown> } };
   _currentSpecification?: unknown;
   onBeforeTryTask?(test: AnyTask, options: { retry: number; repeats: number }): unknown;
   onAfterRunFiles?(files: AnyTask[]): unknown;
@@ -581,6 +584,12 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
   }
 
   async onAfterRunSuite(suite: AnyTask): Promise<unknown> {
+    // `dry`: the project files this test file's run evaluated, for the incremental fingerprint. Each
+    // file runs isolated, so the worker's module graph is its own.
+    if (mode === 'dry' && suite.filepath) {
+      const files = [...(this.workerState?.evaluatedModules?.fileToModulesMap?.keys() ?? [])];
+      dryModules.set(suite.filepath, files.filter((f) => path.isAbsolute(f) && !f.split(path.sep).includes('node_modules')));
+    }
     const copies = suite.filepath ? collections.get(suite.filepath) : undefined;
     if (suite.filepath && copies) {
       collections.delete(suite.filepath);
@@ -745,7 +754,7 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
         const result = f.result as { state?: string; errors?: { message?: string }[] } | undefined;
         if (result?.state === 'fail' && !f.tasks?.length) fileErrors.push({ file: filepath, error: (result.errors?.[0]?.message ?? 'failed to collect').slice(0, FILE_ERROR_CHARS) });
       }
-      emit({ type: 'dry', tests, coverage: ns.mutantCoverage, fileErrors, runOnce: [...runOnce] });
+      emit({ type: 'dry', tests, coverage: ns.mutantCoverage, fileErrors, runOnce: [...runOnce], modules: Object.fromEntries(dryModules) });
     } else if (mode === 'isolated') {
       const failed: string[] = [];
       let ran = 0;

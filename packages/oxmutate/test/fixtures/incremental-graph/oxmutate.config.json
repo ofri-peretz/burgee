@@ -1,0 +1,1 @@
+{ "mutate": ["src/sum.ts"], "concurrency": 1, "flakyReruns": 0, "reporters": [], "incremental": true, "incrementalFile": "reports/incremental.json", "timeoutMS": 3000 }
