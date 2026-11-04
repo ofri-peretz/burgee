@@ -53,6 +53,22 @@ describe('the scanner steps over each literal exactly', () => {
     expect(specifiers("const s = `${f('}')}${{ a: 1 }.a}${\"`\"} import y from 'chalk'`;\nimport ora from 'ora';\n")).toEqual(['ora']);
   });
 
+  /**
+   * The edges of the interpolation scan, each with the import right after it. A `$` or a `{`
+   * alone is template text, not an interpolation; a backtick in a single-quoted string inside
+   * one is the string's; and a nested template that ends at the `}` must leave that `}` to close
+   * the interpolation — one character too far or too short and the closing backtick opens a
+   * template that swallows the import.
+   */
+  it.each([
+    ['a $ not followed by {', 'const s = `$`;\n'],
+    ['a { with no $ before it', 'const s = `a{`;\n'],
+    ['a backtick in a quoted string inside ${}', "const s = `${f('`')}`;\n"],
+    ['a nested template that ends at the }', 'const s = `${`a`}`;\n'],
+  ])('ends a template at the right backtick past %s', (_, template) => {
+    expect(specifiers(`${template}import ora from 'ora';\n`)).toEqual(['ora']);
+  });
+
   it('honours an escaped quote inside a string', () => {
     // Were the string ended at `\'`, `from 'chalk'` would read as an import.
     expect(specifiers("const s = 'a\\' from 'chalk' b';\nimport ora from 'ora';\n")).toEqual(['ora']);

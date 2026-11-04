@@ -251,4 +251,33 @@ describe("'exit' arriving while an asynchronous run is parked", () => {
     expect(final).toMatchObject({ signal: 'SIGTERM', timedOut: false, unfinished: ['lock', 'screen'] });
     expect(registry.report).toBe(final);
   });
+
+  // Only a run still in flight is read off: one that finished has its report already, and
+  // `runSync` hands back that very report rather than a fresh reading of the same run.
+  it('leaves a run that has already finished with the report it finished with', async () => {
+    const registry = createRegistry();
+    const first = await registry.run(INTERRUPTED);
+    expect(registry.runSync(EXITED)).toBe(first);
+    expect(registry.report).toBe(first);
+  });
+
+  /**
+   * Started with no asynchronous run behind it: a handler of the synchronous run that calls
+   * `runSync` itself. There is no run to read a report off yet, so it gets the blank one a
+   * second trigger always got — not a call to a reader that does not exist, thrown into the
+   * handler that asked.
+   */
+  it('answers a runSync from inside the synchronous run without throwing into the handler', () => {
+    const onError = vi.fn();
+    const registry = createRegistry({ onError });
+    let inner: unknown;
+    registry.add(() => {
+      inner = registry.runSync(INTERRUPTED);
+    }, 'flush');
+
+    registry.runSync(EXITED);
+
+    expect(onError).not.toHaveBeenCalled();
+    expect(inner).toMatchObject({ signal: 'SIGINT', timedOut: false, unfinished: [] });
+  });
 });

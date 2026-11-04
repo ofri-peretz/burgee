@@ -443,6 +443,27 @@ describe('tools/call — multi-word options and negations', () => {
     });
     expect(argvOf(configured.commands[1]!, ['tidy'], { color: false }, configured)).toEqual(['run', '--no-color', '--json']);
   });
+
+  /**
+   * Each reason to send `--no-<name>`, and each reason not to, one row apiece: a default of
+   * `true`, an `env` of its own and a layered program each earn the negation; a default of
+   * `false`, a bare boolean in a bare program, `negatable: false` (there is no `--no-` flag to
+   * send) and a value that is not a boolean at all do not.
+   */
+  it.each<{ with: string; spec: Record<string, unknown>; layers: { envPrefix?: string }; value: unknown; argv: string[] }>([
+    { with: 'a default of true', spec: { default: true }, layers: {}, value: false, argv: ['run', '--no-color', '--json'] },
+    { with: 'an env of its own', spec: { env: 'COLOR' }, layers: {}, value: false, argv: ['run', '--no-color', '--json'] },
+    { with: 'an envPrefix on the program', spec: {}, layers: { envPrefix: 'TIDY' }, value: false, argv: ['run', '--no-color', '--json'] },
+    { with: 'a default of false', spec: { default: false }, layers: {}, value: false, argv: ['run', '--json'] },
+    { with: 'nothing below the flag', spec: {}, layers: {}, value: false, argv: ['run', '--json'] },
+    { with: 'negatable: false, defaulting on', spec: { default: true, negatable: false }, layers: {}, value: false, argv: ['run', '--json'] },
+    { with: 'negatable: false, under an envPrefix', spec: { negatable: false }, layers: { envPrefix: 'TIDY' }, value: false, argv: ['run', '--json'] },
+    { with: 'a value that is not a boolean, defaulting on', spec: { default: true }, layers: {}, value: 'no', argv: ['run', '--json'] },
+    { with: 'true, defaulting on', spec: { default: true }, layers: {}, value: true, argv: ['run', '--color', '--json'] },
+  ])('argv for a boolean option with $with', ({ spec, layers, value, argv }) => {
+    const program = defineProgram({ name: 'tidy', ...layers, commands: [defineCommand({ name: 'run', effects: 'read_only', options: { color: { type: 'boolean', ...spec } }, run: () => null })] });
+    expect(argvOf(program.commands[1]!, ['tidy'], { color: value }, program)).toEqual(argv);
+  });
 });
 
 /**

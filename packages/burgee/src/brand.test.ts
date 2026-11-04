@@ -268,6 +268,21 @@ describe('someone else\u2019s burgee', () => {
     expect(idWith({ sheen: 0.5 })).toBe('burgee-nhob1f');
     expect(idWith({ sheen: 0.5, bevel: 0.3 })).toBe('burgee-1duhq4g');
     expect(idWith({ shape: 'M0 0', markings: '<g/>' })).toBe('burgee-1pp4iht');
+    // A sheen before markings already says which field they are, so they are not named either.
+    expect(idWith({ sheen: 0.5, markings: '<g/>' })).toBe('burgee-iqtc03');
+  });
+
+  /**
+   * The named forms are ids too, and pinned the same way: a name that changed, or a value that
+   * fell out of it, would move every asset of a brand that uses one. A bevel with markings names
+   * the bevel only — the bevel before them already says which field the markings are.
+   */
+  it('names a lone bevel or lone markings, value and all', () => {
+    expect(idWith({ bevel: 0.5 })).toBe('burgee-1fv4gs9');
+    expect(idWith({ bevel: 0.3 })).toBe('burgee-1fv4f3r');
+    expect(idWith({ markings: '<g/>' })).toBe('burgee-3a49e0');
+    expect(idWith({ markings: '<g/>' })).not.toBe(idWith({ markings: '<path/>' }));
+    expect(idWith({ bevel: 0.5, markings: '<g/>' })).toBe('burgee-1frzi3d');
   });
 
   it('still projects every surface', () => {

@@ -42,6 +42,7 @@ export function findCursor(from: number, step: number, options: readonly Choice[
   if (!options.some((option) => option.disabled !== true)) return from;
   const next = wrapIndex(from + step, options.length);
   const onward = step < 0 ? -1 : 1;
+  // Stryker disable next-line OptionalChaining: the guard above leaves `options` non-empty and `wrapIndex` keeps `next` inside it; the `?.` is for the index type alone
   return options[next]?.disabled === true ? findCursor(next, onward, options) : next;
 }
 

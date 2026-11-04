@@ -242,6 +242,10 @@ describe('U12-2 — under a release age, next pins the newest family version old
     // written that way read as no exemptions at all. The key after it still ends the list: were
     // `- flagstaff` read too, flagstaff would keep its graded pin and the expected line would fail.
     ['an unindented block list, with a key after it', 'minimumReleaseAge: 4320\nminimumReleaseAgeExclude:\n- roundel\nother:\n- flagstaff\n'],
+    // An item is a line that *starts* with the dash: a key with one in its name is still the
+    // next key, and still ends the list before `- flagstaff`.
+    ['an unindented block list, with a dashed key after it', 'minimumReleaseAge: 4320\nminimumReleaseAgeExclude:\n- roundel\nx-other:\n- flagstaff\n'],
+    ['a block list in a CRLF file', 'minimumReleaseAge: 4320\r\nminimumReleaseAgeExclude:\r\n  - roundel\r\n'],
   ])('keeps the graded pin for a package minimumReleaseAgeExclude exempts, as %s', async (_, workspace) => {
     const report = await migrate({ dir: mcpc(workspace), status: clean, registry: registry(), now });
     expect(report.next).toBe(`pnpm add flagstaff@^${majorOf('flagstaff')}.0.0 roundel@^${versions['roundel'] as string} && pnpm remove chalk ora`);

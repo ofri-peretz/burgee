@@ -1364,7 +1364,9 @@ const DIVIDES = new Set([')', ']', '}', QUOTED]);
 const EXPRESSION_KEYWORDS = new Set(['return', 'typeof', 'case', 'in', 'of', 'instanceof', 'yield', 'await', 'void', 'delete', 'throw', 'else', 'new', 'do']);
 
 function startsRegex(previous: string): boolean {
-  if (previous === '' || EXPRESSION_KEYWORDS.has(previous)) return true;
+  // Nothing before it (`''`) needs no case of its own: it has no last character, so no word
+  // character, and the last line already reads it as the start of an expression.
+  if (EXPRESSION_KEYWORDS.has(previous)) return true;
   if (DIVIDES.has(previous)) return false;
   return !WORD.test(previous.charAt(previous.length - 1));
 }
@@ -1385,6 +1387,7 @@ function endOfString(source: string, open: number): number {
 
 /** Index just past the end of a template literal; each `${…}` in it is read by {@link endOfInterpolation}. */
 function endOfTemplate(source: string, open: number): number {
+  // Stryker disable next-line EqualityOperator: one step past the end reads `charAt` as '', which no branch takes, and the return below is the same
   for (let i = open + 1; i < source.length; i += 1) {
     const c = source.charAt(i);
     if (c === '\\') i += 1;
@@ -1403,6 +1406,7 @@ function endOfTemplate(source: string, open: number): number {
  */
 function endOfInterpolation(source: string, from: number): number {
   let depth = 1;
+  // Stryker disable next-line EqualityOperator: one step past the end reads `charAt` as '', which no branch takes, and the return below is the same
   for (let i = from; i < source.length; i += 1) {
     const c = source.charAt(i);
     if (c === "'" || c === '"') i = endOfString(source, i) - 1;
@@ -1410,6 +1414,7 @@ function endOfInterpolation(source: string, from: number): number {
     else if (c === '{') depth += 1;
     else if (c === '}') {
       depth -= 1;
+      // Stryker disable next-line NumericLiteral: `i + 0` hands the template scan the `}` itself to step onto, and a `}` is text in a template
       if (depth === 0) return i + 1;
     }
   }
@@ -2389,7 +2394,10 @@ function excludeOf(lines: readonly string[], key: string, separator: ':' | '='):
   if (flow !== undefined) return flow.split(',').map(unquote).filter((e) => e !== '');
   const out: string[] = [];
   for (const line of lines.slice(at + 1)) {
-    const item = /^\s*-(.*)$/.exec(line)?.[1];
+    // The file is split on `\n`, so a CRLF file's lines end in `\r`, which `.` does not match:
+    // `(.*)$` read no item there, and a Windows checkout's exclusions came back empty. The
+    // trailing `\s*` takes the `\r`; the lazy `.*?` leaves it to it.
+    const item = /^\s*-(.*?)\s*$/.exec(line)?.[1];
     if (item !== undefined && unquote(item) !== '') out.push(unquote(item));
     else if (line.trim() !== '' && !line.trimStart().startsWith('#')) break;
   }

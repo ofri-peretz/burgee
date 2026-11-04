@@ -113,6 +113,23 @@ describe('select · R5, a numbered list', () => {
     await expect(ask(fruit, io([' 2 ']))).resolves.toEqual({ ok: true, value: 'two' });
   });
 
+  /**
+   * A number outside `1..length` is not an index, so it is read as a label like any other text:
+   * `0` and `5` below name their choices, and only `2` is a position. Were the range open at
+   * either end, `0` or `5` would index past the list and answer nothing.
+   */
+  it('reads a number outside the range as a label', async () => {
+    const retries: PromptSpec = { kind: 'select', message: 'Retries?', choices: [{ value: 'none', label: '0' }, { value: 'some', label: '5' }, { value: 'lots', label: '10' }] };
+    await expect(ask(retries, io(['0']))).resolves.toEqual({ ok: true, value: 'none' });
+    await expect(ask(retries, io(['5']))).resolves.toEqual({ ok: true, value: 'some' });
+    await expect(ask(retries, io(['2']))).resolves.toEqual({ ok: true, value: 'some' });
+  });
+
+  it('reads an index of more than one digit', async () => {
+    const eleven: PromptSpec = { kind: 'select', message: 'Which?', choices: Array.from({ length: 11 }, (_, i) => ({ value: `c${i + 1}` })) };
+    await expect(ask(eleven, io(['10']))).resolves.toEqual({ ok: true, value: 'c10' });
+  });
+
   it('writes no escape sequence and no carriage return — it is the accessible mode', async () => {
     const world = io(['1']);
     await ask(select, world);
