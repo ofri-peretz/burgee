@@ -44,9 +44,12 @@ const split = new Map<string, string[]>();
  * worse output than `Done`.
  */
 export function render(template: string, fields: Fields): string {
-  // Stryker disable next-line StringLiteral: a template with no `[` has no group for the pattern to find, so testing for any other text changes only the work done
-  const grouped = template.includes('[');
-  const resolved = grouped ? template.replaceAll(OPTIONAL, (_match, group: string) => (fieldsUsed(group).every((name) => (fields[name] ?? '') !== '') ? group : '')) : template;
+  // The `'['` is the one string on its line, so the comment above covers it alone and the
+  // replacement's strings stay mutated; a `const` for the test would ship ~30 B more on `./link`.
+  const resolved =
+    // Stryker disable next-line StringLiteral: a template with no `[` has no group for the pattern to find, so testing for any other text changes only the work done
+    template.includes('[') ? template.replaceAll(OPTIONAL, (_match, group: string) =>
+      fieldsUsed(group).every((name) => (fields[name] ?? '') !== '') ? group : '') : template;
   // Stryker disable next-line EqualityOperator,ConditionalExpression,CallExpression: when the cache empties costs memory, never bytes — a split is a pure function of the template
   if (split.size > CACHED) split.clear();
   const parts = split.get(resolved) ?? (split.set(resolved, resolved.split(FIELD)).get(resolved) as string[]);

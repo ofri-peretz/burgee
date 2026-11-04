@@ -72,11 +72,7 @@ function inputPane({ editor, pane }: InputOptions): Pane {
 
 /** Whether an editor step changed nothing a person could see. */
 const unchanged = (a: EditorState, b: EditorState): boolean =>
-  a.text === b.text &&
-  a.cursor === b.cursor &&
-  a.at === b.at &&
-  a.paste === b.paste &&
-  a.menu === b.menu &&
+  a.text === b.text && a.cursor === b.cursor && a.at === b.at && a.paste === b.paste && a.menu === b.menu &&
   // Stryker disable next-line ConditionalExpression: caique changes `dismissed` only with the menu or the word, so a step that changes it alone does not exist
   a.dismissed === b.dismissed;
 

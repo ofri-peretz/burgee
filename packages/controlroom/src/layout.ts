@@ -59,9 +59,7 @@ export function distribute(total: number, sizes: readonly (number | { fr: number
   let pool = sizes.flatMap((size, i) =>
     typeof size === 'number' ||
     // Stryker disable next-line EqualityOperator,ConditionalExpression: a part with no positive fraction has a share of at most nothing, never more than its minimum, so the first pass below drops it anyway
-    size.fr <= 0
-      ? []
-      : [i],
+    size.fr <= 0 ? [] : [i],
   );
   // Stryker disable next-line NumericLiteral: the loop below always runs once and sets it before it is read
   let frs = 0;

@@ -212,10 +212,14 @@ const RULES: Record<string, EntryRule> = {
   // applied to flagstaff). Budgets followed the measurements down.
   // Measured 10,400 on 2026-10-12, and every entry reaching `plugin.js` by the same 426 B: the walker
   // reads `anyOf`, `enum`, a type list and draft-07 `definitions`, for mcp-current R7. No budget moved.
-  './plugin': { allow: [], budget: 12_100, measured: 10_400, denied: ['loop.js', 'projection.js', 'spinner.js', 'cli.js', 'index.js'] },
+  // Measured 10,690 on 2026-11-04, and `./spinner`, `./tasks`, `./log-tail` and `./tab-bar` by the
+  // same 290 B: `conforms.js` reads only a schema's own `properties` and an object's own or
+  // class-inherited required keys (FP 17), and the string checks moved to a helper of their own.
+  // No budget moved; `./box` reaches it too and stays inside its 2%, net of `link.js` getting smaller.
+  './plugin': { allow: [], budget: 12_100, measured: 10_690, denied: ['loop.js', 'projection.js', 'spinner.js', 'cli.js', 'index.js'] },
   // The ceiling is ora (R10). The spinner plus the registry it reads its style from;
   // ora 10.0.0's own index.js is 26,277 B before any of its sixteen dependencies (9.4.1's was 17,891).
-  './spinner': { allow: ['roundel/tokens'], budget: 13_000, measured: 11_328, denied: ['loop.js', 'projection.js', 'cli.js', 'index.js'] },
+  './spinner': { allow: ['roundel/tokens'], budget: 13_000, measured: 11_618, denied: ['loop.js', 'projection.js', 'cli.js', 'index.js'] },
   // The ora façade: the port, the width function and the spinner corpus it re-exports. The
   // cursor control is no longer counted here — it is `closeout`'s since 2026-09-15, and a bare
   // specifier leaves this measurement while staying in the program.
@@ -311,14 +315,14 @@ const RULES: Record<string, EntryRule> = {
   // re-exports without the bridge, so `.` pays 4 B for the longer file name and nothing else
   // (29,266 -> 29,270): an MCP-only feature stays off the entry every flagstaff user loads.
   './progress': { allow: ['roundel/tokens'], budget: 2_000, measured: 1_711, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'cli.js', 'index.js'] },
-  './tasks': { allow: ['roundel/tokens'], budget: 13_500, measured: 11_727, denied: ['loop.js', 'projection.js', 'cli.js', 'index.js'] },
+  './tasks': { allow: ['roundel/tokens'], budget: 13_500, measured: 12_017, denied: ['loop.js', 'projection.js', 'cli.js', 'index.js'] },
   // The two controlroom components (R3), new on 2026-10-05. Each reads the registry — the
   // `tail`, `step` glyphs for the log tail — and registers its built-in through it, so each
   // carries the plugin host as `./tasks` does; the component itself is 1,905 B and 919 B.
   // Budgets at the same headroom `./tasks` has. Neither reaches the loop: drawing a frame is
   // the caller's, through `hoist` or `frameWriter`.
-  './log-tail': { allow: ['roundel/tokens'], budget: 13_500, measured: 12_305, denied: ['loop.js', 'projection.js', 'tasks.js', 'tab-bar.js', 'cli.js', 'index.js'] },
-  './tab-bar': { allow: ['roundel/tokens'], budget: 12_500, measured: 11_319, denied: ['loop.js', 'projection.js', 'tasks.js', 'log-tail.js', 'cli.js', 'index.js'] },
+  './log-tail': { allow: ['roundel/tokens'], budget: 13_500, measured: 12_657, denied: ['loop.js', 'projection.js', 'tasks.js', 'tab-bar.js', 'cli.js', 'index.js'] },
+  './tab-bar': { allow: ['roundel/tokens'], budget: 12_500, measured: 11_609, denied: ['loop.js', 'projection.js', 'tasks.js', 'log-tail.js', 'cli.js', 'index.js'] },
   // The chat widgets (controlroom R21), new on 2026-10-05. Self-contained like `./progress`:
   // tokens and string work, no registry, no loop. `./markdown` is the block splitter (the
   // part a byte-offset property holds stable) and an inline pass for code, strong and
@@ -339,7 +343,10 @@ const RULES: Record<string, EntryRule> = {
   // its 29,300. The new edge is `linegauge/truncate`, whose bytes are linegauge's and not
   // counted here. Bundled it reaches linegauge's `slice`: `flagstaff/table` measured
   // 15,024 -> 19,169 B locally with esbuild --bundle --minify, under cli-table3, the bar.
-  './table': { allow: ['linegauge', 'linegauge/truncate', 'linegauge/wrap', 'paratext/link', 'roundel/tokens'], budget: 6_000, measured: 4_668, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'box.js', 'ora.js', 'spinners.json', 'cli.js', 'index.js'] },
+  // Measured 4,483 on 2026-11-04, down from 4,668: `link.js` reads a cell's `href` with one
+  // optional chain and `laid` lets paratext's fallback drop an empty url, and the row is laid
+  // out from its cells rather than its widths.
+  './table': { allow: ['linegauge', 'linegauge/truncate', 'linegauge/wrap', 'paratext/link', 'roundel/tokens'], budget: 6_000, measured: 4_483, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'box.js', 'ora.js', 'spinners.json', 'cli.js', 'index.js'] },
 };
 
 /**

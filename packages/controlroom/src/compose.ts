@@ -55,9 +55,7 @@ export function collapse(tree: Layout, collapsed: ReadonlySet<string>): Layout {
       (part): Part =>
         // Stryker disable next-line ConditionalExpression: a split is never one of the pane names in `collapsed`, so `has` answers no for it as this guard does
         typeof part.content === 'string' &&
-        collapsed.has(part.content)
-          ? { ...part, size: 0 }
-          : { ...part, content: collapse(part.content, collapsed) },
+        collapsed.has(part.content) ? { ...part, size: 0 } : { ...part, content: collapse(part.content, collapsed) },
     ),
   };
 }
