@@ -24,10 +24,13 @@ const tool = join(dir, 'tool');
 writeFileSync(tool, '#!/bin/sh\necho tool\n');
 chmodSync(tool, 0o755);
 writeFileSync(join(dir, 'plain'), 'not executable\n');
-// A backslash is an ordinary character in a POSIX file name.
+// A backslash is an ordinary character in a POSIX file name; on Windows it is a separator, and
+// the file cannot be made (the suite below runs on POSIX only).
 const backslashed = join(dir, 'a\\b');
-writeFileSync(backslashed, '#!/bin/sh\n');
-chmodSync(backslashed, 0o755);
+if (POSIX) {
+  writeFileSync(backslashed, '#!/bin/sh\n');
+  chmodSync(backslashed, 0o755);
+}
 
 describe.runIf(POSIX)('the node-which drop-in (R9)', () => {
   it('finds an executable on the given path, as a promise and synchronously', async () => {

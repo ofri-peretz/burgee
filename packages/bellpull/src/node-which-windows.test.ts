@@ -188,7 +188,8 @@ describe('nothing found', () => {
 });
 
 describe('judged by the platform it loaded on', () => {
-  it('takes any file as executable when called off Windows after loading on it, as isexe does', () => {
+  // "Off Windows" is the real process's platform, so on a Windows host there is nothing to test.
+  it.skipIf(process.platform === 'win32')('takes any file as executable when called off Windows after loading on it, as isexe does', () => {
     // The real process says POSIX, so the search is POSIX's: no PATHEXT, no extensions — and
     // the judge is the Windows one chosen at load, with no list to judge against.
     expect(which.sync('plain', { path: A })).toBe(`${A}\\plain`);
