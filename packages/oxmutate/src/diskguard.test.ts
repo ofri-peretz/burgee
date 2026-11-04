@@ -71,12 +71,13 @@ describe('guardDisk: a write outside the sandbox is found after the unit, and pu
   });
 });
 
+/** Commit what is on disk now, so a guard taken after tracks it. */
+function commit(): void {
+  execFileSync('git', ['add', '-A'], { cwd: root });
+  execFileSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-q', '-m', 'more'], { cwd: root });
+}
+
 describe('guardDisk: each way a project can change is found, and each way back is checked', () => {
-  /** Commit what is on disk now, so the guard tracks it. */
-  const commit = (): void => {
-    execFileSync('git', ['add', '-A'], { cwd: root });
-    execFileSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-q', '-m', 'more'], { cwd: root });
-  };
 
   it('finds a write that keeps the size, by its mtime', async () => {
     const guard = await guardDisk(root);
@@ -86,10 +87,12 @@ describe('guardDisk: each way a project can change is found, and each way back i
   });
 
   it('finds a write that keeps the mtime, by its size', async () => {
+    // A whole second, which every filesystem keeps exactly: the mtime reads the same after the write.
+    const pinned = 1_700_000_000;
+    utimesSync(path.join(root, 'package.json'), pinned, pinned);
     const guard = await guardDisk(root);
-    const { atime, mtime } = statSync(path.join(root, 'package.json'));
     write('package.json', '{ "name": "compat-oracle", "x": 1 }\n');
-    utimesSync(path.join(root, 'package.json'), atime, mtime);
+    utimesSync(path.join(root, 'package.json'), pinned, pinned);
     expect((await guard?.check())?.changed).toEqual(['package.json']);
   });
 
@@ -111,6 +114,15 @@ describe('guardDisk: each way a project can change is found, and each way back i
     expect(change && over?.restore(change)).toBe(false);
     expect(change && at?.restore(change)).toBe(true);
     expect(read('package.json')).toBe('{ "name": "compat-oracle" }\n');
+  });
+
+  it('past its limit only reports, even a change that only added entries', async () => {
+    const over = await guardDisk(root, 1);
+    write('stray.txt', 'x\n');
+    const change = await over?.check();
+    expect(change?.added).toEqual(['stray.txt']);
+    expect(change && over?.restore(change)).toBe(false);
+    expect(existsSync(path.join(root, 'stray.txt'))).toBe(true);
   });
 
   it('cannot put back a path it never tracked, and says so', async () => {

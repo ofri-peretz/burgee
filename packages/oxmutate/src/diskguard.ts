@@ -69,6 +69,7 @@ export async function guardDisk(root: string, maxSnapshotBytes = MAX_SNAPSHOT_BY
     tracked.set(rel, { size: st.size, mtimeMs: st.mtimeMs });
   }
   const restorable = bytes <= maxSnapshotBytes;
+  // Stryker disable next-line ConditionalExpression: copies past the limit only cost memory; restore() refuses past it either way
   if (restorable) for (const [rel, t] of tracked) t.content = readFileSync(path.join(root, rel));
   // The directories that hold tracked files, and what each held at the start.
   const dirs = new Map<string, Set<string>>();
@@ -88,7 +89,7 @@ export async function guardDisk(root: string, maxSnapshotBytes = MAX_SNAPSHOT_BY
       // check-ignore prints each ignored path on a line and exits 1 when none is: that is an answer,
       // read from stdout either way. (`-z` needs `--stdin`, which bellpull's run does not feed.)
       const r = await run('git', ['check-ignore', '--', ...ask], { cwd: root, runtime: ambientRuntime() }).catch(() => undefined);
-      // Stryker disable next-line OptionalChaining,StringLiteral: `r` is missing only when git cannot be spawned at all, which listing the files ruled out
+      // Stryker disable next-line OptionalChaining,StringLiteral,MethodExpression: `r` is missing only when git cannot be spawned at all, which listing the files ruled out; an empty line is never a path asked about
       const yes = new Set((r?.stdout ?? '').split('\n').filter(Boolean));
       for (const rel of ask) knownIgnored.set(rel, yes.has(rel));
     }
