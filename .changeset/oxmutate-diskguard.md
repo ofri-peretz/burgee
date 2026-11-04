@@ -12,4 +12,4 @@ oxmutate snapshots the project's tracked files and the directories that hold the
 
 That mutant carries `wrote`, and `stats.diskWrites` counts the units. Scratch a suite keeps where git ignores it is left alone. Set `OXMUTATE_NO_DISKGUARD=1` to turn the guard off.
 
-The case this guards against is #1453: a compat-oracle mutant overwrote its package's `package.json`, and every later mutant ran against a broken package for four hours.
+The case this guards against is [#1453](https://github.com/ofri-peretz/burgee/pull/1453): a compat-oracle mutant overwrote its package's `package.json`, and every later mutant ran against a broken package for four hours.

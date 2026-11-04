@@ -14,7 +14,7 @@
  * the one mutant that writes is alone (coordinator.ts). Ignored paths (scratch a suite keeps under
  * its package, `.grade-*` in compat-oracle) are the suite's own business and never touched.
  */
-import { existsSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { ambientRuntime, run } from 'bellpull';
@@ -53,9 +53,10 @@ async function git(cwd: string, args: string[]): Promise<string | undefined> {
 }
 
 /** The guard for `root`, or undefined when `root` is not inside a git work tree (nothing says what is tracked). */
-export async function guardDisk(root: string): Promise<DiskGuard | undefined> {
+export async function guardDisk(root: string, maxSnapshotBytes = MAX_SNAPSHOT_BYTES): Promise<DiskGuard | undefined> {
   const listed = await git(root, ['ls-files', '-z', '--cached', '--', '.']);
   if (listed === undefined) return undefined;
+  // Stryker disable next-line MethodExpression: an empty name joins to `root` itself, a directory, which the isFile check below skips
   const files = listed.split('\0').filter(Boolean);
   const tracked = new Map<string, Tracked>();
   let bytes = 0;
@@ -67,23 +68,27 @@ export async function guardDisk(root: string): Promise<DiskGuard | undefined> {
     bytes += st.size;
     tracked.set(rel, { size: st.size, mtimeMs: st.mtimeMs });
   }
-  const restorable = bytes <= MAX_SNAPSHOT_BYTES;
+  const restorable = bytes <= maxSnapshotBytes;
   if (restorable) for (const [rel, t] of tracked) t.content = readFileSync(path.join(root, rel));
   // The directories that hold tracked files, and what each held at the start.
   const dirs = new Map<string, Set<string>>();
   for (const rel of tracked.keys()) {
     const dir = path.dirname(rel);
+    // Stryker disable next-line ConditionalExpression: reading a directory again in the same moment gives the same set
     if (!dirs.has(dir)) dirs.set(dir, new Set(readdirSync(path.join(root, dir))));
   }
   // Git's answer per path, kept: ignored scratch a suite leaves behind (compat-oracle's `.grade-*`)
   // would otherwise cost a `git` process after every unit.
   const knownIgnored = new Map<string, boolean>();
   const ignored = async (rels: string[]): Promise<Set<string>> => {
+    // Stryker disable next-line MethodExpression,ConditionalExpression: asking git again, or with no paths, gives the same answers; the cache only saves processes
     const ask = rels.filter((rel) => !knownIgnored.has(rel));
+    // Stryker disable next-line ConditionalExpression: `git check-ignore --` with no paths answers nothing, as skipping it does
     if (ask.length) {
       // check-ignore prints each ignored path on a line and exits 1 when none is: that is an answer,
       // read from stdout either way. (`-z` needs `--stdin`, which bellpull's run does not feed.)
       const r = await run('git', ['check-ignore', '--', ...ask], { cwd: root, runtime: ambientRuntime() }).catch(() => undefined);
+      // Stryker disable next-line OptionalChaining,StringLiteral: `r` is missing only when git cannot be spawned at all, which listing the files ruled out
       const yes = new Set((r?.stdout ?? '').split('\n').filter(Boolean));
       for (const rel of ask) knownIgnored.set(rel, yes.has(rel));
     }
@@ -116,6 +121,8 @@ export async function guardDisk(root: string): Promise<DiskGuard | undefined> {
       for (const rel of [...change.changed, ...change.removed]) {
         const t = tracked.get(rel);
         if (!t?.content) return false;
+        // A mutant may have removed the directory too.
+        mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
         writeFileSync(path.join(root, rel), t.content);
         // The restored copy is the new baseline: same bytes, a new mtime.
         const st = statSync(path.join(root, rel));
