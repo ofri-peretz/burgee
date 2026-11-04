@@ -68,7 +68,7 @@ function resources(): Map<string, number> {
 }
 
 /** Whether `now` holds nothing the floor did not. */
-const withinFloor = (now: Map<string, number>, floor: Map<string, number>): boolean => [...now].every(([kind, n]) => n <= (floor.get(kind) ?? 0));
+export const withinFloor = (now: Map<string, number>, floor: Map<string, number>): boolean => [...now].every(([kind, n]) => n <= (floor.get(kind) ?? 0));
 
 /** One sample's reading, exported for the tests. */
 export interface Reading {
@@ -107,13 +107,16 @@ interface TimerApi {
   setInterval: typeof setInterval;
   clearInterval: typeof clearInterval;
 }
+// Stryker disable next-line StringLiteral: any key names one registry symbol on every evaluation of this module, which is all the key is for
 const WRAPPED = Symbol.for('oxmutate.timers');
 const isWrapped = (fn: unknown): boolean => typeof fn === 'function' && WRAPPED in fn;
+// Stryker disable next-line BooleanLiteral: `isWrapped` asks whether the key is there (`in`), never its value
 const mark = <F extends object>(fn: F): F => Object.assign(fn, { [WRAPPED]: true });
 /** A cleared timer stops being pending; an id that is not ours is ignored. */
 const clearing =
   <H>(clear: (handle?: H) => void) =>
   (handle?: H): void => {
+    // Stryker disable next-line ConditionalExpression: with the guard always true, `Number(undefined)` is NaN and `Number(null)` 0, ids no live timer has, so `done` changes nothing
     if (handle !== undefined && handle !== null) done(Number(handle));
     clear(handle);
   };
@@ -221,9 +224,27 @@ interface Watch {
 
 let floor: Map<string, number> | undefined;
 
+/** For the tests: the floor taken, if any. */
+export const floorTaken = (): ReadonlyMap<string, number> | undefined => floor;
+
+/** For the tests: Vitest calls in flight now. */
+export const rpcInFlightCount = (): number => rpcInFlight;
+
 /** The resources a worker holds before any test file is imported; later readings are measured against it. */
 export function takeFloor(): void {
   floor ??= resources();
+}
+
+/**
+ * One sample's step through the confirm window. A loud sample restarts it; a quiet one opens it at
+ * the start of its own span (the wait was already quiet then), and once it has been open
+ * `confirmMs`, the wait is a deadlock of that age.
+ */
+export function confirmStep(o: { quietSince: number | undefined; quiet: boolean; now: number; span: number; confirmMs: number }): { quietSince: number | undefined; deadlockMs?: number } {
+  if (!o.quiet) return { quietSince: undefined };
+  const since = o.quietSince ?? o.now - o.span;
+  const open = o.now - since;
+  return open >= o.confirmMs ? { quietSince: since, deadlockMs: open } : { quietSince: since };
 }
 
 /**
@@ -253,16 +274,14 @@ export function watch(): Watch {
       pendingTimers,
       withinFloor: withinFloor(resources(), floor),
     };
+    // Stryker disable next-line all: diagnostics behind OXMUTATE_DEBUG_QUIET; no verdict reads them
     if (env['OXMUTATE_DEBUG_QUIET']) stderr.write(`quiet? ${JSON.stringify(reading)} res=${JSON.stringify([...resources()])} floor=${JSON.stringify([...floor])}\n`);
-    if (!quiet(reading)) {
-      quietSince = undefined;
-      return;
-    }
-    quietSince ??= now - span;
-    if (now - quietSince >= armed.confirmMs) {
+    const next = confirmStep({ quietSince, quiet: quiet(reading), now, span, confirmMs: armed.confirmMs });
+    quietSince = next.quietSince;
+    if (next.deadlockMs !== undefined) {
       const { reject } = armed;
       armed = undefined;
-      reject(new DeadlockError(now - quietSince));
+      reject(new DeadlockError(next.deadlockMs));
     }
   }, SAMPLE_MS);
   timer.unref();

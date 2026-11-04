@@ -1,9 +1,14 @@
 import { spawn } from 'node:child_process';
+import { clearTimeout as namedClearTimeout, setTimeout as namedSetTimeout } from 'node:timers';
 import { setTimeout as sleep } from 'node:timers/promises';
+import { promisify } from 'node:util';
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { DeadlockError, isDeadlock, MIN_CONFIRM_MS, pendingTimerCount, quiet, QUIET_OTHER_SHARE, QUIET_SELF_SHARE, takeFloor, trackTimers, watch } from './quiescence.js';
+import { confirmStep, DeadlockError, floorTaken, isDeadlock, MIN_CONFIRM_MS, pendingTimerCount, quiet, QUIET_OTHER_SHARE, QUIET_SELF_SHARE, rpcInFlightCount, takeFloor, trackRpc, trackTimers, watch, withinFloor } from './quiescence.js';
+
+// The global setTimeout before any test tracks timers: a wait that the count never sees.
+const { setTimeout: untracked } = globalThis;
 
 /** Turn the event loop with immediates for `ms`: busy, every step settled, nothing pending between them. */
 const spin = (ms: number): Promise<void> =>
@@ -110,5 +115,162 @@ describe('watch().guard: a deadlock is called within its confirm window; a wait 
     await expect(deadlocks.guard(() => 7, 0)).resolves.toBe(7);
     await expect(deadlocks.guard(() => Promise.reject(new Error('killed')), 0)).rejects.toThrow('killed');
     expect(new DeadlockError(600).message).toMatch(/deadlocked for 600 ms/);
+  });
+});
+
+describe('confirmStep: a deadlock is called once the wait has been quiet for the whole confirm window', () => {
+  it('opens the window at the start of the first quiet span, and calls nothing before it is full', () => {
+    expect(confirmStep({ quietSince: undefined, quiet: true, now: 1000, span: 100, confirmMs: 500 })).toEqual({ quietSince: 900 });
+    expect(confirmStep({ quietSince: 900, quiet: true, now: 1399, span: 100, confirmMs: 500 })).toEqual({ quietSince: 900 });
+  });
+  it('calls a deadlock the moment the window is full, with the age of the wait', () => {
+    expect(confirmStep({ quietSince: 900, quiet: true, now: 1400, span: 100, confirmMs: 500 })).toEqual({ quietSince: 900, deadlockMs: 500 });
+  });
+  it('closes the window on a loud sample', () => {
+    expect(confirmStep({ quietSince: 900, quiet: false, now: 1400, span: 100, confirmMs: 500 })).toEqual({ quietSince: undefined });
+  });
+});
+
+describe('withinFloor: a reading is within its floor only when no kind of resource grew', () => {
+  it('reads a kind the floor never held, even once, as over it', () => {
+    expect(withinFloor(new Map([['Timeout', 1]]), new Map())).toBe(false);
+    expect(withinFloor(new Map([['Timeout', 1]]), new Map([['Timeout', 1]]))).toBe(true);
+  });
+});
+
+describe('trackTimers: every timer that will still fire is counted until it does, ref’d or not', () => {
+  beforeAll(() => trackTimers());
+
+  it('counts a global timeout until it fires, and hands it its arguments', async () => {
+    const before = pendingTimerCount();
+    const got = await new Promise((resolve) => {
+      setTimeout((a: unknown, b: unknown) => resolve([a, b]), 20, 'x', 'y');
+      expect(pendingTimerCount()).toBe(before + 1);
+    });
+    expect(got).toEqual(['x', 'y']);
+    expect(pendingTimerCount()).toBe(before);
+  });
+
+  it('counts an immediate until it runs', async () => {
+    const before = pendingTimerCount();
+    const ran = new Promise<string>((resolve) => {
+      setImmediate((v: string) => resolve(v), 'ran');
+      expect(pendingTimerCount()).toBe(before + 1);
+    });
+    expect(await ran).toBe('ran');
+    expect(pendingTimerCount()).toBe(before);
+  });
+
+  it('uncounts a cleared timeout, immediate and interval, and ignores a clear of nothing', () => {
+    const before = pendingTimerCount();
+    const t = setTimeout(() => undefined, 60_000);
+    const i = setImmediate(() => undefined);
+    const v = setInterval(() => undefined, 60_000);
+    expect(pendingTimerCount()).toBe(before + 3);
+    clearTimeout(t);
+    clearImmediate(i);
+    clearInterval(v);
+    clearTimeout(undefined);
+    expect(pendingTimerCount()).toBe(before);
+  });
+
+  it('counts the timers of node:timers, named in an import that ran before tracking began', () => {
+    const before = pendingTimerCount();
+    const t = namedSetTimeout(() => undefined, 60_000);
+    expect(pendingTimerCount()).toBe(before + 1);
+    namedClearTimeout(t);
+    expect(pendingTimerCount()).toBe(before);
+  });
+
+  it('counts an awaited node:timers/promises timer until it settles', async () => {
+    const before = pendingTimerCount();
+    const waiting = sleep(20);
+    expect(pendingTimerCount()).toBe(before + 1);
+    await waiting;
+    expect(pendingTimerCount()).toBe(before);
+  });
+
+  it('keeps util.promisify(setTimeout) the promise it was', async () => {
+    await expect(promisify(setTimeout)(10, 'v')).resolves.toBe('v');
+  });
+
+  it('wraps once, however often it is called: one timer counts once', async () => {
+    trackTimers();
+    trackTimers();
+    const before = pendingTimerCount();
+    const t = setTimeout(() => undefined, 60_000);
+    const waiting = sleep(10);
+    expect(pendingTimerCount()).toBe(before + 2);
+    clearTimeout(t);
+    await waiting;
+    expect(pendingTimerCount()).toBe(before);
+  });
+});
+
+describe('trackRpc: a call to Vitest’s main thread counts while it is in flight', () => {
+  it('counts a call that returns a promise until it settles, and passes everything else through as it was', async () => {
+    let release: (() => void) | undefined;
+    const sym = Symbol('raw');
+    const fire = Object.assign(() => 'sent', { asEvent: 'kept' });
+    const raw = {
+      fetch: () =>
+        new Promise<void>((r) => {
+          release = r;
+        }),
+      now: () => 5,
+      $close: () => 'raw',
+      [sym]: () => 'symbol',
+      version: '5',
+      fire,
+    };
+    const state: { rpc?: object } = { rpc: raw };
+    trackRpc(state);
+    const rpc = state.rpc as typeof raw;
+    const call = rpc.fetch();
+    expect(rpcInFlightCount()).toBe(1);
+    expect(rpc.now()).toBe(5);
+    expect(rpcInFlightCount()).toBe(1);
+    release?.();
+    await call;
+    expect(rpcInFlightCount()).toBe(0);
+    expect(rpc.$close).toBe(raw.$close);
+    expect(rpc[sym]).toBe(raw[sym]);
+    expect(rpc.version).toBe('5');
+    expect((rpc.fire as unknown as { asEvent: string }).asEvent).toBe('kept');
+  });
+
+  it('wraps once, and does nothing without an rpc', () => {
+    const state: { rpc?: object } = { rpc: { now: () => 1 } };
+    trackRpc(state);
+    const first = state.rpc;
+    trackRpc(state);
+    expect(state.rpc).toBe(first);
+    expect(() => trackRpc(undefined)).not.toThrow();
+    expect(() => trackRpc({})).not.toThrow();
+  });
+});
+
+describe('takeFloor and stop', () => {
+  it('takes the floor once: a later call keeps the first', () => {
+    takeFloor();
+    const first = floorTaken();
+    expect(first).toBeDefined();
+    takeFloor();
+    expect(floorTaken()).toBe(first);
+  });
+
+  it('calls nothing a deadlock once stopped', { timeout: DEADLOCK_CASE_MS }, async () => {
+    trackTimers();
+    takeFloor();
+    const w = watch();
+    w.stop();
+    const outcome = await Promise.race([
+      w.guard(() => new Promise(() => undefined), MIN_CONFIRM_MS).then(
+        () => 'settled',
+        (e: unknown) => (isDeadlock(e) ? 'deadlock' : 'error'),
+      ),
+      new Promise((resolve) => untracked(() => resolve('still waiting'), MIN_CONFIRM_MS * 3)),
+    ]);
+    expect(outcome).toBe('still waiting');
   });
 });
