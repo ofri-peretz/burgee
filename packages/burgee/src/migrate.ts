@@ -2395,9 +2395,9 @@ function excludeOf(lines: readonly string[], key: string, separator: ':' | '='):
   const out: string[] = [];
   for (const line of lines.slice(at + 1)) {
     // The file is split on `\n`, so a CRLF file's lines end in `\r`, which `.` does not match:
-    // `(.*)$` read no item there, and a Windows checkout's exclusions came back empty. The
-    // trailing `\s*` takes the `\r`; the lazy `.*?` leaves it to it.
-    const item = /^\s*-(.*?)\s*$/.exec(line)?.[1];
+    // `(.*)$` read no item there, and a Windows checkout's exclusions came back empty. Without
+    // the `$` the item stops short of the `\r`, and `unquote` trims what is left.
+    const item = /^\s*-(.*)/.exec(line)?.[1];
     if (item !== undefined && unquote(item) !== '') out.push(unquote(item));
     else if (line.trim() !== '' && !line.trimStart().startsWith('#')) break;
   }

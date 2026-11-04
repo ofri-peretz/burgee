@@ -69,6 +69,12 @@ describe('the scanner steps over each literal exactly', () => {
     expect(specifiers(`${template}import ora from 'ora';\n`)).toEqual(['ora']);
   });
 
+  it('reads an interpolation left open at the end of the file as running to the end', () => {
+    // A file cut off mid-edit: what comes before still counts, and what follows `${` is code
+    // that never closed, not an import.
+    expect(specifiers("import ora from 'ora';\nconst s = `${f(\nimport x from 'chalk'")).toEqual(['ora']);
+  });
+
   it('honours an escaped quote inside a string', () => {
     // Were the string ended at `\'`, `from 'chalk'` would read as an import.
     expect(specifiers("const s = 'a\\' from 'chalk' b';\nimport ora from 'ora';\n")).toEqual(['ora']);
