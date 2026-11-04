@@ -1,5 +1,11 @@
 # closeout
 
+## 1.1.9
+
+### Patch Changes
+
+- [#1469](https://github.com/ofri-peretz/burgee/pull/1469) [`80fa4fb`](https://github.com/ofri-peretz/burgee/commit/80fa4fbdce8448adb1ad26bd0be95e5189284ba5) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `runSync` arriving while an asynchronous shutdown is still parked reports the handlers that never came back, and leaves that report on `registry.report`. Before, it answered `{ timedOut: false, unfinished: [] }` of its own and left `report` unset, so a lock still held in `flush` read as a shutdown that had finished cleanly.
+
 ## 1.1.8
 
 ### Patch Changes
