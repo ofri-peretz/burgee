@@ -425,9 +425,11 @@ describe.skipIf(!native || !existsSync(bin))('a spec oracle (M3.5): model traces
 // 3x, where they "finished" only because Vitest's 30 s test timeout failed the test, and were
 // reported Killed (D-20261101-idle-stall-is-timeout, stall.qnt). Before this, the fixture's hung
 // mutant took two stops and a 3x re-run to come out Killed the same way.
+// Since quiescence.ts the worker calls the wait a deadlock itself, so the case no longer waits out
+// a budget and runs on every pull request again (staged spec oxmutate-load-robust, L1).
 // In process, through the built package's API: the CLI's exit adds seconds this test does not need.
 // The mutant is static and sent straight to the fresh-worker path, whose watchdog this checks.
-it.skipIf(!native || !existsSync(bin) || !nightly)('scores a mutant whose test waits on an idle worker Timeout at its budget, with no 3x re-run', async () => {
+it.skipIf(!native || !existsSync(bin))('scores a mutant whose test deadlocks Timeout, called by its own worker: no watchdog stop, no re-run', async () => {
   const dir = path.join(pkg, 'test/fixtures/stall');
   // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the built package under test, present only after a build; the test is skipped without it
   const api = (await import(path.join(pkg, 'dist/index.js'))) as typeof import('./index.js');
@@ -436,7 +438,10 @@ it.skipIf(!native || !existsSync(bin) || !nightly)('scores a mutant whose test w
     const result = await api.run(await api.loadOptions(dir, { reporters: [] }, path.join(dir, 'oxmutate.config.json')));
     // The executor's emptied body, the hang; the string is excluded, so the run is the one mutant.
     expect(result.mutants.map((m) => `${m.mutatorName}:${m.status}`)).toEqual(['BlockStatement:Timeout', 'StringLiteral:Ignored']);
-    expect(result.stats).toMatchObject({ watchdogKills: 1, idleStalls: 1, timeoutsOverturned: 0 });
+    // The worker saw nothing left that could resume the test and failed it itself (quiescence.ts),
+    // in about 0.5 s: the watchdog never waited out its 4.5 s budget, and no server was killed.
+    expect(result.stats).toMatchObject({ watchdogKills: 0, idleStalls: 0, deadlocks: 1, timeoutsOverturned: 0 });
+    expect(result.mutants[0]?.statusReason).toMatch(/deadlocked/);
     // A Timeout is detected: the score is the one the Killed verdict gave.
     expect(result.score).toMatchObject({ detected: 1, total: 1, mutationScore: 100 });
   } finally {

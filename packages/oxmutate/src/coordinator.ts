@@ -90,6 +90,8 @@ export interface RunStats {
   flakyMutants: number;
   units: number;
   serversSpawned: number;
+  /** Mutants whose Timeout their worker called itself, the wait able to end by nothing (quiescence.ts): no watchdog wait, no respawn. */
+  deadlocks: number;
 }
 
 export interface RunResult {
@@ -115,6 +117,8 @@ interface Verdict {
   status: Status;
   /** A Timeout from an idle stop: the test waited past its budget on an idle worker (heartbeat.ts). */
   idle?: boolean | undefined;
+  /** An idle Timeout the worker called itself, its wait able to end by nothing (quiescence.ts). Never re-run, as an idle stop. */
+  deadlock?: boolean | undefined;
   killedBy?: string[] | undefined;
   /** Tests that ran across its files: Stryker's `testsCompleted`. */
   testsCompleted?: number | undefined;
@@ -134,6 +138,8 @@ interface ChildRecord {
   failed?: string[];
   /** `mutant`: how long this execution took. */
   ms?: number;
+  /** `mutant`, `isolated`: a Timeout the worker called itself: its wait could never end (quiescence.ts). */
+  deadlock?: boolean;
   /** `mutant`: the record came from a spec oracle's replay test. */
   spec?: boolean;
   /** `isolated`: tests that ran (passed or failed) in this file run. */
@@ -165,8 +171,26 @@ const sha = (s: string): string => createHash('sha256').update(s).digest('hex').
  * (2026-10-30). Smaller stays better for a pollution restart, which re-runs the rest of a unit.
  */
 const UNIT_PAIRS = 400;
+/** A Timeout whose worker found its wait could never end (quiescence.ts). */
+const DEADLOCK_REASON = 'its test deadlocked: nothing left in the worker could resume it (a hang, called in under a second)';
+
+/** Why an isolated run's Timeout is one: its worker called a deadlock, a stop read idle, or two stops. */
+function timeoutReason(v: Verdict): string {
+  if (v.deadlock) return DEADLOCK_REASON;
+  if (v.idle) return 'its test waited past the budget with the worker idle: a hang, not a slow test';
+  return 'stopped by the watchdog twice, the second time with 3x the budget';
+}
+
 /** How many times its isolated budget a busy stop gets on its re-run. */
 const RERUN_SLACK = 3;
+
+/**
+ * No single test execution is waited on past this (owner, 2026-11-04: "we should not wait longer than
+ * that"). Every watchdog budget is capped at it per test the run executes, the 3x re-run of a busy stop
+ * included. A hang is mostly called by its worker in about half a second (quiescence.ts); the cap
+ * bounds the waits it cannot judge.
+ */
+export const MAX_TEST_MS = 5000;
 const MS_PER_MINUTE = 60_000;
 const PERCENT = 100;
 
@@ -188,7 +212,7 @@ export async function run(options: Options): Promise<RunResult> {
   const work = mkdtempSync(path.join(tmpdir(), 'oxmutate-'));
   const stats: RunStats = {
     files: 0, mutants: 0, instrumentMs: 0, dryRunMs: 0, mutationMs: 0, staticMs: 0, staticRecollections: 0, isolatedMs: 0, wallMs: 0, testExecutions: 0,
-    watchdogKills: 0, idleStalls: 0, crashes: 0, canaryFiles: 0, pollutionRestarts: 0, survivorsOverturned: 0, timeoutsOverturned: 0, compileErrors: 0, isolatedRuns: 0, reused: 0, flakyTests: 0, flakyMutants: 0, units: 0, serversSpawned: 0,
+    watchdogKills: 0, idleStalls: 0, deadlocks: 0, crashes: 0, canaryFiles: 0, pollutionRestarts: 0, survivorsOverturned: 0, timeoutsOverturned: 0, compileErrors: 0, isolatedRuns: 0, reused: 0, flakyTests: 0, flakyMutants: 0, units: 0, serversSpawned: 0,
   };
   let unitSeq = 0;
   const fileFor = (kind: string, ext: string): string => path.join(work, `${kind}-${String(unitSeq++)}.${ext}`);
@@ -423,7 +447,7 @@ export async function run(options: Options): Promise<RunResult> {
     // The watchdog is for runaways, which loop in fast code; a slow test under a loaded machine is
     // not one. 3x the covering test's dry-run time, not Stryker's 1.5x: at 1.5x, subprocess-heavy
     // burgee/paratext tests were stopped as false timeouts (2026-10-27).
-    const warmBudget = (id: string): number => options.timeoutMS + Math.max(options.timeoutFactor, 3) * maxTestMs(id) + 250;
+    const warmBudget = (id: string): number => Math.min(MAX_TEST_MS, options.timeoutMS + Math.max(options.timeoutFactor, 3) * maxTestMs(id) + 250);
 
     // Files a mutant's covering tests live in, cheapest first (by the covering tests' time there).
     const fileOrder = new Map<string, string[]>();
@@ -436,11 +460,13 @@ export async function run(options: Options): Promise<RunResult> {
       fileOrder.set(m.id, [...cost].sort((a, b) => a[1] - b[1]).map(([f]) => f));
     }
     type Plan = Record<string, string[]>;
+    /** Each planned test's dry-run time: a worker's deadlock confirm window scales with it (quiescence.ts). */
+    const testMsOf = (plan: Plan): Record<string, number> => Object.fromEntries(Object.keys(plan).map((t) => [t, testInfo.get(t)?.ms ?? 0]));
     const planUnits = new Map<string, { file: string; plan: Plan; depth: number }>();
     const unfinished = new Set<string>();
     const makeUnit = (file: string, plan: Plan, depth = 0): Unit => {
       const unit: Unit = { mode: 'mutant', files: [file], results: fileFor('unit', 'jsonl'), progress: fileFor('unit', 'progress'), plan: fileFor('plan', 'json') };
-      writeFileSync(unit.plan as string, JSON.stringify({ tests: plan, hitLimits, skip: [], specTests: [...specOf.keys()], runOnce: dry.runOnce }));
+      writeFileSync(unit.plan as string, JSON.stringify({ tests: plan, hitLimits, skip: [], specTests: [...specOf.keys()], runOnce: dry.runOnce, testMs: testMsOf(plan) }));
       planUnits.set(unit.results, { file, plan, depth });
       stats.units++;
       return unit;
@@ -542,7 +568,7 @@ export async function run(options: Options): Promise<RunResult> {
       }
       if (Object.keys(left).length === 0) return false;
       entry.plan = left;
-      writeFileSync(unit.plan as string, JSON.stringify({ tests: left, hitLimits, skip: [], specTests: [...specOf.keys()], runOnce: dry.runOnce }));
+      writeFileSync(unit.plan as string, JSON.stringify({ tests: left, hitLimits, skip: [], specTests: [...specOf.keys()], runOnce: dry.runOnce, testMs: testMsOf(left) }));
       return true;
     };
     await pool.drain(unitsForRound(toRun, (m) => fileOrder.get(m.id) ?? []), (_, id) => warmBudget(id), afterUnit, beforeUnit);
@@ -569,6 +595,7 @@ export async function run(options: Options): Promise<RunResult> {
         m.statusReason = 'the worker crashed while this mutant ran';
       } else if (killers.length) {
         m.status = killers.some((r) => r.status === 'Killed') ? 'Killed' : 'Timeout';
+        if (m.status === 'Timeout' && killers.some((r) => r.deadlock)) m.statusReason = DEADLOCK_REASON;
         m.killedBy = [...new Set(killers.map((r) => r.test ?? ''))];
         m.testsCompleted = recs.length;
       } else if (!unfinished.has(m.id) && recs.length >= new Set(m.coveredBy).size) {
@@ -613,6 +640,13 @@ export async function run(options: Options): Promise<RunResult> {
       const covering = byCost([...new Set(tests)]);
       return [...covering, ...byAffinity(m.file, [...loaders].filter((f) => !covering.includes(f)))];
     };
+    /** How many tests a mutant's isolated run executes: its covering tests, or every test of its files when static. */
+    const testsRun = (id: string): number => {
+      const m = byId.get(id);
+      const fs = m ? filesFor(m) : allTestFiles;
+      const covering = new Set(m && !m.static ? m.coveredBy : []);
+      return Math.max(1, dry.tests.filter((t) => fs.includes(t.file) && (covering.size === 0 || covering.has(t.id))).length);
+    };
     const isolatedBudget = (id: string): number => {
       const m = byId.get(id);
       const fs = m ? filesFor(m) : allTestFiles;
@@ -621,8 +655,10 @@ export async function run(options: Options): Promise<RunResult> {
       // where its covering tests take a fraction of that (2026-10-30). A static mutant runs them all.
       const covering = new Set(m && !m.static ? m.coveredBy : []);
       const ms = dry.tests.filter((t) => fs.includes(t.file) && (covering.size === 0 || covering.has(t.id))).reduce((sum, t) => sum + t.ms, 0);
-      return 1500 + options.timeoutMS + options.timeoutFactor * ms * 2;
+      return Math.min(MAX_TEST_MS * testsRun(id), 1500 + options.timeoutMS + options.timeoutFactor * ms * 2);
     };
+    /** `slack` times a mutant's isolated budget, still within MAX_TEST_MS per test it runs. */
+    const isolatedCapped = (id: string, slack: number): number => Math.min(slack * isolatedBudget(id), MAX_TEST_MS * testsRun(id));
     // A non-static mutant runs only its covering tests, armed across all of them in file order:
     // Stryker's semantics, so cross-test effects still show (a no-op reset() lets state pile up
     // for the next covering test). A static mutant runs every test of its files, because an
@@ -680,7 +716,7 @@ export async function run(options: Options): Promise<RunResult> {
       const open = (m: MutantResult): boolean => !killed.has(m.id) && !back.has(m.id);
       const rounds = [(m: MutantResult): string[] => filesFor(m).slice(0, 1), (m: MutantResult): string[] => (open(m) ? filesFor(m).slice(1) : [])];
       // the mutant's run and the unarmed canary after it
-      for (const round of rounds) await staticPool.drain(unitsFor(round), (_, id) => 2 * isolatedBudget(id), afterStatic, keepUndecided);
+      for (const round of rounds) await staticPool.drain(unitsFor(round), (_, id) => isolatedCapped(id, 2), afterStatic, keepUndecided);
       const undecided: MutantResult[] = [];
       for (const m of items) {
         const k = killed.get(m.id);
@@ -713,14 +749,14 @@ export async function run(options: Options): Promise<RunResult> {
       stats.isolatedRuns += items.length;
       await pool.drain(
         units,
-        (_, id) => slack * isolatedBudget(id),
+        (_, id) => isolatedCapped(id, slack),
         (unit, outcome) => {
           // Vitest reports per test file: a mutant is killed if any of its files failed.
           for (const rec of readRecords(unit.results)) {
             if (rec.type !== 'isolated' || !rec.id) continue;
             const prev = verdicts.get(rec.id);
             const testsCompleted = (prev?.testsCompleted ?? 0) + (rec.ran ?? 0);
-            if (rec.timeout) verdicts.set(rec.id, { status: 'Timeout', testsCompleted });
+            if (rec.timeout) verdicts.set(rec.id, { status: 'Timeout', testsCompleted, ...(rec.deadlock && { idle: true, deadlock: true }) });
             else if (rec.killed) verdicts.set(rec.id, { status: 'Killed', killedBy: [...(prev?.killedBy ?? []), ...(rec.failed ?? [])], testsCompleted });
             else verdicts.set(rec.id, { status: prev?.status ?? 'Survived', killedBy: prev?.killedBy, testsCompleted });
           }
@@ -769,7 +805,7 @@ export async function run(options: Options): Promise<RunResult> {
         m.status = v.status;
         m.killedBy = v.killedBy;
         m.testsCompleted = v.testsCompleted;
-        if (v.status === 'Timeout') m.statusReason = v.idle ? 'its test waited past the budget with the worker idle: a hang, not a slow test' : 'stopped by the watchdog twice, the second time with 3x the budget';
+        if (v.status === 'Timeout') m.statusReason = timeoutReason(v);
       }
     }
 
@@ -841,6 +877,7 @@ export async function run(options: Options): Promise<RunResult> {
     stats.isolatedMs = performance.now() - i0;
     stats.watchdogKills = pool.stats.killed;
     stats.idleStalls = pool.stats.idle;
+    stats.deadlocks = mutants.filter((m) => m.statusReason === DEADLOCK_REASON).length;
     stats.crashes = pool.stats.crashed;
 
     // ── 8. Score, cache, result ───────────────────────────────────────────────────────────────

@@ -179,6 +179,17 @@ jobs:
             echo "::error::stall.qnt: neverFlips now holds — no idle stall is ever scored, so safety holds vacuously"
             exit 1
           fi
+          # Deadlocks the worker calls itself (quiescence.ts): safe only while a quiet wait is one that
+          # never settles, and some deadlock is called, so `safety` is not vacuous.
+          $QUINT run "$m" --main=stall --invariant=safety --max-steps=30 --max-samples=20000 >/dev/null
+          if $QUINT run "$m" --main=stallUnsound --invariant=safety --max-steps=30 --max-samples=20000 >/dev/null; then
+            echo "::error::stall.qnt: safety holds under stallUnsound — the model no longer shows what an unsound detector breaks"
+            exit 1
+          fi
+          if $QUINT run "$m" --invariant=noDeadlock --max-steps=30 --max-samples=20000 >/dev/null; then
+            echo "::error::stall.qnt: noDeadlock now holds — no deadlock is ever called, so safety holds vacuously"
+            exit 1
+          fi
       # oxmutate's grouped static canary (staticwarm.qnt): holding verdicts until their group's
       # canary keeps `safety` (grouped, groupedVisible), and reporting them before it does not.
       - name: oxmutate static canary — grouped verdicts held hold, unheld ones still fail
