@@ -45,8 +45,9 @@ const init = (open: number, close: number): Colorize => {
   // `'' + txt` is what kleur/colors searches, and the input itself is what it cuts — an input that
   // is not a string throws there, as it does in kleur/colors, only when its string holds the close.
   // One expression, as kleur/colors' is: statements cost bytes against its own (R4).
-  // eslint-disable-next-line modernization/prefer-template-literal -- the incumbent's coercion, which a template literal does not reproduce for an object whose `valueOf` and `toString` disagree
-  return ((txt: string) => (!$.enabled || txt == null ? txt : openCode + (('' + txt).includes(closeCode) ? txt.replaceAll(closeCode, closeCode + openCode) : txt) + closeCode)) as Colorize;
+  // `'' + txt` is the incumbent's coercion, which a template literal does not reproduce for an object whose `valueOf` and `toString` disagree.
+  // Stryker disable next-line StringLiteral: what is prefixed to the text never holds the close, so the search answers the same
+  return ((txt: string) => (!$.enabled || txt == null ? txt : openCode + (('' + txt).includes(closeCode) ? txt.replaceAll(closeCode, closeCode + openCode) : txt) + closeCode)) as Colorize; // eslint-disable-line modernization/prefer-template-literal -- see above
 };
 
 // modifiers

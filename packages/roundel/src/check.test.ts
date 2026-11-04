@@ -38,6 +38,12 @@ async function run(argv: readonly string[]): Promise<{ code: number; out: string
 
 const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string };
 
+describe('the exit contract', () => {
+  it('is the family’s E1: 0 ok, 1 a refusal, 2 a usage error', () => {
+    expect([EXIT_OK, EXIT_RUNTIME, EXIT_USAGE]).toEqual([0, 1, 2]);
+  });
+});
+
 describe('arguments', () => {
   it.each(['--help', '-h'])('%s prints the help and exits 0, rather than importing a file by that name', async (flag) => {
     const { code, out } = await run([flag]);
@@ -64,6 +70,12 @@ describe('the report', () => {
     const { code, out } = await run([file("export default { name: 'acme', tokens: { ok: '#336699', error: '#ff5555' } };")]);
     expect(out).toBe('acme — 2 tokens\n  ok  #336699\n  error  #ff5555\nacme: ok\n');
     expect(code).toBe(EXIT_OK);
+  });
+
+  it('a second file checked in the same process reports only its own tokens', async () => {
+    await run([file("export default { name: 'twice', tokens: { ok: '#336699' } };")]);
+    const { out } = await run([file("export default { name: 'twice', tokens: { hint: '#aaaaaa' } };")]);
+    expect(out).toBe('twice — 1 tokens\n  hint  #aaaaaa\ntwice: ok\n');
   });
 
   it('reads a module with no default export as the plugin itself', async () => {

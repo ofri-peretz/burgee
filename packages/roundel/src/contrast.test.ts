@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
 
-import { AA, channels, contrast, luminance } from './contrast.js';
+import { AA, channels, contrast, floors, luminance, reportTheme } from './contrast.js';
 
 const VECTORS = JSON.parse(readFileSync(new URL('./contrast-vectors.json', import.meta.url), 'utf8')) as ReadonlyArray<{
   a: string;
@@ -37,7 +37,25 @@ describe('contrast', () => {
     expect(() => contrast('#12345', '#000')).toThrow(/not a hex colour/);
   });
 
-  it('carries the two floors WCAG 2.2 sets', () => {
+  it('reads each digit of a short hex as its own channel, doubled', () => {
+    expect(channels('#abc')).toEqual([0xaa / 255, 0xbb / 255, 0xcc / 255]);
+  });
+
+  it.each(['x#aabbcc', '#aabbccdd'])('refuses %j: the colour is the whole string', (hex) => {
+    expect(() => channels(hex)).toThrow(/not a hex colour/);
+  });
+
+  it('carries the two floors WCAG 2.2 sets, and AAA’s when asked for', () => {
     expect(AA).toEqual({ TEXT: 4.5, GRAPHIC: 3 });
+    expect(floors('AAA')).toEqual({ TEXT: 7, GRAPHIC: 4.5 });
+    expect(floors()).toBe(AA);
+  });
+
+  it('reports one aligned line per finding, the columns as wide as their widest entry', () => {
+    const row = { colour: '#000000', ground: '#ffffff', ratio: 21, required: 4.5 };
+    expect(reportTheme([
+      { ...row, token: 'ok', at: 'truecolor', passes: true },
+      { ...row, token: 'error', at: '256', passes: false },
+    ])).toBe(['pass  ok     truecolor  #000000 on #ffffff  21.00:1 (needs 4.5:1)', 'FAIL  error  256        #000000 on #ffffff  21.00:1 (needs 4.5:1)'].join('\n'));
   });
 });

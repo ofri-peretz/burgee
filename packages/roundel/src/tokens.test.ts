@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { flown, type Runtime } from './policy.js';
 import { fly } from './theme.js';
-import { command, error, flag, heading, hint, muted, ok, value, warn } from './tokens.js';
+import { command, error, flag, heading, hint, muted, ok, sgr, value, warn } from './tokens.js';
 
 const tokens = { error, warn, ok, hint, muted, command, flag, value, heading };
 
@@ -116,5 +116,19 @@ describe('a token', () => {
     fly({}, tty({ TERM: 'xterm' }));
     expect(command('')).toBe(`${E}1m${E}22m`);
     expect(command('a b')).toBe(`${E}1ma b${E}22m`);
+  });
+
+  it('re-opens itself after a close inside its argument, and touches nothing else there', () => {
+    fly({}, tty({ TERM: 'xterm' }));
+    // The inner red closes with 39, which is not bold's close: only the text inside is wrapped.
+    expect(command(`${E}31mSay${E}39m`)).toBe(`${E}1m${E}31mSay${E}39m${E}22m`);
+    // The chalk façade's chain, from no pairs at all, re-opens only what it closes.
+    expect(sgr([{ open: '1', close: '22' }], `${E}31mSay${E}39m`)).toBe(`${E}1m${E}31mSay${E}39m${E}22m`);
+  });
+
+  it('with colour on and no paint flown for it, is the identity', () => {
+    flown.level = 1;
+    flown.paint = {};
+    expect(heading('x')).toBe('x');
   });
 });

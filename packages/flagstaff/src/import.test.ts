@@ -45,6 +45,11 @@ describe('fromCliSpinners', () => {
     expect(out.spinners?.['dots']).toBeDefined();
   });
 
+  it('skips an entry with no frames, an empty list of them, or nothing at all, which the schema would refuse', () => {
+    const corpus = { bare: { frames: ['a'] }, empty: { frames: [] }, gone: null, odd: {} } as unknown as Record<string, { frames: string[] }>;
+    expect(Object.keys(fromCliSpinners(corpus).spinners ?? {})).toEqual(['bare']);
+  });
+
   it('a style with no interval still gets one — 80 ms, the loop’s own default — since the schema requires it', () => {
     expect(fromCliSpinners({ bare: { frames: ['a', 'b'] } }).spinners?.['bare']?.interval).toBe(80);
   });
@@ -71,6 +76,11 @@ describe('fromCliBoxes', () => {
     expect(() => validate(plugin)).not.toThrow();
     expect(Object.keys(plugin.borders ?? {}).length).toBeGreaterThan(5);
     expect(plugin.borders?.['single']).toEqual(cliBoxes.single);
+  });
+
+  it('keeps only what is shaped like a border: an entry with no corners, or nothing at all, is skipped', () => {
+    const corpus = { single: cliBoxes.single, odd: { top: '-' }, gone: null } as unknown as Record<string, Record<string, string>>;
+    expect(Object.keys(fromCliBoxes(corpus as never).borders ?? {})).toEqual(['single']);
   });
 
   it('registered, box() draws with a border it never heard of', () => {

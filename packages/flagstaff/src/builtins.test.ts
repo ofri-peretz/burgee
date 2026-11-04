@@ -1,4 +1,3 @@
-import { width } from 'linegauge';
 /**
  * R2/R4 — the four remaining built-ins, each the same shape a third-party plugin writes.
  *
@@ -12,9 +11,14 @@ import { width } from 'linegauge';
  * (R7), and a drawing that overruns the width it was given is the bug that function exists
  * to prevent — so every drawn row is measured, wide characters and all.
  */
-import { describe, expect, it } from 'vitest';
+import cliBoxes from 'cli-boxes';
+import cliSpinners from 'cli-spinners';
+import { width } from 'linegauge';
+import { flown } from 'roundel/policy';
+import { describe, expect, it, vi } from 'vitest';
 
 import { box, boxComponent } from './box.js';
+import { builtins } from './builtins.js';
 import { STATIC } from './link.js';
 import { hoist, manualClock, type Runtime } from './loop.js';
 import { type Component, register } from './plugin.js';
@@ -34,6 +38,23 @@ function piped() {
   return { rt, text: () => out.join('') };
 }
 
+describe('the built-in plugin', () => {
+  it.each(['dots', 'line'] as const)('the %s spinner is cli-spinners’ own, frame for frame', (name) => {
+    const { frames, interval } = cliSpinners[name];
+    expect(builtins.spinners?.[name]).toEqual({ frames, interval, static: '…' });
+  });
+
+  it.each(['round', 'single', 'double', 'bold', 'classic'] as const)('the %s border is cli-boxes’ own, piece for piece', (name) => {
+    expect(builtins.borders?.[name]).toEqual(cliBoxes[name]);
+  });
+
+  it('the none border draws nothing at all, so a box without one is its padded text', () => {
+    expect(Object.values(builtins.borders?.['none'] ?? {}).join('')).toBe('');
+    expect(Object.keys(builtins.borders?.['none'] ?? {})).toHaveLength(8);
+    expect(box('x', { border: 'none', width: 5 })).toBe(' x   ');
+  });
+});
+
 describe('progress', () => {
   it('the static line is the count and the percentage — the numbers, not the bar', () => {
     const p = progress();
@@ -49,6 +70,15 @@ describe('progress', () => {
     // A total of zero is complete, not NaN.
     expect(p.static({ done: 0, total: 0 })).toBe('0/0 · 100%');
     expect(drawnWidth(p.frame?.(0, { done: 9, total: 4 }) ?? '')).toBe(10 + ' 9/4'.length);
+    // A total of one is a total, not the empty one.
+    expect(p.static({ done: 0, total: 1 })).toBe('0/1 · 0%');
+  });
+
+  it('fills the bar in proportion, 24 cells by default, and an empty label is no label', () => {
+    expect(progress({ width: 10 }).frame?.(0, { done: 1, total: 2 })).toBe('█████░░░░░ 1/2');
+    expect(progress().frame?.(0, { done: 1, total: 4 })).toBe(`${'█'.repeat(6)}${'░'.repeat(18)} 1/4`);
+    expect(progress().static({ done: 1, total: 2, label: '' })).toBe('1/2 · 50%');
+    expect(progress().name).toBe('progress');
   });
 
   it('the drawn bar is exactly the width it was given', () => {
@@ -71,6 +101,21 @@ describe('tasks', () => {
   it('the static projection is only what has settled — a pipe is not told twice', () => {
     expect(tasks().static(three)).toBe('✔ install');
     expect(tasks().static({ tasks: [] })).toBe('');
+  });
+
+  it('on a terminal, a settled task shows its glyph, a running one its spinner frame at t, a pending one muted', () => {
+    expect(tasks().name).toBe('tasks');
+    expect(tasks().frame?.(0, { tasks: [{ title: 'a', status: 'ok' }] })).toBe('✔ a');
+    // 880 ms is the eleventh step of dots' ten frames: the second frame again.
+    expect(tasks().frame?.(880, { tasks: [{ title: 'b', status: 'running' }] })).toBe('⠙ b');
+    flown.level = 1;
+    flown.paint = { muted: ['dim'] };
+    try {
+      expect(tasks().frame?.(0, { tasks: [{ title: 'p' }, { title: 'a', status: 'ok' }] })).toBe('\u001B[2m \u001B[22m \u001B[2mp\u001B[22m\n✔ a');
+    } finally {
+      flown.level = 0;
+      flown.paint = {};
+    }
   });
 
   it('every settled status gets its glyph, in order', () => {
@@ -180,9 +225,32 @@ describe('box', () => {
   it('a title with no room for even one character is left out, not drawn as a lone ellipsis', () => {
     // Four inner cells leave 0 for the title once its spaces and border run are paid; five leave 1.
     expect(box('x', { width: 6, title: 'abc' }).split('\n')[0]).toBe('╭────╮');
+    expect(box('x', { width: 6, title: 'T' }).split('\n')[0]).toBe('╭────╮');
+    // A title exactly as wide as its room is drawn whole, not cut.
+    expect(box('x', { width: 10, title: 'abcd' }).split('\n')[0]).toBe('╭─ abcd ─╮');
     expect(box('x', { width: 7, title: 'abc' }).split('\n')[0]).toBe('╭─────╮');
     // Two cells is the first room a cut title has: one character and the ellipsis.
     expect(box('x', { width: 8, title: 'abc' }).split('\n')[0]).toBe('╭─ a… ─╮');
+  });
+
+  it('is 80 columns wide by default, and keeps a cell of border run and of text however narrow it is asked to be', () => {
+    expect(box('x').split('\n').map((line) => width(line))).toEqual([80, 80, 80]);
+    expect(box('x', { width: 2 })).toBe(['╭─╮', '│ x │', '╰─╯'].join('\n'));
+    expect(box('x', { width: 4 })).toBe(['╭──╮', '│ x │', '╰──╯'].join('\n'));
+    expect(box('', { width: 4 })).toBe(['╭──╮', '│   │', '╰──╯'].join('\n'));
+  });
+
+  it('keeps the spaces a body starts with: indentation is content', () => {
+    expect(box('  x', { width: 10 }).split('\n')[1]).toBe('│   x    │');
+  });
+
+  it('an empty title is no title, on the terminal and off it', () => {
+    expect(boxComponent({ width: 10 }).static({ text: 'x', title: '' })).toBe('x');
+    expect(box('x', { width: 10, title: '' }).split('\n')[0]).toBe('╭────────╮');
+  });
+
+  it('is the component named `box`, the event its JSON lines carry', () => {
+    expect(boxComponent().name).toBe('box');
   });
 
   it('vertical padding is blank rows inside the border, the full width', () => {
@@ -195,6 +263,34 @@ describe('box', () => {
     // Off OSC 8 the destination is written out after the text, so the frame carries it.
     expect(component.frame?.(0, { text: 'doc', href: 'https://x.y' })).toContain('doc (https://x.y)');
     expect(component.frame?.(0, { text: 'doc' })).not.toContain('https://x.y');
+  });
+
+  it('a state with no title or destination keeps the ones the component was built with', () => {
+    const component = boxComponent({ width: 30, terminal: STATIC, title: 'T', href: 'https://x.y' });
+    expect(component.frame?.(0, { text: 'doc' })).toBe(['╭─ T ────────────────────────╮', '│ doc (https://x.y)          │', '╰────────────────────────────╯'].join('\n'));
+  });
+
+  it('on a terminal that does OSC 8, an empty destination and a blank padding row carry no link', () => {
+    const live = { env: { TERM_PROGRAM: 'iTerm.app' }, isTTY: { stdout: true } };
+    expect(box('x', { href: '', terminal: live, width: 8 })).toBe(['╭──────╮', '│ x    │', '╰──────╯'].join('\n'));
+    expect(box('x', { href: 'https://a', padding: { y: 1 }, terminal: live, width: 8 })).toBe(
+      ['╭──────╮', '│      │', '│ \u001B]8;;https://a\u0007x\u001B]8;;\u0007    │', '│      │', '╰──────╯'].join('\n'),
+    );
+  });
+
+  it('with no terminal given, asks the process: OSC 8 where stdout is a terminal that does it, the url written out where it is not', () => {
+    const was = Object.getOwnPropertyDescriptor(process.stdout, 'isTTY');
+    vi.stubEnv('TERM_PROGRAM', 'iTerm.app');
+    try {
+      Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true });
+      expect(box('x', { href: 'https://a', width: 8 }).split('\n')[1]).toBe('│ \u001B]8;;https://a\u0007x\u001B]8;;\u0007    │');
+      Object.defineProperty(process.stdout, 'isTTY', { value: undefined, configurable: true });
+      expect(box('x', { href: 'https://a', width: 20 }).split('\n')[1]).toBe('│ x (https://a)    │');
+    } finally {
+      if (was === undefined) Reflect.deleteProperty(process.stdout, 'isTTY');
+      else Object.defineProperty(process.stdout, 'isTTY', was);
+      vi.unstubAllEnvs();
+    }
   });
 });
 
@@ -217,6 +313,10 @@ describe('table', () => {
     const drawn = table([['a very long cell indeed', 'x']], { head: ['one', 'two'], width: 24 });
     expect(drawnWidth(drawn)).toBeLessThanOrEqual(24);
     expect(drawn.split('\n').length).toBeGreaterThan(5);
+  });
+
+  it('a row shorter than the others is drawn with empty cells', () => {
+    expect(table([['a', 'b'], ['c']], { width: 20 })).toBe(['┌───┬───┐', '│ a │ b │', '│ c │   │', '└───┴───┘'].join('\n'));
   });
 
   it('aligns right where asked', () => {

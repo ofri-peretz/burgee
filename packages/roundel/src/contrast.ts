@@ -47,7 +47,7 @@ export const AAA = {
 export type Conformance = 'AA' | 'AAA';
 
 /** The floors for a conformance level, so a caller names a standard rather than a number. */
-export const floors = (level: Conformance = 'AA'): typeof AA | typeof AAA => (level === 'AAA' ? AAA : AA);
+export const floors = (level?: Conformance): typeof AA | typeof AAA => (level === 'AAA' ? AAA : AA);
 
 const SRGB_MAX = 255;
 const LINEAR_THRESHOLD = 0.03928;
@@ -79,6 +79,7 @@ export function channels(hex: string): [number, number, number] {
 /** WCAG relative luminance. */
 export function luminance(hex: string): number {
   const [r, g, b] = channels(hex).map((v) =>
+    // Stryker disable next-line EqualityOperator: no eight-bit channel sits exactly on the threshold
     v <= LINEAR_THRESHOLD ? v / LINEAR_DIVISOR : ((v + GAMMA_OFFSET) / GAMMA_SCALE) ** GAMMA_EXPONENT,
   ) as [number, number, number];
   return LUMA.r * r + LUMA.g * g + LUMA.b * b;

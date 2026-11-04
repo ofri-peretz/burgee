@@ -12,6 +12,7 @@ const synced = (bytes: string): string => `${ESC}[?2026h${bytes}${ESC}[?2026l`;
 describe('spinner()', () => {
   it('dots by default: the static line is the running glyph, the frame is the style at t', () => {
     const s = spinner();
+    expect(s.name).toBe('spinner');
     expect(s.interval).toBe(80);
     expect(s.static({ text: 'building' })).toBe('… building');
     expect(s.frame?.(0, { text: 'building' })).toBe('⠋ building');
@@ -47,6 +48,26 @@ describe('spinner()', () => {
     expect(s.static({ text: 'broke', status: 'fail' })).toBe('✖ broke');
     expect(s.static({ text: 'hm', status: 'warn' })).toBe('⚠ hm');
     expect(s.static({ text: 'fyi', status: 'info' })).toBe('ℹ fyi');
+  });
+
+  it('a component that names no interval repaints every 80 ms', () => {
+    const out: string[] = [];
+    const clock = manualClock();
+    const rt: Runtime = { env: {}, isTTY: { stdout: true }, stdout: { write: (s: string) => out.push(s) }, stderr: { write: () => undefined }, clock };
+    hoist({ name: 'clock', static: () => '', frame: (t: number) => String(t) }, rt, {});
+    clock.tick(79);
+    expect(out.join('')).toBe(`${ESC}[?25l${synced('0')}`);
+    clock.tick(1);
+    expect(out.join('')).toBe(`${ESC}[?25l${synced('0')}${synced(`${ESC}[1G${ESC}[0J80`)}`);
+  });
+
+  it('a clock that does not start at zero still draws the first frame first: frames count from the hoist', () => {
+    const out: string[] = [];
+    const clock = manualClock(1000);
+    const rt: Runtime = { env: {}, isTTY: { stdout: true }, stdout: { write: (s: string) => out.push(s) }, stderr: { write: () => undefined }, clock };
+    hoist(spinner(), rt, { text: 'x' });
+    clock.tick(80);
+    expect(out.join('')).toBe(`${ESC}[?25l${synced('⠋ x')}${synced(`${ESC}[1G${ESC}[0J⠙ x`)}`);
   });
 
   it('hoisted on a terminal with a manual clock, the frames are exact', () => {

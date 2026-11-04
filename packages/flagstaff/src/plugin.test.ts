@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { type Component, CONTRACT, glyph, lookupSpinner, PluginError, register, registered, type SpinnerDef } from './plugin.js';
+import { type Component, CONTRACT, glyph, lookupBorder, lookupSpinner, PluginError, register, registered, type SpinnerDef, validate } from './plugin.js';
 
 const src = fileURLToPath(new URL('.', import.meta.url));
 
@@ -80,7 +80,15 @@ describe('R2 · a contribution without a static projection is refused', () => {
   it('a component whose static is not a function: the same refusal', () => {
     const e = refusal({ name: 'x', components: { box: { static: 'text' } } });
     expect(e.code).toBe('E_NO_STATIC_PROJECTION');
+    expect(e.message).toBe('box has no static projection');
+    expect(e.fix).toBe('make `static` a function of the state that returns the text a pipe prints');
     expect(refusal({ name: 'x', components: { box: { frame: () => '' } } }).code).toBe('E_NO_STATIC_PROJECTION');
+  });
+
+  it('only a missing `static` itself is that refusal: a key that merely spells it out is a schema refusal', () => {
+    const e = refusal({ name: 'x', spinners: { 'q.static: required!': { interval: 80, static: '…' } } });
+    expect(e.code).toBe('E_PLUGIN_SCHEMA');
+    expect(e.message).toBe('plugin.spinners.q.static: required!.frames: required');
   });
 });
 
@@ -108,6 +116,8 @@ describe('R3 · validated against schema.json', () => {
     const e = refusal({ name: 'x', contract: 2 });
     expect(e.code).toBe('E_PLUGIN_CONTRACT');
     expect(e.fix).toBe('upgrade flagstaff, or set contract: 1');
+    expect(e.message).toBe('plugin declares contract 2; this flagstaff knows 1');
+    expect(() => validate({ name: 'x', contract: 1 })).not.toThrow();
   });
 
   it('the shipped schema is the source schema (tsc re-indents it; the content is identical)', () => {
@@ -126,6 +136,8 @@ describe('the registry', () => {
     expect(e).toBeInstanceOf(PluginError);
     expect((e as PluginError).code).toBe('E_UNKNOWN_SPINNER');
     expect((e as PluginError).fix).toBe('use one of dots, line, or register a plugin that defines it');
+    expect((e as PluginError).message).toBe('no spinner named "nope"');
+    expect(() => lookupBorder('nope')).toThrow('no border named "nope"');
   });
 
   it('a registered plugin contributes spinners, glyphs and tokens; keys the package does not know are kept off it', () => {
@@ -242,14 +254,14 @@ function sampleOf(name: string): { running: Sample; done: Sample } {
 describe('a component sample is copied and frozen to its depth', () => {
   it('editing the sample you registered, at any depth, does not reach the registry', () => {
     const steps: unknown[] = ['fetch', { n: 1 }];
-    const sample = { running: { phase: 'running', steps, note: null, pct: 0 }, done: { phase: 'done', pct: 100 } };
+    const sample = { running: { phase: 'running', steps, none: [], note: null, pct: 0 }, done: { phase: 'done', pct: 100 } };
     register({ name: 'sampled', components: { gauge: { sample, static: (s: { phase: string }) => s.phase } } });
     sample.running.phase = 'edited';
     steps.push('late');
     (steps[1] as { n: number }).n = 2;
 
     const got = sampleOf('gauge');
-    expect(got).toEqual({ running: { phase: 'running', steps: ['fetch', { n: 1 }], note: null, pct: 0 }, done: { phase: 'done', pct: 100 } });
+    expect(got).toEqual({ running: { phase: 'running', steps: ['fetch', { n: 1 }], none: [], note: null, pct: 0 }, done: { phase: 'done', pct: 100 } });
     // An array stays an array: the copy is the same shape, not an object with index keys.
     expect(Array.isArray(got.running['steps'])).toBe(true);
     for (const level of [got, got.running, got.running['steps'], (got.running['steps'] as unknown[])[1]]) expect(Object.isFrozen(level)).toBe(true);

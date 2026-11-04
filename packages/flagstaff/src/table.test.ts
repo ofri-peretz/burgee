@@ -29,6 +29,8 @@ describe('R1 · the `columns` option', () => {
     [{ min: Number.POSITIVE_INFINITY }, /columns\[0\]/],
     [{ max: Number.POSITIVE_INFINITY }, /columns\[0\]/],
     [{ min: -0.5, max: 1.5 }, /columns\[0\]/],
+    // Two fractions whose remainders would cancel in a difference are still two fractions.
+    [{ min: 0.5, max: 1.5 }, /columns\[0\]/],
   ])('rejects %o with a TypeError naming the column', (bounds, named) => {
     expect(() => table([['a']], { columns: [bounds] })).toThrow(TypeError);
     expect(() => table([['a']], { columns: [bounds] })).toThrow(named);
@@ -36,6 +38,12 @@ describe('R1 · the `columns` option', () => {
 
   it('names the column it is about, positionally, past a hole', () => {
     expect(() => table([['a', 'b']], { columns: [undefined, { min: 4, max: 2 }] })).toThrow(/columns\[1\]/);
+  });
+
+  it('a column whose min allows it is narrowed below three cells when the width asks, but never below three cells a column', () => {
+    expect(table([['abcdef', 'abcdef']], { width: 5, columns: [{ min: 1 }, { min: 1 }], terminal: STATIC })).toBe(
+      ['┌─────┬─────┐', '│ abc │ abc │', '│ def │ def │', '└─────┴─────┘'].join('\n'),
+    );
   });
 
   it('a column with no bounds, or none at all, draws as it always did', () => {
@@ -152,5 +160,27 @@ describe('R4 · the static projection is unchanged', () => {
     const frame = component.frame?.(0, { rows: [[URL, 'ok']] }) ?? '';
     expect(frame).toContain(`${URL.slice(0, 11)}…`);
     expect(frame).not.toContain(URL);
+  });
+});
+
+describe('the grid', () => {
+  it('is 80 columns wide by default, and keeps a cell’s leading spaces', () => {
+    expect(width(table([['x'.repeat(100)]], { terminal: STATIC }).split('\n')[0] ?? '')).toBe(80);
+    expect(table([['  x']], { terminal: STATIC })).toBe(['┌─────┐', '│   x │', '└─────┘'].join('\n'));
+  });
+
+  it('aligns left unless asked otherwise', () => {
+    expect(table([['a'], ['bbb']], { terminal: STATIC })).toBe(['┌─────┐', '│ a   │', '│ bbb │', '└─────┘'].join('\n'));
+  });
+
+  it('an empty cell is a column of no width, and no rows at all is still one empty column', () => {
+    expect(table([['']], { terminal: STATIC })).toBe(['┌──┐', '│  │', '└──┘'].join('\n'));
+    expect(table([], { terminal: STATIC })).toBe(['┌──┐', '└──┘'].join('\n'));
+  });
+
+  it('the component keeps the head it was built with when the state brings none, and is named `table`', () => {
+    const component = tableComponent({ head: ['h'], width: 20, terminal: STATIC });
+    expect(component.frame?.(0, { rows: [['x']] })).toBe(['┌───┐', '│ h │', '├───┤', '│ x │', '└───┘'].join('\n'));
+    expect(component.name).toBe('table');
   });
 });

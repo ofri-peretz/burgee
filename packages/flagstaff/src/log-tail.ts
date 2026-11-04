@@ -62,7 +62,11 @@ export function logTail({ height = HEIGHT }: LogTailOptions = {}): Component<Log
       const current = lines.findLastIndex((entry) => typeof entry !== 'string');
       // From the end, only as far back as the window reaches: a long stream costs its tail.
       let window: Row[] = [];
-      for (let i = lines.length - 1; i >= 0 && window.length < shown; i -= 1) window = [...rows(lines[i] as LogLine, i === current), ...window];
+      for (let i = lines.length - 1; i >= 0; i -= 1) {
+        // Stryker disable next-line EqualityOperator,ConditionalExpression: reading further back only builds rows the slice below drops
+        if (window.length >= shown) break;
+        window = [...rows(lines[i] as LogLine, i === current), ...window];
+      }
       window = window.slice(-shown);
       // The step in progress scrolled above the window: pin its `◆` row to the top.
       if (current >= 0 && !window.some((row) => row.current)) window = [...rows(lines[current] as LogLine, true).slice(0, 1), ...window.slice(window.length - (shown - 1))];
