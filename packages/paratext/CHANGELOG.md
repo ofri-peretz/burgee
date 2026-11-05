@@ -1,5 +1,13 @@
 # paratext
 
+## 1.0.12
+
+### Patch Changes
+
+- [#1472](https://github.com/ofri-peretz/burgee/pull/1472) [`99fefcf`](https://github.com/ofri-peretz/burgee/commit/99fefcffcd5e9f98e63912c674944bbacfc74aa5) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - One fix.
+
+  - **An image's `width` or `height` of `NaN` is left out, as `ansi-escapes` leaves it out.** `image(data, { width: NaN })` and `paratext/term-img` wrote `;width=NaN` into the OSC 1337 sequence. Upstream writes a width or height only when it is truthy; paratext listed the falsy values instead and missed `NaN`. It now asks upstream's question, so `0`, `''` and `NaN` all write nothing.
+
 ## 1.0.11
 
 ### Patch Changes
