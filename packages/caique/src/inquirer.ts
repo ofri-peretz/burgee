@@ -119,19 +119,22 @@ export function useKeypress(userHandler: (event: KeypressEvent, rl: PromptReadli
   const signal = useRef(userHandler);
   signal.current = userHandler;
 
-  useEffect((rl) => {
-    let ignore = false;
-    const handler = withUpdates((_input: unknown, event: KeypressEvent) => {
-      if (ignore) return;
-      void signal.current(event, rl);
-    });
-    rl.input.on('keypress', handler);
-    return () => {
-      ignore = true;
-      rl.input.removeListener('keypress', handler);
-    };
+  useEffect(
+    (rl) => {
+      let ignore = false;
+      const handler = withUpdates((_input: unknown, event: KeypressEvent) => {
+        if (ignore) return;
+        void signal.current(event, rl);
+      });
+      rl.input.on('keypress', handler);
+      return () => {
+        ignore = true;
+        rl.input.removeListener('keypress', handler);
+      };
+    },
     // Stryker disable next-line ArrayDeclaration: a list of constants never changes either, so the listener is still added once
-  }, []);
+    [],
+  );
 }
 
 /** What a render function returns: one string, or a body and a line below the cursor. */

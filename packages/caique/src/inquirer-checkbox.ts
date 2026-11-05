@@ -124,10 +124,9 @@ export const checkbox = createPrompt(<Value>(config: CheckboxConfig<Value>, done
       }
     } else if (key.name === shortcuts.all) {
       setItems(items.map(check(items.some((choice) => isSelectable(choice) && !choice.checked))));
-    } else if (key.name === shortcuts.invert) {
-      setItems(items.map(toggle));
+    } else if (key.name === shortcuts.invert) setItems(items.map(toggle));
     // Stryker disable next-line ConditionalExpression: any other key is no number, and `nthChoice` finds no choice at NaN
-    } else if (isNumberKey(key)) {
+    else if (isNumberKey(key)) {
       const position = nthChoice(items, Number(key.name));
       if (isSelectable(items[position])) {
         setActive(position);

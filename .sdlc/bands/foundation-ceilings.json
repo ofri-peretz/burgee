@@ -4,7 +4,7 @@
   "method": "benchmarks/axes/weight.ts installedBytes(name, dir), tree-inclusive, one count per realpath — `dir` a fresh `npm i <incumbent>@latest` in an empty directory, one per incumbent, never the workspace install (whose hoisted copies lag the registry)",
   "layers": {
     "linegauge": {
-      "ours": 107931,
+      "ours": 107765,
       "incumbents": {
         "string-width": 36801,
         "wrap-ansi": 80185,
@@ -12,7 +12,7 @@
         "slice-ansi": 66999
       },
       "ceiling": 194329,
-      "ratio": 0.5554,
+      "ratio": 0.5545,
       "lightestIncumbent": {
         "name": "strip-ansi",
         "bytes": 10344
@@ -33,14 +33,14 @@
       }
     },
     "seniority": {
-      "ours": 225722,
+      "ours": 223666,
       "incumbents": {
         "cosmiconfig": 1832269,
         "dotenv": 44951,
         "rc": 95287
       },
       "ceiling": 1972507,
-      "ratio": 0.1144,
+      "ratio": 0.1134,
       "lightestIncumbent": {
         "name": "dotenv",
         "bytes": 44951
@@ -70,13 +70,13 @@
       "$note": "A zero-dependency incumbent exists here, so Y8's original wording applies too and beating it is reported separately."
     },
     "caique": {
-      "ours": 299922,
+      "ours": 300133,
       "incumbents": {
         "@clack/prompts": 182472,
         "@inquirer/core": 206577
       },
       "ceiling": 389049,
-      "ratio": 0.7709,
+      "ratio": 0.7715,
       "lightestIncumbent": {
         "name": "@clack/prompts",
         "bytes": 182472

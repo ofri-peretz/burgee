@@ -42,7 +42,7 @@ const blankOf = (segment: Segment): string => '_'.repeat(widthOf(segment));
 const PROBE_YEAR = 2000;
 // Stryker disable next-line NumericLiteral: as above — no locale orders its fields by the date
 const PROBE_DAY = 15;
-// Stryker disable next-line NumericLiteral: as above
+// Stryker disable next-line NumericLiteral: as above — any month gives the same order of parts and the same text between them
 const PROBE = new Date(Date.UTC(PROBE_YEAR, 0, PROBE_DAY));
 const DECIMAL = 10;
 const MONTHS = 12;
