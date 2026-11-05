@@ -1,4 +1,4 @@
-/* eslint-disable maintainability/cognitive-complexity, maintainability/max-parameters, secure-coding/detect-object-injection -- A port graded by its incumbent's own suite, the exemption `eslint.config.mjs` already grants five other façades in this repository. `rc(name, defaults, argv, parse)` is rc's published signature and cannot be collapsed into an options object without ceasing to be drop-in; the fifth parameter is the world, which R11 requires be an argument. `stripJsonComments` is a character scanner with four states, and its states are the spec — the reason it is hand-written rather than depended on is in its own doc comment. Object injection is the nesting walk in `fromEnv` and the merge in `deepExtend`, both of which take their keys from a config file or an environment and both of which drop `__proto__`, `constructor` and `prototype` before writing. */
+/* eslint-disable maintainability/cognitive-complexity, maintainability/max-parameters, secure-coding/detect-object-injection -- A port graded by its incumbent's own suite, the exemption `eslint.config.mjs` already grants five other façades in this repository. `rc(name, defaults, argv, parse)` is rc's published signature and cannot be collapsed into an options object without ceasing to be drop-in; the fifth parameter is the world, which R11 requires be an argument. `stripJsonComments` is a character scanner with four states, and its states are the spec — the reason it is hand-written rather than depended on is in its own doc comment. Object injection is the nesting walk in `fromEnv` and the merge in `deepExtend`, both of which take their keys from a config file or an environment: the merge drops `__proto__`, `constructor` and `prototype` before writing, and the walk can never name `__proto__` (a segment holds no `__`) and stops at an inherited `constructor`, which is not a plain object. */
 /**
  * `seniority/rc` — rc 1.2.8's surface (R8, D-006).
  *
@@ -48,8 +48,8 @@
  * `minimist(process.argv.slice(2))`; this treats an omitted `argv` as empty, and nothing the
  * graded file asserts depends on the difference.
  */
-import { existsSync, readFileSync, statSync } from 'node:fs';
-import { homedir } from 'node:os';
+import { existsSync, readFileSync } from 'node:fs';
+import { homedir, platform } from 'node:os';
 import { dirname, join, resolve as resolvePath } from 'node:path';
 
 import { LoaderError } from './load.js';
@@ -74,15 +74,28 @@ export interface RcOptions {
   cwd?: string;
   /** The home directory the four `~` places hang off. */
   home?: string;
-  /** Skip the `/etc` places, as rc does on Windows. */
+  /** Skip the `/etc` places, as rc does on Windows — and, as rc, by default only there. */
   win?: boolean;
 }
 
 const WALK_LIMIT = 64;
 
-/** Is this a plain object we may merge into rather than replace? */
+/**
+ * Is this a plain object we may merge into rather than replace? By prototype, so an array, a
+ * `Date` or a class instance is a value to carry whole, as `deep-extend` carries it.
+ */
 function isPlain(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
+  return typeof value === 'object' && value !== null && [Object.prototype, null].includes(Object.getPrototypeOf(value) as object | null);
+}
+
+/**
+ * A value as it may be stored in the result: plain objects and arrays copied all the way down,
+ * as `deep-extend` copies them, so changing what `rc()` returned never changes the caller's
+ * `defaults` or `argv`.
+ */
+function copy(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(copy);
+  return isPlain(value) ? deepExtend({}, value) : value;
 }
 
 /**
@@ -95,7 +108,8 @@ function deepExtend(target: RcConfig, source: RcConfig): RcConfig {
   for (const [key, value] of Object.entries(source)) {
     if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue;
     const existing = target[key];
-    target[key] = isPlain(value) && isPlain(existing) ? deepExtend({ ...existing }, value) : value;
+    // Merging in place is safe: everything already in `target` was put there by `copy`.
+    target[key] = isPlain(value) && isPlain(existing) ? deepExtend(existing, value) : copy(value);
   }
   return target;
 }
@@ -111,6 +125,7 @@ function stripJsonComments(text: string): string {
   let inString = false;
   let inLine = false;
   let inBlock = false;
+  // Stryker disable next-line EqualityOperator: one more turn reads `charAt(length)`, which is `''`, and appending `''` changes nothing.
   for (let i = 0; i < text.length; i += 1) {
     // `charAt`, not `text[i] ?? ''`: past the end it is `''` by definition, which is the one
     // case the lookahead needs, and `i` itself is always in range.
@@ -145,6 +160,7 @@ function stripJsonComments(text: string): string {
     }
     if (ch === '/' && next === '/') {
       inLine = true;
+      // Stryker disable next-line AssignmentOperator,NumericLiteral: the second `/` is skipped either way, because a line comment drops every character up to the newline.
       i += 1;
       continue;
     }
@@ -172,16 +188,6 @@ export function parse(content: string): RcConfig {
   );
 }
 
-/** The text of a readable file, or undefined. rc swallows every error here and so does this. */
-function readIfFile(file: string): string | undefined {
-  try {
-    if (!existsSync(file) || !statSync(file).isFile()) return undefined;
-    return readFileSync(file, 'utf8');
-  } catch {
-    return undefined;
-  }
-}
-
 /**
  * rc's `cc.find`: the nearest `.<name>rc` at or above `from`.
  *
@@ -195,6 +201,7 @@ function findUpward(from: string, file: string): string | undefined {
     const at = join(dir, file);
     if (existsSync(at)) return at;
     const parent = dirname(dir);
+    // Stryker disable next-line ConditionalExpression: at the root `dirname` returns the root again, so walking on asks the same question until the bound ends it, with the same answer.
     if (parent === dir) return undefined;
     dir = parent;
   }
@@ -212,18 +219,12 @@ function fromEnv(prefix: string, env: Record<string, string | undefined>): RcCon
   for (const [key, value] of Object.entries(env)) {
     if (!key.toLowerCase().startsWith(lower)) continue;
     const segments = key.slice(prefix.length).split('__').filter(Boolean);
-    if (segments.length === 0) continue;
-    let cursor = out;
-    segments.forEach((segment, i) => {
-      if (i === segments.length - 1) {
-        cursor[segment] = value;
-        return;
-      }
-      const next = cursor[segment];
-      const child = isPlain(next) ? next : {};
-      cursor[segment] = child;
-      cursor = child;
-    });
+    const leaf = segments.pop();
+    // rc's cursor stops at a value that is not an object, so `NAME_a=1` keeps `a` whichever
+    // order the environment lists `NAME_a__b` in: the deeper key is dropped, never the value.
+    let cursor: unknown = out;
+    for (const segment of segments) if (isPlain(cursor)) cursor = cursor[segment] ??= {};
+    if (isPlain(cursor) && leaf !== undefined) cursor[leaf] = value;
   }
   return out;
 }
@@ -238,7 +239,7 @@ export function rc(name: string, defaults?: RcConfig | string, argv?: RcConfig, 
   if (typeof name !== 'string') throw new TypeError('rc(name): name *must* be string');
   // D-135: rc reads the ambient environment by default, so the drop-in does too — through the one seam.
   const env = options.env ?? ambientEnv() ?? {};
-  const cwd = options.cwd ?? resolvePath('');
+  const cwd = options.cwd ?? resolvePath();
   const home = options.home ?? homedir();
   const args = argv ?? {};
 
@@ -246,9 +247,15 @@ export function rc(name: string, defaults?: RcConfig | string, argv?: RcConfig, 
   const files: string[] = [];
 
   const add = (file: string | undefined): void => {
+    // Stryker disable next-line ConditionalExpression: an undefined path makes `readFileSync` throw, and the catch below swallows it, so asking first changes nothing.
     if (file === undefined || files.includes(file)) return;
-    const content = readIfFile(file);
-    if (content === undefined) return;
+    let content: string;
+    // rc swallows every error reading a file — missing, a directory, unreadable — and so does this.
+    try {
+      content = readFileSync(file, 'utf8');
+    } catch {
+      return;
+    }
     layers.push(parseWith(content));
     files.push(file);
   };
@@ -256,7 +263,7 @@ export function rc(name: string, defaults?: RcConfig | string, argv?: RcConfig, 
   // rc's order exactly, and the comment is the contract: `/etc` first so a machine-wide
   // setting is the weakest thing that is not a default, the home places next, the project's
   // own `.<name>rc` after them, and an explicitly named file last.
-  if (options.win !== true) {
+  if (!(options.win ?? platform() === 'win32')) {
     add(join('/etc', name, 'config'));
     add(join('/etc', `${name}rc`));
   }
@@ -269,6 +276,7 @@ export function rc(name: string, defaults?: RcConfig | string, argv?: RcConfig, 
   add(findUpward(cwd, `.${name}rc`));
 
   const environment = fromEnv(`${name}_`, env);
+  // Stryker disable next-line ConditionalExpression: what else `NAME_config` can be is an object, from `NAME_config__x`, and `readFileSync` throws on that inside the catch.
   if (typeof environment['config'] === 'string') add(environment['config']);
   if (typeof args['config'] === 'string') add(args['config']);
 

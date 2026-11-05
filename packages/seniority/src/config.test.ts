@@ -25,7 +25,7 @@ describe('discovery order (V6)', () => {
     const xdg = resolve('/xdg');
     const list = candidates({ name: 'my-tool', cwd: w, env: { MY_TOOL_CONFIG: 'x.json', XDG_CONFIG_HOME: xdg } });
     expect(list.map((c) => c.path)).toEqual([join(w, 'x.json'), join(w, 'my-tool.config.json'), join(w, 'my-tool.config.mjs'), join(w, 'my-tool.config.js'), join(w, 'my-tool.config.cjs'), join(xdg, 'my-tool', 'config.json')]);
-    expect(list[0]?.reason).toBe('MY_TOOL_CONFIG');
+    expect(list.map((c) => c.reason)).toEqual(['MY_TOOL_CONFIG', 'current directory', 'current directory', 'current directory', 'current directory', 'user config directory']);
   });
 
   it('finds ./name.config.json in the cwd and nothing when there is none (silent)', async () => {
@@ -46,6 +46,9 @@ describe('discovery order (V6)', () => {
     const explicit = write('e/custom.json', { region: 'x' });
     expect((await discover({ name: 'app', cwd: dir, env: {}, explicit }))?.data).toEqual({ region: 'x' });
     await expect(discover({ name: 'app', cwd: dir, env: {}, explicit: join(dir, 'nope.json') })).rejects.toThrow(ConfigError);
+    await expect(discover({ name: 'app', cwd: dir, env: {}, explicit: join(dir, 'nope.json') })).rejects.toThrow(
+      expect.objectContaining({ message: `config file not found: ${join(dir, 'nope.json')}`, hint: 'check --config, or drop it to use discovery' }),
+    );
   });
 
   it('--no-config disables discovery entirely, explicit env included', async () => {
@@ -76,7 +79,7 @@ describe('extends (V7)', () => {
   it('rejects a cycle by name (yargs #1363)', async () => {
     write('c/a.json', { extends: './b.json' });
     const a = write('c/b.json', { extends: './a.json' });
-    await expect(loadWithExtends(a)).rejects.toThrow(/extends itself/);
+    await expect(loadWithExtends(a)).rejects.toThrow(`config extends itself: ${a} → ${join(dir, 'c/a.json')} → ${a}`);
   });
 
   it('resolves a bare target through node_modules, from the extending file (R7)', async () => {
@@ -91,7 +94,7 @@ describe('extends (V7)', () => {
 
   it('names an unresolvable extends target', async () => {
     const f = write('u/app.config.json', { extends: 'no-such-package-xyz' });
-    await expect(loadWithExtends(f)).rejects.toThrow(/cannot be resolved/);
+    await expect(loadWithExtends(f)).rejects.toThrow(expect.objectContaining({ message: `${f} extends "no-such-package-xyz", which cannot be resolved`, hint: 'use a relative path or an installed package' }));
   });
 });
 
@@ -153,6 +156,10 @@ describe('the lines a JSON layer records (R3)', () => {
   it('records only the keys it can find written as `"key":`, and none at all when it finds none', async () => {
     const mixed = write('lines-mixed/app.config.json', '{\n  "\\u0061": 1,\n  "b": 2\n}');
     expect(await loadWithExtends(mixed)).toMatchObject({ data: { a: 1, b: 2 }, lines: { b: 3 } });
+    // A key ending in an escaped backslash is written differently from the key, so it is not
+    // cited — but its string still closes at the quote after `\\`, so the next key is found.
+    const backslash = write('lines-backslash/app.config.json', '{\n  "a\\\\": 1,\n  "b": 2\n}');
+    expect((await loadWithExtends(backslash)).lines).toStrictEqual({ b: 3 });
     const escaped = write('lines-none/app.config.json', '{ "\\u0061": 1 }');
     const loaded = await loadWithExtends(escaped);
     expect(loaded.data).toEqual({ a: 1 });

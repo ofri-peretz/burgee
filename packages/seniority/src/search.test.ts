@@ -69,6 +69,8 @@ describe('the walk is bounded (Y10)', () => {
     const deep = at('a', ...Array.from({ length: WALK_LIMIT + 5 }, (_, i) => `d${String(i)}`));
     mkdirSync(deep, { recursive: true });
     expect(directories({ cwd: deep })).toHaveLength(WALK_LIMIT);
+    // Sixty-four is the documented bound: `WALK_LIMIT` is what a caller reads it from.
+    expect(WALK_LIMIT).toBe(64);
   });
 
   it('passes through a directory that does not exist on its way to one that does', () => {
@@ -90,5 +92,24 @@ describe('symlinks (R5)', () => {
     symlinkSync(ring, join(ring, 'inner', 'up'), 'dir');
     const walked = directories({ cwd: join(ring, 'inner', 'up', 'inner') });
     expect(new Set(walked.map((d) => resolve(d))).size).toBe(walked.length);
+  });
+
+  it('ends the walk at a directory whose real path it already visited', () => {
+    // An injected `realpath` that maps `/x/y` back onto `/x/y/z`, the start: the walk visits
+    // `/x/y/z`, finds `/x/y` is the same place, and stops there rather than climbing on.
+    const visited: string[] = [];
+    search(['never'], {
+      cwd: '/x/y/z',
+      realpath: (path) => (path === '/x/y' ? '/x/y/z' : path),
+      exists: (path) => {
+        visited.push(resolve(path, '..'));
+        return false;
+      },
+    });
+    expect(visited).toEqual([resolve('/x/y/z')]);
+  });
+
+  it('climbs past the first directory when no `stopAt` is given', () => {
+    expect(searchAll(['app.config.json'], { cwd: at('a', 'b', 'c') }).map((found) => found.depth)).toEqual([2]);
   });
 });

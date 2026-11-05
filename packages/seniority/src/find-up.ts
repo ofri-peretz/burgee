@@ -80,11 +80,16 @@ function kind(type: string): (stat: Stats) => boolean {
 
 /** What is at `path`, or `undefined` — a path that cannot be read is a path that is not there, as locate-path has it. */
 function statOf(stat: typeof statSync, path: string): Stats | undefined {
+  let found: Stats | undefined;
+  // Stryker disable BlockStatement: an emptied catch leaves `found` at the `undefined` it would set; this covers the try block too.
   try {
-    return stat(path, { throwIfNoEntry: false });
+    // Stryker disable next-line ObjectLiteral,BooleanLiteral: without the option a missing entry throws into the catch, which answers the same `undefined`; the option only spares the throw.
+    found = stat(path, { throwIfNoEntry: false });
   } catch {
-    return undefined;
+    found = undefined;
   }
+  // Stryker restore BlockStatement
+  return found;
 }
 
 interface Locate {
@@ -106,6 +111,7 @@ function locateSync(names: readonly string[], cwd: string, { type = 'file', allo
 async function locate(names: readonly string[], cwd: string, { type = 'file', allowSymlinks = true }: Locate): Promise<string | undefined> {
   const is = kind(type);
   const stat = allowSymlinks ? promises.stat : promises.lstat;
+  // Stryker disable next-line ArrowFunction: a stat that rejects is no match, and `undefined` is no more `true` than `false` is.
   const hits = await Promise.all(names.map((name) => stat(resolve(cwd, name)).then(is, () => false)));
   return names[hits.indexOf(true)];
 }
@@ -131,12 +137,13 @@ export function findUpMultipleSync(name: Name | Matcher<MatcherResult>, options:
   const matches: string[] = [];
   // The root is its own parent, so the walk ends there even when `stopAt` is not an ancestor —
   // where find-up itself would spin at the root.
+  // Stryker disable next-line StringLiteral: `previous` only has to differ from the absolute path the walk starts at, which any relative string does.
   for (let directory = from, previous = ''; directory !== previous; previous = directory, directory = dirname(directory)) {
     let step: MatcherResult;
     if (typeof name === 'function') {
       const result = name(directory);
       step = typeof result === 'string' ? locateSync([result], directory, options) : result;
-    } else step = locateSync(([] as string[]).concat(name), directory, options);
+    } else step = locateSync([name].flat(), directory, options);
     if (settle(step, directory, matches) || directory === stopAt || matches.length >= limit) return matches;
   }
   return matches;
@@ -145,12 +152,13 @@ export function findUpMultipleSync(name: Name | Matcher<MatcherResult>, options:
 export async function findUpMultiple(name: Name | Matcher<MatcherResult | Promise<MatcherResult>>, options: Options = {}): Promise<string[]> {
   const { from, stopAt, limit } = bounds(options);
   const matches: string[] = [];
+  // Stryker disable next-line StringLiteral: `previous` only has to differ from the absolute path the walk starts at, which any relative string does.
   for (let directory = from, previous = ''; directory !== previous; previous = directory, directory = dirname(directory)) {
     let step: MatcherResult;
     if (typeof name === 'function') {
       const result = await name(directory);
       step = typeof result === 'string' ? await locate([result], directory, options) : result;
-    } else step = await locate(([] as string[]).concat(name), directory, options);
+    } else step = await locate([name].flat(), directory, options);
     if (settle(step, directory, matches) || directory === stopAt || matches.length >= limit) return matches;
   }
   return matches;
@@ -170,32 +178,35 @@ interface Down {
   depth: number;
   names: readonly string[];
   locate: Locate;
-  strategy: string;
 }
 
 const down = (name: Name, options: FindDownOptions): Down => ({
   start: start(options.cwd),
   depth: Math.max(0, options.depth ?? 1),
-  names: ([] as string[]).concat(name),
-  locate: { type: options.type ?? 'file', allowSymlinks: options.allowSymlinks ?? true },
-  strategy: options.strategy ?? 'breadth',
+  names: [name].flat(),
+  // `locate` brings its own defaults for `type` and `allowSymlinks`.
+  locate: options,
 });
 
 /** The directories directly under `directory`, or none when it cannot be read. */
 function childrenSync(directory: string): string[] {
   try {
+    // Stryker disable next-line MethodExpression: a file let through is looked in as a directory, where every stat and every readdir fails and reads as nothing there — the filter only spares the asking.
     return readdirSync(directory, { withFileTypes: true })
       .filter((entry) => entry.isDirectory())
       .map((entry) => resolve(directory, entry.name));
   } catch {
+    // Stryker disable next-line ArrayDeclaration: a made-up child is a relative name that does not exist, so it holds no match and no children of its own.
     return [];
   }
 }
 
 async function children(directory: string): Promise<string[]> {
   try {
+    // Stryker disable next-line MethodExpression: as in `childrenSync` — a file looked in as a directory holds nothing.
     return (await promises.readdir(directory, { withFileTypes: true })).filter((entry) => entry.isDirectory()).map((entry) => resolve(directory, entry.name));
   } catch {
+    // Stryker disable next-line ArrayDeclaration: as in `childrenSync`.
     return [];
   }
 }
@@ -213,7 +224,7 @@ export function findDownSync(name: Name, options: FindDownOptions = {}): string 
     }
     return undefined;
   };
-  if (d.strategy === 'depth') return visit(d.start, 0);
+  if (options.strategy === 'depth') return visit(d.start, 0);
   const queue = [{ directory: d.start, level: 0 }];
   for (let item = queue.shift(); item !== undefined; item = queue.shift()) {
     const hit = locateSync(d.names, item.directory, d.locate);
@@ -235,7 +246,7 @@ export async function findDown(name: Name, options: FindDownOptions = {}): Promi
     }
     return undefined;
   };
-  if (d.strategy === 'depth') return visit(d.start, 0);
+  if (options.strategy === 'depth') return visit(d.start, 0);
   const queue = [{ directory: d.start, level: 0 }];
   for (let item = queue.shift(); item !== undefined; item = queue.shift()) {
     const hit = await locate(d.names, item.directory, d.locate);

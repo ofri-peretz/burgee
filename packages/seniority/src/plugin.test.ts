@@ -6,7 +6,7 @@
  * something that reorders the built-in precedence, which is the one thing seniority promises
  * a program cannot do.
  */
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { explain } from './explain-entry.js';
 import { register, registered, reset, sources, CONTRACT, PluginError, type Plugin, type SourceRuntime } from './plugin.js';
@@ -161,6 +161,45 @@ describe('the family vocabulary (R6, R8)', () => {
     });
     expect(e.code).toBe('E_PLUGIN_SCHEMA');
     expect(e.message).toBe(message);
+  });
+
+  it.each([
+    ['an array', ['p'], 'E_PLUGIN_SCHEMA', 'a plugin is a plain object', 'export an object, not a function or an array'],
+    ['a name that is not a string', { name: 7 }, 'E_PLUGIN_SCHEMA', 'a plugin needs a name', 'add `name: "…"` — it is how a refused source is reported'],
+    ['an empty name', { name: '' }, 'E_PLUGIN_SCHEMA', 'a plugin needs a name', 'add `name: "…"` — it is how a refused source is reported'],
+    ['a contract that is not a whole number', { name: 'p', contract: 1.5 }, 'E_PLUGIN_CONTRACT', `plugin "p" declares contract 1.5; this seniority knows ${String(CONTRACT)}`, 'upgrade seniority, or lower the plugin’s contract'],
+    ['`sources` that is not an object', { name: 'p', sources: 5 }, 'E_PLUGIN_SCHEMA', 'plugin "p": sources must be an object', 'map a source name to `{ rank, values }` or `{ rank, read }`'],
+    ['a source that is not an object', { name: 'p', sources: { fleet: 5 } }, 'E_PLUGIN_SCHEMA', 'plugin "p": source "fleet" is not an object', 'a source is `{ rank, values }` or `{ rank, read }`'],
+    ['a rank at the flag', { name: 'p', sources: { fleet: { rank: 0, values: {} } } }, 'E_PLUGIN_SCHEMA', 'plugin "p": source "fleet" has rank 0', 'a rank is an integer strictly between 0 (flag) and 40 (default) — a source may not beat what the user typed, nor sink below the declared default'],
+    ['neither values nor read', { name: 'p', sources: { fleet: { rank: 5 } } }, 'E_PLUGIN_SCHEMA', 'plugin "p": source "fleet" declares neither `values` nor `read`', 'one source gives one answer: static `values`, or a `read(runtime)` that fetches them'],
+    ['both values and read', { name: 'p', sources: { fleet: { rank: 5, values: {}, read: () => undefined } } }, 'E_PLUGIN_SCHEMA', 'plugin "p": source "fleet" declares both `values` and `read`', 'one source gives one answer: static `values`, or a `read(runtime)` that fetches them'],
+    ['values that are not an object', { name: 'p', sources: { fleet: { rank: 5, values: 'x' } } }, 'E_PLUGIN_SCHEMA', 'plugin "p": source "fleet": values must be an object', 'map an option name to its value'],
+    ['a read that is not a function', { name: 'p', sources: { fleet: { rank: 5, read: 'x' } } }, 'E_PLUGIN_SCHEMA', 'plugin "p": source "fleet": read must be a function', 'read(runtime) returns `{ values, location? }`, or undefined when it has nothing'],
+    ['a location that is not a string', { name: 'p', sources: { fleet: { rank: 5, values: {}, location: 7 } } }, 'E_PLUGIN_SCHEMA', 'plugin "p": source "fleet": location must be a string', 'name the file, URL or variable set a person would go and look at'],
+  ])('refuses %s with its own message and fix', (...row) => {
+    const [, plugin, code, message, fix] = row;
+    const e = caught(() => { register(plugin); });
+    expect({ name: e.name, code: e.code, message: e.message, fix: e.fix }).toEqual({ name: 'PluginError', code, message, fix });
+  });
+
+  it('refuses an array, or null, where it wants an object, at each level', () => {
+    expect(caught(() => { register([]); }).message).toBe('a plugin is a plain object');
+    expect(caught(() => { register(null); }).message).toBe('a plugin is a plain object');
+    expect(caught(() => { register({ name: 'p', sources: [] }); }).message).toBe('plugin "p": sources must be an object');
+    expect(caught(() => { register({ name: 'p', sources: { fleet: [] } }); }).message).toBe('plugin "p": source "fleet" is not an object');
+    expect(caught(() => { register({ name: 'p', sources: { fleet: { rank: 5, values: [] } } }); }).message).toBe('plugin "p": source "fleet": values must be an object');
+  });
+
+  it('accepts the contract it knows, and a plugin that declares none', () => {
+    expect(() => { register({ name: 'p', contract: CONTRACT }); }).not.toThrow();
+    expect(() => { register({ name: 'q', contract: 1 }); }).not.toThrow();
+    expect(registered().map((plugin) => plugin.name)).toEqual(['p', 'q']);
+  });
+
+  it('starts with nothing registered, before anything resets it', async () => {
+    vi.resetModules();
+    const fresh = await import('./plugin.js');
+    expect(fresh.registered()).toEqual([]);
   });
 
   it('lists what it registered, in registration order', () => {

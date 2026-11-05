@@ -35,6 +35,8 @@ describe('decodeFileContent', () => {
     // Only the pair is a mark: one byte of it is ordinary content.
     expect(decodeFileContent(Buffer.from([0xff, 0x41]))).toBe('�A');
     expect(decodeFileContent(Buffer.from([0xfe, 0x41]))).toBe('�A');
+    expect(decodeFileContent(Buffer.from([0x41, 0xfe]))).toBe('A�');
+    expect(decodeFileContent(Buffer.from([0x41, 0xff]))).toBe('A�');
   });
 });
 
@@ -46,6 +48,8 @@ describe('getPropertyByPath', () => {
     expect(getPropertyByPath(source, 'ant.beetle.cootie')).toBe(1);
     expect(getPropertyByPath(source, ['ant', 'beetle', 'cootie'])).toBe(1);
     expect(getPropertyByPath(source, ['ant.beetle'])).toBe('literal');
+    // An array is names, never a literal key: `['a', 'b']` is not the key `'a,b'` it would print as.
+    expect(getPropertyByPath({ 'a,b': 'joined', a: { b: 'walked' } }, ['a', 'b'])).toBe('walked');
     expect(getPropertyByPath(source, 'ant.zero')).toBe(0);
   });
 

@@ -12,6 +12,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { isMainThread } from 'node:worker_threads';
 
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
@@ -109,12 +110,55 @@ describe('the parts of rc that are seniority rather than the process', () => {
     rmSync(file);
   });
 
-  it('leaves the prototype alone when a config file names it', () => {
+  it('leaves the prototype alone when a config file names it, and drops `constructor` and `prototype` with it', () => {
     const file = join(dir, `.${NAME}rc`);
-    writeFileSync(file, '{"__proto__": {"polluted": true}}');
-    rc(NAME, {}, undefined, parse, { cwd: dir, home: join(dir, 'nowhere') });
+    writeFileSync(file, '{"__proto__": {"polluted": true}, "constructor": 1, "prototype": 2, "kept": 3}');
+    const config = rc(NAME, {}, undefined, parse, { cwd: dir, home: join(dir, 'nowhere') });
     expect(({} as Record<string, unknown>)['polluted']).toBeUndefined();
+    expect(Object.getPrototypeOf(config)).toBe(Object.prototype);
+    expect(config['polluted']).toBeUndefined();
+    expect(Object.keys(config)).toEqual(['kept', 'configs', 'config']);
     rmSync(file);
+  });
+
+  it('replaces an object with an array or a scalar, and a scalar with an object, and carries a `Date` whole', () => {
+    const file = join(dir, `.${NAME}rc`);
+    writeFileSync(file, JSON.stringify({ list: [1], scalar: { now: 'object' }, gone: null, obj: 'now a string' }));
+    const when = new Date(0);
+    const config = rc(NAME, { list: { was: 'object' }, scalar: 1, gone: {}, obj: { was: 'object' }, when }, undefined, parse, { cwd: dir, home: join(dir, 'nowhere') });
+    expect(config).toMatchObject({ list: [1], scalar: { now: 'object' }, gone: null, obj: 'now a string' });
+    expect(config['when']).toBe(when);
+    rmSync(file);
+  });
+
+  // A regression: the result shared its nested objects and arrays with `defaults` and `argv`, so
+  // changing what `rc()` returned changed the caller's own defaults. `deep-extend` copies them.
+  it('returns objects and arrays of its own, so changing the result never changes the defaults or the argv', () => {
+    const defaults = { nested: { a: 1 }, list: [{ b: 1 }] };
+    const argv = { fromArgv: { c: 1 } };
+    const config = rc(NAME, defaults, argv, parse, { env: {}, cwd: join(dir, 'nowhere'), home: '', win: true }) as { nested: { a: number }; list: { b: number }[]; fromArgv: { c: number } };
+    config.nested.a = 2;
+    config.list[0]!.b = 2;
+    config.fromArgv.c = 2;
+    expect(defaults).toEqual({ nested: { a: 1 }, list: [{ b: 1 }] });
+    expect(argv).toEqual({ fromArgv: { c: 1 } });
+  });
+
+  it('strips a block comment holding a `*` or a `/`, and one that opens with `/*/`', () => {
+    expect(parse('{/* a * b/c */"a": 1}')).toEqual({ a: 1 });
+    expect(parse('{/*/ "x": 1, */"a": 1}')).toEqual({ a: 1 });
+  });
+
+  it('reads a lone `*` or `/` outside a comment as text, so the JSON it leaves is refused', () => {
+    expect(() => parse('{"a": 1 */* c */}')).toThrow(SyntaxError);
+    expect(() => parse('{"a": 1 / 2 */}')).toThrow(SyntaxError);
+  });
+
+  it('reads JSON after leading whitespace, and refuses a document whose `{` is not first', () => {
+    expect(parse('\n {"a": 1}')).toEqual({ a: 1 });
+    const error = thrownBy(() => parse('a = {1}'));
+    expect(error).toBeInstanceOf(LoaderError);
+    expect((error as LoaderError).extension).toBe('');
   });
 
   it('strips comments without touching a `//` inside a string', () => {
@@ -164,6 +208,30 @@ describe('the places rc reads, and the ones it may not', () => {
     expect(rc(NAME, {}, undefined, parse, { ...isolated, cwd: join(dir, 'nowhere'), home })).toMatchObject({ fromHome: true });
   });
 
+  it('reads a home directory that is also the working directory once', () => {
+    const home = join(dir, 'home-is-cwd');
+    mkdirSync(home, { recursive: true });
+    const file = join(home, `.${NAME}rc`);
+    writeFileSync(file, '{"once": true}');
+    expect(rc(NAME, {}, undefined, parse, { ...isolated, cwd: home, home })).toEqual({ once: true, configs: [file], config: file });
+  });
+
+  it('reads a file named by `argv.config` only when it is a path string, as rc does', () => {
+    const file = join(dir, 'argv-url.json');
+    writeFileSync(file, '{"read": true}');
+    expect(rc(NAME, {}, { config: pathToFileURL(file) }, parse, { ...isolated, cwd: join(dir, 'nowhere') })).not.toHaveProperty('read');
+  });
+
+  // A regression: the walk replaced a value with an object to nest into, so `NAME_a=1` was lost
+  // when `NAME_a__b` came after it, and kept when it came before. rc keeps the value either way.
+  it('keeps a value that a deeper key would nest under, in either order', () => {
+    const forward = { [`${NAME}_a`]: '1', [`${NAME}_a__b`]: '2' };
+    const backward = { [`${NAME}_a__b`]: '2', [`${NAME}_a`]: '1' };
+    const deeper = { [`${NAME}_a`]: '1', [`${NAME}_a__b__c`]: '3' };
+    for (const env of [forward, backward, deeper]) expect(rc(NAME, {}, undefined, parse, { ...isolated, cwd: join(dir, 'nowhere'), env })).toEqual({ a: '1' });
+    expect(rc(NAME, {}, undefined, parse, { ...isolated, cwd: join(dir, 'nowhere'), env: { [`${NAME}_a__b__c`]: '3', [`${NAME}_a__b`]: '2' } })).toEqual({ a: { b: '2' } });
+  });
+
   it('merges two variables under one parent, and ignores one that is the prefix alone', () => {
     const env = { [`${NAME}_db__host`]: 'h', [`${NAME}_db__port`]: '5', [`${NAME}_`]: 'nothing', [`${NAME}___`]: 'nothing either' };
     expect(rc(NAME, {}, undefined, parse, { ...isolated, cwd: join(dir, 'nowhere'), env })).toEqual({ db: { host: 'h', port: '5' } });
@@ -171,11 +239,15 @@ describe('the places rc reads, and the ones it may not', () => {
 
   it('stops the upward walk at sixty-four directories, so a file further up is never read', () => {
     writeFileSync(join(dir, `.${NAME}rc`), '{"tooFar": true}');
-    const deep = join(dir, ...Array.from({ length: 70 }, (_, i) => `d${String(i)}`));
+    const levels = Array.from({ length: 70 }, (_, i) => `d${String(i)}`);
+    const deep = join(dir, ...levels);
     mkdirSync(deep, { recursive: true });
     try {
       expect(rc(NAME, {}, undefined, parse, { ...isolated, cwd: deep })).toEqual({});
       expect(rc(NAME, {}, undefined, parse, { ...isolated, cwd: join(dir, 'd0') })).toMatchObject({ tooFar: true });
+      // The sixty-fourth directory looked in is the sixty-fourth level up; the sixty-fifth is not.
+      expect(rc(NAME, {}, undefined, parse, { ...isolated, cwd: join(dir, ...levels.slice(0, 63)) })).toMatchObject({ tooFar: true });
+      expect(rc(NAME, {}, undefined, parse, { ...isolated, cwd: join(dir, ...levels.slice(0, 64)) })).toEqual({});
     } finally {
       rmSync(join(dir, `.${NAME}rc`));
     }
@@ -192,11 +264,59 @@ describe('the places rc reads, and the ones it may not', () => {
   });
 });
 
+/**
+ * rc against a disk that holds exactly `files`, on `platform`, with `/v/home` as the home
+ * directory — the only way to put a file in `/etc` without being root.
+ */
+async function onDisk(files: Record<string, string>, platform: string): Promise<typeof import('./rc.js')> {
+  vi.resetModules();
+  vi.doMock('node:fs', async (importOriginal) => {
+    const real = await importOriginal<typeof import('node:fs')>();
+    return {
+      ...real,
+      existsSync: (path: string) => path in files,
+      readFileSync: (path: string) => {
+        const content = files[path];
+        if (content === undefined) throw Object.assign(new Error(`ENOENT: ${path}`), { code: 'ENOENT' });
+        return content;
+      },
+    };
+  });
+  vi.doMock('node:os', async (importOriginal) => ({ ...(await importOriginal<typeof import('node:os')>()), homedir: () => '/v/home', platform: () => platform }));
+  return import('./rc.js');
+}
+
 describe('rc with no process, and a file it cannot read', () => {
   afterEach(() => {
     vi.doUnmock('./runtime.js');
     vi.doUnmock('node:fs');
+    vi.doUnmock('node:os');
     vi.resetModules();
+  });
+
+
+  const PLACES = [`/etc/${NAME}/config`, `/etc/${NAME}rc`, `/v/home/.config/${NAME}/config`, `/v/home/.config/${NAME}`, `/v/home/.${NAME}/config`, `/v/home/.${NAME}rc`, `/v/project/.${NAME}rc`];
+  /** Every place, each naming itself, so the last one read wins `last` and each leaves its own key. */
+  const everywhere = Object.fromEntries(PLACES.map((place, i) => [place, JSON.stringify({ last: place, [`k${String(i)}`]: true })]));
+
+  it("reads rc's seven places in rc's order, the home ones off the home directory, when nothing is passed", async () => {
+    const fresh = await onDisk(everywhere, 'linux');
+    const config = fresh.rc(NAME, {}, undefined, fresh.parse, { env: {}, cwd: '/v/project' });
+    expect(config['configs']).toEqual(PLACES);
+    expect(config['last']).toBe(PLACES.at(-1));
+  });
+
+  // A regression: `win` defaulted to false everywhere, so Windows read `/etc`. rc skips it there.
+  it('skips `/etc` by default on Windows, as rc does, and reads it there when asked to', async () => {
+    const fresh = await onDisk(everywhere, 'win32');
+    expect(fresh.rc(NAME, {}, undefined, fresh.parse, { env: {}, cwd: '/v/project' })['configs']).toEqual(PLACES.slice(2));
+    expect(fresh.rc(NAME, {}, undefined, fresh.parse, { env: {}, cwd: '/v/project', win: false })['configs']).toEqual(PLACES);
+  });
+
+  it('skips the four home places when the home directory is empty, rather than reading them relative to here', async () => {
+    const relative = Object.fromEntries([`.config/${NAME}/config`, `.config/${NAME}`, `.${NAME}/config`, `.${NAME}rc`].map((place) => [place, '{"fromHere": true}']));
+    const fresh = await onDisk(relative, 'linux');
+    expect(fresh.rc(NAME, {}, undefined, fresh.parse, { env: {}, cwd: '/v/project', home: '' })).toEqual({});
   });
 
   it('reads no environment on a runtime with no process', async () => {

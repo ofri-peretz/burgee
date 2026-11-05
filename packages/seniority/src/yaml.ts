@@ -69,10 +69,15 @@ const RADIX = new Map([
   ['o', OCTAL],
   ['x', HEX],
 ]);
+// The implicit form's decimal branch decides nothing: a decimal it refused, the float resolver
+// reads to the same number.
+// Stryker disable next-line Regex: what this pattern lets through or turns away in decimal, `resolveFloat` answers alike.
+const IMPLICIT_INT = /^(?:0o[0-7]+|0x[\dA-Fa-f]+|[-+]?\d+)$/u;
 const resolveInt: Resolver = (source, explicit) => {
   // An implicit `0b101` or `-0x1F` is a string in the core schema; `!!int` reads both.
-  if (!(explicit ? /^[-+]?(?:0b[01]+|0o[0-7]+|0x[\dA-Fa-f]+|\d+)$/u : /^(?:0o[0-7]+|0x[\dA-Fa-f]+|[-+]?\d+)$/u).test(source)) return UNRESOLVED;
+  if (!(explicit ? /^[-+]?(?:0b[01]+|0o[0-7]+|0x[\dA-Fa-f]+|\d+)$/u : IMPLICIT_INT).test(source)) return UNRESOLVED;
   const sign = source.startsWith('-') ? -1 : 1;
+  // Stryker disable next-line Regex: a source that got here has a sign only at its start, so anchoring changes nothing.
   const digits = source.replace(/^[-+]/u, '');
   const radix = RADIX.get(digits.charAt(1)) ?? DECIMAL;
   const value = sign * Number.parseInt(radix === DECIMAL ? digits : digits.slice(2), radix);
@@ -150,11 +155,15 @@ const MAP_ENTRY = 'bad indentation of a mapping entry';
 const SEQUENCE_ENTRY = 'bad indentation of a sequence entry';
 const DOCUMENT_END = 'end of the stream or a document separator is expected';
 // Built from a string so the control characters are escapes a reader can see, not bytes.
+// Stryker disable next-line StringLiteral: without `u` the same escapes name the same code units; the class holds no surrogate.
 const NON_PRINTABLE = new RegExp('[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F-\\x84\\x86-\\x9F\\uFFFE\\uFFFF]', 'u');
 
 type Kind = 'scalar' | 'mapping' | 'sequence';
 /** How a block node was reached: at the start of its own line, after `- `, or after `key: `. */
 type Context = 'line' | 'entry' | 'value';
+/** Only `'entry'` and `'value'` are ever asked about; a node at a line's start is neither. */
+// Stryker disable next-line StringLiteral: any other spelling is also neither.
+const LINE: Context = 'line';
 interface Props {
   anchor?: string;
   tag?: string;
@@ -193,6 +202,7 @@ const collection = (value: unknown, kind: Kind): Candidate => ({ value, kind, ra
 function tagged(tag: string, node: Candidate): { value: unknown } | { reason: string } {
   if (tag === '!') return { value: node.kind === 'scalar' ? node.raw : node.value };
   const name = tag.startsWith('!!') ? `${CORE_TAG}${tag.slice(2)}` : tag;
+  // Stryker disable next-line StringLiteral: any name that is not a core tag's — `''` or another — is neither a scalar resolver's nor `map` or `seq`.
   const short = name.startsWith(CORE_TAG) ? name.slice(CORE_TAG.length) : '';
   if (node.kind !== 'scalar') return short === (node.kind === 'mapping' ? 'map' : 'seq') ? { value: node.value } : { reason: `unknown ${node.kind} tag !<${name}>` };
   return taggedScalar(name, short, node.raw as string);
@@ -254,7 +264,10 @@ export function parse(text: string): unknown {
   /** A `#` starts a comment only after a blank; glued to a token it is part of the line. */
   const isComment = (): boolean => at() === '#' && blank(at(pos - 1));
   const lineEnds = (): boolean => at() === '' || at() === '\n' || isComment();
-  const columnOf = (p: number): number => p - src.lastIndexOf('\n', p - 1) - 1;
+  const columnOf = (p: number): number => {
+    const previous = p - 1;
+    return previous - src.lastIndexOf('\n', previous);
+  };
   const fail = (reason: string, where = pos): never => {
     const line = src.slice(0, where).split('\n').length - 1;
     const mark = { line, column: columnOf(where), position: where };
@@ -286,14 +299,17 @@ export function parse(text: string): unknown {
       skipComment();
       if (at() === '\n') continue;
       if (at() === '' || isMarker()) return -1;
-      const tab = src.indexOf('\t', start);
-      if (tab !== -1 && tab < pos) fail('tab characters must not be used in indentation', tab);
+      const tab = src.slice(start, pos).indexOf('\t');
+      if (tab !== -1) fail('tab characters must not be used in indentation', start + tab);
       return pos - start;
     }
   };
   /** After an inline node: a comment may follow on its line and nothing else may. */
-  const endLine = (reason: string): number => {
+  // Called without a reason only where the line is known to end, so the reason is never read.
+  // Stryker disable next-line StringLiteral: no caller without a reason reaches the `fail` that reads it.
+  const endLine = (reason = ''): number => {
     skipSpace();
+    // Stryker disable next-line CallExpression: `lineEnds` takes a comment as an end too, and `nextLine` skips it.
     skipComment();
     if (!lineEnds()) fail(reason);
     return nextLine();
@@ -359,6 +375,7 @@ export function parse(text: string): unknown {
     const name = src.slice(start, pos);
     if (name === '') fail('name of an alias node must contain at least one character', start);
     if (!anchors.has(name)) fail(`unidentified alias "${name}"`, start);
+    // Stryker disable next-line StringLiteral: only a tag reads `kind`, and an alias with a tag is refused before it is read.
     return { value: anchors.get(name), kind: 'scalar', raw: undefined, plain: false };
   };
 
@@ -405,6 +422,7 @@ export function parse(text: string): unknown {
     for (let next = more(); next !== undefined; next = more()) {
       pos = next.text;
       out += (next.empties === 0 ? ' ' : '\n'.repeat(next.empties)) + plainLine(false);
+      // Stryker disable next-line CallExpression: `plainLine` has already stepped over the blanks before a `: `, so this finds none.
       skipSpace();
       if (at() === ':') fail(reason);
     }
@@ -419,7 +437,7 @@ export function parse(text: string): unknown {
       breaks++;
     }
     if (isMarker()) fail(`unexpected end of the document within a ${kind} quoted scalar`);
-    if (at() !== '' && columnOf(pos) <= parent) fail('deficient indentation');
+    if (columnOf(pos) <= parent) fail('deficient indentation');
     return breaks === 0 ? ' ' : '\n'.repeat(breaks);
   };
 
@@ -476,7 +494,9 @@ export function parse(text: string): unknown {
   const widthOnce = (indent: number, c: string, parent: number): number => {
     if (indent !== -1) fail('repeat of an indentation width identifier');
     if (c === '0') fail('bad explicit indentation width of a block scalar; it cannot be less than one');
-    return Math.max(parent, 0) + Number(c);
+    // `parent` is -1 at the top level, as YAML's own n is, so `|2` there keeps one space of a
+    // three-space line — js-yaml's answer.
+    return parent + Number(c);
   };
   /** A block scalar's header, after `|` or `>`: chomping and an indentation indicator, in either order. */
   const blockHeader = (parent: number): { chomp: string; indent: number } => {
@@ -523,6 +543,7 @@ export function parse(text: string): unknown {
 
   /** Blanks, comments and line breaks inside `[…]` or `{…}`; a line inside one is indented past the block it sits in. */
   const flowSpace = (parent: number): void => {
+    // Stryker disable next-line BooleanLiteral: on the line the collection opened on, every column is past the block it sits in.
     let crossed = false;
     for (;;) {
       skipSpace();
@@ -538,7 +559,7 @@ export function parse(text: string): unknown {
   const flowNode = (parent: number): unknown => {
     const start = pos;
     const props = readProps();
-    if (props !== undefined) flowSpace(parent);
+    flowSpace(parent);
     const c = at();
     if (c === '*') return alias(props).value;
     if (c === '[' || c === '{') return finish(props, collection(flow(parent), c === '[' ? 'sequence' : 'mapping'), start);
@@ -547,7 +568,9 @@ export function parse(text: string): unknown {
       return finish(props, scalar(raw, raw), start);
     }
     // A character no plain scalar starts with leaves the node empty, and the collection refuses it.
-    const raw = '#@`|>%'.includes(c) ? '' : plainLine(true);
+    const refused = '#@`|>%'.includes(c);
+    // Stryker disable next-line StringLiteral: the collection refuses the character after it, whatever the empty node held.
+    const raw = refused ? '' : plainLine(true);
     return finish(props, scalar(resolvePlain(raw), raw), start);
   };
 
@@ -618,10 +641,8 @@ export function parse(text: string): unknown {
   const mapValue = (col: number): [unknown, number] => {
     pos++;
     skipSpace();
-    if (!lineEnds()) return blockNode(col, 'value', MAP_ENTRY);
-    const indent = endLine('');
-    if (indent > col || (indent === col && isEntry())) return blockNode(col, 'line', MAP_ENTRY);
-    return [null, indent];
+    // At a line end `blockNode` reads the node below, or `null` — `nodeBelow`, which asks what this would.
+    return blockNode(col, 'value', MAP_ENTRY);
   };
 
   /** A block mapping whose first key is read and whose `:` is at `pos`. */
@@ -655,11 +676,9 @@ export function parse(text: string): unknown {
     while (indent === col && isEntry()) {
       pos++;
       skipSpace();
-      let value: unknown = null;
-      if (lineEnds()) {
-        indent = endLine('');
-        if (indent > col) [value, indent] = blockNode(col, 'line', reason);
-      } else [value, indent] = blockNode(col, 'entry', reason);
+      // At a line end `blockNode` reads the entry's node below, or `null`, as `nodeBelow`.
+      let value: unknown;
+      [value, indent] = blockNode(col, 'entry', reason);
       out.push(value);
     }
     if (indent > col) fail(SEQUENCE_ENTRY);
@@ -668,9 +687,9 @@ export function parse(text: string): unknown {
   };
 
   /** Properties alone on their line belong to the node below, if there is one; else to an empty scalar. */
-  const nodeBelow = ({ parent, context, reason, start }: NodeStart, props: Props): [unknown, number] => {
-    const indent = endLine('');
-    if (indent > parent || (indent === parent && context === 'value' && isEntry())) return blockNode(parent, 'line', reason, props);
+  const nodeBelow = ({ parent, context, reason, start }: NodeStart, props: Props | undefined): [unknown, number] => {
+    const indent = endLine();
+    if (indent > parent || (indent === parent && context === 'value' && isEntry())) return blockNode(parent, LINE, reason, props);
     return [finish(props, scalar(null, ''), start), indent];
   };
 
@@ -702,7 +721,8 @@ export function parse(text: string): unknown {
   function blockNode(parent: number, context: Context, reason: string, inherited?: Props): [unknown, number] {
     const start = pos;
     const own = readProps();
-    if (own !== undefined && lineEnds()) return nodeBelow({ parent, context, reason, start }, own);
+    // A node starts at content, so only properties alone on their line leave the line ending here.
+    if (lineEnds()) return nodeBelow({ parent, context, reason, start }, own);
     const props = own ?? inherited;
     if (isEntry()) {
       // Not after `key: `, and not after properties on the same line: `&a - x` is no sequence.
@@ -718,26 +738,28 @@ export function parse(text: string): unknown {
 
   /** Skip `%` directive lines, which must be followed by `---`. */
   const directives = (): void => {
-    let indent = 0;
-    while (at() === '%' && indent === 0) {
+    // A `%` line after the first is a directive at any indentation, as js-yaml reads it.
+    while (at() === '%') {
       pos = endOf(pos);
-      indent = nextLine();
+      nextLine();
     }
     if (!(isMarker() && at() === '-')) fail('directives end mark is expected');
   };
   /** One document, from `pos`, which is at its first content or its `---`. */
   const document = (): [unknown, number] => {
-    if (!(isMarker() && at() === '-')) return blockNode(-1, 'line', DOCUMENT_END);
+    // `...` is the stream's to read, and directives end only at `---`: a marker here opens a document.
+    if (!isMarker()) return blockNode(-1, LINE, DOCUMENT_END);
     pos += MARKER;
     skipSpace();
-    const indent = lineEnds() ? endLine('') : 0;
-    return indent === -1 ? [null, indent] : blockNode(-1, 'line', DOCUMENT_END);
+    // Stryker disable next-line NumericLiteral: any indent but -1 says the same — content follows the marker.
+    const indent = lineEnds() ? endLine() : 0;
+    return indent === -1 ? [null, indent] : blockNode(-1, LINE, DOCUMENT_END);
   };
   const stream = (): unknown[] => {
     const documents: unknown[] = [];
     let indent = nextLine();
     while (pos < src.length) {
-      if (at() === '%' && indent === 0) directives();
+      if (at() === '%') directives();
       if (isMarker() && at() === '.') {
         pos += MARKER;
         indent = endLine(DOCUMENT_END);

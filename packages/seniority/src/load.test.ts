@@ -56,7 +56,11 @@ describe('an extension with no loader is USAGE, not a silent miss (R6)', () => {
   });
 
   it('a file with no extension at all is the same answer, named as such', () => {
-    expect(caught(() => loaderFor('/tmp/.apprc')).message).toBe('no loader for a file with no extension: /tmp/.apprc');
+    const error = caught(() => loaderFor('/tmp/.apprc'));
+    expect(error.message).toBe('no loader for a file with no extension: /tmp/.apprc');
+    expect(error.name).toBe('LoaderError');
+    expect(error.extension).toBe('');
+    expect(error.hint).toBe('pass loaders: { "": (filepath, content) => … } — seniority reads no format by guessing at its content');
   });
 });
 
@@ -64,6 +68,11 @@ describe('injected loaders (R6, constraint 3)', () => {
   it('accepts one for an extension seniority does not bundle', async () => {
     const at = write('c.ini', 'region = eu');
     await expect(loadPath(at, { loaders: { '.ini': ini } })).resolves.toEqual({ region: 'eu' });
+  });
+
+  it('hands a loader the file as text', async () => {
+    const at = write('t.cfg', 'region = eu');
+    await expect(loadPath(at, { loaders: { '.cfg': (_path, content) => ({ content }) } })).resolves.toEqual({ content: 'region = eu' });
   });
 
   it('lets a caller override a builtin, because a program that wants JSON5 for `.json` may have it', async () => {

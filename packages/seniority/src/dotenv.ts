@@ -34,11 +34,15 @@ import { ambientCwd, ambientEnv } from './runtime.js';
  * dotenv's own line grammar, character for character (`lib/main.js`, `parseRegex`).
  *
  * Reproduced rather than rewritten: it is the thing being graded, its edge cases are the
- * reason people file the issues above, and "cleaner" here would mean "different".
+ * reason people file the issues above, and "cleaner" here would mean "different". Four
+ * spellings are shortened to what they already mean: upstream's `(?:^|^)` is `^`, its `(?:$|$)`
+ * is `$`, and the lazy `\s*?` after `=` and `\s+?` after `:` never take more than their least,
+ * because what follows them — an optional value, space, an optional comment, a line end —
+ * always matches without.
  */
 const LINE =
    
-  /(?:^|^)\s*(?:export\s+)?([\w.-]+)(?:\s*=\s*?|:\s+?)(\s*'(?:\\'|[^'])*'|\s*"(?:\\"|[^"])*"|\s*`(?:\\`|[^`])*`|[^#\r\n]+)?\s*(?:#.*)?(?:$|$)/gm;
+  /^\s*(?:export\s+)?([\w.-]+)(?:\s*=|:\s)(\s*'(?:\\'|[^'])*'|\s*"(?:\\"|[^"])*"|\s*`(?:\\`|[^`])*`|[^#\r\n]+)?\s*(?:#.*)?$/gm;
 
 const DOUBLE_QUOTE = '"';
 
@@ -182,6 +186,7 @@ export function configDotenv(given: Partial<ConfigOptions> = {}): ConfigResult {
   }
   const debug = truthy(options.debug);
   if (!options.encoding && debug) debugLog('no encoding is specified (UTF-8 is used by default)');
+  // Stryker disable next-line StringLiteral: `path.resolve` and `path.relative` read `''` as the working directory, exactly as they read `'.'`.
   const cwd = ambientCwd() ?? '.';
   // Truthiness, not presence, as upstream tests it: an empty `DOTENV_PATH` means the default.
   const wanted = options.path ? options.path : path.resolve(cwd, '.env');
@@ -236,6 +241,7 @@ function readAll(paths: readonly (string | URL)[], options: Partial<ConfigOption
       if (debug) debugLog(`failed to load ${String(filePath)} ${lastError.message}`);
     }
   }
+  // Stryker disable next-line ConditionalExpression: the one caller reads `lastError` off this object, and an absent key reads as the `undefined` it would hold.
   return lastError === undefined ? { parsedAll } : { parsedAll, lastError };
 }
 

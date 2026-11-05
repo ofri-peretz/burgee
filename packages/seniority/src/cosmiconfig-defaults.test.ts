@@ -74,7 +74,7 @@ describe('the search places, in order', () => {
     expect(getDefaultSearchPlacesSync('app')).toHaveLength(18);
     expect(globalConfigSearchPlaces).toEqual(['config', 'config.json', 'config.yaml', 'config.yml', 'config.js', 'config.ts', 'config.cjs', 'config.mjs']);
     expect(globalConfigSearchPlacesSync).toEqual(['config', 'config.json', 'config.yaml', 'config.yml', 'config.js', 'config.ts', 'config.cjs']);
-    expect(metaSearchPlaces[0]).toBe('package.json');
+    expect(metaSearchPlaces).toEqual(['package.json', 'package.yaml', '.config/config.json', '.config/config.yaml', '.config/config.yml', '.config/config.js', '.config/config.ts', '.config/config.cjs', '.config/config.mjs']);
   });
 });
 
@@ -171,5 +171,7 @@ describe('loadJs', () => {
   it('rethrows the `require` error when the complaint is not a SyntaxError, whatever it says', async () => {
     const notSyntax = await counted('notsyntax', 'new Error("run " + n + " Cannot use import statement outside a module")');
     expect(notSyntax.error.message).toBe(`run ${String(notSyntax.runs)} Cannot use import statement outside a module`);
+    const otherSyntax = await counted('othersyntax', 'new SyntaxError("run " + n + " Unexpected token")');
+    expect(otherSyntax.error.message).toBe(`run ${String(otherSyntax.runs)} Unexpected token`);
   });
 });

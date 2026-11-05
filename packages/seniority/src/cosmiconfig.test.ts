@@ -363,6 +363,22 @@ describe.each(flavours)('$name', ({ make, spyReads, failStat }) => {
       expect((await make('app', { stopDir: join(above, 'home'), globalConfigDir: join(above, 'global') }).search(join(above, 'home', 'a')))?.config).toEqual({ from: 'global' });
     });
 
+    it('`global` reads the start directory by the tool’s own places, not the global directory’s', async () => {
+      const root = tree({ 'start/.apprc.json': '{"from":"start"}', 'start/config.json': '{"from":"global-named"}', 'global/': '' });
+      const found = await make('app', { stopDir: join(root, 'start'), globalConfigDir: join(root, 'global') }).search(join(root, 'start'));
+      expect(found?.config).toEqual({ from: 'start' });
+    });
+
+    it('starts a search named by a path that is not there from the directory above it', async () => {
+      const root = tree({ '.apprc.json': '{"from":"root"}' });
+      expect((await make('app', { stopDir: root }).search(join(root, 'missing')))?.config).toEqual({ from: 'root' });
+    });
+
+    it('rejects with what a loader threw, `null` included, rather than failing to annotate it', async () => {
+      const root = tree({ 'x.cfg': 'anything' });
+      await expect(make('app', { loaders: { '.cfg': () => { throw null; } } }).load(join(root, 'x.cfg'))).rejects.toBeNull();
+    });
+
     it('`global` answers null when neither the walk nor the global directory holds anything', async () => {
       const root = tree({ 'home/a/': '', 'global/': '' });
       expect(await make('app', { stopDir: join(root, 'home'), globalConfigDir: join(root, 'global') }).search(join(root, 'home', 'a'))).toBeNull();
@@ -497,6 +513,13 @@ describe.each(flavours)('$name', ({ make, spyReads, failStat }) => {
   });
 
   describe('the meta config (cosmiconfig’s own, read from the working directory)', () => {
+    it('concatenates the arrays a meta file `$import`s, as its own merge does', async () => {
+      // The meta explorer reads a file's `cosmiconfig` key, an imported one's too, so the import nests it twice.
+      writeFileSync(join(cwd, 'base.json'), '{"cosmiconfig":{"cosmiconfig":{"searchPlaces":["imported.json"]}}}');
+      meta('{"$import":"../base.json","cosmiconfig":{"searchPlaces":["own.json"]}}');
+      expect((await make('app').search(tree({ 'imported.json': '{"from":"imported"}' })))?.config).toEqual({ from: 'imported' });
+    });
+
     it('adds its search places ahead of the tool’s, `{name}` replaced once', async () => {
       meta('{"cosmiconfig":{"searchPlaces":["{name}-{name}.json"]}}');
       const root = tree({ 'app-{name}.json': '{"from":"meta"}', '.apprc.json': '{"from":"rc"}' });
@@ -549,6 +572,13 @@ describe.each(flavours)('$name', ({ make, spyReads, failStat }) => {
       meta('{"cosmiconfig":{"searchStrategy":"global"}}');
       expect(() => make('app')).toThrow('Can not specify searchStrategy in meta config file');
     });
+  });
+});
+
+describe('the async explorer’s own search places', () => {
+  it('finds a `.mjs` config, which the sync explorer cannot import', async () => {
+    const root = tree({ 'app.config.mjs': 'export default { from: "mjs" };' });
+    expect(await cosmiconfig('app', { stopDir: root, searchStrategy: 'global' }).search(root)).toEqual({ config: { from: 'mjs' }, filepath: join(root, 'app.config.mjs') });
   });
 });
 

@@ -15,6 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { HELP, parseRunArgs, run } from './dotenv-cli.js';
+import dotenv from './dotenv.js';
 import { type CliProcess } from './runtime.js';
 
 const scratch = scratchDirs();
@@ -73,6 +74,7 @@ describe('parseRunArgs', () => {
     [['-f', 'a.env,b.env', 'node'], { paths: ['a.env', 'b.env'], pathSet: true, command: ['node'] }],
     [['--file=a.env', '-f=b.env', '--file', ' , c.env, , d.env, ', 'node'], { paths: ['a.env', 'b.env', 'c.env', 'd.env'], pathSet: true, command: ['node'] }],
     [[], { paths: [], pathSet: false, command: [] }],
+    [['-q', '--debug'], { paths: [], pathSet: false, quiet: true, debug: true, command: [] }],
     [['--'], { paths: [], pathSet: false, command: [] }],
     [['--help', 'node'], { help: true }],
     [['-q', '-h'], { help: true }],
@@ -103,7 +105,7 @@ describe('what it prints before starting anything', () => {
     expect(proc.exitCode).toBeUndefined();
   });
 
-  it.each([[[]], [['other']], [['run']], [['run', '--']], [['run', '--quiet']]])('fails with the help for %j', (argv) => {
+  it.each([[[]], [['other']], [['other', '--bad']], [['run']], [['run', '--']], [['run', '--quiet']]])('fails with the help for %j', (argv) => {
     const proc = fakeProcess();
     const spawn = vi.fn();
     run(argv, proc, { spawn });
@@ -121,8 +123,25 @@ describe('what it prints before starting anything', () => {
     expect(proc.exitCode).toBe(1);
   });
 
-  it('begins with dotenv’s own usage line', () => {
-    expect(HELP.split('\n')[0]).toBe('Usage: dotenv run [--help] [-q|--quiet] [--debug] [--override] [--fast] [-f|--file <paths>] [--] <command> [args...]');
+  it('is dotenv’s own help, line for line', () => {
+    expect(HELP.split('\n')).toEqual([
+      'Usage: dotenv run [--help] [-q|--quiet] [--debug] [--override] [--fast] [-f|--file <paths>] [--] <command> [args...]',
+      '',
+      'Run a command with environment variables from a .env file.',
+      'Place dotenv options before the command; all following arguments go to the command.',
+      '',
+      'Options:',
+      '  -f, --file <paths>  .env paths, comma-separated or repeated (default: .env)',
+      '  -q, --quiet suppress the injected env message',
+      '  --debug     enable debug logging',
+      '  --override  override existing environment variables',
+      '  --fast      use the faster character-scanner parser',
+      '',
+      'Environment variables (DOTENV_CONFIG_* names remain as fallbacks):',
+      '  DOTENV_PATH, DOTENV_ENCODING, DOTENV_QUIET,',
+      '  DOTENV_DEBUG, DOTENV_OVERRIDE,',
+      '  DOTENV_FAST',
+    ]);
   });
 
   it('uses the process it runs in when handed none', () => {
@@ -226,6 +245,38 @@ describe('loading the files', () => {
     expect(printed('error')[0]).toMatch(/^dotenv: ENOENT/);
     expect(proc.exitCode).toBe(1);
     expect(spawn).not.toHaveBeenCalled();
+  });
+
+  it('says why under DOTENV_DEBUG as under --debug, and says nothing without either', () => {
+    run(['run', '-f', 'missing.env', 'node'], fakeProcess({ env: { DOTENV_DEBUG: 'true' } }), { spawn: vi.fn() });
+    expect(printed('log')[0]).toMatch(/^┆ failed to load missing\.env ENOENT/);
+    vi.mocked(console.log).mockClear();
+    const proc = fakeProcess();
+    run(['run', '-f', 'missing.env', 'node'], proc, { spawn: vi.fn() });
+    expect(printed('log')).toEqual([]);
+    expect(proc.exitCode).toBe(1);
+  });
+
+  it('refuses to start when DOTENV_PATH names a file that is missing', () => {
+    const proc = fakeProcess({ env: { DOTENV_PATH: 'missing.env' } });
+    const spawn = vi.fn();
+    run(['run', 'node'], proc, { spawn });
+    expect(printed('error')[0]).toMatch(/^dotenv: ENOENT/);
+    expect(proc.exitCode).toBe(1);
+    expect(spawn).not.toHaveBeenCalled();
+  });
+
+  // The two parsers agree on every input dotenv 18.0.9 pins, so which one read the file shows
+  // only in the call — through the module object, the seam dotenv's own suite stubs.
+  it.each([
+    ['--fast', [], true],
+    ['DOTENV_FAST', ['DOTENV_FAST'], true],
+    ['neither', [], false],
+  ] as const)('asks for the scanner with %s', (how, variables, fast) => {
+    const parse = vi.spyOn(dotenv, 'parse');
+    const flags = how === '--fast' ? ['--fast'] : [];
+    run(['run', '-q', ...flags, '-f', 'a.env', 'node'], fakeProcess({ env: Object.fromEntries(variables.map((name) => [name, 'true'])) }), { spawn: () => fakeChild() });
+    expect(parse.mock.calls.map((call) => call[1])).toEqual([{ fast }]);
   });
 
   it('refuses to start when the default .env exists but cannot be read', () => {
