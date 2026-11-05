@@ -20,6 +20,12 @@ import { editAsync, editorCommand } from './inquirer-editor.js';
 import { editor } from './inquirer-prompts.js';
 import { TICK } from './inquirer-theme.js';
 
+/**
+ * `vi.waitFor` with room for a real editor process to start: its 1 s default ran out on a
+ * machine at load 60, where spawning node alone took longer (2026-11-05).
+ */
+const until = async (check: () => void): Promise<void> => vi.waitFor(check, { timeout: 10_000 });
+
 const scratch = mkdtempSync(join(tmpdir(), 'caique-editor-test-'));
 
 /** An editor that appends `EDIT_APPEND` to the file it is given, or exits with `EDIT_EXIT`. */
@@ -40,6 +46,7 @@ const EDITOR = `"${process.execPath}" "${program}"`;
 afterEach(() => {
   vi.unstubAllEnvs();
 });
+
 
 afterAll(() => {
   discard(scratch);
@@ -165,7 +172,7 @@ describe('editor', () => {
       });
     const { answer, events, getScreen, isPaused } = await render(editor, { message: 'Notes', validate });
     events.keypress('enter');
-    await vi.waitFor(() => {
+    await until(() => {
       expect(getScreen()).toBe('? Notes Validating...');
     });
     events.keypress('enter');
@@ -181,7 +188,7 @@ describe('editor', () => {
     const { events, getScreen, isPaused } = await render(editor, { message: 'Notes' });
     events.keypress('enter');
     expect(isPaused()).toBe(true);
-    await vi.waitFor(() => {
+    await until(() => {
       expect(getScreen()).toContain('exited with 4');
     });
     expect(isPaused()).toBe(false);
@@ -192,7 +199,7 @@ describe('editor', () => {
     const validate = vi.fn((value: string) => value === 'zz' || 'once more');
     const { answer, events, getScreen } = await render(editor, { message: 'Notes', validate });
     events.keypress('enter');
-    await vi.waitFor(() => {
+    await until(() => {
       expect(getScreen()).toContain('> once more');
     });
     events.keypress('enter');
@@ -234,11 +241,11 @@ describe('editor', () => {
     const validate = vi.fn(async (value: string) => (value === 'xx' ? true : new Promise<boolean | string>((resolve) => (release = resolve))));
     const { answer, events, getScreen } = await render(editor, { message: 'Notes', validate, file: { postfix: '.txt' } });
     events.keypress('enter');
-    await vi.waitFor(() => {
+    await until(() => {
       expect(getScreen()).toBe('? Notes Validating...');
     });
     release('again');
-    await vi.waitFor(() => {
+    await until(() => {
       expect(getScreen()).toBe(frame('? Notes Press <enter> to launch your preferred editor.', '> again'));
     });
     events.keypress('enter');
@@ -252,7 +259,7 @@ describe('editor', () => {
     const validate = vi.fn((value: string) => value === 'dy' && validate.mock.calls.length > 1);
     const { answer, events, getScreen } = await render(editor, { message: 'Notes', default: 'd', validate, theme: { validationFailureMode: 'clear' } });
     events.keypress('enter');
-    await vi.waitFor(() => {
+    await until(() => {
       expect(getScreen()).toContain('> You must provide a valid value');
     });
     events.keypress('enter');
@@ -265,7 +272,7 @@ describe('editor', () => {
     vi.stubEnv('EDIT_EXIT', '2');
     const { answer, events, getScreen } = await render(editor, { message: 'Notes', theme: { style: { waitingMessage: () => 'go' } } });
     events.keypress('enter');
-    await vi.waitFor(() => {
+    await until(() => {
       expect(getScreen()).toMatch(/^\? Notes go\n> Error: .* exited with 2$/u);
     });
     vi.stubEnv('EDIT_EXIT', '');
