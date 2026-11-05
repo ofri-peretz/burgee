@@ -62,12 +62,14 @@ export interface WidthOverride {
  * every line of every frame a spinner redraws, and walking a nested structure there would put
  * plugin bookkeeping on the hottest path in the package. Registration happens once.
  */
+// Stryker disable next-line ArrayDeclaration: nothing reads the table before `setOverrides` replaces it and installs the claim
 let flattened: number[] = [];
 const byPlugin = new Map<string, Record<string, WidthOverride>>();
 
 /** The last matching override for a code point, or `undefined` when no plugin claims it. */
 function overridden(code: number): number | undefined {
   let found: number | undefined;
+  // Stryker disable next-line EqualityOperator: one more pass reads past the end, and no code point is >= undefined
   for (let i = 0; i < flattened.length; i += 3) {
     if (code >= (flattened[i] as number) && code <= (flattened[i + 1] as number)) found = flattened[i + 2];
   }
@@ -94,6 +96,7 @@ export function setOverrides(name: string, widths: Record<string, WidthOverride>
     }
   }
   flattened = rows;
+  // Stryker disable next-line ConditionalExpression,NumericLiteral: with no rows `overridden` answers undefined for every code point, which is what no claim means — only the ASCII shortcut is lost, not an answer
   setClaim(rows.length === 0 ? undefined : overridden);
 }
 

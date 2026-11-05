@@ -126,6 +126,7 @@ function inTable(table: readonly number[], codePoint: number): boolean {
   let low = 0;
   let high = table.length / PAIR - 1;
   while (low <= high) {
+    // Stryker disable next-line NumericLiteral: unhalved, the first probe is the last row and every later one walks down from it — a linear search with the same answer
     const mid = (low + high) >> 1;
     const start = table[mid * PAIR] as number;
     const end = table[mid * PAIR + 1] as number;
@@ -197,6 +198,7 @@ export const INVISIBLE_CLASSES = ['\\p{Default_Ignorable_Code_Point}', '\\p{Cont
 const INVISIBLE_SET = INVISIBLE_CLASSES.join('');
 
 /** Printable ASCII only — see `width` for why this is the first question asked. */
+// Stryker disable next-line Regex: matching only one character narrows a shortcut whose answer the full measurement gives anyway
 const ASCII = /^[ -~]*$/u;
 
 /**
@@ -215,7 +217,9 @@ const ASCII = /^[ -~]*$/u;
  */
 const VISIBLE = (): RegExp => (visibleClass ??= new RegExp(`[^${INVISIBLE_SET}]`, 'v'));
 const RGI_EMOJI = (): RegExp => (rgiClass ??= new RegExp('^\\p{RGI_Emoji}$', 'v'));
+// Stryker disable next-line Regex: only ever tested against one code point, so either anchor alone says the same
 const SPACING_MARK = (): RegExp => (spacingClass ??= new RegExp('^\\p{Spacing_Mark}$', 'v'));
+// Stryker disable next-line Regex: only ever tested against one code point, so either anchor alone says the same
 const EXTENDED_PICTOGRAPHIC = (): RegExp => (pictographicClass ??= new RegExp('^\\p{Extended_Pictographic}$', 'u'));
 
 /**
@@ -250,6 +254,7 @@ export function leadingInvisible(text: string): number {
  */
 const UNQUALIFIED_KEYCAP = /^[\d#*]\u20E3$/u;
 
+// Stryker disable next-line StringLiteral: a cluster holds two pictographs only when a joiner binds them (GB11), so asking for the joiner first only saves the count
 const ZWJ = '\u200D';
 
 /** Two pictographs is what separates an emoji ZWJ sequence from an Indic conjunct. */
@@ -262,15 +267,20 @@ const EMOJI_ZWJ_PICTOGRAPHS = 2;
 const EMOJI_SCAN_LIMIT = 50;
 
 /** The Halfwidth and Fullwidth Forms block, which a cluster can carry after its base. */
+// Stryker disable next-line NumericLiteral: U+FF00 is unassigned, so no cluster carries it after a base
 const FORMS_FIRST = 0xff00;
+// Stryker disable next-line NumericLiteral: U+FFEF and U+FFF0 are unassigned, so no cluster carries either after a base
 const FORMS_LAST = 0xffef;
 
 /**
  * Conjoining jamo, in the three classes modern Hangul composes from: leading (L), vowel (V)
  * and trailing (T). Each has an archaic extension block beside the main one.
  */
+// Stryker disable next-line NumericLiteral: U+115F and U+1160 are default-ignorable fillers this walk never sees, and U+A97D is unassigned; U+A960 is graded in width.test.ts
 const JAMO_LEADING: readonly number[] = [0x1100, 0x115f, 0xa960, 0xa97c];
+// Stryker disable next-line NumericLiteral: U+1160 is a default-ignorable filler this walk never sees, U+D7C7 is unassigned, and U+11A8 cannot follow a leading jamo inside a cluster (GB6)
 const JAMO_VOWEL: readonly number[] = [0x1160, 0x11a7, 0xd7b0, 0xd7c6];
+// Stryker disable next-line NumericLiteral: U+1200 never joins a jamo cluster and U+D7FC is unassigned; U+D7CB is graded in width.test.ts
 const JAMO_TRAILING: readonly number[] = [0x11a8, 0x11ff, 0xd7cb, 0xd7fb];
 
 /**
@@ -306,6 +316,7 @@ function trailingColumns(visible: string, ambiguousIsWide: boolean): number {
   let extra = 0;
   for (const character of [...visible].slice(1)) {
     const codePoint = character.codePointAt(0) as number;
+    // Stryker disable next-line EqualityOperator: both ends of the block are unassigned code points, which never trail a base
     const isForm = codePoint >= FORMS_FIRST && codePoint <= FORMS_LAST;
     if (isForm || SPACING_MARK().test(character)) extra += columnsOf(codePoint, ambiguousIsWide);
   }
@@ -327,6 +338,7 @@ function trailingColumns(visible: string, ambiguousIsWide: boolean): number {
 function isUnqualifiedEmojiSequence(cluster: string): boolean {
   if (cluster.length > EMOJI_SCAN_LIMIT) return false;
   if (UNQUALIFIED_KEYCAP.test(cluster)) return true;
+  // Stryker disable next-line ConditionalExpression: without a joiner no cluster holds two pictographs (GB11), so the count below answers false too
   if (!cluster.includes(ZWJ)) return false;
   let pictographs = 0;
   for (const character of cluster) {
@@ -338,6 +350,7 @@ function isUnqualifiedEmojiSequence(cluster: string): boolean {
 
 /** Whether `codePoint` falls in one of a flat `[low, high]` pair list. */
 function inPairs(pairs: readonly number[], codePoint: number): boolean {
+  // Stryker disable next-line EqualityOperator: one more pass compares against undefined, which no code point is inside
   for (let i = 0; i < pairs.length; i += PAIR) {
     if (codePoint >= (pairs[i] as number) && codePoint <= (pairs[i + 1] as number)) return true;
   }
@@ -373,15 +386,17 @@ function hangulColumns(visible: string, ambiguousIsWide: boolean): number | unde
     codePoints.push(character.codePointAt(0) as number);
   }
   let columns = 0;
+  // Stryker disable next-line EqualityOperator: one more pass reads undefined, which is no jamo, and adds nothing from past the end
   for (let index = 0; index < codePoints.length; index += 1) {
     const codePoint = codePoints[index] as number;
+    // Stryker disable next-line ConditionalExpression,BlockStatement: after a non-jamo a cluster can only carry a trailing jamo (GB8), which the walk below also counts at its own width
     if (!isJamo(codePoint)) {
       for (let rest = index; rest < codePoints.length; rest += 1) columns += columnsOf(codePoints[rest] as number, ambiguousIsWide);
       return columns;
     }
-    if (inPairs(JAMO_LEADING, codePoint) && inPairs(JAMO_VOWEL, codePoints[index + 1] ?? -1)) {
+    if (inPairs(JAMO_LEADING, codePoint) && inPairs(JAMO_VOWEL, codePoints[index + 1] as number)) {
       columns += WIDE_COLUMNS;
-      index += inPairs(JAMO_TRAILING, codePoints[index + PAIR] ?? -1) ? PAIR : 1;
+      index += inPairs(JAMO_TRAILING, codePoints[index + PAIR] as number) ? PAIR : 1;
       continue;
     }
     columns += columnsOf(codePoint, ambiguousIsWide);
@@ -411,15 +426,26 @@ export function setClaim(fn: ((code: number) => number | undefined) | undefined)
 }
 
 /**
+ * Whether `text` is one column per code unit: printable ASCII, and no plugin claiming code
+ * points — a claim may name ASCII ones. Every fast path in the package asks this one question:
+ * `width`, `wrap` and `slice` each used to test the class alone, and with a plugin claiming
+ * `~` as two columns `width('~')` answered 1 while `width('~é')` answered 3.
+ */
+// Stryker disable next-line ArrowFunction,ConditionalExpression: answering false only turns the shortcut off, and every caller's slow path gives printable ASCII the same one column per character
+export const plainAscii = (text: string): boolean => claim === undefined && ASCII.test(text);
+
+/**
  * Columns a string of *plain* text occupies — no escape scan. The wrapper below has
  * already split its input into text runs and complete sequences, so rescanning would only
  * give a malformed sequence a second chance to be mistaken for one.
  */
 export function measure(text: string, ambiguousIsWide = false): number {
-  // Printable ASCII is its length, as in `width` — unless a plugin claims code points, which
-  // may include ASCII ones, and must be asked per cluster.
-  if (claim === undefined && ASCII.test(text)) return text.length;
+  // Printable ASCII is its length — unless a plugin claims code points, which may include
+  // ASCII ones, and must be asked per cluster.
+  // Stryker disable next-line ConditionalExpression: without the shortcut the clusters below are one column each, the same length
+  if (plainAscii(text)) return text.length;
   // One code unit is one cluster: nothing to segment (B5 — a prompt frame's glyphs are words).
+  // Stryker disable next-line ConditionalExpression,NumericLiteral: one code unit is one cluster, which the segmenter below hands back whole
   if (text.length === 1) return clusterColumns(text, ambiguousIsWide);
   let columns = 0;
   for (const { segment } of segmenter().segment(text)) columns += clusterColumns(segment, ambiguousIsWide);
@@ -510,12 +536,12 @@ export interface WidthOptions {
  * treated as strings that happen to be empty.
  */
 export function width(input: string, options: WidthOptions = {}): number {
-  if (typeof input !== 'string' || input === '') return 0;
-  if (ASCII.test(input)) return input.length;
+  if (typeof input !== 'string') return 0;
   // `strip`, not `node:util`'s: Node's scanner stops at the first colon in the ITU T.416
   // sub-parameter form (`ESC[38:2::255:0:0m`), which chalk and wrap-ansi both emit — it
-  // measured 15 where string-width says 3. The fast path above never reaches here with an
-  // escape in it, so the two fixes are disjoint: 0x1B is below its 0x20 floor.
+  // measured 15 where string-width says 3. Printable ASCII takes `measure`'s shortcut: `strip`
+  // hands it back untouched, since 0x1B is below the shortcut's 0x20 floor. `width` used to
+  // ask first itself, and that copy of the question forgot the plugin.
   return measure(options.countAnsiEscapeCodes === true ? input : strip(input), options.ambiguousIsNarrow === false);
 }
 

@@ -64,6 +64,7 @@ a usage error.
 
 /** The package's own version, read when asked for rather than on every run. */
 function version(): string {
+  // Stryker disable next-line StringLiteral: without an encoding `readFileSync` hands back a Buffer, and `JSON.parse` reads it through the same UTF-8 `toString`
   return (JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }).version;
 }
 
@@ -135,6 +136,7 @@ async function inspect(argv: readonly string[], write: (s: string) => void): Pro
   // The built-in answer, measured before the plugin lands, so each row can show what it changed.
   for (const registered of [...overrides().keys()]) setOverrides(registered, {});
   const builtIn = new Map(firstOf(plugin).map((code) => [code, width(String.fromCodePoint(code))]));
+  // Stryker disable next-line CallExpression: `register` validates first and throws the same PluginError, so the refusal is identical without it
   validate(plugin);
   register(plugin);
   const name = (plugin as { name: string }).name;
