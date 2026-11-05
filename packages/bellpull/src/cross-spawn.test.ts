@@ -18,11 +18,14 @@
  * `escape.test.ts` for the escaping itself. The compat row proves POSIX parity; these prove
  * the rest.
  */
+import childProcess, { type ChildProcess, type SpawnSyncReturns } from 'node:child_process';
+// eslint-disable-next-line modernization/prefer-event-target -- the fake stands in for a ChildProcess, which is an EventEmitter
+import { EventEmitter } from 'node:events';
 import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { discard } from './__fixtures__/scratch-dir.js';
 import crossSpawn, { spawn, sync } from './cross-spawn.js';
@@ -68,6 +71,10 @@ describe('the default export is callable, with the named exports on it', () => {
     expect(result.error).toBeUndefined();
   });
 
+  it('leaves `error` absent on success, as spawnSync does, rather than present and undefined', () => {
+    expect('error' in sync(process.execPath, ['-e', ''])).toBe(false);
+  });
+
   it('puts a missing command on result.error, the way spawnSync reports one', () => {
     const result = sync('somecommandthatwillneverexist', ['foo']);
     // POSIX reports it from the kernel; Windows reconstructs it. Either way it is a value.
@@ -87,6 +94,12 @@ describe('normalisation — the cases the suite grades four times each', () => {
 
   it('accepts an explicit null for args', () => {
     const parsed = parse('node', null, { cwd: '/x' }, posix);
+    expect(parsed.args).toEqual([]);
+    expect(parsed.options.cwd).toBe('/x');
+  });
+
+  it('reads no args at all as none, and keeps the options given after them', () => {
+    const parsed = parse('node', undefined, { cwd: '/x' }, posix);
     expect(parsed.args).toEqual([]);
     expect(parsed.options.cwd).toBe('/x');
   });
@@ -167,9 +180,59 @@ describe('the Windows branch, driven from a Mac', () => {
     expect(crossSpawn.parse('npm', ['x'])).toEqual(parse('npm', ['x'], undefined, { platform: process.platform, env: process.env, cwd: process.cwd(), uid: process.getuid?.(), gid: process.getgid?.() }));
   });
 
-  it('does not touch anything when the caller asked for a shell themselves', () => {
-    const parsed = parse('echo', ['%RANDOM%'], { shell: true }, win());
+  it.each([true, 'pwsh'])('does not touch anything when the caller asked for a shell themselves (shell: %j)', (shell) => {
+    const parsed = parse('echo', ['%RANDOM%'], { shell }, win());
     expect(parsed.command).toBe('echo');
     expect(parsed.args).toEqual(['%RANDOM%']);
+    expect(parsed.options.windowsVerbatimArguments).toBeUndefined();
+  });
+});
+
+const fakeWindows = { platform: 'win32', env: { PATH: '', PATHEXT: '.EXE', COMSPEC: 'X:\\cmd.exe' }, cwd: () => 'X:\\nowhere' };
+
+/** What `spawnSync` returns for a child that exited with `status`. */
+const exited = (status: number): SpawnSyncReturns<string> => ({ pid: 0, output: [], stdout: '', stderr: '', status, signal: null });
+
+/** `fn`, called with the ambient process saying Windows. */
+function onWindows<T>(fn: () => T): T {
+  vi.stubGlobal('process', fakeWindows);
+  try {
+    return fn();
+  } finally {
+    vi.unstubAllGlobals();
+  }
+}
+
+/**
+ * The façade's own Windows half: `cmd.exe` exiting 1 for a command nothing resolved is put back
+ * as the ENOENT Node would have raised. `child_process` is read off its default export at the
+ * call — the commander note above — so a spy on that object is what the façade calls, and the
+ * ambient `process` is swapped for a Windows one for the length of the call.
+ */
+describe('the façade on Windows, with the child faked', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('sync reports exit 1 with nothing resolved as ENOENT, named for spawnSync and the caller’s command', () => {
+    vi.spyOn(childProcess, 'spawnSync').mockReturnValue(exited(1));
+    const result = onWindows(() => sync('npm', ['x']));
+    expect(result.error).toMatchObject({ code: 'ENOENT', errno: 'ENOENT', syscall: 'spawnSync npm', path: 'npm', spawnargs: ['x'] });
+  });
+
+  it('sync leaves any other exit alone, with no `error` on it', () => {
+    vi.spyOn(childProcess, 'spawnSync').mockReturnValue(exited(2));
+    expect('error' in onWindows(() => sync('npm', ['x']))).toBe(false);
+  });
+
+  it('spawn turns the same exit into an `error` event in place of the `exit`', () => {
+    const fake = new EventEmitter();
+    vi.spyOn(childProcess, 'spawn').mockReturnValue(fake as ChildProcess);
+    const child = onWindows(() => spawn('npm', ['x']));
+    const seen: unknown[] = [];
+    child.on('error', (error) => seen.push(error));
+    child.on('exit', (code) => seen.push(code));
+    child.emit('exit', 1, null);
+    expect(seen).toEqual([expect.objectContaining({ code: 'ENOENT', syscall: 'spawn npm', path: 'npm' })]);
   });
 });

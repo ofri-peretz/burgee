@@ -48,6 +48,9 @@ describe('flagstaff/progress inside an MCP call (mcp-current R5)', () => {
       [0, 30, '-2/30 · 0%'],
       [4, undefined, '4/0 · 100%'],
     ]);
+    // A total of one is a total.
+    p.static({ done: 3, total: 1 });
+    expect(sent.at(-1)).toEqual([1, 1, '3/1 · 100%']);
   });
 
   it('reads the call on every render, so a bar made before the call starts still reports inside it', () => {

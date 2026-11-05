@@ -5,15 +5,26 @@
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 
+import { Chalk } from './chalk.js';
 import { AA, AAA, contrast, reportTheme } from './contrast.js';
 
 import { flown, type Runtime } from './policy.js';
-import { audit, fly, rgb256, type Theme, toOklab } from './theme.js';
+import { audit, fly, type Hex, rgb256, type Theme, toOklab } from './theme.js';
 
 const truecolor: Runtime = { env: { COLORTERM: 'truecolor' }, isTTY: { stdout: true } };
 const colors256: Runtime = { env: { TERM: 'xterm-256color' }, isTTY: { stdout: true } };
 const colors16: Runtime = { env: { TERM: 'xterm' }, isTTY: { stdout: true } };
 const pipe: Runtime = { env: { COLORTERM: 'truecolor' }, isTTY: { stdout: false } };
+
+const BASIC = ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'];
+const two = (v: number): string => v.toString(16).padStart(2, '0');
+/** Each channel either side of where the cube and the sixteen round. */
+const EDGES = [0, 76, 77, 127, 128, 229, 230, 255];
+/** Every grey, and every mix of the edges. */
+const SAMPLE: Hex[] = [
+  ...Array.from({ length: 256 }, (_, v): Hex => `#${two(v).repeat(3)}`),
+  ...EDGES.flatMap((r) => EDGES.flatMap((g) => EDGES.map((b): Hex => `#${two(r)}${two(g)}${two(b)}`))),
+];
 
 const DEEP_ROCK = { sgr: [38, 2, 168, 76, 23] };
 const LIFTED_ROCK = { sgr: [38, 2, 244, 121, 74] };
@@ -87,6 +98,35 @@ describe('fly — hex below truecolor', () => {
     expect(flown.paint.hint).toEqual(['white']);
     expect(flown.paint.value).toEqual(['whiteBright']);
     expect(flown.paint.muted).toEqual(['cyanBright']);
+  });
+
+  it('at level 1 every colour is the name chalk paints it, and a grey goes through the ramp: never bright below #f9f9f9', () => {
+    const chalk16 = new Chalk({ level: 1 });
+    for (const colour of SAMPLE) {
+      const sgr = Number(/^\u001B\[(\d+)m/.exec(chalk16.hex(colour)('x'))?.[1]);
+      fly({ value: colour, ground: contrast(colour, '#000000') >= AA.TEXT ? '#000000' : '#ffffff' }, colors16);
+      expect(flown.paint.value, colour).toEqual([sgr >= 90 ? `${BASIC[sgr - 90] as string}Bright` : BASIC[sgr - 30]]);
+    }
+    fly({ value: '#e6e6e6' }, colors16);
+    expect(flown.paint.value).toEqual(['white']);
+  });
+
+  it('where no 256-colour entry reads, the fallback is the entry chalk paints', () => {
+    // Nothing clears AAA on mid-grey, so `degrade` falls back to per-channel rounding.
+    const chalk256 = new Chalk({ level: 2 });
+    for (const colour of SAMPLE) {
+      const index = Number(/^\u001B\[38;5;(\d+)m/.exec(chalk256.hex(colour)('x'))?.[1]);
+      const row = audit({ value: colour, ground: '#777777', conformance: 'AAA' }).find((f) => f.token === 'value' && f.at === '256');
+      expect(row?.colour, colour).toBe(rgb256(index));
+    }
+  });
+
+  it('knows the xterm values of the 256 palette past the sixteen: the cube, its white, and the grey ramp', () => {
+    expect([16, 17, 18, 19, 20, 21, 59, 231, 232, 244, 255].map(rgb256)).toEqual(['#000000', '#00005f', '#000087', '#0000af', '#0000d7', '#0000ff', '#5f5f5f', '#ffffff', '#080808', '#808080', '#eeeeee']);
+    // The ramp's last entry is a candidate too: a #eeeeee token degrades to itself. And the
+    // palette ends there: #f8f8f8, the ramp's next step, is no entry, so it degrades to white.
+    expect(audit({ value: '#eeeeee', ground: '#000000' }).find((f) => f.token === 'value' && f.at === '256')?.colour).toBe('#eeeeee');
+    expect(audit({ value: '#f8f8f8', ground: '#000000' }).find((f) => f.token === 'value' && f.at === '256')?.colour).toBe('#ffffff');
   });
 
   it('reads the 256-colour grey ramp for greys', () => {
@@ -237,6 +277,16 @@ describe('toOklab', () => {
     expect(gotB).toBeCloseTo(bb, PLACES);
   });
 
+  /**
+   * A grey's OKLab lightness is the cube root of its linear luminance, so sRGB's own transfer
+   * function, written out, checks both of its pieces: `#808080` on the power curve (CSS Color 4
+   * gives it `oklch(59.99% 0 0)`), `#050505` on the linear segment below the threshold.
+   */
+  it('a grey on either piece of the sRGB curve has the lightness the spec gives it', () => {
+    expect(toOklab(128, 128, 128)[0]).toBeCloseTo(0.5999, 4);
+    expect(toOklab(5, 5, 5)[0]).toBeCloseTo(Math.cbrt(5 / 255 / 12.92), PLACES);
+  });
+
   /** Lightness is monotonic in grey, which no single reference value would catch. */
   it('is monotonic in lightness along the grey axis', () => {
     const greys = Array.from({ length: 16 }, (_, i) => toOklab(i * 17, i * 17, i * 17)[0]);
@@ -322,6 +372,12 @@ describe('audit: the verdict as data', () => {
     expect(new Set(rows.map((r) => r.at))).toEqual(new Set(['truecolor', '256']));
     // One row per level per hex token, so the count is even and the levels are balanced.
     expect(rows.filter((r) => r.at === 'truecolor')).toHaveLength(rows.filter((r) => r.at === '256').length);
+  });
+
+  it('reports the 256-colour entry a token flies as, and judges the ratio it prints', () => {
+    expect(audit({ ok: '#0d9460' }).find((f) => f.token === 'ok' && f.at === '256')).toMatchObject({ colour: '#5f875f', ratio: 4.82 });
+    // 4.4986:1, printed as 4.50:1, is judged as printed — as burgee/contrast judges a brand.
+    expect(audit({ value: '#76767f', ground: '#ffffff' }).find((f) => f.token === 'value' && f.at === 'truecolor')).toMatchObject({ ratio: 4.5, passes: true });
   });
 
   it('does not throw on a theme fly() would refuse — that is the whole point', () => {

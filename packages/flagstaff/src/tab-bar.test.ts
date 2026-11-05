@@ -51,5 +51,7 @@ describe('controlroom R3 · tabBar', () => {
     expect(builtin?.name).toBe('tab-bar');
     expect(builtin?.static(builtin.sample?.done)).toBe('Tail logs');
     expect(builtin?.frame?.(0, builtin.sample?.running)).toBe('[Status] · Tail logs · Visualizer');
+    expect(builtin?.frame?.(0, builtin.sample?.done)).toBe('Status · [Tail logs] · Visualizer');
+    expect(tabBar().name).toBe('tab-bar');
   });
 });

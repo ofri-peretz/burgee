@@ -113,6 +113,15 @@ describe('a live frame never outgrows the terminal', () => {
     expect(unstyled(writes.join(''))).not.toContain('more');
   });
 
+  it('R1 · a height of 0 is no height, and a height of 1 leaves room for the summary alone', () => {
+    const zero = screen(0);
+    frameWriter(zero.out).paint(fifty.slice(0, 3));
+    expect(unstyled(zero.writes.join(''))).toBe(`${ESC}[?2026h${fifty.slice(0, 3).join('\n')}${ESC}[?2026l`);
+    const one = screen(1);
+    frameWriter(one.out).paint(fifty.slice(0, 3));
+    expect(unstyled(one.writes.join(''))).toBe(`${ESC}[?2026h… 3 more${ESC}[?2026l`);
+  });
+
   it('R1 · a frame that fits is written as it always was', () => {
     const fits = screen(20);
     const unbounded = screen(undefined);

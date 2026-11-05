@@ -40,22 +40,27 @@ export type Root = JsonSchema & { $defs?: Record<string, JsonSchema>; definition
  * A scalar's keywords. `enum` is read here only, by identity: an array or object listed in an
  * `enum` would never equal a parsed value anyway, and no schema this walker reads lists one.
  */
+function checkString(value: string, node: JsonSchema, path: string): Problem {
+  if (value.length < (node.minLength ?? 0)) return `${path}: must not be empty`;
+  // The pattern is schema.json's own, shipped with the package; nothing here compiles an input.
+  // eslint-disable-next-line secure-coding/detect-non-literal-regexp -- the pattern comes from the bundled schema, never from the plugin
+  if (!new RegExp(node.pattern ?? '').test(value)) return `${path}: ${JSON.stringify(value)} does not match ${String(node.pattern)}`;
+  return undefined;
+}
+
 function checkScalar(value: unknown, node: JsonSchema, path: string): Problem {
   if (node.const !== undefined && value !== node.const) return `${path}: expected ${JSON.stringify(node.const)}, got ${JSON.stringify(value)}`;
   if (node.enum !== undefined && !node.enum.includes(value)) return `${path}: not one of ${JSON.stringify(node.enum)}`;
-  if (typeof value === 'string') {
-    if (node.minLength !== undefined && value.length < node.minLength) return `${path}: must not be empty`;
-    // The pattern is schema.json's own, shipped with the package; nothing here compiles an input.
-    // eslint-disable-next-line secure-coding/detect-non-literal-regexp -- the pattern comes from the bundled schema, never from the plugin
-    if (node.pattern !== undefined && !new RegExp(node.pattern).test(value)) return `${path}: ${JSON.stringify(value)} does not match ${node.pattern}`;
-  }
-  if (typeof value === 'number' && node.minimum !== undefined && value < node.minimum) return `${path}: must be at least ${node.minimum}`;
-  if (typeof value === 'number' && node.maximum !== undefined && value > node.maximum) return `${path}: must be at most ${node.maximum}`;
+  // An absent bound or pattern reads as one nothing fails: no length is under 0, the empty pattern
+  // matches every string, and no number is under -Infinity or over Infinity.
+  if (typeof value === 'string') return checkString(value, node, path);
+  if (typeof value === 'number' && value < (node.minimum ?? -Infinity)) return `${path}: must be at least ${String(node.minimum)}`;
+  if (typeof value === 'number' && value > (node.maximum ?? Infinity)) return `${path}: must be at most ${String(node.maximum)}`;
   return undefined;
 }
 
 function checkArray(value: unknown[], node: JsonSchema, path: string, root: Root): Problem {
-  if (node.minItems !== undefined && value.length < node.minItems) return `${path}: needs at least ${node.minItems} item(s)`;
+  if (value.length < (node.minItems ?? 0)) return `${path}: needs at least ${node.minItems} item(s)`;
   const { items } = node;
   if (items === undefined) return undefined;
   for (const [i, item] of value.entries()) {
@@ -67,12 +72,32 @@ function checkArray(value: unknown[], node: JsonSchema, path: string, root: Root
 
 const isSchema = (x: unknown): x is JsonSchema => typeof x === 'object' && x !== null;
 
+/**
+ * A required key is there when the object has it, or inherits it from a prototype of its own (a
+ * component written as a class keeps `static` on the prototype) — not when every object answers to
+ * it: `{}` has no `constructor` a schema could ask for.
+ */
+// eslint-disable-next-line conventions/consistent-existence-index-check -- own and inherited differ here on purpose (FP 17)
+const present = (record: object, key: string): boolean => Object.hasOwn(record, key) || (Reflect.has(record, key) && !Reflect.has(Object.prototype, key));
+
+/**
+ * The schema a key is walked with. Own keys of `properties` only: `properties.toString` is
+ * Object.prototype's function, not a schema, and read as one it admitted anything — a key a closed
+ * object refuses got through under that name.
+ */
+function ruleFor(node: JsonSchema, key: string): JsonSchema | undefined {
+  const { properties = {}, additionalProperties } = node;
+  // eslint-disable-next-line conventions/consistent-existence-index-check -- an own key on purpose: an inherited one is the bug (FP 17)
+  if (Object.hasOwn(properties, key)) return properties[key];
+  return isSchema(additionalProperties) ? additionalProperties : undefined;
+}
+
 function checkObject(record: Record<string, unknown>, node: JsonSchema, path: string, root: Root): Problem {
   for (const key of node.required ?? []) {
-    if (!(key in record)) return `${path}.${key}: required`;
+    if (!present(record, key)) return `${path}.${key}: required`;
   }
   for (const [key, child] of Object.entries(record)) {
-    const rule = node.properties?.[key] ?? (isSchema(node.additionalProperties) ? node.additionalProperties : undefined);
+    const rule = ruleFor(node, key);
     if (rule === undefined) {
       if (node.additionalProperties === false) return `${path}.${key}: not allowed`;
       continue;

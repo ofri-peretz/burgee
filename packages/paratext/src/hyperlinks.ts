@@ -18,6 +18,7 @@ import { type Runtime } from './runtime.js';
 /** Base ten for every `parseInt`: a terminal version is never written in hex. */
 const DECIMAL = 10;
 /** `supports-color`'s highest level; `FORCE_COLOR=9` is read as 3. */
+// Stryker disable next-line NumericLiteral: only "zero" and "none" are read from a level, and any cap above 0 keeps every non-negative `FORCE_COLOR` a level and every other one not
 const MAX_COLOR_LEVEL = 3;
 /** iTerm2 3.1 is the first with OSC 8. */
 const ITERM2_MAJOR = 3;
@@ -51,6 +52,12 @@ type Env = Runtime['env'];
 const has = (env: Env, name: string): boolean => env[name] !== undefined;
 /** Present and non-empty — upstream's `if (X)`. */
 const set = (value: string | undefined): value is string => value !== undefined && value !== '';
+/**
+ * The variable, or `''` — upstream's `env.X || ''`. Every caller compares the answer with a
+ * name or a version, and none of them is matched by `''` or by any other string they do not list.
+ */
+// Stryker disable next-line StringLiteral: no caller lists the empty string, so any other unlisted default reads the same
+const read = (env: Env, name: string): string => env[name] ?? '';
 
 /**
  * `has-flag`, as both incumbents inline it: the flag counts only before a `--`. Every flag in
@@ -60,6 +67,7 @@ const set = (value: string | undefined): value is string => value !== undefined 
 function hasFlag(argv: readonly string[], flag: string): boolean {
   const at = argv.indexOf(`--${flag}`);
   const end = argv.indexOf('--');
+  // Stryker disable next-line EqualityOperator: `--` is not a flag in either table, so the two positions are never one
   return at !== -1 && (end === -1 || at < end);
 }
 const anyFlag = (argv: readonly string[], flags: readonly string[]): boolean => flags.some((f) => hasFlag(argv, f));
@@ -69,9 +77,11 @@ function forcedColor(env: Env, argv: readonly string[]): number | undefined {
   const raw = env['FORCE_COLOR'];
   if (raw === 'true' || raw === '') return 1;
   if (raw === 'false') return 0;
+  // Stryker disable next-line ConditionalExpression: an absent `FORCE_COLOR` parses to `NaN`, which the test below refuses
   if (raw !== undefined) {
+    // Capped above by `min`, so the one bound left to test is zero; `NaN` fails it too.
     const level = Math.min(Number.parseInt(raw, DECIMAL), MAX_COLOR_LEVEL);
-    if (level >= 0 && level <= MAX_COLOR_LEVEL) return level;
+    if (level >= 0) return level;
   }
   if (anyFlag(argv, NO_COLOR_FLAGS)) return 0;
   if (anyFlag(argv, COLOR_FLAGS)) return 1;
@@ -80,13 +90,15 @@ function forcedColor(env: Env, argv: readonly string[]): number | undefined {
 
 /** What the terminal alone says about colour; undefined is `supports-color`'s `min`, the forced level. */
 function colorByTerminal(env: Env, platform: string): boolean | undefined {
-  const term = env['TERM'] ?? '';
+  const term = read(env, 'TERM');
   if (term === 'dumb') return undefined;
   if (platform === 'win32') return true;
   if (has(env, 'CI')) return COLOR_CI.some((k) => has(env, k)) || env['CI_NAME'] === 'codeship' ? true : undefined;
   const teamcity = env['TEAMCITY_VERSION'];
   if (teamcity !== undefined) return TEAMCITY_COLOR.test(teamcity);
-  if (env['COLORTERM'] === 'truecolor' || TRUECOLOR_TERMS.includes(term) || COLOR_PROGRAMS.includes(env['TERM_PROGRAM'] ?? '')) return true;
+  // Upstream's `COLORTERM=truecolor` is level 3 where any other `COLORTERM` is level 1. Only "any
+  // level" is asked here, so the `has(env, 'COLORTERM')` below answers for both.
+  if (TRUECOLOR_TERMS.includes(term) || COLOR_PROGRAMS.includes(read(env, 'TERM_PROGRAM'))) return true;
   if (COLOR_TERMS.some((re) => re.test(term)) || has(env, 'COLORTERM')) return true;
   return undefined;
 }
@@ -108,10 +120,11 @@ export function hasColor(env: Env, argv: readonly string[], platform: string): b
 }
 
 /** Upstream's version reader: `4601` is 46.1.0, anything else splits on dots. */
-function version(text = ''): { major: number; minor: number } {
+function version(text: string): { major: number; minor: number } {
   const packed = /^\d{3,4}$/.test(text) ? /(\d{1,2})(\d{2})/.exec(text) : null;
   // Both groups are mandatory, so a match always has the first.
   if (packed !== null) return { major: 0, minor: Number.parseInt(packed[1] as string, DECIMAL) };
+  // Stryker disable next-line StringLiteral: a missing part and any other non-number both parse to `NaN`
   const [major = '', minor = ''] = text.split('.');
   return { major: Number.parseInt(major, DECIMAL), minor: Number.parseInt(minor, DECIMAL) };
 }
@@ -120,8 +133,8 @@ const atLeast = ({ major, minor }: { major: number; minor: number }, wantMajor: 
 
 /** Per `TERM_PROGRAM`: yes, no, or undefined to fall through to VTE and `TERM`. */
 function byProgram(env: Env): boolean | undefined {
-  const program = env['TERM_PROGRAM'] ?? '';
-  const raw = env['TERM_PROGRAM_VERSION'] ?? '';
+  const program = read(env, 'TERM_PROGRAM');
+  const raw = read(env, 'TERM_PROGRAM_VERSION');
   if (LINK_PROGRAMS.includes(program)) return true;
   if (program === 'iTerm.app') return atLeast(version(raw), ITERM2_MAJOR, ITERM2_MINOR);
   if (program === 'WezTerm') return NIX_WEZTERM.test(raw) ? raw.slice('0-unstable-'.length) >= WEZTERM_MIN_NIX : version(raw).major >= WEZTERM_MIN;
@@ -144,7 +157,7 @@ function byTerminal(env: Env): boolean {
   const program = byProgram(env);
   if (program !== undefined) return program;
   const vte = env['VTE_VERSION'];
-  if (!set(vte)) return LINK_TERMS.includes(env['TERM'] ?? '');
+  if (!set(vte)) return LINK_TERMS.includes(read(env, 'TERM'));
   // Not `atLeast`: upstream asks `major > 0 || minor >= 50`, which differs when the major is not a number.
   const { major, minor } = version(vte);
   return vte !== BROKEN_VTE && (major > 0 || minor >= VTE_MIN_MINOR);
@@ -153,9 +166,11 @@ function byTerminal(env: Env): boolean {
 /** `createSupportsHyperlinks(stream)`, for the stream `target` names. */
 export function supportsHyperlinks(runtime: Runtime, target: 'stdout' | 'stderr'): boolean {
   const { env } = runtime;
+  // Stryker disable next-line ArrayDeclaration: a runtime with no argv has no flags, and an argv of one non-flag has none either
   const argv = runtime.argv ?? [];
   const forced = overridden(env, argv);
   if (forced !== undefined) return forced;
+  // Stryker disable next-line StringLiteral: the platform is only ever compared with `win32`
   const platform = runtime.platform ?? '';
   const isTTY = target === 'stderr' ? (runtime.isTTY.stderr ?? runtime.isTTY.stdout) : runtime.isTTY.stdout;
   if (!isTTY || !hasColor(env, argv, platform)) return false;

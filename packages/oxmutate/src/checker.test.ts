@@ -146,6 +146,19 @@ describe('checkSurvivors, against a stand-in compiler', () => {
     expect(calls()).toHaveLength(2);
   });
 
+  // Without a tsgo of its own the project's checker is `npx tsc`. The real one only runs nightly
+  // (above), which left the fallback unreached in a mutation run; a shim named npx on PATH stands
+  // in for it, and refuses anything but the `tsc` it must be handed.
+  it.skipIf(process.platform === 'win32')('falls back to npx tsc when the project has no tsgo', async () => {
+    const bin = path.join(tmp, `bin${String(projects++)}`);
+    mkdirSync(bin, { recursive: true });
+    writeFileSync(path.join(bin, 'npx'), `#!/bin/sh\n[ "$1" = tsc ] || exit 9\nshift\nexec node ${fake} "$@"\n`);
+    chmodSync(path.join(bin, 'npx'), 0o755);
+    vi.stubEnv('PATH', `${bin}${path.delimiter}${process.env['PATH'] ?? ''}`);
+    expect(await checkSurvivors({ root: project(), tsconfig: 'tsconfig.json', concurrency: 1 }, [m('x', 'a', 'BAD')])).toEqual(new Map([['x', 'TS2322: bad in a.ts (line 2)']]));
+    expect(calls()).toHaveLength(2);
+  });
+
   it('lays each error at the mutant in the file it names, one batch for mutants in different files', async () => {
     const refused = await checkSurvivors({ root: project(), tsconfig: 'tsconfig.json', command: `node ${fake}`, concurrency: 1 }, [m('a1', 'a', 'BAD'), m('b1', 'b', '1')]);
     expect(refused).toEqual(new Map([['a1', 'TS2322: bad in a.ts (line 2)']]));

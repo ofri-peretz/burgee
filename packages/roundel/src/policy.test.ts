@@ -71,6 +71,21 @@ describe('colorLevel — R2, what a terminal reports, with no instruction', () =
     ['a CI run on a terminal is its vendor’s level, as supports-color has it', { CI: 'true', GITHUB_ACTIONS: 'true', TERM: 'xterm' }, 3],
     ['accessible on a terminal is 0: CLI_ACCESSIBLE is a human instruction, and ANSI is noise to a screen reader', { CLI_ACCESSIBLE: '1', COLORTERM: 'truecolor' }, 0],
     ['an empty CLI_ACCESSIBLE is not set', { CLI_ACCESSIBLE: '', COLORTERM: 'truecolor' }, 3],
+    // A TERM is matched by its start, and a 256 suffix by its end: a name that only contains one is neither.
+    ['TERM=foo-256x is not 256 colours', { TERM: 'foo-256x' }, 0],
+    ['TERM=foo-screen is not screen', { TERM: 'foo-screen' }, 0],
+    ['TERM=foo-xterm is not xterm', { TERM: 'foo-xterm' }, 0],
+    ['TERM=foo-vt100 is not vt100', { TERM: 'foo-vt100' }, 0],
+    ['TERM=foo-vt220 is not vt220', { TERM: 'foo-vt220' }, 0],
+    ['TERM=foo-rxvt is not rxvt', { TERM: 'foo-rxvt' }, 0],
+    // With nothing asked, the floor is 0, so a level-1 vendor shows as 1 only if the table names it.
+    ['a Travis run on a terminal is 1', { CI: 'true', TRAVIS: 'true' }, 1],
+    ['an AppVeyor run on a terminal is 1', { CI: 'true', APPVEYOR: 'true' }, 1],
+    ['a GitLab CI run on a terminal is 1', { CI: 'true', GITLAB_CI: 'true' }, 1],
+    ['a Buildkite run on a terminal is 1', { CI: 'true', BUILDKITE: 'true' }, 1],
+    ['a Drone run on a terminal is 1', { CI: 'true', DRONE: 'true' }, 1],
+    ['a Codeship run on a terminal is 1, by CI_NAME', { CI: 'true', CI_NAME: 'codeship' }, 1],
+    ['a CI_NAME that is not codeship names no vendor', { CI: 'true', CI_NAME: 'other' }, 0],
   ])('%s', (_, env, level) => {
     expect(colorLevel(rt(env, true))).toBe(level);
   });
@@ -90,6 +105,7 @@ describe('colorLevel — R2 revised 2026-09-08: FORCE_COLOR is the user’s inst
     ['FORCE_COLOR=1 overrides CI detection', { FORCE_COLOR: '1', CI: 'true', GITHUB_ACTIONS: 'true' }, 1],
     ['FORCE_COLOR=1 overrides TERM detection', { FORCE_COLOR: '1', TERM: 'xterm-256color' }, 1],
     ['a FORCE_COLOR above 3 is clamped to 3', { FORCE_COLOR: '4', TERM: 'xterm-256color' }, 3],
+    ['a FORCE_COLOR of two digits is a level too, clamped', { FORCE_COLOR: '10' }, 3],
     ['FORCE_COLOR=0 disables colour', { FORCE_COLOR: '0', COLORTERM: 'truecolor' }, 0],
     ['FORCE_COLOR=true only enables colour: COLORTERM decides', { FORCE_COLOR: 'true', COLORTERM: 'truecolor' }, 3],
     ['FORCE_COLOR=true only enables colour: TERM decides', { FORCE_COLOR: 'true', TERM: 'xterm-256color' }, 2],
@@ -153,6 +169,15 @@ describe('colorLevel — the --color flags, when the caller hands over argv', ()
     ['an exact level outranks on', ['--color', '--color=256'], { COLORTERM: 'truecolor' }, 2],
     ['a flag after -- belongs to the program, not to the terminal', ['--', '--color=16m'], {}, 0],
     ['an unknown --color value is no instruction', ['--color=lots'], {}, 0],
+    // A flag is the whole argument: one with text before or after it is some other argument.
+    ['--no-colors-please is not --no-colors', ['--no-colors-please'], { FORCE_COLOR: '3' }, 3],
+    ['x--no-color is not --no-color', ['x--no-color'], { FORCE_COLOR: '3' }, 3],
+    ['--color=16mx is not --color=16m', ['--color=16mx'], {}, 0],
+    ['x--color=16m is not --color=16m', ['x--color=16m'], {}, 0],
+    ['--color=256x is not --color=256', ['--color=256x'], {}, 0],
+    ['x--color=256 is not --color=256', ['x--color=256'], {}, 0],
+    ['x--colors is not --colors', ['x--colors'], {}, 0],
+    ['the flags before -- count, from the first', ['--no-color', '--', '--color=16m'], { FORCE_COLOR: '3' }, 0],
     ['NO_COLOR beats every flag', ['--color=16m'], { NO_COLOR: '1' }, 0],
   ])('%s', (_, argv, env, level) => {
     expect(colorLevel(flags(argv, env))).toBe(level);

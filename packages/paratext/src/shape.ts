@@ -49,7 +49,7 @@ const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'obj
 function kindOf(v: unknown): string {
   if (Array.isArray(v)) return 'array';
   if (v === null) return 'null';
-  return typeof v === 'number' && Number.isInteger(v) ? 'integer' : typeof v;
+  return Number.isInteger(v) ? 'integer' : typeof v;
 }
 
 /** One schema node in a reader's words: `an integer ≥ 0`, `"BEL"`, `an object`. */

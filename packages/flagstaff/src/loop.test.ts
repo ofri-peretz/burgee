@@ -322,12 +322,26 @@ describe('manualClock', () => {
     expect(ran).toBe(false);
   });
 
+  it('cancelling one callback leaves the others scheduled', () => {
+    const clock = manualClock();
+    const ran: string[] = [];
+    clock.schedule(() => ran.push('a'), 5);
+    const cancel = clock.schedule(() => ran.push('b'), 5);
+    clock.schedule(() => ran.push('c'), 5);
+    cancel();
+    clock.tick(10);
+    expect(ran).toEqual(['a', 'c']);
+  });
+
   it('a callback that reschedules itself at 0 ms hits the ceiling instead of hanging the test', () => {
     const clock = manualClock();
+    let runs = 0;
     const again = (): void => {
+      runs += 1;
       clock.schedule(again, 0);
     };
     clock.schedule(again, 0);
     expect(() => clock.tick(1)).toThrow(/1000 callbacks/);
+    expect(runs).toBe(1000);
   });
 });

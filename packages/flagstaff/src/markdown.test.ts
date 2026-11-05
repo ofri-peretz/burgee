@@ -86,6 +86,36 @@ describe('controlroom R21 · markdown blocks', () => {
     expect(markdownBlocks('\n\n', true)).toEqual([]);
   });
 
+  it.each([
+    ['- a\n', 'list'],
+    ['1. a\n', 'list'],
+    ['10) a\n', 'list'],
+    ['#\n', 'heading'],
+    // A `#` that does not open the line, or one with text straight after it, is text.
+    ['I like C# a lot\n', 'paragraph'],
+    ['#hashtag\n', 'paragraph'],
+    ['a ``` b\n', 'paragraph'],
+  ])('%j opens a %s', (text, kind) => {
+    expect(markdownBlocks(text, true).map((b) => b.kind)).toEqual([kind]);
+  });
+
+  it('a line opening with a code span is a paragraph, not a fence: a backtick fence’s info string holds no backtick', () => {
+    expect(markdownBlocks('```x``` is code\nmore\n\nnext\n', true).map((b) => [b.kind, b.source])).toEqual([
+      ['paragraph', '```x``` is code\nmore'],
+      ['paragraph', 'next'],
+    ]);
+    // A tilde fence may carry backticks in its info string.
+    expect(markdownBlocks('~~~ `x`\ny\n~~~\n', true).map((b) => b.kind)).toEqual(['code']);
+  });
+
+  it('an indented fence is closed by an indented run, and the newline after a closed stream is not a line of it', () => {
+    expect(markdownBlocks('  ```\nx\n  ```\nafter\n', true).map((b) => [b.kind, b.source])).toEqual([
+      ['code', '  ```\nx\n  ```'],
+      ['paragraph', 'after'],
+    ]);
+    expect(markdownBlocks('```\ncode\n', true)).toEqual([{ kind: 'code', source: '```\ncode', end: 8 }]);
+  });
+
   it('a list item after a paragraph starts a list; a plain line after a list continues it', () => {
     expect(markdownBlocks('intro\n- a\nlazy\n- b\n', true).map((b) => b.source)).toEqual(['intro', '- a\nlazy\n- b']);
   });
@@ -103,6 +133,11 @@ describe('controlroom R21 · the markdown component', () => {
   it('without colour, the frame is the source: no delimiter is dropped that nothing replaces', () => {
     const frame = markdown().frame?.(0, { text: '# Title\n\nsay **hi** to `x` and *you*\n- item' }) ?? '';
     expect(frame).toBe('# Title\n\nsay **hi** to `x` and *you*\n\n- item');
+    expect(draw('one\ntwo')).toBe('one\ntwo');
+  });
+
+  it('is the component named `markdown`, the event its JSON lines carry', () => {
+    expect(markdown().name).toBe('markdown');
   });
 
   it('with colour, headings and strong are `heading`, emphasis `value`, code `command`, fences `muted`', () => {
@@ -118,6 +153,19 @@ describe('controlroom R21 · the markdown component', () => {
       // No highlighting inside a fence: every code line is one `command`, the fences muted.
       expect(draw('```ts\nconst a = 1;\n```')).toBe('\u001B[2m```ts\u001B[22m\n\u001B[36mconst a = 1;\u001B[39m\n\u001B[2m```\u001B[22m');
       expect(draw('```\nstill open')).toBe('\u001B[2m```\u001B[22m\n\u001B[36mstill open\u001B[39m');
+      expect(draw('  ```\nx\n  ```')).toBe('\u001B[2m  ```\u001B[22m\n\u001B[36mx\u001B[39m\n\u001B[2m  ```\u001B[22m');
+      // A heading's closing run of `#`s is not its text; a `#` inside a word is.
+      expect(draw('# Title #')).toBe('\u001B[1mTitle\u001B[22m');
+      expect(draw('## C# ##  ')).toBe('\u001B[1mC#\u001B[22m');
+      expect(draw('# a #b')).toBe('\u001B[1ma #b\u001B[22m');
+      // A heading of nothing but its runs is empty, as one of a lone `#` is.
+      expect(draw('# #')).toBe(draw('#'));
+      // Strong and emphasis hold more than one word.
+      expect(draw('**two words** __two words__ *two words* _two words_')).toBe(
+        '\u001B[1mtwo words\u001B[22m \u001B[1mtwo words\u001B[22m \u001B[3mtwo words\u001B[23m \u001B[3mtwo words\u001B[23m',
+      );
+      // A paragraph opening with a code span is drawn as one.
+      expect(draw('```x``` y')).toBe('\u001B[36mx\u001B[39m y');
     } finally {
       flown.level = 0;
       flown.paint = {};

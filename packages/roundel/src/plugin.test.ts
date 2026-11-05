@@ -12,7 +12,7 @@
  * colour in. That is asserted through `fly()`, because the contrast gate lives there and
  * re-implementing it here would be the drift the contract exists to prevent.
  */
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { contributions, PluginError, register, registered, reset, theme } from './plugin.js';
 import { type Runtime } from './policy.js';
@@ -99,7 +99,9 @@ describe('refusals', () => {
       expect.unreachable('a contract from the future must not register');
     } catch (error) {
       expect((error as PluginError).code).toBe('E_PLUGIN_CONTRACT');
-      expect((error as PluginError).fix).toContain('upgrade roundel');
+      expect((error as PluginError).fix).toBe('upgrade roundel, or lower the plugin’s contract');
+      expect((error as PluginError).message).toBe('plugin "future" declares contract 2; this roundel knows 1');
+      expect((error as PluginError).name).toBe('PluginError');
     }
   });
 
@@ -109,8 +111,35 @@ describe('refusals', () => {
     expect(() => { register({ name: 'acme', contract }); }).toThrow(expect.objectContaining({ code: 'E_PLUGIN_CONTRACT' }));
   });
 
-  it('a plugin with no name is refused — a shadowed token has to be attributable', () => {
-    expect(() => register({ tokens: { error: '#b00020' } })).toThrow(/needs a name/);
+  it('a plugin with no name, or an empty one, is refused — a shadowed token has to be attributable', () => {
+    for (const plugin of [{ tokens: { error: '#b00020' } }, { name: '' }]) {
+      expect(() => register(plugin)).toThrow(
+        expect.objectContaining({ code: 'E_PLUGIN_SCHEMA', message: 'a plugin needs a name', fix: 'add `name: "…"` — it is how a shadowed token is reported' }),
+      );
+    }
+  });
+
+  it.each(['error', 'warn', 'ok', 'hint', 'muted', 'command', 'flag', 'value', 'heading', 'ground'])('%s is a token a plugin may set', (token) => {
+    register({ name: 'every', tokens: { [token]: '#808080' } });
+    expect(theme()).toEqual({ [token]: '#808080' });
+  });
+
+  it.each([
+    ['text before the colour', 'x#aabbcc'],
+    ['a colour with alpha', '#aabbccdd'],
+    // Neither is a string, though each reads as `#b00020` once coerced to one.
+    ['an array holding the colour', ['#b00020']],
+    ['an object whose string is the colour', { toString: (): string => '#b00020' }],
+  ])('a token given %s is refused', (_, value) => {
+    expect(() => register({ name: 'odd', tokens: { error: value } })).toThrow(
+      expect.objectContaining({ code: 'E_PLUGIN_SCHEMA', fix: 'a token is a #rrggbb colour, contrast-checked when the theme is flown' }),
+    );
+  });
+
+  it('a fresh module has nothing registered', async () => {
+    vi.resetModules();
+    const fresh = await import('./plugin.js');
+    expect(fresh.registered()).toEqual([]);
   });
 
   it.each([
@@ -119,7 +148,7 @@ describe('refusals', () => {
     ['a function', factory],
     ['a string', 'acme'],
   ])('%s is not a plugin, and is refused at the door', (_, value) => {
-    expect(() => register(value)).toThrow(expect.objectContaining({ code: 'E_PLUGIN_SCHEMA', message: 'a plugin is a plain object' }));
+    expect(() => register(value)).toThrow(expect.objectContaining({ code: 'E_PLUGIN_SCHEMA', message: 'a plugin is a plain object', fix: 'export an object, not a function or an array' }));
     expect(registered()).toHaveLength(0);
   });
 

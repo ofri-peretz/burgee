@@ -37,7 +37,7 @@ import { delimiter, join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { discard } from './__fixtures__/scratch-dir.js';
-import { escapeArgument, escapeCommand } from './escape.js';
+import { escapeArgument, escapeCommand, isCmdShim, isDirectlyExecutable } from './escape.js';
 import { run } from './run.js';
 import { type Runtime } from './runtime.js';
 
@@ -208,6 +208,43 @@ describe('escapeArgument survives cmd.exe and then the argv parser', () => {
     expect(argv).toEqual([argument]);
     // Nothing reached cmd.exe as a live metacharacter, so nothing could be acted on.
     expect(live).toEqual([]);
+  });
+});
+
+/**
+ * The bytes, for the metacharacters the round trip above cannot see.
+ *
+ * `[`, `]`, `` ` ``, `*` and `?` do nothing to this file's model of `cmd.exe` or the argv
+ * parser, so a set that forgot them would still round-trip. `cross-spawn` escapes them all —
+ * its `metaCharsRegExp` is `/([()\][%!^"`<>&|;, *?])/g` — and a drop-in has to give the same
+ * command line, so the expected strings here are `cross-spawn`'s own output for these inputs.
+ */
+describe('escapeArgument gives cross-spawn’s bytes', () => {
+  it('carets every metacharacter, including the ones the model above does not act on', () => {
+    expect(escapeArgument('[a]`*?')).toBe('^"^[a^]^`^*^?^"');
+    expect(escapeCommand('[a]`*?')).toBe('^[a^]^`^*^?');
+  });
+});
+
+describe('which files take which path', () => {
+  it.each([
+    ['C:\\p\\node_modules\\.bin\\x.cmd', true],
+    ['/p/node_modules/.bin/x.CMD', true],
+    // A backup sitting beside the shim is not one; the extension has to end the name.
+    ['C:\\p\\node_modules\\.bin\\x.cmd.bak', false],
+    ['C:\\p\\tools\\x.cmd', false],
+  ])('isCmdShim(%j) is %s', (file, expected) => {
+    expect(isCmdShim(file)).toBe(expected);
+  });
+
+  it.each([
+    ['C:\\tools\\node.exe', true],
+    ['C:\\tools\\fmt.COM', true],
+    // A directory named like an image does not make the file in it one.
+    ['C:\\a.com\\tool.cmd', false],
+    ['C:\\a.exe.cmd', false],
+  ])('isDirectlyExecutable(%j) is %s', (file, expected) => {
+    expect(isDirectlyExecutable(file)).toBe(expected);
   });
 });
 

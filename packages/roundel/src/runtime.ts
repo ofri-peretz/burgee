@@ -63,4 +63,5 @@ export const proc = (globalThis as { process?: Proc }).process;
  */
 // prettier-ignore — one line for the reason `policy.ts` gives: `./chalk` reaches this file
 // and R8 caps that whole graph at chalk 6's own 9,370 bytes, which tsc's indentation spends.
+// Stryker disable next-line OptionalChaining: a process with streams has both of them
 export const processRuntime = (stream: 'stdout' | 'stderr' = 'stdout'): Runtime => ({ env: proc?.env ?? {}, argv: proc?.argv ?? [], isTTY: { stdout: proc?.[stream]?.isTTY === true } });

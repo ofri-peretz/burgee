@@ -45,6 +45,12 @@ async function run(argv: readonly string[]): Promise<{ code: number; out: string
 
 const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string };
 
+describe('the exit codes', () => {
+  it('are the family contract E1 — 0 ok, 1 refused, 2 usage — as numbers a shell script reads', () => {
+    expect([EXIT_OK, EXIT_RUNTIME, EXIT_USAGE]).toEqual([0, 1, 2]);
+  });
+});
+
 describe('arguments', () => {
   it.each(['--help', '-h'])('%s prints the help and exits 0, rather than importing a file by that name', async (flag) => {
     const { code, out } = await run([flag]);

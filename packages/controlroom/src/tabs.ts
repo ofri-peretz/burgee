@@ -69,7 +69,9 @@ const SCROLL = new Map<string, readonly [number, number]>([
   ['scroll.down', [1, 0]],
   ['scroll.pageUp', [0, -1]],
   ['scroll.pageDown', [0, 1]],
+  // Stryker disable next-line NumericLiteral: a page on top of an infinite move is still infinite, and `settle` clamps it
   ['scroll.top', [-Infinity, 0]],
+  // Stryker disable next-line NumericLiteral: a page on top of an infinite move is still infinite, and `settle` clamps it
   ['scroll.bottom', [Infinity, 0]],
 ]);
 

@@ -116,6 +116,7 @@ function detectShebang(parsed: Parsed, runtime: Runtime): string | undefined {
   const resolve = (): string | undefined => resolveExecutable(parsed.command, { runtime: effective, cwd: parsed.options.cwd })?.path;
 
   parsed.file = resolve();
+  // Stryker disable next-line ConditionalExpression: `readShebang` of nothing fails its open and answers `undefined`, and so does `parsed.file`
   if (parsed.file === undefined) return undefined;
 
   const interpreter = readShebang(parsed.file);
@@ -154,9 +155,11 @@ export function parse(
   // A `.exe` or `.com` is an image Windows loads directly. Everything else — a `.cmd`, a
   // `.bat`, a script we just put an interpreter in front of, a name that resolved to
   // nothing — goes through `cmd.exe`.
+  // Stryker disable next-line ConditionalExpression: `isDirectlyExecutable` of `undefined` tests the string "undefined", which is no image, so the answer is the same
   const needsShell = commandFile === undefined || !isDirectlyExecutable(commandFile);
   if (parsed.options.forceShell !== true && !needsShell) return parsed;
 
+  // Stryker disable next-line ConditionalExpression: `isCmdShim` of `undefined` tests the string "undefined", which is no shim
   const doubleEscape = commandFile !== undefined && isCmdShim(commandFile);
   // `foo/bar` is a path Windows understands only as `foo\bar`; without this the spawn is an
   // ENOENT that looks like a missing program.

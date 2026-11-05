@@ -8,7 +8,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { check, type Root } from './conforms.js';
+import { check, type JsonSchema, type Root } from './conforms.js';
 
 describe('check · the keywords the family schema uses beyond flagstaff’s own', () => {
   it('const: the one value it names, and a refusal that shows both', () => {
@@ -71,5 +71,44 @@ describe('check · the keywords the family schema uses beyond flagstaff’s own'
     const root: Root = { definitions: { id: { type: 'integer' } }, $ref: '#/definitions/id' };
     expect(check(1, root, 'r')).toBeUndefined();
     expect(check('1', root, 'r')).toBe('r: expected integer, got string');
+  });
+  it('a bound binds only the type it is for: a string, a boolean or null is not held to minimum, a number not to a pattern', () => {
+    expect(check('3', { minimum: 5 }, 'v')).toBeUndefined();
+    expect(check('9', { maximum: 5 }, 'v')).toBeUndefined();
+    expect(check(true, { minimum: 5 }, 'v')).toBeUndefined();
+    expect(check(null, { maximum: -1 }, 'v')).toBeUndefined();
+    expect(check(5, { pattern: '^x$' }, 'v')).toBeUndefined();
+    expect(check(3, { type: 'integer', minimum: 5 }, 'v')).toBe('v: must be at least 5');
+    expect(check('', { type: 'string', minLength: 1 }, 's')).toBe('s: must not be empty');
+    expect(check('#zz', { type: 'string', pattern: '^#[0-9a-f]{6}$' }, 's')).toBe('s: "#zz" does not match ^#[0-9a-f]{6}$');
+  });
+
+  it('items: every item is walked, and the first refusal names its index', () => {
+    const numbers = { type: 'array', items: { type: 'number' } };
+    expect(check([1, 2.5], numbers, 'a')).toBeUndefined();
+    expect(check([], numbers, 'a')).toBeUndefined();
+    expect(check([1, 'x', null], numbers, 'a')).toBe('a[1]: expected number, got string');
+  });
+
+  it('an additionalProperties of null constrains nothing, as an absent one does', () => {
+    expect(check({ a: 1 }, { type: 'object', additionalProperties: null } as unknown as JsonSchema, 'p')).toBeUndefined();
+  });
+
+  it('a key Object.prototype answers to is still a key: a closed object refuses an own `toString`', () => {
+    // `properties.toString` is Object.prototype's function; read as a schema it admitted anything.
+    const closed = { type: 'object', properties: { name: { type: 'string' } }, additionalProperties: false };
+    expect(check({ name: 'x', toString: 1 }, closed, 'p')).toBe('p.toString: not allowed');
+    expect(check({ name: 'x', constructor: 1 }, closed, 'p')).toBe('p.constructor: not allowed');
+  });
+
+  it('required: an own key or one a class prototype carries is present; one only Object.prototype answers to is not', () => {
+    expect(check({}, { type: 'object', required: ['constructor'] }, 'p')).toBe('p.constructor: required');
+    expect(check({ toString: 'mine' }, { type: 'object', required: ['toString'] }, 'p')).toBeUndefined();
+    class Component {
+      static(): string {
+        return 'done';
+      }
+    }
+    expect(check(new Component(), { type: 'object', required: ['static'] }, 'c')).toBeUndefined();
   });
 });

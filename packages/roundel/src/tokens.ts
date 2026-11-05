@@ -67,7 +67,9 @@ export const painter = (at: Painter, p: SgrPair): Painter => ({
 /** `s` through a painter. No escape inside skips the re-open pass, no line break the line pass — chalk's own shortcut. */
 export function painted({ open, close, back }: Painter, s: string): string {
   let out = s;
+  // Stryker disable next-line ConditionalExpression: both tests only skip a replace that would find nothing
   if (out.includes(CSI)) for (const [shut, again] of back) if (out.includes(shut)) out = out.replaceAll(shut, shut + again);
+  // Stryker disable next-line ConditionalExpression,StringLiteral: the test only skips a replace that would find nothing
   if (out.includes('\n')) out = out.replace(LINE_BREAK, (lf) => close + lf + open);
   return open + out + close;
 }

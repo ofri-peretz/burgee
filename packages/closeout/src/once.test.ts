@@ -55,6 +55,13 @@ describe('preserves what mimic-fn exists to preserve', () => {
     expect(once(three).length).toBe(3);
   });
 
+  it('leaves name and length configurable, as on any function, so a caller can rename the wrapper again', () => {
+    const wrapped = once(releaseTheLock);
+    Object.defineProperty(wrapped, 'name', { value: 'renamed' });
+    Object.defineProperty(wrapped, 'length', { value: 7 });
+    expect([wrapped.name, wrapped.length]).toEqual(['renamed', 7]);
+  });
+
   it('keeps `this`, so a method can be wrapped in place', () => {
     const counter = {
       hits: 0,

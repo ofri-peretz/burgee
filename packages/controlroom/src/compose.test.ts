@@ -46,6 +46,16 @@ describe('compose', () => {
     expect(compose(tree, { top: { component: text, state: 'hi' } }, { columns: 3, rows: 3, t: 0, live: true })).toEqual(['hi ', '   ', '   ']);
   });
 
+  it('a pane left empty keeps its columns, so the pane after it stays where the layout put it', () => {
+    const tree: Layout = { direction: 'row', parts: [{ size: 2, content: 'empty' }, { content: 'b' }] };
+    expect(compose(tree, { b: { component: text, state: 'bb' } }, { columns: 4, rows: 1, t: 0, live: true })).toEqual(['  bb']);
+  });
+
+  it('draws a pane one column wide', () => {
+    const tree: Layout = { direction: 'row', parts: [{ size: 1, content: 'a' }, { content: 'b' }] };
+    expect(compose(tree, { a: { component: text, state: 'a' }, b: { component: text, state: 'bb' } }, { columns: 3, rows: 1, t: 0, live: true })).toEqual(['abb']);
+  });
+
   it('a gap between fixed panes is filled, so the frame replaces whatever was under it', () => {
     const tree: Layout = { direction: 'row', parts: [{ size: 2, content: 'a' }, { size: 0, content: 'gone' }, { size: 2, content: 'b' }] };
     expect(compose(tree, { a: { component: text, state: 'aa' }, gone: { component: text, state: 'x' }, b: { component: text, state: 'bb' } }, { columns: 6, rows: 1, t: 0, live: true })).toEqual([
@@ -103,6 +113,10 @@ describe('compose — a scrolled pane (controlroom-scroll-pane R1, R4, R6, S1–
     expect(frame[19]).toBe(pad('↓ 181'));
   });
 
+  it('R4 — one line below the view is still said, as `↓ 1`', () => {
+    expect(compose('log', log(tall.slice(0, 21)), size, state(0))[19]).toBe(pad('↓ 1'));
+  });
+
   it('the hint is drawn for the focused pane only', () => {
     expect(compose('log', log(), size, state(0, []))[19]).toBe(pad('line 20'));
   });
@@ -128,6 +142,13 @@ describe('compose — a scrolled pane (controlroom-scroll-pane R1, R4, R6, S1–
     expect(compose(tree, { ...panes, d: { component: text, state: 'd' } }, still)).toEqual(['a1  ', 'a2  ', 'a3  ', 'b1  ', '    ', 'c1d ', 'c2  ']);
     expect(compose('b', panes, { ...still, rows: 3 }), 'never shorter than the frame it was given').toEqual(['b1  ', '    ', '    ']);
   });
+
+  it('R6 — a pane the layout names but nothing draws takes no rows of a static frame', () => {
+    const still = { columns: 2, rows: 0, t: 0, live: false };
+    const column: Layout = { direction: 'column', parts: [{ content: 'a' }, { content: 'ghost' }] };
+    expect(compose(column, { a: { component: text, state: 'x' } }, still)).toEqual(['x ']);
+    expect(compose({ direction: 'row', parts: [{ content: 'ghost' }] }, {}, still), 'a row of nothing is no rows').toEqual([]);
+  });
 });
 
 describe('extents — what the reducer is given (controlroom-scroll-pane R2)', () => {
@@ -135,5 +156,7 @@ describe('extents — what the reducer is given (controlroom-scroll-pane R2)', (
     const tree: Layout = { direction: 'column', parts: [{ size: 3, content: 'log' }, { size: 0, content: 'gone' }, { content: 'missing' }] };
     const panes = { log: { component: text, state: tall.join('\n') }, gone: { component: text, state: 'x' } };
     expect([...extents(tree, panes, { columns: 10, rows: 5, t: 0, live: true })]).toEqual([['log', { content: 200, rows: 3 }]]);
+    const row: Layout = { direction: 'row', parts: [{ size: 0, content: 'gone' }, { content: 'log' }] };
+    expect([...extents(row, panes, { columns: 10, rows: 5, t: 0, live: true })], 'nor a pane with no columns').toEqual([['log', { content: 200, rows: 5 }]]);
   });
 });

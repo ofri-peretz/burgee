@@ -4,7 +4,7 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { cursorLeft, cursorMove, cursorUp, eraseLine, eraseLines, kittyKeyboardPop, kittyKeyboardPush, kittyKeyboardQuery } from './csi.js';
+import { cursorBackward, cursorDown, cursorForward, cursorLeft, cursorMove, cursorTo, cursorUp, eraseLine, eraseLines, kittyKeyboardPop, kittyKeyboardPush, kittyKeyboardQuery } from './csi.js';
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -14,6 +14,32 @@ afterEach(() => {
 describe('cursorMove', () => {
   it('refuses a missing `x` with upstream’s TypeError, rather than printing `NaN`', () => {
     expect(() => cursorMove(undefined as unknown as number)).toThrow(new TypeError('The `x` argument is required'));
+  });
+
+  // `ansi-escapes.test.ts` grades these against the incumbent too; spelled out here so a count of
+  // one on either axis, and each axis on its own, is pinned to its bytes.
+  it.each([
+    [1, undefined, '\u001B[1C'],
+    [-1, undefined, '\u001B[1D'],
+    [0, 1, '\u001B[1B'],
+    [0, 2, '\u001B[2B'],
+    [0, -2, '\u001B[2A'],
+    [0, 0, ''],
+    [0, undefined, ''],
+  ] as const)('cursorMove(%s, %s) is %j', (x, y, bytes) => {
+    expect(cursorMove(x, y)).toBe(bytes);
+  });
+});
+
+describe('cursorTo', () => {
+  it('refuses a missing `x` with upstream’s TypeError', () => {
+    expect(() => cursorTo(undefined as unknown as number)).toThrow(new TypeError('The `x` argument is required'));
+  });
+});
+
+describe('the counted moves', () => {
+  it('default to one cell, as upstream', () => {
+    expect([cursorUp(), cursorDown(), cursorForward(), cursorBackward()]).toEqual(['\u001B[1A', '\u001B[1B', '\u001B[1C', '\u001B[1D']);
   });
 });
 

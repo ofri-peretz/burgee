@@ -54,6 +54,7 @@ const CODES = [
   [100, 49], [101, 49], [102, 49], [103, 49], [104, 49], [105, 49], [106, 49], [107, 49],
 ] as const;
 
+// Stryker disable next-line ArrayDeclaration: processRuntime always carries an argv; the default is for the type
 const { env, argv = [], isTTY } = processRuntime();
 
 /** Whether picocolors would colour this process's output. */
@@ -83,8 +84,8 @@ const formatter =
     // `"" + input`, as picocolors writes it: a value's `valueOf` before its `toString`.
     // eslint-disable-next-line modernization/prefer-template-literal -- the incumbent's coercion, which a template literal does not reproduce for an object whose `valueOf` and `toString` disagree
     const string = '' + (input as string);
-    const index = string.indexOf(close, open.length);
-    return index === -1 ? open + string + close : open + replaceClose(string, close, replace, index) + close;
+    // No close in the text is an index of -1, which `replaceClose` hands back unchanged.
+    return open + replaceClose(string, close, replace, string.indexOf(close, open.length)) + close;
   };
 
 /** The styles, coloured or not. `enabled` defaults to {@link isColorSupported}. */

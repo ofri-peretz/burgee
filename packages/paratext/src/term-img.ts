@@ -81,6 +81,7 @@ const VSCODE_MIN: readonly [number, number, number] = [1, 80, 0];
 
 /** `20220319-123456-abcdefgh` → `20220319`. `NaN` for anything that is not a date stamp. */
 // `split` always returns at least one element, so the first is always there.
+// Stryker disable next-line StringLiteral: an absent version and any other non-date both parse to `NaN`, and `NaN` compares false
 const stamp = (version: string | undefined): number => Number.parseInt((version ?? '').split('-')[0] as string, DECIMAL);
 
 /**
@@ -91,11 +92,15 @@ const stamp = (version: string | undefined): number => Number.parseInt((version 
  * expect.
  */
 function atLeast(version: string | undefined, minimum: readonly [number, number, number]): boolean {
+  // Stryker disable next-line StringLiteral: an absent version splits to one part either way, and one part is refused below
   const parts = (version ?? '').split('.').map((n) => Number.parseInt(n, DECIMAL));
   if (parts.length < SEMVER_PARTS || parts.some(Number.isNaN)) return false;
+  // Stryker disable next-line NumericLiteral: three parts are guaranteed by the line above, so the defaults never apply
   const [major = 0, minor = 0, patch = 0] = parts;
   const [minMajor, minMinor, minPatch] = minimum;
+  // Stryker disable next-line EqualityOperator: the two are unequal here, so `>` and `>=` agree
   if (major !== minMajor) return major > minMajor;
+  // Stryker disable next-line EqualityOperator: the two are unequal here, so `>` and `>=` agree
   if (minor !== minMinor) return minor > minMinor;
   return patch >= minPatch;
 }
@@ -117,6 +122,7 @@ function atLeast(version: string | undefined, minimum: readonly [number, number,
 export function supportsInlineImage(runtime: Runtime): boolean {
   const program = runtime.env['TERM_PROGRAM'];
   const version = runtime.env['TERM_PROGRAM_VERSION'];
+  // Stryker disable next-line StringLiteral: an absent version and any non-number both parse to `NaN`, which is under every floor
   if (program === 'iTerm.app') return Number.parseInt(version ?? '', DECIMAL) >= ITERM2_MIN_MAJOR;
   if (program === 'WezTerm') return stamp(version) >= WEZTERM_MIN_DATE;
   const konsole = runtime.env['KONSOLE_VERSION'];

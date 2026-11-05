@@ -103,6 +103,15 @@ describe('closeout/cli-cursor is cli-cursor 5', () => {
     expect(proc.stderr.written).toEqual([HIDE_CURSOR, SHOW_CURSOR, SHOW_CURSOR, HIDE_CURSOR]);
   });
 
+  it('toggles back to hidden after a toggle showed it, because a show clears the flag', async () => {
+    const proc = fakeProcess(recorder(true));
+    const cliCursor = await load(proc);
+    cliCursor.toggle();
+    cliCursor.toggle();
+    cliCursor.toggle();
+    expect(proc.stderr.written).toEqual([HIDE_CURSOR, SHOW_CURSOR, HIDE_CURSOR]);
+  });
+
   it('shows the cursor again at exit after a hide, once', async () => {
     const proc = fakeProcess(recorder(true));
     const cliCursor = await load(proc);

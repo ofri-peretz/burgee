@@ -82,8 +82,8 @@ export interface FrameWriter {
 
 /** How wide the writer's terminal is, read at every paint so a resize is honoured. */
 function columnsOf(out: Writer): number {
-  const { columns } = out;
-  return columns !== undefined && columns > 0 ? columns : DEFAULT_COLUMNS;
+  const { columns = 0 } = out;
+  return columns > 0 ? columns : DEFAULT_COLUMNS;
 }
 
 /** A frame as painted: its lines, and the rows each one took at the width it was painted at. */
@@ -119,8 +119,9 @@ function diff(was: Painted, now: Painted, sameWidth: boolean): string {
     }
     row += beforeRows[line] as number;
   }
-  // In-place edits only, and the last line as it was: the cursor goes back where it rested.
-  if (sameWidth && line === last && before.length === after.length && before[line] === after[line]) return out === '' ? '' : `${SAVE}${out}${RESTORE}`;
+  // In-place edits only, and the last line as it was: the cursor goes back where it rested. The
+  // loop above ran to the last line, or broke at a line that changed and fails the last test.
+  if (sameWidth && before.length === after.length && before[line] === after[line]) return out === '' ? '' : `${SAVE}${out}${RESTORE}`;
   move(row);
   return `${out}${CSI}0J${after.slice(line).join('\n')}`;
 }
@@ -131,7 +132,7 @@ export function frameWriter(out: Writer): FrameWriter {
   // The frame as given, when the clip painted less of it; `release` writes it whole.
   let whole: string[] | undefined;
   // The width and height the last frame was painted at: a change in either repaints from the top.
-  let size = '';
+  let size: string | undefined;
   const write = (bytes: string): void => {
     if (bytes !== '') out.write(`${BEGIN_SYNC}${bytes}${END_SYNC}`);
   };
@@ -141,7 +142,8 @@ export function frameWriter(out: Writer): FrameWriter {
       let frame = lines.length === 0 ? [''] : [...lines];
       const columns = columnsOf(out);
       // A pipe, or a terminal that does not say, is unbounded (R1).
-      const tall = (out.rows ?? 0) > 0 ? (out.rows as number) : Number.POSITIVE_INFINITY;
+      const { rows: height = 0 } = out;
+      const tall = height > 0 ? height : Number.POSITIVE_INFINITY;
       // Rows *painted*, not lines written: a line wider than the terminal wraps, and counting
       // it once left the rows it wrapped onto on screen after the next erase. `lineCount` is
       // the same measurement `flagstaff/ora` clears by.
@@ -149,9 +151,10 @@ export function frameWriter(out: Writer): FrameWriter {
       let rows = heights();
       whole = undefined;
       if (rows.reduce((sum, n) => sum + n, 0) > tall) {
-        // Keep the tail that fits under the summary line, which takes one row (R2).
+        // Keep the tail that fits under the summary line, which takes one row (R2). The frame is
+        // taller than `tall`, so the walk stops before it runs out of lines.
         let cut = frame.length;
-        for (let used = 1; cut > 0 && (used += rows[cut - 1] as number) <= tall; ) cut -= 1;
+        for (let used = 1; (used += rows[cut - 1] as number) <= tall; ) cut -= 1;
         whole = frame;
         frame = [muted(`… ${cut} more`), ...frame.slice(cut)];
         rows = heights();
@@ -164,7 +167,10 @@ export function frameWriter(out: Writer): FrameWriter {
     },
     release() {
       // A final write needs no repaint: from the top of what was shown, the whole frame.
-      if (shown !== undefined && whole !== undefined) write(diff(shown, { lines: whole, rows: [] }, false));
+      // Only a paint sets `whole`, so a frame was shown. The rows after are read only for an
+      // in-place edit, and this is not one.
+      // Stryker disable next-line ArrayDeclaration,BooleanLiteral: the summary line that heads a clipped frame never matches the whole frame's first line, so no edit is made in place either way
+      if (whole !== undefined) write(diff(shown as Painted, { lines: whole, rows: [] }, false));
       shown = whole = undefined;
     },
   };
@@ -204,6 +210,7 @@ class TtyProjection<S> implements Projection<S> {
     // `restore` is the phase that runs last, after every handler a program registered.
     this.#dropCursorNet = onExit(() => void this.#out.write(SHOW_CURSOR), { phase: 'restore' });
     this.#paint();
+    // Stryker disable next-line ConditionalExpression: with no frame, a repaint draws the same static text, which the writer leaves unwritten
     if (this.#component.frame !== undefined) this.#cancel = this.#clock.schedule(() => this.#repaint(), this.#interval);
   }
 
@@ -258,15 +265,14 @@ export function ttyProjection<S>(component: Component<S>, out: Writer, clock: Cl
  * should not cost a blank line.
  */
 export function staticProjection<S>(component: Component<S>, out: Writer): Projection<S> {
-  let written: string[] = [];
+  let written: string[] | undefined;
   const emit = (state: S): void => {
     const text = component.static(state);
     if (text === '') return;
     const lines = text.split('\n');
-    let shared = 0;
-    while (shared < written.length && shared < lines.length && written[shared] === lines[shared]) shared += 1;
     // Every line already written is still on the reader's screen; only the rest is news.
-    const fresh = lines.slice(shared);
+    const shared = lines.findIndex((line, i) => line !== written?.[i]);
+    const fresh = shared === -1 ? [] : lines.slice(shared);
     written = lines;
     if (fresh.length > 0) out.write(`${fresh.join('\n')}\n`);
   };

@@ -121,7 +121,7 @@ export function validate(plugin: unknown): asserts plugin is Plugin {
     throw new PluginError('E_PLUGIN_SCHEMA', problem, 'compare the object against flagstaff/schema.json');
   }
   const { contract, components = {} } = plugin as Plugin;
-  if (contract !== undefined && contract > CONTRACT) {
+  if ((contract ?? CONTRACT) > CONTRACT) {
     throw new PluginError('E_PLUGIN_CONTRACT', `plugin declares contract ${contract}; this flagstaff knows ${CONTRACT}`, `upgrade flagstaff, or set contract: ${CONTRACT}`);
   }
   for (const [name, component] of Object.entries(components)) {
@@ -173,8 +173,9 @@ function deepFrozen<T>(value: T, seen = new WeakMap<object, unknown>()): T {
   const copy = (Array.isArray(value) ? [] : {}) as Record<string, unknown>;
   seen.set(value, copy);
   // A sample is the plugin author's data, so `__proto__` is a key it may legitimately carry;
-  // `defineProperty` copies it as an own property rather than handing it to the setter.
-  for (const [k, v] of Object.entries(value)) Object.defineProperty(copy, k, { value: deepFrozen(v, seen), writable: true, enumerable: true, configurable: true });
+  // `defineProperty` copies it as an own property rather than handing it to the setter. Left
+  // unwritable and unconfigurable, as the freeze below would leave it anyway.
+  for (const [k, v] of Object.entries(value)) Object.defineProperty(copy, k, { value: deepFrozen(v, seen), enumerable: true });
   return frozen(copy) as T;
 }
 

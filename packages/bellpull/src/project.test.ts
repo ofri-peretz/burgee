@@ -61,6 +61,10 @@ describe('format — how a result reads to a person', () => {
     expect(format(result({ ok: false, code: 1, stdout: 'progress\n', stderr: 'the reason\n' }))).toBe('failed  node exited 1 after 12 ms\n     /opt/bin/node (from /opt/bin)\n     the reason');
   });
 
+  it('keeps a blank first line of the output, which is not the same as printing nothing', () => {
+    expect(format(result({ ok: false, code: 1, stderr: '\nthe reason\n' }))).toBe('failed  node exited 1 after 12 ms\n     /opt/bin/node (from /opt/bin)\n     \n     the reason');
+  });
+
   it('adds no tail for a failure that printed nothing', () => {
     expect(format(result({ ok: false, code: 1 }))).toBe('failed  node exited 1 after 12 ms\n     /opt/bin/node (from /opt/bin)');
   });

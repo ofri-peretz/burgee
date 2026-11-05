@@ -294,6 +294,7 @@ export function substitute(template: string, runtime: Runtime): string | undefin
     const value = runtime.env[key];
     if (value === undefined || value === '' || value.includes(pathDelimiter(runtime))) {
       failed = true;
+      // Stryker disable next-line StringLiteral: `failed` discards the whole expansion, so what stands in for the variable is never seen
       return '';
     }
     return value;

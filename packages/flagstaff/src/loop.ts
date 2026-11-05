@@ -62,7 +62,6 @@ export interface ManualClock extends Clock {
 }
 
 interface Timer {
-  id: number;
   at: number;
   fn: () => void;
 }
@@ -70,23 +69,26 @@ interface Timer {
 /** A callback that reschedules itself at 0 ms would never leave `tick`; this is the ceiling. */
 const TICK_CAP = 1000;
 
-/** The earliest timer due by `until`; ties keep the order they were scheduled in. */
+/**
+ * The earliest timer due by `until`. Ties keep the order they were scheduled in: `timers` is
+ * kept in that order, and the sort is stable.
+ */
 function nextDue(timers: Timer[], until: number): Timer | undefined {
-  return timers.filter((t) => t.at <= until).sort((a, b) => a.at - b.at || a.id - b.id)[0];
+  return timers.filter((t) => t.at <= until).sort((a, b) => a.at - b.at)[0];
 }
 
 /** A clock that moves only when told (R9): the same frames every run, so a spinner snapshots. */
 export function manualClock(start = 0): ManualClock {
   let now = start;
-  let nextId = 0;
+  // Stryker disable next-line ArrayDeclaration: an entry that is not a timer has no numeric `at`, so it is never due
   let timers: Timer[] = [];
   return {
     now: () => now,
     schedule(fn, ms) {
-      const id = nextId++;
-      timers.push({ id, at: now + Math.max(0, ms), fn });
+      const timer = { at: now + Math.max(0, ms), fn };
+      timers.push(timer);
       return () => {
-        timers = timers.filter((t) => t.id !== id);
+        timers = timers.filter((t) => t !== timer);
       };
     },
     tick(ms) {
@@ -94,10 +96,10 @@ export function manualClock(start = 0): ManualClock {
       let ran = 0;
       let due = nextDue(timers, until);
       while (due !== undefined && ran < TICK_CAP) {
-        const { id, at, fn } = due;
-        timers = timers.filter((t) => t.id !== id);
-        now = Math.max(now, at);
-        fn();
+        const timer = due;
+        timers = timers.filter((t) => t !== timer);
+        now = Math.max(now, timer.at);
+        timer.fn();
         ran += 1;
         due = nextDue(timers, until);
       }

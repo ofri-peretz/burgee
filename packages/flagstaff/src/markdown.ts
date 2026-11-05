@@ -41,7 +41,9 @@ export interface MarkdownBlock {
   end: number;
 }
 
-const FENCE = /^ {0,3}(`{3,}|~{3,})/;
+// A backtick fence's info string holds no backtick (CommonMark 4.5): ```` ```x``` is code ```` is
+// a paragraph opening with a code span, not a fence that swallows the rest of the document.
+const FENCE = /^ {0,3}(`{3,}(?=[^`]*$)|~{3,})/;
 const HEADING = /^ {0,3}#{1,6}(?=[ \t]|$)/;
 const BLANK = /^[ \t]*$/;
 const ITEM = /^ {0,3}(?:[-*+]|\d{1,9}[.)])[ \t]/;
@@ -51,12 +53,13 @@ interface Open {
   lines: string[];
   end: number;
   /** For a fence: the run that opened it, which a closing line must match or exceed. */
-  fence: string;
+  fence: string | undefined;
 }
 
 /** Whether `line` closes a fence opened by `fence`: the same character, at least as many, nothing after. */
 function closes(line: string, fence: string): boolean {
   const run = FENCE.exec(line)?.[1];
+  // Stryker disable next-line NumericLiteral: a fence run is one character repeated, at least three, so its first and second read alike
   return run !== undefined && run[0] === fence[0] && run.length >= fence.length && BLANK.test(line.slice(line.indexOf(run) + run.length));
 }
 
@@ -90,7 +93,7 @@ class Splitter {
     const open = this.#open;
     if (open?.kind === 'code') {
       extend(open, line, end);
-      if (closes(line, open.fence)) this.commit();
+      if (closes(line, open.fence as string)) this.commit();
       return;
     }
     if (BLANK.test(line)) {
@@ -103,7 +106,7 @@ class Splitter {
       return;
     }
     this.commit();
-    const opened: Open = { kind, lines: [], end, fence: FENCE.exec(line)?.[1] ?? '' };
+    const opened: Open = { kind, lines: [], end, fence: FENCE.exec(line)?.[1] };
     this.#open = opened;
     extend(opened, line, end);
     if (kind === 'heading') this.commit();
@@ -154,14 +157,21 @@ function inline(line: string): string {
   return drawn + line.slice(at);
 }
 
+/**
+ * A heading's closing run of `#`s, after a space (CommonMark 4.2): `# Title #` is `Title`. The
+ * text after the opening run starts with a space or is empty, so `# #` is closed too.
+ */
+const CLOSING = /[ \t]#+[ \t]*$/;
+
 /** One block, drawn. */
 function draw(block: MarkdownBlock): string {
-  if (block.kind === 'heading') return styled(heading, block.source.slice((HEADING.exec(block.source) as RegExpExecArray)[0].length).trim(), block.source);
+  if (block.kind === 'heading') return styled(heading, block.source.slice((HEADING.exec(block.source) as RegExpExecArray)[0].length).replace(CLOSING, '').trim(), block.source);
   const lines = block.source.split('\n');
   if (block.kind !== 'code') return lines.map(inline).join('\n');
-  // The fences muted, the code between them `command` and untouched: no highlighting.
-  const fence = (FENCE.exec(block.source) as RegExpExecArray)[1] as string;
-  return lines.map((line, i) => (i === 0 || (i === lines.length - 1 && closes(line, fence)) ? muted(line) : command(line))).join('\n');
+  // The fences muted, the code between them `command` and untouched: no highlighting. Only the
+  // last line can be a closing fence — one earlier would have ended the block there.
+  const fence = (FENCE.exec(lines[0] as string) as RegExpExecArray)[1] as string;
+  return lines.map((line, i) => (i === 0 || closes(line, fence) ? muted(line) : command(line))).join('\n');
 }
 
 /** Markdown streamed in: its committed source off a terminal, the document so far drawn on one. */

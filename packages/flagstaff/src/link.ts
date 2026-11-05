@@ -46,6 +46,7 @@ export const terminalRuntime = (): Terminal => {
  * which is the same question `linkFor` answers for a runtime that is not a terminal — so it
  * is asked rather than answered here, and `text (url)` stays a string paratext owns.
  */
+// Stryker disable next-line ObjectLiteral,BooleanLiteral: with an empty env no terminal is vouched for, so paratext answers no on a terminal too
 export const STATIC: Terminal = { env: {}, isTTY: { stdout: false } };
 
 export interface Painter {
@@ -78,7 +79,8 @@ export interface Linked {
 export type Cell = string | Linked;
 
 export const cellText = (cell: Cell | undefined): string => (typeof cell === 'string' ? cell : (cell?.text ?? ''));
-export const cellHref = (cell: Cell | undefined): string | undefined => (typeof cell === 'string' || cell === undefined ? undefined : cell.href);
+/** A plain string has no `href`, so reading one off it is the `undefined` a plain cell means. */
+export const cellHref = (cell: Cell | undefined): string | undefined => (cell as Partial<Linked> | undefined)?.href;
 
 /**
  * What the content reads as **before** the drawing measures it: the bare text where the
@@ -86,8 +88,8 @@ export const cellHref = (cell: Cell | undefined): string | undefined => (typeof 
  * only consequence `live` has on layout, and it is the whole of it.
  */
 export function laid(text: string, href: string | undefined, painted: Painter): string {
-  if (href === undefined || href === '') return text;
-  return painted.live ? text : painted.paint(text, href);
+  // No destination needs no case of its own: paratext's fallback leaves out ` (url)` for an empty url.
+  return painted.live ? text : painted.paint(text, href ?? '');
 }
 
 /**

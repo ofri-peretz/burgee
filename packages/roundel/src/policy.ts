@@ -47,7 +47,9 @@ export const outputMode = (rt: Runtime, opts: ModeOptions = {}): OutputMode =>
  * An explicit colour instruction: off, an exact level, or `on` — colour at whatever level
  * the terminal reports, never below 1.
  */
-type Ask = ColorLevel | 'on';
+// Stryker disable next-line StringLiteral: a marker, read only as "not a number and not undefined"
+const ON = 'on';
+type Ask = ColorLevel | typeof ON;
 
 /**
  * `FORCE_COLOR` as supports-color 10 reads it: `0`/`false` off; a bare decimal an exact
@@ -55,7 +57,7 @@ type Ask = ColorLevel | 'on';
  * `1e1`, `1.0`) unset, so it falls through to detection.
  */
 const forced = (v: string | undefined): Ask | undefined =>
-  v === 'false' ? 0 : v === '' || v === 'true' ? 'on' : v !== undefined && /^\d+$/.test(v) ? (Math.min(Number(v), MAX_LEVEL) as ColorLevel) : undefined;
+  v === 'false' ? 0 : v === '' || v === 'true' ? ON : /^\d+$/.test(String(v)) ? (Math.min(Number(v), MAX_LEVEL) as ColorLevel) : undefined;
 
 /**
  * The `--color` flags, in the order supports-color settles them: off outranks an exact
@@ -76,7 +78,7 @@ function flagged(argv: readonly string[]): Ask | undefined {
   return has(/^--(no-colors?|color=(false|never))$/) ? 0
     : has(/^--color=(16m|full|truecolor)$/) ? MAX_LEVEL
     : has(/^--color=256$/) ? 2
-    : has(/^--(colors|color(=(true|always))?)$/) ? 'on'
+    : has(/^--(colors|color(=(true|always))?)$/) ? ON
     : undefined;
 }
 
@@ -102,6 +104,7 @@ const TERM_16 = /^screen|^xterm|^vt100|^vt220|^rxvt|color|ansi|cygwin|linux/i;
  * *not* one of them, whatever the folklore, and falls through to the `'COLORTERM' in env`
  * catch-all at level 1. Matched here because chalk 6 is the incumbent this is graded by.
  */
+// Stryker disable next-line StringLiteral: an absent TERM reads as text, and no pattern matches whatever text stands in for it
 const terminal = ({ TERM = '', COLORTERM }: Runtime['env']): ColorLevel =>
   COLORTERM === 'truecolor' ? MAX_LEVEL : TERM_256.test(TERM) ? 2 : TERM_16.test(TERM) || COLORTERM !== undefined ? 1 : 0;
 
@@ -138,6 +141,7 @@ export function colorLevel(rt: Runtime, opts?: ModeOptions): ColorLevel {
   // `FORCE_COLOR=0` first, and only then the flags: supports-color overwrites its flag
   // answer with a set `FORCE_COLOR` before it reads `--color=256`/`--color=16m`.
   const force = forced(env['FORCE_COLOR']);
+  // Stryker disable next-line ArrayDeclaration: no argv is no flag, and a stand-in entry is no flag either
   const ask = force === 0 ? 0 : (flagged(rt.argv ?? []) ?? force);
   /** 0 when nothing asked for colour and 1 when something did: the floor detection may not go below. */
   const min: ColorLevel = ask === undefined ? 0 : 1;

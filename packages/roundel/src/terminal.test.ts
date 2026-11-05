@@ -23,6 +23,10 @@ describe('interactive', () => {
     expect(tty({ [name]: '' })).toBe(true);
   });
 
+  it.each(['AI_AGENT', 'CLAUDECODE', 'CURSOR_AGENT', 'CODEX_THREAD_ID', 'GEMINI_CLI'])('%s names an agent', (name) => {
+    expect(tty({ [name]: '1' })).toBe(false);
+  });
+
   it('names CLAUDECODE, which is the case that hung an agent', () => {
     expect(AGENTS).toContain('CLAUDECODE');
   });

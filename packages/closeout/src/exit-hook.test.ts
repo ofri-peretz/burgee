@@ -27,6 +27,7 @@ interface FakeStream {
   writableEnded?: boolean;
   destroyed?: boolean;
   writes: number;
+  chunks: string[];
   errorListeners: Listener[];
   once?: ((event: string, listener: Listener) => unknown) | undefined;
   off?: ((event: string, listener: Listener) => unknown) | undefined;
@@ -38,6 +39,7 @@ function stream(name: string, log: string[], mode: Drain = 'drain', state: Parti
   const self: FakeStream = {
     writable: true,
     writes: 0,
+    chunks: [],
     errorListeners: [],
     once(event, listener) {
       if (mode === 'once-throws') throw new Error('this stream cannot be listened to');
@@ -48,8 +50,9 @@ function stream(name: string, log: string[], mode: Drain = 'drain', state: Parti
       if (event === 'error') self.errorListeners = self.errorListeners.filter((l) => l !== listener);
       return self;
     },
-    write(_chunk, callback) {
+    write(chunk, callback) {
       self.writes += 1;
+      self.chunks.push(chunk);
       log.push(`drain ${name}`);
       if (mode === 'throw') throw new Error('EPIPE');
       // Asynchronous, as Node's is: the callback fires once what was queued ahead has gone.
@@ -146,6 +149,11 @@ describe('registration', () => {
   ])('asyncExitHook refuses %s', async (_, options) => {
     const { asyncExitHook } = await load(fakeProcess());
     expect(() => asyncExitHook(() => undefined, options as never)).toThrow(new TypeError('wait must be set to a positive numeric value'));
+  });
+
+  it('asyncExitHook accepts the smallest wait there is, 1 ms', async () => {
+    const { asyncExitHook } = await load(fakeProcess());
+    expect(() => asyncExitHook(() => undefined, { wait: 1 })).not.toThrow();
   });
 
   it('attaches nothing at import, and one listener per event at the first hook, forever', async () => {
@@ -436,6 +444,17 @@ describe('draining stdio before leaving', () => {
     expect(proc.exits).toEqual([0]);
   });
 
+  it('drains with an empty write, so it adds nothing to the output it is flushing', async () => {
+    vi.useFakeTimers();
+    const stdout = stream('stdout', []);
+    const stderr = stream('stderr', []);
+    const { gracefulExit } = await load(fakeProcess({ stdout, stderr }));
+
+    gracefulExit(0);
+    await vi.advanceTimersByTimeAsync(0);
+    expect([stdout.chunks, stderr.chunks]).toEqual([[''], ['']]);
+  });
+
   it('drains a stream that has no listener methods, through the write callback alone', async () => {
     vi.useFakeTimers();
     const log: string[] = [];
@@ -481,5 +500,24 @@ describe('a runtime with no process', () => {
 
     expect(() => gracefulExit(3)).not.toThrow();
     await vi.waitFor(() => expect(seen).toEqual([['sync', 0], ['async', 0]]));
+  });
+
+  it('gracefulExit finishes without a rejection: no stdio to drain and no exit() to call are not errors', async () => {
+    const rejected: unknown[] = [];
+    const record = (reason: unknown): void => void rejected.push(reason);
+    process.on('unhandledRejection', record);
+    try {
+      const { asyncExitHook, gracefulExit } = await load(undefined);
+      let ran = false;
+      asyncExitHook(() => void (ran = true), { wait: 50 });
+      gracefulExit();
+      await vi.waitFor(() => expect(ran).toBe(true));
+      // Past the drain race and the leave: a macrotask for the hooks, then one for the rejection to surface.
+      await ticks();
+      await ticks();
+      expect(rejected).toEqual([]);
+    } finally {
+      process.off('unhandledRejection', record);
+    }
   });
 });
