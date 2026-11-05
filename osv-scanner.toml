@@ -8,7 +8,3 @@ id = "GHSA-gcqx-w48m-w2h4"
 ignoreUntil = 2026-11-27
 reason = "deepmerge@4.3.1 is the latest release and the advisory lists no fixed version (last_affected 4.3.1). Reached only through the private benchmarks workspace (benchmarks > @inkjs/ui@2.0.0, dev), which grades the inkjs-ui drop-in; it merges component theme objects this repo authors, never input from a user of a published package. Removing @inkjs/ui would remove a graded drop-in host, so there is no removable path. No published package depends on it. Re-check on expiry."
 
-[[IgnoredVulns]]
-id = "GHSA-g3hv-75wg-m249"
-ignoreUntil = 2026-11-29
-reason = "Matches only minimatch@3.1.5 (cpr > rimraf@2.7.1 > glob@7.2.3, dev); every minimatch@10 is moved to 11 by the root override, so this waiver covers nothing else. The advisory is the **/../ globParts clone in firstPhasePreProcess at optimizationLevel >= 2, and 3.1.5 has neither (no optimizationLevel, no firstPhasePreProcess). No 3.x fix exists (fixed only in 11.0.1), and 11 cannot replace it: glob 7 matches set entries with String#match, and 11 makes them Matcher objects. cpr@3.0.1 is the latest release and is pinned to what yargs' own suite names (compat-oracle spec, dependabot ignore); that suite calls cpr without deleteFirst, so rimraf never runs a glob. No removable path, no published package depends on it. Re-check on expiry."
