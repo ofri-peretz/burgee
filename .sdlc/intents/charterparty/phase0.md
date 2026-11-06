@@ -9,10 +9,10 @@ Roadmap: [`roadmap.md`](./roadmap.md). Each row is a dated reading with the comm
 | npm names free | ✅ 2026-11-06 | `npm view charterparty`, `charterparty-check`, `charterparty-guard`: all E404. Not yet reserved |
 | Upstream offer on openapi-typescript#2841 | ⏸ pending owner approval | Public post; wording not yet drafted |
 | Competitor state | ✅ 2026-11-06 (first pass) | Table below |
-| hey-api plugin for openapi-typescript | ⬜ | Read hey-api releases for an `openapi-typescript` plugin |
+| hey-api plugin for openapi-typescript | ✅ 2026-11-06, none yet | No `openapi-typescript` mention in the last 30 hey-api/openapi-ts GitHub releases |
 | Baseline eval, arm without the tool | ⬜ | `evals/` task set not written |
 | `TBM` bench readings | ⬜ | `benchmarks/charterparty/` not created |
-| `compat.qnt` draft | ⬜ | — |
+| `compat.qnt` draft | ✅ 2026-11-06 | `safety` holds; `fullChains` violated as expected and gated in `models.yml` |
 
 ## Competitor state, 2026-11-06
 

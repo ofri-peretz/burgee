@@ -43,9 +43,14 @@ its source, runs in `.github/workflows/models.yml` with
 `quint run --invariant=safety --max-steps=30 --max-samples=20000`, and its source files are added to
 that workflow's `paths:` list.
 
-- **R-Q1 `compat.qnt`.** The compatibility lattice of R3. Invariants: a breaking change composed with
-  any change is still breaking; `FULL` holds exactly when both `BACKWARD` and `FORWARD` hold; reversing
-  a diff swaps sender-breaking and receiver-breaking; a no-op diff is `FULL`.
+- **R-Q1 [`compat.qnt`](./compat.qnt).** The compatibility rule of R3. `safety`: a no-op diff is
+  `FULL`; reversing a diff swaps `BACKWARD` and `FORWARD`; widening only the receiver keeps
+  `BACKWARD`; a sender that emits a value the old receiver rejects breaks `FORWARD`. **Expected
+  violation, checked in `models.yml`:** `fullChains`. `FULL` between adjacent versions does not give
+  `FULL` between the endpoints (counterexample: A emits {1,2}, B accepts {1,2} and emits nothing, C
+  accepts {2}). So `diff --since <ref>` compares the two endpoints and never folds per-commit
+  verdicts, and a `--transitive` mode compares every pair, as schema registries' `*_TRANSITIVE`
+  modes do.
 - **R-Q2 `snapshot.qnt`.** MCP live snapshot sessions: connect, `tools/list` with pagination
   (`nextCursor`), `notifications/tools/list_changed` mid-read, timeout, close. Invariants: a
   snapshot never mixes two catalog versions; a timed-out session leaves no child process (bellpull
