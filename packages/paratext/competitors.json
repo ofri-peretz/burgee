@@ -61,7 +61,7 @@
           "setCwd",
           "synchronizedOutput"
         ],
-        "measured": "2026-10-26"
+        "measured": "2026-11-06"
       }
     }
   ],
@@ -87,7 +87,7 @@
           "Options",
           "default"
         ],
-        "measured": "2026-10-26"
+        "measured": "2026-11-06"
       }
     }
   ],
@@ -114,7 +114,7 @@
           "UnsupportedTerminalError",
           "default"
         ],
-        "measured": "2026-10-26"
+        "measured": "2026-11-06"
       }
     }
   ]

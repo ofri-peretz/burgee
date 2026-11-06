@@ -429,7 +429,8 @@ describe.skipIf(!native || !existsSync(bin))('a spec oracle (M3.5): model traces
 // a budget and runs on every pull request again (staged spec oxmutate-load-robust, L1).
 // In process, through the built package's API: the CLI's exit adds seconds this test does not need.
 // The mutant is static and sent straight to the fresh-worker path, whose watchdog this checks.
-it.skipIf(!native || !existsSync(bin))('scores a mutant whose test deadlocks Timeout, called by its own worker: no watchdog stop, no re-run', async () => {
+// The worker's own call needs process.threadCpuUsage (Node 23.9+); below it the watchdog stops the wait.
+it.skipIf(!native || !existsSync(bin) || !('threadCpuUsage' in process))('scores a mutant whose test deadlocks Timeout, called by its own worker: no watchdog stop, no re-run', async () => {
   const dir = path.join(pkg, 'test/fixtures/stall');
   // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the built package under test, present only after a build; the test is skipped without it
   const api = (await import(path.join(pkg, 'dist/index.js'))) as typeof import('./index.js');
