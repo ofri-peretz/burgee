@@ -189,9 +189,15 @@ function stubBin(): string {
   if (stubs !== undefined) return stubs;
   const bin = join(scratchDir('release-loop-bin-'), 'bin');
   mkdirSync(bin);
+  // Each stub is also a shell function the loop sources: a function call is a fork, not an exec of a
+  // new file, and the ~150 stub calls of a full plan were most of the run (22.7 s on the development
+  // machine). The subshell body keeps `exit` meaning what it means in the file. The files stay on
+  // PATH for any child process that is not the loop's own shell.
+  const functions: string[] = [];
   const shim = (name: string, body: string[]) => {
     writeFileSync(join(bin, name), ['#!/usr/bin/env bash', ...body, ''].join('\n'));
     chmodSync(join(bin, name), 0o755);
+    functions.push(`${name}() (`, ...body, ')');
   };
   // The registry serves a fresh publish only after it has been asked for it LAG times — a
   // stand-in for the seconds of lag between `npm publish` returning and `npm i` resolving it.
@@ -218,6 +224,7 @@ function stubBin(): string {
   shim('git', ['exit 0']);
   shim('gh', ['[ "$1 $2" = "release view" ] && exit 1', 'exit 0']);
   shim('sleep', ['exit 0']);
+  writeFileSync(join(bin, 'stubs.sh'), `${functions.join('\n')}\n`);
   stubs = bin;
   return bin;
 }
@@ -242,7 +249,7 @@ function runLoop(rows: PlanRow[], opts: { onNpm?: string[]; failPublish?: string
   writeFileSync(registry, (opts.onNpm ?? []).map((x) => `${x}\n`).join(''));
   writeFileSync(log, '');
   const script = join(dir, 'step.sh');
-  writeFileSync(script, loopStep().run ?? '');
+  writeFileSync(script, `source '${join(bin, 'stubs.sh')}'\n${loopStep().run ?? ''}`);
   const summary = join(dir, 'summary');
   writeFileSync(summary, '');
   const r = spawnSync('bash', [script], {
