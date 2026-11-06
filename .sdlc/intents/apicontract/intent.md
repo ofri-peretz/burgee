@@ -26,7 +26,9 @@ every contract job an agent needs, with one vocabulary:
 | `check` | Code call sites against the contract | openapi-usage, API Ghost Hunter |
 | `lint` | Spec rules with `fix:` lines (only on pull) | Spectral, Redocly CLI, vacuum |
 
-Contract families, all reduced to one model (operations with a direction, over JSON Schema):
+Contract families, all reduced to one model (operations with a direction, over JSON Schema). The aim is
+every protocol where `apicontract` adds value; [`landscape.md`](./landscape.md) maps each one to the
+commands we own and the owners' engines we wrap:
 
 - **Request/response:** OpenAPI 3.0–3.2 including webhooks, OpenRPC, protobuf/gRPC, GraphQL SDL.
 - **Messages and events:** AsyncAPI 3 over **WebSocket**, SSE, Kafka, MQTT, AMQP; CloudEvents; Avro.

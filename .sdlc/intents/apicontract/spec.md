@@ -32,6 +32,11 @@ Intent: [`intent.md`](./intent.md) · Metrics: [`metrics.md`](./metrics.md) · R
   a breaking finding. `diff --changeset` exits 1 when a changeset's bump is below the verdict.
 - **R9.** MCP input is a live server (`stdio` through `bellpull`, or HTTP) or a snapshot JSON.
   `snapshot` writes a canonical, sorted, hash-stamped snapshot.
+- **R9a.** `apicontract/core` exports types for OpenAPI 3.0, 3.1 and 3.2 documents, name-compatible with
+  `openapi-types` (22.98M weekly downloads, last published 2023-05-24), so a project can drop that package.
+- **R9b.** Where a protocol's owner ships a breaking-change engine (`buf breaking`, graphql-inspector),
+  `diff` runs it and maps its verdicts into the model unchanged, adding only the envelope, `fix:` lines,
+  SARIF and MCP. It never re-derives a verdict the owner already gives.
 - **R10.** `check` scans `fetch`, axios, openapi-fetch, socket emit/on, and MCP `callTool` call sites
   with oxc, and reports each call that does not resolve to an operation, each operation that has no
   caller, and each caller that a pending `diff` breaks.
@@ -124,7 +129,12 @@ output, and `compat-oracle` runs openapi-typescript's own fixtures through both 
   triples install size.
 - **A YAML dependency.** `seniority/yaml` is already in the family.
 - **Building mocking, Pact-style consumer tests, or SDK/MCP-server generation.** Mature tools (Prism,
-  MSW, Pact, Stainless, Speakeasy) own those jobs; `apicontract` feeds them a contract instead.
+  MSW, Pact, Stainless, Speakeasy) own those jobs; `apicontract` feeds them a contract instead. SDK
+  generation stays out for a second reason: it is what Speakeasy and Stainless sell, and they fund the
+  free OpenAPI tooling around it (Speakeasy is a Gold sponsor of openapi-typescript). Staying
+  complementary keeps `apicontract` sponsorable by them ([`landscape.md`](./landscape.md)).
+- **Reimplementing protobuf or GraphQL breaking-change rules.** Buf and The Guild own them and ship
+  weekly; R9b wraps them instead.
 
 ## Out of scope
 
