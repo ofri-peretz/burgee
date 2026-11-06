@@ -61,6 +61,9 @@ const LONG_WINDOW_MS = MIN_CONFIRM_MS * 2;
  */
 const DEADLOCK_CASE_MS = 5000;
 
+/** `process.threadCpuUsage` arrived in Node 23.9; below it `watch()` calls nothing a deadlock, by design. */
+const DETECTS = 'threadCpuUsage' in process;
+
 /** A reading every condition of a deadlock holds for; each case below breaks one. */
 const still = { selfShare: 0, otherShare: 0, rpcInFlight: 0, pendingTimers: 0, withinFloor: true };
 
@@ -99,7 +102,7 @@ describe('watch().guard: a deadlock is called within its confirm window; a wait 
     }
   };
 
-  it('calls a promise nothing can settle a deadlock, and promptly (a prompt awaiting a keypress)', { timeout: DEADLOCK_CASE_MS }, async () => {
+  it.skipIf(!DETECTS)('calls a promise nothing can settle a deadlock, and promptly (a prompt awaiting a keypress)', { timeout: DEADLOCK_CASE_MS }, async () => {
     const r = await timed(() => new Promise(() => undefined));
     expect(r.deadlock).toBe(true);
     // The old path waited its wall-clock budget, 10–12 s on caique.
@@ -124,7 +127,7 @@ describe('watch().guard: a deadlock is called within its confirm window; a wait 
     expect(await timed(() => spin(WAIT_MS))).toMatchObject({ deadlock: false });
   });
 
-  it('calls a wait on fake timers nobody advances a deadlock: nothing will move that clock', { timeout: DEADLOCK_CASE_MS }, async () => {
+  it.skipIf(!DETECTS)('calls a wait on fake timers nobody advances a deadlock: nothing will move that clock', { timeout: DEADLOCK_CASE_MS }, async () => {
     vi.useFakeTimers();
     try {
       const r = await timed(() => new Promise((resolve) => setTimeout(resolve, 50)));
@@ -134,10 +137,21 @@ describe('watch().guard: a deadlock is called within its confirm window; a wait 
     }
   });
 
-  it('holds a deadlock until its confirm window has passed: a longer window, a later call', { timeout: DEADLOCK_CASE_MS }, async () => {
+  it.skipIf(!DETECTS)('holds a deadlock until its confirm window has passed: a longer window, a later call', { timeout: DEADLOCK_CASE_MS }, async () => {
     const r = await timed(() => new Promise(() => undefined), LONG_WINDOW_MS);
     expect(r.deadlock).toBe(true);
     expect(r.ms).toBeGreaterThanOrEqual(LONG_WINDOW_MS);
+  });
+
+  it.skipIf(DETECTS)('leaves every wait to the wall-clock watchdog on a Node without threadCpuUsage', { timeout: DEADLOCK_CASE_MS }, async () => {
+    const outcome = await Promise.race([
+      deadlocks.guard(() => new Promise(() => undefined), MIN_CONFIRM_MS).then(
+        () => 'settled',
+        (e: unknown) => (isDeadlock(e) ? 'deadlock' : 'error'),
+      ),
+      new Promise((resolve) => untracked(() => resolve('still waiting'), MIN_CONFIRM_MS * 3)),
+    ]);
+    expect(outcome).toBe('still waiting');
   });
 
   it('passes a settled value and a thrown error through unchanged', async () => {
