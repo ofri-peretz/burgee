@@ -13,7 +13,7 @@ tests run that line, and nothing they assert depends on it.
 npm install --save-dev oxmutate
 ```
 
-It needs Node 20.19 or later on the 20 line, or 22.13 or later, and Vitest 4.1 or later in the
+It needs Node 22.13 or later, and Vitest 4.1 or later in the
 project for its default runner. Vitest is an optional peer: oxmutate runs the project's own copy
 and never installs a second. The prebuilt native core for your platform is an optional
 dependency that npm picks by `os`, `cpu` and `libc`; nothing runs at install time.

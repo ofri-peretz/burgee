@@ -262,7 +262,7 @@ describe('R6, R8 — a blocking preflight, through the binary', () => {
     expect(text.stdout.split('\n').slice(0, 3)).toEqual([
       'blocked: 1 preflight check; nothing written (1 file would be rewritten)',
       'before the move:',
-      "  block  require-esm  this package is CommonJS, and require('burgee/commander') throws ERR_REQUIRE_ESM on Node 10.0.0, which engines.node allows; raising the floor is a semver-major for this package; fix: npm pkg set \"engines.node=^20.19.0 || >=22.13.0\"",
+      "  block  require-esm  this package is CommonJS, and require('burgee/commander') throws ERR_REQUIRE_ESM on Node 10.0.0, which engines.node allows; raising the floor is a semver-major for this package; fix: npm pkg set \"engines.node=>=22.13.0\"",
     ]);
   });
 });

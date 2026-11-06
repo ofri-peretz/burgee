@@ -140,7 +140,7 @@ export const help = new Help();
 ```text title="npx burgee migrate --dry-run" exit="1"
 partial: 1 file would be rewritten, 1 refused
 before the move:
-  warn  floor  the family needs Node ^20.19.0 || >=22.13.0; adopting raises this package's floor, a semver-major for it; fix: npm pkg set "engines.node=^20.19.0 || >=22.13.0"
+  warn  floor  the family needs Node >=22.13.0; adopting raises this package's floor, a semver-major for it; fix: npm pkg set "engines.node=>=22.13.0"
 would rewrite:
   chalk -> roundel/chalk  1 import in 1 file
 refused, and left exactly as it was:

@@ -308,7 +308,7 @@ The `oxmutate` bin is that API, declared once on burgee.
 
 ## Requirements
 
-Node 20.19 or later on the 20 line, or 22.13 or later. Vitest 4.1 or later in the project, for the
+Node 22.13 or later. Vitest 4.1 or later in the project, for the
 default runner. macOS (arm64, x64), Linux (glibc x64 and arm64, musl x64) or Windows (x64).
 
 ## Where it sits

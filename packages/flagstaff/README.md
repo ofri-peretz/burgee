@@ -20,7 +20,7 @@
   <a href="https://www.npmjs.com/package/flagstaff?activeTab=code"><img src="https://img.shields.io/npm/unpacked-size/flagstaff?style=flat-square" alt="Unpacked size of the latest flagstaff release on npm" /></a>
   <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/package.json"><img src="https://img.shields.io/badge/dependencies-4%20in%20family%2C%200%20outside-0a6b47?style=flat-square" alt="Four dependencies, all in the burgee family (closeout, linegauge, paratext, roundel), none outside it" /></a>
   <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/package.json"><img src="https://img.shields.io/badge/types-included-blue?style=flat-square" alt="TypeScript types included for every entry point" /></a>
-  <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/package.json"><img src="https://img.shields.io/badge/Node.js-20.19%2B%20%7C%2022.13%2B-green?style=flat-square" alt="Node.js 20.19+ or 22.13+" /></a>
+  <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/package.json"><img src="https://img.shields.io/badge/Node.js-22.13%2B-green?style=flat-square" alt="Node.js 22.13+" /></a>
   <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/flagstaff/LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="License: MIT" /></a>
   <a href="https://www.npmjs.com/package/flagstaff#provenance"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fregistry.npmjs.org%2Fflagstaff%2Flatest&query=%24.dist.attestations.provenance~&label=npm&style=flat-square&color=0a6b47" alt="npm provenance of the latest release, read live from its registry attestation" /></a>
 </p>
@@ -493,7 +493,7 @@ roundel counted, against boxen 9's own 115.8 KB across fourteen; `flagstaff/cli-
 `width.js`, and the first two share `closeout`; none reaches another's port, and none
 reaches the core. `sideEffects: false` lets a
 bundler drop what a program does not use. ESM with a `default` condition, so
-`require('flagstaff/spinner')` works from CommonJS on Node 20.19+ and 22.13+ ([measured](https://burgee.interlace.tools/docs/benchmarks)).
+`require('flagstaff/spinner')` works from CommonJS on Node 22.13+ ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## Benchmarks
 
