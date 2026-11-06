@@ -11,7 +11,7 @@ Roadmap: [`roadmap.md`](./roadmap.md). Each row is a dated reading with the comm
 | Competitor state | ✅ 2026-11-06 (first pass) | Table below |
 | hey-api plugin for openapi-typescript | ✅ 2026-11-06, none yet | No `openapi-typescript` mention in the last 30 hey-api/openapi-ts GitHub releases |
 | Baseline eval, arm without the tool | 🔨 cases written, not run | `charterparty-baseline-allocate` and `-manifest` on a synthetic spec ([below](#baseline-eval-cases-2026-11-06)); a reading needs a weekly `evals.yml` run with a credential |
-| `TBM` bench readings | 🔨 G2–G5 and A1 read | [`gen`](#gen-baseline-openapi-typescript-2026-11-06), [A1](#a1-baseline-raw-operation-bytes-2026-11-06). Open: G6, D1–D4 (oasdiff), R1–R3 (ajv) |
+| `TBM` bench readings | 🔨 G2–G5 and A1 read | [`gen`](#gen-baseline-openapi-typescript-2026-11-06), [A1](#a1-baseline-raw-operation-bytes-2026-11-06). Open: G6, D1–D4 (oasdiff 1.35.0 fetched, checksum OK, 38.0 MB binary; runs wait for a quiet machine), R1–R3 (ajv) |
 | `compat.qnt` draft | ✅ 2026-11-06 | `safety` holds; `fullChains` violated as expected and gated in `models.yml` |
 
 ## Competitor state, 2026-11-06
