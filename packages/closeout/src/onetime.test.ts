@@ -32,6 +32,10 @@ describe('closeout/onetime is onetime 8', () => {
     });
     expect([wrapped.name, wrapped.length]).toEqual(['named', 1]);
     expect(wrapped.call({ v: 7 }, 0)).toBe(7);
+    // Configurable, as on any function and as mimic-fn leaves them: a caller can rename it again.
+    Object.defineProperty(wrapped, 'name', { value: 'renamed' });
+    Object.defineProperty(wrapped, 'length', { value: 3 });
+    expect([wrapped.name, wrapped.length]).toEqual(['renamed', 3]);
   });
 
   it('throws on a second call under { throw: true }, naming the function by displayName, name or <anonymous>', () => {

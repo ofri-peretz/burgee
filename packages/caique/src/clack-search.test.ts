@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import { CANCEL_SYMBOL } from './clack-core.js';
-import { REQUIRED } from './clack-list.js';
+import { findCursor, REQUIRED } from './clack-list.js';
 import { autocomplete, autocompleteMultiselect, path } from './clack-search.js';
 
 class Output extends Writable {
@@ -86,6 +86,30 @@ describe('autocomplete', () => {
     expect((await drive((io) => autocomplete({ message: 'm', options, ...io }), ['n', 'return'])).answer).toBeUndefined();
   });
 
+  /**
+   * A search whose first match is disabled. `refilter` asks `findCursor` for the option at `at`
+   * itself — a step of 0 — and the disabled one sent it on with `Math.sign(0)`, which is 0 again:
+   * the same index forever, and a `RangeError` on the keystroke. Upstream searches forward.
+   */
+  it('a search whose first match is disabled lands on the next enabled one', async () => {
+    const options = [{ value: 'cherry' }, { value: 'apricot', disabled: true }, { value: 'avocado' }];
+    expect((await drive((io) => autocomplete({ message: 'm', options, ...io }), ['a', 'return'])).answer).toBe('avocado');
+  });
+
+  /**
+   * `findCursor` itself, with an enabled option on both sides of the disabled one, so the
+   * direction it searches in decides where it lands: a step of 0 or 1 goes forward, as upstream
+   * does, and a step of -1 keeps going backward past the disabled one.
+   */
+  it.each([
+    [0, 1, 2],
+    [1, 0, 2],
+    [-1, 2, 0],
+  ])('findCursor with step %i from %i over a disabled option lands on %i', (step, from, landed) => {
+    const options = [{ value: 'apple' }, { value: 'apricot', disabled: true }, { value: 'avocado' }];
+    expect(findCursor(from, step, options)).toBe(landed);
+  });
+
   it('counts one match in the singular', async () => {
     const { writes } = await drive((io) => autocomplete({ message: 'm', options: FRUIT, ...io }), ['c', 'return']);
     expect(writes.join('')).toContain('(1 match)');
@@ -140,6 +164,12 @@ describe('autocompleteMultiselect', () => {
     const { answer } = await drive((io) => autocompleteMultiselect({ message: 'm', options: FRUIT, initialValues: ['apple', 'cherry'], ...io }), ['tab', 'return']);
     // Tab toggled the option under the cursor — `cherry` — off.
     expect(answer).toEqual(['apple']);
+  });
+
+  it('a search whose first match is disabled puts the cursor on the next enabled one', async () => {
+    const options = [{ value: 'cherry' }, { value: 'apricot', disabled: true }, { value: 'avocado' }];
+    const { answer } = await drive((io) => autocompleteMultiselect({ message: 'm', options, ...io }), ['a', 'tab', 'return']);
+    expect(answer).toEqual(['avocado']);
   });
 
   it('tab with nothing matching toggles nothing', async () => {

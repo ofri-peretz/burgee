@@ -72,6 +72,7 @@ export const NIGHTLY_ONLY: Readonly<Record<string, string>> = {
   [`${E2E} > re-runs file-level beforeEach hooks between mutants, so they read as no pollution`]: `${MUTATION_RUN}; 7.1 s`,
   [`${E2E} > decides no kill on a previous mutant's leftovers that a test cleaned up in finally`]: `${MUTATION_RUN}; 11.4 s`,
   [`${E2E} > kills a mutant a beforeEach hook reaches in the warm run, with no isolated run`]: `${MUTATION_RUN}; 6.6 s`,
+  [`${E2E} > runs a run-once test file (ESLint's RuleTester) from fresh collections, with no restart`]: `${MUTATION_RUN}; unmeasured`,
   [`${E2E} > static mutants keep their fresh-worker verdicts > an import-time constant decides its mutants; an unread one survives`]: `${MUTATION_RUN}, every static mutant in a fresh worker; 6.9 s`,
   [`${E2E} > static mutants keep their fresh-worker verdicts > a global set at import does not carry one mutant value into the next`]: `${MUTATION_RUN}, every static mutant in a fresh worker; 9.3 s`,
   [`${E2E} > confirms a watchdog stop with 3x the budget before reporting a timeout`]: `${MUTATION_RUN}, whose fixture stalls 8 s twice on purpose so the 3x confirmation is what decides; 14.6 s`,
@@ -84,7 +85,6 @@ export const NIGHTLY_ONLY: Readonly<Record<string, string>> = {
   [
     "packages/oxmutate/src/vitest5-regression.test.ts > the Vitest 5 regression (SC7) > reproduces the defect: with Stryker 10.0.0's name filter put back, the same mutants are Survived having run no test"
   ]: `${MUTATION_RUN}, twice, the second with every mutant surviving into its confirmation run; 28.7 s`,
-  [`${E2E} > scores a mutant whose test waits on an idle worker Timeout at its budget, with no 3x re-run`]: `${MUTATION_RUN}, waiting out a 4.5 s budget on purpose: a shorter one is reached while a loaded runner still loads the test file, which reads as a slow machine and flaked on CI (2026-11-02); 9.2 s`,
   [`${E2E} > keeps a survivor whose confirmation run was only slow, not killed`]: `${MUTATION_RUN}, whose fixture stalls 6 s on purpose so the confirmation's 3x re-run is what decides; 5.8 s`,
   ['packages/oxmutate/src/checker.test.ts > the type checker > refuses the mutants that do not compile, with the error, and passes the ones that do']:
     'the real TypeScript compiler, `npx tsc` once per batch, over the fixture project; 15.1 s on a contended CI runner',

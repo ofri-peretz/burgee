@@ -29,7 +29,9 @@ interface Row {
 
 /** Every line, with the old and new line number it stands at — blank where it has none. */
 function rows(diff: string): Row[] {
+  // Stryker disable next-line NumericLiteral: read only inside a hunk, and the hunk's header sets it first
   let old = 0;
+  // Stryker disable next-line NumericLiteral: read only inside a hunk, and the hunk's header sets it first
   let next = 0;
   let oldLeft = 0;
   let newLeft = 0;

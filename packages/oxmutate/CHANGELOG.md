@@ -1,5 +1,69 @@
 # oxmutate
 
+## 1.5.0
+
+### Minor Changes
+
+- [#1467](https://github.com/ofri-peretz/burgee/pull/1467) [`16938cb`](https://github.com/ofri-peretz/burgee/commit/16938cb03cbc4794efb90d90609d3964822d08c9) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The incremental cache can no longer reuse a stale verdict, and it checks itself on every run.
+
+  - **The fingerprint now covers everything the verdict rested on:**
+    - every project file the covering tests evaluated (their module graph, recorded in the dry run);
+    - the test files that load a static mutant's module (before, a static mutant's fingerprint was its source alone);
+    - oxmutate's version, Node's version, the lockfile, and the options that decide a verdict.
+
+    Before, a change to a helper module a test imports left the cached verdict in place.
+
+  - **Each run decides 5% of the reusable verdicts afresh.** If any disagrees with the cache on detected or not, the cache is rebuilt from that run (`stats.auditSampled`, `stats.auditDisagreed`).
+
+## 1.4.0
+
+### Minor Changes
+
+- [#1465](https://github.com/ofri-peretz/burgee/pull/1465) [`5b4c3d1`](https://github.com/ofri-peretz/burgee/commit/5b4c3d151dae21912c0d7a4aec24179fada49e87) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A mutant that writes into the project is caught after its unit, its write is put back, and the verdicts that could have run on the changed project run again.
+
+  oxmutate snapshots the project's tracked files and the directories that hold them before the run. After each unit:
+
+  - a changed or deleted tracked file is written back from the snapshot;
+  - a new entry git does not ignore is removed;
+  - the unit's verdicts, and those of the units running beside it, are dropped and re-run in halves, until the mutant that writes is alone in its unit.
+
+  That mutant carries `wrote`, and `stats.diskWrites` counts the units. Scratch a suite keeps where git ignores it is left alone. Set `OXMUTATE_NO_DISKGUARD=1` to turn the guard off.
+
+  The case this guards against is [#1453](https://github.com/ofri-peretz/burgee/pull/1453): a compat-oracle mutant overwrote its package's `package.json`, and every later mutant ran against a broken package for four hours.
+
+## 1.3.0
+
+### Minor Changes
+
+- [#1463](https://github.com/ofri-peretz/burgee/pull/1463) [`a67cb8b`](https://github.com/ofri-peretz/burgee/commit/a67cb8b606163723cafc1dbc6f09bfdc9160f7cf) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A test that can never resume is a Timeout in about half a second, decided by its own worker instead of the watchdog's clock.
+
+  Before, a promise nothing would settle, or input nobody would send, held its worker for the whole watchdog budget (10–12 s with `timeoutMS: 10000`), then cost a server respawn and often a 3× re-run. The worker now samples its own thread: its CPU, the other threads' CPU, Vitest calls in flight, pending timers (ref'd or not) and its native resources. When all of them stay quiet for the confirm window, the worker fails the test itself. A real timer, a child process, a socket or a busy loop is never called a deadlock.
+
+  On caique's three most hang-heavy files (964 mutants, back to back at comparable load):
+
+  - wall time: 1,308 s → 308 s
+  - watchdog stops: 398 → 15
+  - servers spawned: 405 → 22
+  - no mutant changed between detected and undetected
+
+  The status reason reads `its test deadlocked`, and `stats.deadlocks` counts them.
+
+  A deadlock is also torn down. The unit ends where it was called; the verdicts no canary has vouched for go back, with the rest of the unit, to a fresh context; and the worker that holds the pending run is dropped, its timers and handles with it. A static batch goes back to the fresh-worker path.
+
+  No single test execution is waited on for more than 5 seconds (`MAX_TEST_MS`). Every watchdog budget, including the 3× re-run of a busy stop, is capped at 5 seconds per test the run executes.
+
+## 1.2.5
+
+### Patch Changes
+
+- [#1459](https://github.com/ofri-peretz/burgee/pull/1459) [`c3038d5`](https://github.com/ofri-peretz/burgee/commit/c3038d5ca4157132b7bc1abdef6d37db56fab793) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A test file that opens with plain tests and holds a RuleTester block further down is now found run-once. The dry run probed only each file's first passing test, which passes when run again, so the block's tests still restarted the context for every mutant. It now probes the first passing test of each suite.
+
+## 1.2.4
+
+### Patch Changes
+
+- [#1455](https://github.com/ofri-peretz/burgee/pull/1455) [`d94e9b6`](https://github.com/ofri-peretz/burgee/commit/d94e9b6b3ddb1904a22a61edbb224249fcf3f40b) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A test file whose tests can run only once per collection now gets a fresh copy of the test for each run after the first, instead of a context restart for every mutant. ESLint's RuleTester is the common case: it records each case as its test runs and fails one it has already seen ("detected duplicate test case"). oxmutate re-runs a test once per mutant and again unmutated as the canary, so each canary failed, read as pollution and restarted the context. On one eslint-plugin helper with 279 mutants that cost 13,868 restarts and 69 minutes. The dry run now runs each file's first passing test a second time. If that second run fails, each later run takes its copy of the test from a fresh collection of the file, made before the test starts. Only the test file is evaluated again, so a mutant's leftovers in the code under test still fail the canary. A file with `beforeAll` hooks keeps the restart, because a fresh collection's `beforeAll` never ran. Each fresh collection's `afterAll` hooks run once its file is done. Verdicts do not change.
+
 ## 1.2.3
 
 ### Patch Changes

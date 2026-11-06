@@ -31,7 +31,8 @@
 #   --dry-run          print every step it would take, with the packages it would measure, and
 #                      change nothing: no fetch, no worktree, no build, no wait, no push
 #   --worktree <path>  where the clean checkout of origin/main lives (or MUTATION_WEEKLY_WORKTREE)
-#   --package <pkg>    measure only this package (the workflow's dispatch input)
+#   --package <pkg>    measure only this package (the workflow's dispatch input); repeat it to
+#                      measure several, in that order, e.g. to finish a run that stopped part-way
 #   --engine <name>    oxmutate (the default, and the schedule's) or stryker (kept to compare)
 #
 # Environment:
@@ -67,7 +68,7 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --dry-run) DRY=1 ;;
     --worktree) worktree=${2:?--worktree needs a path}; shift ;;
-    --package) only=${2:?--package needs a package}; shift ;;
+    --package) only="${only:+$only }${2:?--package needs a package}"; shift ;;
     --engine) engine=${2:?--engine needs oxmutate or stryker}; shift ;;
     -h | --help) grep '^#' "$0" | sed -e '1d' -e 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "mutation:weekly: unknown argument $1 (see --help)" >&2; exit 2 ;;
@@ -187,13 +188,14 @@ fi
 # 3. Every package in the ratchets, one at a time.
 packages=$( (cd "$([ "$DRY" = 1 ] && echo "$REPO" || echo "$WORKTREE")" && node -e 'process.stdout.write(Object.keys(require("./" + process.argv[1]).ratchets).join(" "))' "$RATCHETS"))
 [ -n "$packages" ] || { say "no package in $RATCHETS" >&2; exit 1; }
-if [ -n "$only" ] && ! echo " $packages " | grep -q " $only "; then say "--package $only is not in $RATCHETS ($packages)" >&2; exit 2; fi
+for want in $only; do echo " $packages " | grep -q " $want " || { say "--package $want is not in $RATCHETS ($packages)" >&2; exit 2; }; done
 [ "$DRY" = 1 ] || mkdir -p "$results"
 say "packages: $packages; results in $results"
 
 not_run=''
-for pkg in $packages; do
-  if [ -n "$only" ] && [ "$only" != "$pkg" ]; then say "--package $only: $pkg not measured."; continue; fi
+# With --package, in the order given: the short ones first leaves the most scores behind if the
+# run is cut off part-way.
+for pkg in ${only:-$packages}; do
   if ! wait_for_room; then
     say "$pkg NOT RUN: no room after $WAIT_MAX_MINUTES minutes (load $(load5), $(free_gb) GB free)." >&2
     not_run="$not_run $pkg"

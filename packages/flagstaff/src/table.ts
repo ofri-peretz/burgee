@@ -91,9 +91,9 @@ const lay = (cell: Cell | undefined, paint: Painter): string => laid(cellText(ce
  *
  * Narrows `widths` in place and returns it: the caller hands over an array nothing else reads.
  */
-function fitWidths(widths: number[], available: number, { columns: bounds = [] }: TableOptions): number[] {
+function fitWidths(widths: number[], available: number, { columns: bounds }: TableOptions): number[] {
   for (let total = widths.reduce((sum, w) => sum + w, 0); total > available; total--) {
-    const pick = widths.reduce((best, w, i) => (w > (bounds[i]?.min ?? MIN_COLUMN) && (best < 0 || w > (widths[best] as number)) ? i : best), -1);
+    const pick = widths.reduce((best, w, i) => (w > (bounds?.[i]?.min ?? MIN_COLUMN) && (best < 0 || w > (widths[best] as number)) ? i : best), -1);
     if (pick < 0) break;
     widths.splice(pick, 1, (widths[pick] as number) - 1);
   }
@@ -123,7 +123,8 @@ function layoutRow(row: Row, widths: number[], options: TableOptions, paint: Pai
     const line = painted(plain, cellHref(row[i]), paint);
     return options.align?.[i] === 'right' ? gap + line : line + gap;
   };
-  return Array.from({ length: Math.max(1, ...cells.map((lines) => lines.length)) }, (_, line) => `${V} ${widths.map((w, i) => pad(cells[i]?.[line] ?? '', w, i)).join(` ${V} `)} ${V}`);
+  // Every cell is at least one line, so the row is too.
+  return Array.from({ length: Math.max(...cells.map((lines) => lines.length)) }, (_, line) => `${V} ${cells.map((lines, i) => pad(lines[line] ?? '', widths[i] as number, i)).join(` ${V} `)} ${V}`);
 }
 
 /** A horizontal rule; its three joints are the left end, the one between columns and the right end. */
@@ -131,13 +132,15 @@ const rule = (widths: number[], [left, mid, right]: string): string => `${left}$
 
 /** Draw `rows` as a table, as a string. */
 export function table(rows: Row[], options: TableOptions = {}): string {
-  const columns = Math.max(options.head?.length ?? 0, ...rows.map((row) => row.length), 1);
+  const all = options.head === undefined ? rows : [options.head, ...rows];
+  const columns = Math.max(1, ...all.map((row) => row.length));
   // A negative, fractional, infinite or NaN width is a typo and `min > max` two wishes that
   // contradict, so both are refused, naming the column, before anything is measured. `x % 1`
   // is 0 for a whole number only: a fraction leaves a remainder, and NaN or Infinity gives
   // NaN, so the sum of the two is 0 exactly when both are whole (a negative fraction that
   // could cancel a positive one is refused by `min < 0` or `max < 1` anyway).
   options.columns?.forEach((column, i) => {
+    // Stryker disable next-line NumericLiteral: a missing min reads as 0 or 1 alike — whole, not negative, and max defaults to at least 1 either way
     const { min = 0, max = min || 1 } = column ?? {};
     if ((min % 1) + (max % 1) !== 0 || min < 0 || max < Math.max(min, 1)) throw new TypeError(`flagstaff/table: columns[${i}] needs whole widths, 0 <= min <= max, max >= 1`);
   });
@@ -145,7 +148,6 @@ export function table(rows: Row[], options: TableOptions = {}): string {
 
   const paint = painter(options.terminal);
 
-  const all = options.head === undefined ? rows : [options.head, ...rows];
   // The natural width of each column: the widest cell in it, header included, held to its `max`.
   // `fitWidths` narrows that array in place, so it is never bound to a name of its own.
   const widths = fitWidths(

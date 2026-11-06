@@ -64,6 +64,7 @@ a usage error.
 
 /** The package's own version, read when asked for rather than on every run. */
 function version(): string {
+  // Stryker disable next-line StringLiteral: without an encoding `readFileSync` returns a Buffer, which `JSON.parse` reads as the same UTF-8 text
   return (JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }).version;
 }
 
@@ -113,10 +114,13 @@ async function inspect(argv: readonly string[], write: (s: string) => void): Pro
   if (typeof file === 'number') return file;
   const plugin: unknown = await load(resolve(file));
   reset();
+  // Stryker disable next-line CallExpression: `register` validates first and throws the same refusal, so this call only states the order
   validate(plugin);
   register(plugin);
   const name = (plugin as { name: string }).name;
+  // Stryker disable next-line MethodExpression: after `reset()` the only plugin registered is this one, so every contribution is from it
   const rows = contributions()
+    // Stryker disable next-line ConditionalExpression: the same — nothing but this plugin is registered for the filter to drop
     .filter((c) => c.from === (plugin as { name: string }).name)
     .map((c) => c.name);
   write(`${name} — ${String(rows.length)} resolvers\n`);

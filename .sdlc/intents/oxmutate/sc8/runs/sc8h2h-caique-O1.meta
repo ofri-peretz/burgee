@@ -1,0 +1,4 @@
+label=sc8h2h-caique-O1 engine=oxmutate pkg=caique mode=compat
+start 2026-11-02T04:33:32Z load { 13.53 17.84 23.02 }
+end 2026-11-02T06:48:16Z load { 20.86 22.78 23.69 }
+wall_s 8084

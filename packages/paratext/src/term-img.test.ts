@@ -64,6 +64,10 @@ describe('the terminal table is term-img`s, read from the environment alone', ()
     ['Rio, a major past the floor with a lower minor', { TERM_PROGRAM: 'rio', TERM_PROGRAM_VERSION: '1.0.0' }, true],
     ['VSCode, a major past the floor with a lower minor', { TERM_PROGRAM: 'vscode', TERM_PROGRAM_VERSION: '2.0.0' }, true],
     ['VSCode, a major under the floor with a higher minor', { TERM_PROGRAM: 'vscode', TERM_PROGRAM_VERSION: '0.99.0' }, false],
+    ['Rio, a minor past the floor with a lower patch', { TERM_PROGRAM: 'rio', TERM_PROGRAM_VERSION: '0.2.0' }, true],
+    ['VSCode, a version with two parts of the three', { TERM_PROGRAM: 'vscode', TERM_PROGRAM_VERSION: '1.80' }, false],
+    ['VSCode, a major past the floor with a minor that does not parse', { TERM_PROGRAM: 'vscode', TERM_PROGRAM_VERSION: '2.x.0' }, false],
+    ['a program term-img does not know, at a version past every floor', { TERM_PROGRAM: 'Hyper', TERM_PROGRAM_VERSION: '2.0.0' }, false],
   ])('%s', (_name, env, expected) => {
     expect(supportsInlineImage(at(env))).toBe(expected);
   });
@@ -83,6 +87,13 @@ describe('bytes in, OSC 1337 out', () => {
   it('writes the four optional groups in ansi-escapes` order', () => {
     expect(terminalImageFor(wezterm)(bytes, { width: 100, height: '50%', preserveAspectRatio: false })).toBe(`${OSC}1337;File=inline=1;width=100;height=50%;preserveAspectRatio=0;size=4:AQIDBA==${BEL}`);
   });
+
+  it('leaves out a width or height that is not truthy, NaN included, as upstream does', () => {
+    // Until 2026-11-04 a `NaN` width wrote `;width=NaN`; upstream's `if (options.width)` skips it.
+    const plain = `${OSC}1337;File=inline=1;size=4:AQIDBA==${BEL}`;
+    expect(terminalImageFor(wezterm)(bytes, { width: Number.NaN, height: Number.NaN })).toBe(plain);
+    expect(terminalImageFor(wezterm)(bytes, { width: 0, height: '' })).toBe(plain);
+  });
 });
 
 const call = () => terminalImageFor(unsupported)(bytes);
@@ -91,6 +102,7 @@ describe('the unsupported branch is upstream`s, including the throw', () => {
   it('throws UnsupportedTerminalError by name and by type', () => {
     expect(call).toThrow(UnsupportedTerminalError);
     expect(call).toThrow(/Supported terminals/);
+    expect(call).toThrow(expect.objectContaining({ name: 'UnsupportedTerminalError' }));
   });
 
   it('calls a supplied fallback instead, and returns what it returns', () => {

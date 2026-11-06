@@ -24,9 +24,11 @@
  */
 import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { availableParallelism, loadavg } from 'node:os';
 import path from 'node:path';
 
 import { BEAT_ENV, markTest, realNow, startHeartbeat } from './heartbeat.js';
+import { isDeadlock, takeFloor, trackRpc, trackTimers, watch } from './quiescence.js';
 import { resolveEsm } from './resolve.js';
 import { ACTIVE_MUTANT_ENV, FILE_KEY, NAMESPACE, cwd, env, type Namespace } from './runtime.js';
 
@@ -106,6 +108,10 @@ interface Plan {
   skip: string[];
   /** A spec oracle's replay tests: they keep a verdict track of their own (spec-oracle.ts). */
   specTests?: string[];
+  /** Test files the dry run found run-once (rerun.qnt). */
+  runOnce?: string[];
+  /** Each planned test's dry-run time, in ms: its deadlock confirm window scales with it. */
+  testMs?: Record<string, number>;
 }
 const plan: Plan =
   mode === 'mutant' && env['OXMUTATE_PLAN'] ? (JSON.parse(readFileSync(env['OXMUTATE_PLAN'], 'utf8')) as Plan) : { tests: {}, hitLimits: {}, skip: [] };
@@ -128,6 +134,22 @@ if (mode === 'isolated' && env['OXMUTATE_HIT_LIMIT']) {
 }
 /** Did the armed mutant's switch pass its limit, i.e. was this run stopped as a runaway? */
 const ranAway = (): boolean => ns.hitCount !== undefined && ns.hitLimit !== undefined && ns.hitCount > ns.hitLimit;
+
+// ── Deadlocks (quiescence.ts) ─────────────────────────────────────────────────────────────────
+/** Every mode but the dry run, whose hangs are the suite's own and fail it. */
+const deadlocks = mode === 'dry' ? undefined : watch();
+/** `isolated`: the run's test deadlocked, so its mutant is a Timeout, as a runaway is. */
+let deadlocked = false;
+/** `mutant`: a deadlock tore this worker down; nothing more runs in it (runTask). */
+let tornDown = false;
+/**
+ * How long a wait must stay quiet before it is a deadlock: twice the test's dry-run time (never under
+ * MIN_CONFIRM_MS), stretched by the machine's load. Quiet already means nothing can resume the wait,
+ * so the window only absorbs sampling gaps; a loaded machine samples less evenly.
+ */
+const confirmFor = (testId: string | undefined): number => 2 * (plan.testMs?.[testId ?? ''] ?? 0) * Math.max(1, (loadavg()[0] ?? 0) / availableParallelism());
+/** `fn` under the deadlock guard (rejects with DeadlockError), or as it is in the dry run. */
+const guarded = <T>(testId: string | undefined, fn: () => T | Promise<T>): Promise<T> => (deadlocks ? deadlocks.guard(fn, confirmFor(testId)) : Promise.resolve().then(fn));
 
 // ── `static` mode: what a registry reset does not reset ─────────────────────────────────────────
 /** Built-ins a module may patch in place; their own methods are compared by identity. */
@@ -173,6 +195,84 @@ const STATIC_CANARY_MAX = 4;
 /** Mutants between canaries; doubles while the canary stays clean, back to 1 when it fails. */
 let canaryEvery = 1;
 const MAX_CANARY_EVERY = 8;
+/**
+ * Test files whose tests run once per collection. ESLint's RuleTester records each case as its test
+ * runs and fails one it has seen ("detected duplicate test case"), so every canary failed and read as
+ * pollution: each mutant cost a context restart (eslint-plugin-mongodb-security, 279 mutants in 69 min,
+ * 13,868 restarts, 2026-11-03). The dry run finds them by running the first passing test of each
+ * suite twice: a file can open with plain tests and hold a RuleTester block further down. In mutant mode each run after a test's first takes the test from a fresh collection of the
+ * file (rerun.qnt). The imports stay evaluated, so a mutant's leftovers in them still fail the canary.
+ */
+const runOnce = new Set<string>(mode === 'mutant' ? (plan.runOnce ?? []) : []);
+/** `dry`: suites (or files, for a test outside any) whose first passing test has been run a second time. */
+const probed = new Set<string>();
+/** A `runOnce` file's fresh collections; each test takes its own copy from each, in order. */
+const collections = new Map<string, AnyTask[]>();
+/** test id → how many fresh collections it has taken a copy from. */
+const taken = new Map<string, number>();
+/**
+ * Runs of one test after its first, per mutant: the armed run, the canary and second armed run a kill
+ * after unchecked runs triggers, the interval canary. The loop's closing canary and the reported run
+ * add 2. Collecting this many copies before the test starts means a run-once test never runs out.
+ */
+const RUNS_PER_MUTANT = 4;
+const RUNS_AFTER = 2;
+type Collect = (specs: string[], runner: unknown) => Promise<AnyTask[]>;
+/** Vitest's public collect: from `vitest/internal/browser` on Vitest 5, `@vitest/runner` on Vitest 4. */
+async function findCollect(): Promise<Collect | undefined> {
+  const browser = (await fromProject('vitest/internal/browser').catch(() => ({}))) as { collectTests?: Collect };
+  if (browser.collectTests) return browser.collectTests;
+  const vitestDir = path.dirname(createRequire(path.join(cwd(), 'package.json')).resolve('vitest/package.json'));
+  return ((await fromProject('@vitest/runner', vitestDir).catch(() => ({}))) as { collectTests?: Collect }).collectTests;
+}
+let collector: Promise<Collect | undefined> | undefined;
+const loadCollect = (): Promise<Collect | undefined> => (collector ??= findCollect());
+
+const find = (t: AnyTask, id: string): AnyTask | undefined => (t.id === id ? t : t.tasks?.reduce<AnyTask | undefined>((hit, c) => hit ?? find(c, id), undefined));
+/** A `beforeAll` ran for the collection Vitest runs, never for a fresh one: such a file keeps the restart. */
+const hasBeforeAll = (t: AnyTask): boolean => t.type !== 'test' && (statics.getSuiteHooks(t).beforeAll.length > 0 || (t.tasks ?? []).some(hasBeforeAll));
+
+/** A fresh collection's `afterAll` hooks, innermost first, run once its file is done (the dual RuleTester registers one). */
+async function afterAllOf(t: AnyTask): Promise<void> {
+  if (t.type === 'test') return;
+  for (const c of t.tasks ?? []) await afterAllOf(c);
+  for (const hook of statics.getSuiteHooks(t).afterAll) await hook(t);
+}
+
+/** The test's copy from the next fresh collection of its file it has not run from. */
+function takeCopy(test: AnyTask): AnyTask | undefined {
+  const n = taken.get(test.id) ?? 0;
+  taken.set(test.id, n + 1);
+  const file = collections.get(test.file?.filepath ?? '')?.[n];
+  return file && find(file, test.id);
+}
+
+/** `dry`: each test file's module graph, project files only (onAfterRunSuite). */
+const dryModules = new Map<string, string[]>();
+
+/** `dry`: the probe's hits are counted here and dropped, or they would double the hit limits. */
+const PROBE_ID = '__oxmutate_probe__';
+
+/** `dry`: run a suite's first passing test again, with its hooks, as the canary will. Failing there, its file is run-once. */
+async function probe(test: AnyTask, fn: () => unknown): Promise<void> {
+  const file = test.file?.filepath;
+  const scope = test.suite?.id ?? file;
+  if (!file || !scope || probed.has(scope) || runOnce.has(file)) return;
+  probed.add(scope);
+  await afterEach(test, test.context, []);
+  const cleanups = await beforeEach(test, test.context);
+  ns.currentTestId = PROBE_ID;
+  try {
+    await fn();
+  } catch {
+    runOnce.add(file);
+  } finally {
+    ns.currentTestId = test.id;
+    if (ns.mutantCoverage) delete ns.mutantCoverage.perTest[PROBE_ID];
+    for (const cleanup of cleanups.reverse()) await cleanup();
+  }
+}
+
 /** How much of a test's error a `polluted` record keeps, and of a file's collection error. */
 const POLLUTION_ERROR_CHARS = 300;
 const FILE_ERROR_CHARS = 500;
@@ -239,12 +339,14 @@ async function runCollected(file: AnyTask, runnable: Set<string>): Promise<{ fai
         const cleanups = await beforeEach(t, t.context);
         ran++;
         try {
-          await fn();
+          await guarded(t.id, fn);
         } catch (e) {
+          if (isDeadlock(e)) deadlocked = true;
           failed.push(t.id);
           note(t, e);
+          if (isDeadlock(e)) return; // the pending test still holds this collection: no more of it runs
         } finally {
-          await afterEach(t, t.context, cleanups);
+          if (!deadlocked) await afterEach(t, t.context, cleanups);
         }
       }
     } finally {
@@ -270,7 +372,12 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
   onBeforeCollect?(paths: string[]): unknown;
   importFile?(filepath: string, source: string): unknown;
   onBeforeRunSuite?(suite: AnyTask): unknown;
+  onAfterRunSuite?(suite: AnyTask): unknown;
+  onBeforeRunTask?(test: AnyTask): unknown;
   onCollectStart?(file: unknown): unknown;
+  /** Vitest's own: the current task, and the module graph a test file is invalidated in (Vitest 4). */
+  workerState?: { current?: unknown; evaluatedModules?: { getModuleById: (id: string) => unknown; invalidateModule: (node: unknown) => void; fileToModulesMap?: Map<string, unknown> } };
+  _currentSpecification?: unknown;
   onBeforeTryTask?(test: AnyTask, options: { retry: number; repeats: number }): unknown;
   onAfterRunFiles?(files: AnyTask[]): unknown;
 }) {
@@ -279,6 +386,20 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
    * mutant is later re-run against the files that load its module, not the whole suite (Stryker
    * re-runs everything for each one).
    */
+  /**
+   * Before any test file is imported: count the timers it and the code under test will create, count
+   * Vitest's calls to its main thread, and take the resource floor a deadlock is measured against
+   * (quiescence.ts).
+   */
+  onBeforeCollect(paths: string[]): unknown {
+    if (deadlocks) {
+      trackTimers();
+      trackRpc(this.workerState as { rpc?: object } | undefined);
+      takeFloor();
+    }
+    return super.onBeforeCollect?.(paths);
+  }
+
   onCollectStart(file: AnyTask): unknown {
     if (mode === 'dry') ns.currentTestId = `${FILE_KEY}${file.filepath ?? file.file?.filepath ?? ''}`;
     return (super.onCollectStart as ((f: unknown) => unknown) | undefined)?.call(this, file);
@@ -297,13 +418,22 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
       // Only a wait inside a test body can be an idle stall; collection at low CPU is a slow machine.
       markTest(true);
       try {
-        await fn();
+        await guarded(test.id, fn);
+        if (mode === 'dry') await probe(test, fn);
+      } catch (e) {
+        if (isDeadlock(e)) deadlocked = true;
+        throw e;
       } finally {
         markTest(false);
       }
       return;
     }
-    const context = test.context;
+    // A deadlock tore this worker down: the file's other tests do not run beside its pending run.
+    if (tornDown) return;
+    let current = test;
+    let run = fn;
+    let context = test.context;
+    let invoked = false;
     // Once a mutant has polluted this context, no further verdict from it can be trusted: the
     // rest of the unit is left unrun, and the coordinator re-queues it into a fresh context.
     const spec = specTests.has(test.id);
@@ -312,11 +442,21 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
     let cleanups: Hook[] = [];
     let attempt = 0;
     const teardown = async (): Promise<void> => {
-      await afterEach(test, context, cleanups);
+      await guarded(current.id, () => afterEach(current, context, cleanups));
       cleanups = [];
     };
     const setup = async (): Promise<void> => {
-      cleanups = await beforeEach(test, context);
+      // A run-once test runs from a fresh copy every time after its first; the copy's own hooks wrap it.
+      if (invoked && test.file && runOnce.has(test.file.filepath)) {
+        const copy = takeCopy(test);
+        // Unreachable: onBeforeRunTask collected a copy for every run this test can make.
+        if (!copy) throw new Error('oxmutate: a run-once test ran out of fresh collections');
+        current = copy;
+        run = statics.getTestFn(copy) ?? fn;
+        context = copy.context;
+      }
+      invoked = true;
+      cleanups = await guarded(current.id, () => beforeEach(current, context));
       await this.retryReset(test, ++attempt);
     };
     const fresh = async (): Promise<void> => {
@@ -326,19 +466,29 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
     // Mutants run since the last clean canary. The first of them started from a clean state, so its
     // verdict stands whatever the next canary says; the rest are suspects if it fails.
     let unchecked: string[] = [];
+    /** The context is past trusting: the unchecked runs are suspects, and the rest of the unit goes to a fresh one. */
+    const pollutedBy = (e: unknown): false => {
+      polluted = true;
+      canaryEvery = 1;
+      emit({ type: 'polluted', id: unchecked[0], suspects: unchecked.slice(1), test: test.id, file: test.file?.filepath, error: e instanceof Error ? e.message.slice(0, POLLUTION_ERROR_CHARS) : String(e) });
+      return false;
+    };
     const canary = async (): Promise<boolean> => {
       if (!unchecked.length) return true;
-      await fresh();
       try {
-        await fn();
+        await fresh();
+      } catch (e) {
+        // A hook that waits for ever, unmutated, is a mutant's leftover; any other hook error is the suite's.
+        if (!isDeadlock(e)) throw e;
+        return pollutedBy(e);
+      }
+      try {
+        await guarded(test.id, run);
         unchecked = [];
         canaryEvery = Math.min(MAX_CANARY_EVERY, canaryEvery * 2);
         return true;
       } catch (e) {
-        polluted = true;
-        canaryEvery = 1;
-        emit({ type: 'polluted', id: unchecked[0], suspects: unchecked.slice(1), test: test.id, file: test.file?.filepath, error: e instanceof Error ? e.message.slice(0, POLLUTION_ERROR_CHARS) : String(e) });
-        return false;
+        return pollutedBy(e);
       }
     };
     // The mutant is armed through the test's own `beforeEach`, as Stryker arms it: the dry run credits
@@ -346,31 +496,41 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
     // the hooks run unarmed it always survived, to be killed later by an isolated run that costs a
     // fresh process (58 of 400 on a Mongo-backed suite, 2026-10-29). The previous run's `afterEach`
     // runs first, unarmed: its cleanup belongs to that run.
-    const runArmed = async (id: string): Promise<{ status: 'Killed' | 'Survived' | 'Timeout'; ms: number }> => {
-      await teardown();
+    const runArmed = async (id: string): Promise<{ status: 'Killed' | 'Survived' | 'Timeout' | 'Polluted'; ms: number; deadlock?: true }> => {
+      try {
+        await teardown();
+      } catch (e) {
+        // The previous run's afterEach, unarmed, waits for ever: that run left the context broken.
+        if (!isDeadlock(e)) throw e;
+        pollutedBy(e);
+        return { status: 'Polluted', ms: 0 };
+      }
       const t0 = performance.now();
       ns.activeMutant = id;
       ns.hitCount = 0;
       ns.hitLimit = plan.hitLimits[id] ?? Number.MAX_SAFE_INTEGER;
       let status: 'Killed' | 'Survived' | 'Timeout' = 'Survived';
+      let deadlock = false;
       try {
         await setup();
-        await fn();
+        await guarded(current.id, run);
       } catch (e) {
-        status = isHitLimit(e) ? 'Timeout' : 'Killed';
+        deadlock = isDeadlock(e);
+        status = isHitLimit(e) || deadlock ? 'Timeout' : 'Killed';
       } finally {
         ns.activeMutant = undefined;
         ns.hitCount = undefined;
         ns.hitLimit = undefined;
       }
-      return { status, ms: performance.now() - t0 };
+      return { status, ms: performance.now() - t0, ...(deadlock && { deadlock: true as const }) };
     };
     for (const id of ids) {
       if (done.has(id)) continue;
       // The real clock: a test that froze it (`vi.useFakeTimers()`, never undone) made every later
       // mutant read as running since the freeze, and the watchdog stopped it at once (caique, 2026-11-02).
       if (progressPath) writeFileSync(progressPath, `${id} ${String(realNow())}\n`);
-      let { status, ms } = await runArmed(id);
+      let { status, ms, deadlock } = await runArmed(id);
+      if (status === 'Polluted') break;
       // A kill that follows unchecked runs may be one of their leftovers, which this run's own cleanup
       // (a `finally`) then wipes, so the batch canary would pass and vouch for a wrong kill. Survivors
       // are confirmed in isolation later; kills are checked here: a failing canary is pollution as
@@ -378,22 +538,36 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
       // the mutant again from (.sdlc/intents/oxmutate/canary.qnt).
       if (status !== 'Survived' && unchecked.length > 0) {
         if (!(await canary())) break;
-        ({ status, ms } = await runArmed(id));
+        ({ status, ms, deadlock } = await runArmed(id));
+        if (status === 'Polluted') break;
       }
       if (status !== 'Survived') done.add(id);
-      emit({ type: 'mutant', id, test: test.id, status, ms, ...(spec ? { spec: true } : {}) });
+      emit({ type: 'mutant', id, test: test.id, status, ms, ...(spec ? { spec: true } : {}), ...(deadlock && { deadlock: true }) });
       unchecked.push(id);
       // The canary: the same test, unmutated, must still pass. If it fails, a mutant left state
       // behind (a cache, a registry, a fixture) that would decide the next verdicts. Run after every
       // mutant at first, then every 2, 4, 8 while it stays clean: pollution is rare per test, and the
       // canary was half of all executions (burgee/paratext, 2026-10-27).
+      // A deadlocked run is still pending in this worker, its timers and handles with it: tear the
+      // context down. The unit ends here; the verdicts no canary has vouched for since the last
+      // clean one go back with the rest of the unit to a fresh context, and Vitest drops this worker.
+      if (deadlock) {
+        pollutedBy(new Error('torn down: a deadlocked run is still pending in this worker'));
+        tornDown = true;
+        break;
+      }
       if (unchecked.length >= canaryEvery && !(await canary())) break;
+    }
+    // Torn down: nothing more runs in this worker, not even the test's own unmutated run.
+    if (tornDown) {
+      if (progressPath) writeFileSync(progressPath, '');
+      return;
     }
     if (!polluted) await canary();
     if (progressPath && ids.length) writeFileSync(progressPath, '');
     if (attempt > 0) await fresh();
     try {
-      await fn();
+      await run();
     } finally {
       for (const cleanup of cleanups.reverse()) await cleanup();
     }
@@ -407,6 +581,21 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
   importFile(filepath: string, source: string): unknown {
     if (mode === 'static' && source === 'collect' && !pristine) pristine = snapshot();
     return super.importFile?.(filepath, source);
+  }
+
+  async onAfterRunSuite(suite: AnyTask): Promise<unknown> {
+    // `dry`: the project files this test file's run evaluated, for the incremental fingerprint. Each
+    // file runs isolated, so the worker's module graph is its own.
+    if (mode === 'dry' && suite.filepath) {
+      const files = [...(this.workerState?.evaluatedModules?.fileToModulesMap?.keys() ?? [])];
+      dryModules.set(suite.filepath, files.filter((f) => path.isAbsolute(f) && !f.split(path.sep).includes('node_modules')));
+    }
+    const copies = suite.filepath ? collections.get(suite.filepath) : undefined;
+    if (suite.filepath && copies) {
+      collections.delete(suite.filepath);
+      for (const copy of copies) await afterAllOf(copy);
+    }
+    return super.onAfterRunSuite?.(suite);
   }
 
   async onBeforeRunSuite(suite: AnyTask): Promise<unknown> {
@@ -449,15 +638,16 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
     const { collectTests } = browser;
     const { vi } = vitest;
     if (!collectTests || !vi) return fallback('this Vitest has no public collect'); // Vitest 4: the fresh path decides
-    const evaluate = async (armed: string | undefined): Promise<{ failed: string[]; ran: number; timeout: boolean; error?: string }> => {
+    const evaluate = async (armed: string | undefined): Promise<{ failed: string[]; ran: number; timeout: boolean; deadlock?: boolean; error?: string }> => {
       ns.activeMutant = armed;
       ns.hitCount = armed ? 0 : undefined;
       ns.hitLimit = armed ? (staticLimits[armed] ?? Number.MAX_SAFE_INTEGER) : undefined;
+      deadlocked = false;
       try {
         vi.resetModules();
         const [file] = await collectTests([filepath], this);
         const result = file ? await runCollected(file, runnable) : { failed: [filepath], ran: 0 };
-        return { ...result, timeout: ranAway() };
+        return { ...result, timeout: ranAway() || deadlocked, ...(deadlocked ? { deadlock: true } : {}) };
       } finally {
         ns.activeMutant = undefined;
         ns.hitCount = undefined;
@@ -482,6 +672,9 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
       // The real clock, as above: the file's tests run again here, and may freeze it.
       if (progressPath) writeFileSync(progressPath, `${id} ${String(realNow())}\n`);
       held.push({ id, verdict: await evaluate(id) });
+      // A deadlocked run is still pending in this worker: tear it down. The batch, held verdicts and
+      // all, goes back to the fresh-worker path, where each run has its own process.
+      if (held.at(-1)?.verdict.deadlock) return back('torn down: a deadlocked run is still pending in this worker');
       const left = snapshotDiff(before, snapshot());
       if (left.length) return back('the mutant left a trace', left);
       if (held.length < every && rest.length) continue;
@@ -490,12 +683,55 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
       if (unarmed.failed.length > 0) return back('the unarmed re-collection failed', unarmed.error ? [unarmed.error] : []);
       const after = snapshotDiff(before, snapshot());
       if (after.length) return back('the unarmed re-collection left a trace', after);
-      for (const { id: done, verdict } of held) emit({ type: 'isolated', id: done, killed: verdict.failed.length > 0 && !verdict.timeout, failed: verdict.failed, ran: verdict.ran, ...(verdict.timeout && { timeout: true }) });
+      for (const { id: done, verdict } of held) emit({ type: 'isolated', id: done, killed: verdict.failed.length > 0 && !verdict.timeout, failed: verdict.failed, ran: verdict.ran, ...(verdict.timeout && { timeout: true }), ...(verdict.deadlock && { deadlock: true }) });
       held = [];
       every = Math.min(STATIC_CANARY_MAX, every * 2);
     }
     if (progressPath) writeFileSync(progressPath, '');
     vi.resetModules();
+  }
+
+  /**
+   * Collected here, before Vitest marks the test running: it refuses `it()` inside a running test.
+   * A file whose copies cannot be collected falls back to the canary restarting its context.
+   */
+  async onBeforeRunTask(test: AnyTask): Promise<unknown> {
+    const filepath = test.file?.filepath;
+    if (mode === 'mutant' && !polluted && filepath && runOnce.has(filepath)) {
+      const done = specTests.has(test.id) ? decidedBySpec : decided;
+      const runs = (plan.tests[test.id] ?? []).filter((id) => !done.has(id)).length * RUNS_PER_MUTANT + RUNS_AFTER;
+      if (!(await this.collectCopies(filepath, (taken.get(test.id) ?? 0) + runs))) runOnce.delete(filepath);
+    }
+    return super.onBeforeRunTask?.(test);
+  }
+
+  /**
+   * Fresh collections of `filepath` until there are `count`. Only the test file is evaluated again
+   * (Vitest 5 re-imports it; on Vitest 4 its module is invalidated first), so each costs the file's
+   * own top level, not its imports.
+   */
+  private async collectCopies(filepath: string, count: number): Promise<boolean> {
+    const files = collections.get(filepath) ?? [];
+    collections.set(filepath, files);
+    if (files.length >= count) return true;
+    const collect = await loadCollect();
+    if (!collect) return false;
+    const { workerState } = this;
+    // Collecting points Vitest's current task and spec at the new file; the running file keeps them.
+    const was = { current: workerState?.current, spec: this._currentSpecification };
+    try {
+      while (files.length < count) {
+        const node = workerState?.evaluatedModules?.getModuleById(filepath);
+        if (node) workerState?.evaluatedModules?.invalidateModule(node);
+        const [file] = await collect([filepath], this);
+        if (!file || file.result?.state === 'fail' || hasBeforeAll(file)) return false;
+        files.push(file);
+      }
+      return true;
+    } finally {
+      if (workerState) workerState.current = was.current;
+      this._currentSpecification = was.spec;
+    }
   }
 
   /** Reset per-try state (snapshot counters, assertion counts) the way Vitest does for a retry. */
@@ -518,7 +754,7 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
         const result = f.result as { state?: string; errors?: { message?: string }[] } | undefined;
         if (result?.state === 'fail' && !f.tasks?.length) fileErrors.push({ file: filepath, error: (result.errors?.[0]?.message ?? 'failed to collect').slice(0, FILE_ERROR_CHARS) });
       }
-      emit({ type: 'dry', tests, coverage: ns.mutantCoverage, fileErrors });
+      emit({ type: 'dry', tests, coverage: ns.mutantCoverage, fileErrors, runOnce: [...runOnce], modules: Object.fromEntries(dryModules) });
     } else if (mode === 'isolated') {
       const failed: string[] = [];
       let ran = 0;
@@ -533,8 +769,8 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
         // the mutant: a kill, as Stryker scores it. Its id stands in for the test that failed.
         if (f.result?.state === 'fail' && !failed.length) failed.push(f.id);
       }
-      const timeout = ranAway();
-      emit({ type: 'isolated', id: env[ACTIVE_MUTANT_ENV] ?? ns.activeMutant, killed: failed.length > 0 && !timeout, failed, ran, ...(timeout && { timeout }) });
+      const timeout = ranAway() || deadlocked;
+      emit({ type: 'isolated', id: env[ACTIVE_MUTANT_ENV] ?? ns.activeMutant, killed: failed.length > 0 && !timeout, failed, ran, ...(timeout && { timeout }), ...(deadlocked && { deadlock: true }) });
     }
     return super.onAfterRunFiles?.(files);
   }

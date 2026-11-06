@@ -127,8 +127,8 @@ function refuseSlot(slot: string, detail: string, fix: string): never {
 
 /** `#rrggbb`, `rrggbb`, quoted or not — Base16 files are written every way. */
 function base16Colour(slot: string, raw: unknown): Hex {
-  const value = typeof raw === 'string' ? raw.trim().replace(/^#/, '') : '';
-  if (!HEX6.test(value)) {
+  const value = typeof raw === 'string' ? raw.trim().replace(/^#/, '') : raw;
+  if (typeof value !== 'string' || !HEX6.test(value)) {
     refuseSlot(
       slot,
       `is ${JSON.stringify(raw) ?? 'missing'}, not a six-digit hex colour`,
@@ -150,7 +150,7 @@ function base16Lines(text: string): Record<string, string> {
   // `\r?\n`, not `\n`: `.` stops at a carriage return, so a Windows-saved file would match
   // only its last line — and be refused for missing slots it plainly has.
   for (const line of text.split(/\r?\n/)) {
-    const match = /^\s*(base[0-9a-f]{2})\s*:(.*)$/i.exec(line);
+    const match = /^\s*(base[0-9a-f]{2})\s*:(.*)/i.exec(line);
     if (match === null) continue;
     const key = (match[1] as string).toLowerCase();
     if (slots.has(key)) throw new ImportError('E_IMPORT_FORMAT', `roundel/import: ${key} is written twice`, 'keep one of the two lines');
@@ -216,6 +216,7 @@ const CHANNELS = ['Red', 'Green', 'Blue'] as const;
 function itermColour(plist: string, slot: string): Hex {
   const key = `<key>${slot}</key>`;
   const at = plist.indexOf(key);
+  // Stryker disable next-line ConditionalExpression,UnaryOperator,NumericLiteral,StringLiteral: a missing key leaves text that does not open with a dict — the XML header, or anything — and is refused below
   const rest = at === -1 ? '' : plist.slice(at + key.length);
   const open = /^\s*<dict>/.exec(rest);
   const close = rest.indexOf('</dict>');

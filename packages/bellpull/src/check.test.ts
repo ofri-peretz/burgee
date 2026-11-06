@@ -105,6 +105,21 @@ describe('the report', () => {
   });
 });
 
+describe('each run starts from an empty registry', () => {
+  it('reports only the second file’s resolvers when two files share a plugin name', async () => {
+    // Without the reset, the first run's `one` would still be registered under the same name
+    // and be listed as the second file's contribution.
+    await run([file("export default { name: 'twice', resolvers: { one: { rank: 0, paths: ['/one'] } } };")]);
+    expect(await run([file("export default { name: 'twice', resolvers: { two: { rank: 0, paths: ['/two'] } } };")])).toEqual({ code: EXIT_OK, out: 'twice — 1 resolvers\n  two\ntwice: ok\n' });
+  });
+});
+
+describe('the exit contract', () => {
+  it('is the family’s E1: 0 ok, 1 a refusal, 2 a usage error', () => {
+    expect([EXIT_OK, EXIT_RUNTIME, EXIT_USAGE]).toEqual([0, 1, 2]);
+  });
+});
+
 describe('what check does not own', () => {
   it('rethrows an error that is not a plugin refusal, rather than dressing it as one', async () => {
     const missing = join(dir, 'does-not-exist.mjs');

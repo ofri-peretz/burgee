@@ -78,13 +78,13 @@ function fitTitle(title: string, cells: number): string {
 /** The top border, with the title set into it when there is one and room for it. */
 function topBorder(style: BorderStyle, inner: number, title: string | undefined): string {
   if (style.top === '') return '';
-  if (title === undefined || title === '') return style.topLeft + style.top.repeat(inner) + style.topRight;
-  // A space each side of the title, so it reads as a label rather than as border.
-  const fitted = fitTitle(title, Math.max(0, inner - BORDER_CELLS - BORDER_CELLS));
+  // A space each side of the title, so it reads as a label rather than as border. No title, an
+  // empty one and one with no room all fit to nothing, and draw the plain border.
+  const fitted = fitTitle(title ?? '', Math.max(0, inner - BORDER_CELLS - BORDER_CELLS));
   if (fitted === '') return style.topLeft + style.top.repeat(inner) + style.topRight;
   const label = ` ${fitted} `;
-  const rest = Math.max(0, inner - width(label) - 1);
-  return `${style.topLeft}${style.top}${label}${style.top.repeat(rest)}${style.topRight}`;
+  // At least one cell of run is left: the title was fitted to four cells under `inner`, and its spaces add two.
+  return `${style.topLeft}${style.top}${label}${style.top.repeat(inner - width(label) - 1)}${style.topRight}`;
 }
 
 /** Draw `text` in a box, as a string. The many callers who want only this want only this. */

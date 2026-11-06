@@ -179,6 +179,17 @@ jobs:
             echo "::error::stall.qnt: neverFlips now holds — no idle stall is ever scored, so safety holds vacuously"
             exit 1
           fi
+          # Deadlocks the worker calls itself (quiescence.ts): safe only while a quiet wait is one that
+          # never settles, and some deadlock is called, so `safety` is not vacuous.
+          $QUINT run "$m" --main=stall --invariant=safety --max-steps=30 --max-samples=20000 >/dev/null
+          if $QUINT run "$m" --main=stallUnsound --invariant=safety --max-steps=30 --max-samples=20000 >/dev/null; then
+            echo "::error::stall.qnt: safety holds under stallUnsound — the model no longer shows what an unsound detector breaks"
+            exit 1
+          fi
+          if $QUINT run "$m" --invariant=noDeadlock --max-steps=30 --max-samples=20000 >/dev/null; then
+            echo "::error::stall.qnt: noDeadlock now holds — no deadlock is ever called, so safety holds vacuously"
+            exit 1
+          fi
       # oxmutate's grouped static canary (staticwarm.qnt): holding verdicts until their group's
       # canary keeps `safety` (grouped, groupedVisible), and reporting them before it does not.
       - name: oxmutate static canary — grouped verdicts held hold, unheld ones still fail
@@ -191,6 +202,18 @@ jobs:
             echo "::error::staticwarm.qnt: safety holds under groupedNoHold — the model no longer shows why a grouped verdict is held"
             exit 1
           fi
+      # oxmutate's run-once files (rerun.qnt): a fresh collection per run keeps `safety`, re-running
+      # the same closure (1.2.2) does not, and pollution still restarts (neverRestarts violated).
+      - name: oxmutate run-once files — fresh copies hold, reused closures still fail
+        run: |
+          m=.sdlc/intents/oxmutate/rerun.qnt
+          for inv in "v122 safety" "rerun neverRestarts"; do
+            set -- $inv
+            if $QUINT run "$m" --main="$1" --invariant="$2" --max-steps=30 --max-samples=20000 >/dev/null; then
+              echo "::error::rerun.qnt: $2 holds under $1 — the model no longer distinguishes the fix"
+              exit 1
+            fi
+          done
       # An open question, pinned: closeout's late add() is silently dropped today. When the
       # code changes and this starts holding, the step fails and the question gets answered.
       - name: closeout late add() is still dropped (open question, see spec.md)

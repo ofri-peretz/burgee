@@ -51,7 +51,11 @@ export function terminalLinkFor(runtime: Runtime) {
   let stdout: boolean | undefined;
   let stderr: boolean | undefined;
   const call = (text: string, url: string, options: LinkOptions = {}): string => {
-    const linked = options.target === 'stderr' ? (stderr ??= supportsHyperlinks(runtime, 'stderr')) : (stdout ??= supportsHyperlinks(runtime, 'stdout'));
+    const linked =
+      options.target === 'stderr'
+        ? (stderr ??= supportsHyperlinks(runtime, 'stderr'))
+        : // Stryker disable next-line StringLiteral: `supportsHyperlinks` asks only whether its target is `'stderr'`, so any other string is stdout
+          (stdout ??= supportsHyperlinks(runtime, 'stdout'));
     if (linked) return head + url + middle + text + tail;
     if (options.fallback === false) return text;
     if (typeof options.fallback === 'function') return options.fallback(text, url);
@@ -80,6 +84,7 @@ const stderr = ((text: string, url: string, options: Omit<LinkOptions, 'target'>
 stderr.isSupported = supportsHyperlinks(runtime, 'stderr');
 
 const terminalLink = bound as TerminalLink;
+// Stryker disable next-line StringLiteral: `supportsHyperlinks` asks only whether its target is `'stderr'`, so any other string is stdout
 terminalLink.isSupported = supportsHyperlinks(runtime, 'stdout');
 terminalLink.stderr = stderr;
 

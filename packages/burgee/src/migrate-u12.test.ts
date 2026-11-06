@@ -238,6 +238,14 @@ describe('U12-2 — under a release age, next pins the newest family version old
     // one is listed second, so it is exempt only when the entry is split on `||` and each side trimmed;
     // read whole, nothing matches and the floor drops to the ten-day-old `M.0.0`.
     ['a version list, name@a || b', `minimumReleaseAge: 4320\nminimumReleaseAgeExclude:\n  - "roundel@${majorOf('roundel')}.0.0 || ${versions['roundel'] as string}"\n`],
+    // YAML lets a block list sit at its key's own indentation, and `pnpm-workspace.yaml` files
+    // written that way read as no exemptions at all. The key after it still ends the list: were
+    // `- flagstaff` read too, flagstaff would keep its graded pin and the expected line would fail.
+    ['an unindented block list, with a key after it', 'minimumReleaseAge: 4320\nminimumReleaseAgeExclude:\n- roundel\nother:\n- flagstaff\n'],
+    // An item is a line that *starts* with the dash: a key with one in its name is still the
+    // next key, and still ends the list before `- flagstaff`.
+    ['an unindented block list, with a dashed key after it', 'minimumReleaseAge: 4320\nminimumReleaseAgeExclude:\n- roundel\nx-other:\n- flagstaff\n'],
+    ['a block list in a CRLF file', 'minimumReleaseAge: 4320\r\nminimumReleaseAgeExclude:\r\n  - roundel\r\n'],
   ])('keeps the graded pin for a package minimumReleaseAgeExclude exempts, as %s', async (_, workspace) => {
     const report = await migrate({ dir: mcpc(workspace), status: clean, registry: registry(), now });
     expect(report.next).toBe(`pnpm add flagstaff@^${majorOf('flagstaff')}.0.0 roundel@^${versions['roundel'] as string} && pnpm remove chalk ora`);

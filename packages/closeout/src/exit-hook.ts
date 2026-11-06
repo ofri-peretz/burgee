@@ -172,6 +172,7 @@ async function shutdown(manual: boolean, isSynchronous: boolean, signal: number)
   // expects 130. Written inline, as upstream writes it: a helper is bytes in every bundle.
   let code: number | string = 0;
   const set = proc?.exitCode;
+  // Stryker disable next-line EqualityOperator,NumericLiteral: `signal` is only ever NO_SIGNAL (-128), 0, SIGINT (2) or SIGTERM (15), so `> 1` draws the same line
   if (signal > 0) code = SIGNAL_BASE + signal;
   else if (typeof set === 'number' || typeof set === 'string') code = set;
   for (const hook of syncHooks) hook(code);
@@ -182,6 +183,7 @@ async function shutdown(manual: boolean, isSynchronous: boolean, signal: number)
   // `max(wait)`. The 0 is for a shutdown with no async hook: `Math.max()` alone is -Infinity,
   // which Node answers with a TimeoutNegativeWarning. A 0 ms timer is cleared on the next line
   // but one, in a microtask, before any timer can fire.
+  // Stryker disable next-line NumericLiteral: Node runs a 0 ms timer as a 1 ms one, and with no async hook it is cleared before either could fire
   const timer = setTimeout(() => leave(true, code), Math.max(0, ...asyncHooks.values()));
   await Promise.all([...asyncHooks.keys()].map(async (hook) => hook(code)));
   clearTimeout(timer);

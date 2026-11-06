@@ -41,7 +41,15 @@ a usage error.
 `;
 
 function version(): string {
-  return (JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }).version;
+  return (
+    JSON.parse(
+      readFileSync(
+        new URL('../package.json', import.meta.url),
+        // Stryker disable next-line StringLiteral: with no encoding the file is a Buffer, which `JSON.parse` reads as UTF-8 text all the same
+        'utf8',
+      ),
+    ) as { version: string }
+  ).version;
 }
 
 function target(arg: string | undefined, write: (s: string) => void): string | number {

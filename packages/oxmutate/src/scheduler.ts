@@ -148,7 +148,7 @@ export interface Pool {
   drain(
     units: Unit[],
     budget: (unit: Unit, id: string) => number,
-    after: (unit: Unit, outcome: UnitOutcome) => Unit[],
+    after: (unit: Unit, outcome: UnitOutcome) => Unit[] | Promise<Unit[]>,
     prepare?: (unit: Unit) => boolean,
   ): Promise<void>;
   close(): void;
@@ -215,7 +215,7 @@ export function createPool(config: ServerConfig, size: number, workDir: string, 
             if (outcome.killedFor || outcome.crashed) {
               servers[slot] = replacement();
             }
-            const more = after(unit, outcome);
+            const more = await after(unit, outcome);
             queue.unshift(...more);
             busy--;
             signal();

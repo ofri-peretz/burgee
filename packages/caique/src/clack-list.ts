@@ -32,11 +32,18 @@ export function wrapIndex(at: number, length: number): number {
   return at;
 }
 
-/** The next enabled option from `from` in direction `step`, wrapping at both ends. */
+/**
+ * The next enabled option from `from` in direction `step`, wrapping at both ends. A step of 0
+ * asks for `from` itself and, when that one is disabled, searches forward as upstream does: it
+ * recursed with `Math.sign(0)`, which is 0 again, so a search whose first match was disabled
+ * looked at the same index until the stack ran out.
+ */
 export function findCursor(from: number, step: number, options: readonly Choice[]): number {
   if (!options.some((option) => option.disabled !== true)) return from;
   const next = wrapIndex(from + step, options.length);
-  return options[next]?.disabled === true ? findCursor(next, Math.sign(step), options) : next;
+  const onward = step < 0 ? -1 : 1;
+  // Stryker disable next-line OptionalChaining: the guard above leaves `options` non-empty and `wrapIndex` keeps `next` inside it; the `?.` is for the index type alone
+  return options[next]?.disabled === true ? findCursor(next, onward, options) : next;
 }
 
 const STEPS = new Map<string | undefined, number>([

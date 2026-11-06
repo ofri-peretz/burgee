@@ -59,12 +59,23 @@ describe('arguments', () => {
   it('no argument is a usage error with the bare usage line', async () => {
     expect(await run([])).toEqual({ code: EXIT_USAGE, out: 'usage: paratext check <plugin-file>\n' });
   });
+
+  it('exits with the family’s three codes', () => {
+    expect([EXIT_OK, EXIT_RUNTIME, EXIT_USAGE]).toEqual([0, 1, 2]);
+  });
 });
 
 describe('the report', () => {
   it('lists each capability with both projections, then ends in ok', async () => {
     const { code, out } = await run([file(`export default { name: 'acme', capabilities: { beep: ${BEEP}, title: { name: 'title', osc: 2, when: {}, encode: 'x{text}', fallback: '{text}' } } };`)]);
     expect(out).toBe('acme — 2 capabilities\n  beep  osc BEL  encode "\\u0007"  fallback ""\n  title  osc 2  encode "x{text}"  fallback "{text}"\nacme: ok\n');
+    expect(code).toBe(EXIT_OK);
+  });
+
+  it('reports only the plugin it was given, when a process checks twice under one name', async () => {
+    await run([file(`export default { name: 'twice', capabilities: { beep: ${BEEP} } };`)]);
+    const { code, out } = await run([file("export default { name: 'twice', capabilities: { title: { name: 'title', osc: 2, when: {}, encode: 'x{text}', fallback: '{text}' } } };")]);
+    expect(out).toBe('twice — 1 capabilities\n  title  osc 2  encode "x{text}"  fallback "{text}"\ntwice: ok\n');
     expect(code).toBe(EXIT_OK);
   });
 

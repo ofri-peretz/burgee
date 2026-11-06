@@ -4,6 +4,7 @@ Intent: [`intent.md`](./intent.md) (`SC8`) · Metrics: [`metrics.md`](./metrics.
 Decisions: [`D-20261101-oxmutate-s3-fixture-sc11-week`](../../decisions/D-20261101-oxmutate-s3-fixture-sc11-week.md),
 [`D-20261101-idle-stall-is-timeout`](../../decisions/D-20261101-idle-stall-is-timeout.md) ·
 Model: [`stall.qnt`](./stall.qnt)
+· Evidence: [`sc8/`](./sc8/README.md), every head-to-head run with its load and per-mutant verdicts; ledger [`sc8/RUNS.md`](./sc8/RUNS.md)
 
 **The bar (owner, 2026-11-01).** oxmutate takes less time than Stryker on the same package, on the
 same machine, measured the same way: both engines one after the other, one package at a time,

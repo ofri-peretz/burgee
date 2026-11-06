@@ -93,6 +93,28 @@ it.skipIf(!native || !existsSync(bin) || !nightly)('decides no kill on a previou
   expect(spare.map((m) => `${String(m.location.start.line)}:${m.mutatorName}:${m.status}`)).toEqual(spare.map((m) => `${String(m.location.start.line)}:${m.mutatorName}:Survived`));
 }, 60_000);
 
+// ESLint's RuleTester fails a case it has seen, so a test run again from the same collection fails
+// whatever the mutant: every canary read as pollution and each mutant cost a restart. The fixture's
+// survivors show the runs after the first were decided on the mutant, not on that failure (rerun.qnt).
+// mixed.spec.ts opens with a plain test and holds the RuleTester-shaped block in a describe: probing
+// only a file's first test missed it, and its mutants restarted again.
+it.skipIf(!native || !existsSync(bin) || !nightly)('runs a run-once test file (ESLint\'s RuleTester) from fresh collections, with no restart', () => {
+  const dir = path.join(pkg, 'test/fixtures/run-once');
+  const reportDir = path.join(dir, 'reports');
+  rmSync(reportDir, { recursive: true, force: true });
+  execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: dir, stdio: 'pipe' });
+  const report = JSON.parse(readFileSync(path.join(reportDir, 'mutation.json'), 'utf8')) as {
+    files: Record<string, { mutants: ReportMutant[] }>;
+    'x-oxmutate': { stats: { pollutionRestarts: number } };
+  };
+  rmSync(reportDir, { recursive: true, force: true });
+  const mutants = report.files['src/parity.ts']?.mutants ?? [];
+  expect(report['x-oxmutate'].stats.pollutionRestarts).toBe(0);
+  const zeroLine = 9; // `if (n < 0)`: zero is never checked
+  expect(mutants.filter((m) => m.status === 'Survived').map((m) => m.location.start.line)).toContain(zeroLine);
+  expect(mutants.filter((m) => m.location.start.line < zeroLine - 1).map((m) => m.status)).toEqual(mutants.filter((m) => m.location.start.line < zeroLine - 1).map(() => 'Killed'));
+}, 60_000);
+
 // The mutant is armed through `beforeEach`, as Stryker arms it. A fixture builder only a hook calls was
 // planned for the test (the dry run credits hook code to it) but run with the hooks unarmed, so each of
 // its mutants survived the warm run and cost an isolated process to be killed.
@@ -403,9 +425,11 @@ describe.skipIf(!native || !existsSync(bin))('a spec oracle (M3.5): model traces
 // 3x, where they "finished" only because Vitest's 30 s test timeout failed the test, and were
 // reported Killed (D-20261101-idle-stall-is-timeout, stall.qnt). Before this, the fixture's hung
 // mutant took two stops and a 3x re-run to come out Killed the same way.
+// Since quiescence.ts the worker calls the wait a deadlock itself, so the case no longer waits out
+// a budget and runs on every pull request again (staged spec oxmutate-load-robust, L1).
 // In process, through the built package's API: the CLI's exit adds seconds this test does not need.
 // The mutant is static and sent straight to the fresh-worker path, whose watchdog this checks.
-it.skipIf(!native || !existsSync(bin) || !nightly)('scores a mutant whose test waits on an idle worker Timeout at its budget, with no 3x re-run', async () => {
+it.skipIf(!native || !existsSync(bin))('scores a mutant whose test deadlocks Timeout, called by its own worker: no watchdog stop, no re-run', async () => {
   const dir = path.join(pkg, 'test/fixtures/stall');
   // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the built package under test, present only after a build; the test is skipped without it
   const api = (await import(path.join(pkg, 'dist/index.js'))) as typeof import('./index.js');
@@ -414,13 +438,67 @@ it.skipIf(!native || !existsSync(bin) || !nightly)('scores a mutant whose test w
     const result = await api.run(await api.loadOptions(dir, { reporters: [] }, path.join(dir, 'oxmutate.config.json')));
     // The executor's emptied body, the hang; the string is excluded, so the run is the one mutant.
     expect(result.mutants.map((m) => `${m.mutatorName}:${m.status}`)).toEqual(['BlockStatement:Timeout', 'StringLiteral:Ignored']);
-    expect(result.stats).toMatchObject({ watchdogKills: 1, idleStalls: 1, timeoutsOverturned: 0 });
+    // The worker saw nothing left that could resume the test and failed it itself (quiescence.ts),
+    // in about 0.5 s: the watchdog never waited out its 4.5 s budget, and no server was killed.
+    expect(result.stats).toMatchObject({ watchdogKills: 0, idleStalls: 0, deadlocks: 1, timeoutsOverturned: 0 });
+    expect(result.mutants[0]?.statusReason).toMatch(/deadlocked/);
     // A Timeout is detected: the score is the one the Killed verdict gave.
     expect(result.score).toMatchObject({ detected: 1, total: 1, mutationScore: 100 });
   } finally {
     delete process.env['OXMUTATE_ISOLATE_STATIC'];
   }
 }, 60_000);
+
+// A mutant that writes into the project is caught after its unit, its write put back, and the verdicts
+// that ran on the changed project run again. compat-oracle's vendor step, its staging path emptied to
+// "", wrote a fake host's package.json over the package's own and every later mutant ran on a broken
+// package for four hours (#1453). Here the stray directory fails a suite that reads its project, so
+// without the guard every mutant after the write is a false kill (diskguard.ts).
+it.skipIf(!native || !existsSync(bin))('puts back what a mutant writes into the project, names it, and re-runs the verdicts the write could change', async () => {
+  const dir = path.join(pkg, 'test/fixtures/disk-write');
+  const stray = path.join(dir, 'copy');
+  // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the built package under test, present only after a build; the test is skipped without it
+  const api = (await import(path.join(pkg, 'dist/index.js'))) as typeof import('./index.js');
+  try {
+    const result = await api.run(await api.loadOptions(dir, { reporters: [] }, path.join(dir, 'oxmutate.config.json')));
+    expect(existsSync(stray)).toBe(false);
+    expect(result.stats.diskWrites).toBeGreaterThanOrEqual(1);
+    expect(result.mutants.filter((m) => m.wrote).map((m) => [m.mutatorName, m.wrote])).toEqual([['StringLiteral', ['copy']]]);
+    // No test pins `shout` down: on a clean project every one of its mutants survives.
+    const shout = result.mutants.filter((m) => m.start.line === 21 && m.status !== 'Ignored');
+    expect(shout.length).toBeGreaterThan(0);
+    expect([...new Set(shout.map((m) => m.status))]).toEqual(['Survived']);
+  } finally {
+    discard(stray);
+  }
+}, 60_000);
+
+// The incremental cache reuses a verdict only when nothing it rested on changed. The mutated file and
+// the test file stay the same here; the helper the test asserts through stops checking anything, so
+// the mutant that was killed now survives. The old fingerprint (mutated source + covering test files)
+// reused the stale Killed; the module graph of the test, from the dry run, is in the fingerprint now.
+it.skipIf(!native || !existsSync(bin))('decides a mutant afresh when a module its test imports changed, not from the cache', async () => {
+  const fixture = path.join(pkg, 'test/fixtures/incremental-graph');
+  // Inside the package, so the copy resolves Vitest as the fixture does.
+  const dir = mkdtempSync(path.join(pkg, 'test/fixtures/.incremental-graph-'));
+  // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the built package under test, present only after a build; the test is skipped without it
+  const api = (await import(path.join(pkg, 'dist/index.js'))) as typeof import('./index.js');
+  try {
+    for (const f of ['package.json', 'oxmutate.config.json', 'vitest.config.mjs', 'src/sum.ts', 'src/check.ts', 'src/sum.spec.ts']) {
+      mkdirSync(path.dirname(path.join(dir, f)), { recursive: true });
+      writeFileSync(path.join(dir, f), readFileSync(path.join(fixture, f)));
+    }
+    const run = async (): Promise<Awaited<ReturnType<typeof api.run>>> => api.run(await api.loadOptions(dir, { reporters: [] }, path.join(dir, 'oxmutate.config.json')));
+    const plus = (r: Awaited<ReturnType<typeof api.run>>): string | undefined => r.mutants.find((m) => m.mutatorName === 'ArithmeticOperator')?.status;
+    expect(plus(await run())).toBe('Killed');
+    writeFileSync(path.join(dir, 'src/check.ts'), 'export const TARGET = 5;\nexport const isTarget = (_got: number): boolean => true;\n');
+    const second = await run();
+    expect(plus(second)).toBe('Survived');
+    expect(second.mutants.find((m) => m.mutatorName === 'ArithmeticOperator')?.reused).toBeFalsy();
+  } finally {
+    discard(dir);
+  }
+}, 90_000);
 
 // A range directive, `disable all` with a reason down to `restore all`, turns mutants off between
 // the two lines, as Stryker does. Before, oxmutate read only `disable next-line` and graded every mutant in a range:

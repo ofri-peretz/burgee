@@ -189,6 +189,33 @@ describe('controlroom R3 Â· the frame-writing seam', () => {
     expect(writes[1]).toBe(`${BEGIN}${ESC}[1G${ESC}[1A${ESC}[0Jy${END}`);
   });
 
+  it.each([undefined, 0])('a width of %s is 80: 81 cells wrap onto a second row, 80 do not', (columns) => {
+    for (const [cells, up] of [[81, `${ESC}[1A`], [80, '']] as const) {
+      const writes: string[] = [];
+      const frame = frameWriter({ write: (s: string) => writes.push(s), columns });
+      frame.paint(['x'.repeat(cells)]);
+      frame.paint(['y']);
+      expect(writes[1], `${cells} cells`).toBe(`${BEGIN}${ESC}[1G${up}${ESC}[0Jy${END}`);
+    }
+  });
+
+  it('a width of one is one: every character is a row of its own', () => {
+    const writes: string[] = [];
+    const frame = frameWriter({ write: (s: string) => writes.push(s), columns: 1 });
+    frame.paint(['ab']);
+    frame.paint(['y']);
+    expect(writes[1]).toBe(`${BEGIN}${ESC}[1G${ESC}[1A${ESC}[0Jy${END}`);
+  });
+
+  it('a one-line frame unchanged across a resize is repainted at the new width', () => {
+    const { out, writes, resize } = sink(30);
+    const frame = frameWriter(out);
+    frame.paint(['x']);
+    resize(20);
+    frame.paint(['x']);
+    expect(writes[1]).toBe(`${BEGIN}${ESC}[1G${ESC}[0Jx${END}`);
+  });
+
   it('no lines is one empty line', () => {
     const { out, writes, term } = sink();
     const frame = frameWriter(out);
@@ -196,6 +223,8 @@ describe('controlroom R3 Â· the frame-writing seam', () => {
     // Nothing to draw on a fresh writer is nothing written — not an empty sync block.
     expect(writes).toEqual([]);
     frame.paint(['a']);
+    // The empty line was the frame: `a` replaces it where it stood.
+    expect(writes).toEqual([`${BEGIN}${ESC}[1G${ESC}[0Ja${END}`]);
     frame.paint([]);
     expect(term.screen).toEqual(['']);
   });

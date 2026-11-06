@@ -25,6 +25,7 @@ import { isWindows, type Runtime } from './runtime.js';
  */
 export function isExecutable(file: string, runtime: Runtime, pathExt: string[]): boolean {
   let stat;
+  // Stryker disable BlockStatement: the catch only returns what the line after it returns for an undefined `stat`. It spans the whole try because Stryker reads no directive just above `} catch {`; the try block it also covers is one every executable test kills
   try {
     // `throwIfNoEntry: false`, because an absent file is the ordinary answer on most of a
     // `PATH` walk, and a throwing stat builds an Error with a stack for every one of them.
@@ -33,6 +34,7 @@ export function isExecutable(file: string, runtime: Runtime, pathExt: string[]):
     // A component of it is a file, not a directory (`ENOTDIR`), or we may not look (`EACCES`).
     return false;
   }
+  // Stryker restore BlockStatement
   // Absent: not this one.
   if (stat === undefined) return false;
   return isWindows(runtime) ? executableByName(file, stat, pathExt) : executableByMode(stat, runtime);
@@ -62,7 +64,9 @@ function executableByName(file: string, stat: Stats, pathExt: string[]): boolean
  * away.
  */
 const OTHER = 0o001;
+// Stryker disable next-line NumericLiteral: a mutant that adds the `OTHER` bit changes nothing, since a mode with that bit has already returned `true`
 const GROUP = 0o010;
+// Stryker disable next-line NumericLiteral: the same — the extra `OTHER` bit is answered before `OWNER` is ever read
 const OWNER = 0o100;
 
 function executableByMode(stat: Stats, runtime: Runtime): boolean {

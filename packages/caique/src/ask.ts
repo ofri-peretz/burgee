@@ -85,10 +85,15 @@ function listChoices(choices: Choice[]): string {
   return choices.map((choice, index) => `  ${index + 1}) ${choice.label ?? choice.value}${choice.hint === undefined ? '' : ` — ${choice.hint}`}`).join('\n');
 }
 
-/** A 1-based index into `choices`, or nothing when the answer names no choice. */
+/**
+ * A 1-based index into `choices`, or nothing when the answer names no choice. Only an answer
+ * that is all digits is a number: `parseInt` stops at the first character it cannot read, so
+ * `1 2` was choice 1, `2x` choice 2, and a label typed out — `3 apples` — was read as index 3.
+ * The callers have already trimmed it.
+ */
 function pick(answer: string, choices: Choice[]): Choice | undefined {
-  const index = Number.parseInt(answer, DECIMAL);
-  if (Number.isInteger(index) && index >= 1 && index <= choices.length) return choices[index - 1];
+  const index = /^\d+$/.test(answer) ? Number.parseInt(answer, DECIMAL) : Number.NaN;
+  if (index >= 1 && index <= choices.length) return choices[index - 1];
   // A person who types the label rather than its number has answered the question.
   return choices.find((choice) => choice.value === answer || choice.label === answer);
 }

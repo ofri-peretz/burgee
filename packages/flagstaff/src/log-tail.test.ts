@@ -79,6 +79,10 @@ describe('controlroom R3 · logTail', () => {
       expect(frame).toContain('\u001B[1m◆\u001B[22m \u001B[1mBuilding\u001B[22m');
       expect(frame).toContain('\u001B[2m◆\u001B[22m Installing packages');
       expect(frame).toContain('\u001B[2m┊\u001B[22m npm install');
+      // Pinned above the window, the step in progress keeps its mark.
+      expect(logTail({ height: 3 }).frame?.(0, upTo(7))?.split('\n')[0]).toBe('\u001B[1m◆\u001B[22m \u001B[1mBuilding\u001B[22m');
+      // Off a terminal no step is in progress: the log is history, every mark muted.
+      expect(logTail().static(upTo(4))).toBe('\u001B[2m◆\u001B[22m Installing packages\n\u001B[2m┊\u001B[22m npm install\n\u001B[2m┊\u001B[22m added 12 packages\n\u001B[2m◆\u001B[22m Building');
     } finally {
       flown.level = 0;
       flown.paint = {};
@@ -89,6 +93,8 @@ describe('controlroom R3 · logTail', () => {
     const builtin = registered().components.get('log-tail');
     expect(builtin?.name).toBe('log-tail');
     expect(builtin?.static(builtin.sample?.running)).toBe('◆ Installing packages\n┊ npm install\n┊ added 12 packages');
+    expect(builtin?.static(builtin.sample?.done)).toBe('◆ Installing packages\n┊ npm install\n┊ added 12 packages\n◆ Done');
+    expect(logTail().name).toBe('log-tail');
     expect(builtin?.frame?.(0, upTo(3))).toBe(logTail().frame?.(0, upTo(3)));
     expect(registered().plugins).toContain('flagstaff');
   });

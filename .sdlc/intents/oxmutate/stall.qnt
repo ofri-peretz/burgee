@@ -19,9 +19,26 @@
  *   quint run stall.qnt --main=stallBefore --invariant=safety     violated: an idle stop is re-run
  *   quint run stall.qnt --main=stall       --invariant=neverFlips violated: some idle stall's verdict
  *     changes (Killed -> Timeout), so `safety` is not holding because no stall is ever idle
+ *
+ * Deadlocks (quiescence.ts, staged spec oxmutate-load-robust L1). Before any budget, the worker may
+ * call its own wait a deadlock: its thread and the process are quiet, no Vitest call is in flight, no
+ * timer is pending and it holds nothing beyond its floor, for a whole confirm window. Then the
+ * mutant is a Timeout at once: no watchdog wait, no re-run. `SOUND` is the detector's claim that a
+ * quiet wait is one that never settles; the model checks what follows from it, and what breaks
+ * without it.
+ *
+ *   quint run stall.qnt --main=stall        --invariant=safety     holds (deadlocks called, sound)
+ *   quint run stall.qnt --main=stallUnsound --invariant=safety     violated: a test that would have
+ *     settled is called a deadlock, and its verdict changes
+ *   quint run stall.qnt --main=stall        --invariant=noDeadlock violated: some deadlock is called,
+ *     so `safety` is not holding because the detector never fires
  */
 module stallLoop {
   const IDLE_IS_TIMEOUT: bool
+  /** The worker calls quiet waits deadlocks before any budget (quiescence.ts). */
+  const DEADLOCK: bool
+  /** The detector's premise: a quiet wait is one that never settles. */
+  const SOUND: bool
 
   pure val b = 1              // the warm budget
   pure val B = 2              // the isolated budget (always above the warm one)
@@ -33,6 +50,8 @@ module stallLoop {
   var reported: str
   var reruns: int             // isolated re-runs at 3x
   var idleReran: bool         // an idle stop was re-run
+  var quiet: bool             // the wait reads quiet to the worker for a whole confirm window
+  var deadlockCalled: bool    // the worker called it a deadlock
   var done: bool
 
   /** The verdict and the re-runs it took, after a warm stop. */
@@ -44,6 +63,9 @@ module stallLoop {
 
   def path(s: int, i: bool, o: str): (str, int) = if (s <= b) (o, 0) else isolated(s, i, o)
 
+  /** With the detector: a quiet wait is a Timeout at once, inside the warm budget. */
+  def withDeadlocks(s: int, i: bool, o: str, q: bool): (str, int) = if (DEADLOCK and q) ("Timeout", 0) else path(s, i, o)
+
   /** Before the decision: every stop re-run at 3x, idle or busy. */
   def before(s: int, o: str): str = if (s <= 3 * B) o else "Timeout"
 
@@ -51,24 +73,31 @@ module stallLoop {
     nondet s = Set(1, 2, 3, 4, 5, 6, 7, 8, 9, NEVER).oneOf()
     nondet i = Set(true, false).oneOf()
     nondet o = Set("Killed", "Survived").oneOf()
-    all { settle' = s, idle' = i, outcome' = o, reported' = "", reruns' = 0, idleReran' = false, done' = false }
+    nondet q = Set(true, false).oneOf()
+    all {
+      // Sound: only a wait that never settles reads quiet. A quiet wait is also idle: nothing burns CPU.
+      not(SOUND) or not(q) or s == NEVER,
+      not(q) or i,
+      settle' = s, idle' = i, outcome' = o, quiet' = q, reported' = "", reruns' = 0, idleReran' = false, deadlockCalled' = false, done' = false,
+    }
   }
 
   action decide = all {
     not(done),
-    val r = path(settle, idle, outcome)
+    val r = withDeadlocks(settle, idle, outcome, quiet)
     all {
       reported' = r._1,
       reruns' = r._2,
       idleReran' = (idle and settle > B and r._2 > 0),
+      deadlockCalled' = (DEADLOCK and quiet),
       done' = true,
-      settle' = settle, idle' = idle, outcome' = outcome,
+      settle' = settle, idle' = idle, outcome' = outcome, quiet' = quiet,
     },
   }
 
   action stay = all {
     done,
-    reported' = reported, reruns' = reruns, idleReran' = idleReran, done' = done, settle' = settle, idle' = idle, outcome' = outcome,
+    reported' = reported, reruns' = reruns, idleReran' = idleReran, deadlockCalled' = deadlockCalled, done' = done, settle' = settle, idle' = idle, outcome' = outcome, quiet' = quiet,
   }
 
   action step = any { decide, stay }
@@ -80,10 +109,16 @@ module stallLoop {
     reruns <= 1,
     reported == before(settle, outcome) or (idle and settle > B and reported == "Timeout"),
     not(idle) implies reported == before(settle, outcome),
+    // A deadlock is called only on a test that never settles, takes no re-run, and its verdict is the
+    // one the old path reached after waiting out every budget.
+    deadlockCalled implies (settle == NEVER and reruns == 0 and reported == "Timeout"),
   }
+  // Witness (expected violated): some deadlock is called.
+  val noDeadlock = done implies not(deadlockCalled)
   // Witness (expected violated): some idle stall's verdict does change.
   val neverFlips = done implies reported == before(settle, outcome)
 }
 
-module stall { import stallLoop(IDLE_IS_TIMEOUT = true).* }
-module stallBefore { import stallLoop(IDLE_IS_TIMEOUT = false).* }
+module stall { import stallLoop(IDLE_IS_TIMEOUT = true, DEADLOCK = true, SOUND = true).* }
+module stallBefore { import stallLoop(IDLE_IS_TIMEOUT = false, DEADLOCK = false, SOUND = true).* }
+module stallUnsound { import stallLoop(IDLE_IS_TIMEOUT = true, DEADLOCK = true, SOUND = false).* }

@@ -185,6 +185,12 @@ describe('fromBase16 — the ways a scheme is written', () => {
     expect(fromBase16(yaml)).toEqual(fromBase16(scheme()));
   });
 
+  it('reads a colour with spaces around it, a space before the colon, and a quoted word in a comment', () => {
+    expect(fromBase16(scheme({ base08: ' fb4934 ' }))).toEqual(fromBase16(scheme()));
+    const yaml = ['base00 : 1d2021', 'base08: fb4934 # "red"', 'not_base08: "#ffffff"', 'base0A: fabd2f', 'base0B: b8bb26', 'base0C: 8ec07c', 'base0E: d3869b'].join('\n');
+    expect(fromBase16(yaml)).toEqual(fromBase16(scheme()));
+  });
+
   it('ignores every slot and key the mapping does not read', () => {
     expect(fromBase16(scheme({ base09: 'not a colour', base0F: undefined, scheme: 'x' }))).toEqual(fromBase16(scheme()));
   });
@@ -199,19 +205,23 @@ describe('fromBase16 — refusals, each with a code and a fix', () => {
     const e = refusal(() => fromBase16(input as unknown as string));
     expect(e.code).toBe('E_IMPORT_FORMAT');
     expect(e.message).toBe('roundel/import: a Base16 scheme is a string or an object');
+    expect(e.fix).toBe("pass the file's text, or the object a YAML reader made of it");
   });
 
   it('refuses text that opens like JSON and is not', () => {
     const e = refusal(() => fromBase16('{ "base00": '));
     expect(e.code).toBe('E_IMPORT_FORMAT');
+    expect(e.fix).toBe('pass the file as it was published, YAML or JSON');
     expect(e.message).toMatch(/^roundel\/import: not JSON — /);
   });
 
   it('refuses a file with no base slots at all — the wrong file, not a broken scheme', () => {
-    for (const input of ['scheme: "x"\nauthor: "y"\n', { name: 'x' }, { palette: {} }]) {
+    // A key that only contains a slot's name is not that slot.
+    for (const input of ['scheme: "x"\nauthor: "y"\n', { name: 'x' }, { palette: {} }, { xbase00: '1d2021' }, { base00x: '1d2021' }]) {
       const e = refusal(() => fromBase16(input));
       expect(e.code).toBe('E_IMPORT_FORMAT');
       expect(e.message).toMatch(/no base00…base0F keys/);
+      expect(e.fix).toBe('pass a scheme file, e.g. one from tinted-theming/schemes');
     }
   });
 
@@ -219,6 +229,7 @@ describe('fromBase16 — refusals, each with a code and a fix', () => {
     const e = refusal(() => fromBase16(`${GRUVBOX}  base08: "#ffffff"\n`));
     expect(e.code).toBe('E_IMPORT_FORMAT');
     expect(e.message).toBe('roundel/import: base08 is written twice');
+    expect(e.fix).toBe('keep one of the two lines');
   });
 
   it('refuses a missing slot, naming it', () => {
@@ -237,7 +248,12 @@ describe('fromBase16 — refusals, each with a code and a fix', () => {
     expect(refusal(() => fromBase16(scheme({ base08: null }))).fix).toMatch(/quote the value/);
   });
 
-  it.each(['zzzzzz', '#12345', '1234567', 123456])('refuses %j, which is not a colour', (value) => {
+  it('names an unquoted value as written, without the spaces before its comment', () => {
+    const text = GRUVBOX.replace('base08: "#fb4934"', 'base08: zzzzzz   # red');
+    expect(refusal(() => fromBase16(text)).message).toBe('roundel/import: base08 is "zzzzzz", not a six-digit hex colour');
+  });
+
+  it.each(['zzzzzz', '#12345', '1234567', 123456, 'fb#4934'])('refuses %j, which is not a colour', (value) => {
     const e = refusal(() => fromBase16(scheme({ base0B: value })));
     expect(e.code).toBe('E_IMPORT_SLOT');
     expect(e.message).toMatch(/^roundel\/import: base0B is .+, not a six-digit hex colour$/);
@@ -256,6 +272,11 @@ describe('fromITerm — the ways a preset is written', () => {
     expect(fromITerm(withDict('Ansi 1 Color', body)).error).toBe('#ff5555');
   });
 
+  it('reads a component of exactly 0, and writes a small channel as two digits', () => {
+    expect(fromITerm(withDict('Ansi 1 Color', components('1', '0.8', '0'))).error).toBe('#ffcc00');
+    expect(fromITerm(withDict('Ansi 1 Color', components('1', '0.8', '0.02'))).error).toBe('#ffcc05');
+  });
+
   it('reads a Calibrated or sRGB colour space as sRGB', () => {
     const calibrated = components('1', '0.3333333333333333', '0.3333333333333333', '<key>Color Space</key><string>Calibrated</string>');
     expect(fromITerm(withDict('Ansi 1 Color', calibrated)).error).toBe('#ff5555');
@@ -266,6 +287,7 @@ describe('fromITerm — refusals, each with a code and a fix', () => {
   it('refuses a binary property list with the command that converts it', () => {
     const e = refusal(() => fromITerm('bplist00\u0000\u0001'));
     expect(e.code).toBe('E_IMPORT_FORMAT');
+    expect(e.message).toBe('roundel/import: not an XML property list');
     expect(e.fix).toMatch(/plutil -convert xml1/);
   });
 
@@ -280,12 +302,14 @@ describe('fromITerm — refusals, each with a code and a fix', () => {
     const e = refusal(() => fromITerm(plist));
     expect(e.code).toBe('E_IMPORT_FORMAT');
     expect(e.message).toBe('roundel/import: no <plist><dict> — this is not an .itermcolors file');
+    expect(e.fix).toBe('pass a colour preset exported from iTerm2');
   });
 
   it('refuses a preset missing a slot the mapping reads, naming it', () => {
     const e = refusal(() => fromITerm(DRACULA.replace('<key>Ansi 5 Color</key>', '<key>Ansi 5 Colour</key>')));
     expect(e.code).toBe('E_IMPORT_SLOT');
     expect(e.message).toBe('roundel/import: Ansi 5 Color is not in the file');
+    expect(e.fix).toBe('export the whole colour preset, not a single colour');
   });
 
   it('refuses a slot key that is not followed by its colour dict', () => {
@@ -303,6 +327,9 @@ describe('fromITerm — refusals, each with a code and a fix', () => {
     const e = refusal(() => fromITerm(withDict('Ansi 2 Color', components('0.3', '0.9', '0.5', '<key>Color Space</key>\n<string>P3</string>'))));
     expect(e.code).toBe('E_IMPORT_SLOT');
     expect(e.message).toBe('roundel/import: Ansi 2 Color is in Display P3, and roundel reads sRGB');
+    // However much whitespace sits between the key and its value.
+    const spaced = withDict('Ansi 2 Color', components('0.3', '0.9', '0.5', '<key>Color Space</key>\n\t<string>P3</string>'));
+    expect(refusal(() => fromITerm(spaced)).message).toBe('roundel/import: Ansi 2 Color is in Display P3, and roundel reads sRGB');
     expect(e.fix).toMatch(/sRGB/);
   });
 
@@ -310,6 +337,7 @@ describe('fromITerm — refusals, each with a code and a fix', () => {
     ['above 1', components('1.2', '0.3', '0.3'), 'Red'],
     ['below 0', components('1', '-0.1', '0.3'), 'Green'],
     ['empty', components('1', '0.3', ''), 'Blue'],
+    ['only spaces', components('1', '0.3', '  '), 'Blue'],
     ['not a number', components('1', '0.3', 'blue'), 'Blue'],
     ['absent', '<key>Red Component</key><real>1</real><key>Green Component</key><real>0.3</real>', 'Blue'],
   ])('refuses a component %s', (_, body, channel) => {

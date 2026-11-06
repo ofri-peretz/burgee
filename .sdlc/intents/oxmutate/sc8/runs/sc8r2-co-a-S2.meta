@@ -1,0 +1,6 @@
+label=sc8r2-co-a-S2 engine=stryker pkg=compat-oracle mode=
+start 2026-11-03T04:31:35Z load { 12.38 16.63 16.90 }
+end 2026-11-03T04:32:14Z load { 10.23 15.51 16.47 }
+wall_s 39
+ M packages/compat-oracle/package.json
+?? packages/compat-oracle/test/

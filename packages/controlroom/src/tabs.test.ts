@@ -18,6 +18,7 @@ describe('reduce — tabs', () => {
     const s = reduce(initial(tabs), 'tab:Visualizer');
     expect(s.active).toBe(2);
     expect(reduce(s, 'tab:Nope')).toBe(s);
+    expect(reduce(s, 'tab:Status').active, 'the first tab is a tab too').toBe(0);
   });
 
   it('a screen with no tabs stays at zero instead of dividing by it', () => {
@@ -29,6 +30,7 @@ describe('reduce — focus', () => {
   it('moves through panes in focus order and wraps', () => {
     let s = initial([], ['learn', 'tasks', 'log']);
     s = reduce(s, 'focus.next');
+    expect(s.focused).toBe(1);
     s = reduce(s, 'focus.next');
     s = reduce(s, 'focus.next');
     expect(s.focused).toBe(0);
@@ -68,6 +70,12 @@ describe('hints — generated from the keymap', () => {
     expect(hints({ up: 'a', down: 'a', enter: 'b', escape: 'c', 'shift+tab': 'd' }, { a: 'move', b: 'open', c: 'back', d: 'prev' })).toBe(
       '↑↓ move  ⏎ open  esc back  ⇧tab prev',
     );
+  });
+
+  it('spells only a whole `ctrl+<one key>` spec as ^X, and runs keys together only when every one is an arrow', () => {
+    expect(hints({ 'ctrl+ab': 'a', 'xctrl+b': 'b' }, { a: 'A', b: 'B' })).toBe('ctrl+ab A  xctrl+b B');
+    expect(hints({ left: 'a', q: 'a' }, { a: 'L' })).toBe('←/q L');
+    expect(hints({ q: 'a', left: 'a' }, { a: 'L' })).toBe('q/← L');
   });
 
   it('a bound action with no label is bound but not advertised', () => {

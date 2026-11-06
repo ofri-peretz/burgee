@@ -54,6 +54,7 @@ export function shebangCommand(source: string): string | undefined {
 export function readShebang(file: string): string | undefined {
   const buffer = Buffer.alloc(HEADER_BYTES);
   let fd;
+  // Stryker disable BlockStatement: a failed open or read leaves the buffer zeroed, which the parse below reads as no shebang, so the catch body is the fallthrough's answer. It spans the whole try because Stryker reads no directive just above `} catch {`; the try block it also covers is one the shebang tests kill
   try {
     fd = openSync(file, 'r');
     readSync(fd, buffer, 0, HEADER_BYTES, 0);
@@ -62,5 +63,6 @@ export function readShebang(file: string): string | undefined {
   } finally {
     if (fd !== undefined) closeSync(fd);
   }
+  // Stryker restore BlockStatement
   return shebangCommand(buffer.toString());
 }

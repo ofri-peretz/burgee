@@ -74,6 +74,7 @@ function plan(cmd: string, opt: NodeWhichOptions, runtime: Runtime): Plan {
   const listed = (opt.pathExt ?? runtime.env['PATHEXT'] ?? '') || WINDOWS_EXTENSIONS.join(split);
   const judge = listed.split(split);
   const exts = judge.flatMap((e) => [e, e.toLowerCase()]);
+  // Stryker disable next-line NumericLiteral: `exts` pairs each entry with its lower case, so `exts[1]` is empty exactly when `exts[0]` is
   if (cmd.includes('.') && exts[0] !== '') exts.unshift('');
   return { dirs, exts, judge };
 }
@@ -81,11 +82,13 @@ function plan(cmd: string, opt: NodeWhichOptions, runtime: Runtime): Plan {
 /** The candidate files, in upstream's order: each `PATH` entry with each extension. */
 function candidate(cmd: string, raw: string, ext: string): string {
   const part = /^".*"$/.test(raw) ? raw.slice(1, -1) : raw;
+  // Stryker disable next-line ConditionalExpression: a command `RELATIVE` matches also matches `SLASH`, whose only directory is `''`
   const prefix = part === '' && RELATIVE.test(cmd) ? cmd.slice(0, 2) : '';
   return prefix + join(part, cmd) + ext;
 }
 
 function settle(cmd: string, opt: NodeWhichOptions, found: string[]): Found {
+  // Stryker disable next-line ConditionalExpression: `found` is only ever filled when `all` is set, so a non-empty one implies it
   if (opt.all === true && found.length > 0) return found;
   if (opt.nothrow === true) return null;
   throw new NotFound(cmd);

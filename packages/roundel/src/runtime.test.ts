@@ -12,6 +12,23 @@ afterEach(() => {
   vi.resetModules();
 });
 
+describe('processRuntime with a process', () => {
+  it('reads whether the stream it is asked about, stdout by default, is a terminal', async () => {
+    const { processRuntime } = await import('./runtime.js');
+    const was = Object.getOwnPropertyDescriptor(process.stdout, 'isTTY');
+    try {
+      Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true });
+      expect(processRuntime().isTTY.stdout).toBe(true);
+      expect(processRuntime('stdout').isTTY.stdout).toBe(true);
+      Object.defineProperty(process.stdout, 'isTTY', { value: undefined, configurable: true });
+      expect(processRuntime().isTTY.stdout).toBe(false);
+    } finally {
+      if (was === undefined) Reflect.deleteProperty(process.stdout, 'isTTY');
+      else Object.defineProperty(process.stdout, 'isTTY', was);
+    }
+  });
+});
+
 describe('processRuntime without a process', () => {
   it('is an empty environment, no arguments and no terminal, rather than a TypeError', async () => {
     vi.resetModules();

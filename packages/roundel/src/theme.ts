@@ -43,6 +43,7 @@ const INK: Hex = '#0a0a0a';
 /** Whichever variant of the pair reads better on this ground. */
 function brand(pair: readonly [Hex, Hex], ground: Hex): Hex {
   const [deep, lifted] = pair;
+  // Stryker disable next-line EqualityOperator: no ground gives the two variants exactly the same ratio
   return contrast(lifted, ground) > contrast(deep, ground) ? lifted : deep;
 }
 
@@ -70,7 +71,6 @@ const CUBE_COL = 6;
 const GREY_START = 232;
 const GREY_STEP = 10;
 const HEX_BASE = 16;
-const RGB_PARTS = 3;
 /** The six sRGB values the xterm cube steps through. */
 const CUBE_LEVELS = [0, 95, 135, 175, 215, 255] as const;
 const GREY_STEPS = 24;
@@ -105,14 +105,18 @@ const on = (v: number): number => Math.round(v / SRGB_MAX);
 /**
  * Nearest of the 16 basic colours, as a `styleText` name: each channel on or off at half,
  * bright when the strongest channel sits on the top step of the cube.
- * ponytail: ansi-styles' rounding, minus its trip through the 256-colour cube.
+ * ponytail: ansi-styles' rounding, minus its trip through the 256-colour cube — except for a
+ * grey, where the trip changes the answer. ansi-styles sends `#08`–`#f8` greys to the 24-step
+ * ramp, whose lightest entry is `#eeeeee` and never bright, and reads on or off from the ramp
+ * entry: `#e6e6e6` is `white`, not `whiteBright`, and `#7f7f7f` is `white`, not `black`.
  */
 function ansi16(r: number, g: number, b: number): Format {
+  // A grey under `#08` lands on cube black, which reads below the ramp's first entry: off, as black.
+  if (r === g && g === b && r <= GREY_HIGH) return on(GREY_LOW + (ansi256(r, g, b) - GREY_START) * GREY_STEP) === 1 ? 'white' : 'black';
   const index = (on(b) << BLUE_BIT) | (on(g) << GREEN_BIT) | on(r);
   // Three bits index eight names, so the lookup cannot miss.
   const name = BASIC_NAMES[index] as Format;
-  // Index 0 is black and returns here, so no bright black is ever built below.
-  if (index === 0) return name;
+  // Black has no channel at half, so none on the top step: no bright black is ever built.
   if (Math.round((Math.max(r, g, b) / SRGB_MAX) * CUBE_STEPS) !== CUBE_STEPS) return name;
   return `${name}Bright` as Format;
 }
@@ -132,7 +136,8 @@ const at = (i: number): number => CUBE_LEVELS[i] as number;
  * the basic sixteen. `ansi256` never returns below 16, so every paint it produces is knowable.
  */
 export function rgb256(index: number): Hex {
-  if (index >= GREY_START) return hex(...(Array(RGB_PARTS).fill(GREY_LOW + (index - GREY_START) * GREY_STEP) as [number, number, number]));
+  const grey = GREY_LOW + (index - GREY_START) * GREY_STEP;
+  if (index >= GREY_START) return hex(grey, grey, grey);
   const n = index - CUBE_START;
   return hex(at(Math.floor(n / CUBE_ROW)), at(Math.floor((n % CUBE_ROW) / CUBE_COL)), at(n % CUBE_COL));
 }
@@ -166,6 +171,7 @@ const GAMMA_EXPONENT = 2.4;
 
 const lin = (v: number): number => {
   const c = v / SRGB_MAX;
+  // Stryker disable next-line EqualityOperator: no eight-bit channel sits exactly on the threshold
   return c <= LINEAR_THRESHOLD ? c / LINEAR_DIVISOR : ((c + GAMMA_OFFSET) / (1 + GAMMA_OFFSET)) ** GAMMA_EXPONENT;
 };
 
@@ -213,10 +219,12 @@ function degrade(r: number, g: number, b: number, ground: Hex, floor: number): n
   let bestDistance = Number.POSITIVE_INFINITY;
   for (let index = CUBE_START; index <= GREY_LAST; index++) {
     const candidate = rgb256(index);
+    // Stryker disable next-line EqualityOperator: no palette entry reads exactly at a floor on an eight-bit ground
     if (contrast(candidate, ground) < floor) continue;
     const [cr, cg, cb] = channels(candidate).map((v) => Math.round(v * SRGB_MAX)) as [number, number, number];
     const [cl, ca, cb2] = toOklab(cr, cg, cb);
     const distance = (target[0] - cl) ** 2 + (target[1] - ca) ** 2 + (target[2] - cb2) ** 2;
+    // Stryker disable next-line EqualityOperator: two distinct palette entries are never exactly as far from one colour
     if (distance < bestDistance) {
       bestDistance = distance;
       best = index;

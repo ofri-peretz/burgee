@@ -44,7 +44,11 @@ const RULES: Record<string, EntryRule> = {
   // `main`, so the whole of this raise is this branch's.
   // 14,600 on 2026-09-13: the root reaches the theme, so it carries `audit()` too.
   // Measured 14,578.
-  '.': { allow: [], budget: 14_600, denied: [] },
+  // Raised 14,600 -> 14,650 on 2026-11-04 for `ansi16`'s grey case: a grey takes ansi-styles'
+  // trip through the 24-step ramp, so `#e6e6e6` is `white` and `#7f7f7f` is `white`, as the
+  // incumbent paints them. `theme.js` dropped `RGB_PARTS` and a branch in the same change.
+  // Measured 14,644 B after.
+  '.': { allow: [], budget: 14_650, denied: [] },
   // The floor every subpath stands on: two functions and one record. node:util alone.
   // R2's 2026-09-08 revision added the `--color` flags and the CI vendor table here, which
   // is why the file's level tables are ternary chains, and why `colorLevel`'s own decision
@@ -146,7 +150,9 @@ const RULES: Record<string, EntryRule> = {
   // refusals, a code and a fix for each way a file can be wrong. No incumbent to be held under:
   // nothing else turns a palette file into a checked theme. Not re-exported from the root,
   // whose 14,600 has 58 B left; a program that never imports a palette never pays for one.
-  './import': { allow: [], budget: 16_600, denied: ['tokens.js', 'chalk.js', 'plugin.js', 'terminal.js', 'index.js'] },
+  // Raised 16,600 -> 16,700 on 2026-11-04 for the same grey case in `theme.js`, and `import.js`
+  // asking a Base16 slot's type outright rather than reading a non-string as `''`. Measured 16,667 B after.
+  './import': { allow: [], budget: 16_700, denied: ['tokens.js', 'chalk.js', 'plugin.js', 'terminal.js', 'index.js'] },
 };
 
 /**

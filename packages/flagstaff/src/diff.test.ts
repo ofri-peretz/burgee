@@ -83,6 +83,38 @@ describe('controlroom R21 · diff', () => {
     }
   });
 
+  it.each([
+    // Counts of two digits are read whole.
+    ['@@ -9,12 +9,12 @@\n a', ['    │ @@ -9,12 +9,12 @@', '9 9 │  a']],
+    // The old side's count keeps the hunk open after the new side's is spent.
+    ['@@ -1,3 +1 @@\n a\n-b\n-c', ['    │ @@ -1,3 +1 @@', '1 1 │  a', '2   │ -b', '3   │ -c']],
+    // A count left out is one, on either side; a line past the counts is outside the hunk.
+    ['@@ -5 +5,0 @@\n-a', ['    │ @@ -5 +5,0 @@', '5   │ -a']],
+    ['@@ -1,0 +1 @@\n+a\n+b', ['    │ @@ -1,0 +1 @@', '  1 │ +a', '    │ +b']],
+    ['@@ -1,0 +1,2 @@\n+a\n+b', ['    │ @@ -1,0 +1,2 @@', '  1 │ +a', '  2 │ +b']],
+    // `\ No newline` inside a hunk is no line of either file, and spends no count.
+    ['@@ -1 +1 @@\n-a\n\\ No newline at end of file\n+a', ['    │ @@ -1 +1 @@', '1   │ -a', '    │ \\ No newline at end of file', '  1 │ +a']],
+    // A hunk header opens its line; one later in a line is text.
+    ['note @@ -1 +1 @@\n-a', ['  │ note @@ -1 +1 @@', '  │ -a']],
+  ])('numbers %j by its hunk header', (patch, drawn) => {
+    expect(diff().frame?.(0, { diff: patch })?.split('\n')).toEqual(drawn);
+  });
+
+  it('with colour, a context line is left unpainted', () => {
+    flown.level = 1;
+    flown.paint = { error: ['red'], ok: ['green'], hint: ['cyan'], muted: ['dim'] };
+    try {
+      expect(diff().frame?.(0, { diff: '@@ -1 +1 @@\n a' })?.split('\n')[1]).toBe('\u001B[2m1 1 │\u001B[22m  a');
+    } finally {
+      flown.level = 0;
+      flown.paint = {};
+    }
+  });
+
+  it('is the component named `diff`, the event its JSON lines carry', () => {
+    expect(diff().name).toBe('diff');
+  });
+
   it('an empty diff draws one empty row and prints nothing', () => {
     expect(diff().frame?.(0, { diff: '' })).toBe('  │ ');
     expect(diff().static({ diff: '' })).toBe('');

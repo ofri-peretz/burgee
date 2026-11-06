@@ -19,14 +19,14 @@
  * the same script never reaches `execve` there — `windows.test.ts` covers what happens instead.
  */
 import { ChildProcess } from 'node:child_process';
-import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterAll, describe, expect, it, vi } from 'vitest';
 
 import { discard } from './__fixtures__/scratch-dir.js';
-import { run, SpawnError, type ExitHost } from './run.js';
+import { DEFAULT_GRACE, DEFAULT_TIMEOUT, run, SpawnError, type ExitHost } from './run.js';
 import { type Runtime } from './runtime.js';
 import { NotFoundError } from './which.js';
 
@@ -152,6 +152,125 @@ describe('a late exit-host handler', () => {
       };
       const result = await run(process.execPath, ['-e', '0'], { runtime, exitHost: host });
       expect(result.ok).toBe(true);
+      const kill = vi.spyOn(ChildProcess.prototype, 'kill');
+      try {
+        late?.();
+        expect(kill).not.toHaveBeenCalled();
+      } finally {
+        kill.mockRestore();
+      }
+    },
+    SPAWN,
+  );
+});
+
+describe('the defaults a caller gets without asking', () => {
+  it('is a 30 s deadline and a 5 s grace, as the README promises', () => {
+    expect([DEFAULT_TIMEOUT, DEFAULT_GRACE]).toEqual([30_000, 5_000]);
+  });
+
+  it(
+    'takes no arguments when none are given',
+    async () => {
+      // stdin from nothing: `node` with no arguments reads its program from stdin, and an empty one exits 0.
+      const result = await run(process.execPath, undefined, { runtime, stdio: 'ignore' });
+      expect(result).toMatchObject({ ok: true, args: [] });
+    },
+    SPAWN,
+  );
+
+  it(
+    'runs the child in the runtime’s working directory when the call names none',
+    async () => {
+      const result = await run(process.execPath, ['-e', 'process.stdout.write(process.cwd())'], { runtime });
+      expect(result.stdout).toBe(realpathSync(dir));
+      // Elapsed time, not a timestamp: no spawn on any runner takes as long as the case's own budget.
+      expect(result.duration).toBeGreaterThanOrEqual(0);
+      expect(result.duration).toBeLessThan(SPAWN);
+    },
+    SPAWN,
+  );
+
+  it(
+    'resolves with empty output when stdio is not captured, rather than reading a stream that is not there',
+    async () => {
+      const result = await run(process.execPath, ['-e', 'process.stdout.write("x"); process.stderr.write("y")'], { runtime, stdio: 'ignore' });
+      expect(result).toMatchObject({ ok: true, stdout: '', stderr: '' });
+    },
+    SPAWN,
+  );
+});
+
+/** `<at>/which-one`, a script that prints `says`. */
+function tool(at: string, says: string): string {
+  mkdirSync(at, { recursive: true });
+  const file = join(at, 'which-one');
+  writeFileSync(file, `#!/bin/sh\necho ${says}\n`);
+  chmodSync(file, 0o755);
+  return file;
+}
+
+/**
+ * Two halves of one rule: the file `executable` names is the file that runs, and it is found the
+ * way `which.ts` finds it — so a `PATH` entry `which.ts` refuses is never one the kernel gets to
+ * search instead.
+ */
+describe.skipIf(WINDOWS)('the file that runs is the file that was resolved', () => {
+  it(
+    'runs the resolved file even when the child’s own env would find another',
+    async () => {
+      const a = tool(join(dir, 'path-a'), 'a');
+      tool(join(dir, 'path-b'), 'b');
+      const result = await run('which-one', [], { runtime: { ...runtime, env: { PATH: join(dir, 'path-a') } }, env: { PATH: join(dir, 'path-b') } });
+      expect(result.executable?.path).toBe(a);
+      expect(result.stdout).toBe('a\n');
+    },
+    SPAWN,
+  );
+
+  it(
+    'refuses a name found only on a relative PATH entry, before the kernel can search it',
+    async () => {
+      // The kernel would find it: `execvp` searches `rel` against the child's working directory.
+      tool(join(dir, 'rel'), 'relative');
+      await expect(run('which-one', [], { runtime: { ...runtime, env: { PATH: 'rel' } } })).rejects.toThrow(NotFoundError);
+    },
+    SPAWN,
+  );
+});
+
+describe('after the run', () => {
+  it(
+    'stands its deadline down, so a timer cannot signal a child that has already gone',
+    async () => {
+      const kill = vi.spyOn(ChildProcess.prototype, 'kill');
+      // A deadline a loaded machine's node start-up cannot reach (50 ms was, under the pre-push
+      // load), then a wait just past it: a deadline left armed would fire inside that wait.
+      const deadline = 2_000;
+      try {
+        const result = await run(process.execPath, ['-e', '0'], { runtime, timeout: deadline });
+        expect(result.timedOut).toBe(false);
+        await new Promise((resolve) => setTimeout(resolve, deadline + 100));
+        expect(kill).not.toHaveBeenCalled();
+      } finally {
+        kill.mockRestore();
+      }
+    },
+    SPAWN,
+  );
+
+  it.skipIf(WINDOWS)(
+    'does not let a late exit-host handler signal a child a signal already ended',
+    async () => {
+      let late: (() => unknown) | undefined;
+      const host: ExitHost = {
+        add: (handler) => {
+          late = handler;
+          return keep;
+        },
+      };
+      const result = await run(process.execPath, ['-e', 'process.kill(process.pid, "SIGKILL")'], { runtime, exitHost: host });
+      expect(result.signal).toBe('SIGKILL');
       const kill = vi.spyOn(ChildProcess.prototype, 'kill');
       try {
         late?.();

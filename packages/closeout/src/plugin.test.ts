@@ -58,6 +58,39 @@ function recordingTty(log: string[]): { write(chunk: string): boolean; isTTY: bo
 
 const EXITED = { code: 0, signal: null };
 
+const run = (): void => undefined;
+
+/** Every refusal the door makes, whole: the code that classifies it, the message, and the fix the author reads. */
+const REFUSALS = [
+  { what: 'a function', plugin: () => undefined, code: 'E_PLUGIN_SCHEMA', message: 'a plugin is a plain object', fix: 'export an object, not a function or an array' },
+  { what: 'a plugin with no name', plugin: { handlers: [] }, code: 'E_PLUGIN_SCHEMA', message: 'a plugin needs a name', fix: 'add `name: "…"` — it is how a handler that hung is reported' },
+  { what: 'a plugin whose name is empty', plugin: { name: '' }, code: 'E_PLUGIN_SCHEMA', message: 'a plugin needs a name', fix: 'add `name: "…"` — it is how a handler that hung is reported' },
+  { what: 'a newer contract', plugin: { name: 'acme', contract: 2 }, code: 'E_PLUGIN_CONTRACT', message: 'plugin "acme" declares contract 2; this closeout knows 1', fix: 'upgrade closeout, or lower the plugin’s contract' },
+  { what: 'handlers that are not an array', plugin: { name: 'acme', handlers: {} }, code: 'E_PLUGIN_SCHEMA', message: 'plugin "acme": handlers must be an array', fix: 'list them in an array — the phase decides the order, not the position' },
+  { what: 'a handler with no name', plugin: { name: 'acme', handlers: [{ run }] }, code: 'E_PLUGIN_SCHEMA', message: 'plugin "acme": handlers[0] has no name', fix: 'add `name: "…"` — the deadline report names the handler that did not return' },
+  { what: 'a handler whose name is empty', plugin: { name: 'acme', handlers: [{ name: '', run }] }, code: 'E_PLUGIN_SCHEMA', message: 'plugin "acme": handlers[0] has no name', fix: 'add `name: "…"` — the deadline report names the handler that did not return' },
+  { what: 'a handler with no run()', plugin: { name: 'acme', handlers: [{ name: 'x' }] }, code: 'E_PLUGIN_SCHEMA', message: 'plugin "acme": handlers[0] has no run()', fix: 'add `run(info)` — the cleanup itself, sync or async' },
+];
+
+function refusal(plugin: unknown): { name: string; code: string; message: string; fix: string } {
+  try {
+    validate(plugin);
+  } catch (error) {
+    const { name, code, message, fix } = error as PluginError;
+    return { name, code, message, fix };
+  }
+  throw new Error('expected a refusal');
+}
+
+
+describe('a fresh import', () => {
+  it('has registered nothing', async () => {
+    vi.resetModules();
+    const fresh = await import('./plugin.js');
+    expect(fresh.registered()).toEqual([]);
+  });
+});
+
 describe("a plugin's handler and terminal restore", () => {
   it('runs the handler before the restore, though the restore was registered first', async () => {
     reset();
@@ -264,6 +297,10 @@ describe('the door', () => {
   it('refuses an unnamed plugin, and a plugin that is not an object', () => {
     expect(() => { validate({ handlers: [] }); }).toThrow(/needs a name/);
     expect(() => { validate(() => undefined); }).toThrow(/plain object/);
+  });
+
+  it.each(REFUSALS)('refuses $what with its code, message and fix', ({ plugin, code, message, fix }) => {
+    expect(refusal(plugin)).toEqual({ name: 'PluginError', code, message, fix });
   });
 
   it('does not keep a plugin it refused', () => {

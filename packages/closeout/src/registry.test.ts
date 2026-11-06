@@ -15,8 +15,12 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { createRegistry } from './registry.js';
+import { timeoutMessage } from './report.js';
 
 const EXITED = { code: 0, signal: null };
+/** Timers that keep this process alive — an unref'd one is not listed. */
+const holding = (): number => process.getActiveResourcesInfo().filter((r) => r === 'Timeout').length;
+
 const INTERRUPTED = { code: null, signal: 'SIGINT' };
 
 describe('exactly once', () => {
@@ -42,6 +46,13 @@ describe('exactly once', () => {
     await registry.run(EXITED);
     expect(handler).not.toHaveBeenCalled();
     expect(registry.size).toBe(0);
+  });
+
+  it('counts every handler in every phase', () => {
+    const registry = createRegistry();
+    registry.add(() => undefined, 'flush');
+    registry.add(() => undefined, 'restore');
+    expect(registry.size).toBe(2);
   });
 
   it('reports whether shutdown has happened', async () => {
@@ -73,7 +84,8 @@ describe('every path', () => {
       seen.push(info);
     });
 
-    registry.runSync({ code: 3, signal: null });
+    // Nothing can time out on a path with no time at all: the report says so rather than guessing.
+    expect(registry.runSync({ code: 3, signal: null })).toMatchObject({ timedOut: false, unfinished: [] });
     expect(seen).toEqual([{ path: 'exit', code: 3, signal: null, error: null }]);
   });
 });
@@ -136,8 +148,48 @@ describe('bounded', () => {
     // Ctrl-C becomes a process the user has to kill twice — the second time with SIGKILL,
     // which runs no handlers at all.
     registry.add(() => new Promise<void>(() => undefined));
+    const said = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
-    await expect(registry.run(INTERRUPTED)).resolves.toMatchObject({ timedOut: true });
+    try {
+      const report = await registry.run(INTERRUPTED);
+      expect(report).toMatchObject({ timedOut: true });
+      // With no onTimeout of its own, the breach is printed — the named-handler sentence, not silence.
+      expect(said).toHaveBeenCalledWith(timeoutMessage(report, 10));
+    } finally {
+      said.mockRestore();
+    }
+  });
+
+  it('reports an async handler that resolved as finished', async () => {
+    const registry = createRegistry({ deadline: 10_000 });
+    registry.add(async function flushTheLog() {
+      await Promise.resolve();
+    });
+
+    await expect(registry.run(EXITED)).resolves.toMatchObject({ timedOut: false, unfinished: [] });
+  });
+
+  it.each([
+    ['holds the event loop on a signal, which leaves only once the run settles', INTERRUPTED, 1],
+    ['holds the event loop on an exit', EXITED, 1],
+    ['does not hold it on beforeExit, which was leaving on its own', { ...EXITED, path: 'beforeExit' as const }, 0],
+  ])('%s', async (_name, info, held) => {
+    const registry = createRegistry({ deadline: 20, onTimeout: () => undefined });
+    registry.add(() => new Promise<void>(() => undefined));
+    const before = holding();
+    const running = registry.run(info);
+    expect(holding() - before).toBe(held);
+    await running;
+  });
+
+  it('lets go of the event loop the moment the run settles, not when the deadline would have fired', async () => {
+    const registry = createRegistry({ deadline: 60_000 });
+    registry.add(async () => {
+      await Promise.resolve();
+    });
+    const before = holding();
+    await registry.run(INTERRUPTED);
+    expect(holding()).toBe(before);
   });
 
   it('does not wait out the deadline when every handler has settled', async () => {
@@ -225,5 +277,59 @@ describe('an asynchronous trigger after the synchronous one', () => {
     await expect(registry.run(INTERRUPTED)).resolves.toBe(first);
     expect(first).toMatchObject({ path: 'exit', code: 3, signal: null });
     expect(handler).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("'exit' arriving while an asynchronous run is parked", () => {
+  /**
+   * The synchronous trigger invokes the phases the run had not reached, and then has to say
+   * how the shutdown ended — it is the last word the process gets. It answered with a blank
+   * report of its own (`unfinished: []`) and left `report` unset, so a lock still held in
+   * `flush` read as a shutdown that finished cleanly, and the report was nowhere at all.
+   */
+  it('reports the handlers that never came back, and leaves that report behind', () => {
+    const restore = vi.fn();
+    // The run's clock is still counting when the test ends; its breach is not this case's.
+    const registry = createRegistry({ onTimeout: () => undefined });
+    registry.add(() => new Promise<void>(() => undefined), { phase: 'flush', label: 'lock' });
+    registry.add(() => new Promise<void>(() => undefined), { phase: 'restore', label: 'screen' });
+    registry.add(restore, 'restore');
+
+    void registry.run({ code: null, signal: 'SIGTERM' });
+    const final = registry.runSync(EXITED);
+
+    expect(restore).toHaveBeenCalledTimes(1);
+    // The shutdown that happened is the run's, as for any later trigger: SIGTERM, not this exit.
+    expect(final).toMatchObject({ signal: 'SIGTERM', timedOut: false, unfinished: ['lock', 'screen'] });
+    expect(registry.report).toBe(final);
+  });
+
+  // Only a run still in flight is read off: one that finished has its report already, and
+  // `runSync` hands back that very report rather than a fresh reading of the same run.
+  it('leaves a run that has already finished with the report it finished with', async () => {
+    const registry = createRegistry();
+    const first = await registry.run(INTERRUPTED);
+    expect(registry.runSync(EXITED)).toBe(first);
+    expect(registry.report).toBe(first);
+  });
+
+  /**
+   * Started with no asynchronous run behind it: a handler of the synchronous run that calls
+   * `runSync` itself. There is no run to read a report off yet, so it gets the blank one a
+   * second trigger always got — not a call to a reader that does not exist, thrown into the
+   * handler that asked.
+   */
+  it('answers a runSync from inside the synchronous run without throwing into the handler', () => {
+    const onError = vi.fn();
+    const registry = createRegistry({ onError });
+    let inner: unknown;
+    registry.add(() => {
+      inner = registry.runSync(INTERRUPTED);
+    }, 'flush');
+
+    registry.runSync(EXITED);
+
+    expect(onError).not.toHaveBeenCalled();
+    expect(inner).toMatchObject({ signal: 'SIGINT', timedOut: false, unfinished: [] });
   });
 });

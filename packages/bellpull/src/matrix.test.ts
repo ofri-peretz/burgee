@@ -264,6 +264,13 @@ describe('the kill ladder (R2, Y10), with no process and no clock', () => {
     expect(child.sent).toEqual(['SIGTERM']);
   });
 
+  it('timeout: 1 is a deadline, the shortest there is, not a disabled one', () => {
+    const child = recorder();
+    startDeadline(child, 1, 300);
+    vi.advanceTimersByTime(1);
+    expect(child.sent).toEqual(['SIGTERM']);
+  });
+
   it('timeout: 0 arms nothing at all, for a caller who means it', () => {
     const child = recorder();
     const deadline = startDeadline(child, 0, 300);

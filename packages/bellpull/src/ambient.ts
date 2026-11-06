@@ -33,6 +33,7 @@ interface ProcessLike {
 
 function ambientProcess(): ProcessLike | undefined {
   const candidate: unknown = Reflect.get(globalThis, 'process');
+  // Stryker disable next-line ConditionalExpression: a `null` let through is read only by `?.`, which treats it as `undefined`
   return typeof candidate === 'object' && candidate !== null ? (candidate as ProcessLike) : undefined;
 }
 

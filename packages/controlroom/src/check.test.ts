@@ -61,7 +61,10 @@ describe('controlroom check', () => {
   it('refuses a plugin with nothing for this host: a misspelled key tells on itself', async () => {
     const { code, out } = await run([file(`export default { name: 'typo', keymap: { k: { keys: {} } } };`)]);
     expect(code).toBe(EXIT_RUNTIME);
-    expect(out).toMatch(/E_NO_CONTRIBUTION: typo registers, but contributes nothing controlroom reads/u);
+    expect(out).toBe(
+      'typo — 0 keymaps, 0 panes\nE_NO_CONTRIBUTION: typo registers, but contributes nothing controlroom reads\n' +
+        '  fix: add a `keymaps` or `panes` section — a key another package in the family reads is allowed in the same object, but `controlroom check` cannot show it\n',
+    );
   });
 
   it('no argument, or an unknown option, is a usage error', async () => {
@@ -69,9 +72,20 @@ describe('controlroom check', () => {
     expect((await run(['--nope'])).out).toMatch(/^unknown option --nope/u);
   });
 
-  it('--help and --version answer and exit 0', async () => {
-    expect((await run(['--help'])).out).toMatch(/Exit 0 when it contributes/u);
-    expect((await run(['-V'])).out).toMatch(/^\d+\.\d+\.\d+\n$/u);
+  it.each(['--help', '-h'])('%s prints the help and exits 0', async (flag) => {
+    const { code, out } = await run([flag]);
+    expect(out).toMatch(/Exit 0 when it contributes/u);
+    expect(code).toBe(EXIT_OK);
+  });
+
+  it.each(['--version', '-V'])('%s prints the version and exits 0', async (flag) => {
+    const { code, out } = await run([flag]);
+    expect(out).toMatch(/^\d+\.\d+\.\d+\n$/u);
+    expect(code).toBe(EXIT_OK);
+  });
+
+  it('exits with the family’s three codes', () => {
+    expect([EXIT_OK, EXIT_RUNTIME, EXIT_USAGE]).toEqual([0, 1, 2]);
   });
 
   it('an error that is not a refusal is not swallowed', async () => {

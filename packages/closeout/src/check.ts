@@ -63,6 +63,7 @@ a usage error.
 
 /** The package's own version, read when asked for rather than on every run. */
 function version(): string {
+  // Stryker disable next-line StringLiteral: with no encoding readFileSync returns a Buffer, and JSON.parse reads a Buffer as UTF-8 text all the same
   return (JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }).version;
 }
 
@@ -114,6 +115,7 @@ async function inspect(argv: readonly string[], write: (s: string) => void): Pro
   // Emptied after the import, so a plugin file that registers itself — or anything else — on
   // import is not reported twice: every contribution below is this plugin's.
   reset();
+  // Stryker disable next-line CallExpression: register() validates first and throws the same PluginError before keeping anything, so this call only narrows the type
   validate(plugin);
   register(plugin);
   const name = (plugin as { name: string }).name;

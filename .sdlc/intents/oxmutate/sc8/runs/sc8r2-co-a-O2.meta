@@ -1,0 +1,6 @@
+label=sc8r2-co-a-O2 engine=oxmutate pkg=compat-oracle mode=compat
+start 2026-11-03T04:31:22Z load { 14.04 17.14 17.08 }
+end 2026-11-03T04:31:35Z load { 12.38 16.63 16.90 }
+wall_s 13
+ M packages/compat-oracle/package.json
+?? packages/compat-oracle/test/

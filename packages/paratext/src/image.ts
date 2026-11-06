@@ -39,8 +39,12 @@ export interface ImageOptions {
   caption?: string;
 }
 
-/** Only when truthy, which is upstream's own test (`if (options.width)`). */
-const optional = (value: number | string | undefined): string | undefined => (value === undefined || value === 0 || value === '' ? undefined : String(value));
+/**
+ * Only when truthy, which is upstream's own test (`if (options.width)`). Spelled as that test
+ * rather than as a list of falsy values: the list left out `NaN`, so `width: NaN` wrote
+ * `;width=NaN` where `ansi-escapes` writes nothing.
+ */
+const optional = (value: number | string | undefined): string | undefined => (value ? String(value) : undefined);
 
 /**
  * The fields {@link IMAGE} reads. Shared by both callers on purpose: `ansi-escapes.ts`
@@ -48,6 +52,7 @@ const optional = (value: number | string | undefined): string | undefined => (va
  * the base64-and-size arithmetic would diverge on the first option either side added.
  */
 export function imageFields(data: Uint8Array | string, options: ImageOptions = {}): Fields {
+  // Stryker disable next-line EqualityOperator,ConditionalExpression,StringLiteral: `Buffer.from` reads a string as UTF-8 when no encoding is named and ignores an encoding for bytes, so either branch, with or without `'utf8'`, is the same buffer
   const bytes = typeof data === 'string' ? Buffer.from(data, 'utf8') : Buffer.from(data);
   return {
     base64: bytes.toString('base64'),

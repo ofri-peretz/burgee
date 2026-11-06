@@ -1355,8 +1355,18 @@ const QUOTED = "'";
 /** After these, a `/` divides; after anything else it opens a regular expression. */
 const DIVIDES = new Set([')', ']', '}', QUOTED]);
 
+/**
+ * Words after which an expression starts, so a `/` there opens a regular expression. They end
+ * in a word character like any name, and "after a word, `/` divides" read `return /`/` as a
+ * division: the backtick opened a template that ran to the end of the file, over every import
+ * below it.
+ */
+const EXPRESSION_KEYWORDS = new Set(['return', 'typeof', 'case', 'in', 'of', 'instanceof', 'yield', 'await', 'void', 'delete', 'throw', 'else', 'new', 'do']);
+
 function startsRegex(previous: string): boolean {
-  if (previous === '') return true;
+  // Nothing before it (`''`) needs no case of its own: it has no last character, so no word
+  // character, and the last line already reads it as the start of an expression.
+  if (EXPRESSION_KEYWORDS.has(previous)) return true;
   if (DIVIDES.has(previous)) return false;
   return !WORD.test(previous.charAt(previous.length - 1));
 }
@@ -1375,25 +1385,38 @@ function endOfString(source: string, open: number): number {
   return source.length;
 }
 
-/** Index just past the end of a template literal, counting `${…}` nesting so a `}` inside it is not the end. */
+/** Index just past the end of a template literal; each `${…}` in it is read by {@link endOfInterpolation}. */
 function endOfTemplate(source: string, open: number): number {
-  let depth = 0;
+  // Stryker disable next-line EqualityOperator: one step past the end reads `charAt` as '', which no branch takes, and the return below is the same
   for (let i = open + 1; i < source.length; i += 1) {
     const c = source.charAt(i);
-    if (c === '\\') {
-      i += 1;
-      continue;
-    }
-    if (c === '$' && source.charAt(i + 1) === '{') {
-      depth += 1;
-      i += 1;
-      continue;
-    }
-    if (c === '}' && depth > 0) {
+    if (c === '\\') i += 1;
+    else if (c === '`') return i + 1;
+    else if (c === '$' && source.charAt(i + 1) === '{') i = endOfInterpolation(source, i + 2) - 1;
+  }
+  return source.length;
+}
+
+/**
+ * Index just past the `}` that closes a `${` whose body starts at `from`. The body is code, so
+ * every `{` counts against a `}`, and a string or template nested in it is stepped over whole.
+ * The template scan counted only `${` and `}`, and `${xs.map(({ n }) => `…`)}` ended at the `}`
+ * of `({ n })`: the nested template's backtick then closed the outer one, and the next backtick
+ * opened a template to the end of the file, over every import below it.
+ */
+function endOfInterpolation(source: string, from: number): number {
+  let depth = 1;
+  // Stryker disable next-line EqualityOperator: one step past the end reads `charAt` as '', which no branch takes, and the return below is the same
+  for (let i = from; i < source.length; i += 1) {
+    const c = source.charAt(i);
+    if (c === "'" || c === '"') i = endOfString(source, i) - 1;
+    else if (c === '`') i = endOfTemplate(source, i) - 1;
+    else if (c === '{') depth += 1;
+    else if (c === '}') {
       depth -= 1;
-      continue;
+      // Stryker disable next-line NumericLiteral: `i + 0` hands the template scan the `}` itself to step onto, and a `}` is text in a template
+      if (depth === 0) return i + 1;
     }
-    if (c === '`' && depth === 0) return i + 1;
   }
   return source.length;
 }
@@ -2359,6 +2382,9 @@ function unquote(entry: string): string {
 /**
  * The release-age exemptions, as written: a YAML block list or flow list under the key, or
  * `key[]=name` lines in an npmrc. An entry is a package name, a glob, or `name@1.0.0 || 1.0.1`.
+ * A block list's items may sit at the key's own indentation, as YAML allows: it required at
+ * least one space before the `-`, so `key:\n- roundel` exempted nothing. The next key — any
+ * line that is not an item, a blank or a comment — still ends it.
  */
 function excludeOf(lines: readonly string[], key: string, separator: ':' | '='): string[] {
   if (separator === '=') return lines.filter((l) => l.startsWith(`${key}=`)).map((l) => unquote(l.slice(key.length + 1)));
@@ -2368,7 +2394,10 @@ function excludeOf(lines: readonly string[], key: string, separator: ':' | '='):
   if (flow !== undefined) return flow.split(',').map(unquote).filter((e) => e !== '');
   const out: string[] = [];
   for (const line of lines.slice(at + 1)) {
-    const item = /^\s+-(.*)$/.exec(line)?.[1];
+    // The file is split on `\n`, so a CRLF file's lines end in `\r`, which `.` does not match:
+    // `(.*)$` read no item there, and a Windows checkout's exclusions came back empty. Without
+    // the `$` the item stops short of the `\r`, and `unquote` trims what is left.
+    const item = /^\s*-(.*)/.exec(line)?.[1];
     if (item !== undefined && unquote(item) !== '') out.push(unquote(item));
     else if (line.trim() !== '' && !line.trimStart().startsWith('#')) break;
   }

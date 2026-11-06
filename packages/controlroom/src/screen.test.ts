@@ -8,7 +8,14 @@ import { describe, expect, it, vi } from 'vitest';
 import { type Layout } from './layout.js';
 import { register } from './plugin.js';
 import { processRuntime, type Runtime } from './runtime.js';
-import { open, type ScreenOptions } from './screen.js';
+import { open, ScreenError, type ScreenOptions } from './screen.js';
+
+/** Every spec a screen registers an exit handler with: the real `onExit`, read on the way through. */
+const exits = vi.hoisted((): unknown[] => []);
+vi.mock('closeout', async (importOriginal) => {
+  const real = await importOriginal<typeof import('closeout')>();
+  return { ...real, onExit: (handler: Parameters<typeof real.onExit>[0], spec?: Parameters<typeof real.onExit>[1]) => (exits.push(spec), real.onExit(handler, spec)) };
+});
 
 const ESC = '\u001B';
 const SYNC = `${ESC}[?2026h`;
@@ -130,6 +137,14 @@ describe('R6 — the static session', () => {
     expect(printed).not.toContain('\r');
   });
 
+  it('a commit that repeats the last one prints again: each commit is news', () => {
+    const f = fake({ tty: false });
+    const screen = open(f.rt, options({ panes: {} }));
+    screen.commit('same');
+    screen.commit('same');
+    expect(f.out.join('')).toBe('same\nsame\n');
+  });
+
   it('committed text prints once, as it commits', () => {
     const f = fake({ tty: false });
     const screen = open(f.rt, options({ panes: {} }));
@@ -153,6 +168,39 @@ describe('R6 — the static session', () => {
     const after = f.err.join('').trim().split('\n').map((line) => JSON.parse(line) as { event: string });
     expect(after.filter((e) => e.event === 'commit'), 'closing must not repeat the last commit').toHaveLength(1);
     expect(f.out).toEqual([]);
+  });
+
+  it('--json: each commit is its own event, not the log so far', () => {
+    const f = fake({ tty: false });
+    const screen = open(f.rt, { ...options({ panes: {} }), json: true });
+    screen.commit('a');
+    screen.commit('b');
+    expect(f.err.join('')).toBe('{"event":"commit","state":"a"}\n{"event":"commit","state":"b"}\n');
+  });
+
+  it('--json: closing lowers each pane once, with its last state, and a second close says nothing', () => {
+    const f = fake({ tty: false });
+    const screen = open(f.rt, { ...options(), json: true });
+    screen.update('tasks', '◼ install');
+    f.err.length = 0;
+    screen.close();
+    expect(f.err.join('')).toBe('{"event":"learn","state":"read the docs"}\n{"event":"tasks","state":"◼ install"}\n');
+    f.err.length = 0;
+    screen.close();
+    expect(f.err).toEqual([]);
+  });
+
+  it('a static session with no input line reads no stdin and leaves no rejection behind', async () => {
+    const rejected: unknown[] = [];
+    const listen = (reason: unknown): void => void rejected.push(reason);
+    process.on('unhandledRejection', listen);
+    try {
+      open(fake({ tty: true, raw: true }).rt, { ...options(), json: true });
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    } finally {
+      process.off('unhandledRejection', listen);
+    }
+    expect(rejected).toEqual([]);
   });
 
   it('accessible and ci are static too', () => {
@@ -210,6 +258,60 @@ describe('R19 — inline, the default', () => {
     expect(painted).toContain('read the docs');
     expect(f.raw).toEqual([true]);
     screen.close();
+  });
+
+  it('says its mode is tty', () => {
+    const screen = open(fake().rt, options());
+    expect(screen.mode).toBe('tty');
+    screen.close();
+  });
+
+  it('registers every undo in closeout’s restore phase, which runs last on every exit path', () => {
+    exits.length = 0;
+    open(fake().rt, options({ screen: 'alternate' })).close();
+    expect(exits.length).toBeGreaterThan(0);
+    expect(new Set(exits.map((spec) => JSON.stringify(spec)))).toEqual(new Set([JSON.stringify({ phase: 'restore' })]));
+  });
+
+  it('a commit repaints the live region under it at once, before any update', () => {
+    const f = fake();
+    const screen = open(f.rt, options());
+    f.out.length = 0;
+    screen.commit('> hello');
+    expect(f.out.join('').split('> hello')[1]).toContain('read the docs');
+    screen.close();
+  });
+
+  it('an inline frame with nothing drawn is no rows, not an error and not a blank row', () => {
+    const f = fake();
+    const screen = open(f.rt, { layout: 'blank', panes: { blank: { component: text, state: '' } } });
+    const empty = fake();
+    open(empty.rt, { layout: { direction: 'column', parts: [] }, panes: {} }).close();
+    screen.close();
+    expect(f.out.join('')).toBe(empty.out.join(''));
+  });
+
+  it('two animated panes repaint at the shorter interval, and a static pane does not shorten it', () => {
+    const fast: Component<string> = { name: 'fast', static: (s) => s, frame: (t, s) => `${String(t)} ${s}`, interval: 50 };
+    const f = fake();
+    const screen = open(f.rt, { layout: { direction: 'column', parts: [{ size: 1, content: 's' }, { size: 1, content: 'q' }] }, panes: { s: { component: spinner, state: 'slow' }, q: { component: fast, state: 'quick' } } });
+    f.out.length = 0;
+    f.clock.tick(50);
+    expect(f.out.join('')).toContain('50 quick');
+    screen.close();
+    const g = fake();
+    const one = open(g.rt, { layout: { direction: 'column', parts: [{ size: 1, content: 's' }, { size: 1, content: 't' }] }, panes: { s: { component: spinner, state: 'slow' }, t: { component: text, state: 'still' } } });
+    g.out.length = 0;
+    g.clock.tick(80);
+    expect(g.out, 'the static pane’s 80 ms default is not the animated one’s 100').toEqual([]);
+    one.close();
+  });
+
+  it('schedules nothing when no pane animates', () => {
+    const f = fake();
+    const schedule = vi.spyOn(f.rt.clock, 'schedule');
+    open(f.rt, options()).close();
+    expect(schedule).not.toHaveBeenCalled();
   });
 
   it('committed text is written once and never repainted; the live region is painted again under it', () => {
@@ -321,6 +423,7 @@ describe('a terminal that does not report its size', () => {
     f.out.length = 0;
     f.clock.tick(80);
     expect(f.out.join('')).toContain(`t=80${' '.repeat(76)}`);
+    expect(f.out.join(''), 'exactly 80 columns').not.toContain(`t=80${' '.repeat(77)}`);
     screen.close();
   });
 });
@@ -336,6 +439,16 @@ describe('R4 — the alternate screen', () => {
     const out = f.out.join('');
     expect(out.indexOf(ALT_OFF)).toBeGreaterThan(-1);
     expect(out.indexOf('kept for later')).toBeGreaterThan(out.indexOf(ALT_OFF));
+  });
+
+  it('hands each committed text to the main screen on a line of its own', () => {
+    const f = fake();
+    const screen = open(f.rt, options({ screen: 'alternate' }));
+    screen.commit('one');
+    screen.commit('two');
+    f.out.length = 0;
+    screen.close();
+    expect(replay(f.out.join(''))).toEqual(['one', 'two', '']);
   });
 
   it('with nothing committed, closing leaves the main screen as it was', () => {
@@ -378,6 +491,16 @@ describe('keys — routed through the keymap, as data', () => {
     expect(screen.state.collapsed.has('learn')).toBe(true);
     expect(f.out.join('')).not.toContain('read the docs');
     screen.close();
+  });
+
+  it.each([['passed as an object', { right: 'tab.next' }], ['named', 'bare']] as const)('ctrl+c is quit in a keymap %s that does not bind it', async (_how, keymap) => {
+    register({ name: 'ctrl-c-less', keymaps: { bare: { keys: { l: 'tab.next' } } } });
+    const f = fake();
+    const heard: string[] = [];
+    open(f.rt, options({ keymap, onAction: (a) => heard.push(a) }));
+    press(f, '\u0003');
+    await flush();
+    expect(heard).toEqual(['quit']);
   });
 
   it('ctrl+c is quit unless the keymap binds it: the screen closes and the terminal is restored', async () => {
@@ -425,6 +548,24 @@ describe('R10 — registered keymaps and panes', () => {
     expect(f.out.join('')).toBe('HI\n');
   });
 
+  it('names what is missing and how to provide it, as a ScreenError', () => {
+    const rt = fake({ tty: false }).rt;
+    const thrown = (o: ScreenOptions): unknown => {
+      try {
+        open(rt, o);
+      } catch (error) {
+        return error;
+      }
+      return undefined;
+    };
+    expect(thrown({ layout: 'x', keymap: 'nope', panes: {} })).toMatchObject({ name: 'ScreenError', fix: 'register a plugin with `keymaps: { … }`, or pass the keymap itself' });
+    expect(thrown({ layout: 'x', panes: { x: { pane: 'nope', state: 0 } } })).toMatchObject({ fix: 'register a plugin with `panes: { … }`' });
+    register({ name: 'demo4', panes: { ghost2: { component: 'never-registered' } } });
+    const error = thrown({ layout: 'x', panes: { x: { pane: 'ghost2', state: 0 } } });
+    expect(error).toBeInstanceOf(ScreenError);
+    expect(error).toMatchObject({ fix: 'register the plugin that provides that component before opening the screen' });
+  });
+
   it('a name nothing registered throws with a fix, for a keymap, a pane, and a pane whose component is missing', () => {
     const rt = fake({ tty: false }).rt;
     expect(() => open(rt, { layout: 'x', keymap: 'nope', panes: {} })).toThrow(/no keymap named "nope"/u);
@@ -456,6 +597,95 @@ describe('R20 — an input line inside a screen', () => {
     await flush();
     expect(heard).toEqual(['submit:hi']);
     screen.close();
+  });
+
+  it('Enter on an empty line still submits it: an event is never a key the keymap gets', async () => {
+    const f = fake();
+    const heard: string[] = [];
+    const screen = open(f.rt, chat(heard, { keymap: { enter: 'enter-pressed' } }));
+    press(f, '\r');
+    await flush();
+    expect(heard).toEqual(['submit:']);
+    screen.close();
+  });
+
+  it.each([
+    ['moves the cursor', 'a', `${ESC}[D`, { left: 'left-pressed' }],
+    ['deletes forward, changing the text alone', 'ab', `${ESC}[D${ESC}[3~`, { delete: 'delete-pressed' }],
+    ['steps back to a history entry the same as the line', 'x\rx', `${ESC}[A`, { up: 'up-pressed' }],
+  ] as const)('a key that only %s is the editor’s, not the keymap’s', async (_name, typed, key, keymap) => {
+    const f = fake();
+    const heard: string[] = [];
+    const screen = open(f.rt, chat(heard, { keymap }));
+    press(f, typed);
+    await flush();
+    heard.length = 0;
+    press(f, key);
+    await flush();
+    expect(heard).toEqual([]);
+    screen.close();
+  });
+
+  it('a key that only moves the completion menu is the editor’s, not the keymap’s', async () => {
+    const f = fake();
+    const heard: string[] = [];
+    const input = { editor: editor({ prompt: '> ', complete: () => ['abc', 'abd'] }), pane: 'prompt', onSubmit: (t: string) => heard.push(`submit:${t}`) };
+    const screen = open(f.rt, chat(heard, { input, keymap: { down: 'down-pressed' } }));
+    press(f, 'a');
+    await flush();
+    press(f, `${ESC}[B`);
+    await flush();
+    expect(heard).toEqual([]);
+    expect(f.out.join('')).toContain('❯ abd');
+    screen.close();
+  });
+
+  it('a paste in progress holds its text back, and a key inside it is text, not a binding', async () => {
+    const f = fake();
+    const heard: string[] = [];
+    const screen = open(f.rt, chat(heard, { keymap: { a: 'a-pressed' } }));
+    f.out.length = 0;
+    press(f, `${ESC}[200~a`);
+    await flush();
+    expect(heard).toEqual([]);
+    expect(f.out.join('')).not.toContain('> a');
+    screen.close();
+  });
+
+  it('keys go to the editor when its pane is the focused one of several', async () => {
+    const f = fake();
+    const heard: string[] = [];
+    const screen = open(f.rt, chat(heard, { focus: ['prompt', 'log'], keymap: { x: 'mark' } }));
+    press(f, 'x');
+    await flush();
+    expect(heard).toEqual([]);
+    expect(f.out.join('')).toContain('> x');
+    screen.close();
+  });
+
+  it('draws a pasted entry of several rows on several rows', async () => {
+    const f = fake();
+    const screen = open(f.rt, chat([]));
+    press(f, `${ESC}[200~one\ntwo${ESC}[201~`);
+    await flush();
+    const seen = replay(f.out.join(''));
+    expect(seen.some((line) => line.endsWith('one'))).toBe(true);
+    expect(seen.some((line) => line.trim() === 'two')).toBe(true);
+    screen.close();
+  });
+
+  it('an input with no onEnd ends quietly', async () => {
+    const rejected: unknown[] = [];
+    const listen = (reason: unknown): void => void rejected.push(reason);
+    process.on('unhandledRejection', listen);
+    try {
+      const { onEnd: _none, ...input } = chat([]).input!;
+      open(fake({ tty: true, raw: true }).rt, { ...chat([]), input, json: true });
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    } finally {
+      process.off('unhandledRejection', listen);
+    }
+    expect(rejected).toEqual([]);
   });
 
   it('a key the editor does not use falls through to the keymap: Esc reaches the program', async () => {
