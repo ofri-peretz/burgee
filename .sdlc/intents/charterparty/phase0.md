@@ -11,7 +11,7 @@ Roadmap: [`roadmap.md`](./roadmap.md). Each row is a dated reading with the comm
 | Competitor state | ✅ 2026-11-06 (first pass) | Table below |
 | hey-api plugin for openapi-typescript | ✅ 2026-11-06, none yet | No `openapi-typescript` mention in the last 30 hey-api/openapi-ts GitHub releases |
 | Baseline eval, arm without the tool | ⬜ | `evals/` task set not written |
-| `TBM` bench readings | 🔨 G2–G5 incumbent side read | [Below](#gen-baseline-openapi-typescript-2026-11-06). Open: G6, D1–D4 (oasdiff), R1–R3 (ajv), A1 |
+| `TBM` bench readings | 🔨 G2–G5 and A1 read | [`gen`](#gen-baseline-openapi-typescript-2026-11-06), [A1](#a1-baseline-raw-operation-bytes-2026-11-06). Open: G6, D1–D4 (oasdiff), R1–R3 (ajv) |
 | `compat.qnt` draft | ✅ 2026-11-06 | `safety` holds; `fullChains` violated as expected and gated in `models.yml` |
 
 ## Competitor state, 2026-11-06
@@ -55,3 +55,18 @@ What this sets:
   `charterparty` needs no TypeScript at runtime. **G4** compares against 32 packages.
 - **G2** is ≈ 2.1–2.8 s per 1,261 operations, under load. Target: ≥ 2x faster on the same machine,
   same load.
+
+## A1 baseline: raw operation bytes, 2026-11-06
+
+`node benchmarks/charterparty/explain-baseline.ts github.json`: each GitHub REST operation with its
+path parameters and every local `$ref` inlined, which is what an agent has to read to use the
+operation without `explain`.
+
+| Operations | p50 | p90 | p99 | Max | Whole spec |
+| --: | --: | --: | --: | --: | --: |
+| 1,261 | 4,006 B | 35,762 B | 154,163 B | 460,337 B | 14,151,310 B |
+
+The median is small; the tail is the problem. One operation in ten costs an agent more than 35 KB,
+and the largest costs 460 KB. So A1 is judged at p90 as well as p50: `explain` meets ≤ 1 KB at p50
+and ≤ 30% of 35,762 B at p90, which means it has to summarise large schemas (depth limit, `--expand
+<pointer>`), not only inline them.
