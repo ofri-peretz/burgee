@@ -5,17 +5,36 @@
  * TypeScript 5, 6 and 7, and
  * whether a plain `npm i` resolves its `typescript` peer range beside each.
  *
- *   node benchmarks/charterparty/incumbents.ts [workdir] > reading.json
+ *   npx tsx benchmarks/charterparty/incumbents.ts [workdir] > reading.json
  */
-import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+
+import { spawnSync } from '../spawn.js';
 
 const INCUMBENT = 'openapi-typescript@7.13.0';
 const SPEC_URL =
   'https://raw.githubusercontent.com/github/rest-api-description/main/descriptions/api.github.com/api.github.com.json';
 const RUNS = 5;
+
+interface Ran {
+  ok: boolean;
+  stdout: string;
+  stderr: string;
+}
+
+/** One command through bellpull (`../spawn.ts`), never a throw. */
+function run(file: string, args: readonly string[], cwd?: string): Ran {
+  const result = spawnSync(file, args, { cwd, encoding: 'utf8' });
+  return { ok: result.status === 0, stdout: result.stdout, stderr: result.stderr };
+}
+
+function mustRun(file: string, args: readonly string[], cwd?: string): Ran {
+  const result = run(file, args, cwd);
+  if (!result.ok) throw new Error(`${file} ${args.join(' ')} failed: ${result.stderr.trim()}`);
+  return result;
+}
 
 function measureBytes(dir: string): number {
   let total = 0;
@@ -30,24 +49,14 @@ function measureBytes(dir: string): number {
 function install(dir: string, typescript: string): boolean {
   writeFileSync(path.join(dir, 'package.json'), '{"private":true}');
   const args = ['i', '--silent', '--no-audit', '--no-fund', INCUMBENT, `typescript@${typescript}`];
-  try {
-    execFileSync('npm', args, { cwd: dir, stdio: 'ignore' });
-    return true;
-  } catch {
-    execFileSync('npm', [...args, '--legacy-peer-deps'], { cwd: dir, stdio: 'ignore' });
-    return false;
-  }
+  if (run('npm', args, dir).ok) return true;
+  mustRun('npm', [...args, '--legacy-peer-deps'], dir);
+  return false;
 }
 
 function countPackages(dir: string): number {
-  let raw: string;
-  try {
-    raw = execFileSync('npm', ['ls', '--all', '--json', '--omit=dev'], { cwd: dir, stdio: 'pipe' }).toString();
-  } catch (error) {
-    // ELSPROBLEMS (an invalid peer) exits 1 but still prints the tree.
-    raw = (error as { stdout: Buffer }).stdout.toString();
-  }
-  const tree = JSON.parse(raw) as {
+  // ELSPROBLEMS (an invalid peer) exits 1 but still prints the tree, so the exit code is not read.
+  const tree = JSON.parse(run('npm', ['ls', '--all', '--json', '--omit=dev'], dir).stdout) as {
     dependencies?: Record<string, unknown>;
   };
   const seen = new Set<string>();
@@ -69,11 +78,9 @@ function timeGen(dir: string, spec: string): { medianMs: number; ok: boolean; er
   const samples: number[] = [];
   for (let i = 0; i < RUNS; i += 1) {
     const start = performance.now();
-    try {
-      execFileSync(bin, [spec, '-o', path.join(dir, 'out.d.ts')], { cwd: dir, stdio: 'pipe' });
-    } catch (error) {
-      const stderr = (error as { stderr?: Buffer }).stderr?.toString() ?? String(error);
-      return { medianMs: Number.NaN, ok: false, error: stderr.split('\n').find((l) => l.trim()) ?? stderr };
+    const result = run(bin, [spec, '-o', path.join(dir, 'out.d.ts')], dir);
+    if (!result.ok) {
+      return { medianMs: Number.NaN, ok: false, error: result.stderr.split('\n').find((l) => l.trim()) ?? result.stderr };
     }
     samples.push(performance.now() - start);
   }
@@ -83,7 +90,7 @@ function timeGen(dir: string, spec: string): { medianMs: number; ok: boolean; er
 
 const root = process.argv[2] ?? mkdtempSync(path.join(tmpdir(), 'charterparty-bench-'));
 const spec = path.join(root, 'github.json');
-execFileSync('curl', ['-sSfL', '-o', spec, SPEC_URL]);
+mustRun('curl', ['-sSfL', '-o', spec, SPEC_URL]);
 const operations = Object.values(
   (JSON.parse(readFileSync(spec, 'utf8')) as { paths: Record<string, object> }).paths,
 ).reduce((n, item) => n + Object.keys(item).filter((k) => k !== 'parameters').length, 0);

@@ -34,7 +34,7 @@ tool and has to win on metrics, not on a vacuum.
 
 ## `gen` baseline: openapi-typescript, 2026-11-06
 
-`node benchmarks/charterparty/incumbents.ts <workdir>`. Subject: GitHub REST
+`npx tsx benchmarks/charterparty/incumbents.ts <workdir>`. Subject: GitHub REST
 (`github/rest-api-description`, 1,261 operations). Node 24.21.0, Apple Silicon. **The machine was
 loaded** (load average 111, two other repos' pre-push suites running), so the times are an upper
 bound; re-read on a quiet machine before any claim.

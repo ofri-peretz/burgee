@@ -96,10 +96,18 @@ These are dated observations, not measurements. The first measurements are the P
 
 ## Open questions
 
-- Will openapi-typescript's maintainers accept a compiler-free emitter upstream? The offer on #2841
-  needs the owner's approval before it is posted.
-- Has hey-api already absorbed openapi-typescript's users as a plugin? This decides whether Phase 1
-  leads with the drop-in or with the agent pitch.
-- What state are json-schema-to-typescript and quicktype in? Unchecked.
-- Does `diff` use oasdiff's rule IDs or our own? Default: oasdiff's, for migration.
-- Which MCP servers form the SC4 corpus?
+Every question this intent raised is closed; each bullet keeps the question and points at its
+answer. Pending actions (the upstream offer, the npm names) are tracked in [`phase0.md`](./phase0.md).
+
+- Will openapi-typescript's maintainers accept a compiler-free emitter upstream? Answered: not a
+  question this repository can close; the offer is a Phase 0 action waiting on the owner's approval
+  ([`phase0.md`](./phase0.md)), and the kill rules in [`roadmap.md`](./roadmap.md) cover either reply.
+- Has hey-api absorbed openapi-typescript's users as a plugin? Answered 2026-11-06: no; none of the
+  last 30 hey-api/openapi-ts releases mention one ([`phase0.md`](./phase0.md)).
+- What state are json-schema-to-typescript and quicktype in? Answered 2026-11-06: both maintained,
+  last published 2026-08-28 and 2026-07-20, at 6.2M and 252k weekly downloads
+  ([`phase0.md`](./phase0.md)).
+- Does `diff` use oasdiff's rule ids or our own? Decided:
+  [`D-20261106-charterparty-diff-rule-ids`](../../decisions/D-20261106-charterparty-diff-rule-ids.md).
+- Which MCP servers form the SC4 corpus? Decided:
+  [`D-20261106-charterparty-mcp-corpus`](../../decisions/D-20261106-charterparty-mcp-corpus.md).
