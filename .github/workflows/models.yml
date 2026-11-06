@@ -65,6 +65,13 @@ jobs:
             echo "::error::compat.qnt: fullChains now holds — the model no longer shows why diff compares endpoints"
             exit 1
           fi
+      # apicontract $ref resolver (spec.md R-Q3): some walk still finishes, so safety is not vacuous.
+      - name: apicontract adapter — the $ref walk still finishes
+        run: |
+          if $QUINT run .sdlc/intents/apicontract/adapter.qnt --invariant=everyGraphFinishes --max-steps=30 --max-samples=20000 >/dev/null; then
+            echo "::error::adapter.qnt: everyGraphFinishes now holds — no walk finishes, so safety holds vacuously"
+            exit 1
+          fi
       # migrate's gate writes in some run, so `safety` is not holding because nothing writes.
       - name: migrate preflight — some run still writes
         run: |

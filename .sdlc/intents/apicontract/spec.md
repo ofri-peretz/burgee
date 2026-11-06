@@ -22,8 +22,8 @@ Intent: [`intent.md`](./intent.md) · Metrics: [`metrics.md`](./metrics.md) · R
 
 ### Commands
 
-- **R5.** `gen`, `explain`, `diff`, `check` and `lint` are burgee declarations. Each emits the burgee
-  `--json` envelope, publishes `--schema`, is served through `--mcp`, and uses burgee exit codes.
+- **R5.** `gen`, `explain`, `diff`, `check`, `snapshot` and `lint` are burgee declarations, so the
+  agent surface is built in, not added later. R-A below is what that means, command by command.
 - **R6.** `gen --compat openapi-typescript` accepts openapi-typescript's flags and writes its output
   byte for byte. Fixes to upstream bugs (#941, #1464, #2012, #2366) are behind `--fix-upstream-bugs`.
 - **R7.** `explain <id> --json` returns one operation with resolved `$ref`s, in at most 1 KB for the
@@ -40,6 +40,34 @@ Intent: [`intent.md`](./intent.md) · Metrics: [`metrics.md`](./metrics.md) · R
 - **R10.** `check` scans `fetch`, axios, openapi-fetch, socket emit/on, and MCP `callTool` call sites
   with oxc, and reports each call that does not resolve to an operation, each operation that has no
   caller, and each caller that a pending `diff` breaks.
+
+### Agent surface, built in from burgee (R-A)
+
+Every item is a burgee feature the declaration turns on; none is hand-written in `apicontract`.
+
+- **R-A1 `effects`.** `explain`, `diff`, `check` and `snapshot` declare `effects: 'read_only'`; `gen`
+  declares that it writes files. `--mcp` carries this, so an MCP client can auto-approve every read
+  and an agent asks no permission to look at a contract.
+- **R-A2 Exit codes, burgee's own** (`packages/burgee/src/exit-code.ts`): `0` OK; `1` RUNTIME = the
+  command ran and found something (a breaking change, an unknown call site, a lint error); `2` USAGE =
+  rewrite the command; `3` CONFIG = an unreadable config or spec; `5` AUTH = a remote spec refused
+  the credential; `6` TIMEOUT = a live MCP server did not answer in time. A finding is never `2`.
+- **R-A3 The envelope.** Every command answers `--json` with burgee's `{ ok, data, meta }`;
+  `meta.provenance` says where each setting came from (flag, env, `apicontract` config, or an
+  incumbent's config file read for the drop-in).
+- **R-A4 `fix:` lines and `--explain`.** Every finding and every non-zero exit carries a `fix:` line an
+  agent can act on as written; `--explain` says which flag, file or rule decided the result.
+- **R-A5 Output budget.** `explain` and `diff` honour burgee's `--max-bytes`; past the budget they
+  summarise (depth limit) and name the `--expand <pointer>` that returns the rest, rather than
+  truncating. `diff` and `check` stream findings as ndjson. This is how A1's p90 (35,762 B) is met.
+- **R-A6 `--mcp`.** Every command is an MCP tool with its declaration as the tool schema. No
+  command exists only on the CLI.
+- **R-A7 `--schema` and `--skill`.** The program publishes its own `--schema`, and ships the Agent
+  Skill burgee generates (`--skill`: `SKILL.md` plus `AGENTS.md`, one line and one example per
+  command). CI runs `apicontract diff` on its own `--schema` between releases, so the tool holds its
+  own contract to the rule it sells.
+- **R-A8 Non-TTY first.** Progress uses flagstaff's static projection when stdout is not a terminal,
+  and every prompt is a flag first (caique), so a command run by an agent never hangs on input.
 
 ### Quint (R-Q)
 
@@ -60,8 +88,13 @@ that workflow's `paths:` list.
   (`nextCursor`), `notifications/tools/list_changed` mid-read, timeout, close. Invariants: a
   snapshot never mixes two catalog versions; a timed-out session leaves no child process (bellpull
   ladder); the snapshot hash is order-independent.
-- **R-Q3 `adapter.qnt`.** Adapter → model → `gen` → re-read. Invariant: an operation id is stable across
-  re-reads, and `$ref` cycles terminate.
+- **R-Q3 [`adapter.qnt`](./adapter.qnt).** The `$ref` resolver's depth-first walk over any reference
+  graph (self-references, mutual cycles, diamonds). `safety`: no node twice on the open path, depth
+  never above the node count, each frame tracks only its own children, and every root edge handled at
+  the end. **Expected violation, checked in `models.yml`:** `everyGraphFinishes`, so the walk is shown
+  to finish. The model corrected the first draft: the same edge is inlined on one path and kept as a
+  cycle `$ref` on another, so handling is per occurrence, never per edge. Consequence: `explain`
+  (inlines) and `gen` (emits named component types) never share an edge-level cache.
 - **R-Q4 `guard.qnt`** (Phase 5). Runtime gate: a payload is forwarded only after a passing verdict,
   and a schema swap mid-stream never validates a message against a mix of two schemas.
 
