@@ -1,11 +1,11 @@
 /**
- * Phase 0 baselines for charterparty's `gen` metrics (`.sdlc/intents/charterparty/metrics.md`
+ * Phase 0 baselines for apicontract's `gen` metrics (`.sdlc/intents/apicontract/metrics.md`
  * G2–G5), measured on the incumbent alone. Installs openapi-typescript into a throwaway directory,
  * then reads install size, dependency count, generation time (median of 5) and whether it runs under
  * TypeScript 5, 6 and 7, and
  * whether a plain `npm i` resolves its `typescript` peer range beside each.
  *
- *   npx tsx benchmarks/charterparty/incumbents.ts [workdir] > reading.json
+ *   npx tsx benchmarks/apicontract/incumbents.ts [workdir] > reading.json
  */
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -88,7 +88,7 @@ function timeGen(dir: string, spec: string): { medianMs: number; ok: boolean; er
   return { medianMs: Math.round(samples[Math.floor(RUNS / 2)] ?? Number.NaN), ok: true };
 }
 
-const root = process.argv[2] ?? mkdtempSync(path.join(tmpdir(), 'charterparty-bench-'));
+const root = process.argv[2] ?? mkdtempSync(path.join(tmpdir(), 'apicontract-bench-'));
 const spec = path.join(root, 'github.json');
 mustRun('curl', ['-sSfL', '-o', spec, SPEC_URL]);
 const operations = Object.values(

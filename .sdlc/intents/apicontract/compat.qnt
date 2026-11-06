@@ -1,6 +1,6 @@
 // -*- mode: Bluespec; -*-
 /**
- * charterparty's direction-aware compatibility rule (`spec.md` R3, R-Q1).
+ * apicontract's direction-aware compatibility rule (`spec.md` R3, R-Q1).
  *
  * A payload version is what its sender may emit (`s`) and what its receiver accepts (`r`),
  * over a small universe of values. A version is coherent when `s` ⊆ `r`.
@@ -15,7 +15,7 @@
  * `diff --since <ref>` compares the two endpoints directly and never chains per-commit verdicts.
  *
  * Run by hand:
- *   npx -y @informalsystems/quint@0.33.0 run .sdlc/intents/charterparty/compat.qnt \
+ *   npx -y @informalsystems/quint@0.33.0 run .sdlc/intents/apicontract/compat.qnt \
  *     --invariant=safety --max-steps=30 --max-samples=20000
  */
 module compat {

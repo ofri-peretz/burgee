@@ -1,4 +1,4 @@
-// Shell check (exits non-zero on the first mismatch) for evals/cases/charterparty-baseline-manifest.json.
+// Shell check (exits non-zero on the first mismatch) for evals/cases/apicontract-baseline-manifest.json.
 import { pathToFileURL } from 'node:url';
 
 const file = process.argv[2] ?? 'evals/results/manifest.mjs';

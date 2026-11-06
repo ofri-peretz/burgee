@@ -1,0 +1,10 @@
+{
+  "id": "apicontract-baseline-manifest",
+  "why": "apicontract metrics A5-A7, the arm without the tool. Reading a response: the agent must find the manifest operation and the optional, nested dangerous-goods object (`hazmat`, packing group `I`) in a raw OpenAPI file it has never seen. An invented field name (`dangerousGoods`, `isHazardous`) or a guessed path fails the check.",
+  "prompt": "Read evals/fixtures/apicontract/harbour.openapi.json. Write evals/results/manifest.mjs: an ES module exporting `async function mostDangerousUnNumbers(fetch, voyageRef)` that fetches the voyage's cargo manifest with the `fetch` it is given, using a path-only URL, and returns the UN numbers of every cargo line in the most dangerous packing group. Follow the contract exactly. Then run: node evals/fixtures/apicontract/check-manifest.mjs — and if it exits non-zero, fix the module until it exits zero. Do not modify anything under evals/fixtures/.",
+  "allowedTools": "Read,Write,Edit,Bash",
+  "expect": [
+    { "check": "shell", "value": "test -f evals/results/manifest.mjs" },
+    { "check": "shell", "value": "node evals/fixtures/apicontract/check-manifest.mjs" }
+  ]
+}

@@ -3,7 +3,7 @@
   "info": {
     "title": "Harbour API (synthetic eval fixture)",
     "version": "1.0.0",
-    "description": "Invented for charterparty's agent evals so no model has seen it. Names, units and shapes are deliberately unconventional: an agent can only get them right by reading the contract."
+    "description": "Invented for apicontract's agent evals so no model has seen it. Names, units and shapes are deliberately unconventional: an agent can only get them right by reading the contract."
   },
   "paths": {
     "/ports/{portLocode}/berths": {

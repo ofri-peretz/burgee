@@ -2,7 +2,7 @@
 
 Intent: [`intent.md`](./intent.md) · Design: [`spec.md`](./spec.md) · **Status:** draft, 2026-11-06.
 
-`charterparty` is better than an incumbent only on a metric measured by the same script, on the same
+`apicontract` is better than an incumbent only on a metric measured by the same script, on the same
 subject and machine, where it beats the incumbent by the stated margin. Every number is published,
 including the ones we lose. `TBM` means to be measured in Phase 0.
 
@@ -25,7 +25,7 @@ OpenAPI; openapi-typescript's own fixtures; oasdiff's test corpus; 10 MCP server
 | A6 | Tokens per task | Lagging | Median tokens an agent spends per eval task | TBM | ≤ 60% of baseline |
 | A7 | Task success | Lagging | Share of eval tasks that pass their tests | TBM | ≥ baseline + 15 points |
 
-## 2. `charterparty` · `gen` — vs openapi-typescript, json-schema-to-typescript, Modelina
+## 2. `apicontract` · `gen` — vs openapi-typescript, json-schema-to-typescript, Modelina
 
 | ID | Metric | Kind | Definition | Baseline | Target |
 | :-- | :-- | :-- | :-- | :-- | :-- |
@@ -36,9 +36,9 @@ OpenAPI; openapi-typescript's own fixtures; oasdiff's test corpus; 10 MCP server
 | G5 | TypeScript 7 | Leading | Generated output passes `tsrs --noEmit` and TS 6 `tsc --noEmit` | ✗ (#2841) | ✓ both |
 | G6 | Type-check time of output | Leading | `tsrs --noEmit` time on the generated Stripe types | TBM | ≤ baseline |
 | G7 | Upstream bugs fixed | Lagging | Of #941, #1464, #2012, #2366, #2577, #1922: fixed behind `--fix-upstream-bugs` | 0 / 6 | 6 / 6 |
-| G8 | Migrations | Lagging | Public repos that replaced openapi-typescript with `charterparty` | 0 | Tracked weekly |
+| G8 | Migrations | Lagging | Public repos that replaced openapi-typescript with `apicontract` | 0 | Tracked weekly |
 
-## 3. `charterparty` · `diff` — vs oasdiff, mcpdiff / mcp-lint, schema-registry checks
+## 3. `apicontract` · `diff` — vs oasdiff, mcpdiff / mcp-lint, schema-registry checks
 
 | ID | Metric | Kind | Definition | Baseline | Target |
 | :-- | :-- | :-- | :-- | :-- | :-- |
@@ -50,7 +50,7 @@ OpenAPI; openapi-typescript's own fixtures; oasdiff's test corpus; 10 MCP server
 | D6 | Real breaks found | Lagging | Unannounced breaking changes found in the 10 MCP server histories | — | ≥ 1 (SC4) |
 | D7 | Lattice laws | Leading | `compat.qnt` invariants passing in `models.yml` | — | 100% |
 
-## 4. `charterparty-check` — vs openapi-usage, API Ghost Hunter
+## 4. `apicontract-check` — vs openapi-usage, API Ghost Hunter
 
 | ID | Metric | Kind | Definition | Baseline | Target |
 | :-- | :-- | :-- | :-- | :-- | :-- |
@@ -60,7 +60,7 @@ OpenAPI; openapi-typescript's own fixtures; oasdiff's test corpus; 10 MCP server
 | C4 | Binary size | Leading | Per-platform `.node` bytes | — | ≤ oxmutate's binary |
 | C5 | Families checked | Lagging | HTTP, WebSocket, MCP call sites | 1 (HTTP) | 3 |
 
-## 5. `charterparty-guard` — vs ajv, Zod runtime validation
+## 5. `apicontract-guard` — vs ajv, Zod runtime validation
 
 | ID | Metric | Kind | Definition | Baseline | Target |
 | :-- | :-- | :-- | :-- | :-- | :-- |
@@ -80,6 +80,6 @@ OpenAPI; openapi-typescript's own fixtures; oasdiff's test corpus; 10 MCP server
 
 ## How a reading is taken
 
-Each metric's script lives in `benchmarks/charterparty/<id>.ts`, runs both tools on the same subject,
+Each metric's script lives in `benchmarks/apicontract/<id>.ts`, runs both tools on the same subject,
 and writes `bench/history/<date>-<sha>.json`. A run that did not execute records `not-run`, never a
 loss. The control bands read that history.

@@ -1,4 +1,4 @@
-# Design — `charterparty`
+# Design — `apicontract`
 
 Intent: [`intent.md`](./intent.md) · Metrics: [`metrics.md`](./metrics.md) · Roadmap:
 [`roadmap.md`](./roadmap.md). **Status:** draft.
@@ -12,7 +12,7 @@ Intent: [`intent.md`](./intent.md) · Metrics: [`metrics.md`](./metrics.md) · R
 - **R1.** Every adapter maps its spec into one model: a contract is a set of _operations_; each
   operation has a stable id, a _direction_ (`request`, `response`, `publish`, `subscribe`,
   `tool-call`, `tool-result`, `argv`), and a JSON Schema for each payload.
-- **R2.** The core never imports an adapter. An adapter imports only `charterparty/core`.
+- **R2.** The core never imports an adapter. An adapter imports only `apicontract/core`.
 - **R3.** `diff` decides compatibility per direction. A change is breaking for the **receiver** of
   a payload when it widens what the sender may emit, and breaking for the **sender** when it narrows
   what the receiver accepts. Request/response is two directions of this one rule. Messages use
@@ -76,7 +76,7 @@ that workflow's `paths:` list.
 
 - **R-W1.** Each public subpath has a bundled-bytes and install-size ceiling in
   `.sdlc/bands/foundation-ceilings.json`.
-- **R-W2.** Every metric in [`metrics.md`](./metrics.md) has a script under `benchmarks/charterparty/`
+- **R-W2.** Every metric in [`metrics.md`](./metrics.md) has a script under `benchmarks/apicontract/`
   that runs both tools on the same subject and machine, and writes a JSON reading to `bench/history/`.
 
 ## Design
@@ -85,21 +85,21 @@ that workflow's `paths:` list.
 
 | Package | Contents | Why it is separate | Lands |
 | :-- | :-- | :-- | :-- |
-| `charterparty` | CLI (bin) and library. Subpaths: `/core` (model, `$ref`, diff engine), `/gen`, `/openapi`, `/jsonschema`, `/mcp`, `/asyncapi`, … one per adapter | — (the default home) | Phase 1 |
-| `charterparty-check` | oxc call-site scanner, prebuilt `.node` per platform, as oxmutate ships | A native binary: users of `gen`/`diff` must not download it | Phase 4 |
-| `charterparty-guard` | Runtime validator for MCP tool calls and WebSocket/SSE messages, compiled from the model | Ships inside apps: bundle bytes are the product | Phase 5, on demand |
+| `apicontract` | CLI (bin) and library. Subpaths: `/core` (model, `$ref`, diff engine), `/gen`, `/openapi`, `/jsonschema`, `/mcp`, `/asyncapi`, … one per adapter | — (the default home) | Phase 1 |
+| `apicontract-check` | oxc call-site scanner, prebuilt `.node` per platform, as oxmutate ships | A native binary: users of `gen`/`diff` must not download it | Phase 4 |
+| `apicontract-guard` | Runtime validator for MCP tool calls and WebSocket/SSE messages, compiled from the model | Ships inside apps: bundle bytes are the product | Phase 5, on demand |
 
 The split rule: **separate by dependency weight and audience, never by spec type.** Adapters are pure
 TypeScript and tree-shake through subpaths. A new package is only justified by a native binary, code
-that ships into apps, or a release cadence that differs from the CLI. `charterparty` loads `burgee` only
-from its bin entry, so library imports (`charterparty/core`) pull no CLI code. The CLI lazy-loads
-`charterparty-check` when it is installed and otherwise fails `check` with a `fix:` line naming the
+that ships into apps, or a release cadence that differs from the CLI. `apicontract` loads `burgee` only
+from its bin entry, so library imports (`apicontract/core`) pull no CLI code. The CLI lazy-loads
+`apicontract-check` when it is installed and otherwise fails `check` with a `fix:` line naming the
 install command.
 
 ### Dependencies
 
-`charterparty` → `burgee`, `seniority` (`/yaml`), `bellpull` (MCP stdio). `charterparty-check` → its
-platform binaries. `charterparty-guard` → nothing.
+`apicontract` → `burgee`, `seniority` (`/yaml`), `bellpull` (MCP stdio). `apicontract-check` → its
+platform binaries. `apicontract-guard` → nothing.
 
 ### Emitter
 
@@ -112,7 +112,7 @@ output, and `compat-oracle` runs openapi-typescript's own fixtures through both 
 - `.github/workflows/models.yml` — every `.qnt` above, `--invariant=safety`.
 - `npx oxmutate run --since origin/main` — the floors in `mutation-ratchets.json`.
 - `compat-oracle` — openapi-typescript fixtures (SC1) and the oasdiff corpus (SC3).
-- `npm run bench -- charterparty` — every metric in [`metrics.md`](./metrics.md).
+- `npm run bench -- apicontract` — every metric in [`metrics.md`](./metrics.md).
 
 ## Rejected alternatives
 
@@ -124,7 +124,7 @@ output, and `compat-oracle` runs openapi-typescript's own fixtures through both 
   triples install size.
 - **A YAML dependency.** `seniority/yaml` is already in the family.
 - **Building mocking, Pact-style consumer tests, or SDK/MCP-server generation.** Mature tools (Prism,
-  MSW, Pact, Stainless, Speakeasy) own those jobs; `charterparty` feeds them a contract instead.
+  MSW, Pact, Stainless, Speakeasy) own those jobs; `apicontract` feeds them a contract instead.
 
 ## Out of scope
 

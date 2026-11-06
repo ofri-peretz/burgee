@@ -593,10 +593,10 @@ export default [
     rules: { "node-security/no-dynamic-command-string": "off" },
   },
   {
-    // charterparty's eval checks import the module the agent just wrote, by path, to call it
+    // apicontract's eval checks import the module the agent just wrote, by path, to call it
     // with a fake fetch: loading that file is the check. They are entry scripts run by a case's
     // `shell` line, so they export nothing.
-    files: ["evals/fixtures/charterparty/check-*.mjs"],
+    files: ["evals/fixtures/apicontract/check-*.mjs"],
     rules: {
       "node-security/no-unsafe-dynamic-require": "off",
       "node-security/no-dynamic-dependency-loading": "off",

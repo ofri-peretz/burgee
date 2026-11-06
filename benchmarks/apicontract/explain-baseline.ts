@@ -1,10 +1,10 @@
 /**
- * Phase 0 baseline for charterparty metric A1 (`.sdlc/intents/charterparty/metrics.md`): the bytes
+ * Phase 0 baseline for apicontract metric A1 (`.sdlc/intents/apicontract/metrics.md`): the bytes
  * an agent reads to understand one operation without `explain` — the operation object from the raw
  * spec with every local `$ref` inlined (a cycle keeps its `$ref`). Reports the distribution over
  * every operation in the spec.
  *
- *   node benchmarks/charterparty/explain-baseline.ts <spec.json> > reading.json
+ *   node benchmarks/apicontract/explain-baseline.ts <spec.json> > reading.json
  */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';

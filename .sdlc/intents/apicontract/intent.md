@@ -1,7 +1,10 @@
-# Intent — `charterparty`: the contract toolkit for coding agents, on burgee
+# Intent — `apicontract`: the contract toolkit for coding agents, on burgee
 
 > Stage 1 artifact of the AI-native SDLC. Opened 2026-11-06 after a scan of the JS/TS contract
-> tooling landscape. A _charter party_ is the maritime contract for the hire of a ship.
+> tooling landscape. Named for the category people already search, "API contract", which covers
+> AsyncAPI events, MCP tools and gRPC as well as OpenAPI. Not `ox*`: oxc powers only `check`, so
+> the name would promise an edge the main package does not have. Not a bare `contract*`: in JS
+> that reads as smart contracts (`@celo/contractkit`, 7.6k weekly downloads).
 
 **Status:** draft · **Opened:** `2026-11-06` · **Owner:** `@ofri-peretz`
 
@@ -57,7 +60,7 @@ These are dated observations, not measurements. The first measurements are the P
 - **Secondary persona:** an openapi-typescript user who is blocked on TypeScript 7.
 - **Customer zero:** burgee itself (CLI contracts through `diff`) and snappy-client-dashboard
   (OpenAPI clients, JSON Schema URL contracts that PostHog payloads share).
-- **Repo:** new packages `charterparty`, `charterparty-check` and `charterparty-guard`
+- **Repo:** new packages `apicontract`, `apicontract-check` and `apicontract-guard`
   ([`spec.md`](./spec.md) § Packages); `compat-oracle` grades the drop-ins; a docs app is added per
   public package; `.github/workflows/models.yml` runs the new Quint models; oxmutate gates each
   package.
@@ -79,9 +82,9 @@ These are dated observations, not measurements. The first measurements are the P
 
 ## Success criteria
 
-1. **SC1:** `charterparty gen` output is byte-identical to openapi-typescript on 100% of
+1. **SC1:** `apicontract gen` output is byte-identical to openapi-typescript on 100% of
    openapi-typescript's own fixtures, graded by `compat-oracle`.
-2. **SC2:** On the agent eval, the arm with `charterparty` beats the arm without it on invented
+2. **SC2:** On the agent eval, the arm with `apicontract` beats the arm without it on invented
    endpoints, invented fields and tokens per task, by the margins set in Phase 0.
 3. **SC3:** `diff` agrees with oasdiff on oasdiff's own test corpus at or above the Phase 0
    target, and every disagreement is explained in `bench/disagreements.json`.
@@ -108,6 +111,6 @@ answer. Pending actions (the upstream offer, the npm names) are tracked in [`pha
   last published 2026-08-28 and 2026-07-20, at 6.2M and 252k weekly downloads
   ([`phase0.md`](./phase0.md)).
 - Does `diff` use oasdiff's rule ids or our own? Decided:
-  [`D-20261106-charterparty-diff-rule-ids`](../../decisions/D-20261106-charterparty-diff-rule-ids.md).
+  [`D-20261106-apicontract-diff-rule-ids`](../../decisions/D-20261106-apicontract-diff-rule-ids.md).
 - Which MCP servers form the SC4 corpus? Decided:
-  [`D-20261106-charterparty-mcp-corpus`](../../decisions/D-20261106-charterparty-mcp-corpus.md).
+  [`D-20261106-apicontract-mcp-corpus`](../../decisions/D-20261106-apicontract-mcp-corpus.md).

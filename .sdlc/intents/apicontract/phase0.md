@@ -6,11 +6,11 @@ Roadmap: [`roadmap.md`](./roadmap.md). Each row is a dated reading with the comm
 
 | Item | Status | Evidence |
 | :-- | :-- | :-- |
-| npm names free | ✅ 2026-11-06 | `npm view charterparty`, `charterparty-check`, `charterparty-guard`: all E404. Not yet reserved |
+| npm names free | ✅ 2026-11-06 | `npm view apicontract`, `apicontract-check`, `apicontract-guard`: all E404. Not yet reserved |
 | Upstream offer on openapi-typescript#2841 | ⏸ pending owner approval | Public post; wording not yet drafted |
 | Competitor state | ✅ 2026-11-06 (first pass) | Table below |
 | hey-api plugin for openapi-typescript | ✅ 2026-11-06, none yet | No `openapi-typescript` mention in the last 30 hey-api/openapi-ts GitHub releases |
-| Baseline eval, arm without the tool | 🔨 cases written, not run | `charterparty-baseline-allocate` and `-manifest` on a synthetic spec ([below](#baseline-eval-cases-2026-11-06)); a reading needs a weekly `evals.yml` run with a credential |
+| Baseline eval, arm without the tool | 🔨 cases written, not run | `apicontract-baseline-allocate` and `-manifest` on a synthetic spec ([below](#baseline-eval-cases-2026-11-06)); a reading needs a weekly `evals.yml` run with a credential |
 | `TBM` bench readings | 🔨 G2–G5 and A1 read | [`gen`](#gen-baseline-openapi-typescript-2026-11-06), [A1](#a1-baseline-raw-operation-bytes-2026-11-06). Open: G6, D1–D4 (oasdiff 1.35.0 fetched, checksum OK, 38.0 MB binary; runs wait for a quiet machine), R1–R3 (ajv) |
 | `compat.qnt` draft | ✅ 2026-11-06 | `safety` holds; `fullChains` violated as expected and gated in `models.yml` |
 
@@ -34,7 +34,7 @@ tool and has to win on metrics, not on a vacuum.
 
 ## `gen` baseline: openapi-typescript, 2026-11-06
 
-`npx tsx benchmarks/charterparty/incumbents.ts <workdir>`. Subject: GitHub REST
+`npx tsx benchmarks/apicontract/incumbents.ts <workdir>`. Subject: GitHub REST
 (`github/rest-api-description`, 1,261 operations). Node 24.21.0, Apple Silicon. **The machine was
 loaded** (load average 111, two other repos' pre-push suites running), so the times are an upper
 bound; re-read on a quiet machine before any claim.
@@ -52,13 +52,13 @@ What this sets:
 - **G5** is a fact, not a forecast: the incumbent cannot be installed cleanly beside TypeScript's
   `latest` tag, and with `--legacy-peer-deps` it crashes on TS 7.
 - **G3** compares against ≈ 15.4 MB plus the TypeScript it requires (≈ 24 MB for TS 5/6), since
-  `charterparty` needs no TypeScript at runtime. **G4** compares against 32 packages.
+  `apicontract` needs no TypeScript at runtime. **G4** compares against 32 packages.
 - **G2** is ≈ 2.1–2.8 s per 1,261 operations, under load. Target: ≥ 2x faster on the same machine,
   same load.
 
 ## A1 baseline: raw operation bytes, 2026-11-06
 
-`node benchmarks/charterparty/explain-baseline.ts github.json`: each GitHub REST operation with its
+`node benchmarks/apicontract/explain-baseline.ts github.json`: each GitHub REST operation with its
 path parameters and every local `$ref` inlined, which is what an agent has to read to use the
 operation without `explain`.
 
@@ -73,7 +73,7 @@ and ≤ 30% of 35,762 B at p90, which means it has to summarise large schemas (d
 
 ## Baseline eval cases, 2026-11-06
 
-Two cases under `evals/cases/`, on `evals/fixtures/charterparty/harbour.openapi.json`, an API invented
+Two cases under `evals/cases/`, on `evals/fixtures/apicontract/harbour.openapi.json`, an API invented
 for this so no model knows it from training (agents know GitHub's API by heart, which would measure
 memory, not contract reading). Each check was run both ways before commit:
 
@@ -86,4 +86,4 @@ memory, not contract reading). Each check was run both ways before commit:
 
 The reading (A5 invented calls, A6 tokens, A7 success) comes from the next `evals.yml` run with a
 credential, which records turns and tokens per case in `evals/history/`. The arm with the tool reuses
-the same cases with `charterparty explain` allowed.
+the same cases with `apicontract explain` allowed.

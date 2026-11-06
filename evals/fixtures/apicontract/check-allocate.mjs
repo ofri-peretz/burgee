@@ -1,4 +1,4 @@
-// Shell check (exits non-zero on the first mismatch) for evals/cases/charterparty-baseline-allocate.json.
+// Shell check (exits non-zero on the first mismatch) for evals/cases/apicontract-baseline-allocate.json.
 import { pathToFileURL } from 'node:url';
 
 const file = process.argv[2] ?? 'evals/results/allocate.mjs';

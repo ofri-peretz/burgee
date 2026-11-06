@@ -1,0 +1,10 @@
+{
+  "id": "apicontract-baseline-allocate",
+  "why": "apicontract metrics A5-A7 (.sdlc/intents/apicontract/metrics.md), the arm without the tool. An agent given only a raw OpenAPI file must call one operation exactly as the contract says: method, path, nested body and a unit conversion (metres to decimetres). The fixture API is synthetic so no model knows it from training. A wrong method, a flattened body or an invented field fails the check; the same case run later with `apicontract explain` is the arm with the tool.",
+  "prompt": "Read evals/fixtures/apicontract/harbour.openapi.json. Write evals/results/allocate.mjs: an ES module exporting `async function allocateBerth(fetch, { port, berth, voyage, imo, opensAt, closesAt, draughtMetres })` that makes the one HTTP call that allocates the berth for the voyage, using the `fetch` it is given with a path-only URL, and returns the parsed JSON response. Follow the contract exactly. Then run: node evals/fixtures/apicontract/check-allocate.mjs — and if it exits non-zero, fix the module until it exits zero. Do not modify anything under evals/fixtures/.",
+  "allowedTools": "Read,Write,Edit,Bash",
+  "expect": [
+    { "check": "shell", "value": "test -f evals/results/allocate.mjs" },
+    { "check": "shell", "value": "node evals/fixtures/apicontract/check-allocate.mjs" }
+  ]
+}

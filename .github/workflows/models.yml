@@ -57,11 +57,11 @@ jobs:
             $QUINT run "$m" --invariant=safety --max-steps=30 --max-samples=20000
             echo "::endgroup::"
           done
-      # charterparty diff (spec.md R-Q1): adjacent FULL verdicts must still fail to chain, so
+      # apicontract diff (spec.md R-Q1): adjacent FULL verdicts must still fail to chain, so
       # `diff --since` keeps comparing endpoints instead of folding per-commit verdicts.
-      - name: charterparty compat — FULL still does not chain
+      - name: apicontract compat — FULL still does not chain
         run: |
-          if $QUINT run .sdlc/intents/charterparty/compat.qnt --invariant=fullChains --max-steps=30 --max-samples=20000 >/dev/null; then
+          if $QUINT run .sdlc/intents/apicontract/compat.qnt --invariant=fullChains --max-steps=30 --max-samples=20000 >/dev/null; then
             echo "::error::compat.qnt: fullChains now holds — the model no longer shows why diff compares endpoints"
             exit 1
           fi
