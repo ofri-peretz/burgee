@@ -4,7 +4,7 @@
 > (commander, yargs, oclif, chalk) and a full read of the 329 open issues across the
 > six leading CLI libraries — see `.sdlc/research/competitor-open-issues.md`.
 
-**Status:** approved · **Opened:** 2026-09-05 · **Owner:** @ofri-peretz
+**Status:** shipped · **Opened:** 2026-09-05 · **Owner:** @ofri-peretz · **Shipped:** 2026-11-06, when its last open child, `oxmutate`, shipped ([`D-20261106-oxmutate-ships-measurements-continue`](../../decisions/D-20261106-oxmutate-ships-measurements-continue.md))
 
 > **Accepted at the Design→Build gate 2026-10-25** by the coordinator under the owner's delegation
 > ([`D-20261025-burgee-umbrella-design-accepted`](../../decisions/D-20261025-burgee-umbrella-design-accepted.md)): approved as the umbrella over its children; Z5 restated to a 250-command bench, criterion 4 to a disabled-rule ratchet. See
