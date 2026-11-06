@@ -3,6 +3,7 @@
   "version": "1.1.9",
   "description": "Runs every exit handler exactly once on every path out of the process, restores the terminal, and holds shutdown to a deadline so it cannot hang. Zero dependencies. Drop-in paths for signal-exit, exit-hook, restore-cursor, cli-cursor and onetime.",
   "license": "MIT",
+  "author": "Ofri Peretz <ofriperetzdev@gmail.com>",
   "type": "module",
   "sideEffects": ["./dist/cli.js"],
   "engines": {
@@ -118,6 +119,10 @@
     "json",
     "zero-dependency"
   ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "devDependencies": {
     "vitest": "^5.0.1"
   },

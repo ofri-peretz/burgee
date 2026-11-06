@@ -3,6 +3,7 @@
   "version": "1.0.12",
   "description": "Hyperlinks, inline images, the window title, the clipboard, notifications and the bell, each with a static fallback for a terminal, pipe or agent that cannot show it. Zero dependencies. Drop-in paths for ansi-escapes, terminal-link and term-img.",
   "license": "MIT",
+  "author": "Ofri Peretz <ofriperetzdev@gmail.com>",
   "type": "module",
   "sideEffects": ["./dist/ansi-escapes.js", "./dist/cli.js", "./dist/index.js"],
   "engines": {
@@ -92,6 +93,10 @@
     "non-tty",
     "zero-dependency"
   ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "devDependencies": {
     "vitest": "^5.0.1"
   },
