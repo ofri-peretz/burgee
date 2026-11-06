@@ -123,6 +123,8 @@ const JOBS: Job[] = [
  */
 const KNOWN: Record<string, string> = {
   // ── Standing: a façade reproducing its incumbent, or a job that cannot move, each with the why.
+  'oxmutate/src/runner.ts':
+    "counts `unhandledRejection` and `uncaughtException` inside a Vitest worker, beside Vitest's own listeners, to score a mutant that raises one as Killed. It hooks no exit and handles nothing: the worker's lifetime is Vitest's, and closeout's exit handlers would run in a process oxmutate does not own.",
   'paratext/src/ansi-csi.ts':
     "`cursorHide` and `cursorShow` are two members of `ansi-escapes`' public surface, which the drop-in has to export as constants (D-138). `closeout/cursor` owns *doing* it; importing closeout here would add its whole installed tree (~103 KB) to paratext's, against paratext's own weight ceiling, for two string literals.",
   'paratext/src/hyperlinks.ts':
@@ -195,8 +197,14 @@ const KNOWN: Record<string, string> = {
  * with an IPC channel and kills a runaway one; bellpull's `run` has no handle to a child that
  * outlives a call. The way back down is that handle in bellpull, and then
  * `oxmutate/src/scheduler.ts` leaves KNOWN.
+ *
+ * **Raised 16 → 17 on 2026-11-06, and it is the owner's to accept or reverse.** oxmutate's runner
+ * counts unhandled errors in a Vitest worker to score the mutant that raised one (SC8's two missed
+ * kills, `sc8-profile.md`). closeout owns exit handling; this observes and handles nothing. The way
+ * back down is a closeout export that reports unhandled errors without installing exit handling,
+ * and then `oxmutate/src/runner.ts` leaves KNOWN.
  */
-const CEILING = 16;
+const CEILING = 17;
 
 const sources = (dir: string, out: string[] = []): string[] => {
   for (const e of readdirSync(dir, { withFileTypes: true })) {

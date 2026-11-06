@@ -533,6 +533,22 @@ it.skipIf(!native || !existsSync(bin))('times a mutant by the real clock, so a t
   expect(result.mutants.filter((m) => m.status === 'Timeout')).toEqual([]);
 }, 60_000);
 
+it.skipIf(!native || !existsSync(bin))('kills a mutant whose only effect is an unhandled rejection, as a failing vitest run does', async () => {
+  const dir = path.join(pkg, 'test/fixtures/unhandled');
+  // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the built package under test, present only after a build; the test is skipped without it
+  const api = (await import(path.join(pkg, 'dist/index.js'))) as typeof import('./index.js');
+  const result = await api.run(await api.loadOptions(dir, { reporters: [] }, path.join(dir, 'oxmutate.config.json')));
+  const keepsTheGap = result.mutants.filter((m) => m.start.line === 7 && (m.replacement === 'true' || m.mutatorName === 'EqualityOperator'));
+  expect(keepsTheGap.map((m) => m.status)).toEqual(['Killed', 'Killed']);
+}, 60_000);
+
+it.skipIf(!native || !existsSync(bin))('refuses a suite that raises an unhandled error with no mutant active', async () => {
+  const dir = path.join(pkg, 'test/fixtures/unhandled-baseline');
+  // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the built package under test, present only after a build; the test is skipped without it
+  const api = (await import(path.join(pkg, 'dist/index.js'))) as typeof import('./index.js');
+  await expect(api.run(await api.loadOptions(dir, { reporters: [] }, path.join(dir, 'oxmutate.config.json')))).rejects.toThrow(/\d+ unhandled error\(s\) with no mutant active/u);
+}, 60_000);
+
 it.skipIf(!native || !existsSync(bin) || !nightly)('keeps a survivor whose confirmation run was only slow, not killed', () => {
   const dir = path.join(pkg, 'test/fixtures/slow-survivor');
   const reportDir = path.join(dir, 'reports');
