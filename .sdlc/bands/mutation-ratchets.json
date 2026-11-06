@@ -3,12 +3,17 @@
   "ratchets": {
     "bellpull": {
       "status": "measured",
-      "floor": 90.1,
+      "floor": 90.5,
       "history": [
         {
           "floor": 90.1,
           "setOn": "2026-10-29",
           "why": "First full run, at 00e4e411ed: 90.19% (1030 detected of 1142), rounded down to one decimal."
+        },
+        {
+          "floor": 90.5,
+          "setOn": "2026-11-05",
+          "why": "Weekly run at c7582ed8df measured 90.58%, above the 90.1% floor; the floor follows it up."
         }
       ],
       "observations": [
@@ -21,6 +26,16 @@
           "survived": 111,
           "noCoverage": 1,
           "minutes": 9.05
+        },
+        {
+          "date": "2026-11-05",
+          "commit": "c7582ed8df",
+          "score": 90.58,
+          "killed": 1068,
+          "timeout": 9,
+          "survived": 111,
+          "noCoverage": 1,
+          "minutes": 27.12
         }
       ]
     },
@@ -44,6 +59,16 @@
           "survived": 1177,
           "noCoverage": 66,
           "minutes": 186.21
+        },
+        {
+          "date": "2026-11-05",
+          "commit": "c7582ed8df",
+          "score": 88.55,
+          "killed": 14141,
+          "timeout": 76,
+          "survived": 1765,
+          "noCoverage": 73,
+          "minutes": 922.28
         }
       ]
     },
@@ -98,6 +123,16 @@
           "survived": 864,
           "noCoverage": 3,
           "minutes": 107.53
+        },
+        {
+          "date": "2026-11-05",
+          "commit": "c7582ed8df",
+          "score": 87.38,
+          "killed": 5616,
+          "timeout": 387,
+          "survived": 864,
+          "noCoverage": 3,
+          "minutes": 100.87
         }
       ]
     },
@@ -137,6 +172,16 @@
           "survived": 84,
           "noCoverage": 0,
           "minutes": 2.66
+        },
+        {
+          "date": "2026-11-05",
+          "commit": "c7582ed8df",
+          "score": 89.9,
+          "killed": 745,
+          "timeout": 3,
+          "survived": 84,
+          "noCoverage": 0,
+          "minutes": 3.35
         }
       ]
     },
@@ -191,6 +236,16 @@
           "survived": 588,
           "noCoverage": 1,
           "minutes": 186.56
+        },
+        {
+          "date": "2026-11-05",
+          "commit": "c1e0ba5f54",
+          "score": 74.61,
+          "killed": 4872,
+          "timeout": 14,
+          "survived": 1662,
+          "noCoverage": 1,
+          "minutes": 1063.3
         }
       ]
     },
@@ -240,6 +295,16 @@
           "survived": 93,
           "noCoverage": 0,
           "minutes": 0.87
+        },
+        {
+          "date": "2026-11-05",
+          "commit": "c1e0ba5f54",
+          "score": 91.34,
+          "killed": 974,
+          "timeout": 7,
+          "survived": 93,
+          "noCoverage": 0,
+          "minutes": 1.24
         }
       ]
     },
@@ -279,17 +344,32 @@
           "survived": 236,
           "noCoverage": 0,
           "minutes": 5.27
+        },
+        {
+          "date": "2026-11-05",
+          "commit": "c1e0ba5f54",
+          "score": 86.17,
+          "killed": 1455,
+          "timeout": 15,
+          "survived": 236,
+          "noCoverage": 0,
+          "minutes": 5.65
         }
       ]
     },
     "linegauge": {
       "status": "measured",
-      "floor": 88.4,
+      "floor": 89.6,
       "history": [
         {
           "floor": 88.4,
           "setOn": "2026-10-29",
           "why": "First full run, at 00e4e411ed: 88.49% (1837 detected of 2076), rounded down to one decimal."
+        },
+        {
+          "floor": 89.6,
+          "setOn": "2026-11-05",
+          "why": "Weekly run at c1e0ba5f54 measured 89.67%, above the 88.4% floor; the floor follows it up."
         }
       ],
       "observations": [
@@ -312,6 +392,16 @@
           "survived": 917,
           "noCoverage": 0,
           "minutes": 18.25
+        },
+        {
+          "date": "2026-11-05",
+          "commit": "c1e0ba5f54",
+          "score": 89.67,
+          "killed": 2577,
+          "timeout": 70,
+          "survived": 305,
+          "noCoverage": 0,
+          "minutes": 66.32
         }
       ]
     },
@@ -345,6 +435,16 @@
           "survived": 0,
           "noCoverage": 0,
           "minutes": 7.84
+        },
+        {
+          "date": "2026-11-05",
+          "commit": "c1e0ba5f54",
+          "score": 99.84,
+          "killed": 1822,
+          "timeout": 20,
+          "survived": 0,
+          "noCoverage": 3,
+          "minutes": 34.31
         }
       ]
     },
@@ -394,6 +494,16 @@
           "survived": 218,
           "noCoverage": 7,
           "minutes": 0.5
+        },
+        {
+          "date": "2026-11-05",
+          "commit": "c1e0ba5f54",
+          "score": 84.41,
+          "killed": 1215,
+          "timeout": 3,
+          "survived": 218,
+          "noCoverage": 7,
+          "minutes": 0.76
         }
       ]
     },
@@ -462,12 +572,22 @@
           "survived": 153,
           "noCoverage": 1,
           "minutes": 36.88
+        },
+        {
+          "date": "2026-11-05",
+          "commit": "c1e0ba5f54",
+          "score": 93.11,
+          "killed": 2076,
+          "timeout": 6,
+          "survived": 153,
+          "noCoverage": 1,
+          "minutes": 13.61
         }
       ]
     },
     "seniority": {
       "status": "measured",
-      "floor": 90.7,
+      "floor": 90.8,
       "history": [
         {
           "floor": 91,
@@ -479,6 +599,11 @@
           "setOn": "2026-11-01",
           "why": "oxmutate 1.1.0 added NumericLiteral; the 2026-10-31 run at bd98f43aae measured 90.71% with it, below the 91% floor set without it. Restated to that run, rounded down to one decimal.",
           "decision": "D-20261101-mutation-floors-numericliteral-restate"
+        },
+        {
+          "floor": 90.8,
+          "setOn": "2026-11-05",
+          "why": "Weekly run at c1e0ba5f54 measured 90.84%, above the 90.7% floor; the floor follows it up."
         }
       ],
       "observations": [
@@ -501,6 +626,16 @@
           "survived": 482,
           "noCoverage": 0,
           "minutes": 17.2
+        },
+        {
+          "date": "2026-11-05",
+          "commit": "c1e0ba5f54",
+          "score": 90.84,
+          "killed": 4589,
+          "timeout": 120,
+          "survived": 475,
+          "noCoverage": 0,
+          "minutes": 18.96
         }
       ]
     }
