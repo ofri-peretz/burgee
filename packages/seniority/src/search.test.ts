@@ -100,7 +100,7 @@ describe('symlinks (R5)', () => {
     const visited: string[] = [];
     search(['never'], {
       cwd: '/x/y/z',
-      realpath: (path) => (path === '/x/y' ? '/x/y/z' : path),
+      realpath: (path) => (path === resolve('/x/y') ? resolve('/x/y/z') : path),
       exists: (path) => {
         visited.push(resolve(path, '..'));
         return false;

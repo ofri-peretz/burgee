@@ -295,7 +295,8 @@ describe('rc with no process, and a file it cannot read', () => {
   });
 
 
-  const PLACES = [`/etc/${NAME}/config`, `/etc/${NAME}rc`, `/v/home/.config/${NAME}/config`, `/v/home/.config/${NAME}`, `/v/home/.${NAME}/config`, `/v/home/.${NAME}rc`, `/v/project/.${NAME}rc`];
+  // Joined as rc.ts joins them, so the mocked disk is keyed the way each OS spells the path.
+  const PLACES = [join('/etc', NAME, 'config'), join('/etc', `${NAME}rc`), join('/v/home', '.config', NAME, 'config'), join('/v/home', '.config', NAME), join('/v/home', `.${NAME}`, 'config'), join('/v/home', `.${NAME}rc`), join('/v/project', `.${NAME}rc`)];
   /** Every place, each naming itself, so the last one read wins `last` and each leaves its own key. */
   const everywhere = Object.fromEntries(PLACES.map((place, i) => [place, JSON.stringify({ last: place, [`k${String(i)}`]: true })]));
 
