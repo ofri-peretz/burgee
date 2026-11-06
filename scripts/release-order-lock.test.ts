@@ -276,7 +276,11 @@ const names = (ids: string[]) => ids.map((id) => id.slice(0, id.lastIndexOf('@')
 const executes = it.skipIf(process.platform === 'win32');
 const realPlan = plan(workspace);
 
-describe('the publish loop, executed', () => {
+// Each case writes a fake workspace and runs the real step through bash and jq shims, hundreds of
+// spawns. Alone a case takes under a second; inside the pre-push battery, beside the
+// mutation-changed lane, the spawn took ~60 s and failed the 30 s default on 2026-11-06 in most
+// pushes. Sized to the work, as vitest-timeouts.config.ts sizes the rest.
+describe('the publish loop, executed', { timeout: 120_000 }, () => {
   executes('publishes the whole plan, every package after its dependencies', () => {
     const r = runLoop(realPlan);
     expect(r.status, r.output).toBe(0);
