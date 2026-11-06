@@ -1,0 +1,144 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Harbour API (synthetic eval fixture)",
+    "version": "1.0.0",
+    "description": "Invented for charterparty's agent evals so no model has seen it. Names, units and shapes are deliberately unconventional: an agent can only get them right by reading the contract."
+  },
+  "paths": {
+    "/ports/{portLocode}/berths": {
+      "parameters": [{ "$ref": "#/components/parameters/PortLocode" }],
+      "get": {
+        "operationId": "listBerths",
+        "responses": {
+          "200": {
+            "description": "Berths in the port",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Berth" } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ports/{portLocode}/berths/{berthCode}/allocations/{voyageRef}": {
+      "parameters": [
+        { "$ref": "#/components/parameters/PortLocode" },
+        { "name": "berthCode", "in": "path", "required": true, "schema": { "type": "string" } },
+        { "$ref": "#/components/parameters/VoyageRef" }
+      ],
+      "put": {
+        "operationId": "allocateBerth",
+        "summary": "Hold or confirm a berth for a voyage. Idempotent per voyage.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/AllocationRequest" } }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Allocation recorded",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Allocation" } } }
+          },
+          "409": { "description": "Berth already held for another voyage" }
+        }
+      },
+      "delete": {
+        "operationId": "releaseBerth",
+        "responses": { "204": { "description": "Released" } }
+      }
+    },
+    "/voyages/{voyageRef}/manifest": {
+      "parameters": [{ "$ref": "#/components/parameters/VoyageRef" }],
+      "get": {
+        "operationId": "getManifest",
+        "responses": {
+          "200": {
+            "description": "The voyage's cargo manifest",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Manifest" } } }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "PortLocode": {
+        "name": "portLocode",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string", "pattern": "^[A-Z]{5}$" }
+      },
+      "VoyageRef": {
+        "name": "voyageRef",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string" }
+      }
+    },
+    "schemas": {
+      "Berth": {
+        "type": "object",
+        "required": ["berthCode", "maxDraughtDm"],
+        "properties": {
+          "berthCode": { "type": "string" },
+          "maxDraughtDm": { "type": "integer", "description": "Maximum draught in decimetres" }
+        }
+      },
+      "AllocationRequest": {
+        "type": "object",
+        "required": ["vesselImo", "etaWindow", "draughtDm"],
+        "additionalProperties": false,
+        "properties": {
+          "vesselImo": { "type": "string", "pattern": "^IMO[0-9]{7}$" },
+          "etaWindow": {
+            "type": "object",
+            "required": ["opensAt", "closesAt"],
+            "additionalProperties": false,
+            "properties": {
+              "opensAt": { "type": "string", "format": "date-time" },
+              "closesAt": { "type": "string", "format": "date-time" }
+            }
+          },
+          "draughtDm": { "type": "integer", "description": "Arrival draught in decimetres (metres x 10)" }
+        }
+      },
+      "Allocation": {
+        "type": "object",
+        "required": ["allocationId", "state"],
+        "properties": {
+          "allocationId": { "type": "string" },
+          "state": { "type": "string", "enum": ["held", "confirmed", "released"] }
+        }
+      },
+      "Manifest": {
+        "type": "object",
+        "required": ["voyageRef", "cargoLines"],
+        "properties": {
+          "voyageRef": { "type": "string" },
+          "cargoLines": { "type": "array", "items": { "$ref": "#/components/schemas/CargoLine" } }
+        }
+      },
+      "CargoLine": {
+        "type": "object",
+        "required": ["hsCode", "grossKg"],
+        "properties": {
+          "hsCode": { "type": "string" },
+          "grossKg": { "type": "integer" },
+          "hazmat": { "$ref": "#/components/schemas/Hazmat" }
+        }
+      },
+      "Hazmat": {
+        "type": "object",
+        "description": "Present only for dangerous goods.",
+        "required": ["unNumber", "packingGroup"],
+        "properties": {
+          "unNumber": { "type": "string", "pattern": "^UN[0-9]{4}$" },
+          "packingGroup": { "type": "string", "enum": ["I", "II", "III"], "description": "I is the most dangerous" }
+        }
+      }
+    }
+  }
+}

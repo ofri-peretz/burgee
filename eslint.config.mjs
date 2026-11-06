@@ -593,6 +593,17 @@ export default [
     rules: { "node-security/no-dynamic-command-string": "off" },
   },
   {
+    // charterparty's eval checks import the module the agent just wrote, by path, to call it
+    // with a fake fetch: loading that file is the check. They are entry scripts run by a case's
+    // `shell` line, so they export nothing.
+    files: ["evals/fixtures/charterparty/check-*.mjs"],
+    rules: {
+      "node-security/no-unsafe-dynamic-require": "off",
+      "node-security/no-dynamic-dependency-loading": "off",
+      "import-next/no-unused-modules": "off",
+    },
+  },
+  {
     // The published numbers *are* the content of this file: 52 KB, 1,360 commander
     // cases, 804 yargs. Naming each one a constant would put the number one line
     // further from the claim it settles, which is the opposite of the point.

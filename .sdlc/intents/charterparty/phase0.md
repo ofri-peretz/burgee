@@ -10,7 +10,7 @@ Roadmap: [`roadmap.md`](./roadmap.md). Each row is a dated reading with the comm
 | Upstream offer on openapi-typescript#2841 | ⏸ pending owner approval | Public post; wording not yet drafted |
 | Competitor state | ✅ 2026-11-06 (first pass) | Table below |
 | hey-api plugin for openapi-typescript | ✅ 2026-11-06, none yet | No `openapi-typescript` mention in the last 30 hey-api/openapi-ts GitHub releases |
-| Baseline eval, arm without the tool | ⬜ | `evals/` task set not written |
+| Baseline eval, arm without the tool | 🔨 cases written, not run | `charterparty-baseline-allocate` and `-manifest` on a synthetic spec ([below](#baseline-eval-cases-2026-11-06)); a reading needs a weekly `evals.yml` run with a credential |
 | `TBM` bench readings | 🔨 G2–G5 and A1 read | [`gen`](#gen-baseline-openapi-typescript-2026-11-06), [A1](#a1-baseline-raw-operation-bytes-2026-11-06). Open: G6, D1–D4 (oasdiff), R1–R3 (ajv) |
 | `compat.qnt` draft | ✅ 2026-11-06 | `safety` holds; `fullChains` violated as expected and gated in `models.yml` |
 
@@ -70,3 +70,20 @@ The median is small; the tail is the problem. One operation in ten costs an agen
 and the largest costs 460 KB. So A1 is judged at p90 as well as p50: `explain` meets ≤ 1 KB at p50
 and ≤ 30% of 35,762 B at p90, which means it has to summarise large schemas (depth limit, `--expand
 <pointer>`), not only inline them.
+
+## Baseline eval cases, 2026-11-06
+
+Two cases under `evals/cases/`, on `evals/fixtures/charterparty/harbour.openapi.json`, an API invented
+for this so no model knows it from training (agents know GitHub's API by heart, which would measure
+memory, not contract reading). Each check was run both ways before commit:
+
+| Check | Correct module | Plausible wrong module | Result |
+| :-- | :-- | :-- | :-- |
+| `check-allocate.mjs` | exit 0 | `POST` instead of `PUT` | exit 1, `method POST, contract says PUT` |
+| `check-allocate.mjs` | — | `draught` in metres instead of `draughtDm` | exit 1, body mismatch |
+| `check-manifest.mjs` | exit 0 | invented `dangerousGoods` field | exit 1, `returned []` |
+| `check-manifest.mjs` | — | packing group `III` read as most dangerous | exit 1, `returned []` |
+
+The reading (A5 invented calls, A6 tokens, A7 success) comes from the next `evals.yml` run with a
+credential, which records turns and tokens per case in `evals/history/`. The arm with the tool reuses
+the same cases with `charterparty explain` allowed.
