@@ -12,10 +12,11 @@
 > The colleague's "19x on dayjs" figure is unverified and second-hand. Stage 0 measures it on our
 > own fixture before anyone repeats it.
 
-**Status:** approved · **Opened:** `2026-10-25` · **Owner:** `@ofri-peretz` · **Design accepted:** 2026-10-28
-([`D-20261028-oxmutate-design-accepted`](../../decisions/D-20261028-oxmutate-design-accepted.md)).
-1.0.0 is on npm. It is not `shipped`: criteria in the design-gate table below are open, see
-[§ Design gate 2026-10-28](#design-gate-2026-10-28)
+**Status:** shipped · **Opened:** `2026-10-25` · **Owner:** `@ofri-peretz` · **Design accepted:** 2026-10-28
+([`D-20261028-oxmutate-design-accepted`](../../decisions/D-20261028-oxmutate-design-accepted.md)) · **Shipped:** 2026-11-06,
+by the owner's ruling in [`D-20261106-oxmutate-ships-measurements-continue`](../../decisions/D-20261106-oxmutate-ships-measurements-continue.md): built, on npm (1.5.0), and run over every package (2026-11-05).
+The measurement criteria in the design-gate table keep their readings; the weekly scheduled run
+takes the next ones, and none gates this intent.
 
 ---
 

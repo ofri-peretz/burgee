@@ -160,6 +160,8 @@ interface ChildRecord {
   tests?: (TestInfo & { state: string })[];
   coverage?: { static: Record<string, number>; perTest: Record<string, Record<string, number>> };
   fileErrors?: { file: string; error: string }[];
+  /** `dry`: unhandled rejections and uncaught errors the unmutated suite raised (runner.ts). */
+  unhandled?: number;
   /** `dry`: test files whose tests run once per collection (runner.ts `runOnce`). */
   runOnce?: string[];
 }
@@ -362,6 +364,9 @@ export async function run(options: Options): Promise<RunResult> {
       if (fileErrors.length) {
         throw new InstrumentFault(`${String(fileErrors.length)} test file(s) failed to load during the dry run, so their tests would be missing from every verdict: ${fileErrors.slice(0, 3).map((e) => `${path.relative(root, e.file)}: ${e.error}`).join('; ')}`);
       }
+      // A mutant that raises one is Killed (runner.ts), so a suite that raises one unmutated would kill every mutant it covers.
+      const unhandled = recs.reduce((n, r) => n + (r.unhandled ?? 0), 0);
+      if (unhandled > 0) throw new InstrumentFault(`the suite raised ${String(unhandled)} unhandled error(s) with no mutant active, so no verdict can be trusted. fix: make \`vitest run\` pass with no "Unhandled Errors" first`);
       return { tests: recs.flatMap((r) => r.tests ?? []), perTest, static: stat, runOnce: recs.flatMap((r) => r.runOnce ?? []), modules: Object.assign({}, ...recs.map((r) => r.modules ?? {})) as Record<string, string[]> };
     };
     progress.phase('dry run');

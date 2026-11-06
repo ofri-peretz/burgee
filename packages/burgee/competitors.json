@@ -7,7 +7,7 @@
       "seen": {
         "version": "15.0.0",
         "weight": 126702,
-        "measured": "2026-10-06",
+        "measured": "2026-11-06",
         "cited": [
           "packages/burgee/README.md"
         ],
@@ -183,7 +183,7 @@
       "seen": {
         "version": "18.2.0",
         "weight": 367924,
-        "measured": "2026-11-01",
+        "measured": "2026-11-06",
         "cited": [
           "packages/burgee/README.md"
         ],
@@ -288,7 +288,7 @@
           "PackageJson",
           "default"
         ],
-        "measured": "2026-10-26"
+        "measured": "2026-11-06"
       }
     }
   ]

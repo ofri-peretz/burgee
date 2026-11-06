@@ -135,6 +135,22 @@ if (mode === 'isolated' && env['OXMUTATE_HIT_LIMIT']) {
 /** Did the armed mutant's switch pass its limit, i.e. was this run stopped as a runaway? */
 const ranAway = (): boolean => ns.hitCount !== undefined && ns.hitLimit !== undefined && ns.hitCount > ns.hitLimit;
 
+// ── Unhandled errors ──────────────────────────────────────────────────────────────────────────
+// Vitest fails a run that raised an unhandled rejection or an uncaught error even when every test
+// passed, so a mutant that causes one is detected. Uncounted, they were Survived: two caique
+// mutants left `undefined` where a later callback read it, and Stryker detected both
+// (sc8-profile.md, 2026-11-06). Vitest's worker keeps its own listeners; these only count.
+let unhandled = 0;
+process.on('unhandledRejection', () => void unhandled++);
+process.on('uncaughtException', () => void unhandled++);
+/** Taken before any test runs: `vi.useFakeTimers()` replaces the global, and a frozen one never fires. */
+const realSetImmediate = globalThis.setImmediate;
+/**
+ * One macrotask, so a rejection the run left without a handler is reported before its verdict is
+ * read. ponytail: one rejected from a later timer is missed; widen the wait if one ever matters.
+ */
+const settle = (): Promise<void> => new Promise((resolve) => realSetImmediate(resolve));
+
 // ── Deadlocks (quiescence.ts) ─────────────────────────────────────────────────────────────────
 /** Every mode but the dry run, whose hangs are the suite's own and fail it. */
 const deadlocks = mode === 'dry' ? undefined : watch();
@@ -511,9 +527,12 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
       ns.hitLimit = plan.hitLimits[id] ?? Number.MAX_SAFE_INTEGER;
       let status: 'Killed' | 'Survived' | 'Timeout' = 'Survived';
       let deadlock = false;
+      const before = unhandled;
       try {
         await setup();
         await guarded(current.id, run);
+        await settle();
+        if (unhandled > before) status = 'Killed';
       } catch (e) {
         deadlock = isDeadlock(e);
         status = isHitLimit(e) || deadlock ? 'Timeout' : 'Killed';
@@ -643,10 +662,13 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
       ns.hitCount = armed ? 0 : undefined;
       ns.hitLimit = armed ? (staticLimits[armed] ?? Number.MAX_SAFE_INTEGER) : undefined;
       deadlocked = false;
+      const before = unhandled;
       try {
         vi.resetModules();
         const [file] = await collectTests([filepath], this);
         const result = file ? await runCollected(file, runnable) : { failed: [filepath], ran: 0 };
+        await settle();
+        if (unhandled > before && result.failed.length === 0) result.failed.push(filepath);
         return { ...result, timeout: ranAway() || deadlocked, ...(deadlocked ? { deadlock: true } : {}) };
       } finally {
         ns.activeMutant = undefined;
@@ -739,7 +761,8 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
     await super.onBeforeTryTask?.(test, { retry: attempt, repeats: 0 });
   }
 
-  onAfterRunFiles(files: AnyTask[]): unknown {
+  async onAfterRunFiles(files: AnyTask[]): Promise<unknown> {
+    await settle();
     if (mode === 'dry') {
       const tests: { id: string; file: string; name: string; state: string; ms: number }[] = [];
       const visit = (t: AnyTask, file: string): void => {
@@ -754,7 +777,7 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
         const result = f.result as { state?: string; errors?: { message?: string }[] } | undefined;
         if (result?.state === 'fail' && !f.tasks?.length) fileErrors.push({ file: filepath, error: (result.errors?.[0]?.message ?? 'failed to collect').slice(0, FILE_ERROR_CHARS) });
       }
-      emit({ type: 'dry', tests, coverage: ns.mutantCoverage, fileErrors, runOnce: [...runOnce], modules: Object.fromEntries(dryModules) });
+      emit({ type: 'dry', tests, coverage: ns.mutantCoverage, fileErrors, runOnce: [...runOnce], modules: Object.fromEntries(dryModules), unhandled });
     } else if (mode === 'isolated') {
       const failed: string[] = [];
       let ran = 0;
@@ -769,6 +792,8 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
         // the mutant: a kill, as Stryker scores it. Its id stands in for the test that failed.
         if (f.result?.state === 'fail' && !failed.length) failed.push(f.id);
       }
+      const [first] = files;
+      if (unhandled > 0 && !failed.length && first) failed.push(first.id);
       const timeout = ranAway() || deadlocked;
       emit({ type: 'isolated', id: env[ACTIVE_MUTANT_ENV] ?? ns.activeMutant, killed: failed.length > 0 && !timeout, failed, ran, ...(timeout && { timeout }), ...(deadlocked && { deadlock: true }) });
     }
