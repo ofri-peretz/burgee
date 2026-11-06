@@ -7,7 +7,7 @@
       "seen": {
         "version": "10.0.0",
         "weight": 128182,
-        "measured": "2026-11-01",
+        "measured": "2026-11-06",
         "cited": [
           "packages/flagstaff/src/weight.test.ts",
           "packages/flagstaff/README.md"
@@ -45,7 +45,7 @@
       "seen": {
         "version": "3.4.0",
         "weight": 27841,
-        "measured": "2026-11-01",
+        "measured": "2026-11-06",
         "cited": [
           "packages/flagstaff/src/weight.test.ts"
         ],
@@ -76,7 +76,7 @@
       "seen": {
         "version": "6.0.1",
         "weight": 21568,
-        "measured": "2026-11-01",
+        "measured": "2026-11-06",
         "cited": [
           "packages/flagstaff/src/weight.test.ts",
           "packages/flagstaff/README.md"
@@ -145,7 +145,7 @@
       "seen": {
         "version": "4.1.0",
         "weight": 21983,
-        "measured": "2026-11-01",
+        "measured": "2026-11-06",
         "cited": [
           "packages/flagstaff/src/weight.test.ts"
         ],
@@ -204,7 +204,7 @@
       "seen": {
         "version": "8.3.0",
         "weight": 6447,
-        "measured": "2026-11-01",
+        "measured": "2026-11-06",
         "cited": [
           "packages/flagstaff/src/weight.test.ts",
           "packages/flagstaff/src/width.test.ts"
@@ -233,7 +233,7 @@
       "seen": {
         "version": "1.7.0",
         "weight": 8917,
-        "measured": "2026-11-01",
+        "measured": "2026-11-06",
         "cited": [
           "packages/flagstaff/src/weight.test.ts"
         ],
@@ -289,7 +289,7 @@
       "seen": {
         "version": "2.2.0",
         "weight": 4466,
-        "measured": "2026-11-01",
+        "measured": "2026-11-06",
         "cited": [
           "packages/flagstaff/src/weight.test.ts"
         ],
@@ -379,7 +379,7 @@
       "seen": {
         "version": "5.0.1",
         "weight": 3038,
-        "measured": "2026-11-01",
+        "measured": "2026-11-06",
         "cited": [
           "packages/flagstaff/src/weight.test.ts"
         ],
@@ -408,7 +408,7 @@
       "seen": {
         "version": "8.0.0",
         "weight": 114295,
-        "measured": "2026-11-01",
+        "measured": "2026-11-06",
         "cited": [
           "packages/flagstaff/src/weight.test.ts",
           "packages/flagstaff/README.md"
@@ -439,7 +439,7 @@
       "seen": {
         "version": "10.0.2",
         "weight": 20370,
-        "measured": "2026-10-06",
+        "measured": "2026-11-06",
         "cited": [
           "packages/flagstaff/src/weight.test.ts"
         ],
@@ -467,7 +467,7 @@
       "seen": {
         "version": "9.0.1",
         "weight": 26813,
-        "measured": "2026-10-06",
+        "measured": "2026-11-06",
         "cited": [
           "packages/flagstaff/src/weight.test.ts"
         ],
@@ -549,7 +549,7 @@
           "setCwd",
           "synchronizedOutput"
         ],
-        "measured": "2026-10-26"
+        "measured": "2026-11-06"
       }
     }
   ],
@@ -579,7 +579,7 @@
           "_borderStyles",
           "default"
         ],
-        "measured": "2026-11-01"
+        "measured": "2026-11-06"
       }
     }
   ],
@@ -610,7 +610,7 @@
           "CliTable3",
           "default"
         ],
-        "measured": "2026-10-06"
+        "measured": "2026-11-06"
       }
     }
   ],
@@ -639,7 +639,7 @@
           "default",
           "randomSpinner"
         ],
-        "measured": "2026-10-06"
+        "measured": "2026-11-06"
       }
     },
     {
@@ -665,7 +665,7 @@
           "Boxes",
           "default"
         ],
-        "measured": "2026-10-06"
+        "measured": "2026-11-06"
       }
     }
   ],
@@ -676,7 +676,7 @@
       "seen": {
         "version": "9.0.0",
         "weight": 115780,
-        "measured": "2026-11-01",
+        "measured": "2026-11-06",
         "cited": [
           "packages/flagstaff/src/weight.test.ts",
           "packages/flagstaff/README.md"
@@ -712,7 +712,7 @@
         "version": "0.6.5",
         "shasum": "013b91351762739c16a9567c21a04632e449bf2f",
         "weight": 105983,
-        "measured": "2026-10-06",
+        "measured": "2026-11-06",
         "cited": [
           "packages/flagstaff/src/weight.test.ts",
           "packages/flagstaff/README.md"

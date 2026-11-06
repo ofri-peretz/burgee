@@ -85,7 +85,7 @@
           "unicodeOr",
           "updateSettings"
         ],
-        "measured": "2026-10-06"
+        "measured": "2026-11-06"
       }
     },
     {
@@ -146,7 +146,7 @@
           "isObservableLike",
           "observableToAsyncIterable"
         ],
-        "measured": "2026-10-27"
+        "measured": "2026-11-06"
       }
     }
   ],
@@ -154,7 +154,89 @@
     {
       "package": "clack",
       "claim": "weight",
-      "seen": null
+      "seen": {
+        "registry": "@clack/prompts",
+        "version": "1.8.1",
+        "shasum": "39a134cae495843904b57cc1e8300ead81ae7830",
+        "weight": 101684,
+        "self": 50896,
+        "packages": 6,
+        "files": {
+          "dist/index.d.mts": "c5d7fefbd6e4d634c239ff0f60e2dbac2fe4f6e6da66e208268884dff74a4729",
+          "dist/index.mjs": "1b024b83b4b4c1d5540fb129e7169c7471bb82bc85e9160e84072ceda85cbef9",
+          "LICENSE": "3e873d2aba8b76bcbe151ba558506ca6bfa8437db9323fa87086c5a7fcf10f42",
+          "package.json": "66ba5b8f6a2808384e2807d46b909aa27d8bc17d6e0fb354e72e3680a6a8b3be",
+          "README.md": "b7e91131cf29a58120b99f6671b35083c45ae36b9fd373d1b08f641130659335"
+        },
+        "exports": [
+          "CANCEL_SYMBOL",
+          "ClackSettings",
+          "DateFormat",
+          "MULTISELECT_INSTRUCTIONS",
+          "SELECT_INSTRUCTIONS",
+          "S_BAR",
+          "S_BAR_END",
+          "S_BAR_END_RIGHT",
+          "S_BAR_H",
+          "S_BAR_START",
+          "S_BAR_START_RIGHT",
+          "S_CHECKBOX_ACTIVE",
+          "S_CHECKBOX_INACTIVE",
+          "S_CHECKBOX_SELECTED",
+          "S_CONNECT_LEFT",
+          "S_CORNER_BOTTOM_LEFT",
+          "S_CORNER_BOTTOM_RIGHT",
+          "S_CORNER_TOP_LEFT",
+          "S_CORNER_TOP_RIGHT",
+          "S_ERROR",
+          "S_INFO",
+          "S_PASSWORD_MASK",
+          "S_RADIO_ACTIVE",
+          "S_RADIO_INACTIVE",
+          "S_STEP_ACTIVE",
+          "S_STEP_CANCEL",
+          "S_STEP_ERROR",
+          "S_STEP_SUBMIT",
+          "S_SUCCESS",
+          "S_WARN",
+          "autocomplete",
+          "autocompleteMultiselect",
+          "box",
+          "cancel",
+          "confirm",
+          "date",
+          "formatInstructionFooter",
+          "group",
+          "groupMultiselect",
+          "intro",
+          "isCI",
+          "isCancel",
+          "isTTY",
+          "limitOptions",
+          "log",
+          "multiline",
+          "multiselect",
+          "note",
+          "outro",
+          "password",
+          "path",
+          "progress",
+          "select",
+          "selectKey",
+          "settings",
+          "spinner",
+          "stream",
+          "symbol",
+          "symbolBar",
+          "taskLog",
+          "tasks",
+          "text",
+          "unicode",
+          "unicodeOr",
+          "updateSettings"
+        ],
+        "measured": "2026-11-06"
+      }
     }
   ],
   "./inquirer": [
@@ -247,7 +329,7 @@
           "withPointer",
           "withUpdates"
         ],
-        "measured": "2026-10-28"
+        "measured": "2026-11-06"
       }
     }
   ],
@@ -283,7 +365,7 @@
           "search",
           "select"
         ],
-        "measured": "2026-10-28"
+        "measured": "2026-11-06"
       }
     }
   ]

@@ -8,9 +8,9 @@
         "registry": "@stryker-mutator/core",
         "version": "10.1.1",
         "shasum": "a383305dd719c7a29456c886149826a323100459",
-        "weight": 14817513,
+        "weight": 15734820,
         "self": 381300,
-        "packages": 169,
+        "packages": 173,
         "files": {
           "bin/stryker": "baac71f17a00b90e94b8d96a881060d8afb23249a0e9324ae4b4699200a15468",
           "bin/stryker.js": "68ff1362368a0cf3d26c4b76955667dff7bf08baffc68d2ffd9bdd0cf6dbbd89",
@@ -668,7 +668,7 @@
           "WorkerMessageKind",
           "createCheckerFactory"
         ],
-        "measured": "2026-10-27"
+        "measured": "2026-11-06"
       }
     }
   ]
