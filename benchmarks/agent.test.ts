@@ -15,7 +15,8 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { AGENT_ENV_RULE, agentEnv, armRecords, type Attempt, blockers, classifyFailure, installTool, ISOLATION, isPosix, MCP_ARM_OPT_IN, type McpConfig, mcpConfig, MODALITIES, nothingCameBack, OUTPUT_FORMAT, parseClaudeJson, perTaskDetail, POSIX_ONLY, PRINT_CONFIG_TIMEOUT_MS, priorReadings, probeServer, type Reading, READINGS_METRIC, readTasks, redact, resultObject, run, runOne, serverStatus, STORED_LOGIN_OPT_IN, storedLogin, summariseFailures, type Task, tasksFor, totalRecords, type Variant, VARIANTS, variantsFor, writeMcpConfig } from './axes/agent.js';
+import { AGENT_ENV_RULE, agentEnv, armRecords, type Attempt, blockers, classifyFailure, installTool, ISOLATION, isPosix, MCP_ARM_OPT_IN, type McpConfig, mcpConfig, MODALITIES, nothingCameBack, OUTPUT_FORMAT, parseClaudeJson, perTaskDetail, POSIX_ONLY, PRINT_CONFIG_TIMEOUT_MS, priorReadings, probeServer, type Reading, READINGS_METRIC, readTasks, redact, resultObject, run, runOne, serverStatus, STORED_LOGIN_OPT_IN, storedLogin, summariseFailures, type Task, tasksFor, toolArgs, totalRecords, type Variant, VARIANTS, variantsFor, writeMcpConfig } from './axes/agent.js';
+import { allows } from './axes/bash-guard.js';
 import { SUITE } from './bands.js';
 import { CLAIMS } from './claims.js';
 import { buildDocument, type ResultsDoc } from './emit.js';
@@ -187,6 +188,73 @@ describe.skipIf(!isPosix())('isolation from the machine it runs on', () => {
     expect(argv).toContain(ISOLATION.join(' '));
     expect(argv).toContain('--setting-sources project,local');
     expect(argv).toContain(OUTPUT_FORMAT.join(' '));
+  });
+});
+
+/**
+ * D-20261101-b1-tool-isolation. `--allowedTools` only pre-approves. On `claude` 2.1.286 the Read
+ * tool and every read-only Bash command (`ls`, `cat`, `grep`, `find` and 32 more) still ran in
+ * `claude -p` beside it: 11 of the oxmutate arm's first 20 transcripts (2026-11-01) read the
+ * config that way, so the CLI's own output was not the only channel. The spawn now leaves Bash
+ * as the only built-in tool and hands `claude` a PreToolUse hook that refuses every Bash call
+ * that is not the tool under test.
+ */
+const BLOCKED = 2;
+const BASH_GUARD = join(import.meta.dirname, 'axes', 'bash-guard.ts');
+const bashCall = (command: string): string => JSON.stringify({ tool_name: 'Bash', tool_input: { command } });
+
+/** The Bash hook in the `--settings` file the spawn was handed. */
+function hookOf(argv: string[]): string {
+  const file = argv[argv.indexOf('--settings') + 1] ?? '';
+  const settings = JSON.parse(readFileSync(file, 'utf8')) as { hooks: { PreToolUse: { matcher: string; hooks: { command: string }[] }[] } };
+  const [entry] = settings.hooks.PreToolUse;
+  expect(entry?.matcher).toBe('Bash');
+  return entry?.hooks[0]?.command ?? '';
+}
+
+/** The guard's exit status for one hook input, as `claude` runs it: 0 lets the call run, 2 refuses it. */
+const verdict = (input: string, commands: readonly string[] = ['demo']): number | null => spawnSync(process.execPath, [BASH_GUARD, ...commands], { input }).status;
+
+describe.skipIf(!isPosix())('the agent reaches the build through the tool and nothing else', () => {
+  it('leaves Bash the only built-in tool on the CLI arms, and hands claude the guard on `demo`', () => {
+    const { bin, argv } = argvClaude();
+    attempt(bin);
+    const a = argv();
+    expect(a[a.indexOf('--tools') + 1]).toBe('Bash');
+    expect(a[a.indexOf('--allowedTools') + 1]).toBe('Bash(demo:*)');
+    expect(hookOf(a)).toBe(`"${process.execPath}" "${BASH_GUARD}" "demo"`);
+  });
+
+  it('runs `demo` and refuses what the 2026-11-01 transcripts read the config with', () => {
+    for (const ok of ['demo', 'demo config get user.name', 'demo fail --code 0', 'demo fail 2>&1']) expect(allows(bashCall(ok), ['demo']), ok).toBe(true);
+    const reads = ['ls -la', 'cat oxmutate.config.json', 'find . -name "*.json"', 'grep -r name .', 'demox --help', 'demo greet && cat package.json', 'demo greet; ls', 'demo $(cat x)', 'demo `cat x`', 'demo greet | head', 'demo greet > out', 'demo greet < in', 'demo greet *', 'demo greet\ncat x'];
+    for (const read of reads) expect(allows(bashCall(read), ['demo']), read).toBe(false);
+  });
+
+  it('exits 0 on the tool and 2 on anything else, including a call it cannot read', () => {
+    expect(verdict(bashCall('demo greet'))).toBe(0);
+    expect(verdict(bashCall('ls -la'))).toBe(BLOCKED);
+    expect(verdict('not json')).toBe(BLOCKED);
+  });
+
+  // The oxmutate arm also allows `npx oxmutate` (D-20261101-b1-oxmutate-arm), so its guard names both.
+  it('lets each command `--allowedTools` allows through the guard, and nothing else', () => {
+    const a = toolArgs('cli', undefined, 'oxmutate', ['Bash(npx oxmutate:*)']);
+    expect(hookOf(a)).toBe(`"${process.execPath}" "${BASH_GUARD}" "oxmutate" "npx oxmutate"`);
+    const commands = ['oxmutate', 'npx oxmutate'];
+    expect(verdict(bashCall('oxmutate run'), commands)).toBe(0);
+    expect(verdict(bashCall('npx oxmutate run --json'), commands)).toBe(0);
+    expect(verdict(bashCall('cat oxmutate.config.json'), commands)).toBe(BLOCKED);
+    expect(verdict(bashCall('npx vitest run'), commands)).toBe(BLOCKED);
+  });
+
+  it('gives the MCP arm no built-in tool at all', () => {
+    const { bin, argv } = argvClaude();
+    const toolDir = installTool(stubMcpBin());
+    runOne({ claudeBin: bin, task: MCP_TASK, toolDir, workdir: scratchDir('bench-work-'), model: 'm', timeoutMs: 30_000, modality: 'mcp', mcp: writeMcpConfig(toolDir) });
+    const a = argv();
+    expect(a.indexOf('--tools')).toBeGreaterThan(-1);
+    expect(a[a.indexOf('--tools') + 1]).toBe('');
   });
 });
 
@@ -636,16 +704,18 @@ function handshake(server: { command: string; args?: string[] }): unknown[] {
 const INIT_CONNECTED = `case "$*" in *--mcp-config*) echo '{"type":"system","subtype":"init","mcp_servers":[{"name":"demo","status":"connected"}]}';; esac\n`;
 
 /** A `claude` that answers with its argv, and copies the `--mcp-config` file it was handed beside it. */
-function argvClaude(): { bin: string; seen: string } {
+function argvClaude(): { bin: string; seen: string; argv: () => string[] } {
   const dir = scratchDir('stub-claude-mcp-');
   const bin = join(dir, 'claude');
   const seen = join(dir, 'mcp-config-seen.json');
+  const argvFile = join(dir, 'argv');
   writeFileSync(
     bin,
-    `#!/bin/sh\nif [ "$1" = --version ]; then echo '9.9.9 (Claude Code)'; exit 0; fi\n${INIT_CONNECTED}prev=''\nfor a in "$@"; do if [ "$prev" = --mcp-config ]; then cp "$a" "${seen}"; fi; prev="$a"; done\nprintf '{"type":"result","is_error":false,"num_turns":2,"usage":{"input_tokens":500,"output_tokens":100},"result":"ada %s"}' "$*"\n`,
+    `#!/bin/sh\nif [ "$1" = --version ]; then echo '9.9.9 (Claude Code)'; exit 0; fi\nprintf '%s\\n' "$@" > "${argvFile}"\n${INIT_CONNECTED}prev=''\nfor a in "$@"; do if [ "$prev" = --mcp-config ]; then cp "$a" "${seen}"; fi; prev="$a"; done\nprintf '{"type":"result","is_error":false,"num_turns":2,"usage":{"input_tokens":500,"output_tokens":100},"result":"ada %s"}' "$*"\n`,
   );
   chmodSync(bin, EXECUTABLE);
-  return { bin, seen };
+  // One argument a line, as spawned: an empty argument is an empty line.
+  return { bin, seen, argv: () => readFileSync(argvFile, 'utf8').slice(0, -1).split('\n') };
 }
 
 const MCP_TASK: Task = { ...task, id: 'mapped', modalities: ['cli', 'mcp'] };

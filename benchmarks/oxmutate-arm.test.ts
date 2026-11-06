@@ -77,8 +77,8 @@ describe('the arm is declared beside the demo arms, and changes none of them', (
   it('installs the shim as `oxmutate` and allows Bash on it alone; the demo keeps `demo`', () => {
     expect(readdirSync(installTool('/bin/echo', 'oxmutate'))).toEqual(['oxmutate']);
     expect(readdirSync(installTool('/bin/echo'))).toEqual(['demo']);
-    expect(toolArgs('cli', undefined, 'oxmutate')).toEqual(['--allowedTools', 'Bash(oxmutate:*)']);
-    expect(toolArgs('cli')).toEqual(['--allowedTools', 'Bash(demo:*)']);
+    expect(toolArgs('cli', undefined, 'oxmutate')).toEqual(['--tools', 'Bash', '--allowedTools', 'Bash(oxmutate:*)', '--settings', expect.any(String)]);
+    expect(toolArgs('cli')).toEqual(['--tools', 'Bash', '--allowedTools', 'Bash(demo:*)', '--settings', expect.any(String)]);
   });
 });
 
@@ -106,12 +106,12 @@ describe.skipIf(!isPosix())('run({ arm: "oxmutate" })', () => {
   it('allows `npx oxmutate` beside the shim: in a project, that is how an agent runs it, and it is the same build', () => {
     expect(ARMS.oxmutate.variant.allow).toEqual(['Bash(npx oxmutate:*)']);
     expect(readlinkSync(join(REPO, 'node_modules', 'oxmutate'))).toBe('../packages/oxmutate');
-    expect(toolArgs('cli', undefined, 'oxmutate', ['Bash(npx oxmutate:*)'])).toEqual(['--allowedTools', 'Bash(oxmutate:*)', 'Bash(npx oxmutate:*)']);
+    expect(toolArgs('cli', undefined, 'oxmutate', ['Bash(npx oxmutate:*)'])).toEqual(['--tools', 'Bash', '--allowedTools', 'Bash(oxmutate:*)', 'Bash(npx oxmutate:*)', '--settings', expect.any(String)]);
   });
 
   it('spawns claude with Bash on `oxmutate` only, and records the arm alone, with no ratio', () => {
     const { bin } = argvClaude();
-    const records = recordsOf(run(armOptions(bin, { variants: [{ ...ARMS.oxmutate.variant, bin: stubOxmutate() }], tasks: [{ ...task, check: 'grep -q "Bash(oxmutate:\\*) Bash(npx oxmutate:\\*) --max-turns" "$BENCH_RESULT"' }] })));
+    const records = recordsOf(run(armOptions(bin, { variants: [{ ...ARMS.oxmutate.variant, bin: stubOxmutate() }], tasks: [{ ...task, check: 'grep -q -- "--tools Bash --allowedTools Bash(oxmutate:\\*) Bash(npx oxmutate:\\*) --settings " "$BENCH_RESULT"' }] })));
     expect(records.filter((r) => r.variant.includes('÷'))).toEqual([]);
     expect(new Set(records.map((r) => r.variant))).toEqual(new Set(['oxmutate']));
     const rate = records.find((r) => r.metric === 'success-rate');
