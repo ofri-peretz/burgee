@@ -153,6 +153,24 @@ names are chosen before the first publish ([`phase0.md`](./phase0.md)).
   a `fix:` line. Its shape is locked by a declaration test, like burgee's public surface.
 - **R-EX4.** A new protocol, emitter, reader or rule never needs a new purpose package and never needs
   a core change (the kill rule in [`roadmap.md`](./roadmap.md) applies).
+- **R-EX5. Anyone can build a plugin, and so do we.** Our own generators and technology extensions
+  (`apicontract-gen-ts`, `apicontract-zod`, `apicontract-nest`, `apicontract-mcp`, …) are plugins
+  written only against the public API, published the same way a third party would. Nothing ours
+  reaches an internal the public API does not expose; a lock fails the build if one does.
+- **R-EX6. One plugin object, the family's contract.** A plugin is the family's plain object
+  (`plugin-contract`): burgee reads its `commands` and `hooks`, apicontract reads `generators`,
+  `readers`, `detectors`, `adapters` and `rules`, and each host ignores keys it does not own, so one
+  plugin can extend the CLI and the model at once.
+- **R-EX7. Explicit loading.** Plugins load from the `plugins` list in the project's config file,
+  never by scanning `node_modules`: a plugin runs code in CI, so the repo names every one it trusts.
+  An unknown or failing plugin stops the run with a `fix:` line; it is never skipped silently.
+- **R-EX8. A kit for plugin authors.** `apicontract plugin new <name>` scaffolds a plugin with its
+  tests; `apicontract/testing` ships a conformance suite every plugin runs (generate → extract round
+  trip, regeneration touches no user lines, detect finds seeded violations), and our own plugins
+  pass the same suite.
+- **R-EX9. Findable.** Plugins are published as `apicontract-<tech>` (ours) or with the
+  `apicontract-plugin` keyword (anyone's); `apicontract plugin list` and `--mcp` show what is
+  loaded and which capabilities (generate, extract, detect) each one provides.
 
 **Technology extensions (R-TE).** One package per technology, each implementing any of three
 capabilities against the model:
