@@ -124,7 +124,9 @@ that workflow's `paths:` list.
 
 Owner direction 2026-11-07: **one package per purpose, as in the rest of the burgee family**,
 **everything that can be an extension is one**, and **code generators are extensions of the main
-CLI** (`apicontract gen nest`, `apicontract gen zod`, `apicontract gen ts`). Names are working names (`apicontract-*`); the final
+CLI** (`apicontract gen nest`, `apicontract gen zod`, `apicontract gen ts`). A technology extension
+does more than generate: it also reads the spec back out of that technology and finds the entry
+points that violate it, so `apicontract check` can gate CI (R-T). Names are working names (`apicontract-*`); the final
 names are chosen before the first publish ([`phase0.md`](./phase0.md)).
 
 | Package | Purpose | Extension points it hosts | Lands |
@@ -136,8 +138,8 @@ names are chosen before the first publish ([`phase0.md`](./phase0.md)).
 | `apicontract-check` | Call sites in code that disagree with the contract; native oxc core as oxmutate ships | Call-site matchers (HTTP, socket, MCP) | Phase 4 |
 | `apicontract` | The main CLI: one install, one `--mcp`, one `--skill` for agents. Owns `gen` (**spec → code**) and dispatches to whichever purpose packages are installed; a missing one fails with a `fix:` line naming the install | **Code generators** (emitters) | Phase 1 |
 | `apicontract-gen-ts` | Generator extension of the main CLI: TypeScript types (`--compat openapi-typescript`), the openapi-typescript migration path | — | Phase 2 |
-| `apicontract-gen-zod` | Generator extension: Zod schemas for teams that keep Zod | — | Phase 2 |
-| `apicontract-gen-nest` | Generator extension: NestJS modules from OpenAPI and AsyncAPI (R-N) | — | Phase 3 |
+| `apicontract-zod` | Technology extension (R-T): Zod schemas from the spec, the spec from Zod, and drift between them | — | Phase 2 |
+| `apicontract-nest` | Technology extension (R-T): NestJS modules from OpenAPI and AsyncAPI (R-N), the spec from NestJS, and entry points that violate the spec | — | Phase 3 |
 
 **Extensions (R-E).**
 
@@ -151,6 +153,38 @@ names are chosen before the first publish ([`phase0.md`](./phase0.md)).
   a `fix:` line. Its shape is locked by a declaration test, like burgee's public surface.
 - **R-E4.** A new protocol, emitter, reader or rule never needs a new purpose package and never needs
   a core change (the kill rule in [`roadmap.md`](./roadmap.md) applies).
+
+**Technology extensions (R-T).** One package per technology, each implementing any of three
+capabilities against the model:
+
+- **R-T1 `generate`** — spec → code for that technology (`apicontract gen <tech>`).
+- **R-T2 `extract`** — code → spec (`apicontract extract --from <tech>`).
+- **R-T3 `detect`** — finds that technology's entry points (NestJS controllers, gateways and message
+  handlers; Hono or Express routes; MCP server tools; client call sites) and reports where they
+  violate the contract. Matchers are declared to the static core (`apicontract-check`), so detection
+  needs no app boot and no network.
+- **R-T4** A capability an extension lacks is reported by `--help` and `--json`, never silently
+  skipped.
+
+**CI gate (R-CI).** `apicontract check` is what people run in CI for spec violations:
+
+- **R-CI1.** Violations have stable rule ids (below) and a `fix:` line each; output as text, `--json`,
+  SARIF and GitHub annotations.
+- **R-CI2.** A baseline file lets a repo adopt the gate without fixing history first: only new
+  violations fail. `--changed <ref>` limits the run to touched files.
+- **R-CI3.** Exit codes: 0 clean, 1 violations, 2 a usage or config error. The `diff` breaking-change
+  verdict runs in the same pass when a base ref is given.
+
+| Rule id | Violation |
+| :-- | :-- |
+| `undocumented-entry` | A route, handler, gateway event or MCP tool in code with no operation in the spec |
+| `missing-implementation` | An operation in the spec with no entry point in code |
+| `param-mismatch` | Path, query, header or body parameters differ in name, type or required-ness |
+| `response-mismatch` | A returned shape or status code the spec does not declare |
+| `unvalidated-input` | An entry point that accepts input without the spec's schema applied |
+| `auth-mismatch` | A security scheme in the spec that the entry point does not enforce, or the reverse |
+| `call-site-mismatch` | A client call that sends or expects what the spec does not allow |
+| `breaking-change` | The `diff` verdict against the base ref, under the chosen mode and side |
 
 **Round trip (R-RT): spec → code and code → spec, mastered together.**
 
