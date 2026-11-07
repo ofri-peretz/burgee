@@ -1,5 +1,14 @@
 # oxmutate
 
+## 1.6.2
+
+### Patch Changes
+
+- [#1483](https://github.com/ofri-peretz/burgee/pull/1483) [`3e69fb2`](https://github.com/ofri-peretz/burgee/commit/3e69fb2d8d068210347ac71d2886d6a4309859d1) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The package manifest names its author and publishes with `publishConfig` `{ "access": "public", "provenance": true }`. burgee's `homepage` is its landing page, https://burgee.interlace.tools. oxmutate gains `keywords`, so npm search finds it, and a `sideEffects` list (its CLI, its worker and its Vitest runner run on load), so a bundler can drop the rest. No code changes.
+- Updated dependencies [[`3e69fb2`](https://github.com/ofri-peretz/burgee/commit/3e69fb2d8d068210347ac71d2886d6a4309859d1)]:
+  - bellpull@1.0.11
+  - burgee@1.10.2
+
 ## 1.6.1
 
 ### Patch Changes
