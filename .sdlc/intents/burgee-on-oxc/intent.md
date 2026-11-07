@@ -47,7 +47,7 @@ measurements frame it, and the first one is a warning, recorded before any desig
 | **11 subjects** | **5,744** | **77** | **1 (1.3%)** | |
 
 The subjects are the nine field-trial projects at their trial SHAs
-(`.sdlc/research/adoption-barriers-2026-10.md`) and the two monorepos `native-engine`'s M0 measured
+(`.sdlc/research/adoption-barriers-2026-10.md`) and the two monorepos `native-engine`'s `M0` measured
 (`native-engine/m0/reproduce.sh`). In the October trial, 3 of 9 projects had a refused file; two of
 those (postcss-cli and madge, `non-literal-specifier`) have since been resolved by
 `migrate-dynamic-specifiers` without a parser. The one refusal left is `nest-cli` importing a name
@@ -63,7 +63,7 @@ member use decides the verdict ("`* as ns` is checked where it is used, which a 
 stay refusals under any reader. Part (a) is worth building only if a wider corpus shows those
 scan-limited classes in real projects, which is the first measurement below.
 
-**Module loading, not CPU, is what a cold start pays.** `native-engine`'s M0 measured the argv
+**Module loading, not CPU, is what a cold start pays.** `native-engine`'s `M0` measured the argv
 core's own work at 1.6 to 6.0 ms, with module loading 71 to 87% of each run, and `burgee migrate`
 at a projected 1.00x from a native port (`D-20261028-native-engine-dropped`). burgee ships 108
 JavaScript files today (`npm pack --dry-run` of `packages/burgee`: 276,075 bytes packed,
@@ -97,7 +97,7 @@ not change the argv path's code, which is what (b) tests.
   to today's scan and says so in its report, or refuses with the reason. It never produces a
   different rewrite without saying which reader made it.
 - **Byte-identical where both readers agree.** Every file today's scan rewrites, the AST rewrites
-  to the same bytes (M0's `compare.mjs` method, already run once for `native-engine`).
+  to the same bytes (`M0`'s `compare.mjs` method, already run once for `native-engine`).
 - **The runtimes keep running.** `Runtime smoke · bun, deno` passes unchanged; a build change in
   (b) may not emit anything bun or deno cannot load.
 - **The bands are not traded.** Cold start and weight stay inside their control bands; a size win
@@ -106,7 +106,7 @@ not change the argv path's code, which is what (b) tests.
 ## Non-goals
 
 - **A native engine on the argv path.** Rejected by the owner on 2026-11-07, for three reasons:
-  loading a native addon costs more than the argv work it would replace (M0: 1.6 to 6.0 ms of work,
+  loading a native addon costs more than the argv work it would replace (`M0`: 1.6 to 6.0 ms of work,
   module loading 71 to 87% of a run); it breaks the zero-dependency floor for every consumer, not
   only for people who migrate; and it breaks the bun and deno runtime smoke, which load burgee's
   JavaScript as published. `native-engine` (dropped 2026-10-28) already measured this; nothing here
@@ -118,12 +118,12 @@ not change the argv path's code, which is what (b) tests.
 
 ## Success criteria
 
-1. **M0, before any design: the corpus and today's numbers are recorded in `spec.md`.** The 11
+1. **`M0`, before any design: the corpus and today's numbers are recorded in `spec.md`.** The 11
    subjects above plus a wider population of commander and yargs dependents
    (`.sdlc/research/adoption-targets.md`), each refusal classified as scan-limited or semantic.
    If that population shows no scan-limited refusal, there is no refusal rate for (a) to lower,
    and part (a) is dropped with the numbers, as `native-engine` was.
-2. **(a) refuses less.** On the M0 corpus, the share of incumbent-bearing files refused falls below
+2. **(a) refuses less.** On the `M0` corpus, the share of incumbent-bearing files refused falls below
    today's, every scan-limited refusal it keeps is named in `spec.md` with the reason, and no
    semantic refusal turns into a rewrite.
 3. **(a) rewrites the same.** Every file today's scan rewrites, the AST build rewrites to identical
@@ -146,4 +146,4 @@ None open. The scope, the non-goal and the success bars were decided with the ow
 2026-11-07 ([`D-20261107-burgee-on-oxc-scope`](../../decisions/D-20261107-burgee-on-oxc-scope.md)).
 What is not known yet is measured, not decided: whether real projects carry scan-limited refusals
 (criterion 1), whether oxmutate's binding can expose a parse to `migrate` without a second copy of
-oxc, and which oxc-based build tool wins for (b). `spec.md` settles each from M0's numbers.
+oxc, and which oxc-based build tool wins for (b). `spec.md` settles each from `M0`'s numbers.
