@@ -373,3 +373,109 @@ describe('an escape inside a cluster belongs to the cluster', () => {
     expect(sliceAnsi(input, 0, 1)).toBe(slice(input, 0, 1));
   });
 });
+
+describe('every style family closes with its own code', () => {
+  // Each modifier and each end of each colour range, cut inside the text: the fragment closes
+  // what it opened with the closer that family uses, not a full reset.
+  it.each([
+    [1, 22],
+    [2, 22],
+    [3, 23],
+    [4, 24],
+    [7, 27],
+    [8, 28],
+    [9, 29],
+    [53, 55],
+    [30, 39],
+    [37, 39],
+    [90, 39],
+    [97, 39],
+    [40, 49],
+    [47, 49],
+    [100, 49],
+    [107, 49],
+  ])('opens with %i and closes with %i', (open, close) => {
+    expect(slice(`${ESC}[${String(open)}mabc${ESC}[${String(close)}m`, 0, 2)).toBe(`${ESC}[${String(open)}mab${ESC}[${String(close)}m`);
+  });
+
+  it.each([
+    ['blink, which has no closer of its own', `${ESC}[5mabc`, `${ESC}[5mab${ESC}[0m`],
+    ['98, one past the bright foregrounds, unknown and closed by a reset', `${ESC}[98mabc`, `${ESC}[98mab${ESC}[0m`],
+    ['108, one past the bright backgrounds, unknown and closed by a reset', `${ESC}[108mabc`, `${ESC}[108mab${ESC}[0m`],
+    ['the code just past the background range', `${ESC}[48;5;20mabc`, `${ESC}[48;5;20mab${ESC}[49m`],
+  ])('%s', (_name, input, expected) => {
+    expect(slice(input, 0, 2)).toBe(expected);
+  });
+});
+
+describe('extended colours are read to their last argument and no further', () => {
+  it.each([
+    ['a truecolour foreground, then bold', `${ESC}[38;2;255;128;64;1mab${ESC}[0m`, `${ESC}[38;2;255;128;64m${ESC}[1ma${ESC}[22m${ESC}[39m`],
+    ['a 256-colour foreground, then bold', `${ESC}[38;5;208;1mab${ESC}[0m`, `${ESC}[38;5;208m${ESC}[1ma${ESC}[22m${ESC}[39m`],
+    ['a truecolour background', `${ESC}[48;2;1;2;3mab`, `${ESC}[48;2;1;2;3ma${ESC}[49m`],
+    ['a truecolour underline', `${ESC}[58;2;1;2;3mab`, `${ESC}[58;2;1;2;3ma${ESC}[59m`],
+    ['a colon 256-colour foreground', `${ESC}[38:5:208mab`, `${ESC}[38:5:208ma${ESC}[39m`],
+    ['a truecolour missing its blue, which opens nothing', `${ESC}[38;2;1;2mab`, 'a'],
+    ['a 256-colour missing its index, which opens nothing', `${ESC}[38;5mab`, 'a'],
+    ['a truecolour whose arguments read differently in another base', `${ESC}[38;2;10;20;30mab`, `${ESC}[38;2;10;20;30ma${ESC}[39m`],
+    ['a truecolour missing its green and blue', `${ESC}[38;2;1mab`, 'a'],
+    ['a truecolour with no arguments', `${ESC}[38;2mab`, 'a'],
+    ['an extended colour in a mode that is neither 2 nor 5', `${ESC}[38;9;1;2;3mab`, 'a'],
+    ['a colon truecolour missing its blue', `${ESC}[38:2:1:2mab`, 'a'],
+    ['a colon colour in a mode that is neither 2 nor 5', `${ESC}[38:9:1mab`, 'a'],
+  ])('%s', (_name, input, expected) => {
+    expect(slice(input, 0, 1)).toBe(expected);
+  });
+});
+
+describe('a closer met past the cut is kept as written', () => {
+  it.each([
+    ['an underline colour closed by 59', `${ESC}[58;5;9mab${ESC}[59mcd`, 3, `${ESC}[58;5;9mab${ESC}[59mc`],
+    ['a colon underline colour closed by 59', `${ESC}[58:5:9mab${ESC}[59mcd`, 3, `${ESC}[58:5:9mab${ESC}[59mc`],
+    ['a full reset right after the range', `${ESC}[31mab${ESC}[0mcd`, 2, `${ESC}[31mab${ESC}[0m`],
+    ['a foreground reset, then the bold still open', `${ESC}[31m${ESC}[1mab${ESC}[39mcd`, 2, `${ESC}[31m${ESC}[1mab${ESC}[39m${ESC}[22m`],
+    ['an opener rolled back when a wide character overruns', `${ESC}[31ma${ESC}[1m古`, 2, `${ESC}[31ma${ESC}[39m`],
+    ['one plain character', 'a', 1, 'a'],
+    ['a link closed before any link opened', `ab${ESC}]8;;${ESC}\\cd`, 3, `ab${ESC}]8;;${ESC}\\c`],
+  ])('%s', (_name, input, end, expected) => {
+    expect(slice(input, 0, end)).toBe(expected);
+  });
+});
+
+describe('a close code ends only what it closes', () => {
+  it.each([
+    ['22 ends bold', `${ESC}[1mab${ESC}[22mcd`, [0, 3], `${ESC}[1mab${ESC}[22mc`],
+    ['22 ends bold and leaves italic open', `${ESC}[1m${ESC}[3mab${ESC}[22mcd`, [0, 3], `${ESC}[1m${ESC}[3mab${ESC}[22mc${ESC}[23m`],
+    ['two unknown parameters are two styles', `${ESC}[20m${ESC}[21mabc`, [1, 2], `${ESC}[20m${ESC}[21mb${ESC}[0m${ESC}[0m`],
+    ['one unknown parameter written twice is one style', `${ESC}[20m${ESC}[20mabc`, [1, 2], `${ESC}[20mb${ESC}[0m`],
+  ])('%s', (_name, input, [start, end], expected) => {
+    expect(slice(input, start, end)).toBe(expected);
+  });
+});
+
+describe('the less common sequences and the bookkeeping around them', () => {
+  const ST = `${ESC}\\`;
+  const BELL_CLOSE = `${ESC}]8;;${BEL}`;
+  it.each([
+    ['a C1 SOS string, zero columns to its ST', 'a\u0098xyz\u009Cbc', [0, 2], 'a\u0098xyz\u009Cb'],
+    ['a C1 PM string, zero columns to its ST', 'a\u009Exyz\u009Cbc', [0, 2], 'a\u009Exyz\u009Cb'],
+    ['a C1 APC string, zero columns to its ST', 'a\u009Fxyz\u009Cbc', [0, 2], 'a\u009Fxyz\u009Cb'],
+    ['an OSC ended by the BEL straight after its introducer', `${ESC}]${BEL}ab`, [0, 1], 'a'],
+    ['an OSC after a BEL two characters before it', `${BEL}z${ESC}]0;t${BEL}ab`, [0, 3], `${BEL}z${ESC}]0;t${BEL}ab`],
+    ['a C1 OSC right after a BEL', `a${BEL}\u009D0;t${BEL}bc`, [0, 3], `a${BEL}\u009D0;t${BEL}bc`],
+    ['a link whose parameters hold a BEL', `${ESC}]8;${BEL};u${BEL}ab`, [0, 1], `${ESC}]8;${BEL};u${BEL}a${BELL_CLOSE}`],
+    ['a reset that opens a colour past the end, which is dropped', `${ESC}[1mab${ESC}[0;31mcd`, [0, 2], `${ESC}[1mab${ESC}[22m`],
+    ['a link taken back out with no opener pending', `a${OPEN_A}${CLOSE}古`, [0, 2], 'a'],
+    ['a link taken back out after an opener it does not move', `a${RED}${OPEN_A}${CLOSE}古`, [0, 2], 'a'],
+    ['a reset kept when a wide character then overruns', `${RED}a${ESC}[0m古`, [0, 2], `${RED}a${ESC}[0m`],
+    ['two openers the cut leaves empty, both taken out', `a${RED}${ESC}[1m古`, [0, 2], 'a'],
+    ['an opener taken out, leaving the style open before it', `${RED}a${ESC}[1m古`, [0, 2], `${RED}a${ESC}[39m`],
+    ['a link closer past the end kept with its own terminator', `${ESC}]8;;u${BEL}ab${ESC}]8;;${ST}cd`, [0, 2], `${ESC}]8;;u${BEL}ab${ESC}]8;;${ST}`],
+    ['a link closer past the end with no link open, dropped', `ab${ESC}]8;;${ST}cd`, [0, 2], 'ab'],
+    ['a combining mark past the end, kept with its base', 'e\u0301x', [0, 1], 'e\u0301'],
+    ['a range that starts past the text, with a style open', `${RED}ab`, [5, 9], ''],
+    ['a range that ends before it starts, with a style open', `${RED}ab`, [1, 0], ''],
+  ])('%s', (_name, input, [start, end], expected) => {
+    expect(slice(input, start, end)).toBe(expected);
+  });
+});

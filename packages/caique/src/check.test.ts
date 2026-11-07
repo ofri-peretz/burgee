@@ -49,6 +49,37 @@ async function run(argv: readonly string[]): Promise<{ code: number; out: string
   return { code, out };
 }
 
+describe('a locale pack', () => {
+  it('renders each placeholder as its own name and each plural form with a count that selects it, and lists only caique’s ids', async () => {
+    const pack = {
+      name: 'packs',
+      locales: {
+        de: { 'caique.requiredNoTerminal': '{flag} ohne Terminal', 'caique.givingUp': 'nach {count}', 'usage.unknownOption': 'not caique’s' },
+        cs: { 'caique.givingUp': { one: '{count} one', few: '{count} few', many: '{count} many', other: '{count} other' } },
+        fr: { 'caique.givingUp': { one: '{count} one', many: '{count} many', other: '{count} other' } },
+      },
+    };
+    const file = pluginFile(`export default ${JSON.stringify(pack)};`);
+    expect(await run([file])).toEqual({
+      code: EXIT_OK,
+      out: [
+        'packs — 0 widgets',
+        '  de  caique.requiredNoTerminal  <flag> ohne Terminal',
+        '  de  caique.givingUp  nach 0',
+        '  cs  caique.givingUp.one  1 one',
+        '  cs  caique.givingUp.few  2 few',
+        '  cs  caique.givingUp.many  1.5 many',
+        '  cs  caique.givingUp.other  0 other',
+        '  fr  caique.givingUp.one  0 one',
+        '  fr  caique.givingUp.many  1000000 many',
+        '  fr  caique.givingUp.other  2 other',
+        'packs: ok',
+        '',
+      ].join('\n'),
+    });
+  });
+});
+
 describe('the arguments', () => {
   it.each(['--help', '-h'])('%s prints the help and exits 0 without loading anything', async (flag) => {
     const { code, out } = await run([flag]);
@@ -64,6 +95,7 @@ describe('the arguments', () => {
 
   it('no argument is a usage error, exit 2', async () => {
     expect(await run([])).toEqual({ code: EXIT_USAGE, out: 'usage: caique check <plugin-file>\n' });
+    expect(EXIT_USAGE).toBe(2);
   });
 
   it('an unknown flag is a usage error naming the flag, never a path to import', async () => {
@@ -129,6 +161,13 @@ describe('a refusal is the code, the message and the fix, exit 1 (R8)', () => {
         `E_NO_STATIC_PROJECTION: plugin "loud": widget "loud-error"’s static projection threw on its own sample: no spec.choices\n${fix}` +
         `E_NO_STATIC_PROJECTION: plugin "loud": widget "loud-value"’s static projection threw on its own sample: a bare string\n${fix}`,
     });
+  });
+
+  it('one static projection that throws is enough to refuse the plugin', async () => {
+    const file = pluginFile(`export default { name: 'one', widgets: { 'one-kind': { static: () => { throw new Error('no'); }, sample: { running: {}, done: {} } } } };`);
+    const { code, out } = await run([file]);
+    expect(code).toBe(EXIT_RUNTIME);
+    expect(out).not.toContain('one: ok');
   });
 
   it('a plugin the schema refuses', async () => {

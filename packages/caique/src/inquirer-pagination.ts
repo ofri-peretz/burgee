@@ -30,6 +30,7 @@ function usePointerPosition(active: number, renderedItems: readonly string[][], 
   if (sumLengths(renderedItems) > pageSize) {
     if (loop) {
       pointer = lastPointer;
+      // Stryker disable next-line ConditionalExpression: `undefined < active` is false, so the first test only narrows the type
       if (lastActive !== undefined && lastActive < active && active - lastActive < pageSize) {
         pointer = Math.min(
           middle,
@@ -38,6 +39,7 @@ function usePointerPosition(active: number, renderedItems: readonly string[][], 
       }
     } else {
       const spaceUnderActive = sumLengths(renderedItems.slice(active));
+      // Stryker disable next-line EqualityOperator: at the boundary both branches give `middle`, since a list taller than the page has more than `middle` rows above
       pointer = spaceUnderActive < pageSize - middle ? pageSize - spaceUnderActive : Math.min(defaultPointerPosition, middle);
     }
   }
@@ -68,6 +70,7 @@ export function usePagination<T>({
   const width = outputWidth(readline().output as { columns?: number });
   const bound = (num: number): number => ((num % items.length) + items.length) % items.length;
   const renderedItems = items.map((item, index) => (item == null ? [] : breakLines(renderItem({ item, index, isActive: index === active }), width).split('\n')));
+  // Stryker disable next-line EqualityOperator: a list exactly as tall as the page fills it from its own rows before a fill could wrap
   const looping = loop && sumLengths(renderedItems) > pageSize;
   const linesOf = (index: number): string[] => renderedItems[index] ?? [];
 
@@ -75,15 +78,18 @@ export function usePagination<T>({
 
   // The active item goes under the pointer when it fits there, and against the bottom when not.
   const activeItem = linesOf(active).slice(0, pageSize);
+  // Stryker disable next-line EqualityOperator: when the item ends on the last row, the pointer and the bottom are the same position
   const activeItemPosition = pointer + activeItem.length <= pageSize ? pointer : pageSize - activeItem.length;
   const pageBuffer: (string | undefined)[] = Array.from({ length: pageSize });
   pageBuffer.splice(activeItemPosition, activeItem.length, ...activeItem);
   // `active` starts visited, so a looping fill stops on reaching it from either side.
+  // Stryker disable next-line ArrayDeclaration: a fill only wraps back to `active` in a looping list, which is taller than the page and so full first
   const visited = new Set<number>([active]);
 
   // Below the active item, then above it, each until the page or the list runs out.
   let bufferPointer = activeItemPosition + activeItem.length;
   let itemPointer = bound(active + 1);
+  // Stryker disable next-line EqualityOperator: the item after `active` is `active` itself only in a one-item list, where `visited` already stops the fill
   while (bufferPointer < pageSize && !visited.has(itemPointer) && (looping || itemPointer > active)) {
     const lines = linesOf(itemPointer).slice(0, pageSize - bufferPointer);
     pageBuffer.splice(bufferPointer, lines.length, ...lines);
@@ -94,10 +100,12 @@ export function usePagination<T>({
 
   bufferPointer = activeItemPosition - 1;
   itemPointer = bound(active - 1);
+  // Stryker disable next-line ConditionalExpression,EqualityOperator: past the top a fill places no line, and a list that does not loop has no row above the page it could wrap to that the fill below has not already placed
   while (bufferPointer >= 0 && !visited.has(itemPointer) && (looping || itemPointer < active)) {
     const all = linesOf(itemPointer);
     const lines = all.slice(Math.max(0, all.length - bufferPointer - 1));
     pageBuffer.splice(bufferPointer - lines.length + 1, lines.length, ...lines);
+    // Stryker disable next-line CallExpression: the fill above walks one way round, so it meets its own rows again only after a full turn, by which time the page is full
     visited.add(itemPointer);
     bufferPointer -= lines.length;
     itemPointer = bound(itemPointer - 1);

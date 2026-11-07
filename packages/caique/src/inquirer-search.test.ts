@@ -293,6 +293,13 @@ describe('search', () => {
     expect(six.getScreen()).toBe(frame('? Fruit', '  i3', '  i4', `${POINTER} i5`, '', HELP));
   });
 
+  it('pages seven results by default', async () => {
+    const ten = Array.from({ length: 10 }, (_, i) => `item${String(i)}`);
+    const shown = await render(search, { message: 'Fruit', source: () => ten });
+    await shown.nextRender();
+    expect(shown.getScreen().split('\n').filter((row) => row.includes('item'))).toHaveLength(7);
+  });
+
   it('reports no results only for a term, and only once its search is in', async () => {
     const none = await render(search, { message: 'Fruit', source: () => [] });
     await none.nextRender();

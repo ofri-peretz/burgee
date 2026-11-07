@@ -82,10 +82,7 @@ export function explanation(key: string, resolution: ExplainedResolution): Expla
 export function describeCandidate(c: { source: string; location: string; line?: number }): string {
   const at = c.line === undefined ? c.location : `${c.location}:${String(c.line)}`;
   switch (c.source) {
-    case 'flag':
-      return `flag ${at}`;
-    case 'env':
-      return `env ${at}`;
+    // `flag` and `env` read as the default below does: the source, then where.
     case 'config':
       return `config file ${at}`;
     case 'package':

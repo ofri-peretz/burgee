@@ -86,6 +86,7 @@ export const input = createPrompt<string, InputConfig>((config, done) => {
     } else if (isTabKey(key) && !value) {
       setDefaultValue('');
       // The Tab itself landed in the line; it is not part of the answer.
+      // Stryker disable next-line NumericLiteral: readline's `Interface#clearLine()` takes no argument; the 0 is `@inquirer/core`'s call shape
       rl.clearLine(0);
       rl.write(defaultValue);
       setValue(defaultValue);
@@ -195,6 +196,7 @@ export const number = createPrompt(<Required extends boolean>(config: NumberConf
     else if (isBackspaceKey(key) && !value) setDefaultValue(undefined);
     else if (isTabKey(key) && !value) {
       setDefaultValue(undefined);
+      // Stryker disable next-line NumericLiteral: readline's `Interface#clearLine()` takes no argument; the 0 is `@inquirer/core`'s call shape
       rl.clearLine(0);
       rl.write(defaultValue);
       setValue(defaultValue);
@@ -341,6 +343,7 @@ export const confirm = createPrompt<boolean, ConfirmConfig>((config, done) => {
       done(answer);
     } else if (isTabKey(key)) {
       const flipped = word(!(answerOf(value) ?? config.default !== false));
+      // Stryker disable next-line NumericLiteral: readline's `Interface#clearLine()` takes no argument; the 0 is `@inquirer/core`'s call shape
       rl.clearLine(0);
       rl.write(flipped);
       setValue(flipped);

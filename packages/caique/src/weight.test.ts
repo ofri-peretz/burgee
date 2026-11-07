@@ -242,8 +242,10 @@ const RULES: Record<string, EntryRule> = {
   // locale builds `io.say` from. Its own door so nothing else pays for it: `.`, `./ask` and
   // `./binding` only apply the `say` they are handed. It reaches `plugin.js` for the registry
   // (and, through it, `ask.js` and `spec.js`), never the raw renderer or the terminal.
-  // Measured 15,951 B on 2026-10-12.
-  './locale': { allow: [], budget: 16_000, denied: ['decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js'] },
+  // Measured 15,951 B on 2026-10-12. Raised 16,000 -> 16,100 on 2026-11-05 for `fixedLength`, the
+  // one helper both sides of the catalog sort share, so a mutant to the placeholder pattern reaches
+  // both at once instead of surviving on one. Measured 16,034 B after.
+  './locale': { allow: [], budget: 16_100, denied: ['decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js'] },
   // The only file that touches a stream, and the only one that knows what echo is. It
   // carries `ask.js` for the `Io` shape it implements. Measured 1,947 B; +78 on
   // 2026-09-28 for the writer's `columns`, read through to the output stream.

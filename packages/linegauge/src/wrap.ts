@@ -1,4 +1,4 @@
-import { ASCII_PRINTABLE, ROW_BOUNDARY, TAB_SIZE, applyLeadingResets, applyParameters, closingSequence, forEachSegment, hyperlink, matchEscape, openingSequence, segmenter, sgr, type ActiveStyle } from './style.js';
+import { ROW_BOUNDARY, TAB_SIZE, applyLeadingResets, applyParameters, closingSequence, forEachSegment, hyperlink, matchEscape, openingSequence, segmenter, sgr, type ActiveStyle } from './style.js';
 /**
  * Wrapping text that carries ANSI, ported from wrap-ansi 10 — the third dependency the
  * render façades share, after the spinner corpus and the width function (R7, R10).
@@ -13,7 +13,7 @@ import { ASCII_PRINTABLE, ROW_BOUNDARY, TAB_SIZE, applyLeadingResets, applyParam
  * Graded differentially against the real `wrap-ansi` in `wrap.test.ts`, the way `width.ts`
  * is graded against `string-width`: the incumbent is the specification.
  */
-import { clusterColumns, measure } from './width.js';
+import { clusterColumns, measure, plainAscii } from './width.js';
 
 /** The visible width of a string, escape sequences ignored. */
 export function visibleWidth(string: string): number {
@@ -40,7 +40,8 @@ function tokenize(string: string): Token[] {
   forEachSegment(
     string,
     (plainText) => {
-      if (ASCII_PRINTABLE.test(plainText)) {
+      // Stryker disable next-line ConditionalExpression,BlockStatement: the segmenter below gives each printable ASCII character the same one-column token when no plugin claims it
+      if (plainAscii(plainText)) {
         for (const character of plainText) tokens.push({ value: character, width: 1 });
         return;
       }
@@ -59,6 +60,7 @@ interface Word {
 
 /** Split on spaces, ignoring spaces that appear inside a recognised sequence. */
 function splitWords(string: string): Word[] {
+  // Stryker disable next-line NumericLiteral: every word's width is measured below, after the split, so the starting one is never read
   let current: Word = { value: '', plainText: '', width: 0 };
   const words: Word[] = [current];
 
@@ -70,6 +72,7 @@ function splitWords(string: string): Word[] {
       current.plainText += parts[0] as string;
       for (let index = 1; index < parts.length; index += 1) {
         const part = parts[index] as string;
+        // Stryker disable next-line NumericLiteral: every word's width is measured below, after the split, so the starting one is never read
         current = { value: part, plainText: part, width: 0 };
         words.push(current);
       }
@@ -93,7 +96,7 @@ function wrapWord(rows: string[], word: string, columns: number, rowWidth: numbe
   const tokens = tokenize(word);
   let visible = rowWidth;
 
-  for (const [index, token] of tokens.entries()) {
+  for (const token of tokens) {
     // Sequences and combining marks are zero width, so they stay on the current row.
     if (token.width > 0 && visible > 0 && visible + token.width > columns) {
       rows.push('');
@@ -103,15 +106,15 @@ function wrapWord(rows: string[], word: string, columns: number, rowWidth: numbe
     rows[rows.length - 1] += token.value;
     visible += token.width;
 
-    if (visible === columns && index < tokens.length - 1) {
+    if (visible === columns) {
       rows.push('');
       visible = 0;
     }
   }
 
-  // The last row copied over can be nothing but escape characters.
-  const last = rows.at(-1) as string;
-  if (!visible && last.length > 0 && rows.length > 1) rows[rows.length - 2] += rows.pop() as string;
+  // The last row copied over can be nothing but escape characters, or nothing at all when the
+  // last token filled the row before it; either way it belongs on that row.
+  if (!visible && rows.length > 1) rows[rows.length - 2] += rows.pop() as string;
 
   // Tokens are measured one at a time, so a cluster an escape splits counts once per part.
   // Only the finished row gives the true width, and it is at most one row to measure.
@@ -120,8 +123,10 @@ function wrapWord(rows: string[], word: string, columns: number, rowWidth: numbe
 
 /** Drop the spaces trailing the last visible character, keeping the sequences among them. */
 function trimVisibleEnd(string: string): string {
+  // Stryker disable next-line ConditionalExpression,StringLiteral: a row with no space has nothing to trim, which the walk below finds too
   if (!string.includes(' ')) return string;
 
+  // Stryker disable next-line ArrayDeclaration: the walk below stops at the first segment with visible text, so a stray entry in front is never reached, and joins as nothing
   const segments: { value: string; isEscape: boolean }[] = [];
   forEachSegment(
     string,
@@ -130,11 +135,12 @@ function trimVisibleEnd(string: string): string {
   );
 
   for (let index = segments.length - 1; index >= 0; index -= 1) {
-    const segment = segments[index];
-    if (segment === undefined || segment.isEscape) continue;
+    const segment = segments[index] as { value: string; isEscape: boolean };
+    if (segment.isEscape) continue;
 
     // Scanned rather than matched: a trailing-space pattern backtracks quadratically.
     let end = segment.value.length;
+    // Stryker disable next-line EqualityOperator,ConditionalExpression: before the first character there is no space to find, so the scan stops there anyway
     while (end > 0 && segment.value[end - 1] === ' ') end -= 1;
     segment.value = segment.value.slice(0, end);
 
@@ -145,6 +151,7 @@ function trimVisibleEnd(string: string): string {
 }
 
 function expandTabs(line: string): string {
+  // Stryker disable next-line ConditionalExpression,StringLiteral: a line with no tab comes out of the expansion below unchanged
   if (!line.includes('\t')) return line;
 
   let visible = 0;
@@ -187,6 +194,7 @@ function restoreStylesAcrossRows(preString: string): string {
   let index = 0;
   let copied = 0;
 
+  // Stryker disable next-line EqualityOperator: at the end the boundary search finds nothing and breaks
   while (index < preString.length) {
     ROW_BOUNDARY.lastIndex = index;
     const boundary = ROW_BOUNDARY.exec(preString);
@@ -259,19 +267,23 @@ function wrapLine(string: string, columns: number, options: WrapOptions): string
   // Tracked as rows are built: remeasuring per word makes wrapping quadratic in the line.
   let rowLength = 0;
   // A row that already starts with content can never become trimmable again.
+  // Stryker disable next-line UnaryOperator: row 1 is only reached once row 0 has content, which sets this to 0 first
   let trimmedRowIndex = -1;
   let isFirstWord = true;
 
   for (const word of words) {
     const rowIndex = rows.length - 1;
 
+    // Stryker disable next-line ConditionalExpression: trimming the start of a row that already starts with content changes nothing
     if (trim && trimmedRowIndex !== rowIndex) {
       const row = rows[rowIndex] as string;
       const trimmedRow = row.trimStart();
+      // Stryker disable next-line ConditionalExpression: storing and measuring an unchanged row gives the same row and width
       if (trimmedRow.length !== row.length) {
         rows[rowIndex] = trimmedRow;
         rowLength = visibleWidth(trimmedRow);
       }
+      // Stryker disable next-line ConditionalExpression,NumericLiteral: this only spares later words a trim that would change nothing
       if (trimmedRow.length > 0) trimmedRowIndex = rowIndex;
     }
 
@@ -289,7 +301,9 @@ function wrapLine(string: string, columns: number, options: WrapOptions): string
     }
 
     // 'hard': a row is never allowed to extend past `columns`.
-    if (options.hard === true && options.wordWrap !== false && word.width > columns) {
+    // Stryker disable next-line EqualityOperator,ConditionalExpression: a word that fits a row comes out the same down the hard path — it starts a row exactly when the soft path would, and a zero-width word's empty row merges back
+    const long = word.width > columns;
+    if (options.hard === true && options.wordWrap !== false && long) {
       if (shouldStartLongWordOnNextRow(word.width, columns, rowLength)) {
         rows.push('');
         rowLength = 0;
@@ -307,6 +321,7 @@ function wrapLine(string: string, columns: number, options: WrapOptions): string
       rowLength = 0;
     }
 
+    // Stryker disable next-line EqualityOperator: a word that fits exactly is copied onto the row whole by either path
     if (rowLength + word.width > columns && options.wordWrap === false) {
       rowLength = wrapWord(rows, word.value, columns, rowLength);
       continue;

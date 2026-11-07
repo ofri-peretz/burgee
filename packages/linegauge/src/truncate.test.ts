@@ -176,3 +176,9 @@ describe('widest', () => {
     expect(widest(manyLines())).toBe(11);
   });
 });
+
+describe('a budget the ellipsis fills exactly', () => {
+  it('is the ellipsis alone, with no zero-width character carried in from past the cut', () => {
+    expect(truncate('abc\u200B', 1, { position: 'start' })).toBe('\u2026');
+  });
+});

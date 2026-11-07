@@ -359,3 +359,21 @@ describe('useRef', () => {
     expect(box.current).toBeUndefined();
   });
 });
+
+describe('useMemo, past the first dependency', () => {
+  it('recomputes when any one dependency changes, not only when all of them do', () => {
+    const compute = vi.fn(() => 1);
+    let deps: unknown[] = [1, 2];
+    let rerender = noop;
+    mount(() => {
+      const [, setTick] = useState(0);
+      rerender = () => {
+        setTick((tick) => tick + 1);
+      };
+      useMemo(compute, deps);
+    });
+    deps = [1, 3];
+    rerender();
+    expect(compute).toHaveBeenCalledTimes(2);
+  });
+});

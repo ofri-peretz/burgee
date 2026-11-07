@@ -89,6 +89,10 @@ describe('decode: what a terminal sends, as one shape', () => {
     expect(decode(`ab${ESC}[A${ESC}`).map((k) => k.name)).toEqual(['a', 'b', 'up', 'escape']);
   });
 
+  it('a control character node has no name for has the empty name, not itself', () => {
+    expect(decode('\u001C')).toEqual([key('', '\u001C')]);
+  });
+
   it('a partial sequence is no key at all, which is what node makes of it', () => {
     expect(decode(`${ESC}[`)).toEqual([]);
   });
@@ -120,6 +124,8 @@ describe('canonical: one spelling per key', () => {
     ['?', '?'],
     ['ctrl++', 'ctrl++'],
     ['f5', 'f5'],
+    ['f1', 'f1'],
+    ['F12', 'f12'],
   ])('%j is %j', (spec, expected) => {
     expect(canonical(spec)).toBe(expected);
   });
@@ -135,11 +141,13 @@ describe('canonical: one spelling per key', () => {
     expect(ms).toBeLessThan(BUDGET_MS);
   });
 
-  it.each(['', 'shift+', 'hyper+x', 'ctrl+ab', 'leftt'])('refuses %j, with a fix', (spec) => {
+  it.each(['', 'shift+', 'hyper+x', 'ctrl+ab', 'leftt', 'metax', 'f0', 'f13', '\u0001', 'ctrl+\u007F'])('refuses %j, with a fix', (spec) => {
     const thrown = refusal(() => canonical(spec));
     expect(thrown).toBeInstanceOf(KeysError);
-    expect(thrown).toMatchObject({ code: 'E_KEY_SPEC', name: 'KeysError' });
-    expect((thrown as KeysError).fix).toContain('[ctrl+][meta+][shift+]<key>');
+    expect(thrown).toMatchObject({ code: 'E_KEY_SPEC', name: 'KeysError', message: `"${spec}" does not name a key` });
+    expect((thrown as KeysError).fix).toBe(
+      'write a key as [ctrl+][meta+][shift+]<key>, where <key> is one character or one of: up, down, left, right, tab, enter, escape, backspace, delete, home, end, pageup, pagedown, space, insert, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12',
+    );
   });
 });
 
@@ -180,7 +188,7 @@ describe('a keymap is data', () => {
 
   it('two spellings of one key are refused, by bindings and by match alike', () => {
     const twice = { G: 'bottom', 'shift+g': 'top' };
-    expect(() => bindings(twice)).toThrow(/"shift\+g" and "G" are the same key/);
+    expect(() => bindings(twice)).toThrow(expect.objectContaining({ code: 'E_KEY_SPEC', message: '"shift+g" and "G" are the same key', fix: 'keep one of them; a key does one thing in a keymap' }) as Error);
     expect(() => match(twice, decode('g')[0] as KeyPress)).toThrow(KeysError);
   });
 
@@ -295,6 +303,18 @@ describe('readKeys: raw mode once, for the reader’s whole life', () => {
     stream.emit('data', ESC);
     expect(await got).toEqual(key('escape', ESC));
   });
+
+  it('waits clack’s 50 ms for the rest of a sequence, not readline’s 500', async () => {
+    const { stream } = terminal();
+    const seen: KeyPress[] = [];
+    const stop = readKeys(stream, (k) => seen.push(k), registry().onExit);
+    stream.emit('data', ESC);
+    await new Promise((resolve) => {
+      setTimeout(resolve, 200);
+    });
+    stop();
+    expect(seen).toEqual([key('escape', ESC)]);
+  });
 });
 
 /** A pipe: what stdin is under CI, an agent, or `< file`. */
@@ -314,7 +334,7 @@ describe('readKeys off a terminal: never a wait (controlroom R7)', () => {
   ])('%s: throws at once with a fix, and listens to nothing', (_label, make) => {
     const stream = make();
     expect(() => readKeys(stream, () => undefined, registry().onExit)).toThrow(
-      expect.objectContaining({ code: 'E_NOT_A_TERMINAL', fix: 'read lines from stdin instead, or pass the answer as a flag' }),
+      expect.objectContaining({ code: 'E_NOT_A_TERMINAL', message: 'keys can only be read from a terminal, and this input is not one', fix: 'read lines from stdin instead, or pass the answer as a flag' }),
     );
     expect(stream.listenerCount('keypress')).toBe(0);
     expect(stream.listenerCount('data')).toBe(0);

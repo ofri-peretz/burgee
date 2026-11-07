@@ -10,11 +10,11 @@
 import { Readable, Writable } from 'node:stream';
 import { stripVTControlCharacters } from 'node:util';
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CANCEL_SYMBOL, S_BAR_END, S_PASSWORD_MASK, S_STEP_CANCEL, S_STEP_SUBMIT } from './clack-core.js';
 import { REQUIRED } from './clack-list.js';
-import { confirm, groupMultiselect, multiline, multiselect, password, select, selectKey } from './clack-prompts.js';
+import { confirm, groupMultiselect, multiline, multiselect, password, select, selectKey, text } from './clack-prompts.js';
 
 class Output extends Writable {
   buffer: string[] = [];
@@ -69,6 +69,10 @@ async function frameAfter(start: (io: { input: Input; output: Output }) => Promi
 }
 
 const OPTIONS = [{ value: 'a' }, { value: 'b' }, { value: 'c' }];
+
+const okOnly = (value: string | undefined): string | undefined => (value === 'ok' ? undefined : 'not ok');
+
+const notX = (value: string | undefined): string | undefined => (value === 'x' ? 'no' : undefined);
 
 const onlyRight = (value: string | undefined): string | undefined => (value === 'right' ? undefined : 'wrong');
 
@@ -285,3 +289,689 @@ describe('multiline', () => {
     expect(last.trimEnd().split('\n').slice(-2)).toEqual([`${S_STEP_CANCEL}  m`, '│']);
   });
 });
+
+/**
+ * Every escape a transcript holds, spelled so it can be read: a colour as `<36>`, a cursor move
+ * or an erase as `<4A>`, `<1G>`, `<J>`. A frame compared as stripped text cannot tell a cyan bar
+ * from a grey one; this can, which is how a frame's colours are held here.
+ */
+const shown = (text: string): string => text.replaceAll(/\u001B\[([\d;?]*)([A-Za-z])/gu, (_, parameter: string, final: string) => `<${parameter}${final === 'm' ? '' : final}>`);
+
+/** Everything a prompt wrote while `keys` were pressed, readable. */
+async function transcript<T>(start: (io: { input: Input; output: Output }) => Promise<T>, keys: string[]): Promise<string> {
+  return shown((await drive(start, keys)).writes.join(''));
+}
+
+const LIST = [{ value: 'a', hint: 'first' }, { value: 'b', disabled: true, hint: 'off' }, { value: 'c', label: 'C\nsecond line' }];
+
+describe('every prompt, frame by frame, in colour', () => {
+  beforeEach(() => {
+    vi.stubEnv('NO_COLOR', undefined);
+    vi.stubEnv('FORCE_COLOR', '1');
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('text: the placeholder, typing, the cursor moved back, and the answer', async () => {
+    expect(await transcript((io) => text({ message: 'm', placeholder: 'type here', ...io }), ['a', 'b', 'left', 'return'])).toMatchInlineSnapshot(`
+      "<?25l><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <7>t<27><2>ype here<22>
+      <36>└<39>
+      <4A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  a█
+      <36>└<39>
+      <4A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  ab█
+      <36>└<39>
+      <4A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  a<7>b<27>
+      <36>└<39>
+      <4A><1G><J><90>│<39>
+      <32>◇<39>  m
+      <90>│<39>  <2>ab<22>
+      <?25h>"
+    `);
+  });
+
+  it('text: a refusal, then an answer', async () => {
+    expect(await transcript((io) => text({ message: 'm', validate: okOnly, ...io }), ['x', 'return', 'backspace', 'o', 'k', 'return'])).toMatchInlineSnapshot(`
+      "<?25l><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <7><8>_<28><27>
+      <36>└<39>
+      <4A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  x█
+      <36>└<39>
+      <4A><1G><J><90>│<39>
+      <33>▲<39>  m
+      <33>│<39>  x█
+      <33>└<39>  <33>not ok<39>
+      <4A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <7><8>_<28><27>
+      <36>└<39>
+      <4A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  o█
+      <36>└<39>
+      <4A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  ok█
+      <36>└<39>
+      <4A><1G><J><90>│<39>
+      <32>◇<39>  m
+      <90>│<39>  <2>ok<22>
+      <?25h>"
+    `);
+  });
+
+  it('text: cancelled with something typed, and with nothing', async () => {
+    expect(await transcript((io) => text({ message: 'm', ...io }), ['a', 'escape'])).toMatchInlineSnapshot(`
+      "<?25l><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <7><8>_<28><27>
+      <36>└<39>
+      <4A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  a█
+      <36>└<39>
+      <4A><1G><J><90>│<39>
+      <31>■<39>  m
+      <90>│<39>  <9><2>a<22><29>
+      <90>│<39>
+      <?25h>"
+    `);
+    expect(await transcript((io) => text({ message: 'm', ...io }), ['escape'])).toMatchInlineSnapshot(`
+      "<?25l><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <7><8>_<28><27>
+      <36>└<39>
+      <4A><1G><J><90>│<39>
+      <31>■<39>  m
+      <90>│<39>
+      <?25h>"
+    `);
+  });
+
+  it('text: an empty answer shows no summary', async () => {
+    expect(await transcript((io) => text({ message: 'm', ...io }), ['return'])).toMatchInlineSnapshot(`
+      "<?25l><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <7><8>_<28><27>
+      <36>└<39>
+      <4A><1G><J><90>│<39>
+      <32>◇<39>  m
+      <90>│<39>
+      <?25h>"
+    `);
+  });
+
+  it('text: without the guide', async () => {
+    expect(await transcript((io) => text({ message: 'm', withGuide: false, ...io }), ['a', 'return'])).toMatchInlineSnapshot(`
+      "<?25l><36>◆<39>  m
+      <7><8>_<28><27>
+
+      <3A><1G><J><36>◆<39>  m
+      a█
+
+      <3A><1G><J><32>◇<39>  m
+      <2>a<22>
+      <?25h>"
+    `);
+  });
+
+  it('password: the mask, the cursor inside it, and a refusal that clears it', async () => {
+    expect(await transcript((io) => password({ message: 'm', ...io }), ['s', 'e', 'left', 'return'])).toMatchInlineSnapshot(`
+      "<?25l><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <7><8>_<28><27>
+      <36>└<39>
+      <4A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  ▪<7><8>_<28><27>
+      <36>└<39>
+      <4A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  ▪▪<7><8>_<28><27>
+      <36>└<39>
+      <4A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  ▪<7>▪<27>
+      <36>└<39>
+      <4A><1G><J><90>│<39>
+      <32>◇<39>  m
+      <90>│<39>  <2>▪▪<22>
+      <?25h>"
+    `);
+    expect(await transcript((io) => password({ message: 'm', clearOnError: true, validate: () => 'no', ...io }), ['x', 'return', 'escape'])).toMatchInlineSnapshot(`
+      "<?25l><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <7><8>_<28><27>
+      <36>└<39>
+      <4A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  ▪<7><8>_<28><27>
+      <36>└<39>
+      <4A><1G><J><90>│<39>
+      <33>▲<39>  m
+      <33>│<39>  <7>▪<27>
+      <33>└<39>  <33>no<39>
+      <4A><1G><J><90>│<39>
+      <31>■<39>  m
+      <90>│<39>
+      <?25h>"
+    `);
+  });
+
+  it('confirm: toggled and answered, on one line and one above the other', async () => {
+    expect(await transcript((io) => confirm({ message: 'm', ...io }), ['right', 'return'])).toMatchInlineSnapshot(`
+      "<?25l><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <32>●<39> Yes <2>/<22> <2>○<22> <2>No<22>
+      <36>└<39>
+      <4A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <2>○<22> <2>Yes<22> <2>/<22> <32>●<39> No
+      <36>└<39>
+      <4A><1G><J><90>│<39>
+      <32>◇<39>  m
+      <90>│<39>  <2>No<22>
+      <?25h>"
+    `);
+    expect(await transcript((io) => confirm({ message: 'm', vertical: true, active: 'Sure', inactive: 'Nope', initialValue: false, ...io }), ['up', 'escape'])).toMatchInlineSnapshot(`
+      "<?25l><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <2>○<22> <2>Sure<22>
+      <36>│<39>  <32>●<39> Nope
+      <36>└<39>
+      <5A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <32>●<39> Sure
+      <36>│<39>  <2>○<22> <2>Nope<22>
+      <36>└<39>
+      <5A><1G><J><90>│<39>
+      <31>■<39>  m
+      <90>│<39>  <9><2>Sure<22><29>
+      <90>│<39>
+      <?25h>"
+    `);
+  });
+
+  it('select: hints, a disabled option, a label over two lines, and the answer', async () => {
+    expect(await transcript((io) => select({ message: 'm', options: LIST, ...io }), ['down', 'return'])).toMatchInlineSnapshot(`
+      "<?25l><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <32>●<39> a <2>(first)<22>
+      <36>│<39>  <90>○<39> <90>b<39> <2>(off)<22>
+      <36>│<39>  <2>○<22> <2>C<22>
+      <36>│<39>  <2>second line<22>
+      <36>│<39>  ↑/↓ to navigate • Enter: confirm
+      <36>└<39>
+      <8A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <2>○<22> <2>a<22>
+      <36>│<39>  <90>○<39> <90>b<39> <2>(off)<22>
+      <36>│<39>  <32>●<39> C
+      <36>│<39>  second line
+      <36>│<39>  ↑/↓ to navigate • Enter: confirm
+      <36>└<39>
+      <8A><1G><J><90>│<39>
+      <32>◇<39>  m
+      <90>│<39>  <2>C
+      <90>│<39>  second line<22>
+      <?25h>"
+    `);
+    expect(await transcript((io) => select({ message: 'm', options: LIST, initialValue: 'c', showInstructions: false, withGuide: false, ...io }), ['escape'])).toMatchInlineSnapshot(`
+      "<?25l><36>◆<39>  m
+      <2>○<22> <2>a<22>
+      <90>○<39> <90>b<39> <2>(off)<22>
+      <32>●<39> C
+      second line
+
+      <6A><1G><J><31>■<39>  m
+      <9><2>C
+      second line<22><29>
+      <?25h>"
+    `);
+  });
+
+  it('selectKey: the keys, the one under the cursor, and the answer', async () => {
+    expect(await transcript((io) => selectKey({ message: 'm', options: [{ value: 'a', label: 'Apple' }, { value: 'b' }], initialValue: 'b', ...io }), ['a'])).toMatchInlineSnapshot(`
+      "<?25l><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <90><47><7> a <27><49><39> Apple
+      <36>│<39>  <46><90> b <39><49> b
+      <36>└<39>
+      <5A><1G><J><90>│<39>
+      <32>◇<39>  m
+      <90>│<39>  <2>Apple<22>
+      <?25h>"
+    `);
+    expect(await transcript((io) => selectKey({ message: 'm', options: [{ value: 'a' }], ...io }), ['escape'])).toMatchInlineSnapshot(`
+      "<?25l><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <46><90> a <39><49> a
+      <36>└<39>
+      <4A><1G><J><90>│<39>
+      <31>■<39>  m
+      <90>│<39>  <9><2>a<22><29>
+      <90>│<39>
+      <?25h>"
+    `);
+  });
+
+  it('multiselect: toggled, a refusal, all and none, and the answer', async () => {
+    expect(await transcript((io) => multiselect({ message: 'm', options: LIST, ...io }), ['space', 'down', 'space', 'up', 'return'])).toMatchInlineSnapshot(`
+      "<?25l><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <36>◻<39> a <2>(first)<22>
+      <36>│<39>  <90>◻<39> <9><90>b<39><29> <2>(off)<22>
+      <36>│<39>  <2>◻<22> <2>C<22>
+      <36>│<39>  <2>second line<22>
+      <36>│<39>  ↑/↓ to navigate • Space: select • Enter: confirm
+      <36>└<39>
+      <8A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <32>◼<39> a <2>(first)<22>
+      <36>│<39>  <90>◻<39> <9><90>b<39><29> <2>(off)<22>
+      <36>│<39>  <2>◻<22> <2>C<22>
+      <36>│<39>  <2>second line<22>
+      <36>│<39>  ↑/↓ to navigate • Space: select • Enter: confirm
+      <36>└<39>
+      <8A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <32>◼<39> <2>a<22> <2>(first)<22>
+      <36>│<39>  <90>◻<39> <9><90>b<39><29> <2>(off)<22>
+      <36>│<39>  <36>◻<39> C
+      <36>│<39>  second line
+      <36>│<39>  ↑/↓ to navigate • Space: select • Enter: confirm
+      <36>└<39>
+      <8A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <32>◼<39> <2>a<22> <2>(first)<22>
+      <36>│<39>  <90>◻<39> <9><90>b<39><29> <2>(off)<22>
+      <36>│<39>  <32>◼<39> C
+      <36>│<39>  second line
+      <36>│<39>  ↑/↓ to navigate • Space: select • Enter: confirm
+      <36>└<39>
+      <8A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <32>◼<39> a <2>(first)<22>
+      <36>│<39>  <90>◻<39> <9><90>b<39><29> <2>(off)<22>
+      <36>│<39>  <32>◼<39> <2>C<22>
+      <36>│<39>  <2>second line<22>
+      <36>│<39>  ↑/↓ to navigate • Space: select • Enter: confirm
+      <36>└<39>
+      <8A><1G><J><90>│<39>
+      <32>◇<39>  m
+      <90>│<39>  <2>a, C
+      <90>│<39>  second line<22>
+      <?25h>"
+    `);
+    expect(await transcript((io) => multiselect({ message: 'm', options: LIST, cursorAt: 'c', ...io }), ['return', 'a', 'escape'])).toMatchInlineSnapshot(`
+      "<?25l><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <2>◻<22> <2>a<22>
+      <36>│<39>  <90>◻<39> <9><90>b<39><29> <2>(off)<22>
+      <36>│<39>  <36>◻<39> C
+      <36>│<39>  second line
+      <36>│<39>  ↑/↓ to navigate • Space: select • Enter: confirm
+      <36>└<39>
+      <8A><1G><J><90>│<39>
+      <33>▲<39>  m
+      <33>│<39>  <2>◻<22> <2>a<22>
+      <33>│<39>  <90>◻<39> <9><90>b<39><29> <2>(off)<22>
+      <33>│<39>  <36>◻<39> C
+      <33>│<39>  second line
+      <33>└<39>  <33>Please select at least one option.
+         Press  space  to select,  enter  to submit<39>
+      <8A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <32>◼<39> <2>a<22> <2>(first)<22>
+      <36>│<39>  <90>◻<39> <9><90>b<39><29> <2>(off)<22>
+      <36>│<39>  <32>◼<39> C
+      <36>│<39>  second line
+      <36>│<39>  ↑/↓ to navigate • Space: select • Enter: confirm
+      <36>└<39>
+      <8A><1G><J><90>│<39>
+      <31>■<39>  m
+      <90>│<39>  <9><2>a, C
+      <90>│<39>  second line<22><29>
+      <90>│<39>
+      <?25h>"
+    `);
+    expect(await transcript((io) => multiselect({ message: 'm', options: LIST, required: false, showInstructions: false, ...io }), ['return'])).toMatchInlineSnapshot(`
+      "<?25l><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <36>◻<39> a <2>(first)<22>
+      <36>│<39>  <90>◻<39> <9><90>b<39><29> <2>(off)<22>
+      <36>│<39>  <2>◻<22> <2>C<22>
+      <36>│<39>  <2>second line<22>
+      <36>└<39>
+      <7A><1G><J><90>│<39>
+      <32>◇<39>  m
+      <90>│<39>  <2>none<22>
+      <?25h>"
+    `);
+  });
+
+  it('groupMultiselect: a group toggled from its header, a member, and the answer', async () => {
+    const options = { g1: [{ value: 'a' }, { value: 'b', hint: 'bee' }], g2: [{ value: 'c' }] };
+    expect(await transcript((io) => groupMultiselect({ message: 'm', options, ...io }), ['space', 'down', 'down', 'down', 'down', 'space', 'return'])).toMatchInlineSnapshot(`
+      "<?25l><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <36>◻<39> g1
+      <36>│<39>  │ <2>◻<22> <2>a<22>
+      <36>│<39>  └ <2>◻<22> <2>b<22>
+      <36>│<39>  <2>◻<22> <2>g2<22>
+      <36>│<39>  └ <2>◻<22> <2>c<22>
+      <36>│<39>  ↑/↓ to navigate • Space: select • Enter: confirm
+      <36>└<39>
+      <9A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <32>◼<39> g1
+      <36>│<39>  │ <32>◼<39> <2>a<22>
+      <36>│<39>  └ <32>◼<39> <2>b<22> <2>(bee)<22>
+      <36>│<39>  <2>◻<22> <2>g2<22>
+      <36>│<39>  └ <2>◻<22> <2>c<22>
+      <36>│<39>  ↑/↓ to navigate • Space: select • Enter: confirm
+      <36>└<39>
+      <9A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <32>◼<39> <2>g1<22>
+      <36>│<39>  │ <32>◼<39> a
+      <36>│<39>  └ <32>◼<39> <2>b<22> <2>(bee)<22>
+      <36>│<39>  <2>◻<22> <2>g2<22>
+      <36>│<39>  └ <2>◻<22> <2>c<22>
+      <36>│<39>  ↑/↓ to navigate • Space: select • Enter: confirm
+      <36>└<39>
+      <9A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <32>◼<39> <2>g1<22>
+      <36>│<39>  │ <32>◼<39> <2>a<22>
+      <36>│<39>  └ <32>◼<39> b <2>(bee)<22>
+      <36>│<39>  <2>◻<22> <2>g2<22>
+      <36>│<39>  └ <2>◻<22> <2>c<22>
+      <36>│<39>  ↑/↓ to navigate • Space: select • Enter: confirm
+      <36>└<39>
+      <9A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <32>◼<39> <2>g1<22>
+      <36>│<39>  │ <32>◼<39> <2>a<22>
+      <36>│<39>  └ <32>◼<39> <2>b<22> <2>(bee)<22>
+      <36>│<39>  <36>◻<39> g2
+      <36>│<39>  └ <2>◻<22> <2>c<22>
+      <36>│<39>  ↑/↓ to navigate • Space: select • Enter: confirm
+      <36>└<39>
+      <9A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <32>◼<39> <2>g1<22>
+      <36>│<39>  │ <32>◼<39> <2>a<22>
+      <36>│<39>  └ <32>◼<39> <2>b<22> <2>(bee)<22>
+      <36>│<39>  <2>◻<22> <2>g2<22>
+      <36>│<39>  └ <36>◻<39> c
+      <36>│<39>  ↑/↓ to navigate • Space: select • Enter: confirm
+      <36>└<39>
+      <9A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <32>◼<39> <2>g1<22>
+      <36>│<39>  │ <32>◼<39> <2>a<22>
+      <36>│<39>  └ <32>◼<39> <2>b<22> <2>(bee)<22>
+      <36>│<39>  <32>◼<39> <2>g2<22>
+      <36>│<39>  └ <32>◼<39> c
+      <36>│<39>  ↑/↓ to navigate • Space: select • Enter: confirm
+      <36>└<39>
+      <9A><1G><J><90>│<39>
+      <32>◇<39>  m
+      <90>│<39>  <2>a, b, c<22>
+      <?25h>"
+    `);
+    expect(await transcript((io) => groupMultiselect({ message: 'm', options, selectableGroups: false, groupSpacing: 1, cursorAt: 'c', ...io }), ['space', 'escape'])).toMatchInlineSnapshot(`
+      "<?25l><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  
+      <36>│<39>  <2>g1<22>
+      <36>│<39>    <2>◻<22> <2>a<22>
+      <36>│<39>    <2>◻<22> <2>b<22>
+      <36>│<39>  
+      <36>│<39>  <2>g2<22>
+      <36>│<39>    <36>◻<39> c
+      <36>│<39>  ↑/↓ to navigate • Space: select • Enter: confirm
+      <36>└<39>
+      <11A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  
+      <36>│<39>  <2>g1<22>
+      <36>│<39>    <2>◻<22> <2>a<22>
+      <36>│<39>    <2>◻<22> <2>b<22>
+      <36>│<39>  
+      <36>│<39>  <2>g2<22>
+      <36>│<39>    <32>◼<39> c
+      <36>│<39>  ↑/↓ to navigate • Space: select • Enter: confirm
+      <36>└<39>
+      <11A><1G><J><90>│<39>
+      <31>■<39>  m
+      <90>│<39>  <9><2>c<22><29>
+      <90>│<39>
+      <?25h>"
+    `);
+  });
+
+  it('multiline: lines broken by enter, the cursor on a break, and the answer', async () => {
+    expect(await transcript((io) => multiline({ message: 'm', placeholder: 'write', ...io }), ['a', 'return', 'b', 'left', 'left', 'escape'])).toMatchInlineSnapshot(`
+      "<?25l><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <7>w<27><2>rite<22>
+      <36>└<39>
+      <4A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  a█
+      <36>└<39>
+      <4A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  a
+      <36>│<39>  █
+      <36>└<39>
+      <5A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  a
+      <36>│<39>  b█
+      <36>└<39>
+      <5A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  a
+      <36>│<39>  <7>b<27>
+      <36>└<39>
+      <5A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  a█
+      <36>│<39>  b
+      <36>└<39>
+      <5A><1G><J><90>│<39>
+      <31>■<39>  m
+      <90>│<39>  <9><2>a
+      <90>│<39>  b<22><29>
+      <90>│<39>
+      <?25h>"
+    `);
+    expect(await transcript((io) => multiline({ message: 'm', ...io }), ['a', 'return', 'b', 'return', 'return'])).toMatchInlineSnapshot(`
+      "<?25l><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <7><8>_<28><27>
+      <36>└<39>
+      <4A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  a█
+      <36>└<39>
+      <4A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  a
+      <36>│<39>  █
+      <36>└<39>
+      <5A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  a
+      <36>│<39>  b█
+      <36>└<39>
+      <5A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  a
+      <36>│<39>  b
+      <36>│<39>  █
+      <36>└<39>
+      <6A><1G><J><90>│<39>
+      <32>◇<39>  m
+      <90>│<39>  <2>a
+      <90>│<39>  b<22>
+      <?25h>"
+    `);
+    expect(await transcript((io) => multiline({ message: 'm', showSubmit: true, ...io }), ['a', 'tab', 'return'])).toMatchInlineSnapshot(`
+      "<?25l><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  <7><8>_<28><27>
+      <36>│<39>  <2>[ submit ]<22>
+      <36>└<39>
+      <5A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  a█
+      <36>│<39>  <2>[ submit ]<22>
+      <36>└<39>
+      <5A><1G><J><90>│<39>
+      <36>◆<39>  m
+      <36>│<39>  a█
+      <36>│<39>  <36>[ submit ]<39>
+      <36>└<39>
+      <5A><1G><J><90>│<39>
+      <32>◇<39>  m
+      <90>│<39>  <2>a<22>
+      <?25h>"
+    `);
+  });
+});
+
+/** `count` options, each named `option N`. */
+const manyOptions = (count: number): { value: string }[] => Array.from({ length: count }, (_, i) => ({ value: `option ${String(i)}` }));
+
+/** How many rows the first frame of a select over one label `columns` wide takes. */
+async function rowsFor(columns: number, withGuide: boolean): Promise<number> {
+  return (await frameAfter((io) => select({ message: 'm', options: [{ value: 'x'.repeat(columns) }], withGuide, ...io }), [])).split('\n').length;
+}
+
+describe('what each prompt answers, on the keys its other cases do not press', () => {
+  it('text: an answer typed and then erased is the default', async () => {
+    expect((await drive((io) => text({ message: 'm', defaultValue: 'd', ...io }), ['a', 'backspace', 'return'])).answer).toBe('d');
+  });
+
+  it('password: nothing typed answers the empty string, and a cleared refusal starts the value again', async () => {
+    expect((await drive((io) => password({ message: 'm', ...io }), ['return'])).answer).toBe('');
+    expect((await drive((io) => password({ message: 'm', clearOnError: true, validate: notX, ...io }), ['x', 'return', 'return'])).answer).toBe('');
+  });
+
+  it('confirm: y answers yes and n answers no, whatever is shown', async () => {
+    expect((await drive((io) => confirm({ message: 'm', initialValue: false, ...io }), ['y'])).answer).toBe(true);
+    expect((await drive((io) => confirm({ message: 'm', ...io }), ['Y'])).answer).toBe(true);
+    expect((await drive((io) => confirm({ message: 'm', ...io }), ['n'])).answer).toBe(false);
+    expect((await drive((io) => confirm({ message: 'm', initialValue: false, ...io }), ['up', 'return'])).answer).toBe(true);
+    expect((await drive((io) => confirm({ message: 'm', ...io }), ['x', 'return'])).answer).toBe(true);
+  });
+
+  it('select: up and left go back, wrapping to the last; right goes on', async () => {
+    expect((await drive((io) => select({ message: 'm', options: OPTIONS, ...io }), ['up', 'return'])).answer).toBe('c');
+    expect((await drive((io) => select({ message: 'm', options: OPTIONS, ...io }), ['left', 'return'])).answer).toBe('c');
+    expect((await drive((io) => select({ message: 'm', options: OPTIONS, ...io }), ['right', 'return'])).answer).toBe('b');
+  });
+
+  it('select: an empty hint draws nothing after the label', async () => {
+    expect(await frameAfter((io) => select({ message: 'm', options: [{ value: 'a', hint: '' }], ...io }), [])).toContain('● a\n');
+  });
+
+  it('select and multiselect with no options take the arrows and space without failing', async () => {
+    expect((await drive((io) => select({ message: 'm', options: [], ...io }), ['down', 'escape'])).answer).toBe(CANCEL_SYMBOL);
+    expect((await drive((io) => multiselect({ message: 'm', options: [], ...io }), ['space', 'down', 'escape'])).answer).toBe(CANCEL_SYMBOL);
+  });
+
+  it('select: a window on a short screen leaves the rows the title, the guide and the footer take', async () => {
+    const message = 'line one\nline two';
+    // 14 rows, less 2 for the message, 1 for the guide, 2 for the footer and 1 more: 8 rows of list.
+    const guided = await frameAfter((io) => select({ message, options: manyOptions(20), ...io, output: Object.assign(io.output, { rows: 14 }) }), []);
+    expect(listed(guided)).toBe(8);
+    // Without the guide, 14 less 2, 1 for the footer and 1: 10.
+    const bare = await frameAfter((io) => select({ message, options: manyOptions(20), withGuide: false, ...io, output: Object.assign(io.output, { rows: 14 }) }), []);
+    expect(listed(bare)).toBe(10);
+    // Without instructions, the closing guide is the footer's one row: 14 less 2, 1, 1 and 1.
+    const plain = await frameAfter((io) => select({ message, options: manyOptions(20), showInstructions: false, ...io, output: Object.assign(io.output, { rows: 14 }) }), []);
+    expect(listed(plain)).toBe(9);
+  });
+
+  it('select: a label wraps where the guide or its absence leaves no more room', async () => {
+    // The radio and its space take two columns, and the guide three more: past that the label goes to a row of its own.
+    expect(await rowsFor(76, true)).toBe((await rowsFor(75, true)) + 1);
+    expect(await rowsFor(79, false)).toBe((await rowsFor(78, false)) + 1);
+  });
+
+  it('selectKey: an option keyed by the empty string is where it starts, and a key of more than one character answers nothing', async () => {
+    expect((await drive((io) => selectKey({ message: 'm', options: [{ value: 'a' }, { value: '' }], ...io }), ['return'])).answer).toBe('');
+    const input = new Input();
+    const answer = selectKey({ message: 'm', options: [{ value: 'a' }, { value: 'b' }], input, output: new Output() });
+    // Each key after the last one's turn, so a key that broke the prompt is seen before the next.
+    for (const [char, name] of [[undefined, 'down'], ['ba', undefined], ['a', 'a']] as const) {
+      input.emit('keypress', char, { name, sequence: char });
+      // eslint-disable-next-line reliability/no-await-in-loop -- keys are pressed one at a time
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+    expect(await answer).toBe('a');
+  });
+
+  it('selectKey: the answer shown is the option pressed', async () => {
+    const { last } = await drive((io) => selectKey({ message: 'm', options: [{ value: 'a', label: 'Apple' }, { value: 'b', label: 'Banana' }], ...io }), ['b']);
+    expect(stripVTControlCharacters(last)).toContain('│  Banana');
+  });
+
+  it('multiselect: a cancel with nothing chosen shows nothing, an answer with nothing chosen shows none', async () => {
+    const cancelled = await drive((io) => multiselect({ message: 'm', options: OPTIONS, ...io }), ['escape']);
+    expect(stripVTControlCharacters(cancelled.last).trimEnd().split('\n').slice(-2)).toEqual([`${S_STEP_CANCEL}  m`, '│']);
+    const none = await drive((io) => multiselect({ message: 'm', options: OPTIONS, required: false, ...io }), ['return']);
+    expect(stripVTControlCharacters(none.last)).toContain('│  none');
+  });
+
+  it('groupMultiselect: a header with some members chosen chooses them all, and off again leaves other groups alone', async () => {
+    const options = { g1: [{ value: 'a' }, { value: 'b' }], g2: [{ value: 'c' }] };
+    expect((await drive((io) => groupMultiselect({ message: 'm', options, ...io }), ['down', 'space', 'up', 'space', 'return'])).answer).toEqual(['a', 'b']);
+    expect((await drive((io) => groupMultiselect({ message: 'm', options, initialValues: ['a', 'b', 'c'], ...io }), ['space', 'return'])).answer).toEqual(['c']);
+  });
+
+  it('groupMultiselect: starts from initialValues, and refuses an empty answer by default', async () => {
+    const options = { g1: [{ value: 'a' }, { value: 'b' }] };
+    expect((await drive((io) => groupMultiselect({ message: 'm', options, initialValues: ['b'], ...io }), ['return'])).answer).toEqual(['b']);
+    const { answer, writes } = await drive((io) => groupMultiselect({ message: 'm', options, ...io }), ['return', 'escape']);
+    expect(answer).toBe(CANCEL_SYMBOL);
+    expect(writes.join('')).toContain(REQUIRED.split('\n')[0]);
+  });
+
+  it('groupMultiselect: shows a member named like its group once in the answer', async () => {
+    const { last } = await drive((io) => groupMultiselect({ message: 'm', options: { x: [{ value: 'x' }, { value: 'y' }] }, ...io }), ['down', 'space', 'return']);
+    expect(stripVTControlCharacters(last).endsWith('│  x')).toBe(true);
+  });
+
+  it('groupMultiselect: with no options and no headers to choose, the arrows do nothing', async () => {
+    expect((await drive((io) => groupMultiselect({ message: 'm', options: {}, selectableGroups: false, ...io }), ['down', 'escape'])).answer).toBe(CANCEL_SYMBOL);
+  });
+
+  it('multiline: enter in the middle of the text breaks it there, a second one too, and the first enter of a prefilled answer breaks the line', async () => {
+    expect((await drive((io) => multiline({ message: 'm', ...io }), ['a', 'b', 'left', 'return', 'right', 'return', 'return'])).answer).toBe('a\nb');
+    expect((await drive((io) => multiline({ message: 'm', ...io }), ['a', 'b', 'left', 'return', 'return', 'right', 'return', 'return'])).answer).toBe('a\n\nb');
+    expect((await drive((io) => multiline({ message: 'm', initialValue: 'x', ...io }), ['return', 'return'])).answer).toBe('x');
+  });
+
+  it('multiline: tab moves between the text and the button as often as it is pressed', async () => {
+    expect((await drive((io) => multiline({ message: 'm', showSubmit: true, ...io }), ['a', 'tab', 'tab', 'tab', 'return'])).answer).toBe('a');
+  });
+});
+

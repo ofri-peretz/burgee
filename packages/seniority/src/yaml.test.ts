@@ -33,6 +33,13 @@ const fixtures = readdirSync(FIXTURES).filter((name) => /\.ya?ml$/u.test(name));
 const OURS = 'ours';
 
 const SCALARS: ReadonlyArray<[text: string, value: unknown]> = [
+  ['"a \t\n b"', 'a b'],
+  ['12.5', 12.5],
+  ['.55', 0.55],
+  ['1e-5', 0.000_01],
+  ['"a\\nb"', 'a\nb'],
+  ['"\\\\"', '\\'],
+  ['"\\u00e9x"', 'éx'],
   ['~', null],
   ['null', null],
   ['NULL', null],
@@ -61,6 +68,8 @@ const SCALARS: ReadonlyArray<[text: string, value: unknown]> = [
 ];
 
 const TAGGED: ReadonlyArray<[text: string, value: unknown]> = [
+  ['!!int 0o17', 15],
+  ['!!int 0x1F', 31],
   ['!!str 1', '1'],
   ['!!int "-0b11"', -3],
   ['!!int +0o7', 7],
@@ -77,6 +86,30 @@ const TAGGED: ReadonlyArray<[text: string, value: unknown]> = [
 ];
 
 const STRUCTURE: ReadonlyArray<[text: string, value: unknown]> = [
+  ['k:\n  ---', { k: '---' }],
+  ['k: a\n  - b', { k: 'a - b' }],
+  ['k: a\n  b, c', { k: 'a b, c' }],
+  ['{a #c\n: 1}', { a: 1 }],
+  ['{k: !!int 12}', { k: 12 }],
+  ['"k" : v', { k: 'v' }],
+  ['a: 1\n"b" : 2', { a: 1, b: 2 }],
+  ['a: 1\rb: 2', { a: 1, b: 2 }],
+  ['a: x\uFEFFy', { a: 'x\uFEFFy' }],
+  ['k:\t1', { k: 1 }],
+  ['>\n  a\n  \tb\n', 'a\n\tb\n'],
+  ["k: 'a\\nb'", { k: 'a\\nb' }],
+  ['k: |', { k: '' }],
+  ['- &a\n- x', [null, 'x']],
+  ['a: 1\nb : 2', { a: 1, b: 2 }],
+  ['k : v', { k: 'v' }],
+  ['---\n a', 'a'],
+  ['---\na', 'a'],
+  ['-.inf\n- |-\n  x\n', '-.inf - |- x'],
+  ['%YAML 1.2\n %x\n---\na', 'a'],
+  // An indentation indicator at the top level counts from YAML's n of -1, so `|2` keeps one space.
+  ['|2\n   x', '  x\n'],
+  ['|1\n x', ' x\n'],
+  ['--- >2\n   x\n   y', '  x\n  y\n'],
   ['---\n', null],
   ['--- 1', 1],
   ['--- |\n  x\n', 'x\n'],
@@ -128,6 +161,24 @@ const STRUCTURE: ReadonlyArray<[text: string, value: unknown]> = [
 ];
 
 const REFUSALS: ReadonlyArray<[text: string, message: string, ours?: typeof OURS]> = [
+  ['k: x\n  y : z', 'bad indentation of a mapping entry (2:5)'],
+  ['%YAML 1.2\n...\na', 'directives end mark is expected (2:1)'],
+  ['a:\n  k: &x\n- y', "expected ':' after a mapping key (3:4)", OURS], // js-yaml: end of the stream or a document separator is expected (3:1)
+  ['!!int 12abc', 'cannot resolve a node with !<tag:yaml.org,2002:int> explicit tag (1:1)'],
+  ['!!int 1-2', 'cannot resolve a node with !<tag:yaml.org,2002:int> explicit tag (1:1)'],
+  ['k: "x"\'', 'bad indentation of a mapping entry (1:7)'],
+  ['"a\\\n---\nb"', 'unexpected end of the document within a double quoted scalar (2:1)'],
+  ['k: "unterminated\n', 'deficient indentation (2:1)'],
+  [' %x', 'directives end mark is expected (1:4)'],
+  ['\na: *nope', 'unidentified alias "nope" (2:5)'],
+  ['"\\xZ1"', 'expected hexadecimal character (1:4)'],
+  ['[!!map [1]]', 'unknown sequence tag !<tag:yaml.org,2002:map> (1:2)'],
+  ['{k: x #c}', 'unexpected end of the stream within a flow collection (1:10)'],
+  ['a:\n  b: 1\n\t c: 2', 'tab characters must not be used in indentation (3:1)'],
+  ['"\\U00110000"', 'expected a Unicode code point (1:4)', OURS], // js-yaml reads two lone surrogates
+  ['!!seq\na: 1', 'unknown mapping tag !<tag:yaml.org,2002:seq> (2:1)', OURS], // js-yaml marks the tag, at (1:1)
+  ['k: !!map\n  - a', 'unknown sequence tag !<tag:yaml.org,2002:map> (2:3)', OURS], // js-yaml at (1:4)
+  ['a:\n \tb: 1', 'tab characters must not be used in indentation (2:2)', OURS], // js-yaml: bad indentation of a mapping entry (2:4)
   ['', 'expected a document, but the input is empty'],
   ['# only a comment\n', 'expected a document, but the input is empty'],
   ['a: 1\n---\nb: 2', 'expected a single document in the stream, but found more'],
@@ -260,6 +311,25 @@ describe('structure', () => {
   it('returns the same object for an alias as for its anchor, as js-yaml does', () => {
     const value = parse('a: &x {n: 1}\nb: *x') as { a: unknown; b: unknown };
     expect(value.b).toBe(value.a);
+  });
+});
+
+/** `count` levels of `line`, each indented two spaces past the one before. */
+const nested = (line: string, count: number): string => Array.from({ length: count }, (_, i) => `${'  '.repeat(i)}${line}`).join('\n');
+
+describe('block nesting, held to the same depth as flow nesting', () => {
+  it.each([
+    ['a:', 'nesting exceeded maxDepth (100) (101:202)'],
+    ['-', 'nesting exceeded maxDepth (100) (101:201)'],
+  ])('refuses a hundred and one levels of %j, and reads a hundred', (line, message) => {
+    expect(() => parse(nested(line, 101))).toThrow(message);
+    expect(() => parse(nested(line, 100))).not.toThrow();
+  });
+});
+
+describe('a YAMLException built by hand', () => {
+  it('reads its position, and nothing after it when given no snippet', () => {
+    expect(new YAMLException('r', { line: 0, column: 2, position: 2 }).message).toBe('r (1:3)');
   });
 });
 

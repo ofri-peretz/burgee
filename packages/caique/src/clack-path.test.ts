@@ -5,11 +5,15 @@
  * compared with the typed text in that same separator, or a Windows user who types `/`
  * (or closes a directory with `\`) is offered nothing and the prompt can never be answered.
  */
-import { posix, win32 } from 'node:path';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join, posix, win32 } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { entriesUnder, type PathHost } from './clack-path.js';
+
+const scratch = scratchDirs();
 
 /** A host over `tree`: each key is a directory, each listed name that is not itself a key is a file. */
 function hostOf(flavour: typeof posix, tree: Record<string, string[]>): PathHost {
@@ -99,5 +103,38 @@ describe('entriesUnder, on POSIX', () => {
   it('lists nothing for nothing typed, or for a path that cannot be read', () => {
     expect(valuesOf('', false, host)).toEqual([]);
     expect(valuesOf('/nowhere/at/all', false, host)).toEqual([]);
+  });
+});
+
+describe('entriesUnder, past a closing slash that names no directory', () => {
+  const host = hostOf(posix, { '/': ['work'], '/work': ['sb', 'src', 'srcmap.txt'] });
+
+  it('reads the closed text as a prefix in its parent, without the slash', () => {
+    expect(valuesOf('/work/sr/', false, host)).toEqual(['/work/src', '/work/srcmap.txt']);
+    expect(valuesOf('/work/srcmap.txt/', false, host)).toEqual(['/work/srcmap.txt']);
+  });
+
+  it('keeps every character of a prefix that is not closed', () => {
+    expect(valuesOf('/work/sr', false, host)).toEqual(['/work/src', '/work/srcmap.txt']);
+  });
+
+  it('types nothing into a root, which has nothing to drop', () => {
+    const odd = hostOf(posix, { '/': ['a', 'b'] });
+    expect(valuesOf('/', false, odd)).toEqual(['/a', '/b']);
+  });
+
+  it('lists nothing for nothing typed, even where the working directory has entries that would match', () => {
+    const dotted = hostOf(posix, { '.': ['.hidden'] });
+    expect(valuesOf('', false, dotted)).toEqual([]);
+  });
+});
+
+describe('entriesUnder, on the real filesystem', () => {
+  it('lists only the directories under a directory when asked for directories', () => {
+    const root = scratch('caique-path-');
+    mkdirSync(join(root, 'dir'));
+    writeFileSync(join(root, 'file.txt'), '');
+    expect(entriesUnder(`${root}/`, true).map((option) => option.value)).toEqual([join(root, 'dir')]);
+    expect(entriesUnder(`${root}/`, false).map((option) => option.value)).toEqual([join(root, 'dir'), join(root, 'file.txt')]);
   });
 });

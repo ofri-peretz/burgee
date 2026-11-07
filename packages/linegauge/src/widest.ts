@@ -19,6 +19,7 @@ export function widest(lines: Iterable<string>): number {
   let max = 0;
   for (const line of lines) {
     const measured = width(line);
+    // Stryker disable next-line EqualityOperator: replacing the maximum with an equal value leaves it the same
     if (measured > max) max = measured;
   }
   return max;

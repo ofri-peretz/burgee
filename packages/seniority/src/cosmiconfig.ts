@@ -125,6 +125,7 @@ function getExtensionDescription(extension: string): string {
 
 /** The four the search swallows: a place that is not there, or not readable, is not a failure. */
 const SKIPPABLE: ReadonlySet<string> = new Set(['ENOENT', 'EISDIR', 'ENOTDIR', 'EACCES']);
+// Stryker disable next-line OptionalChaining: what reaches here is a filesystem error, never `null`.
 const isSkippable = (error: unknown): boolean => SKIPPABLE.has(String((error as { code?: string } | null)?.code));
 
 // eslint-disable-next-line conventions/consistent-existence-index-check -- cosmiconfig's own `hasOwn` is `Object.prototype.hasOwnProperty`, and the difference matters here: `'$import' in loaded` would be true for an object that merely inherits the key, which is how a prototype-polluted config would start importing files.
@@ -477,12 +478,14 @@ function annotate(error: unknown, filepath: string): void {
  * `ENOTDIR` and a directory the process may not enter with `EACCES`, rather than both reading
  * as "no config here". Windows reports `<file>\sub` as `ENOENT`, which is skipped, as upstream.
  */
+// Stryker disable next-line OptionalChaining: what reaches here is a `stat` error, never `null`.
 const missing = (error: unknown): boolean => (error as { code?: string } | null)?.code === 'ENOENT';
 
 async function isDirectoryAsync(path: string): Promise<boolean> {
   try {
     return (await fsPromises.stat(path)).isDirectory();
   } catch (error) {
+    // Stryker disable next-line BooleanLiteral: every search place under a missing directory is missing too, and the search skips each one.
     if (missing(error)) return false;
     throw error;
   }
@@ -492,6 +495,7 @@ function isDirectorySync(path: string): boolean {
   try {
     return fs.statSync(path).isDirectory();
   } catch (error) {
+    // Stryker disable next-line BooleanLiteral: every search place under a missing directory is missing too, and the search skips each one.
     if (missing(error)) return false;
     throw error;
   }
@@ -507,22 +511,24 @@ async function hasPackageManifestAsync(dir: string): Promise<boolean> {
 
 function hasPackageManifestSync(dir: string): boolean {
   return PACKAGE_MANIFESTS.some((name) => {
+    let found = true;
     try {
       fs.statSync(join(dir, name));
-      return true;
     } catch {
-      return false;
+      found = false;
     }
+    return found;
   });
 }
 
 async function exists(probe: () => Promise<unknown>): Promise<boolean> {
+  let found = true;
   try {
     await probe();
-    return true;
   } catch {
-    return false;
+    found = false;
   }
+  return found;
 }
 
 /** `stopDir` is only meaningful to a `global` walk, so supplying it with any other strategy is refused. */
@@ -541,15 +547,18 @@ function validateOptions(options: Partial<Options>): void {
 function readMetaConfig(): { config: Record<string, unknown>; filepath: string } | null {
   const metaExplorer = new ExplorerSync({
     moduleName: 'cosmiconfig',
-    stopDir: resolvePath(''),
+    stopDir: resolvePath(),
     searchPlaces: metaSearchPlaces,
+    // Stryker disable next-line BooleanLiteral: an empty meta file sets nothing, so reading it as empty or skipping it configures alike.
     ignoreEmptySearchPlaces: false,
     applyPackagePropertyPathToConfiguration: true,
     loaders: { ...defaultLoaders },
     transform: identity,
+    // Stryker disable next-line BooleanLiteral: this explorer searches once and is dropped, so nothing could be served from its cache.
     cache: true,
     metaConfigFilePath: null,
     mergeImportArrays: true,
+    // Stryker disable next-line BooleanLiteral: read only by an explorer that has a meta config, and this one is the meta config's own.
     mergeSearchPlaces: true,
     searchStrategy: 'none',
   });
@@ -564,6 +573,7 @@ function readMetaConfig(): { config: Record<string, unknown>; filepath: string }
 /** `{name}` in a meta config's search place is the name `cosmiconfig()` was called with — and only the first occurrence. */
 function getResolvedSearchPlaces(moduleName: string, toolDefined: string[], userConfigured: Record<string, unknown>): string[] {
   const places = (userConfigured['searchPlaces'] as string[] | undefined)?.map((place) => place.replace('{name}', moduleName));
+  // Stryker disable next-line ArrayDeclaration: a made-up place names a file that is never there.
   if (userConfigured['mergeSearchPlaces'] === true) return [...(places ?? []), ...toolDefined];
   return places ?? toolDefined;
 }
@@ -596,6 +606,7 @@ function defaultsFor(moduleName: string, options: Partial<Options>, sync: boolea
     loaders: { ...(sync ? defaultLoadersSync : defaultLoaders) },
     metaConfigFilePath: null,
     mergeImportArrays: true,
+    // Stryker disable next-line BooleanLiteral: read only where a meta config exists, and `readMetaConfig` always sets it there.
     mergeSearchPlaces: true,
     // Truthiness, as 10.0.1 has it: `stopDir: ''` names no directory and searches only the start.
     searchStrategy: options.stopDir === undefined || options.stopDir === '' ? 'none' : 'global',

@@ -158,3 +158,27 @@ describe('NFC reaches the text between escape sequences and never a sequence', (
     }
   });
 });
+
+describe('what a wrapped row carries across the break', () => {
+  it('drops a space trailing the last word even when a closer follows it', () => {
+    expect(wrap(`${ESC}[31mfoo ${ESC}[39m`, 10)).toBe(`${ESC}[31mfoo${ESC}[39m`);
+  });
+
+  it('reopens a link on the next row with the parameters it was opened with', () => {
+    const input = `${ESC}]8;id=7;https://x.y${ESC}\\aaaa bbbb${ESC}]8;;${ESC}\\`;
+    expect(wrap(input, 4)).toBe(`${ESC}]8;id=7;https://x.y${ESC}\\aaaa${ESC}]8;;\u0007\n${ESC}]8;id=7;https://x.y\u0007bbbb${ESC}]8;;${ESC}\\`);
+  });
+});
+
+describe('rows at the edges: blank text, negative budgets, competing options', () => {
+  it.each([
+    ['all of it between two sequences', `${ESC}[31m   ${ESC}[39m`, [10, {}], `${ESC}[31m${ESC}[39m`],
+    ['trailing the first run, before a sequence', `ab  ${ESC}[31m`, [10, {}], `ab${ESC}[31m`],
+    ['an ideographic space, which trim() also removes', '\u3000', [5, {}], ''],
+    ['a lone sequence, no wider than a negative budget', `${ESC}[31m`, [-1, { wordWrap: false }], `${ESC}[31m`],
+    ['a long word with wordWrap off and hard on, which wordWrap decides', 'ab cdefgh', [4, { hard: true, wordWrap: false }], 'ab c\ndefg\nh'],
+  ] as [string, string, [number, WrapOptions], string][])('%s', (_name, input, [columns, options], expected) => {
+    expect(wrap(input, columns, options)).toBe(expected);
+    expect(wrapAnsi(input, columns, options)).toBe(expected);
+  });
+});

@@ -231,3 +231,45 @@ describe('off a terminal: lines, never a wait (controlroom R7)', () => {
     expect(got).toEqual([]);
   });
 });
+
+/** A completer that offers `abc` for `ab` and nothing else. */
+const completeAb = (word: string): string[] => (word === 'ab' ? ['abc'] : []);
+
+describe('the cursor inside the text', () => {
+  it('completes the word before the cursor, keeping the text before it and after it, and lands after the completion', () => {
+    const { state } = type(['go ab x', LEFT, LEFT, TAB], { complete: completeAb });
+    expect(state.text).toBe('go abc x');
+    expect(state.cursor).toBe(6);
+  });
+
+  it('offers nothing for an empty word, whatever the completer would say', () => {
+    expect(type([' '], { complete: () => ['anything'] }).state.menu).toBeUndefined();
+  });
+
+  it('offers a dismissed word again once the word has changed in between', () => {
+    const { state } = type(['ab', ESC, 'c', BACKSPACE], { complete: completeAb });
+    expect(state.menu?.items).toEqual(['abc']);
+  });
+
+  it('goes to the history from the first row of a multi-line entry, and from the last row onward', () => {
+    const up = type(['top', ALT_ENTER, 'bottom', UP, UP], { history: ['older'] });
+    expect(up.state.text).toBe('older');
+    // On the last row of a multi-line entry recalled from the history, Down goes to the entry after it.
+    expect(type([UP, UP, DOWN], { history: ['a\nb', 'c'] }).state.text).toBe('c');
+  });
+
+  it('moves up within an entry that starts with a newline', () => {
+    const { state } = type([ALT_ENTER, 'abc', UP], { history: ['older'] });
+    expect(state.text).toBe('\nabc');
+  });
+
+  it('draws the cursor on the row it is on, not the last row', () => {
+    const { frame } = type(['one', ALT_ENTER, 'two', UP]);
+    expect(frame.cursor.row).toBe(0);
+  });
+
+  it('adds an entry that repeats an older one but not the last', () => {
+    const { state } = type(['a', ENTER, 'b', ENTER, 'a', ENTER]);
+    expect(state.history).toEqual(['a', 'b', 'a']);
+  });
+});

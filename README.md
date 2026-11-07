@@ -298,7 +298,7 @@ median of a named window of CI runs rather than any one run** ([measured](https:
 | Claim | Gate | Measured | |
 | :--- | :--- | ---: | :--- |
 | the core entry point is under 52 KB bundled | `core-under-52kb-bundled` | 24,528 bytes | ✅ met |
-| `burgee/yargs` is lighter in a user's bundle than `yargs` | `lighter-than-yargs` | 0.986× | ✅ met |
+| `burgee/yargs` is lighter in a user's bundle than `yargs` | `lighter-than-yargs` | 0.985× | ✅ met |
 | `burgee` is lighter than `cac` **plus what a cac user installs to match it** | `lighter-than-cac-at-parity` | 0.251× | ✅ met |
 | `burgee/commander` is lighter than `commander` **plus the same** | `lighter-than-commander-at-parity` | 0.438× | ✅ met |
 | `burgee/yargs` is lighter than `yargs` **plus the same** | `lighter-than-yargs-at-parity` | 0.554× | ✅ met |
@@ -333,7 +333,7 @@ with ([measured](https://burgee.interlace.tools/docs/benchmarks)):
 | :--- | ---: | ---: | ---: |
 | `cac` | 10,452 B | **97,692 B** | 24,528 B |
 | `commander` | 39,084 B | **126,335 B** | 55,393 B |
-| `yargs` | 111,794 B | **198,892 B** | 110,274 B |
+| `yargs` | 111,794 B | **198,892 B** | 110,108 B |
 
 The additions are `cosmiconfig` (find and load a config file), `exit-hook` (run cleanup on
 every path out, including a signal) and `restore-cursor` (hand the terminal back), bundled

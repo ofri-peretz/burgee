@@ -35,17 +35,18 @@ const select: PromptSpec = { kind: 'select', message: 'Which host?', choices: [{
 const multi: PromptSpec = { kind: 'multiselect', message: 'Which hosts?', choices: [{ value: 'ora' }, { value: 'chalk' }, { value: 'yargs' }] };
 
 /** A key stream that replays a script, and remembers what was done to the terminal. */
-function keyboard(script: string[], columns?: number) {
+function keyboard(script: string[], columns?: number, flowing = true) {
   const listeners: ((c: string) => void)[] = [];
   const rawCalls: boolean[] = [];
   const out: string[] = [];
   const keys: KeyStream = {
     isTTY: true,
     setRawMode: (raw: boolean) => rawCalls.push(raw),
-    on: (_e, l) => listeners.push(l as (c: string) => void),
-    off: (_e, l) => listeners.splice(listeners.indexOf(l as (c: string) => void), 1),
-    resume: () => undefined,
-    pause: () => undefined,
+    // Only `data` delivers a chunk, as on a real stream: a listener on any other event hears nothing.
+    on: (event, l) => (event === 'data' ? listeners.push(l as (c: string) => void) : 0),
+    off: (event, l) => (event === 'data' ? listeners.splice(listeners.indexOf(l as (c: string) => void), 1) : []),
+    // A stream that has no `resume` and `pause` is still one a list can be read from.
+    ...(flowing ? { resume: () => undefined, pause: () => undefined } : {}),
   };
   const writer: Writer = { write: (t: string) => out.push(t), columns };
   // Nothing reads lines in raw mode; a reader is present only to satisfy the shape.
@@ -134,6 +135,45 @@ describe('multiselect', () => {
   it('is order-independent: selecting bottom-up gives list order, not press order', async () => {
     const { answer } = await run(multi, [DOWN, DOWN, SPACE, UP, UP, SPACE, ENTER], true);
     expect(answer).toEqual({ ok: true, value: ['ora', 'yargs'] });
+  });
+});
+
+/** How many frames a run drew: every frame starts with the question. */
+const framesIn = (written: string, question: string): number => written.split(question).length - 1;
+
+describe('what is drawn, and when', () => {
+  it('draws the first frame bare, and repaints on every key that changes something', async () => {
+    const moved = await run(select, [DOWN, UP, ENTER]);
+    expect(moved.written().startsWith(`${HIDE_CURSOR}Which host?`)).toBe(true);
+    // The first frame, one per arrow, and the answered one.
+    expect(framesIn(moved.written(), 'Which host?')).toBe(4);
+    expect(framesIn((await run(multi, [SPACE, ENTER], true)).written(), 'Which hosts?')).toBe(3);
+  });
+
+  it('repaints nothing for space in a single select, and toggles nothing for a key with no meaning in a multiselect', async () => {
+    expect(framesIn((await run(select, [SPACE, ENTER])).written(), 'Which host?')).toBe(2);
+    const other = await run(multi, ['x', ENTER], true);
+    expect(other.answer).toEqual({ ok: true, value: [] });
+    expect(framesIn(other.written(), 'Which hosts?')).toBe(2);
+  });
+
+  it('leaves the answered frame on screen, then gives the cursor back', async () => {
+    const { written } = await run(select, [DOWN, ENTER]);
+    expect(written().endsWith(`${renderList(select, select.choices ?? [], { cursor: 1, selected: new Set() }, false)}\n${SHOW_CURSOR}`)).toBe(true);
+  });
+
+  it('stops listening once answered, so a key after enter draws nothing', async () => {
+    const once = await run(select, [ENTER]);
+    const after = await run(select, [ENTER, DOWN, DOWN]);
+    expect(after.answer).toEqual(once.answer);
+    expect(after.written()).toBe(once.written());
+  });
+
+  it('reads a key stream that has no resume or pause', async () => {
+    const k = keyboard([DOWN, ENTER], undefined, false);
+    const answer = askList(select, k.io);
+    k.play();
+    expect(await answer).toEqual({ ok: true, value: 'log-update' });
   });
 });
 
@@ -242,6 +282,12 @@ describe('a frame wider than the terminal', () => {
     const shown = screen(written(), Number.MAX_SAFE_INTEGER);
     expect(shown.filter((r) => r === 'Which host?')).toHaveLength(1);
     expect(shown).toEqual(screen(`${renderList(select, select.choices ?? [], { cursor: 1, selected: new Set() }, false)}\n`, Number.MAX_SAFE_INTEGER));
+  });
+
+  it('measures against a terminal one column wide, which wraps every character', async () => {
+    const { written } = await run(select, [DOWN, ENTER], false, 1);
+    const last = renderList(select, select.choices ?? [], { cursor: 1, selected: new Set() }, false);
+    expect(screen(written(), 1)).toEqual(screen(`${last}\n`, 1));
   });
 
   it('treats a writer that reports zero columns as one that does not know its width', async () => {
@@ -463,6 +509,18 @@ function tallScreen(script: string[], rows: number | undefined) {
 describe('a list prompt never outgrows the terminal', () => {
   it('renderList draws a window of maxItems with the cursor in it, and counts what is below', () => {
     expect(renderList({ ...forty, maxItems: 7 }, forty.choices ?? [], { cursor: 0, selected: new Set() }, false).split('\n')).toEqual(['Which?', '❯ c1', '  c2', '  c3', '  c4', '  c5', '  c6', '  c7', '  ↓ 33 more']);
+  });
+
+  it('renderList never draws a window of less than one choice', () => {
+    expect(renderList({ ...select, maxItems: 0 }, select.choices ?? [], { cursor: 0, selected: new Set() }, false).split('\n')).toEqual(['Which host?', '❯ ora', '  ↓ 2 more']);
+  });
+
+  it('renderList starts a fresh window at the top while the cursor is inside it', () => {
+    expect(renderList({ ...forty, maxItems: 3 }, forty.choices ?? [], { cursor: 1, selected: new Set() }, false).split('\n')).toEqual(['Which?', '  c1', '❯ c2', '  c3', '  ↓ 37 more']);
+  });
+
+  it('renderList never runs a kept window past the end of the list', () => {
+    expect(renderList({ ...forty, maxItems: 3 }, forty.choices ?? [], { cursor: 39, top: 38, selected: new Set() }, false).split('\n')).toEqual(['Which?', '  ↑ 37 more', '  c38', '  c39', '❯ c40']);
   });
 
   it('renderList with no maxItems draws every choice, as it always has', () => {

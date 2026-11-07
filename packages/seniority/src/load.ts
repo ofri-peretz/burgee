@@ -113,7 +113,7 @@ export function loaderFor(filepath: string, loaders: Readonly<Record<string, Loa
  */
 export async function loadPath(filepath: string, options: LoadOptions = {}): Promise<Record<string, unknown>> {
   const loader = loaderFor(filepath, options.loaders ?? {});
-  const content = loader === defaultLoaders['.js'] ? '' : readFileSync(filepath, 'utf8');
+  const content = readFileSync(filepath, 'utf8');
   const value: unknown = await loader(filepath, content);
   if (!isObject(value)) throw new ConfigError(`${filepath} must contain an object (or export one, or a function returning one)`);
   return value;

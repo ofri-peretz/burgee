@@ -148,3 +148,29 @@ describe('when the options wrapped past the screen', () => {
     expect(limitOptions({ options: TEN, cursor: 20, style: plain, output: screen({ columns: 80, rows: 0 }) })).toEqual(['...']);
   });
 });
+
+/** `count` options named by their index, each one line tall unless `tall` gives it more. */
+const listOf = (count: number, tall: Record<number, number> = {}): string[] => Array.from({ length: count }, (_unused, i) => [`o${String(i)}`, ...Array.from({ length: (tall[i] ?? 1) - 1 }, () => '-')].join('\n'));
+
+/**
+ * Windows at the edges of each decision, every one taken from `@clack/prompts` 1.8.1's
+ * `limitOptions` on the same input: a window slid by exactly one, an ellipsis that costs the
+ * last row, options of uneven height dropped from either end, and screens with no rows at all.
+ */
+describe('the window at the edges of each decision, as clack draws it', () => {
+  it.each<[string, { options: string[]; cursor: number; rows: number; rowPadding: number; maxItems?: number }, string[]]>([
+    ['a window slid by one shows an ellipsis for the one option above it', { options: listOf(7), cursor: 5, rows: 8, rowPadding: 2 }, ['...', ' o2', ' o3', ' o4', '>o5', ' o6']],
+    ['a slid window starts one past its start, under the ellipsis', { options: listOf(11), cursor: 4, rows: 8, rowPadding: 0, maxItems: 3 }, ['...', ' o3', '>o4', ' o5', '...']],
+    ['a lone option on a screen with no rows is still drawn', { options: listOf(1), cursor: 0, rows: 0, rowPadding: 3 }, ['>o0']],
+    ['a screen with no rows keeps only the cursor, between two ellipses', { options: listOf(9), cursor: 5, rows: 0, rowPadding: 0 }, ['...', '>o5', '...']],
+    ['what fits exactly once the options above are dropped is kept', { options: listOf(7), cursor: 4, rows: 8, rowPadding: 4 }, ['...', '>o4', ' o5', ' o6']],
+    ['what fits exactly once the options below are dropped is kept', { options: listOf(9, { 2: 3, 3: 4, 4: 5, 5: 2, 6: 5, 7: 4, 8: 3 }), cursor: 2, rows: 8, rowPadding: 2, maxItems: 7 }, [' o0', ' o1', '>o2', '-', '-', '...']],
+    ['options below are dropped from the far end first', { options: listOf(7, { 4: 2 }), cursor: 3, rows: 8, rowPadding: 2 }, [' o0', ' o1', ' o2', '>o3', '...']],
+    ['options below of uneven height are dropped from the far end first', { options: listOf(9, { 0: 4, 1: 2, 2: 3, 3: 4, 4: 3, 5: 2, 6: 4, 7: 5, 8: 3 }), cursor: 2, rows: 8, rowPadding: 1 }, ['...', ' o1', '-', '>o2', '-', '-', '...']],
+    ['options above of uneven height are dropped from the top first', { options: listOf(5, { 0: 5, 1: 4, 3: 2, 4: 2 }), cursor: 3, rows: 9, rowPadding: 1 }, ['...', ' o2', '>o3', '-', '...']],
+    ['a tall cursor in a slid window drops the options on both sides', { options: listOf(13, { 0: 2, 2: 5, 3: 4, 4: 5, 5: 4, 6: 2, 7: 5, 9: 2, 10: 4, 11: 3, 12: 5 }), cursor: 5, rows: 8, rowPadding: 0, maxItems: 9 }, ['...', '>o5', '-', '-', '-', '...']],
+  ])('%s', (_label, { options, cursor, rows, rowPadding, maxItems }, expected) => {
+    expect(limitOptions({ options, cursor, style: marked, output: screen({ columns: 80, rows }), rowPadding, ...(maxItems === undefined ? {} : { maxItems }) })).toEqual(expected);
+  });
+});
+

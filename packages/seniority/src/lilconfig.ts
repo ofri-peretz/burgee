@@ -90,21 +90,23 @@ export interface SyncSearcher extends ClearCaches {
  * the two lists by the file each one finds first.
  */
 function defaultSearchPlaces(name: string, sync: boolean): string[] {
-  return [
+  const places = [
     'package.json',
     `.${name}rc.json`,
     `.${name}rc.js`,
     `.${name}rc.cjs`,
-    ...(sync ? [] : [`.${name}rc.mjs`]),
+    `.${name}rc.mjs`,
     `.config/${name}rc`,
     `.config/${name}rc.json`,
     `.config/${name}rc.js`,
     `.config/${name}rc.cjs`,
-    ...(sync ? [] : [`.config/${name}rc.mjs`]),
+    `.config/${name}rc.mjs`,
     `${name}.config.js`,
     `${name}.config.cjs`,
-    ...(sync ? [] : [`${name}.config.mjs`]),
+    `${name}.config.mjs`,
   ];
+  // The sync explorer cannot `import()`, so it has no `.mjs` place.
+  return sync ? places.filter((place) => !place.endsWith('.mjs')) : places;
 }
 
 /**
@@ -120,7 +122,7 @@ function parentDir(p: string): string {
 
 /** The directory the walk starts from when the caller names none — see the header on R11. */
 function currentDir(): string {
-  return resolvePath('');
+  return resolvePath();
 }
 
 const requireFrom = createRequire(import.meta.url);
@@ -161,6 +163,7 @@ const dynamicImport: Loader = async (id) => {
     return mod.default;
   } catch (importError) {
     try {
+      // Stryker disable next-line StringLiteral: `require` reads the file itself; the content argument is never looked at.
       return requireLoader(id, '');
     } catch (requireError) {
       // Rethrown as caught: which of the two carries the message the author needs is the
@@ -243,7 +246,8 @@ function getPackageProp(props: string | string[], obj: Record<string, unknown>):
   // Upstream writes `|| null`, so every falsy result collapses. Spelled out rather than
   // borrowed, because `||` over an `unknown` is exactly the expression this repository's own
   // lint refuses — and the set of values it collapses is the contract, not an implementation.
-  return found === undefined || found === null || found === false || found === '' || found === 0 || (typeof found === 'number' && Number.isNaN(found)) ? null : found;
+  // `null` itself needs no test: it is already the answer.
+  return found === undefined || found === false || found === '' || found === 0 || Number.isNaN(found as number) ? null : found;
 }
 
 function validateFilePath(filepath: string): void {
@@ -258,6 +262,7 @@ function validateLoader(loader: Loader | undefined, ext: string): asserts loader
 const makeEmplace =
   (enableCache: boolean) =>
   <T>(c: Map<string, T>, filepath: string, res: T): T => {
+    // Stryker disable next-line ConditionalExpression: with the cache off, nothing ever reads the map this would fill.
     if (enableCache) c.set(filepath, res);
     return res;
   };
@@ -275,6 +280,7 @@ export function lilconfig(name: string, options?: Options): AsyncSearcher {
       const visited = new Set<string>();
       let dir = searchFrom;
       dirLoop: while (true) {
+        // Stryker disable next-line ConditionalExpression: with the cache off nothing is stored, so asking it finds nothing, and `visited` is read only to store.
         if (cache) {
           const r = searchCache.get(dir);
           if (r !== undefined) {
@@ -300,10 +306,11 @@ export function lilconfig(name: string, options?: Options): AsyncSearcher {
           const loader = loaders[loaderKey];
 
           if (searchPlace === 'package.json') {
+            // Stryker disable next-line CallExpression: `getOptions` already refused a search place with no loader.
             validateLoader(loader, loaderKey);
             const pkg = (await loader(filepath, content)) as Record<string, unknown>;
             const maybeConfig = getPackageProp(packageProp, pkg);
-            if (maybeConfig !== null && maybeConfig !== undefined) {
+            if (maybeConfig !== null) {
               result.config = maybeConfig;
               result.filepath = filepath;
               break dirLoop;
@@ -318,6 +325,7 @@ export function lilconfig(name: string, options?: Options): AsyncSearcher {
             result.isEmpty = true;
             result.config = undefined;
           } else {
+            // Stryker disable next-line CallExpression: `getOptions` already refused a search place with no loader.
             validateLoader(loader, loaderKey);
             result.config = await loader(filepath, content);
           }
@@ -328,7 +336,9 @@ export function lilconfig(name: string, options?: Options): AsyncSearcher {
         dir = parentDir(dir);
       }
 
-      const transformed = await transform(result.filepath === '' && result.config === null ? null : result);
+      // Nothing found leaves the path empty; a found file may still hold `null`, and is a result.
+      const transformed = await transform(result.filepath === '' ? null : result);
+      // Stryker disable next-line ConditionalExpression: with the cache off, nothing reads what this would store.
       if (cache) for (const p of visited) searchCache.set(p, transformed);
       return transformed;
     },
@@ -347,8 +357,9 @@ export function lilconfig(name: string, options?: Options): AsyncSearcher {
         const pkg = (await loader(absPath, content)) as Record<string, unknown>;
         return emplace(loadCache, absPath, await transform({ config: getPackageProp(packageProp, pkg), filepath: absPath }));
       }
+      // An empty file reads the same whether or not empty places are ignored (upstream tests the
+      // option here and builds the same object either way).
       const isEmpty = content.trim() === '';
-      if (isEmpty && ignoreEmptySearchPlaces) return emplace(loadCache, absPath, await transform({ config: undefined, filepath: absPath, isEmpty: true }));
 
       // cosmiconfig returns undefined for empty files, and lilconfig follows it here.
       const result: LilconfigResult = { config: isEmpty ? undefined : await loader(absPath, content), filepath: absPath };
@@ -356,12 +367,15 @@ export function lilconfig(name: string, options?: Options): AsyncSearcher {
     },
 
     clearLoadCache(): void {
+      // Stryker disable next-line ConditionalExpression: with the cache off the maps stay empty, and clearing them changes nothing.
       if (cache) loadCache.clear();
     },
     clearSearchCache(): void {
+      // Stryker disable next-line ConditionalExpression: with the cache off the maps stay empty, and clearing them changes nothing.
       if (cache) searchCache.clear();
     },
     clearCaches(): void {
+      // Stryker disable next-line ConditionalExpression: with the cache off the maps stay empty, and clearing them changes nothing.
       if (cache) {
         loadCache.clear();
         searchCache.clear();
@@ -384,6 +398,7 @@ export function lilconfigSync(name: string, options?: OptionsSync): SyncSearcher
       const visited = new Set<string>();
       let dir = searchFrom;
       dirLoop: while (true) {
+        // Stryker disable next-line ConditionalExpression: with the cache off nothing is stored, so asking it finds nothing, and `visited` is read only to store.
         if (cache) {
           const r = searchCache.get(dir);
           if (r !== undefined) {
@@ -405,10 +420,11 @@ export function lilconfigSync(name: string, options?: OptionsSync): SyncSearcher
           const content = String(fs.readFileSync(filepath));
 
           if (searchPlace === 'package.json') {
+            // Stryker disable next-line CallExpression: `getOptions` already refused a search place with no loader.
             validateLoader(loader, loaderKey);
             const pkg = loader(filepath, content) as Record<string, unknown>;
             const maybeConfig = getPackageProp(packageProp, pkg);
-            if (maybeConfig !== null && maybeConfig !== undefined) {
+            if (maybeConfig !== null) {
               result.config = maybeConfig;
               result.filepath = filepath;
               break dirLoop;
@@ -423,6 +439,7 @@ export function lilconfigSync(name: string, options?: OptionsSync): SyncSearcher
             result.isEmpty = true;
             result.config = undefined;
           } else {
+            // Stryker disable next-line CallExpression: `getOptions` already refused a search place with no loader.
             validateLoader(loader, loaderKey);
             result.config = loader(filepath, content);
           }
@@ -433,7 +450,8 @@ export function lilconfigSync(name: string, options?: OptionsSync): SyncSearcher
         dir = parentDir(dir);
       }
 
-      const transformed = result.filepath === '' && result.config === null ? transformSync(null) : transformSync(result);
+      const transformed = result.filepath === '' ? transformSync(null) : transformSync(result);
+      // Stryker disable next-line ConditionalExpression: with the cache off, nothing reads what this would store.
       if (cache) for (const p of visited) searchCache.set(p, transformed);
       return transformed;
     },
@@ -463,12 +481,15 @@ export function lilconfigSync(name: string, options?: OptionsSync): SyncSearcher
     },
 
     clearLoadCache(): void {
+      // Stryker disable next-line ConditionalExpression: with the cache off the maps stay empty, and clearing them changes nothing.
       if (cache) loadCache.clear();
     },
     clearSearchCache(): void {
+      // Stryker disable next-line ConditionalExpression: with the cache off the maps stay empty, and clearing them changes nothing.
       if (cache) searchCache.clear();
     },
     clearCaches(): void {
+      // Stryker disable next-line ConditionalExpression: with the cache off the maps stay empty, and clearing them changes nothing.
       if (cache) {
         loadCache.clear();
         searchCache.clear();

@@ -60,8 +60,9 @@ interface Shrink {
 function shrink({ rendered, lines, from, to, budget, fromEnd = false }: Shrink): { lineCount: number; removals: number } {
   let lineCount = lines;
   let removals = 0;
-  const order = fromEnd ? [...Array.from({ length: Math.max(to - from, 0) }, (_unused, n) => to - 1 - n)] : [...Array.from({ length: Math.max(to - from, 0) }, (_unused, n) => from + n)];
+  const order = Array.from({ length: Math.max(to - from, 0) }, (_unused, n) => (fromEnd ? to - 1 - n : from + n));
   for (const i of order) {
+    // Stryker disable next-line NumericLiteral: `order` holds only indices inside `rendered`, so the fallback is never used; it is there for the type
     lineCount -= rendered[i]?.length ?? 0;
     removals++;
     if (lineCount <= budget) break;
@@ -134,6 +135,7 @@ function fitToScreen(fit: Fit): { ellipsisAbove: boolean; ellipsisBelow: boolean
   const fromAbove = (): void => {
     ({ lineCount: remaining, removals: removedAbove } = above());
     if (remaining <= budget) return;
+    // Stryker disable next-line ConditionalExpression: with both ellipses up, a slid window holds one option below the cursor, and `below()` drops that one whatever the budget
     if (!ellipsisBelow) budget -= 1;
     ({ lineCount: remaining, removals: removedBelow } = below());
   };
@@ -185,13 +187,17 @@ export function limitOptions<TOption>({
 }: LimitOptionsParams<TOption>): string[] {
   const columns = columnsOf(output) - columnPadding;
   const ellipsis = styleText('dim', '...');
+  // Stryker disable next-line NumericLiteral: on a screen of no rows or one, the cursor and the ellipses already overflow it, so every other option is dropped either way
   const availableRows = Math.max(rowsOf(output) - rowPadding, 0);
   const visible = Math.max(Math.min(maxItems, availableRows), MINIMUM_VISIBLE);
 
   let windowStart = 0;
+  // Stryker disable next-line EqualityOperator,ConditionalExpression: below the margin `cursor - visible + SCROLL_MARGIN` is not positive, so the window starts at 0 either way
   if (cursor >= visible - SCROLL_MARGIN) windowStart = Math.max(Math.min(cursor - visible + SCROLL_MARGIN, options.length - visible), 0);
 
+  // Stryker disable next-line EqualityOperator,ConditionalExpression: a window can only start past 0 when the list is longer than it, so the first test only restates the second
   let ellipsisAbove = visible < options.length && windowStart > 0;
+  // Stryker disable next-line EqualityOperator,ConditionalExpression: as above — anything below the window means the list is longer than it
   let ellipsisBelow = visible < options.length && windowStart + visible < options.length;
   const windowEnd = Math.min(windowStart + visible, options.length);
 

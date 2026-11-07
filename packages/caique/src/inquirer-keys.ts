@@ -40,6 +40,7 @@ export function getDefaultKeybindings(): Keybinding[] {
     ...new Set(
       env
         .toLowerCase()
+        // Stryker disable next-line Regex: the empty names a single-character split leaves are no keybinding, and the filter drops them
         .split(/[\s,]+/)
         .filter(isKeybinding),
     ),
@@ -47,10 +48,12 @@ export function getDefaultKeybindings(): Keybinding[] {
 }
 
 /** The up arrow always; `k` under vim; `Ctrl-P` under emacs. Nothing else, ever. */
+// Stryker disable next-line ArrayDeclaration: a default that names no keybinding of the three reads as none
 export const isUpKey = (key: KeypressEvent, keybindings: readonly Keybinding[] = []): boolean =>
   key.name === 'up' || (keybindings.includes('vim') && key.name === 'k') || (keybindings.includes('emacs') && key.ctrl === true && key.name === 'p');
 
 /** The down arrow always; `j` under vim; `Ctrl-N` under emacs. */
+// Stryker disable next-line ArrayDeclaration: a default that names no keybinding of the three reads as none
 export const isDownKey = (key: KeypressEvent, keybindings: readonly Keybinding[] = []): boolean =>
   key.name === 'down' || (keybindings.includes('vim') && key.name === 'j') || (keybindings.includes('emacs') && key.ctrl === true && key.name === 'n');
 

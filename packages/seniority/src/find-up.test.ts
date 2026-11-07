@@ -18,11 +18,19 @@ const root = scratch('seniority-findup-');
 const at = (...parts: string[]): string => join(root, ...parts);
 mkdirSync(at('a', 'b', 'c'), { recursive: true });
 mkdirSync(at('a', 'deep', 'deeper'), { recursive: true });
+// One target two levels down in the first branch and one in the last, for the two strategies.
+mkdirSync(at('tree', 'a', 'b'), { recursive: true });
+mkdirSync(at('tree', 'z'), { recursive: true });
+writeFileSync(at('tree', 'a', 'b', 'target'), '');
+writeFileSync(at('tree', 'z', 'target'), '');
 writeFileSync(at('package.json'), '{}');
 writeFileSync(at('a', 'package.json'), '{}');
 writeFileSync(at('a', 'other.json'), '{}');
 writeFileSync(at('a', 'deep', 'deeper', 'leaf.txt'), '');
 symlinkSync(at('a', 'package.json'), at('a', 'b', 'link.json'));
+
+/** A matcher that ends the walk in `a/b`, below `a`, which holds a `package.json`. */
+const stopBelowA = (directory: string): string | typeof findUpStop => (directory === at('a', 'b') ? findUpStop : 'package.json');
 
 afterEach(() => {
   vi.doUnmock('./runtime.js');
@@ -73,6 +81,11 @@ describe('seniority/find-up walks up as find-up 8 does', () => {
     await expect(findUp('link.json', { cwd: at('a', 'b'), allowSymlinks: false, stopAt: at('a', 'b') })).resolves.toBeUndefined();
   });
 
+  // `/dev/null` is a character device: it exists, and it is neither a file nor a directory.
+  it.skipIf(process.platform === 'win32')('matches neither a file nor a directory with type both when the entry is a device', () => {
+    expect(findUpSync('null', { cwd: '/dev', stopAt: '/dev', type: 'both' })).toBeUndefined();
+  });
+
   it('treats a path it cannot stat as absent', () => {
     // A name with a NUL byte makes `statSync` throw rather than report a missing entry.
     expect(findUpSync('bad\0name', { cwd: at('a'), stopAt: at('a') })).toBeUndefined();
@@ -95,6 +108,10 @@ describe('seniority/find-up walks up as find-up 8 does', () => {
 
   it('answers the same through the async spellings a migrating caller awaits', async () => {
     await expect(findUp('package.json', { cwd: at('a', 'b') })).resolves.toBe(at('a', 'package.json'));
+    await expect(findUp('package.json', { cwd: at('a', 'b'), stopAt: at('a', 'b') })).resolves.toBeUndefined();
+    await expect(findUpMultiple('package.json', { cwd: at('a', 'b'), limit: 1 })).resolves.toEqual([at('a', 'package.json')]);
+    await expect(findUpMultiple('package.json', { cwd: at('a', 'b'), stopAt: at('a') })).resolves.toEqual([at('a', 'package.json')]);
+    await expect(findUp('link.json', { cwd: at('a', 'b') })).resolves.toBe(at('a', 'b', 'link.json'));
     await expect(findUpMultiple('package.json', { cwd: at('a', 'b'), stopAt: root })).resolves.toEqual([at('a', 'package.json'), at('package.json')]);
   });
 });
@@ -103,12 +120,16 @@ describe('a matcher function in place of a name', () => {
   it('checks the path it returns, and ends the walk on findUpStop', async () => {
     expect(findUpSync((directory) => (directory === at('a') ? 'package.json' : undefined), { cwd: at('a', 'b') })).toBe(at('a', 'package.json'));
     expect(findUpSync(() => findUpStop, { cwd: at('a', 'b') })).toBeUndefined();
+    // Stopping below a directory that holds a match: the walk never gets there.
+    expect(findUpSync(stopBelowA, { cwd: at('a', 'b') })).toBeUndefined();
+    await expect(findUpMultiple(stopBelowA, { cwd: at('a', 'b') })).resolves.toEqual([]);
     await expect(findUp(async (directory) => (directory === at('a') ? 'package.json' : undefined), { cwd: at('a', 'b') })).resolves.toBe(at('a', 'package.json'));
     await expect(findUp(() => findUpStop, { cwd: at('a', 'b') })).resolves.toBeUndefined();
   });
 
   it('counts an empty answer and a path that is not there as no match', async () => {
     expect(findUpMultipleSync(() => '', { cwd: at('a', 'b'), type: 'directory', stopAt: at('a') })).toEqual([]);
+    expect(findUpMultipleSync(() => 'missing.json', { cwd: at('a', 'b'), stopAt: at('a') })).toEqual([]);
     await expect(findUpMultiple(() => 'missing.json', { cwd: at('a', 'b'), stopAt: at('a') })).resolves.toEqual([]);
   });
 });
@@ -119,6 +140,21 @@ describe('findDown looks the other way', () => {
     expect(findDownSync('leaf.txt', { cwd: at('a'), depth: 2, strategy: 'depth' })).toBe(at('a', 'deep', 'deeper', 'leaf.txt'));
     await expect(findDown('leaf.txt', { cwd: at('a'), depth: 2 })).resolves.toBe(at('a', 'deep', 'deeper', 'leaf.txt'));
     await expect(findDown('leaf.txt', { cwd: at('a'), depth: 2, strategy: 'depth' })).resolves.toBe(at('a', 'deep', 'deeper', 'leaf.txt'));
+  });
+
+  it('finds a shallow match in a later branch first by breadth, and a deep one in the first branch first by depth', async () => {
+    expect(findDownSync('target', { cwd: at('tree'), depth: 2 })).toBe(at('tree', 'z', 'target'));
+    expect(findDownSync('target', { cwd: at('tree'), depth: 2, strategy: 'depth' })).toBe(at('tree', 'a', 'b', 'target'));
+    await expect(findDown('target', { cwd: at('tree'), depth: 2 })).resolves.toBe(at('tree', 'z', 'target'));
+    await expect(findDown('target', { cwd: at('tree'), depth: 2, strategy: 'depth' })).resolves.toBe(at('tree', 'a', 'b', 'target'));
+  });
+
+  it('looks in cwd alone at depth 0, one level down by default, and follows a symbolic link by default', async () => {
+    expect(findDownSync('other.json', { cwd: root, depth: 0 })).toBeUndefined();
+    expect(findDownSync('other.json', { cwd: root, depth: -1 })).toBeUndefined();
+    expect(findDownSync('other.json', { cwd: root })).toBe(at('a', 'other.json'));
+    expect(findDownSync('link.json', { cwd: at('a', 'b'), depth: 0 })).toBe(at('a', 'b', 'link.json'));
+    await expect(findDown('link.json', { cwd: at('a', 'b'), depth: 0 })).resolves.toBe(at('a', 'b', 'link.json'));
   });
 
   it('looks one level down by default, and no further than depth', async () => {
@@ -139,5 +175,11 @@ describe('findDown looks the other way', () => {
   it('defaults cwd as findUp does, and takes type and allowSymlinks', async () => {
     const fresh = await overCwd(at('a'));
     expect(fresh.findDownSync('deeper', { depth: 1, type: 'directory', allowSymlinks: false })).toBe(at('a', 'deep', 'deeper'));
+    expect(fresh.findDownSync('link.json', { depth: 1, allowSymlinks: false })).toBeUndefined();
+  });
+
+  it('on a runtime with no process, starts in whatever the platform calls the working directory', async () => {
+    const fresh = await overCwd(undefined);
+    expect(fresh.findDownSync('package.json', { depth: 0 })).toBe(join(process.cwd(), 'package.json'));
   });
 });

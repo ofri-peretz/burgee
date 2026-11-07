@@ -59,10 +59,12 @@ const hookStorage = new AsyncLocalStorage<Store>();
  * `handleChange` has to *be* "render again", and only the caller knows how to render.
  */
 export function withHooks<T>(rl: PromptReadline, cb: (cycle: (render: () => void) => void) => T): T {
+  // Stryker disable next-line NumericLiteral: `cycle` sets the index before the first render, so the starting value is never read
   const store: Store = { rl, hooks: [], hooksCleanup: [], hooksEffect: [], index: 0, handleChange: () => undefined };
   return hookStorage.run(store, () =>
     cb((render: () => void) => {
       store.handleChange = () => {
+        // Stryker disable next-line NumericLiteral: every render starts from the same slot, so the hooks line up whichever slot that is
         store.index = 0;
         render();
       };

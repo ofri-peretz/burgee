@@ -132,6 +132,10 @@ describe('log', () => {
     expect(text).toBe('+\n+\n*  one\n+  two\n');
   });
 
+  it('draws a line of one character beside its mark', () => {
+    expect(capture((output) => log.message('x\ny', { output }))).toBe(`${S_BAR}\n${S_BAR}  x\n${S_BAR}  y\n`);
+  });
+
   it('draws an empty line as the bar alone, with nothing after it', () => {
     expect(capture((output) => log.message('one\n\nthree', { output, spacing: 0 }))).toBe(`${S_BAR}  one\n${S_BAR}\n${S_BAR}  three\n`);
   });
@@ -191,6 +195,14 @@ describe('note', () => {
     expect(output.text.split('\n').slice(3, 5)).toEqual([`${S_BAR}  abcdef  ${S_BAR}`, `${S_BAR}  ghij    ${S_BAR}`]);
   });
 
+  it('keeps the spaces a message starts with', () => {
+    expect(capture((output) => note('  x', '', { output, withGuide: false })).split('\n')[2]).toBe(`${S_BAR}    x  ${S_BAR}`);
+  });
+
+  it('runs the top edge from the title to the corner, as wide as the box', () => {
+    expect(capture((output) => note('a longer body', 'T', { output, withGuide: false })).split('\n')[0]).toBe(`${S_STEP_SUBMIT}  T ${S_BAR_H.repeat(13)}${S_CORNER_TOP_RIGHT}`);
+  });
+
   it('with nothing, is an empty box on process.stdout', async () => {
     expect(await stdoutOf(() => note())).toBe(`${S_BAR}\n${S_STEP_SUBMIT}   ${S_BAR_H}${S_CORNER_TOP_RIGHT}\n${S_BAR}    ${S_BAR}\n${S_BAR}    ${S_BAR}\n${S_BAR}    ${S_BAR}\n${S_CONNECT_LEFT}${S_BAR_H.repeat(4)}${S_CORNER_BOTTOM_RIGHT}\n`);
   });
@@ -221,7 +233,38 @@ describe('a spinner off a terminal', () => {
     expect(text).toBe(`◒  work...\n◒  more...\n${S_STEP_CANCEL}  more\n`);
   });
 
+  it('ends once: a second ending writes nothing', () => {
+    const text = capture((output) => {
+      const spin = spinner({ output, withGuide: false });
+      spin.start('work');
+      spin.stop('done');
+      spin.stop('again');
+      spin.error('and again');
+    });
+    expect(text).toBe(`◒  work...\n${S_STEP_SUBMIT}  done\n`);
+  });
+
+  it('fails on its last message when the failure names none', () => {
+    const text = capture((output) => {
+      const spin = spinner({ output, withGuide: false });
+      spin.start('work');
+      spin.error();
+    });
+    expect(text).toBe(`◒  work...\n${S_STEP_ERROR}  work\n`);
+  });
+
+  it('starts and moves on with no message at all', () => {
+    const text = capture((output) => {
+      const spin = spinner({ output, withGuide: false });
+      spin.start();
+      spin.message();
+      spin.stop();
+    });
+    expect(text).toBe(`◒  ...\n${S_STEP_SUBMIT}  \n`);
+  });
+
   it('says whether it was cancelled, and forgets it on the next start', () => {
+    expect(spinner({ output: new Output() }).isCancelled).toBe(false);
     const spin = spinner({ output: new Output() });
     spin.start('work');
     spin.cancel();
@@ -235,6 +278,8 @@ describe('a spinner off a terminal', () => {
       const spin = spinner({ output, withGuide: false });
       spin.start('work');
       spin.clear();
+      // Ended: a later ending has nothing to end.
+      spin.stop('late');
     });
     expect(text).toBe('◒  work...\n');
   });
@@ -326,7 +371,15 @@ describe('a spinner interrupted', () => {
     expect(spin.isCancelled).toBe(false);
   });
 
-  it.each([130, 143, 1, 0])('by the process leaving with %s — a signal, or no failure the program chose — is a cancel', (code) => {
+  it('by the process leaving, with nobody to tell, still ends on the cancel message', () => {
+    const output = new Output();
+    const spin = spinner({ output, withGuide: false });
+    spin.start('work');
+    exitWith(0);
+    expect(output.text).toBe(`◒  work...\n${S_STEP_CANCEL}  ${settings.messages.cancel}\n`);
+  });
+
+  it.each([130, 143, 128, 1, 0])('by the process leaving with %s — a signal, or no failure the program chose — is a cancel', (code) => {
     const onCancel = vi.fn();
     const output = new Output();
     const spin = spinner({ output, withGuide: false, onCancel });
@@ -506,7 +559,10 @@ describe('the default frames and delay', () => {
     spin.start('w');
     vi.advanceTimersByTime(delay - 1);
     expect(output.buffer).toHaveLength(2);
-    vi.advanceTimersByTime(1 + delay * 3);
+    vi.advanceTimersByTime(1);
+    expect(output.buffer).toHaveLength(3);
+    vi.advanceTimersByTime(delay - 1);
+    vi.advanceTimersByTime(1 + delay * 2);
     spin.stop();
     expect(output.buffer.slice(1, 5).map((write) => write.replace(ERASE_ONE, '').slice(0, 1))).toEqual(frames);
   });

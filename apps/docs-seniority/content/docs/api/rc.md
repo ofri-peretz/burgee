@@ -87,7 +87,7 @@ interface RcOptions {
     cwd?: string;
     /** The home directory the four `~` places hang off. */
     home?: string;
-    /** Skip the `/etc` places, as rc does on Windows. */
+    /** Skip the `/etc` places, as rc does on Windows — and, as rc, by default only there. */
     win?: boolean;
 }
 ```
