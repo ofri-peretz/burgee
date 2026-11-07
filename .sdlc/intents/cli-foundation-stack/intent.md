@@ -47,7 +47,8 @@ constraints the tree contradicts. Nothing is deleted; each criterion keeps its t
   declares `engines.node` `^20.19.0 || >=22.13.0`, and `compat.yml`'s `floor` job runs each
   published suite on exactly 20.19.0 and 22.13.0. Held by `scripts/package-shape-lock.test.ts`
   › "is ESM, requires Node ^20.19.0 || >=22.13.0, and declares no legacy main (K2)" and the
-  `the Node floor (K2, C3, D-132)` block beside it.
+  `the Node floor (K2, C3, D-132)` block beside it. Raised by D-20261106-node-22-24-26
+  (2026-11-06) to `>=22.13.0`, graded on 22.13.0 and 26 in `floor`.
 - **Constraint 1 and *Affected users*, "`burgee` never imports one"** — reversed. PR #219
   (`ac7b9e5c30`, "the layer owns precedence, and Y1 stops forbidding its use") let any family
   package depend on the foundation, and `packages/burgee/package.json` now depends on

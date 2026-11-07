@@ -67,7 +67,7 @@ jobs:
             exit 0
           fi
           TITLE="Nightly compatibility matrix failed"
-          BODY=$(printf 'The nightly OS × Node run on `%s` failed: Node 24 cells `%s`, Node-floor published suites `%s`. The Node-floor cells no longer run on a pull request, so this is where a Node 20.19 or 22.13 regression shows; a red Node 24 cell here is main drifting under green PRs. A PR labelled `run-full-ci` re-runs them all.\n\n[Run](%s)\n' "$SHA" "$MATRIX" "$FLOOR" "$RUN_URL")
+          BODY=$(printf 'The nightly OS × Node run on `%s` failed: Node 24 cells `%s`, Node-floor published suites `%s`. The Node-floor cells no longer run on a pull request, so this is where a Node 22.13 or 26 regression shows; a red Node 24 cell here is main drifting under green PRs. A PR labelled `run-full-ci` re-runs them all.\n\n[Run](%s)\n' "$SHA" "$MATRIX" "$FLOOR" "$RUN_URL")
           EXISTING=$(gh issue list --state open --search "$TITLE in:title" --json number --jq '.[0].number // empty')
           if [ -n "$EXISTING" ]; then gh issue comment "$EXISTING" --body "$BODY"; else gh issue create --title "$TITLE" --body "$BODY"; fi
 

@@ -41,7 +41,7 @@ whatever a template produced.
 
 ## Can I use it from CommonJS?
 
-Yes, on Node 20.19+ and 22.13+: the package is ESM with a `default` condition, so
+Yes, on Node 22.13+: the package is ESM with a `default` condition, so
 `require('linegauge')` loads it through `require(esm)`, and `.default` is `width`. Every entry
 point is checked to load that way.
 

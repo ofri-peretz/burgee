@@ -7,12 +7,12 @@
 #             hard gate everywhere; the controls are informational off Linux, because the
 #             hosts' suites are themselves OS-sensitive and a baseline recorded on one OS
 #             is not a contract for another.
-#   floor   — C3 for the two `engines` floors, the published suites only.
+#   floor   — C3 for the `engines` floor (22.13.0) and Node 26, the published suites only.
 #
 # Heavy work does not run during CI/CD (D-20261101-heavy-ci-runs-nightly). A pull request and a
 # merge-queue entry get the ratchet and the three Node 24 `matrix` cells — all four are REQUIRED
 # checks on `main` (2026-11-01), so they must report on every PR. The off-Linux controls
-# (informational) and the `floor` cells (the published suites on Node 20.19 and 22.13) run
+# (informational) and the `floor` cells (the published suites on Node 22.13 and 26) run
 # nightly at 03:30 UTC, on a dispatch, and on a PR labelled `run-full-ci`. Measured over the last
 # runs before the change: a PR started 13 jobs, about 92 job-minutes; a push to `main` 13 jobs,
 # about 103. A push to `main` no longer runs this file at all — release.yml waits on `Quality
@@ -57,10 +57,10 @@ on:
         default: all
         options: [all, ubuntu-latest, macos-latest, windows-latest]
       node:
-        description: Run only this Node's cells (24 is `matrix`, 20.19.0 and 22.13.0 are `floor`)
+        description: Run only this Node's cells (24 is `matrix`, 22.13.0 and 26 are `floor`)
         type: choice
         default: all
-        options: [all, '24', '20.19.0', '22.13.0']
+        options: [all, '24', '22.13.0', '26']
 
 # A push to main ran to the end, in a group of its own (as codeql.yml does), while this file still
 # ran on one: release.yml publishes a commit only once its required gates pass, and a newer merge
@@ -234,8 +234,8 @@ jobs:
       fail-fast: false
       matrix:
         os: ${{ fromJSON((inputs.os && inputs.os != 'all') && format('["{0}"]', inputs.os) || '["ubuntu-latest","macos-latest","windows-latest"]') }}
-        # The active LTS only (D-20261020-node-26-waits-for-lts). 26 is Current until its LTS
-        # promotion; it rejoins as `[24, 26]` the day it becomes Active LTS, not before.
+        # The .nvmrc Node only, so a pull request costs three cells; 22.13 and 26 run in `floor`
+        # (D-20261106-node-22-24-26).
         node: [24]
     steps:
       # Every cell starts and reports, so a PR that changes no package is green here, not absent.
@@ -364,13 +364,13 @@ jobs:
         continue-on-error: true
         run: node packages/compat-oracle/dist/bin.js --control --progress
 
-  # C3 for the lower half of `engines` (D-132). The nine published packages declare
-  # `^20.19.0 || >=22.13.0`; the job above covers 24, this one the two floors,
-  # exact — a floor is only a claim if the floor itself is what runs. 20.19 and 22.13 are
-  # where `require(esm)` loads without a warning, which is what K2's CommonJS promise needs.
+  # C3 for the rest of `engines` (D-20261106-node-22-24-26). The published packages declare
+  # `>=22.13.0`; the job above covers 24, this one the floor, exact — a floor is only a claim
+  # if the floor itself is what runs — and 26, the newer LTS. 22.13 is where `require(esm)`
+  # loads without a warning on 22, which is what K2's CommonJS promise needs.
   #
   # Built once on the .nvmrc Node, because that is the Node the release builds on and the
-  # dist npm ships is what a Node 20 or 22 user runs. The workspace tooling (root tests,
+  # dist npm ships is what a Node 22 or 26 user runs. The workspace tooling (root tests,
   # compat-oracle, docs) stays on 24 — its `engines` says so — so only the published
   # suites run here. Hard gate on every cell, the same policy as `matrix`.
   #
@@ -382,7 +382,7 @@ jobs:
     needs: affected
     # Skipped by a dispatch that picked a `matrix` Node, and on a pull request without the label.
     if: >-
-      ${{ (!inputs.node || inputs.node == 'all' || inputs.node == '20.19.0' || inputs.node == '22.13.0')
+      ${{ (!inputs.node || inputs.node == 'all' || inputs.node == '22.13.0' || inputs.node == '26')
       && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'run-full-ci')) }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
@@ -395,8 +395,8 @@ jobs:
       fail-fast: false
       matrix:
         os: ${{ fromJSON((inputs.os && inputs.os != 'all') && format('["{0}"]', inputs.os) || '["ubuntu-latest","macos-latest","windows-latest"]') }}
-        node: ['20.19.0', '22.13.0']
-        exclude: ${{ fromJSON(inputs.node == '20.19.0' && '[{"node":"22.13.0"}]' || inputs.node == '22.13.0' && '[{"node":"20.19.0"}]' || '[]') }}
+        node: ['22.13.0', '26']
+        exclude: ${{ fromJSON(inputs.node == '22.13.0' && '[{"node":"26"}]' || inputs.node == '26' && '[{"node":"22.13.0"}]' || '[]') }}
     steps:
       - name: No package affected — nothing to run on this cell
         if: env.PACKAGES == '[]'
@@ -442,7 +442,7 @@ jobs:
       - name: Cases above half their timeout (informational)
         if: always() && hashFiles('vitest-durations/*.json') != ''
         continue-on-error: true
-        # This cell's Node is a floor (20.19, 22.13), which does not strip types; tsx does.
+        # 22.13 does not strip types; tsx does, and runs the same on 26.
         shell: bash
         run: |
           set -o pipefail

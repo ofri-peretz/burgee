@@ -55,8 +55,8 @@ const OPTIONAL_PEERS: Readonly<Record<string, readonly string[]>> = {
 const isUninstalledPeer = (pkg: Pkg, dep: string): boolean =>
   (OPTIONAL_PEERS[pkg.name] ?? []).includes(dep) && pkg.peerDependencies?.[dep] !== undefined && pkg.peerDependenciesMeta?.[dep]?.optional === true;
 
-/** K2's floor, restated 2026-09-23 (D-132). The matrix in `compat.yml` tests both ends. */
-const NODE_FLOOR = '^20.19.0 || >=22.13.0';
+/** K2's floor, raised to 22.13 on 2026-11-06 (D-20261106-node-22-24-26). `compat.yml` runs it exactly. */
+const NODE_FLOOR = '>=22.13.0';
 
 const published = readdirSync(join(root, 'packages'))
   // A directory with no package.json is build residue, not a package (a folded-away
@@ -237,11 +237,11 @@ describe.each(published)('published package $pkg.name', ({ dir, pkg }) => {
     for (const peer of peers) expect(pkg.peerDependenciesMeta?.[peer]?.optional, `${pkg.name} → ${peer} must be optional`).toBe(true);
   });
 
-  // The floor is where `require(esm)` loads without a warning: 20.19 and 22.13 (22.12 loads it
-  // but prints an ExperimentalWarning, even for an ESM importer of closeout/signal-exit's .cjs).
-  // Every package states the same range, so a dependant never admits a Node its dependency
-  // refuses; `compat.yml`'s `floor` job runs every suite on exactly these two versions.
-  it('is ESM, requires Node ^20.19.0 || >=22.13.0, and declares no legacy main (K2)', () => {
+  // The floor is 22.13, where `require(esm)` loads without a warning on the oldest maintained
+  // line (22.12 loads it but prints an ExperimentalWarning, even for an ESM importer of
+  // closeout/signal-exit's .cjs). Every package states the same range, so a dependant never
+  // admits a Node its dependency refuses; `compat.yml`'s `floor` job runs every suite on it.
+  it('is ESM, requires Node >=22.13.0, and declares no legacy main (K2)', () => {
     expect(pkg.type).toBe('module');
     expect(pkg.engines?.node).toBe(NODE_FLOOR);
     expect(pkg.main).toBeUndefined();
@@ -369,14 +369,15 @@ describe('a leaf depends on nothing in the repo', () => {
  * Node badge on a README — and a claim is only as good as the one that is tested (C3, D-132).
  * Widen `engines` without widening the matrix, or leave a badge saying 24+, and this is red.
  */
-describe('the Node floor (K2, C3, D-132)', () => {
+describe('the Node floor (K2, C3, D-20261106-node-22-24-26)', () => {
   const floors = NODE_FLOOR.split('||').map((range) => range.trim().replace(/^[\^>=]+/u, ''));
 
-  it('is what compat.yml runs every published suite on, exactly', () => {
+  // The `floor` job also carries 26, the newer LTS the `.nvmrc` lanes do not run.
+  it('is what compat.yml runs every published suite on, exactly, beside Node 26', () => {
     const workflow = readFileSync(join(root, '.github', 'workflows', 'compat.yml'), 'utf8');
     const job = /^ {2}floor:\n(?<body>(?: {4}.*\n|\n)+)/mu.exec(workflow)?.groups?.['body'] ?? '';
     const nodes = /^ {8}node: \[(?<list>[^\]]*)\]/mu.exec(job)?.groups?.['list'] ?? '';
-    expect(nodes.split(',').map((v) => v.trim().replaceAll("'", ''))).toEqual(floors);
+    expect(nodes.split(',').map((v) => v.trim().replaceAll("'", ''))).toEqual([...floors, '26']);
   });
 
   it('is what every README Node badge says', () => {
