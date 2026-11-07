@@ -14,7 +14,7 @@ import { stripVTControlCharacters } from 'node:util';
 
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 
-import { render } from './__fixtures__/inquirer-render.js';
+import { DEADLINE_MS, render } from './__fixtures__/inquirer-render.js';
 import { discard } from './__fixtures__/scratch-dir.js';
 import { editAsync, editorCommand } from './inquirer-editor.js';
 import { editor } from './inquirer-prompts.js';
@@ -36,6 +36,13 @@ writeFileSync(
   ].join('\n'),
 );
 const EDITOR = `"${process.execPath}" "${program}"`;
+
+/**
+ * Every screen these cases wait for is drawn after a spawned `node` editor exits, so the wait is
+ * bounded by the fixture's deadline for a frame, not by `vi.waitFor`'s 1 s default: a loaded
+ * machine takes longer than a second to start a process, and the case failed on the clock alone.
+ */
+const AFTER_THE_EDITOR = { timeout: DEADLINE_MS };
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -167,7 +174,7 @@ describe('editor', () => {
     events.keypress('enter');
     await vi.waitFor(() => {
       expect(getScreen()).toBe('? Notes Validating...');
-    });
+    }, AFTER_THE_EDITOR);
     events.keypress('enter');
     expect(isPaused()).toBe(false);
     release(true);
@@ -183,7 +190,7 @@ describe('editor', () => {
     expect(isPaused()).toBe(true);
     await vi.waitFor(() => {
       expect(getScreen()).toContain('exited with 4');
-    });
+    }, AFTER_THE_EDITOR);
     expect(isPaused()).toBe(false);
   });
 
@@ -194,7 +201,7 @@ describe('editor', () => {
     events.keypress('enter');
     await vi.waitFor(() => {
       expect(getScreen()).toContain('> once more');
-    });
+    }, AFTER_THE_EDITOR);
     events.keypress('enter');
     await expect(answer).resolves.toBe('zz');
     expect(getScreen()).toBe(`${TICK} Notes`);
@@ -236,11 +243,11 @@ describe('editor', () => {
     events.keypress('enter');
     await vi.waitFor(() => {
       expect(getScreen()).toBe('? Notes Validating...');
-    });
+    }, AFTER_THE_EDITOR);
     release('again');
     await vi.waitFor(() => {
       expect(getScreen()).toBe(frame('? Notes Press <enter> to launch your preferred editor.', '> again'));
-    });
+    }, AFTER_THE_EDITOR);
     events.keypress('enter');
     await expect(answer).resolves.toBe('xx');
   });
@@ -254,7 +261,7 @@ describe('editor', () => {
     events.keypress('enter');
     await vi.waitFor(() => {
       expect(getScreen()).toContain('> You must provide a valid value');
-    });
+    }, AFTER_THE_EDITOR);
     events.keypress('enter');
     await expect(answer).resolves.toBe('dy');
   });
@@ -267,7 +274,7 @@ describe('editor', () => {
     events.keypress('enter');
     await vi.waitFor(() => {
       expect(getScreen()).toMatch(/^\? Notes go\n> Error: .* exited with 2$/u);
-    });
+    }, AFTER_THE_EDITOR);
     vi.stubEnv('EDIT_EXIT', '');
     events.keypress('enter');
     await expect(answer).resolves.toBe('');

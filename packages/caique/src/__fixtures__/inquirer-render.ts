@@ -27,7 +27,7 @@ export type Key = string | { name?: string; ctrl?: boolean; meta?: boolean; shif
  * the test to vitest's 30 s limit, and a mutation run to Stryker's timeout, per mutant. The
  * timers are the real ones, taken at import, so a test on fake timers is still bounded.
  */
-const DEADLINE_MS = 3_000;
+export const DEADLINE_MS = 3_000;
 const realSetTimeout = globalThis.setTimeout;
 const realClearTimeout = globalThis.clearTimeout;
 
