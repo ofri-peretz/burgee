@@ -74,7 +74,7 @@ These are dated observations, not measurements. The first measurements are the P
 - **Secondary persona:** an openapi-typescript user who is blocked on TypeScript 7.
 - **Customer zero:** burgee itself (CLI contracts through `diff`) and snappy-client-dashboard
   (OpenAPI clients, JSON Schema URL contracts that PostHog payloads share).
-- **Repo:** new packages `apicontract`, `apicontract-check` and `apicontract-guard`
+- **Repo:** one package per purpose (diff, gen, extract, schema, check, and the umbrella `apicontract`), with extensions such as `apicontract-gen-nest` — see [`spec.md` § Packages](./spec.md#packages--one-per-purpose-r-p)
   ([`spec.md`](./spec.md) § Packages); `compat-oracle` grades the drop-ins; a docs app is added per
   public package; `.github/workflows/models.yml` runs the new Quint models; oxmutate gates each
   package.

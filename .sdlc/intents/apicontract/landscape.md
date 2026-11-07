@@ -164,6 +164,24 @@ side; a static, free call-site `check`; and an agent-sized, fully resolved `expl
 locally. "Direction-aware diff" alone is no longer ours: Redocly, oasdiff and openapi-diff all read
 request versus response.
 
+## Spec ↔ code landscape (2026-11-07)
+
+Downloads are npm, the week to 2026-11-06. Throughput figures from blogs disagree, so they are used
+as a ranking only.
+
+| Area | Incumbents | State | Where we win |
+| :-- | :-- | :-- | :-- |
+| Runtime schema | zod 4 (455M/wk), valibot (32M), typebox (16M + 162M `@sinclair`), arktype (2.9M), effect Schema, typia (0.5M), ajv (521M) | Interop moved to Standard Schema (`@standard-schema/spec` 190M/wk; NestJS 12, tRPC, oRPC take it). No Zod-API drop-in has gained traction (dhi is the latest attempt) | AOT validators from the model, plain-interface types (cheap `tsc`), exact JSON Schema 2020-12 round trip, agent-readable errors |
+| Zod migration | `@valibot/zod-to-valibot` (beta, 28/wk), `zod-to-json-schema` (95M), `z.toJSONSchema` | Exports lose refinements and transforms silently | Zod as code-first input, plus a codemod that reports every unexpressible site |
+| NestJS from a spec | openapi-generator `typescript-nestjs-server` (beta), hey-api Nest plugin (beta, signatures only), @fresha (17/wk) | Nothing stable or regeneration-safe; nothing for AsyncAPI | Abstract bases (regeneration touches no user code), Standard Schema validation, gateway + microservice from one AsyncAPI document, a contract test per operation |
+| Code → spec | @nestjs/swagger (11.6M), @hono/zod-openapi (4.3M), oRPC (3.0M), trpc-to-openapi, tsoa (stale since 2025-12), Effect HttpApi, Elysia | One framework each, HTTP only | One extractor across frameworks and protocols, round-trip verified |
+| Contract-first frameworks | ts-rest (**archived 2026-10-26**), fastify-openapi-glue (regeneration-safe, Fastify only), TypeSpec `http-server-js` (preview) | The regeneration-safe ones never cover NestJS or AsyncAPI | — |
+
+Targets to measure, not results: `tsc` on a 500-endpoint spec ≤ 20% of zod output's time and
+instantiations; 100% round trip on JSON-Schema-Test-Suite 2020-12; ≥ 80% of typia's throughput
+without a compiler plugin; per-schema bundle under zod/mini's; 0 user lines changed by regeneration;
+100% operations with a contract test.
+
 ## Sources
 
 - npm registry and downloads API, read 2026-11-06 (commands above).
