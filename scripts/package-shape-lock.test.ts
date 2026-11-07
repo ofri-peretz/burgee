@@ -24,7 +24,21 @@ interface Pkg {
   optionalDependencies?: Record<string, string>;
   peerDependenciesMeta?: Record<string, { optional?: boolean }>;
   exports?: Record<string, string | Record<string, string>>;
+  version?: string;
+  description?: string;
+  keywords?: string[];
+  license?: string;
+  author?: string;
+  homepage?: string;
+  repository?: { type?: string; url?: string; directory?: string };
+  bugs?: { url?: string };
+  sideEffects?: boolean | string[];
+  publishConfig?: { access?: string; provenance?: boolean };
+  funding?: unknown;
 }
+
+/** Who every published manifest names as its author. */
+const AUTHOR = 'Ofri Peretz <ofriperetzdev@gmail.com>';
 
 /**
  * The external peers a spec admits, each an optional peer npm never installs: controlroom's
@@ -163,6 +177,26 @@ function checkDataExports(exports: Record<string, unknown>): void {
 }
 
 describe.each(published)('published package $pkg.name', ({ dir, pkg }) => {
+  // What npm, a registry page and a supply-chain scanner read off the manifest: who wrote it,
+  // where its source and issues are, what it is for, and that it publishes in public. One
+  // package once shipped no keywords and no author; npm's search and the provenance view
+  // showed it as an anonymous, unsearchable package.
+  it('carries complete registry metadata', () => {
+    expect(pkg.version, 'version').toMatch(/^\d+\.\d+\.\d+/u);
+    expect(pkg.description?.trim(), 'description').toBeTruthy();
+    expect(pkg.keywords?.length ?? 0, 'keywords').toBeGreaterThan(0);
+    expect(pkg.license, 'license').toBe('MIT');
+    expect(existsSync(join(root, 'packages', dir, 'LICENSE')), 'a LICENSE file beside the manifest').toBe(true);
+    expect(pkg.author, 'author').toBe(AUTHOR);
+    expect(pkg.repository, 'repository').toEqual({ type: 'git', url: 'git+https://github.com/ofri-peretz/burgee.git', directory: `packages/${dir}` });
+    expect(pkg.bugs?.url, 'bugs.url').toBe('https://github.com/ofri-peretz/burgee/issues');
+    expect(pkg.homepage, 'homepage').toMatch(/^https:\/\/[a-z-]+\.interlace\.tools$/u);
+    expect(pkg.engines?.node, 'engines.node').toBeTruthy();
+    expect(pkg.sideEffects, 'sideEffects').toBeDefined();
+    expect(pkg.publishConfig?.access, 'publishConfig.access').toBe('public');
+    expect(pkg.funding, 'funding names no funding page here').toBeUndefined();
+  });
+
   it('has no external runtime dependencies, and same-repo ones only point up the family (K1, U1, U6)', () => {
     const rank = FAMILY_ORDER.indexOf(pkg.name);
     const offenders = Object.keys(pkg.dependencies ?? {}).filter((dep) => {
