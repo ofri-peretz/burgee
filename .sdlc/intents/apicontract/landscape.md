@@ -127,6 +127,8 @@ and graphql-inspector is The Guild's schema diff. Phase 5 reads both before wrap
    `apicontract` sponsorable by the same vendors (Speakeasy, Stainless, Zuplo, Scalar) instead of
    competing with them.
 
+The full feature-by-feature matrix, with what each tool is missing, is in [`comparison.md`](./comparison.md).
+
 ## Competitor review — where the value is significant
 
 Read 2026-11-06 by three parallel reviews (generators; lint, diff and docs; testing, runtime and
@@ -203,6 +205,25 @@ NightVision (extract a spec from code and diff it; no rules on handler behaviour
 Targets to measure: 100% of `security: admin` operations checked for the audit hook with
 file-and-line findings; 0 findings on untouched operations on the first run of a legacy repo; every
 SARIF location a handler line; zero tokens and zero network calls.
+
+## Synthetic testing landscape (2026-11-07)
+
+Checkly is the one tool with all of Playwright (check suites reuse `playwright.config.ts`), IaC
+(Terraform, Pulumi), a CLI (`checkly`, 403,159 downloads in the week to 2026-11-06) and an MCP server
+(hosted, launched 2026-06-30, can create and update checks). Better Stack, Elastic Synthetics and
+Grafana match three of the four.
+
+| Tool | Generates from a spec | Validates responses against the spec | Monitors on a schedule | AsyncAPI / MCP |
+| :-- | :-- | :-- | :-- | :-- |
+| Checkly | UI import only, no assertions, no re-sync | No | Yes | No |
+| Step CI | Happy path, OpenAPI 3.x; last push 2024-08 | Partial | No | No |
+| Schemathesis | Yes (fuzzing), OpenAPI 2.0–3.2 | Yes | No (CI only) | No |
+| Postman | Yes, synced (`syncCollectionWithSpec`), OpenAPI 3.0 only | Partial | Monitors | No |
+| Specmatic | Yes (contract tests) | Yes | No | AsyncAPI on Enterprise only |
+| Grafana, Datadog, New Relic, Elastic, Better Stack | No | No | Yes | No |
+
+Nothing reports "operations without a check" as a CI signal. Our plan is R-SY in
+[`spec.md`](./spec.md).
 
 ## Sources
 

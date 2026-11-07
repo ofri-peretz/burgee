@@ -35,6 +35,7 @@ generates the code is the one that catches the code drifting from the spec in CI
 | 2 | Phase 4 | Client call sites: fetch / openapi-fetch, axios, ky, TanStack Query | ✓ | | ✓ | The other side of the contract (`call-site-mismatch`) |
 | 3 | Phase 5 | `apicontract-valibot`, `apicontract-typebox`, `apicontract-arktype` | ✓ | ✓ | ✓ | Through Standard Schema, mostly shared code with `apicontract-zod` |
 | 3 | Phase 5 | socket.io, ws, Kafka/NATS consumers (AsyncAPI) | ✓ | ✓ | ✓ | Event contracts, send/receive-aware |
+| 3 | Phase 5 | Synthetic checks: `gen checkly`, `gen playwright`, `gen k6`, `probe` (R-SY) | ✓ | | ✓ | No tool generates a full, synced suite from a contract; `missing-synthetic` gates CI |
 | 4 | On demand | Other languages (FastAPI, Spring, Go) | | | ✓ | Only by spawning their owners' tools through bellpull; never a dependency |
 
 Exit for each extension: its capabilities graded by the competitor's own fixtures where one exists

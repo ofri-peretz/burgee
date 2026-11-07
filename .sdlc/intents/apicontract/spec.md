@@ -204,6 +204,7 @@ capabilities against the model:
 | `call-site-mismatch` | A client call that sends or expects what the spec does not allow |
 | `breaking-change` | The `diff` verdict against the base ref, under the chosen mode and side |
 | `generated-edited` | A hand edit inside a generated region (R-BL2) |
+| `missing-synthetic` | An operation with no synthetic check, an orphaned check, or a stale one (R-SY2) |
 | `<plugin>/<rule>` | A contract-aware lint rule from a plugin (R-BL3) |
 
 **The contract is the baseline (R-BL).** Every piece of generated or detected code is mapped back to
@@ -235,6 +236,24 @@ the contract, so CI tooling and lint rules can aim at exactly those areas.
   and Optic's `optic.yml` rulesets, so a team keeps its standards and gains code reach.
 - **R-BL5. One CI run.** `apicontract check` runs detect, the contract-aware rules and `diff` in one
   pass and reports them together (SARIF, `--json`, baseline file, R-CI).
+
+**Synthetic checks from the contract (R-SY).** Researched 2026-11-07: no tool generates a complete
+synthetic suite from a contract and keeps it in sync. Checkly's OpenAPI import is UI-only with no
+assertions or re-sync; Step CI generates the happy path and has not been pushed since 2024-08;
+Schemathesis validates against the spec but only in CI; nobody monitors AsyncAPI channels or MCP
+tools. We generate for the incumbents rather than build a runner (R-DEP1: the runner stays the
+user's install).
+
+- **R-SY1. Generator plugins.** `apicontract gen checkly` (API checks, check groups and Playwright
+  suites), `gen playwright`, `gen k6`, and Terraform for Datadog and Grafana: one check per operation
+  and per documented status code, auth from `securitySchemes` through environment variables, every
+  response validated against the spec with an inlined generated validator.
+- **R-SY2. `missing-synthetic` rule.** `apicontract check` fails on an operation with no check, an
+  orphaned check, or a check generated from an older spec.
+- **R-SY3. AsyncAPI and MCP.** Channels become publish/subscribe checks and MCP tools become
+  `tools/call` checks, which no incumbent offers.
+- **R-SY4. `apicontract probe`.** A `fetch`-only smoke run for CI with no dependencies; scheduling and
+  probe locations stay with the incumbent.
 
 **Round trip (R-RT): spec → code and code → spec, mastered together.**
 
@@ -278,7 +297,7 @@ AsyncAPI).
   ids), zod-to-openapi's and @nestjs/swagger's fixtures (`extract`), Zod's suite on the subset
   `migrate --from zod` claims.
 - **R-C3.** Each purpose package has a `migrate --from <competitor>` path for its top incumbents
-  (openapi-typescript, orval, hey-api for `gen`; Zod for `schema`; @nestjs/swagger, zod-to-openapi
+  (oasdiff, openapi-diff and Optic's `optic diff --check` for `diff`; openapi-typescript, orval, hey-api for `gen`; Zod for `schema`; @nestjs/swagger, zod-to-openapi
   for `extract`). A competitor release that breaks a graded migration is fixed within the band set
   in `control-bands.json`.
 
