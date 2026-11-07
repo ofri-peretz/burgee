@@ -23,3 +23,9 @@ it would replace (`native-engine` M0: 1.6 to 6.0 ms of work, module loading 71 t
 would break the zero-dependency floor for every consumer, and it would break the bun and deno
 runtime smoke. This restates, for oxc, what [D-20261028-native-engine-dropped](./D-20261028-native-engine-dropped.md)
 measured.
+
+**Judged under [D-20261107-native-engine-thresholds](./D-20261107-native-engine-thresholds.md), the
+same day.** The `migrate` part fails that rule today (`f` ≈ 1–6% of a 90–135 ms command, run about
+once per project, and nothing on the measured corpus for an AST to classify). It is not built, and
+it reopens only if a wider corpus shows scan-limited refusals. The build part is build tooling, not
+a runtime engine switch, and stays a measured experiment against the weight and cold-start bands.

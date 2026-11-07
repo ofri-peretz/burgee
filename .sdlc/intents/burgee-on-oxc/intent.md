@@ -1,31 +1,60 @@
 # Intent — `burgee-on-oxc`: the oxc engine where burgee reads code, never where it parses argv
 
-**Status:** draft · **Opened:** 2026-11-07 · **Owner:** @ofri-peretz · **Scope:**
-[`D-20261107-burgee-on-oxc-scope`](../../decisions/D-20261107-burgee-on-oxc-scope.md)
+**Status:** draft · **Opened:** 2026-11-07 · **Owner:** @ofri-peretz · **Decided under:**
+[`D-20261107-native-engine-thresholds`](../../decisions/D-20261107-native-engine-thresholds.md) ·
+**Scope:** [`D-20261107-burgee-on-oxc-scope`](../../decisions/D-20261107-burgee-on-oxc-scope.md)
 
 ---
 
 ## What is wanted
 
-burgee runs on the oxc engine in the two places where it reads JavaScript or TypeScript source,
-and nowhere else:
+The owner's threshold rule for native engines
+([`D-20261107-native-engine-thresholds`](../../decisions/D-20261107-native-engine-thresholds.md))
+is applied to each place burgee reads JavaScript or TypeScript source, and each gets a recorded
+verdict. Nothing is built that the rule does not clear.
 
-- **(a) `burgee migrate` reads source through an oxc AST** instead of the token scan in
+- **(a) `burgee migrate` on an oxc AST**, in place of the token scan in
   `packages/burgee/src/migrate.ts` (3,005 lines; its own header says "a scan, not a parse", and it
-  refuses whatever it cannot classify). The AST is loaded lazily, on the `migrate` path only, so
-  `burgee --help`, `import 'burgee'` and every front-end load exactly what they load today. Where
-  it is feasible, it reuses the oxc core oxmutate already ships (`packages/oxmutate/native`, one
-  prebuilt `.node` per platform) rather than adding a second copy of oxc to the family.
-- **(b) burgee's own packages are built through an oxc-based bundler or minifier** (rolldown, or
+  refuses whatever it cannot classify). **Verdict: fails the rule today; not built.** It is kept
+  only as a re-measurement on a wider corpus, and it is built only if scan-limited refusals
+  appear there.
+- **(b) burgee's own packages built through an oxc-based bundler or minifier** (rolldown, or
   oxc's minifier behind the current `tsc` build) instead of shipping `tsc` output file by file.
-  This one is kept only if it measurably shrinks what is published or what a cold start loads.
+  **Verdict: outside the rule.** This is build tooling and ships nothing native to users. It stays
+  as a measured experiment against the weight and cold-start bands, and it is dropped if there is
+  no gain.
 
-Each part ships, or is dropped, on its own numbers.
+## The rule, applied
+
+**(a) `migrate`, criterion by criterion** (thresholds are the rule's heuristics; the numbers are
+measured):
+
+| Criterion | Threshold | `migrate` today | Clears? |
+| :-- | :-- | :-- | :-- |
+| 1. Native-able share of wall time | `f` ≥ ~60% | The CPU part a Rust oxc engine replaced is 0.6–8.0 ms of a 90–135 ms command, so `f` ≈ 1–6%; projected 1.00× (ceiling 1.08×), [`D-20261028-native-engine-dropped`](../../decisions/D-20261028-native-engine-dropped.md) | no |
+| 2. Worth the time | a run ≥ ~1 s, and run often | 90–135 ms, run about once per project | no |
+| 3. Batch-shaped | many files per run | yes: a whole tree per run | yes |
+| 4. Boundary crossed rarely | the hot loop stays native | possible: one parse per file | yes |
+| 5. The hot loop is ours | yes | yes: the scan is burgee's own | yes |
+
+It fails criteria 1 and 2. The speed case was closed by `native-engine`. The case the owner's scope
+named instead is correctness: an AST could classify what the scan refuses. On today's corpus there
+is nothing for it to classify: 1 refused file of 77, and that one is a missing export, not a parse
+limit (below). So (a) gets no design and no code. What stays open is one measurement:
+criterion 1 under Success criteria. If it finds scan-limited refusals in real projects, (a) is
+reopened against the rule's ladder, cheapest rung first. That means calling an existing oxc parser
+lazily (rung 2) before any core of our own, with distribution cost and the migrate drop-in parity
+counted.
+
+**(b) the build.** The rule governs runtime engine switches, and (b) is not one. A bundler or minifier
+runs on this repository's machines, adds nothing to what a user installs, and leaves the argv path's
+code unchanged. Its cost and benefit are both measured by the existing weight and cold-start benches,
+so it is an experiment with a drop condition (criterion 3), not an engine decision.
 
 ## Why now
 
-The owner decided the scope on 2026-11-07, after the roadmap closed at 96/96 (#1478). Two
-measurements frame it, and the first one is a warning, recorded before any design.
+The owner decided the scope on 2026-11-07, after the roadmap closed at 96/96 (#1478), and the same
+day adopted the threshold rule this intent is decided under. Two measurements feed the verdicts.
 
 **Today's refusal rate is already low, and the refusal left is not a parse problem.** Measured
 2026-11-07 at `31210ad60a` (main plus #1483), by calling the built `rewriteSource` on every file
@@ -60,8 +89,8 @@ import(m)`, a template literal without substitutions), a statement mixing type a
 `rewriteFile` refuses because "a mixed one cannot be split by a scan", and a namespace import whose
 member use decides the verdict ("`* as ns` is checked where it is used, which a scan cannot see").
 `deep-import`, `require-of-default` and `sibling-state` are about the target, not the parse, and
-stay refusals under any reader. Part (a) is worth building only if a wider corpus shows those
-scan-limited classes in real projects, which is the first measurement below.
+stay refusals under any reader. Part (a) is worth reopening only if a wider corpus shows those
+scan-limited classes in real projects.
 
 **Module loading, not CPU, is what a cold start pays.** `native-engine`'s `M0` measured the argv
 core's own work at 1.6 to 6.0 ms, with module loading 71 to 87% of each run, and `burgee migrate`
@@ -72,8 +101,7 @@ not change the argv path's code, which is what (b) tests.
 
 ## Affected users and systems
 
-- A maintainer or an agent running `burgee migrate` on a commander or yargs project: fewer files
-  left behind for a hand edit, if (a) lands.
+- A maintainer or an agent running `burgee migrate`: nothing changes unless (a) is reopened.
 - Every consumer of `burgee` and its front-ends, if (b) lands: the published files change shape;
   the `exports` map, the subpaths and the types do not.
 - `packages/burgee/src/migrate*.ts`, `cli.ts`'s dynamic import of `migrate.js`,
@@ -118,32 +146,29 @@ not change the argv path's code, which is what (b) tests.
 
 ## Success criteria
 
-1. **`M0`, before any design: the corpus and today's numbers are recorded in `spec.md`.** The 11
-   subjects above plus a wider population of commander and yargs dependents
-   (`.sdlc/research/adoption-targets.md`), each refusal classified as scan-limited or semantic.
-   If that population shows no scan-limited refusal, there is no refusal rate for (a) to lower,
-   and part (a) is dropped with the numbers, as `native-engine` was.
-2. **(a) refuses less.** On the `M0` corpus, the share of incumbent-bearing files refused falls below
-   today's, every scan-limited refusal it keeps is named in `spec.md` with the reason, and no
-   semantic refusal turns into a rewrite.
-3. **(a) rewrites the same.** Every file today's scan rewrites, the AST build rewrites to identical
-   bytes, across the whole corpus.
-4. **(a) is not slower.** `migrate-bench.test.ts` (A10) passes on the AST build, and the whole
-   `migrate --dry-run` over the corpus is no slower than today's at the median of paired runs.
-5. **(a) moves nothing else.** B2 cold start and the three B4 bundled-bytes bands are unchanged,
-   `burgee --help` loads the same module set (a lock, not a reading), and `weight.test.ts` denies
-   the AST to every non-migrate entry.
-6. **(b) is a measured gain or it is dropped.** Built through the oxc toolchain, each published
+1. **The verdicts are recorded (this document).** (a) fails the rule today and is not built; (b) is
+   outside it and stays a measured experiment.
+2. **(a) is re-measured before it is ever built.** Run the refusal measurement over the 11 subjects
+   above plus a wider population of commander and yargs dependents
+   (`.sdlc/research/adoption-targets.md`), and classify each refusal as scan-limited or semantic.
+   Record the result here. If no scan-limited refusal appears, (a) is dropped with the numbers. If
+   some do, (a) is reopened under the rule's ladder. A reopened (a) must refuse fewer files on that
+   corpus, rewrite every file today's scan rewrites to identical bytes, keep A10
+   (`migrate-bench.test.ts`) no slower, and move no B2 or B4 band. `burgee --help` must load the
+   same module set (a lock, not a reading).
+3. **(b) is a measured gain or it is dropped.** Built through the oxc toolchain, each published
    package is smaller (packed and unpacked, `npm pack --dry-run`) or loads fewer modules on a cold
    start, as the existing B2 and B4 benches and `npm run weight:page` measure, with no band
-   regressing. If neither number improves, (b) is dropped and the reason recorded here.
-7. **The floor holds.** `burgee` keeps zero runtime dependencies outside the family, and
-   `Runtime smoke · bun, deno` passes on the result of both parts.
+   regressing. If neither number improves, (b) is dropped and the reason is recorded here. If (b) is
+   dropped and (a) stays unbuilt, this intent's status becomes `dropped`.
+4. **The floor holds.** `burgee` keeps zero runtime dependencies outside the family, and
+   `Runtime smoke · bun, deno` passes on anything that lands.
 
 ## Open questions
 
-None open. The scope, the non-goal and the success bars were decided with the owner on
-2026-11-07 ([`D-20261107-burgee-on-oxc-scope`](../../decisions/D-20261107-burgee-on-oxc-scope.md)).
+None open. The scope and the non-goal were decided with the owner on 2026-11-07
+([`D-20261107-burgee-on-oxc-scope`](../../decisions/D-20261107-burgee-on-oxc-scope.md)), and so was
+the rule each part is judged by
+([`D-20261107-native-engine-thresholds`](../../decisions/D-20261107-native-engine-thresholds.md)).
 What is not known yet is measured, not decided: whether real projects carry scan-limited refusals
-(criterion 1), whether oxmutate's binding can expose a parse to `migrate` without a second copy of
-oxc, and which oxc-based build tool wins for (b). `spec.md` settles each from `M0`'s numbers.
+(criterion 2), and which oxc-based build tool, if any, wins for (b) (criterion 3).
