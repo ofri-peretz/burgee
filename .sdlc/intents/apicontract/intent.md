@@ -114,7 +114,7 @@ These are dated observations, not measurements. The first measurements are the P
 ## Open questions
 
 Every question this intent raised is closed; each bullet keeps the question and points at its
-answer. Pending actions (the npm names, the final name) are tracked in [`phase0.md`](./phase0.md).
+answer. `apicontract` is the working name; the final name is decided before the first publish. Pending actions (the npm names, the final name) are tracked in [`phase0.md`](./phase0.md).
 
 - Will openapi-typescript's maintainers accept a compiler-free emitter upstream? Answered: not a
   question this repository can close; the offer is a Phase 0 action waiting on the owner's approval

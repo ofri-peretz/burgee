@@ -8,6 +8,7 @@ Roadmap: [`roadmap.md`](./roadmap.md). Each row is a dated reading with the comm
 | :-- | :-- | :-- |
 | npm names free | ✅ 2026-11-06 | `npm view apicontract`, `apicontract-check`, `apicontract-guard`: all E404. Not yet reserved |
 | Upstream offer on openapi-typescript#2841 | ✗ moot | The project entered maintenance mode on 2026-09-19 and its author is not handing it over ([#2874](https://github.com/openapi-ts/openapi-typescript/issues/2874)); `gen` becomes the migration path instead |
+| Working name | ✓ 2026-11-07, provisional | `apicontract` until publish; the owner may rename before the first npm release, so nothing is reserved yet. Candidates checked free: apicompat, apichanges, contractdiff, specbreak, apivet |
 | Competitor review | ✓ 2026-11-06 | [`landscape.md` § Competitor review](./landscape.md#competitor-review--where-the-value-is-significant) |
 | Competitor state | ✅ 2026-11-06 (first pass) | Table below |
 | hey-api plugin for openapi-typescript | ✅ 2026-11-06, none yet | No `openapi-typescript` mention in the last 30 hey-api/openapi-ts GitHub releases |
