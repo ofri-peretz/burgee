@@ -7,7 +7,7 @@
       "seen": {
         "version": "1.1.1",
         "weight": 3261,
-        "measured": "2026-10-06",
+        "measured": "2026-11-06",
         "cited": [
           "packages/roundel/src/weight.test.ts",
           "packages/roundel/README.md"
@@ -40,7 +40,7 @@
       "seen": {
         "version": "6.0.1",
         "weight": 21568,
-        "measured": "2026-10-06",
+        "measured": "2026-11-06",
         "cited": [
           "packages/roundel/src/weight.test.ts",
           "packages/roundel/README.md"
@@ -126,7 +126,7 @@
           "createColors",
           "isColorSupported"
         ],
-        "measured": "2026-10-20"
+        "measured": "2026-11-06"
       }
     }
   ],
@@ -183,7 +183,7 @@
           "white",
           "yellow"
         ],
-        "measured": "2026-10-25"
+        "measured": "2026-11-06"
       }
     }
   ],
@@ -240,7 +240,7 @@
           "white",
           "yellow"
         ],
-        "measured": "2026-10-25"
+        "measured": "2026-11-06"
       }
     }
   ],
@@ -250,7 +250,7 @@
       "claim": "compat",
       "seen": {
         "version": "11.0.0",
-        "measured": "2026-10-19",
+        "measured": "2026-11-06",
         "cited": [
           "packages/roundel/README.md"
         ],
@@ -285,7 +285,7 @@
       "claim": "compat",
       "seen": {
         "version": "2.2.0",
-        "measured": "2026-10-20",
+        "measured": "2026-11-06",
         "cited": [
           "packages/roundel/README.md"
         ],

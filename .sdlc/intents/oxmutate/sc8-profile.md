@@ -187,3 +187,20 @@ the package for a static mutant. A Timeout would mean a slow full-suite run, not
 the mutant. The summary `scripts/mutation.ts` keeps does not say which. A Stryker run on those lines,
 with its JSON report kept, decides it. Until then, oxmutate missing real kills is not ruled out, and
 a missed kill outranks speed.
+
+#### The survivor diff, closed (2026-11-06)
+
+Read against the second valid Stryker run, `sc8r2-caique-S2b` (mean load 10.0), instead of S1
+(29.4): **12** mutants survive under oxmutate that Stryker detected, not 69. The other 57,
+`clack-core.ts`'s glyph and instruction constants among them, are Survived for Stryker too on the
+quiet run; S1 detected them only as Timeouts under load.
+
+The 12 were re-run on both engines alone (the 11 lines, one quiet run each, `main` at `1d638905be`):
+59 of the 61 mutants on those lines agreed. The other two, `inquirer-choices.ts:22`
+(`item !== undefined` → `true`) and `inquirer-theme.ts:105` (the spinner `{}`), pass every
+assertion and raise unhandled rejections, which fail `vitest run`. Stryker's runner crashed
+printing them (RuntimeError); oxmutate scored them Survived. **That was a missed kill**, fixed:
+the runner counts unhandled errors per mutant run and scores one Killed, and the dry run refuses a
+suite that raises one unmutated. On the fix, 61 of 61 mutants on those lines agree with Stryker,
+the two as Killed. Fixtures `test/fixtures/unhandled` and `unhandled-baseline`; both cases fail
+on the previous build.

@@ -429,7 +429,8 @@ describe.skipIf(!native || !existsSync(bin))('a spec oracle (M3.5): model traces
 // a budget and runs on every pull request again (staged spec oxmutate-load-robust, L1).
 // In process, through the built package's API: the CLI's exit adds seconds this test does not need.
 // The mutant is static and sent straight to the fresh-worker path, whose watchdog this checks.
-it.skipIf(!native || !existsSync(bin))('scores a mutant whose test deadlocks Timeout, called by its own worker: no watchdog stop, no re-run', async () => {
+// The worker's own call needs process.threadCpuUsage (Node 23.9+); below it the watchdog stops the wait.
+it.skipIf(!native || !existsSync(bin) || !('threadCpuUsage' in process))('scores a mutant whose test deadlocks Timeout, called by its own worker: no watchdog stop, no re-run', async () => {
   const dir = path.join(pkg, 'test/fixtures/stall');
   // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the built package under test, present only after a build; the test is skipped without it
   const api = (await import(path.join(pkg, 'dist/index.js'))) as typeof import('./index.js');
@@ -530,6 +531,22 @@ it.skipIf(!native || !existsSync(bin))('times a mutant by the real clock, so a t
   // (main, run 41430279215), which the epoch clock and the long budget remove.
   expect(result.stats.watchdogKills).toBe(0);
   expect(result.mutants.filter((m) => m.status === 'Timeout')).toEqual([]);
+}, 60_000);
+
+it.skipIf(!native || !existsSync(bin))('kills a mutant whose only effect is an unhandled rejection, as a failing vitest run does', async () => {
+  const dir = path.join(pkg, 'test/fixtures/unhandled');
+  // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the built package under test, present only after a build; the test is skipped without it
+  const api = (await import(path.join(pkg, 'dist/index.js'))) as typeof import('./index.js');
+  const result = await api.run(await api.loadOptions(dir, { reporters: [] }, path.join(dir, 'oxmutate.config.json')));
+  const keepsTheGap = result.mutants.filter((m) => m.start.line === 7 && (m.replacement === 'true' || m.mutatorName === 'EqualityOperator'));
+  expect(keepsTheGap.map((m) => m.status)).toEqual(['Killed', 'Killed']);
+}, 60_000);
+
+it.skipIf(!native || !existsSync(bin))('refuses a suite that raises an unhandled error with no mutant active', async () => {
+  const dir = path.join(pkg, 'test/fixtures/unhandled-baseline');
+  // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the built package under test, present only after a build; the test is skipped without it
+  const api = (await import(path.join(pkg, 'dist/index.js'))) as typeof import('./index.js');
+  await expect(api.run(await api.loadOptions(dir, { reporters: [] }, path.join(dir, 'oxmutate.config.json')))).rejects.toThrow(/\d+ unhandled error\(s\) with no mutant active/u);
 }, 60_000);
 
 it.skipIf(!native || !existsSync(bin) || !nightly)('keeps a survivor whose confirmation run was only slow, not killed', () => {
