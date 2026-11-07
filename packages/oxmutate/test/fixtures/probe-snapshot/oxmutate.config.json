@@ -1,0 +1,1 @@
+{ "mutate": ["src/greet.ts"], "concurrency": 1, "flakyReruns": 0, "reporters": ["json"], "timeoutMS": 20000 }
