@@ -1,0 +1,41 @@
+{
+  "name": "apicontract",
+  "version": "0.0.0",
+  "private": true,
+  "description": "One contract tool for every API in a repo: what a change breaks and for whom, an agent-sized explain, and where code disagrees with the contract. Codename; unpublished until the naming pass.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": "^20.19.0 || >=22.13.0"
+  },
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "apicontract": "./dist/bin.js"
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.map",
+    "!dist/**/*.test.*"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage.enabled",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "burgee": "^1.10.1"
+  },
+  "devDependencies": {
+    "vitest": "^5.0.1"
+  }
+}

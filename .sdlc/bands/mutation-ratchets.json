@@ -1,6 +1,10 @@
 {
   "$comment": "Mutation score per package (.sdlc/intents/mutation-tested/, D-20261018-mutation-tested): detected (killed + timeout) / (detected + survived + no coverage), Stryker over every mutation source, which is what coverage measures (src/**/*.ts minus tests, __fixtures__ and TESTED_IN_ANOTHER_PROCESS). `floor` only rises: `mutation.yml` measures main weekly, appends each observation, raises a floor the run beat (rounded down to one decimal) and fails on a run below it. Lowering one takes a newer decision in .sdlc/decisions/, cited in a new history step; scripts/mutation-lock.test.ts holds all of it. An `unmeasured` package says why, and its first weekly score becomes its first floor — no floor here is a number nobody measured.",
   "ratchets": {
+    "apicontract": {
+      "status": "unmeasured",
+      "reason": "Phase 0 skeleton: four declared commands that fail with a fix line; first measured run comes with the Phase 1 $ref resolver."
+    },
     "bellpull": {
       "status": "measured",
       "floor": 90.5,
