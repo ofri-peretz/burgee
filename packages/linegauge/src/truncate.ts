@@ -43,6 +43,7 @@ export interface TruncateOptions {
 function fit(string: string, keep: number, end: 'head' | 'tail', total: number): string {
   if (end === 'tail') return slice(string, total - keep);
   let low = keep;
+  // Stryker disable next-line NumericLiteral: any bound at or past the widest prefix finds the same one, and no string is wider than twice its length
   let high = string.length * 2;
   while (low < high) {
     const mid = (low + high + 1) >> 1;
@@ -54,6 +55,7 @@ function fit(string: string, keep: number, end: 'head' | 'tail', total: number):
 
 export function truncate(string: string, columns: number, options: TruncateOptions = {}): string {
   const { position = 'end', ellipsis = '\u2026' } = options;
+  // Stryker disable next-line EqualityOperator,ConditionalExpression: a budget of 0 or less reaches `mark >= columns` below and comes back empty there too
   if (columns <= 0) return '';
 
   const total = width(string);
@@ -66,10 +68,12 @@ export function truncate(string: string, columns: number, options: TruncateOptio
 
   const keep = columns - mark;
   if (position === 'start') return ellipsis + fit(string, keep, 'tail', total);
+  // Stryker disable next-line StringLiteral: `fit` only asks whether its end is 'tail', so any other spelling is the head
   if (position === 'end') return fit(string, keep, 'head', total) + ellipsis;
 
   // Middle: the left half rounds up, so an odd budget spends its extra column on the text
   // the reader meets first.
   const left = Math.ceil(keep / 2);
+  // Stryker disable next-line StringLiteral: `fit` only asks whether its end is 'tail', so any other spelling is the head
   return fit(string, left, 'head', total) + ellipsis + fit(string, keep - left, 'tail', total);
 }

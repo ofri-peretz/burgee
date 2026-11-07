@@ -80,8 +80,10 @@ class Search<Value> {
   private seed(): void {
     const { initial, multiple } = this.mode;
     const first = this.filtered[0];
+    // Stryker disable next-line ArrayDeclaration: a value that is no option's is skipped by the loop below, as an empty list is
     const fallback = !multiple && first !== undefined ? [first.value] : [];
     const seed = initial.length > 0 ? initial : fallback;
+    // Stryker disable next-line MethodExpression: a single search's seed is one value already — its initial value, or the first option
     for (const value of multiple ? seed : seed.slice(0, 1)) {
       const at = this.filtered.findIndex((option) => option.value === value);
       if (at === -1) continue;
@@ -92,6 +94,7 @@ class Search<Value> {
   }
 
   private follow(): void {
+    // Stryker disable next-line ConditionalExpression: `[undefined]` answers undefined and names no option, as `[]` does
     if (!this.mode.multiple) this.selected = this.focused === undefined ? [] : [this.focused];
   }
 
@@ -203,10 +206,14 @@ function searchable<Value>(opts: AutocompleteSharedOptions<Value>, mode: Mode<Va
     track: true,
     initialUserInput: mode.initialUserInput,
     validate: (value) => {
+      // Stryker disable next-line ConditionalExpression: only a multiple search is ever required, and its value is always an array
       if (mode.required === true && Array.isArray(value) && value.length === 0) return REQUIRED;
       return opts.validate === undefined ? undefined : runValidation(opts.validate, value);
     },
-    isActionKey: (_prompt, _char, key) => key.name === 'tab' || search.spaceToggles(key),
+    isActionKey: (_prompt, _char, key) =>
+      // Stryker disable next-line ConditionalExpression,StringLiteral: tab's character is a control character, which the line editor does not type anyway
+      key.name === 'tab' ||
+      search.spaceToggles(key),
     onInput: (prompt) => {
       search.refilter(prompt.userInput);
     },
@@ -223,6 +230,7 @@ export const autocomplete = <Value>(opts: AutocompleteOptions<Value>): Answer<Va
 
 /** `autocompleteMultiselect` — `multiselect` with a search box over the list. */
 export const autocompleteMultiselect = <Value>(opts: AutocompleteMultiSelectOptions<Value>): Answer<Value[]> =>
+  // Stryker disable next-line ArrayDeclaration: an initial value that is no option's is skipped, as an empty list is
   searchable(opts, { multiple: true, initial: opts.initialValues ?? [], required: opts.required }) as Answer<Value[]>;
 
 /** `path` — an autocomplete over the filesystem, starting at `root` or the working directory. */
@@ -233,12 +241,18 @@ export const path = (opts: PathOptions): Answer<string> =>
       maxItems: 5,
       validate: (value) => {
         // A single search: the answer is the focused path or nothing, never a list.
-        if (typeof value !== 'string' || value === '') return 'Please select a path';
+        if (
+          typeof value !== 'string' ||
+          // Stryker disable next-line ConditionalExpression,StringLiteral: no directory entry is the empty path, so a string answer is never empty
+          value === ''
+        )
+          return 'Please select a path';
         return opts.validate === undefined ? undefined : runValidation(opts.validate, value);
       },
       options(this: { readonly userInput: string }) {
         return entriesUnder(this.userInput, opts.directory === true);
       },
     },
+    // Stryker disable next-line ArrayDeclaration: a path always starts from typed text, and the first filter of it picks what is focused and chosen
     { multiple: false, initial: [], initialUserInput: opts.initialValue ?? opts.root ?? processFacts().cwd, completeOnTab: true },
   ) as Answer<string>;

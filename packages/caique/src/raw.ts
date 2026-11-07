@@ -183,6 +183,7 @@ const asTerminal = (writer: Io['writer']): OutputStream => ({ write: (text: stri
  * copy of the question above the list. Measuring text against a terminal is linegauge's job.
  * A writer that does not know its width is treated as one no line can wrap in.
  */
+// Stryker disable next-line ConditionalExpression: `undefined > 0` is false, so the first test only narrows the type
 const rowsOf = (frame: string, writer: Io['writer']): number => lineCount(frame, writer.columns !== undefined && writer.columns > 0 ? writer.columns : Number.POSITIVE_INFINITY);
 
 /**

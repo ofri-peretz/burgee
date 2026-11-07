@@ -77,6 +77,23 @@ const PINNED: readonly (readonly [string, Record<string, string>])[] = [
   ['export   ', {}],
   ['export \n', {}],
   ['A="', { A: '"' }],
+  // Read off dotenv 18.0.9, for the scanner's `export` prefix, its separators and its escapes.
+  ['Xxport A=1', {}],
+  ['exampl FOO=1', {}],
+  ['export   KEY=v', { KEY: 'v' }],
+  ['X=1\nexport FOO\nBAR=1', { X: '1', BAR: '1' }],
+  ['KEY  =v', { KEY: 'v' }],
+  ['A=1\rB=2', { A: '1', B: '2' }],
+  ['A="a\r\nb"', { A: 'a\nb' }],
+  ['A="x"\u2029B=ok', { A: 'x', B: 'ok' }],
+  ['A="x" \u2029B=ok', { A: 'x', B: 'ok' }],
+  ['A="a\rb"', { A: 'a\nb' }],
+  ['A="a" " # c\r\n', { A: 'a" ' }],
+  ["A='a\\nb'", { A: 'a\\nb' }],
+  ['A=`a\\nb`', { A: 'a\\nb' }],
+  ['A=a\\nb', { A: 'a\\nb' }],
+  ['A=\n"x\\ny', { A: '' }],
+  ['A="x\\ny', { A: '"x\ny' }],
 ];
 
 describe('the scanner, against values pinned from dotenv 18.0.5', () => {

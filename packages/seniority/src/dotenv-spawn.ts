@@ -78,7 +78,9 @@ export function resolveWindowsCommand(command: string, env: Record<string, strin
   const extensions = (envValue(env, 'PATHEXT') || '.COM;.EXE;.BAT;.CMD').split(';').filter(Boolean);
   const hasExtension = extensions.some((ext) => command.toLowerCase().endsWith(ext.toLowerCase()));
   const suffixes = hasExtension ? ['', ...extensions] : [...extensions, ''];
-  const directories = /[\\/]/.test(command) ? [cwd] : [cwd, ...(envValue(env, 'PATH') ?? '').split(';')];
+  const directories = [cwd];
+  const searchPath = envValue(env, 'PATH');
+  if (!/[\\/]/.test(command) && searchPath !== undefined) directories.push(...searchPath.split(';'));
   for (const directory of directories) {
     for (const suffix of suffixes) {
       const file = path.resolve(cwd, directory.replace(/^"|"$/g, ''), command + suffix);
@@ -98,13 +100,16 @@ export interface SpawnContext {
   cwd: () => string;
 }
 
+/** Whether Windows runs `file` itself, with no cmd.exe: a `.exe` or a `.com`. Nothing resolved is neither. */
+const isNative = (file: string | undefined): file is string => /\.(?:exe|com)$/i.test(String(file));
+
 /** Start `command` with `args`, as dotenv does on this platform. */
 export function spawnCommand(command: string, args: readonly string[], options: SpawnOptions, context: SpawnContext): ChildProcess {
   if (context.platform !== 'win32') return cp.spawn(command, args, options);
   const env = options.env ?? context.env;
   const file = resolveWindowsCommand(command, env, typeof options.cwd === 'string' ? options.cwd : context.cwd());
   // A native executable gets its arguments quoted by Node, with no cmd.exe in between.
-  if (file !== undefined && /\.(?:exe|com)$/i.test(file)) return cp.spawn(file, args, options);
+  if (isNative(file)) return cp.spawn(file, args, options);
   // From here cmd.exe reads the line, and its percent pass would expand a name ending in a caret.
   const caret = Object.keys(env).find((name) => name.endsWith('^'));
   if (caret !== undefined) throw new TypeError(`cmd.exe would expand %${caret}%, a name ending in a caret`);

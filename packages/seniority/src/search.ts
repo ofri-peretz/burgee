@@ -84,11 +84,12 @@ function* upward(options: SearchOptions): Generator<{ dir: string; depth: number
     if (seen.has(real)) return;
     seen.add(real);
     yield { dir, depth };
-    if (ceiling !== undefined && real === ceiling) return;
+    if (real === ceiling) return;
     const up = dirname(dir);
     // At the filesystem root the parent is the directory itself, which is where the chain
     // stops repeating — the one termination condition neither the limit nor the ceiling
     // can express.
+    // Stryker disable next-line ConditionalExpression: walking on from the root revisits the root, whose real path the cycle check above has already seen, so the walk ends one turn later having yielded nothing more.
     if (up === dir) return;
     dir = up;
   }

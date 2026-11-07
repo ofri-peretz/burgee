@@ -48,6 +48,13 @@ describe('R2 · only what has to be asked', () => {
     expect(r.values['force']).toBeUndefined();
   });
 
+  it('writes each answer as a plain field the caller can overwrite and delete, asked or answered by --yes', async () => {
+    const r = await resolvePrompts({ options: OPTIONS, values: {}, runtime: tty, flags: { yes: true, interactive: true }, io: io(['demo', '1']) });
+    const field = { writable: true, enumerable: true, configurable: true };
+    expect(Object.getOwnPropertyDescriptor(r.values, 'name')).toEqual({ value: 'demo', ...field });
+    expect(Object.getOwnPropertyDescriptor(r.values, 'force')).toEqual({ value: true, ...field });
+  });
+
   it('does not mutate the values it was given', async () => {
     const values = {};
     await resolvePrompts({ options: OPTIONS, values, runtime: tty, io: io(['demo', '1']) });

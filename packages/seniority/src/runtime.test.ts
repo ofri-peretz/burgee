@@ -27,3 +27,28 @@ describe('the command line’s view of the process', () => {
     expect(ambientProcess()).toBe(process);
   });
 });
+
+/** A fresh copy of the seam, read while `globalThis.process` is `host`. */
+async function under(host: unknown): Promise<typeof import('./runtime.js')> {
+  vi.resetModules();
+  vi.stubGlobal('process', host);
+  try {
+    return await import('./runtime.js');
+  } finally {
+    vi.unstubAllGlobals();
+  }
+}
+
+describe('a runtime with no process, or one without a working directory', () => {
+  it('reads no environment and no directory where there is no process', async () => {
+    const fresh = await under(undefined);
+    expect(fresh.ambientEnv()).toBeUndefined();
+    expect(fresh.ambientCwd()).toBeUndefined();
+  });
+
+  it('reads no directory from a process that cannot report one', async () => {
+    const fresh = await under({ env: { A: '1' } });
+    expect(fresh.ambientEnv()).toEqual({ A: '1' });
+    expect(fresh.ambientCwd()).toBeUndefined();
+  });
+});

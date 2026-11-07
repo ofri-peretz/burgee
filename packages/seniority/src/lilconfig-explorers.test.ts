@@ -199,11 +199,57 @@ describe.each(flavours)('$name', ({ make, sync }) => {
       expect((await make('x', { packageProp: ['missing', 'deeper', 'v'] }).load(join(root, 'package.json')))?.config).toBeNull();
     });
 
+    it(`finds ${sync ? 'no' : 'every'} \`.mjs\` search place`, async () => {
+      const places = ['.xrc.mjs', '.config/xrc.mjs', 'x.config.mjs'];
+      const roots = places.map((place) => tree({ [place]: 'export default { from: "mjs" };' }));
+      const found = await Promise.all(roots.map(async (root) => await make('x', { stopDir: root }).search(root)));
+      expect(found).toEqual(places.map((place, i) => (sync ? null : { config: { from: 'mjs' }, filepath: join(roots[i] as string, place) })));
+    });
+
+    it('reports a file that holds `null` as found, with a `null` config', async () => {
+      const root = tree({ '.xrc.json': 'null' });
+      expect(await make('x', { stopDir: root }).search(root)).toEqual({ config: null, filepath: join(root, '.xrc.json') });
+    });
+
+    it('refuses an empty path to load', async () => {
+      await expect(make('x').load('')).rejects.toThrow('load must pass a non-empty string');
+    });
+
+    it('names a loader given as `null` as missing, at construction and at load', async () => {
+      expect(() => make('x', { searchPlaces: ['a.coffee'], loaders: { '.coffee': null as never } })).toThrow('Missing loader for extension "a.coffee"');
+      const root = tree({ 'x.coffee': 'a' });
+      await expect(make('x', { loaders: { '.coffee': null as never } }).load(join(root, 'x.coffee'))).rejects.toThrow('No loader specified for extension ".coffee"');
+    });
+
+    it('walks a `packageProp` array as names, never as the key it would print as', async () => {
+      const root = tree({ 'package.json': JSON.stringify({ 'a,b': 'joined', a: { b: 'walked' } }) });
+      expect((await make('x', { packageProp: ['a', 'b'] }).load(join(root, 'package.json')))?.config).toBe('walked');
+    });
+
+    it('keeps a byte-order mark inside a JSON value, dropping only a leading one', async () => {
+      const root = tree({ '.xrc': '{"a":"x\uFEFFy"}' });
+      expect((await make('x').load(join(root, '.xrc')))?.config).toEqual({ a: 'x\uFEFFy' });
+    });
+
+    it('clears both caches at once', async () => {
+      const root = tree({ '.xrc.json': '{"n":1}' });
+      const json = counting();
+      const explorer = make('x', { stopDir: root, loaders: { '.json': json.loader } });
+      await explorer.search(root);
+      explorer.clearCaches();
+      await explorer.search(root);
+      expect(json.calls()).toBe(2);
+    });
+
     it('reports an empty file as empty, whether or not empty places are ignored', async () => {
       const root = tree({ 'e.json': '\n' });
       const expected = { config: undefined, filepath: join(root, 'e.json'), isEmpty: true };
       expect(await make('x').load(join(root, 'e.json'))).toEqual(expected);
       expect(await make('x', { ignoreEmptySearchPlaces: false }).load(join(root, 'e.json'))).toEqual(expected);
+      // Upstream's sync explorer spells the ignored case with `filepath` first; its general case,
+      // and both of the async explorer's, with `config` first.
+      expect(Object.keys((await make('x').load(join(root, 'e.json'))) ?? {})).toEqual(sync ? ['filepath', 'config', 'isEmpty'] : ['config', 'filepath', 'isEmpty']);
+      expect(Object.keys((await make('x', { ignoreEmptySearchPlaces: false }).load(join(root, 'e.json'))) ?? {})).toEqual(['config', 'filepath', 'isEmpty']);
     });
 
     it('names an extension with no loader, and a loader that is not a function', async () => {
@@ -301,5 +347,7 @@ describe('the async script loader', () => {
     expect((notSyntax.error as Error).message).toBe(`run ${String(notSyntax.runs)} Cannot use import statement outside a module`);
     const nothing = await counted('nothing', 'null');
     expect(nothing.error).toBeNull();
+    const otherSyntax = await counted('othersyntax', 'new SyntaxError("run " + n + " Unexpected token")');
+    expect((otherSyntax.error as Error).message).toBe(`run ${String(otherSyntax.runs)} Unexpected token`);
   });
 });

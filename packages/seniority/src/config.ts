@@ -87,6 +87,7 @@ function keyLines(text: string, at: readonly string[]): Map<string, number> {
   // The last string read and its line; a `:` makes it a key. JSON strings hold no raw newline.
   // Stryker disable next-line StringLiteral: equivalent — a colon reads `raw` only after a string has set it, unless the text puts a colon before any string, which no JSON does
   let raw = '';
+  // Stryker disable next-line NumericLiteral: equivalent for the reason `raw` is — a colon reads `rawLine` only after a string has set it
   let rawLine = 0;
   let key: string | null = null;
   // Stryker disable next-line EqualityOperator: equivalent — one step past the end reads `undefined`, which no case matches
@@ -279,6 +280,7 @@ export function candidates(d: Discovery): { path: string; reason: string }[] {
  */
 export async function discover(d: Discovery): Promise<Loaded | undefined> {
   if (d.disabled === true) return undefined;
+  // Stryker disable next-line ConditionalExpression: `{ loaders: undefined }` reads as no loaders, which is what `{}` says.
   const options: LoadConfigOptions = d.loaders === undefined ? {} : { loaders: d.loaders };
   if (d.explicit !== undefined) {
     const path = resolve(d.cwd, d.explicit);
@@ -292,6 +294,7 @@ export async function discover(d: Discovery): Promise<Loaded | undefined> {
   // The bounded walk, and only when the program asked for it (R5, Y10).
   if (d.upward !== true) return undefined;
   const names = (d.extensions ?? EXTENSIONS).map((ext) => `${d.name}.config${ext}`);
+  // Stryker disable next-line ConditionalExpression: `search` reads `stopAt: undefined` as no ceiling, which is what leaving it out says.
   const up = search(names, { cwd: d.cwd, ...(d.stopAt === undefined ? {} : { stopAt: d.stopAt }) });
   return up === undefined ? undefined : await loadWithExtends(up.path, options);
 }

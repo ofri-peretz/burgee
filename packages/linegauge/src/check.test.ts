@@ -135,6 +135,12 @@ describe('refusals', () => {
     expect(code).toBe(EXIT_RUNTIME);
   });
 
+  it('refuses a JSON plugin that is `null` with the schema code, not a crash', async () => {
+    const at = join(dir, 'null.json');
+    writeFileSync(at, 'null');
+    expect(await run([at])).toEqual({ code: EXIT_RUNTIME, out: 'E_PLUGIN_SCHEMA: a plugin is an object\n  fix: export default { name: "my-widths", widths: { … } }\n' });
+  });
+
   it('refuses a plugin file that registers itself on import, with the code and the fix', async () => {
     const host = new URL('plugin.ts', import.meta.url).pathname;
     const { code, out } = await run([file(`import { register } from '${host}';\nregister({ name: 'eager', widths: { bad: { ranges: [[2, 1]], columns: 1, why: 'x' } } });\nexport default {};`)]);
@@ -149,5 +155,11 @@ describe('what check does not own', () => {
     let out = '';
     await expect(check([missing], (s) => void (out += s))).rejects.toThrow(/does-not-exist\.mjs/);
     expect(out).toBe('');
+  });
+});
+
+describe('the exit codes are the ones the help text promises', () => {
+  it('is 0 when a plugin contributes, 1 on a refusal and 2 on a usage error', () => {
+    expect([EXIT_OK, EXIT_RUNTIME, EXIT_USAGE]).toEqual([0, 1, 2]);
   });
 });

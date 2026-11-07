@@ -101,3 +101,22 @@ describe('the single-key predicates', () => {
     expect(isShiftKey({ name: 'a' })).toBe(false);
   });
 });
+
+describe('emacs keybindings', () => {
+  it('move only with Ctrl held: a plain p or n is a letter', () => {
+    expect(isUpKey({ name: 'p', ctrl: true }, ['emacs'])).toBe(true);
+    expect(isUpKey({ name: 'p' }, ['emacs'])).toBe(false);
+    expect(isDownKey({ name: 'n', ctrl: true }, ['emacs'])).toBe(true);
+    expect(isDownKey({ name: 'n' }, ['emacs'])).toBe(false);
+  });
+
+  it('are not read without emacs keybindings, nor vim letters without vim', () => {
+    expect(isUpKey({ name: 'p', ctrl: true }, [])).toBe(false);
+    expect(isDownKey({ name: 'n', ctrl: true }, ['vim'])).toBe(false);
+    expect(isUpKey({ name: 'k' }, ['emacs'])).toBe(false);
+    expect(isDownKey({ name: 'j' }, [])).toBe(false);
+    // Under emacs only Ctrl-P and Ctrl-N move: Ctrl with another letter is that letter's command.
+    expect(isUpKey({ name: 'a', ctrl: true }, ['emacs'])).toBe(false);
+    expect(isDownKey({ name: 'b', ctrl: true }, ['emacs'])).toBe(false);
+  });
+});

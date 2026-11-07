@@ -104,6 +104,7 @@ export const text = (opts: TextOptions): Answer<string> =>
     finalize: defaulted(opts.defaultValue),
     render: (prompt) => {
       const typed = prompt.userInput === '' ? placeholderOf(opts.placeholder) : withCursor(prompt.userInput, prompt.cursor);
+      // Stryker disable next-line StringLiteral: the summary is drawn only once answered or cancelled, and `finalize` has made the value a string by then
       return frame(opts, prompt.state, opts.message, { body: [typed], summary: prompt.value ?? '', error: prompt.error });
     },
   });
@@ -155,6 +156,7 @@ export const confirm = (opts: ConfirmOptions): Answer<boolean> => {
 };
 
 /** The first enabled option at or after `index`. */
+// Stryker disable next-line NumericLiteral: a step of 0 from a disabled option searches forward, as a step of 1 does
 const enabledFrom = (index: number, options: readonly Choice[]): number => (options[index]?.disabled === true ? findCursor(index, 1, options) : index);
 
 /** `select` — one option from a list, drawn through `limitOptions`. */
@@ -172,6 +174,7 @@ export const select = <Value>(opts: SelectOptions<Value>): Answer<Value> => {
     initialValue: options[cursor]?.value,
     onKey: (prompt, _char, _key, action) => {
       const step = stepOf(action);
+      // Stryker disable next-line ConditionalExpression: a step of 0 finds the cursor where it is, on the option the value already names
       if (step === 0) return;
       cursor = findCursor(cursor, step, options);
       prompt.value = options[cursor]?.value;
@@ -249,6 +252,7 @@ export const multiselect = <Value>(opts: MultiSelectOptions<Value>): Answer<Valu
       const all = keyed(chosen, key.name);
       if (all !== undefined) prompt.value = all;
       else if (action === 'space') prompt.value = toggled(chosen, options[cursor]?.value as Value);
+      // Stryker disable next-line ConditionalExpression: a step of 0 leaves the cursor on the enabled option it is on
       else if (stepOf(action) !== 0) cursor = findCursor(cursor, stepOf(action), options);
     },
     render: (prompt) => {
@@ -336,6 +340,7 @@ export const groupMultiselect = <Value>(opts: GroupMultiSelectOptions<Value>): A
     validate: requiredCheck(opts.required ?? true),
     onKey: (prompt, _char, _key, action) => {
       if (action === 'space') prompt.value = list.toggle(prompt.value as Value[]) as Value[];
+      // Stryker disable next-line ConditionalExpression: a move of 0 lands on the row the cursor is on, which is never a header it could not stop on
       else if (stepOf(action) !== 0) list.move(stepOf(action));
     },
     render: (prompt) => {
@@ -380,6 +385,7 @@ function enter(prompt: Prompt<string>, editor: Editor, showSubmit: boolean): boo
   // The first enter put a newline at the cursor, and nothing else has been pressed since: the
   // text ends with that newline, and it is not part of the answer.
   prompt.userInput = prompt.userInput.slice(0, -1);
+  // Stryker disable next-line UpdateOperator: the prompt submits on this enter, and a submitted frame draws no cursor
   prompt.cursor--;
   prompt.value = prompt.userInput;
   return true;
@@ -388,7 +394,12 @@ function enter(prompt: Prompt<string>, editor: Editor, showSubmit: boolean): boo
 /** `multiline` — typing across lines; a second enter at the end submits, or tab reaches `[ submit ]`. */
 export const multiline = (opts: MultiLineOptions): Answer<string> => {
   const showSubmit = opts.showSubmit === true;
-  const editor: Editor = { focus: 'editor', armed: false };
+  // Stryker disable next-line ObjectLiteral: an editor with neither field reads as one on the text and not armed, which is how it starts
+  const editor: Editor = {
+    // Stryker disable next-line StringLiteral: any focus but the button reads as the text, in the frame and on enter
+    focus: 'editor',
+    armed: false,
+  };
   return run<string>({
     ...opts,
     initialValue: undefined,
@@ -411,6 +422,7 @@ export const multiline = (opts: MultiLineOptions): Answer<string> => {
       const typed = prompt.userInput === '' ? placeholderOf(opts.placeholder) : multilineCursor(prompt.userInput, prompt.cursor);
       const colour = editor.focus === 'submit' ? 'cyan' : 'dim';
       const button = showSubmit ? [paint(colour, '[ submit ]')] : [];
+      // Stryker disable next-line StringLiteral: the summary is drawn only once answered or cancelled, and `finalize` has made the value a string by then
       return frame(opts, prompt.state, opts.message, { body: [...typed.split('\n'), ...button], summary: prompt.value ?? '', error: prompt.error });
     },
   });

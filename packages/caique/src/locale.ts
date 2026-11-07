@@ -73,18 +73,23 @@ export function render(message: Message, values: Readonly<Record<string, string>
 /** The longest line `say` matches; past it a line stays English, so no typed answer makes matching slow. */
 const LONGEST = 2048;
 
+/** How much literal text a template fixes: its length with the placeholders taken out. */
+const fixedLength = (template: string): number => template.replaceAll(/\{\w+\}/gu, '').length;
+
 /** The catalog as patterns, most specific first: the more literal text a template fixes, the earlier it is tried. */
 const PATTERNS = (Object.entries(MESSAGES) as [MessageId, string][])
-  .toSorted(([, a], [, b]) => b.replaceAll(/\{\w+\}/gu, '').length - a.replaceAll(/\{\w+\}/gu, '').length)
+  .toSorted(([, a], [, b]) => fixedLength(b) - fixedLength(a))
   .map(([id, template]) => {
     const escaped = template.replaceAll(/[.*+?^$()|[\]\\]/gu, '\\$&').replaceAll(/\\?\{(\w+)\\?\}/gu, '(?<$1>.+?)');
-    // eslint-disable-next-line secure-coding/detect-non-literal-regexp -- built from the committed catalog, escaped above; matched only against lines of at most LONGEST characters
-    return { id, pattern: new RegExp(`^${escaped}$`, 'u') };
+    // Built from the committed catalog, escaped above; matched only against lines of at most LONGEST characters.
+    // Stryker disable next-line StringLiteral: the escaped catalog holds no escape the `u` flag reads differently, and `.+?` between fixed text matches the same lines either way
+    return { id, pattern: new RegExp(`^${escaped}$`, 'u') }; // eslint-disable-line secure-coding/detect-non-literal-regexp -- see above
   });
 
 /** Where a pack is looked for: the tag, then its bare language — `de-DE`, then `de`. */
 const candidatesOf = (tag: string): string[] => {
   const { language } = new Intl.Locale(tag);
+  // Stryker disable next-line ConditionalExpression: a bare tag listed twice merges the same pack over itself, which changes nothing
   return language === tag ? [tag] : [tag, language];
 };
 
@@ -100,6 +105,7 @@ function messagesFor(locale: string): Map<string, Message> {
   const merged = new Map<string, Message>();
   for (const tag of tags) {
     for (const plugin of packs) {
+      // Stryker disable next-line OptionalChaining: `packs` holds only plugins with `locales`, by the filter above
       for (const [id, message] of Object.entries(plugin.locales?.[tag] ?? {})) if (id.startsWith('caique.')) merged.set(id, message);
     }
   }

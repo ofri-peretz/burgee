@@ -88,15 +88,21 @@ function validate(text: unknown, columns: unknown, position: unknown, mark: unkn
   if (typeof mark !== 'string') throw new TypeError(`Expected \`options.truncationCharacter\` to be a string, got ${typeof mark}`);
 }
 
+// Stryker disable next-line ConditionalExpression: the bounds are redundant for what reaches here — `codePointAt` answers `undefined` outside the string, and every SGR `slice` writes has only digits and `;` after its `[`
 const isSgrParameter = (code: number | undefined): boolean => code !== undefined && ((code >= DIGIT_ZERO && code <= DIGIT_NINE) || code === SEMICOLON);
 
-/** Where the run of SGR sequences at the start of `string` ends. */
+/**
+ * Where the run of SGR sequences at the start of `string` ends. No bounds checks: `codePointAt`
+ * answers `undefined` before the first code unit and past the last, and `undefined` is neither a
+ * parameter nor any of the bytes compared against, so each walk stops at the edge on its own.
+ */
 function leadingSgrEnd(string: string): number {
   let index = 0;
-  while (index + 2 < string.length && string.codePointAt(index) === ESC && string.codePointAt(index + 1) === LEFT_BRACKET) {
+  while (string.codePointAt(index) === ESC && string.codePointAt(index + 1) === LEFT_BRACKET) {
+    // Stryker disable next-line NumericLiteral: starting one later only skips the first parameter byte, and every opener `slice` writes has one there
     let next = index + 2;
-    while (next < string.length && isSgrParameter(string.codePointAt(next))) next += 1;
-    if (next >= string.length || string.codePointAt(next) !== LETTER_M) break;
+    while (isSgrParameter(string.codePointAt(next))) next += 1;
+    if (string.codePointAt(next) !== LETTER_M) break;
     index = next + 1;
   }
   return index;
@@ -105,10 +111,10 @@ function leadingSgrEnd(string: string): number {
 /** Where the run of SGR sequences at the end of `string` starts. */
 function trailingSgrStart(string: string): number {
   let start = string.length;
-  while (start > 1 && string.codePointAt(start - 1) === LETTER_M) {
+  while (string.codePointAt(start - 1) === LETTER_M) {
     let next = start - 2;
-    while (next >= 0 && isSgrParameter(string.codePointAt(next))) next -= 1;
-    if (next < 1 || string.codePointAt(next - 1) !== ESC || string.codePointAt(next) !== LEFT_BRACKET) break;
+    while (isSgrParameter(string.codePointAt(next))) next -= 1;
+    if (string.codePointAt(next - 1) !== ESC || string.codePointAt(next) !== LEFT_BRACKET) break;
     start = next - 1;
   }
   return start;

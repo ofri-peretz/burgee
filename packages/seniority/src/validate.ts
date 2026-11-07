@@ -52,6 +52,7 @@ function where(provenance: Provenance): string {
 
 function expectationFor(shape: Shape): string | undefined {
   if (shape.choices !== undefined && shape.choices.length > 0) return `one of ${shape.choices.map((c) => String(c)).join(', ')}`;
+  // Stryker disable next-line ConditionalExpression: the first half only narrows the type for the compiler; `KINDS` holds no `undefined`.
   if (shape.type !== undefined && KINDS.has(shape.type)) return `a ${shape.type}`;
   if (shape.type === 'array') return 'an array';
   return undefined;

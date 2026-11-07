@@ -40,6 +40,7 @@ describe('a violation names the value, the rule and where the value came from (R
   it('reports a required option that no source set, and has no provenance to name', () => {
     const [violation] = validate({ name: shape['name'] as Shape }, resolve({ name: shape['name'] as Shape }, base));
     expect(violation?.message).toBe('`name` is required, and no source set it');
+    expect(violation?.expected).toBe('a value');
     expect(violation?.provenance).toBeUndefined();
   });
 
@@ -54,6 +55,17 @@ describe('a violation names the value, the rule and where the value came from (R
   });
 });
 
+describe('a list of choices', () => {
+  it('holds a value to one choice when it lists one', () => {
+    expect(validate({ mode: { type: 'string', choices: ['only'] } }, by({ mode: 'other' }, {}))[0]?.message).toBe('`mode` must be one of only');
+  });
+
+  it('is no rule at all when it is empty, so the type decides', () => {
+    expect(validate({ n: { type: 'number', choices: [] } }, by({ n: 'x' }, {}))[0]?.message).toBe('`n` must be a number');
+    expect(validate({ n: { type: 'number', choices: [] } }, by({ n: 3 }, {}))).toEqual([]);
+  });
+});
+
 describe('an option with no declared type is not validated (R12, structural)', () => {
   it('passes anything through, because a shape that says nothing asserts nothing', () => {
     expect(validate({ anything: {} }, resolve({ anything: {} }, { ...base, flags: { anything: Symbol('x') } }))).toEqual([]);
@@ -64,6 +76,13 @@ describe('`check` is the throwing form, for a caller that wants one error (R12)'
   it('throws a CONFIG-class error whose message lists every violation', () => {
     const layers: Layers = { ...base, config: { path: './c.json', data: { out: 1 }, lines: { out: 9 } }, flags: { name: 'a' } };
     expect(() => check(shape, resolve(shape, layers))).toThrow('`out` must be a string; `./c.json:9` set it to `1`');
+    const twice: Layers = { ...base, config: { path: './c.json', data: { out: 1, retries: 'x' } }, flags: { name: 'a' } };
+    expect(() => check(shape, resolve(shape, twice))).toThrow(
+      expect.objectContaining({
+        message: '`out` must be a string; `./c.json` set it to `1`\n`retries` must be a number; `./c.json` set it to `"x"`',
+        hint: 'fix the file, the variable or the flag each line names',
+      }),
+    );
   });
 
   it('returns the values when there is nothing to say', () => {

@@ -136,6 +136,7 @@ function multiselectAttempt(choices: Choice[], label: string, say: (english: str
         .split(',')
         .map((part) => part.trim())
         .filter((part) => part !== '');
+      // Stryker disable next-line ConditionalExpression: without it an empty list maps to an empty `picked` and no `missing`, which answers the same `[]`; the early return only names the case
       if (parts.length === 0) return { ok: true, value: [] };
       const picked = parts.map((part) => pick(part, choices));
       const missing = parts.filter((_, index) => picked[index] === undefined);

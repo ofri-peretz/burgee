@@ -10,7 +10,7 @@
 import { Readable, Writable } from 'node:stream';
 
 import { SHOW_CURSOR } from 'closeout/cursor';
-import { afterEach, describe, expect, it, onTestFinished } from 'vitest';
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 
 import { CANCEL_SYMBOL, isTTY, run, runValidation, S_BAR, S_BAR_END, settings, symbolBar, updateSettings } from './clack-core.js';
 import { select, text } from './clack-prompts.js';
@@ -515,3 +515,273 @@ describe('the frame', () => {
   });
 
 });
+
+/** Every escape spelled so it can be read: a colour as `<36>`. */
+const shown = (text: string): string => text.replaceAll(/\u001B\[([\d;?]*)([A-Za-z])/gu, (_, parameter: string, final: string) => `<${parameter}${final === 'm' ? '' : final}>`);
+
+/** Every `S_` glyph a fresh `clack-core` exports, under `TERM`. */
+async function glyphs(term: string): Promise<Record<string, string>> {
+  vi.stubEnv('TERM', term);
+  for (const name of ['CI', 'WT_SESSION', 'TERM_PROGRAM', 'TERMINAL_EMULATOR']) vi.stubEnv(name, '');
+  vi.resetModules();
+  const fresh = await import('./clack-core.js');
+  return Object.fromEntries(Object.entries(fresh).filter(([name]) => name.startsWith('S_'))) as Record<string, string>;
+}
+
+describe('the glyphs and instructions, read once at import', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  it('draws clack’s box glyphs where the terminal can, and its ASCII ones where it cannot', async () => {
+    expect(await glyphs('xterm-256color')).toMatchInlineSnapshot(`
+      {
+        "S_BAR": "│",
+        "S_BAR_END": "└",
+        "S_BAR_END_RIGHT": "┘",
+        "S_BAR_H": "─",
+        "S_BAR_START": "┌",
+        "S_BAR_START_RIGHT": "┐",
+        "S_CHECKBOX_ACTIVE": "◻",
+        "S_CHECKBOX_INACTIVE": "◻",
+        "S_CHECKBOX_SELECTED": "◼",
+        "S_CONNECT_LEFT": "├",
+        "S_CORNER_BOTTOM_LEFT": "╰",
+        "S_CORNER_BOTTOM_RIGHT": "╯",
+        "S_CORNER_TOP_LEFT": "╭",
+        "S_CORNER_TOP_RIGHT": "╮",
+        "S_ERROR": "■",
+        "S_INFO": "●",
+        "S_PASSWORD_MASK": "▪",
+        "S_RADIO_ACTIVE": "●",
+        "S_RADIO_INACTIVE": "○",
+        "S_STEP_ACTIVE": "◆",
+        "S_STEP_CANCEL": "■",
+        "S_STEP_ERROR": "▲",
+        "S_STEP_SUBMIT": "◇",
+        "S_SUCCESS": "◆",
+        "S_WARN": "▲",
+      }
+    `);
+    expect(await glyphs('linux')).toMatchInlineSnapshot(`
+      {
+        "S_BAR": "|",
+        "S_BAR_END": "—",
+        "S_BAR_END_RIGHT": "—",
+        "S_BAR_H": "-",
+        "S_BAR_START": "T",
+        "S_BAR_START_RIGHT": "T",
+        "S_CHECKBOX_ACTIVE": "[•]",
+        "S_CHECKBOX_INACTIVE": "[ ]",
+        "S_CHECKBOX_SELECTED": "[+]",
+        "S_CONNECT_LEFT": "+",
+        "S_CORNER_BOTTOM_LEFT": "+",
+        "S_CORNER_BOTTOM_RIGHT": "+",
+        "S_CORNER_TOP_LEFT": "+",
+        "S_CORNER_TOP_RIGHT": "+",
+        "S_ERROR": "x",
+        "S_INFO": "•",
+        "S_PASSWORD_MASK": "•",
+        "S_RADIO_ACTIVE": ">",
+        "S_RADIO_INACTIVE": " ",
+        "S_STEP_ACTIVE": "*",
+        "S_STEP_CANCEL": "x",
+        "S_STEP_ERROR": "x",
+        "S_STEP_SUBMIT": "o",
+        "S_SUCCESS": "*",
+        "S_WARN": "!",
+      }
+    `);
+  });
+
+  it('colours the list instructions and the required refusal as clack does', async () => {
+    vi.stubEnv('NO_COLOR', undefined);
+    vi.stubEnv('FORCE_COLOR', '1');
+    vi.resetModules();
+    const core = await import('./clack-core.js');
+    const list = await import('./clack-list.js');
+    expect(shown([...core.SELECT_INSTRUCTIONS, ...core.MULTISELECT_INSTRUCTIONS, list.REQUIRED].join('\n'))).toMatchInlineSnapshot(`
+      "<2>↑/↓<22> to navigate
+      <2>Enter:<22> confirm
+      <2>↑/↓<22> to navigate
+      <2>Space:<22> select
+      <2>Enter:<22> confirm
+      Please select at least one option.
+      <0><2>Press <90><47><7> space <27><49><39> to select, <90><47><7> enter <27><49><39> to submit<22><0>"
+    `);
+  });
+
+  it('starts with every action, and the vim and cancel aliases', () => {
+    expect([...settings.actions]).toEqual(['up', 'down', 'left', 'right', 'space', 'enter', 'cancel']);
+    expect(Object.fromEntries(settings.aliases)).toEqual({ k: 'up', j: 'down', h: 'left', l: 'right', '\u0003': 'cancel', escape: 'cancel' });
+  });
+});
+
+/** The first frame of a text prompt on a stream `columns` wide. */
+async function frameAt(columns: number): Promise<string> {
+  const input = new Input();
+  const output = new Output();
+  output.columns = columns;
+  const answer = text({ message: 'm', initialValue: 'abcdef', input, output });
+  press(input, 'escape', { name: 'escape' });
+  await answer;
+  return output.buffer[1] ?? '';
+}
+
+describe('the loop, on the paths only its own definitions take', () => {
+  it('a validator that throws an Error with no message shows the error setting, and one that returns nothing or an empty string submits', async () => {
+    const input = new Input();
+    const output = new Output();
+    const answer = text({ message: 'm', input, output, validate: (value) => {
+      if (value === 'x') throw Object.assign(new Error('blank'), { message: '' });
+      return value === 'y' ? '' : undefined;
+    } });
+    typeLine(input, 'x');
+    ret(input);
+    await tick();
+    expect(output.buffer.at(-1)).toContain(settings.messages.error);
+    press(input, '\u007F', { name: 'backspace' });
+    typeLine(input, 'y');
+    ret(input);
+    expect(await answer).toBe('y');
+  });
+
+  it('a Standard Schema with an empty list of issues finds no problem', () => {
+    expect(runValidation(schema([], false), 'x')).toBeUndefined();
+  });
+
+  it('draws the validating frame in dim while the verdict is out', async () => {
+    vi.stubEnv('NO_COLOR', undefined);
+    vi.stubEnv('FORCE_COLOR', '1');
+    onTestFinished(() => {
+      vi.unstubAllEnvs();
+    });
+    let settle: (problem: string | undefined) => void = noop;
+    const input = new Input();
+    const output = new Output();
+    const answer = text({ message: 'm', input, output, validate: () => new Promise<string | undefined>((resolve) => (settle = resolve)) });
+    typeLine(input, 'ok');
+    ret(input);
+    await tick();
+    expect(shown(output.buffer.at(-1) ?? '')).toMatchInlineSnapshot(`
+      "<4A><1G><J><90>│<39>
+      <2>◆<22>  m
+      <2>│<22>  ok█
+      <36>└<39>
+      "
+    `);
+    settle(undefined);
+    expect(await answer).toBe('ok');
+  });
+
+  it('reads a lone escape as a cancel after clack’s 50 ms, from bytes on the stream', async () => {
+    const input = new Input();
+    const answer = text({ message: 'm', input, output: new Output() });
+    input.push('\u001B');
+    const late = new Promise((resolve) => {
+      setTimeout(() => resolve('late'), 300);
+    });
+    expect(await Promise.race([answer, late])).toBe(CANCEL_SYMBOL);
+  });
+
+  it('takes up a stream an earlier prompt paused, so a second prompt on it hears its bytes', async () => {
+    const input = new Input();
+    const first = text({ message: 'm', input, output: new Output() });
+    typeLine(input, 'a');
+    ret(input);
+    expect(await first).toBe('a');
+    expect(input.isPaused()).toBe(true);
+    const second = text({ message: 'm', input, output: new Output() });
+    input.push('\u001B');
+    const late = new Promise((resolve) => {
+      setTimeout(() => resolve('late'), 300);
+    });
+    expect(await Promise.race([second, late])).toBe(CANCEL_SYMBOL);
+  });
+
+  it('pauses its input once answered, and an abort after that draws nothing', async () => {
+    const controller = new AbortController();
+    const input = new Input();
+    const output = new Output();
+    const answer = text({ message: 'm', input, output, signal: controller.signal });
+    typeLine(input, 'a');
+    ret(input);
+    expect(await answer).toBe('a');
+    expect(input.isPaused()).toBe(true);
+    const written = output.buffer.length;
+    controller.abort();
+    expect(output.buffer).toHaveLength(written);
+  });
+
+  it('wraps at 80 columns for a stream that reports none, and at the width of a stream one column wide', async () => {
+    expect(await frameAt(0)).toBe(await frameAt(80));
+    expect((await frameAt(1)).split('\n').length).toBeGreaterThan((await frameAt(80)).split('\n').length);
+  });
+
+  it('a definition that does not track typing leaves the typed line alone, and reads its keys through the aliases', async () => {
+    const input = new Input();
+    const output = new Output();
+    const actions: (string | undefined)[] = [];
+    const answer = run<string>({ input, output, onKey: (_prompt, _char, _key, action) => actions.push(action), render: (prompt) => `typed: ${prompt.userInput}` });
+    typeLine(input, 'k');
+    press(input, 'escape', { name: 'escape' });
+    await answer;
+    expect(output.buffer.join('')).not.toContain('typed: k');
+    expect(actions[0]).toBe('up');
+  });
+
+  it('a definition that tracks typing reads its keys without the aliases, and needs no onInput for its initial line', async () => {
+    const input = new Input();
+    const output = new Output();
+    const actions: (string | undefined)[] = [];
+    const answer = run<string>({ input, output, track: true, initialUserInput: 'x', onKey: (_prompt, _char, _key, action) => actions.push(action), render: (prompt) => `typed: ${prompt.userInput}` });
+    typeLine(input, 'k');
+    press(input, 'escape', { name: 'escape' });
+    await answer;
+    expect(output.buffer.join('')).toContain('typed: xk');
+    expect(actions[0]).toBeUndefined();
+  });
+
+  it('an enter that a key handler already answered is not validated again', async () => {
+    const input = new Input();
+    const answer = run<string>({
+      input,
+      output: new Output(),
+      validate: () => 'never',
+      onKey: (prompt, _char, key) => {
+        if (key.name === 'return') {
+          prompt.value = 'done';
+          prompt.state = 'submit';
+        }
+      },
+      render: () => 'frame',
+    });
+    ret(input);
+    expect(await answer).toBe('done');
+  });
+
+  it('draws a placeholder of one character with the cursor on it', async () => {
+    expect(await firstWith('x')).toContain('│  x\n');
+  });
+
+  it('draws a cancelled answer of only spaces as nothing', async () => {
+    const input = new Input();
+    const output = new Output();
+    const answer = text({ message: 'm', input, output });
+    typeLine(input, '  ');
+    press(input, 'escape', { name: 'escape' });
+    await answer;
+    expect(output.buffer.at(-3)?.endsWith('■  m\n│')).toBe(true);
+  });
+
+  it('draws the instructions without the guide with nothing before them', async () => {
+    const input = new Input();
+    const output = new Output();
+    const answer = select({ message: 'm', options: [{ value: 'a' }], withGuide: false, input, output });
+    press(input, 'escape', { name: 'escape' });
+    await answer;
+    expect(output.buffer[1]).toContain('\n↑/↓ to navigate • Enter: confirm\n');
+  });
+});
+

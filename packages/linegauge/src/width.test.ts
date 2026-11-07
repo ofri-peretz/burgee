@@ -387,3 +387,21 @@ describe('the fast paths agree with the full rules', () => {
     expect(width('\u001B[31mred\u001B[39m and \u001B]8;;https://x.dev\u0007link\u001B]8;;\u0007')).toBe(12);
   });
 });
+
+describe('the edges of the jamo and emoji rules', () => {
+  it.each([
+    ['a leading jamo then the last vowel jamo, one syllable', '\u1100\u11A7', 2],
+    ['a leading and a vowel jamo then the first archaic trailing jamo, one syllable', '\u1100\u1161\uD7CB', 2],
+    ['the first archaic leading jamo before a syllable', '\uA960\uAC00', 4],
+    ['the last archaic leading jamo before a syllable', '\uA97C\uAC00', 4],
+    ['a heart and a dangling joiner, one pictograph only', '\u2764\u200D', 1],
+    ['a fully-qualified keycap behind a prepended format character', '\u06001\uFE0F\u20E3', 1],
+    ['an unqualified keycap behind a prepended format character', '\u06001\u20E3', 1],
+    ['an unqualified keycap carrying a mark', '1\u20E3\u0301', 1],
+    ['an unqualified ZWJ sequence 50 code units long, the most the emoji scan reads', `\u2764\u200D\u{1F525}${'\u0301'.repeat(46)}`, 2],
+    ['the same sequence one unit past the scan', `\u2764\u200D\u{1F525}${'\u0301'.repeat(47)}`, 1],
+  ])('%s', (_name, input, expected) => {
+    expect(width(input)).toBe(expected);
+    expect(stringWidth(input)).toBe(expected);
+  });
+});

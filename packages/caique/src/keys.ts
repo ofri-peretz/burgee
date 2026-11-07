@@ -76,6 +76,7 @@ interface NodeKey {
 const ESC = '\u001B';
 
 /** A single printable code point: what a key with no name of its own is called by. */
+// Stryker disable next-line EqualityOperator: a space never reaches this: node names it `space`, and a spec's ' ' is the alias for `space`
 const printable = (text: string): boolean => [...text].length === 1 && text >= ' ' && text !== '\u007F';
 
 /**
@@ -110,8 +111,9 @@ function fromNode(key: NodeKey): KeyPress {
  * field of it, which is all a reader without an interface can give. `decode()` passes none:
  * a chunk decoded on its own has no rest coming, and nothing in it waits.
  */
-// eslint-disable-next-line reliability/no-unsafe-type-narrowing -- the decoder reads `escapeCodeTimeout` and nothing else from its second argument
-const LIVE = { escapeCodeTimeout: 50 } as unknown as Parameters<typeof emitKeypressEvents>[1];
+// The decoder reads `escapeCodeTimeout` and nothing else from its second argument.
+// Stryker disable next-line NumericLiteral: a millisecond either side of 50 is not a difference a test can time
+const LIVE = { escapeCodeTimeout: 50 } as unknown as Parameters<typeof emitKeypressEvents>[1]; // eslint-disable-line reliability/no-unsafe-type-narrowing -- see above
 
 /**
  * Every key in one chunk of input, in order — what one `data` event from a raw terminal means.
@@ -131,8 +133,10 @@ export function decode(chunk: string): KeyPress[] {
   };
   stream.on('keypress', listener);
   stream.emit('data', chunk);
+  // Stryker disable next-line StringLiteral: the stream is this call's own and is dropped when it returns, listener and all
   stream.removeListener('keypress', listener);
   const tail = chunk.slice(keys.reduce((length, key) => length + key.sequence.length, 0));
+  // Stryker disable next-line Regex: node holds back only a sequence that starts with Escape, and one that meets another Escape inside it is reported whole, so a tail never has other text before its Escapes
   if (/^\u001B{1,2}$/.test(tail)) keys.push(fromNode({ name: 'escape', meta: true, sequence: tail }));
   return keys;
 }
@@ -154,6 +158,7 @@ const MODIFIER: Readonly<Record<string, string>> = { ctrl: 'ctrl', meta: 'meta',
 function split(spec: string): { modifiers: string[]; rawName: string } {
   const modifiers: string[] = [];
   let rest = spec;
+  // Stryker disable next-line EqualityOperator,LogicalOperator,ArithmeticOperator,NumericLiteral,ConditionalExpression: a `+` at the start or the end only ever leaves a name `canonical` refuses with the same message either way (`metax`, where there is no `+`, is the case a test pins)
   for (let at = rest.indexOf('+'); at > 0 && at < rest.length - 1; at = rest.indexOf('+')) {
     const modifier = MODIFIER[rest.slice(0, at).toLowerCase()];
     if (modifier === undefined) break;

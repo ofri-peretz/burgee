@@ -2,7 +2,7 @@
 import { describe as suite, expect, it } from 'vitest';
 
 import { explain } from './explain-entry.js';
-import { explanation, explanationEvent, explanationJson, renderExplanation } from './explain.js';
+import { describeCandidate, explanation, explanationEvent, explanationJson, renderExplanation } from './explain.js';
 import { ORDER, resolve, type Layers } from './precedence.js';
 
 const specs = {
@@ -38,14 +38,13 @@ suite('the record (R4)', () => {
 
   it('says an option is undeclared rather than pretending it is unset', () => {
     const record = explanation('nope', resolution);
-    expect(record.declared).toBe(false);
-    expect(record.candidates).toEqual([]);
+    expect(record).toStrictEqual({ key: 'nope', declared: false, value: undefined, candidates: [], lost: [], unset: [] });
   });
 
   it('says unset for a declared option no source reached', () => {
     const record = explanation('token', resolve(specs, { flags: {}, env: {} }));
     expect(record.declared).toBe(true);
-    expect(record.winner).toBeUndefined();
+    expect(Object.keys(record)).not.toContain('winner');
   });
 });
 
@@ -82,6 +81,8 @@ suite('the three renderings are renderings, not three implementations (R4)', () 
     const withVault = resolve(specs, { flags: {}, env: {}, sources: [{ source: 'vault', location: 'acme://vault/ci', rank: 5, data: { region: 'v' } }] });
     expect(renderExplanation(explanation('region', withVault))).toContain('from vault acme://vault/ci');
     expect(explanationJson(explanation('region', withVault)).source).toBe('vault');
+    // A plugin that names no location reads as its source alone, with no trailing space.
+    expect(describeCandidate({ source: 'vault', location: '' })).toBe('vault');
   });
 });
 
@@ -95,12 +96,17 @@ suite('the renderings of an option nobody set, and of one only the winner speaks
   it('gives --json no winner fields at all, rather than `value: undefined`', () => {
     const json = explanationJson(unset);
     expect(Object.keys(json)).toEqual(['option', 'candidates']);
-    expect(json.candidates.every((c) => !c.set)).toBe(true);
+    expect(json.candidates).toStrictEqual([
+      { source: 'flag', location: '--token', set: false },
+      { source: 'env', location: 'MY_TOKEN', set: false },
+      { source: 'default', location: 'default', set: false },
+    ]);
   });
 
   it('prints no candidates line when the winner was the only candidate', () => {
     const alone = explanation('k', { candidates: { k: [{ source: 'flag', location: '--k', value: 1 }] } });
     expect(renderExplanation(alone)).toBe('k = 1   from flag --k\n');
+    expect(explanationJson(alone)).toStrictEqual({ option: 'k', value: 1, source: 'flag', location: '--k', candidates: [{ source: 'flag', location: '--k', set: true, value: 1 }] });
   });
 
   it('carries the winner’s line into --json when the winning layer recorded one', () => {

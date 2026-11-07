@@ -107,6 +107,7 @@ interface RunOptions {
 function resolveRunOptions(parsed: Extract<RunArgs, { command: string[] }>, env: Record<string, string | undefined>): RunOptions {
   const envOptions = optionsFromEnv(env);
   const options: RunOptions = {
+    // Stryker disable next-line StringLiteral: with an empty encoding `readFileSync` hands back a Buffer, which `parse` reads as UTF-8.
     encoding: (envOptions.encoding ? envOptions.encoding : 'utf8') as BufferEncoding,
     quiet: envOptions.quiet,
     debug: envOptions.debug === true,

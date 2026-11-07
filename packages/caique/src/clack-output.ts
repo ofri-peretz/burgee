@@ -47,8 +47,9 @@ type Output = NonNullable<CommonOptions['output']>;
 /** Where a writer writes when nothing may silence it: the caller's stream, or the process's. */
 const loudOf = (opts?: CommonOptions): Output => opts?.output ?? processRuntime().stdout;
 /** A stream that keeps nothing, and is no terminal, so a spinner given it never animates. */
-// eslint-disable-next-line reliability/no-unsafe-type-narrowing -- a writer here calls `write` and reads `isTTY` and `columns`, and nothing else
-const SILENT = { write: () => true } as unknown as Output;
+// A writer here calls `write` and reads `isTTY` and `columns`, and nothing else.
+// Stryker disable next-line ArrowFunction,BooleanLiteral: no writer here reads what `write` returns
+const SILENT = { write: () => true } as unknown as Output; // eslint-disable-line reliability/no-unsafe-type-narrowing -- see above
 /**
  * Whether the caller's runtime asked for quiet (`caique-quiet-seam` R2): burgee's `--quiet`,
  * handed in as `ctx.runtime`. Read from the call alone — never from argv or the environment.
@@ -164,6 +165,7 @@ export const note = (text = '', title = '', opts?: NoteOptions): void => {
   const inner = Math.max(...body.map(visibleWidth), titleWidth) + 2;
   const rows = body.map((line) => `${paint('gray', S_BAR)}  ${line}${' '.repeat(inner - visibleWidth(line))}${paint('gray', S_BAR)}`).join('\n');
   const guide = guided(opts ?? {});
+  // Stryker disable next-line NumericLiteral: `inner` is at least the title's width plus 2, so the run is at least 1 and the floor is never reached
   const top = `${paint('green', S_STEP_SUBMIT)}  ${paint('reset', title)} ${paint('gray', S_BAR_H.repeat(Math.max(inner - titleWidth - 1, 1)) + S_CORNER_TOP_RIGHT)}`;
   const bottom = paint('gray', (guide ? S_CONNECT_LEFT : S_CORNER_BOTTOM_LEFT) + S_BAR_H.repeat(inner + 2) + S_CORNER_BOTTOM_RIGHT);
   output.write(`${guide ? `${paint('gray', S_BAR)}\n` : ''}${top}\n${rows}\n${bottom}\n`);
@@ -220,6 +222,7 @@ const magenta = (glyph: string): string => paint('magenta', glyph);
 /** The message without its trailing dots — a scan from the end, not `/\.+$/`, which is quadratic on a run of dots. */
 const withoutDots = (msg: string): string => {
   let end = msg.length;
+  // Stryker disable next-line EqualityOperator,ConditionalExpression: at 0, `msg[-1]` is undefined and not a dot, so the loop stops there either way
   while (end > 0 && msg[end - 1] === '.') end -= 1;
   return msg.slice(0, end);
 };
@@ -238,6 +241,7 @@ function endGlyph(ending: Ending): string {
 class Spinner implements SpinnerResult {
   private spinning = false;
   private cancelled = false;
+  // Stryker disable next-line StringLiteral: `start` sets the text before anything can draw it, and an ending or a message before a start writes nothing
   private text = '';
   private drawn = '';
   private since = performance.now();
@@ -313,6 +317,7 @@ class Spinner implements SpinnerResult {
     this.text = withoutDots(msg);
     this.since = performance.now();
     if (guided(this.opts)) this.output.write(`${paint('gray', S_BAR)}\n`);
+    // Stryker disable next-line ObjectLiteral,BooleanLiteral: a signal aborts once, and the ending removes the listener
     this.opts.signal?.addEventListener('abort', this.onAbort, { once: true });
     this.unhook = exitHook(this.onExit);
     if (this.live) this.animate();
@@ -343,6 +348,7 @@ class Spinner implements SpinnerResult {
   }
 
   error(msg = ''): void {
+    // Stryker disable next-line StringLiteral: `endGlyph` reads every ending but `stop` and `cancel` as an error
     this.end(msg, 'error');
   }
 
@@ -353,6 +359,7 @@ class Spinner implements SpinnerResult {
   }
 
   clear(): void {
+    // Stryker disable next-line StringLiteral: a silent ending writes neither the text nor the glyph these name
     this.end('', 'stop', true);
   }
 }
@@ -416,6 +423,7 @@ export const group = async <T>(prompts: PromptGroup<T>, opts?: PromptGroupOption
     const answer = await ask({ results: soFar() });
     const cancelledHere = typeof opts?.onCancel === 'function' && isCancel(answer);
     results.set(name, cancelledHere ? 'canceled' : answer);
+    // Stryker disable next-line OptionalChaining: `cancelledHere` holds only when `onCancel` is a function
     if (cancelledHere) opts.onCancel?.({ results: soFar() });
   }
   return soFar();
