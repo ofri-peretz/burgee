@@ -1,5 +1,21 @@
 # benchmarks
 
+## 0.0.16
+
+### Patch Changes
+
+- Updated dependencies [[`fca94b2`](https://github.com/ofri-peretz/burgee/commit/fca94b2e601470c0ce091f4104fd0a37c84043ae), [`5054fb7`](https://github.com/ofri-peretz/burgee/commit/5054fb72746ccb28bc08d63d9895a5aa2c50fa77), [`fca94b2`](https://github.com/ofri-peretz/burgee/commit/fca94b2e601470c0ce091f4104fd0a37c84043ae)]:
+  - linegauge@2.0.0
+  - bellpull@2.0.0
+  - burgee@2.0.0
+  - caique@2.0.0
+  - closeout@2.0.0
+  - controlroom@2.0.0
+  - flagstaff@2.0.0
+  - paratext@2.0.0
+  - roundel@2.0.0
+  - seniority@2.0.0
+
 ## 0.0.15
 
 ### Patch Changes
