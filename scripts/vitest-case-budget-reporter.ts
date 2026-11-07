@@ -213,6 +213,20 @@ export function strict(env: NodeJS.ProcessEnv): boolean {
   return env['CI'] === 'true';
 }
 
+/** How long a developer machine spends on alone readings before it leaves the rest to CI. */
+export const LOCAL_ALONE_BUDGET_MS = 120_000;
+
+/**
+ * Whether to leave a case unjudged without measuring it alone. Never on CI. Off CI, when the
+ * machine is overloaded right now (those readings would be unjudged anyway), or once alone readings
+ * have taken `LOCAL_ALONE_BUDGET_MS`: each one is a whole vitest process, and at a load of 50–100 a
+ * full run reads hundreds of cases over the budget, so a pre-push spent three hours re-measuring
+ * them to an "unjudged" verdict (2026-11-07). The required check still judges every case on CI.
+ */
+export function skipAlone(isStrict: boolean, elapsedMs: number, overloadedNow: boolean): boolean {
+  return !isStrict && (overloadedNow || elapsedMs > LOCAL_ALONE_BUDGET_MS);
+}
+
 /** One line per case, with its alone reading when it has one. */
 const list = (cs: readonly CaseDuration[]): string => cs.map((c) => `  ${String(Math.round(c.duration))} ms${c.alone === undefined ? '' : `, ${String(Math.round(c.alone))} ms alone`}  ${caseKey(c)}`).join('\n');
 
@@ -223,12 +237,15 @@ const list = (cs: readonly CaseDuration[]): string => cs.map((c) => `  ${String(
  */
 export function judge(candidates: readonly Candidate[], budget: number): boolean {
   if (candidates.length === 0) return true;
+  const isStrict = strict(process.env);
+  const started = performance.now();
   const measured = candidates.map((c) => {
+    if (skipAlone(isStrict, performance.now() - started, overloaded())) return { ...c, alone: undefined, busy: true };
     const { best, overloaded: busy } = bestAlone(c, budget);
     return { ...c, alone: best, busy };
   });
   const over = measured.filter((c) => c.alone === undefined || c.alone > budget);
-  const unjudged = strict(process.env) ? [] : over.filter((c) => c.busy);
+  const unjudged = isStrict ? [] : over.filter((c) => c.busy);
   const slow = over.filter((c) => !unjudged.includes(c));
   const within = measured.filter((c) => !over.includes(c));
   if (within.length > 0) process.stderr.write(`\n${String(within.length)} case(s) read over the ${String(budget)} ms budget in a full run and under it alone; not failing on the machine's load:\n${list(within)}\n`);
