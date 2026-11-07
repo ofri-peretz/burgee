@@ -18,6 +18,13 @@ import { checkbox, select, Separator } from './inquirer-prompts.js';
 import { TICK } from './inquirer-theme.js';
 import { ValidationError } from './inquirer.js';
 
+/**
+ * The frames below are written in the Unicode figures (`❯`, `✔`, `◉`). The theme picks them at
+ * import from the terminal, and a Windows runner without `WT_SESSION` gets the ASCII set (`>`,
+ * `√`, `(*)`), so the terminal's answer is pinned here to keep one transcript on every platform.
+ */
+vi.mock('roundel/terminal', async (importOriginal) => ({ ...(await importOriginal<typeof import('roundel/terminal')>()), unicode: () => true }));
+
 const noop = (): void => undefined;
 
 /** One turn of the event loop. */
