@@ -1,5 +1,11 @@
 # oxmutate
 
+## 1.6.1
+
+### Patch Changes
+
+- [#1481](https://github.com/ofri-peretz/burgee/pull/1481) [`a2902a0`](https://github.com/ofri-peretz/burgee/commit/a2902a0f1cbbbbb8d2e1c0d30ee58bf7329cf494) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The dry run no longer writes new entries into the project's snapshot files. To find run-once test files, the dry run runs a suite's first passing test a second time. That second run's `toMatchSnapshot()` counted as the test's second snapshot, and outside CI Vitest wrote it to disk: one dry run of burgee added 90 lines to two committed `.snap` files. The probe now resets the per-try state first, as the mutant loop does before each run.
+
 ## 1.6.0
 
 ### Minor Changes
