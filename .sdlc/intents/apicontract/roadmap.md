@@ -26,6 +26,7 @@ Depth before breadth: one family proves every command, then each new family is o
   scope and maintain it.
 - One MCP diff tool clearly leads before Phase 3: adopt its snapshot format.
 - An adapter needs a core change: stop adding families and fix the model first.
+- Experiment X-1 ([`spec.md`](./spec.md#experiment-one-cli-for-all-protocols-vs-one-cli-per-protocol-x-1)) at 90 days: deprecate any per-protocol CLI under ~5% of the all-protocol CLI's net installs; keep the ones that out-draw it.
 
 ## Standing work every phase
 

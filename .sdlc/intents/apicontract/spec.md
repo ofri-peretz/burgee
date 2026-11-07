@@ -135,6 +135,30 @@ from its bin entry, so library imports (`apicontract/core`) pull no CLI code. Th
 `apicontract-check` when it is installed and otherwise fails `check` with a `fix:` line naming the
 install command.
 
+### Experiment: one CLI for all protocols vs one CLI per protocol (X-1)
+
+Both ship from the same codebase, so the experiment measures which front door gets attention, not
+which code is better.
+
+- **Arm A: one CLI.** `apicontract` covers every protocol (the table above).
+- **Arm B: one dedicated CLI per protocol.** A thin package per protocol (working names, e.g. an
+  OpenAPI one, an AsyncAPI one, an MCP one; final names chosen with the product name) whose bin is a
+  burgee program built from the same commands, restricted to that protocol's adapter. It depends on
+  `apicontract`; it contains no logic of its own, so a fix lands in both arms at once.
+- **Each dedicated CLI must be a working tool** (its own `--help`, `--mcp`, `--skill`, scoped to the
+  protocol), not a redirect: npm's policy prohibits name squatting and spam packages.
+- **Signals, per arm and per protocol:** weekly downloads net of CI (a download whose dependent
+  is the other arm is counted once), GitHub referrers, docs-page search impressions and clicks
+  (Search Console, one landing page per protocol), issues opened, MCP installs.
+- **Caveats recorded up front:** users pick an arm, they are not assigned, so the result says which
+  name and framing people search for, not which structure is better; young-package download counts
+  are noisy, so no reading before 90 days.
+- **Decision rule at 90 days:** a dedicated CLI that draws under ~5% of the all-protocol CLI's net
+  installs is deprecated with a pointer to `apicontract`; one that draws more than the all-protocol
+  CLI for its protocol stays and gets its own docs section. The core never forks either way.
+- **Starts** when Phase 1 ships (OpenAPI, JSON Schema), and each later protocol joins as its adapter
+  lands. Publishing any arm-B package needs the owner's approval.
+
 ### Dependencies
 
 - **R-D1.** Runtime dependencies come only from the burgee family, as in every other package of
