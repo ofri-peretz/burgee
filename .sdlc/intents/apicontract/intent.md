@@ -13,6 +13,14 @@ Design: [`spec.md`](./spec.md) · Metrics: [`metrics.md`](./metrics.md) · Roadm
 
 ---
 
+> **One contract tool for every API in your repo** — OpenAPI, AsyncAPI/WebSocket, JSON Schema, MCP,
+> and Zod/TypeBox/NestJS with no spec file. It tells you and your agent what breaks and for whom,
+> under the compatibility rule you choose, and where your code already disagrees with the contract.
+> Local, static, free, and no dependencies outside the burgee family.
+
+Every claim in that statement was checked against the field on 2026-11-06; the per-competitor
+verdicts are in [`landscape.md` § Competitor review](./landscape.md#competitor-review--where-the-value-is-significant).
+
 ## What is wanted
 
 One CLI, built on burgee, that reads every kind of API contract a TypeScript team ships and does
@@ -20,11 +28,11 @@ every contract job an agent needs, with one vocabulary:
 
 | Command | Job | Incumbent it beats |
 | :-- | :-- | :-- |
-| `gen` | Spec → TypeScript types | openapi-typescript, json-schema-to-typescript, Modelina |
-| `explain` | One operation, message or tool, sized for an agent's context | reading the raw spec |
-| `diff` | Breaking-change verdict between two refs, direction-aware | oasdiff, Optic (archived), mcpdiff, mcp-lint |
-| `check` | Code call sites against the contract | openapi-usage, API Ghost Hunter |
-| `lint` | Spec rules with `fix:` lines (only on pull) | Spectral, Redocly CLI, vacuum |
+| `diff` | Breaking-change verdict between two refs, under the compatibility mode and side (caller or server) you pick; code-first contracts across git refs with no spec file | oasdiff, Redocly CLI `diff` (2026-10-28), Atlassian openapi-diff (stale), Optic (archived), `@asyncapi/diff`, mcpdiff |
+| `explain` | One operation, message or tool, fully resolved and size-capped, for an agent's context | reading the raw spec; kadykov schema-explorer, oasdiff's hosted MCP |
+| `gen` | Spec → TypeScript types; the migration path off openapi-typescript | openapi-typescript (maintenance mode), json-schema-to-typescript, Modelina |
+| `check` | Code call sites against the contract, statically, no running server | PactFlow bi-directional (paid), Specmatic (Enterprise for non-OpenAPI), apibreak |
+| `lint` | Spec rules with `fix:` lines, reading Spectral rulesets (only on pull) | Spectral, Redocly CLI, vacuum |
 
 Contract families, all reduced to one model (operations with a direction, over JSON Schema). The aim is
 every protocol where `apicontract` adds value; [`landscape.md`](./landscape.md) maps each one to the
@@ -49,6 +57,10 @@ each metric is measured with the same script, subject and machine against the in
 | openapi-typescript's last maintainer commit was 2026-02-27; "Is this project still maintained?" has 50 👍 and no clear answer | [#2843](https://github.com/openapi-ts/openapi-typescript/issues/2843) |
 | Optic, a TS-ecosystem breaking-change tool, was archived 2026-01-12; the remaining default (oasdiff) is Go | [FlareCanary, 2026](https://dev.to/flarecanary/optic-is-dead-what-now-for-api-drift-detection-2kb8) |
 | MCP schema-diff tools are appearing now and are fragmented: mcpdiff v0.1.0 (Go, 2026-11-04), mcp-lint, mcp-tools-lint, mcp-catalog-snap, pytest-mcp-server, ToolDiff | [mcpdiff](https://github.com/celaldrg/mcpdiff/releases/tag/v0.1.0), [schema drift post](https://dev.to/nesquikm/my-mcp-tools-broke-silently-schema-drift-is-the-new-dependency-hell-5c49) |
+| openapi-typescript entered maintenance mode on 2026-09-19 and names no successor; a fork (`openapi-typesafe`, 2026-11-02) and hey-api are already courting its 15.4M weekly installs | [#2874](https://github.com/openapi-ts/openapi-typescript/issues/2874) |
+| Redocly added an experimental breaking-change `diff` to its CLI (4.2M weekly) on 2026-10-28: "direction-aware" alone no longer differentiates | competitor review, 2026-11-06 |
+| ~325k weekly installs sit on unmaintained diff tools: Atlassian `openapi-diff` (no release since 2025-08, ~240k) and archived Optic (~85k) | competitor review, 2026-11-06 |
+| New entrants this autumn confirm the demand: `apibreak` (caller-side vendor-spec diff, 2026-09), `specdrift` (2026-10-30) | npm registry |
 | No JS/TS tool covers more than one contract family, and none is built for agents to call | landscape scan, 2026-11-06 |
 
 These are dated observations, not measurements. The first measurements are the Phase 0 baselines in
@@ -102,7 +114,7 @@ These are dated observations, not measurements. The first measurements are the P
 ## Open questions
 
 Every question this intent raised is closed; each bullet keeps the question and points at its
-answer. Pending actions (the upstream offer, the npm names) are tracked in [`phase0.md`](./phase0.md).
+answer. Pending actions (the npm names, the final name) are tracked in [`phase0.md`](./phase0.md).
 
 - Will openapi-typescript's maintainers accept a compiler-free emitter upstream? Answered: not a
   question this repository can close; the offer is a Phase 0 action waiting on the owner's approval

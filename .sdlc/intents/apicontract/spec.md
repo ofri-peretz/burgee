@@ -35,8 +35,9 @@ Intent: [`intent.md`](./intent.md) · Metrics: [`metrics.md`](./metrics.md) · R
 - **R9a.** `apicontract/core` exports types for OpenAPI 3.0, 3.1 and 3.2 documents, name-compatible with
   `openapi-types` (22.98M weekly downloads, last published 2023-05-24), so a project can drop that package.
 - **R9b.** Where a protocol's owner ships a breaking-change engine (`buf breaking`, graphql-inspector),
-  `diff` runs it and maps its verdicts into the model unchanged, adding only the envelope, `fix:` lines,
-  SARIF and MCP. It never re-derives a verdict the owner already gives.
+  `diff` spawns the user's own install of it through bellpull and maps its verdicts into the model
+  unchanged, adding only the envelope, `fix:` lines, SARIF and MCP. It never re-derives a verdict the
+  owner already gives, and the engine is never a dependency (R-D1).
 - **R10.** `check` scans `fetch`, axios, openapi-fetch, socket emit/on, and MCP `callTool` call sites
   with oxc, and reports each call that does not resolve to an operation, each operation that has no
   caller, and each caller that a pending `diff` breaks.
@@ -136,8 +137,14 @@ install command.
 
 ### Dependencies
 
-`apicontract` → `burgee`, `seniority` (`/yaml`), `bellpull` (MCP stdio). `apicontract-check` → its
-platform binaries. `apicontract-guard` → nothing.
+- **R-D1.** Runtime dependencies come only from the burgee family, as in every other package of
+  the repo: `apicontract` → `burgee`, `seniority` (`/yaml`), `bellpull` (MCP stdio and owners'
+  engines); `apicontract-check` → its own platform binaries, with oxc compiled into the native core
+  as oxmutate ships it; `apicontract-guard` → nothing. An outside tool is reached only by spawning
+  the user's install or as an optional peer. So the `$ref` resolver, the OpenAPI document types, the
+  TypeScript emitter and the validator are ours — never `@apidevtools/swagger-parser`,
+  `openapi-types`, `typescript` or `ajv`. Gate: a script fails CI when any `packages/apicontract*`
+  manifest lists a dependency outside the family.
 
 ### Emitter
 

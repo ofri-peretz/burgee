@@ -127,6 +127,43 @@ and graphql-inspector is The Guild's schema diff. Phase 5 reads both before wrap
    `apicontract` sponsorable by the same vendors (Speakeasy, Stainless, Zuplo, Scalar) instead of
    competing with them.
 
+## Competitor review — where the value is significant
+
+Read 2026-11-06 by three parallel reviews (generators; lint, diff and docs; testing, runtime and
+agent tools), each citing its sources. "Significant" means a user of that tool has a concrete reason
+to add or switch to `apicontract`; where the answer is no, we read the tool's output or rules
+instead of competing.
+
+| Tool | What it covers of ours | Our significant value | Verdict |
+| :-- | :-- | :-- | :-- |
+| openapi-typescript (+ openapi-fetch) | `gen` | Maintained drop-in on TS 7 and OAS 3.2, migration codemod, plus `diff`/`explain`. Maintenance mode since 2026-09-19 ([#2874](https://github.com/openapi-ts/openapi-typescript/issues/2874)); fork `openapi-typesafe` (2026-11-02) is courting the same users | **Yes** |
+| @hey-api/openapi-ts | `gen`, Zod/Valibot validators | Stable on TS 7 ([#4235](https://github.com/hey-api/hey-api/issues/4235)), `diff`/`check` | Partial: types-only users |
+| orval, kubb | `gen`, Zod, MCP server generation | `diff`, `check`, `explain` alongside them; both already on TS 7, kubb on OAS 3.2 | Partial: we complement |
+| json-schema-to-typescript | `gen` | Draft 2019-09/2020-12, discriminated unions, one engine shared with OpenAPI and MCP | **Yes** for TS schema users |
+| @asyncapi/modelina | `gen` (payload models) | Typed channels and messages; AsyncAPI `diff`; no release in a year | **Yes** for TS |
+| Redocly CLI | `lint`; experimental `diff` (2026-10-28) for OpenAPI 3.x and AsyncAPI 3 | Mode choice (backward/forward/full, caller/server), MCP and JSON Schema, code-first across git refs, `check` | Partial: it just entered diff |
+| oasdiff (Go) | OpenAPI `diff` with the best rules; hosted MCP; paid PR gate | npm-native, every protocol, code-first, mode choice, a local MCP that resolves `$ref`s | Partial: not on OpenAPI rule quality |
+| Atlassian openapi-diff | OpenAPI 2/3 `diff`, ~240k/wk, no release since 2025-08 | OAS 3.1/3.2, JSON output, accepts its flags | **Yes** |
+| Optic | archived 2026-01-12, ~85k/wk still installing | `diff`/`lint` with a migration note | **Yes** |
+| @asyncapi/diff | AsyncAPI `diff` by a fixed path table: any payload edit is breaking, no send/receive direction | Semantic payload diff with direction | **Yes** |
+| Spectral, vacuum | `lint` | Nothing in lint | No: read Spectral rulesets |
+| buf breaking, graphql-inspector | their protocol's `diff` | One envelope, agent surface, `check` | Only as spawned engines (R9b) |
+| Pact / PactFlow bi-directional | consumer-vs-provider check; paid, OAS ≤ 3.1.0, single file | Static, free `check` from source; every protocol | Partial: not its `can-i-deploy` broker |
+| Specmatic | contract tests (running server); non-OpenAPI checks in Enterprise | Free AsyncAPI/GraphQL/gRPC compatibility with no server (its #679) | **Yes** for TS teams |
+| Schemathesis, Prism, Dredd | fuzzing / proxy validation / conformance — all need a running server | `check`, `diff`, agent surface | No: they complement |
+| ajv, TypeBox, zod 4 | the validators `guard` would race | WebSocket/MCP messages, OAS 3.2 | No as a lead: `guard` is Phase 6 with a cut rule |
+| mcpdiff, mcp-lint | MCP `diff`/`lint`, strong rules, near-zero users | Reach, every protocol, MCP mode | Partial: their rules are our floor |
+| OpenAPI→MCP servers (Stainless, Speakeasy Gram, Postman, ivo-toby, openapi-mcp-generator) | call the live API | `explain`: exact, local, resolved, size-capped | **Yes**: none of them explains |
+| kadykov schema-explorer, janwilmake | one operation per request | Fully resolved (kadykov leaves `$ref`s as links), exact and local (janwilmake is hosted LLM summaries) | **Yes** |
+| apibreak (2026-09, early access) | caller-side vendor-spec diff, calls in docs | AST scan with oxc, every protocol, code-first | **Yes**: confirms the need |
+| Speakeasy, Fern/Postman, Forge | SDK generation; Speakeasy also lint + diff | Lint/diff with no account and no AGPL | Partial; Forge and Scalar are the sponsor candidates now that Stainless's generator closed (2026-05-18) |
+
+**What only we do, after this review:** one model across OpenAPI, AsyncAPI, JSON Schema and MCP;
+`diff` of code-first contracts across git refs with no spec file; a chosen compatibility mode and
+side; a static, free call-site `check`; and an agent-sized, fully resolved `explain` that runs
+locally. "Direction-aware diff" alone is no longer ours: Redocly, oasdiff and openapi-diff all read
+request versus response.
+
 ## Sources
 
 - npm registry and downloads API, read 2026-11-06 (commands above).

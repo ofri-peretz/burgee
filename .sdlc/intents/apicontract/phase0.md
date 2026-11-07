@@ -7,7 +7,8 @@ Roadmap: [`roadmap.md`](./roadmap.md). Each row is a dated reading with the comm
 | Item | Status | Evidence |
 | :-- | :-- | :-- |
 | npm names free | ✅ 2026-11-06 | `npm view apicontract`, `apicontract-check`, `apicontract-guard`: all E404. Not yet reserved |
-| Upstream offer on openapi-typescript#2841 | ⏸ pending owner approval | Public post; wording not yet drafted |
+| Upstream offer on openapi-typescript#2841 | ✗ moot | The project entered maintenance mode on 2026-09-19 and its author is not handing it over ([#2874](https://github.com/openapi-ts/openapi-typescript/issues/2874)); `gen` becomes the migration path instead |
+| Competitor review | ✓ 2026-11-06 | [`landscape.md` § Competitor review](./landscape.md#competitor-review--where-the-value-is-significant) |
 | Competitor state | ✅ 2026-11-06 (first pass) | Table below |
 | hey-api plugin for openapi-typescript | ✅ 2026-11-06, none yet | No `openapi-typescript` mention in the last 30 hey-api/openapi-ts GitHub releases |
 | Baseline eval, arm without the tool | 🔨 cases written, not run | `apicontract-baseline-allocate` and `-manifest` on a synthetic spec ([below](#baseline-eval-cases-2026-11-06)); a reading needs a weekly `evals.yml` run with a credential |
