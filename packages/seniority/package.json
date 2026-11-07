@@ -3,6 +3,7 @@
   "version": "1.2.0",
   "description": "Resolves flags, environment variables, config files and defaults in one fixed order, with provenance: every value can say where it came from. Zero dependencies. Drop-in paths for cosmiconfig, lilconfig, dotenv and rc.",
   "license": "MIT",
+  "author": "Ofri Peretz <ofriperetzdev@gmail.com>",
   "type": "module",
   "sideEffects": ["./dist/cli.js", "./dist/dotenv-config.js"],
   "engines": {
@@ -135,6 +136,10 @@
     "json",
     "zero-dependency"
   ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "devDependencies": {
     "vitest": "^5.0.1"
   },

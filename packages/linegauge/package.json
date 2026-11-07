@@ -3,6 +3,7 @@
   "version": "1.2.0",
   "description": "Measures, wraps, truncates and slices styled terminal text, grapheme-correct over Intl.Segmenter, with the same result on a terminal, a pipe or --json. Zero dependencies. Drop-in paths for string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line.",
   "license": "MIT",
+  "author": "Ofri Peretz <ofriperetzdev@gmail.com>",
   "type": "module",
   "sideEffects": ["./dist/cli.js"],
   "engines": {
@@ -109,6 +110,10 @@
     "extensible",
     "zero-dependency"
   ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "devDependencies": {
     "vitest": "^5.0.1"
   },
