@@ -29,7 +29,7 @@ export type Key = string | { name?: string; ctrl?: boolean; meta?: boolean; shif
  * not 3: the editor cases spawn a real editor, and on a machine at load 60 a node start-up alone
  * ran past 3 s (2026-11-05). A prompt that works answers in milliseconds either way.
  */
-const DEADLINE_MS = 10_000;
+export const DEADLINE_MS = 10_000;
 const realSetTimeout = globalThis.setTimeout;
 const realClearTimeout = globalThis.clearTimeout;
 

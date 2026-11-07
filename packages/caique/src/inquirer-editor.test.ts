@@ -14,17 +14,11 @@ import { stripVTControlCharacters } from 'node:util';
 
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 
-import { render } from './__fixtures__/inquirer-render.js';
+import { DEADLINE_MS, render } from './__fixtures__/inquirer-render.js';
 import { discard } from './__fixtures__/scratch-dir.js';
 import { editAsync, editorCommand } from './inquirer-editor.js';
 import { editor } from './inquirer-prompts.js';
 import { TICK } from './inquirer-theme.js';
-
-/**
- * `vi.waitFor` with room for a real editor process to start: its 1 s default ran out on a
- * machine at load 60, where spawning node alone took longer (2026-11-05).
- */
-const until = async (check: () => void): Promise<void> => vi.waitFor(check, { timeout: 10_000 });
 
 const scratch = mkdtempSync(join(tmpdir(), 'caique-editor-test-'));
 
@@ -43,10 +37,16 @@ writeFileSync(
 );
 const EDITOR = `"${process.execPath}" "${program}"`;
 
+/**
+ * Every screen these cases wait for is drawn after a spawned `node` editor exits, so the wait is
+ * bounded by the fixture's deadline for a frame, not by `vi.waitFor`'s 1 s default: a loaded
+ * machine takes longer than a second to start a process, and the case failed on the clock alone.
+ */
+const AFTER_THE_EDITOR = { timeout: DEADLINE_MS };
+
 afterEach(() => {
   vi.unstubAllEnvs();
 });
-
 
 afterAll(() => {
   discard(scratch);
@@ -172,9 +172,9 @@ describe('editor', () => {
       });
     const { answer, events, getScreen, isPaused } = await render(editor, { message: 'Notes', validate });
     events.keypress('enter');
-    await until(() => {
+    await vi.waitFor(() => {
       expect(getScreen()).toBe('? Notes Validating...');
-    });
+    }, AFTER_THE_EDITOR);
     events.keypress('enter');
     expect(isPaused()).toBe(false);
     release(true);
@@ -188,9 +188,9 @@ describe('editor', () => {
     const { events, getScreen, isPaused } = await render(editor, { message: 'Notes' });
     events.keypress('enter');
     expect(isPaused()).toBe(true);
-    await until(() => {
+    await vi.waitFor(() => {
       expect(getScreen()).toContain('exited with 4');
-    });
+    }, AFTER_THE_EDITOR);
     expect(isPaused()).toBe(false);
   });
 
@@ -199,9 +199,9 @@ describe('editor', () => {
     const validate = vi.fn((value: string) => value === 'zz' || 'once more');
     const { answer, events, getScreen } = await render(editor, { message: 'Notes', validate });
     events.keypress('enter');
-    await until(() => {
+    await vi.waitFor(() => {
       expect(getScreen()).toContain('> once more');
-    });
+    }, AFTER_THE_EDITOR);
     events.keypress('enter');
     await expect(answer).resolves.toBe('zz');
     expect(getScreen()).toBe(`${TICK} Notes`);
@@ -241,13 +241,13 @@ describe('editor', () => {
     const validate = vi.fn(async (value: string) => (value === 'xx' ? true : new Promise<boolean | string>((resolve) => (release = resolve))));
     const { answer, events, getScreen } = await render(editor, { message: 'Notes', validate, file: { postfix: '.txt' } });
     events.keypress('enter');
-    await until(() => {
+    await vi.waitFor(() => {
       expect(getScreen()).toBe('? Notes Validating...');
-    });
+    }, AFTER_THE_EDITOR);
     release('again');
-    await until(() => {
+    await vi.waitFor(() => {
       expect(getScreen()).toBe(frame('? Notes Press <enter> to launch your preferred editor.', '> again'));
-    });
+    }, AFTER_THE_EDITOR);
     events.keypress('enter');
     await expect(answer).resolves.toBe('xx');
   });
@@ -259,9 +259,9 @@ describe('editor', () => {
     const validate = vi.fn((value: string) => value === 'dy' && validate.mock.calls.length > 1);
     const { answer, events, getScreen } = await render(editor, { message: 'Notes', default: 'd', validate, theme: { validationFailureMode: 'clear' } });
     events.keypress('enter');
-    await until(() => {
+    await vi.waitFor(() => {
       expect(getScreen()).toContain('> You must provide a valid value');
-    });
+    }, AFTER_THE_EDITOR);
     events.keypress('enter');
     await expect(answer).resolves.toBe('dy');
   });
@@ -272,9 +272,9 @@ describe('editor', () => {
     vi.stubEnv('EDIT_EXIT', '2');
     const { answer, events, getScreen } = await render(editor, { message: 'Notes', theme: { style: { waitingMessage: () => 'go' } } });
     events.keypress('enter');
-    await until(() => {
+    await vi.waitFor(() => {
       expect(getScreen()).toMatch(/^\? Notes go\n> Error: .* exited with 2$/u);
-    });
+    }, AFTER_THE_EDITOR);
     vi.stubEnv('EDIT_EXIT', '');
     events.keypress('enter');
     await expect(answer).resolves.toBe('');
