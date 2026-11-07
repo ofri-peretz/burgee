@@ -37,7 +37,7 @@ Intent: [`intent.md`](./intent.md) · Metrics: [`metrics.md`](./metrics.md) · R
 - **R9b.** Where a protocol's owner ships a breaking-change engine (`buf breaking`, graphql-inspector),
   `diff` spawns the user's own install of it through bellpull and maps its verdicts into the model
   unchanged, adding only the envelope, `fix:` lines, SARIF and MCP. It never re-derives a verdict the
-  owner already gives, and the engine is never a dependency (R-D1).
+  owner already gives, and the engine is never a dependency (R-DEP1).
 - **R10.** `check` scans `fetch`, axios, openapi-fetch, socket emit/on, and MCP `callTool` call sites
   with oxc, and reports each call that does not resolve to an operation, each operation that has no
   caller, and each caller that a pending `diff` breaks.
@@ -126,7 +126,7 @@ Owner direction 2026-11-07: **one package per purpose, as in the rest of the bur
 **everything that can be an extension is one**, and **code generators are extensions of the main
 CLI** (`apicontract gen nest`, `apicontract gen zod`, `apicontract gen ts`). A technology extension
 does more than generate: it also reads the spec back out of that technology and finds the entry
-points that violate it, so `apicontract check` can gate CI (R-T). Names are working names (`apicontract-*`); the final
+points that violate it, so `apicontract check` can gate CI (R-TE). Names are working names (`apicontract-*`); the final
 names are chosen before the first publish ([`phase0.md`](./phase0.md)).
 
 | Package | Purpose | Extension points it hosts | Lands |
@@ -134,36 +134,36 @@ names are chosen before the first publish ([`phase0.md`](./phase0.md)).
 | `@interlace/contract-model` (internal) | The protocol-neutral model, `$ref` resolver (`adapter.qnt`), and the extension API (`defineAdapter`, `defineEmitter`, `defineReader`, `defineRule`) | Protocol adapters: OpenAPI, JSON Schema, AsyncAPI, MCP, OpenRPC, … | Phase 1 |
 | `apicontract-diff` | What breaks and for whom, under a chosen mode and side; `explain` (a resolved, size-capped slice for agents) | Diff rules (oasdiff rule ids built in) | Phase 1 |
 | `apicontract-extract` | **Code → spec.** Hosts readers; emits OpenAPI 3.1/3.2, AsyncAPI 3, JSON Schema 2020-12 | Readers: Standard Schema (Zod, Valibot, ArkType), TypeBox, NestJS decorators, Hono, tRPC/oRPC | Phase 3 |
-| `apicontract-schema` | Runtime validation built from the model (R-S); absorbs the old `guard` | — | Phase 3 |
+| `apicontract-schema` | Runtime validation built from the model (R-SC); absorbs the old `guard` | — | Phase 3 |
 | `apicontract-check` | Call sites in code that disagree with the contract; native oxc core as oxmutate ships | Call-site matchers (HTTP, socket, MCP) | Phase 4 |
 | `apicontract` | The main CLI: one install, one `--mcp`, one `--skill` for agents. Owns `gen` (**spec → code**) and dispatches to whichever purpose packages are installed; a missing one fails with a `fix:` line naming the install | **Code generators** (emitters) | Phase 1 |
 | `apicontract-gen-ts` | Generator extension of the main CLI: TypeScript types (`--compat openapi-typescript`), the openapi-typescript migration path | — | Phase 2 |
-| `apicontract-zod` | Technology extension (R-T): Zod schemas from the spec, the spec from Zod, and drift between them | — | Phase 2 |
-| `apicontract-nest` | Technology extension (R-T): NestJS modules from OpenAPI and AsyncAPI (R-N), the spec from NestJS, and entry points that violate the spec | — | Phase 3 |
+| `apicontract-zod` | Technology extension (R-TE): Zod schemas from the spec, the spec from Zod, and drift between them | — | Phase 2 |
+| `apicontract-nest` | Technology extension (R-TE): NestJS modules from OpenAPI and AsyncAPI (R-NE), the spec from NestJS, and entry points that violate the spec | — | Phase 3 |
 
-**Extensions (R-E).**
+**Extensions (R-EX).**
 
-- **R-E1.** Every purpose package is a host: the built-ins are written against the same public
+- **R-EX1.** Every purpose package is a host: the built-ins are written against the same public
   extension API a third party uses (the TypeScript generator is an extension like any other, OpenAPI is an adapter), so
   the API is exercised by our own code from day one.
-- **R-E2.** An extension is a package that exports a `define*` declaration; its commands and flags
+- **R-EX2.** An extension is a package that exports a `define*` declaration; its commands and flags
   register through burgee's `definePlugin`, so they appear in `--help`, `--json`, `--mcp` and
   `--skill` with no extra code.
-- **R-E3.** The extension API is versioned; a host refuses an extension built for a newer major with
+- **R-EX3.** The extension API is versioned; a host refuses an extension built for a newer major with
   a `fix:` line. Its shape is locked by a declaration test, like burgee's public surface.
-- **R-E4.** A new protocol, emitter, reader or rule never needs a new purpose package and never needs
+- **R-EX4.** A new protocol, emitter, reader or rule never needs a new purpose package and never needs
   a core change (the kill rule in [`roadmap.md`](./roadmap.md) applies).
 
-**Technology extensions (R-T).** One package per technology, each implementing any of three
+**Technology extensions (R-TE).** One package per technology, each implementing any of three
 capabilities against the model:
 
-- **R-T1 `generate`** — spec → code for that technology (`apicontract gen <tech>`).
-- **R-T2 `extract`** — code → spec (`apicontract extract --from <tech>`).
-- **R-T3 `detect`** — finds that technology's entry points (NestJS controllers, gateways and message
+- **R-TE1 `generate`** — spec → code for that technology (`apicontract gen <tech>`).
+- **R-TE2 `extract`** — code → spec (`apicontract extract --from <tech>`).
+- **R-TE3 `detect`** — finds that technology's entry points (NestJS controllers, gateways and message
   handlers; Hono or Express routes; MCP server tools; client call sites) and reports where they
   violate the contract. Matchers are declared to the static core (`apicontract-check`), so detection
   needs no app boot and no network.
-- **R-T4** A capability an extension lacks is reported by `--help` and `--json`, never silently
+- **R-TE4** A capability an extension lacks is reported by `--help` and `--json`, never silently
   skipped.
 
 **CI gate (R-CI).** `apicontract check` is what people run in CI for spec violations:
@@ -194,29 +194,29 @@ capabilities against the model:
 - **R-RT3.** Both are a Quint model (`roundtrip.qnt`) before code, and a property test with an
   oxmutate floor after.
 
-**Runtime schema (R-S).** Not "another Zod": interop is now Standard Schema (NestJS 12, tRPC, oRPC
+**Runtime schema (R-SC).** Not "another Zod": interop is now Standard Schema (NestJS 12, tRPC, oRPC
 and Hono accept it), so a new API surface buys nothing.
 
-- **R-S1.** Validators are compiled ahead of time from the model, and implement Standard Schema and
+- **R-SC1.** Validators are compiled ahead of time from the model, and implement Standard Schema and
   Standard JSON Schema, so they work wherever Zod works, with no shim.
-- **R-S2.** Types are emitted as plain interfaces: no type-level computation, so `tsc` stays cheap.
-- **R-S3.** Errors carry the JSON Pointer, the schema keyword and the spec location in a stable JSON
+- **R-SC2.** Types are emitted as plain interfaces: no type-level computation, so `tsc` stays cheap.
+- **R-SC3.** Errors carry the JSON Pointer, the schema keyword and the spec location in a stable JSON
   shape, readable by an agent.
-- **R-S4.** Migration from Zod: existing Zod schemas are code-first input to `apicontract-extract`
+- **R-SC4.** Migration from Zod: existing Zod schemas are code-first input to `apicontract-extract`
   (no rewrite needed), and `apicontract-schema migrate --from zod` is a codemod for teams that want
   to drop Zod. Refinements and transforms that JSON Schema cannot express are reported per site,
   never dropped silently.
 
-**NestJS (R-N).** Researched 2026-11-07: no stable, regeneration-safe NestJS generator exists
+**NestJS (R-NE).** Researched 2026-11-07: no stable, regeneration-safe NestJS generator exists
 (openapi-generator `typescript-nestjs-server` and the hey-api Nest plugin are beta; nothing for
 AsyncAPI).
 
-- **R-N1.** Generates abstract base controllers, gateways and microservice handlers that the user's
+- **R-NE1.** Generates abstract base controllers, gateways and microservice handlers that the user's
   classes extend; regeneration changes zero lines of user code.
-- **R-N2.** Validation defaults to Standard Schema through NestJS 12's `@Body({ schema })`;
+- **R-NE2.** Validation defaults to Standard Schema through NestJS 12's `@Body({ schema })`;
   class-validator DTOs are an option for NestJS 11 codebases.
-- **R-N3.** One AsyncAPI document yields both a WebSocket gateway and a microservice handler.
-- **R-N4.** Every generated operation ships with a contract test.
+- **R-NE3.** One AsyncAPI document yields both a WebSocket gateway and a microservice handler.
+- **R-NE4.** Every generated operation ships with a contract test.
 
 **Competitor tracking and native migration (R-C).** As burgee does for commander and yargs:
 
@@ -258,7 +258,7 @@ which code is better.
 
 ### Dependencies
 
-- **R-D1.** Runtime dependencies come only from the burgee family, as in every other package of
+- **R-DEP1.** Runtime dependencies come only from the burgee family, as in every other package of
   the repo: `apicontract` → `burgee`, `seniority` (`/yaml`), `bellpull` (MCP stdio and owners'
   engines); `apicontract-check` → its own platform binaries, with oxc compiled into the native core
   as oxmutate ships it; `apicontract-schema` → nothing; extensions → their host and the model. An outside tool is reached only by spawning
