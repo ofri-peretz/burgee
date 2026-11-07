@@ -1,5 +1,11 @@
 # oxmutate
 
+## 1.6.0
+
+### Minor Changes
+
+- [#1477](https://github.com/ofri-peretz/burgee/pull/1477) [`79f6d4c`](https://github.com/ofri-peretz/burgee/commit/79f6d4cb099dc21444b37f4625aafa4b143a8639) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A mutant whose only effect is an unhandled rejection or an uncaught error is now Killed, as a failing `vitest run` scores it; it was Survived. A suite that raises one with no mutant active is refused at the dry run, as a failing test is.
+
 ## 1.5.0
 
 ### Minor Changes

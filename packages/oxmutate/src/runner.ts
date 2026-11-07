@@ -269,14 +269,21 @@ const dryModules = new Map<string, string[]>();
 /** `dry`: the probe's hits are counted here and dropped, or they would double the hit limits. */
 const PROBE_ID = '__oxmutate_probe__';
 
-/** `dry`: run a suite's first passing test again, with its hooks, as the canary will. Failing there, its file is run-once. */
-async function probe(test: AnyTask, fn: () => unknown): Promise<void> {
+/**
+ * `dry`: run a suite's first passing test again, with its hooks, as the canary will. Failing there, its
+ * file is run-once. `reset` starts the per-try state over, as before each canary: without it the
+ * second run's `toMatchSnapshot()` was the test's second snapshot, which Vitest wrote into the
+ * project's snapshot file (burgee's completions and help snapshots, 2026-11-06). Where Vitest writes
+ * no new snapshot (CI), it would fail as missing and mark the file run-once.
+ */
+async function probe(test: AnyTask, fn: () => unknown, reset: () => Promise<void>): Promise<void> {
   const file = test.file?.filepath;
   const scope = test.suite?.id ?? file;
   if (!file || !scope || probed.has(scope) || runOnce.has(file)) return;
   probed.add(scope);
   await afterEach(test, test.context, []);
   const cleanups = await beforeEach(test, test.context);
+  await reset();
   ns.currentTestId = PROBE_ID;
   try {
     await fn();
@@ -435,7 +442,7 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
       markTest(true);
       try {
         await guarded(test.id, fn);
-        if (mode === 'dry') await probe(test, fn);
+        if (mode === 'dry') await probe(test, fn, () => this.retryReset(test, 1));
       } catch (e) {
         if (isDeadlock(e)) deadlocked = true;
         throw e;
