@@ -203,6 +203,38 @@ capabilities against the model:
 | `auth-mismatch` | A security scheme in the spec that the entry point does not enforce, or the reverse |
 | `call-site-mismatch` | A client call that sends or expects what the spec does not allow |
 | `breaking-change` | The `diff` verdict against the base ref, under the chosen mode and side |
+| `generated-edited` | A hand edit inside a generated region (R-BL2) |
+| `<plugin>/<rule>` | A contract-aware lint rule from a plugin (R-BL3) |
+
+**The contract is the baseline (R-BL).** Every piece of generated or detected code is mapped back to
+the contract, so CI tooling and lint rules can aim at exactly those areas.
+
+- **R-BL1. A contract map.** Every generator writes a map: for each operation, channel or tool, the
+  files and symbols it produced (base controller, DTO, validator, client method) and the user-owned
+  symbol that implements it, found by `detect`. The map is regenerated in CI and committed or cached,
+  never hand-edited.
+- **R-BL2. Generated code stays generated.** A hand edit inside a generated region is a violation
+  (`generated-edited`) with a `fix:` line pointing to the spec change or the user-owned subclass.
+- **R-BL3. Contract-aware lint rules.** A rule selects code through the contract, not through file
+  globs: "every handler of an operation with `security: admin` calls the audit hook", "no handler of
+  a `payments` operation returns a raw error", "every MCP tool validates its input". Selectors read the
+  spec (tags, security, extensions such as `x-*`, protocol) and resolve through the map to the
+  symbols. Rules are a plugin key (`rules`, R-EX6), so anyone can write them.
+- **R-BL4. Works with the linters people already run.** The map also emits scoped overrides for
+  oxlint and ESLint (the generated files, the user-owned handlers), so existing rules can be turned
+  up or down on exactly those areas without our engine.
+- **R-BL6. Forwards-only by default.** As Optic did for the spec, and nobody does for code: a rule
+  applies to operations added or changed since the baseline ref, with a separate, looser ruleset for
+  legacy ones, so the first run on an old repo reports nothing on untouched operations and nobody
+  writes an ignore file to adopt it.
+- **R-BL7. Findings point at code people own.** A finding's SARIF location is the handler line, with
+  the spec location as a related location; never only a YAML line.
+- **R-BL8. Spec and code drift in one diff.** A PR fails when the spec diff and the handler diff
+  disagree (a field removed in code but still in the spec, or the reverse).
+- **R-BL9. Migrate governance in.** `apicontract check` reads `.spectral.yaml`, Redocly's lint config
+  and Optic's `optic.yml` rulesets, so a team keeps its standards and gains code reach.
+- **R-BL5. One CI run.** `apicontract check` runs detect, the contract-aware rules and `diff` in one
+  pass and reports them together (SARIF, `--json`, baseline file, R-CI).
 
 **Round trip (R-RT): spec → code and code → spec, mastered together.**
 

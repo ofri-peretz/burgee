@@ -182,6 +182,28 @@ instantiations; 100% round trip on JSON-Schema-Test-Suite 2020-12; ≥ 80% of ty
 without a compiler plugin; per-schema bundle under zod/mini's; 0 user lines changed by regeneration;
 100% operations with a contract test.
 
+## Governance landscape (2026-11-07)
+
+**No tool applies governance to the implementing code selected through the contract.** Every tool
+governs either the spec document (Spectral, Redocly, vacuum, Zally, IBM, Speakeasy, Postman,
+42Crunch audit) or live traffic (Schemathesis, Specmatic, 42Crunch scan, Treblle, Postman Insights).
+The closest are Salt GitHub Connect (code → API inventory → risk score, closed), and Traceable and
+NightVision (extract a spec from code and diff it; no rules on handler behaviour).
+
+| Tool | Governs | State | What we take from it |
+| :-- | :-- | :-- | :-- |
+| Optic | spec diff, traffic (`capture`) | Archived 2026-01-12, still 76,588 downloads/wk; founder offers to bless a community fork ([#2891](https://github.com/opticdev/optic/issues/2891)) | Forwards-only rules (R-BL6), `diff --check` in CI, read `optic.yml` (R-BL9) |
+| Spectral | spec | 2.3M/wk, triage down to 10 closed issues in 2026; forked July 2026 | Read `.spectral.yaml`; no MCP support |
+| Redocly CLI | spec | 4.3M/wk; `diff` shipped 2026-10-28 (experimental) | SARIF, plugin rules; spec-only |
+| vacuum, Zally, IBM validator | spec | Active, smaller | Spectral-compatible rules |
+| 42Crunch, Postman, Snyk agent-scan | spec / MCP descriptions | Need a token or an enterprise plan | We run with no account and no network |
+| Schemathesis, Specmatic | traffic | Active | Black-box; cannot see an admin handler skip the audit hook |
+| MCP linters (mcp-tools-lint, mcp-lint) | `tools/list` | Tiny, fragmented | One rule engine across OpenAPI, AsyncAPI and MCP |
+
+Targets to measure: 100% of `security: admin` operations checked for the audit hook with
+file-and-line findings; 0 findings on untouched operations on the first run of a legacy repo; every
+SARIF location a handler line; zero tokens and zero network calls.
+
 ## Sources
 
 - npm registry and downloads API, read 2026-11-06 (commands above).
