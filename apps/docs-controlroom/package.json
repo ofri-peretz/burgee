@@ -13,10 +13,10 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@tailwindcss/postcss": "^4.3.3",
+    "@tailwindcss/postcss": "^4.3.4",
     "docs-chassis": "*",
-    "fumadocs-mdx": "^15.4.10",
-    "next": "^16.4.3",
+    "fumadocs-mdx": "^15.5.0",
+    "next": "^16.4.5",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "tailwindcss": "^4.3.3"
