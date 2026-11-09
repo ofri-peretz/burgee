@@ -1,0 +1,111 @@
+{
+  "v": 2,
+  "date": "2026-11-09",
+  "commit": "a3c8f38a86753dd07eeff0726cd9f3b6da1ae48b",
+  "questions": [
+    "What is a good alternative to commander.js?",
+    "How do I make my Node CLI output JSON for AI agents?",
+    "How do I expose a command-line tool over MCP?",
+    "What is a zero-dependency replacement for yargs?",
+    "How do I stop an interactive CLI prompt from hanging in CI?"
+  ],
+  "assistants": {
+    "claude": {
+      "status": "ran",
+      "secret": "CLAUDE_CODE_OAUTH_TOKEN",
+      "requested": "claude-opus-5-5"
+    }
+  },
+  "observations": [
+    {
+      "date": "2026-11-09",
+      "commit": "a3c8f38a86753dd07eeff0726cd9f3b6da1ae48b",
+      "assistant": "claude",
+      "model": "claude-opus-5-5",
+      "question": 1,
+      "status": "ok",
+      "exitCode": 0,
+      "turns": 1,
+      "costUsd": 0.026746,
+      "error": null,
+      "named": false,
+      "mentions": [],
+      "citedUrls": [],
+      "ours": [],
+      "excerpt": null
+    },
+    {
+      "date": "2026-11-09",
+      "commit": "a3c8f38a86753dd07eeff0726cd9f3b6da1ae48b",
+      "assistant": "claude",
+      "model": "claude-opus-5-5",
+      "question": 2,
+      "status": "ok",
+      "exitCode": 0,
+      "turns": 1,
+      "costUsd": 0.04725800000000001,
+      "error": null,
+      "named": false,
+      "mentions": [],
+      "citedUrls": [],
+      "ours": [],
+      "excerpt": null
+    },
+    {
+      "date": "2026-11-09",
+      "commit": "a3c8f38a86753dd07eeff0726cd9f3b6da1ae48b",
+      "assistant": "claude",
+      "model": "claude-opus-5-5",
+      "question": 3,
+      "status": "ok",
+      "exitCode": 0,
+      "turns": 2,
+      "costUsd": 0.0941238,
+      "error": null,
+      "named": false,
+      "mentions": [],
+      "citedUrls": [
+        "https://github.com/modelcontextprotocol/python-sdk/pull/1499/files",
+        "https://notes.kodekloud.com/docs/MCP-For-Beginners/Core-Concepts/Demo-Building-Simple-MCP-Server/page",
+        "https://moltchat-agent-commons.onrender.com/wiki/How_to_write_an_MCP_server_in_Python.md",
+        "https://glama.ai/mcp/servers/ydg09fx6b6"
+      ],
+      "ours": [],
+      "excerpt": null
+    },
+    {
+      "date": "2026-11-09",
+      "commit": "a3c8f38a86753dd07eeff0726cd9f3b6da1ae48b",
+      "assistant": "claude",
+      "model": "claude-opus-5-5",
+      "question": 4,
+      "status": "ok",
+      "exitCode": 0,
+      "turns": 1,
+      "costUsd": 0.028714,
+      "error": null,
+      "named": false,
+      "mentions": [],
+      "citedUrls": [],
+      "ours": [],
+      "excerpt": null
+    },
+    {
+      "date": "2026-11-09",
+      "commit": "a3c8f38a86753dd07eeff0726cd9f3b6da1ae48b",
+      "assistant": "claude",
+      "model": "claude-opus-5-5",
+      "question": 5,
+      "status": "ok",
+      "exitCode": 0,
+      "turns": 1,
+      "costUsd": 0.042422,
+      "error": null,
+      "named": false,
+      "mentions": [],
+      "citedUrls": [],
+      "ours": [],
+      "excerpt": null
+    }
+  ]
+}
