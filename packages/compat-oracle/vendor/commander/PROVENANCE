@@ -1,15 +1,15 @@
 package:  commander
 repo:     https://github.com/tj/commander.js
-version:  15.0.0
-tag:      v15.0.0
-commit:   ba6d13ddb4243e5913367734f8c159089ffe7834
-vendored: 2026-11-02
+version:  15.1.0
+tag:      v15.1.0
+commit:   a5a7dc084d4d2b7932e85ca049c5204e50a2c721
+vendored: 2026-11-09
 files:    109
 tool:     scripts/vendor-suite.ts
 
 How this directory was made
 ---------------------------
-A shallow clone of https://github.com/tj/commander.js at v15.0.0, then that repository's own test directory and
+A shallow clone of https://github.com/tj/commander.js at v15.1.0, then that repository's own test directory and
 its fixtures copied here. The only edit is to the import specifiers that reach the library:
 each is rewritten to a generated shim, so one unedited suite can grade any implementation.
 Everything else — assertions, fixtures, helpers — is upstream's, byte for byte.
@@ -33,7 +33,7 @@ vendor step deletes any shim it finds, so a stale one can never grade the wrong 
 
 Reproduce
 ---------
-    npx tsx scripts/vendor-suite.ts commander --version 15.0.0
+    npx tsx scripts/vendor-suite.ts commander --version 15.1.0
 
 Every field above is reproduced exactly, with one exception that is a date and not a
 defect: `vendored` is the day the copy was taken, so a fresh run writes today's.

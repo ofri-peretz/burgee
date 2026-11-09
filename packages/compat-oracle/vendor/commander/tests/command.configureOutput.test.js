@@ -39,9 +39,12 @@ describe('Command.configureOutput()', () => {
     const program = new commander.Command();
     program.exitOverride().version('1.2.3');
 
-    assert.throws(() => {
-      program.parse(['--version'], { from: 'user' });
-    });
+    assert.throws(
+      () => {
+        program.parse(['--version'], { from: 'user' });
+      },
+      { code: 'commander.version' },
+    );
 
     assert.equal(writeSpy.mock.callCount(), 1);
   });
@@ -55,9 +58,12 @@ describe('Command.configureOutput()', () => {
       .version('1.2.3')
       .configureOutput({ writeOut: customWrite });
 
-    assert.throws(() => {
-      program.parse(['--version'], { from: 'user' });
-    });
+    assert.throws(
+      () => {
+        program.parse(['--version'], { from: 'user' });
+      },
+      { code: 'commander.version' },
+    );
 
     assert.equal(writeSpy.mock.callCount(), 0);
     assert.equal(customWrite.mock.callCount(), 1);
@@ -284,9 +290,12 @@ describe('Command.configureOutput()', () => {
       outputError,
     });
 
-    assert.throws(() => {
-      program.parse(['--unknownOption'], { from: 'user' });
-    });
+    assert.throws(
+      () => {
+        program.parse(['--unknownOption'], { from: 'user' });
+      },
+      { code: 'commander.unknownOption' },
+    );
     assert.equal(
       outputError.mock.calls[0].arguments[0],
       "error: unknown option '--unknownOption'\n",
@@ -303,9 +312,12 @@ describe('Command.configureOutput()', () => {
     const program = new commander.Command();
     program.exitOverride().configureOutput({ writeErr, outputError });
 
-    assert.throws(() => {
-      program.parse(['--unknownOption'], { from: 'user' });
-    });
+    assert.throws(
+      () => {
+        program.parse(['--unknownOption'], { from: 'user' });
+      },
+      { code: 'commander.unknownOption' },
+    );
     assert.equal(
       outputError.mock.calls[0].arguments[0],
       "error: unknown option '--unknownOption'\n",
@@ -324,22 +336,39 @@ describe('Command.configureOutput()', () => {
     assert.equal(program.configureOutput().getOutHelpWidth(), 80);
   });
 
-  describe('environment variable tests', () => {
-    [
+  test('environment variable tests', async (t) => {
+    const testCases = [
       ['NO_COLOR', false],
       ['FORCE_COLOR', true],
       ['CLICOLOR_FORCE', true],
-    ].forEach(([envvar, expected]) => {
-      test(`when ${envvar} then getFooHasColors returns ${expected}`, () => {
-        // Would like to vary process.istty too, but too hard, so tests here provide only partial cover.
-        const holdEnv = process.env[envvar];
-        process.env[envvar] = '1';
-        const config = new commander.Command().configureOutput();
-        assert.equal(config.getOutHasColors(), expected);
-        assert.equal(config.getErrHasColors(), expected);
-        if (holdEnv === undefined) delete process.env[envvar];
-        else process.env[envvar] = holdEnv;
-      });
+    ];
+    const envvars = testCases.map(([envvar]) => envvar);
+    let holdEnv;
+    t.beforeEach(() => {
+      // Clear out enviroment variables, which may have been set by test runner.
+      holdEnv = {};
+      for (const name of envvars) {
+        holdEnv[name] = process.env[name];
+        delete process.env[name];
+      }
     });
+    t.afterEach(() => {
+      for (const name of envvars) {
+        if (holdEnv[name] === undefined) delete process.env[name];
+        else process.env[name] = holdEnv[name];
+      }
+    });
+    for (const [envvar, expected] of testCases) {
+      await t.test(
+        `when ${envvar} then getFooHasColors returns ${expected}`,
+        () => {
+          // Would like to vary process.istty too, but too hard, so tests here provide only partial cover.
+          process.env[envvar] = '1';
+          const config = new commander.Command().configureOutput();
+          assert.equal(config.getOutHasColors(), expected);
+          assert.equal(config.getErrHasColors(), expected);
+        },
+      );
+    }
   });
 });

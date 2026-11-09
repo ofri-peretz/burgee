@@ -79,25 +79,29 @@ describe('Command.parse()', () => {
       program.argument('[args...]');
       assert.throws(() => {
         program.parse(['node', 'script.js'], { from: 'silly' });
-      });
+      }, /unexpected parse option/);
     });
 
-    describe('when node execArgv includes node flags', () => {
-      ['-e', '--eval', '-p', '--print'].forEach((flag) => {
-        test(`when node execArgv includes ${flag} then app/args`, () => {
-          const program = new commander.Command();
-          program.argument('[args...]');
-          const holdExecArgv = process.execArgv;
-          const holdArgv = process.argv;
-          process.argv = ['node', 'user-arg'];
-          process.execArgv = [flag, 'console.log("hello, world")'];
-          program.parse();
-          process.argv = holdArgv;
-          process.execArgv = holdExecArgv;
-          assert.deepEqual(program.args, ['user-arg']);
-          process.execArgv = holdExecArgv;
-        });
-      });
+    test('when node execArgv includes node flags', async (t) => {
+      const testCases = ['-e', '--eval', '-p', '--print'];
+      for (const flag of testCases) {
+        await t.test(
+          `when node execArgv includes ${flag} then app/args`,
+          () => {
+            const program = new commander.Command();
+            program.argument('[args...]');
+            const holdExecArgv = process.execArgv;
+            const holdArgv = process.argv;
+            process.argv = ['node', 'user-arg'];
+            process.execArgv = [flag, 'console.log("hello, world")'];
+            program.parse();
+            process.argv = holdArgv;
+            process.execArgv = holdExecArgv;
+            assert.deepEqual(program.args, ['user-arg']);
+            process.execArgv = holdExecArgv;
+          },
+        );
+      }
     });
   });
 
@@ -127,7 +131,7 @@ describe('Command.parse()', () => {
     program.argument('[args...]');
     assert.throws(() => {
       program.parse('node', 'test');
-    });
+    }, /first parameter to parse must be array or undefined/);
   });
 
   describe('parse parameter is treated as readonly, per TypeScript declaration', () => {
@@ -436,7 +440,7 @@ describe('Command.parse()', () => {
       program.parse();
       assert.throws(() => {
         program.parse();
-      });
+      }, /Can not call parse again when storeOptionsAsProperties is true/);
     });
   });
 });
