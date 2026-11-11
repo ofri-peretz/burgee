@@ -1,7 +1,7 @@
 # Design — `oxmutate-fastest`
 
-Intent: [`intent.md`](./intent.md). **Status:** draft, awaiting the owner's accept at
-Design→Build.
+Intent: [`intent.md`](./intent.md). **Status:** accepted 2026-11-11
+([`D-20261111-oxmutate-fastest-accepted`](../../decisions/D-20261111-oxmutate-fastest-accepted.md)).
 
 ---
 
@@ -38,15 +38,23 @@ Design→Build.
 
 **Resources**
 
-- `R11` — `resources.concurrency`: a number, or `'auto'` (default). `'auto'` is bounded by
-  cores − 1, at most 8, and by `R13`. Top-level `concurrency` keeps working and means a fixed
-  number.
+- `R11` — `resources.maxWorkers`: a number, a percentage of the cores (`'50%'`), or `'auto'`
+  (default). The same shapes as Vitest's and Jest's `maxWorkers`. `'auto'` is cores − 1, at most
+  8, and never more than `R13` allows. Stryker's top-level `concurrency` keeps working and means
+  the same as a number here.
 - `R12` — `resources.maxLoad` (default 1.5 × cores): above it, the pool dispatches no new unit;
   below it, dispatch resumes. One worker always runs.
-- `R13` — `resources.memoryFraction` (default 0.5): workers × the worker size measured in the
-  dry run stays under this share of total RAM.
-- `R14` — `resources.maxWorkerMemoryMB` (default 2 × the dry-run size): a worker past it is
-  replaced after its current unit.
+- `R13` — `resources.maxMemory`: the memory all workers together may use, as bytes, a size
+  (`'4GB'`) or a share of RAM (`'50%'`, the default). Workers × the worker size measured in the
+  dry run stays under it, so it lowers the worker count before a machine swaps.
+- `R14` — `resources.workerMemoryLimit`: one worker's limit, in the same three shapes (default
+  2 × the dry-run size). A worker past it is replaced after its current unit, as Jest's
+  `workerIdleMemoryLimit` does. Jest has no total limit, which is how its runs reach
+  out-of-memory with every worker under its own; `R13` is that total.
+- `R14a` — `resources.maxOldSpaceSize` (MB, default unset): passed to every worker as Node's
+  `--max-old-space-size`, so a mutant that allocates without end stops in its own process. A
+  worker that dies this way is replaced, and its mutant is reported with the reason "out of
+  memory", not silently re-run.
 - `R15` — `resources.priority`: `'low'` (default) or `'normal'`. `'low'` starts each server at
   a lowered OS priority.
 - `R16` — The governor acts only between units. It never stops, re-orders or re-runs a unit that
@@ -54,8 +62,11 @@ Design→Build.
 - `R17` — Where the load average is unavailable (Windows reports 0), the governor uses CPU time
   sampled from `os.cpus()`.
 - `R18` — `stats` reports the governor: seconds held back by load, by memory, workers replaced
-  for memory, and the peak worker size.
-- `R19` — Each `resources` key is in the config schema, the docs, and `--explain`.
+  for memory, out-of-memory stops, and the peak worker size.
+- `R19` — Each `resources` key is in the config schema, the docs, and `--explain`, and has a
+  flag on `run`: `--max-workers`, `--max-memory`, `--worker-memory-limit`, `--max-load`.
+- `R19a` — The test framework's own pool is pinned to one worker per oxmutate server (Vitest's
+  `maxWorkers: 1`, Jest's `--runInBand`), so no limit above is multiplied by a second pool.
 
 **Runners**
 
@@ -132,8 +143,7 @@ after each unit: `shouldReplace(server): boolean`.
   and each server's resident size, which the server already can send with its CPU samples
   (`process.memoryUsage().rss`, beside the `process.cpuUsage()` it sends every 250 ms).
 - **Worker size** is the largest resident size seen in the dry run, per server.
-- **`'auto'` concurrency** = min(cores − 1, 8, floor(`memoryFraction` × RAM ÷ worker size)), at
-  least 1. Recomputed when the worker size grows by more than 25%.
+- **`'auto'` workers** = min(cores − 1, 8, floor(`maxMemory` ÷ worker size)), at least 1. Recomputed when the worker size grows by more than 25%.
 - **Load hold (`R12`).** Above `maxLoad`, `mayDispatch` is false while more than one server is
   busy. It uses the load oxmutate does not account for: the reading minus its own busy servers.
   Without that, a run at `concurrency: 8` on 8 cores would hold itself back.
@@ -142,8 +152,10 @@ after each unit: `shouldReplace(server): boolean`.
   set it is a warning, once.
 - **What it never does (`R16`):** stop a running unit, change a budget, or change the order of
   units. Budgets already stretch with load where they need to (`runner.ts`, `confirmFor`).
+- **Sizes** are parsed once in `config.ts`: a number is bytes, a string takes `KB`, `MB`, `GB`
+  or `%` of total RAM. An unreadable size is a config error (exit 3), not a default.
 - **Config.** `resources` in `config.ts`, added to `USED` and the schema. `concurrency: n` at
-  the top level maps to `resources.concurrency: n`.
+  the top level maps to `resources.maxWorkers: n`.
 
 ### `M3` — The isolated phase
 

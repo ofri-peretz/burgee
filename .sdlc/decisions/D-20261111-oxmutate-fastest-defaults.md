@@ -15,8 +15,8 @@ value a later decision can change.**
    group-survived pairs re-run alone on every run. The default rises only by a new decision,
    after identical verdicts on three packages (spec `R3`–`R6`).
 2. **The governor is polite by default, on CI too.** `resources.priority: 'low'`,
-   `maxLoad: 1.5 × cores`, `memoryFraction: 0.5`. A CI job that wants the whole runner sets
-   `resources.concurrency` to a number and `priority: 'normal'`. One default is easier to
+   `maxLoad: 1.5 × cores`, `maxMemory: '50%'`. A CI job that wants the whole runner sets
+   `resources.maxWorkers` to a number and `priority: 'normal'`. One default is easier to
    reason about than a CI detection that guesses.
 3. **A worker's memory cost is measured, not asked of the OS.** The governor uses each server's
    own resident size from the dry run against total RAM. `os.freemem()` counts only free pages

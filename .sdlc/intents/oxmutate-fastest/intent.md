@@ -1,6 +1,6 @@
 # Intent — `oxmutate-fastest`: the fastest mutation run a machine can give without being exhausted, on Vitest and Jest
 
-**Status:** review · **Opened:** 2026-11-11 · **Owner:** @ofri-peretz · **Parent:**
+**Status:** approved · **Opened:** 2026-11-11 · **Owner:** @ofri-peretz · **Parent:**
 [`oxmutate`](../oxmutate/intent.md) (shipped,
 [`D-20261106-oxmutate-ships-measurements-continue`](../../decisions/D-20261106-oxmutate-ships-measurements-continue.md))
 
@@ -111,10 +111,11 @@ Each is a command or a recorded reading. `F` is speed, `G` is the governor, `J` 
   unit is dispatched, and dispatch resumes below it. A test shows both.
 - `G2` — **the limits do not change a verdict.** The same fixture run with the governor on and
   off gives identical reports.
-- `G3` — **memory is bounded.** Workers times the measured worker size stays under the
-  configured share of RAM, and a worker past `maxWorkerMemoryMB` is replaced between units.
-- `G4` — **every limit is configuration**, documented, with `--explain` naming where its value
-  came from.
+- `G3` — **memory is bounded, in total and per worker.** Workers times the measured worker size
+  stays under `maxMemory`, and a worker past `workerMemoryLimit` is replaced between units.
+- `G4` — **every limit is configuration**, in the shapes Vitest and Jest users already write
+  (`maxWorkers` as a number or a percentage, memory as bytes, a size or a percentage), each with
+  a flag, documented, with `--explain` naming where its value came from.
 - `J1` — **the Vitest path runs behind the runner interface** with oxmutate's own suite
   unchanged and green, and warm time on caique within 3% of before.
 - `J2` — **Jest agrees with Stryker's jest-runner** on at least 99% of verdicts on a Jest
