@@ -132,12 +132,12 @@ names are chosen before the first publish ([`phase0.md`](./phase0.md)).
 | Package | Purpose | Extension points it hosts | Lands |
 | :-- | :-- | :-- | :-- |
 | `@interlace/contract-model` (internal) | The protocol-neutral model, `$ref` resolver (`adapter.qnt`), and the extension API (`defineAdapter`, `defineEmitter`, `defineReader`, `defineRule`) | Protocol adapters: OpenAPI, JSON Schema, AsyncAPI, MCP, OpenRPC, … | Phase 1 |
-| `apicontract-diff` | What breaks and for whom, under a chosen mode and side; `explain` (a resolved, size-capped slice for agents) | Diff rules (oasdiff rule ids built in) | Phase 1 |
+| `apicontract-diff` | What breaks and for whom, under a chosen mode and side; `explain` (a resolved, size-capped slice for agents) | Diff rules (oasdiff rule ids built in) | Phase 2 |
 | `apicontract-extract` | **Code → spec.** Hosts readers; emits OpenAPI 3.1/3.2, AsyncAPI 3, JSON Schema 2020-12 | Readers: Standard Schema (Zod, Valibot, ArkType), TypeBox, NestJS decorators, Hono, tRPC/oRPC | Phase 3 |
 | `apicontract-schema` | Runtime validation built from the model (R-SC); absorbs the old `guard` | — | Phase 3 |
 | `apicontract-check` | Call sites in code that disagree with the contract; native oxc core as oxmutate ships | Call-site matchers (HTTP, socket, MCP) | Phase 4 |
 | `apicontract` | The main CLI: one install, one `--mcp`, one `--skill` for agents. Owns `gen` (**spec → code**) and dispatches to whichever purpose packages are installed; a missing one fails with a `fix:` line naming the install | **Code generators** (emitters) | Phase 1 |
-| `apicontract-gen-ts` | Generator extension of the main CLI: TypeScript types (`--compat openapi-typescript`), the openapi-typescript migration path | — | Phase 2 |
+| `apicontract-gen-ts` | Generator extension of the main CLI: TypeScript types (`--compat openapi-typescript`), the openapi-typescript migration path | — | Phase 1 |
 | `apicontract-zod` | Technology extension (R-TE): Zod schemas from the spec, the spec from Zod, and drift between them | — | Phase 2 |
 | `apicontract-nest` | Technology extension (R-TE): NestJS modules from OpenAPI and AsyncAPI (R-NE), the spec from NestJS, and entry points that violate the spec | — | Phase 3 |
 
@@ -322,7 +322,7 @@ which code is better.
 - **Decision rule at 90 days:** a dedicated CLI that draws under ~5% of the all-protocol CLI's net
   installs is deprecated with a pointer to `apicontract`; one that draws more than the all-protocol
   CLI for its protocol stays and gets its own docs section. The core never forks either way.
-- **Starts** when Phase 1 ships (OpenAPI, JSON Schema), and each later protocol joins as its adapter
+- **Starts** when Phase 2 ships (OpenAPI, JSON Schema), and each later protocol joins as its adapter
   lands. Publishing any arm-B package needs the owner's approval.
 
 ### Dependencies
