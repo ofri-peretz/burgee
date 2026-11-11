@@ -2606,6 +2606,8 @@ export interface MigrateOptions {
   now?: Date;
   /** Injected by the tests; the `since` table the build wrote beside this module otherwise. */
   since?: SubpathFloors;
+  /** Injected by the tests; the family versions the build wrote beside this module (or the workspace manifests) otherwise. */
+  versions?: Readonly<Record<string, string>>;
 }
 
 /**
@@ -2960,7 +2962,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrationReport>
   const refusedFiles = new Set(refused.map((r) => r.file)).size;
   const undeclared = imported.filter((host) => !dependencies.has(host) && only?.has(host) !== true);
 
-  const graded = await familyVersions();
+  const graded = options.versions ?? (await familyVersions());
   const age = await releaseAgeOf(dir);
   const now = options.now ?? new Date();
   const under =
