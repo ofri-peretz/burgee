@@ -22,7 +22,7 @@
  * Before each mutant the runner writes a progress line synchronously, so the coordinator can
  * attribute and kill a worker stuck in a synchronous loop that the hit counter cannot break.
  */
-import { closeSync, ftruncateSync, openSync, readFileSync, writeSync } from 'node:fs';
+import { closeSync, openSync, readFileSync, writeSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { availableParallelism, loadavg } from 'node:os';
 import path from 'node:path';
@@ -315,13 +315,18 @@ function emit(record: object): void {
   writeSync(resultsFd, `${JSON.stringify(record)}\n`);
 }
 
-/** The scheduler's watchdog reads this file: the mutant now running and when it started, or nothing. */
+/**
+ * The scheduler's watchdog reads this file: the mutant now running and when it started, or nothing.
+ * Each mark is padded to the longest one written, so it replaces the last in one write and the
+ * file is never truncated: truncating it for every mutant was 1.8 s of a 53 s run (2026-11-11).
+ * The reader trims, so the padding reads as nothing.
+ */
 function mark(text: string): void {
   if (!progressPath) return;
   progressFd ??= openSync(progressPath, 'w');
-  if (text.length < markLength) ftruncateSync(progressFd, 0);
-  if (text) writeSync(progressFd, text, 0);
-  markLength = text.length;
+  const padded = text.trimEnd().padEnd(markLength);
+  markLength = padded.length;
+  if (padded) writeSync(progressFd, padded, 0);
 }
 
 /** A worker thread's descriptors outlive it in a threads pool, so the end of its run closes them. */

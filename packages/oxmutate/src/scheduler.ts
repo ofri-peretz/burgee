@@ -9,7 +9,7 @@
  * shard set the whole mutation phase at 42.9 s while the other shards finished in 8 s).
  */
 import { fork, type ChildProcess } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { closeSync, openSync, readFileSync, readSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -24,6 +24,9 @@ const STDERR_TAIL = 4000;
 const WATCHDOG_POLL_MS = 50;
 /** How long a server asked to close gets before it is killed (it gives itself the same). */
 const CLOSE_GRACE_MS = 2000;
+
+/** More than a progress line holds: a mutant id, a space and a millisecond time. */
+const PROGRESS_BYTES = 256;
 
 /** The mutant a unit's progress file says is running, if any. */
 function inFlight(progress: string): string | undefined {
@@ -90,24 +93,23 @@ class Server {
   }
 
   run(unit: Unit, budget: (id: string) => number): Promise<UnitOutcome> {
-    writeFileSync(unit.progress, '');
+    // Opened once and read in place on every poll: a poll that opened the file was 2.3 s of a 53 s
+    // run (2026-11-11). The runner and the server rewrite the same file, so this descriptor sees them.
+    const progress = openSync(unit.progress, 'w+');
+    const mark = Buffer.alloc(PROGRESS_BYTES);
     return new Promise((resolve) => {
       let settled = false;
       const finish = (o: UnitOutcome) => {
         if (settled) return;
         settled = true;
         clearInterval(timer);
+        closeSync(progress);
         this.onMessage = undefined;
         this.onExit = undefined;
         resolve(o);
       };
       const timer = setInterval(() => {
-        let line = '';
-        try {
-          line = readFileSync(unit.progress, 'utf8').trim();
-        } catch {
-          return;
-        }
+        const line = mark.toString('utf8', 0, readSync(progress, mark, 0, PROGRESS_BYTES, 0)).trim();
         if (!line) return;
         const [id = '', since = '0'] = line.split(' ');
         const now = Date.now();
