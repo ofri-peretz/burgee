@@ -6,8 +6,8 @@
       "claim": "compat",
       "seen": {
         "version": "10.0.0",
-        "weight": 128182,
-        "measured": "2026-11-06",
+        "weight": 129073,
+        "measured": "2026-11-12",
         "cited": [
           "packages/flagstaff/src/weight.test.ts",
           "packages/flagstaff/README.md"
@@ -407,8 +407,8 @@
       "claim": "compat",
       "seen": {
         "version": "8.0.0",
-        "weight": 114295,
-        "measured": "2026-11-06",
+        "weight": 115186,
+        "measured": "2026-11-12",
         "cited": [
           "packages/flagstaff/src/weight.test.ts",
           "packages/flagstaff/README.md"
@@ -439,7 +439,7 @@
       "seen": {
         "version": "10.0.2",
         "weight": 20370,
-        "measured": "2026-11-06",
+        "measured": "2026-11-12",
         "cited": [
           "packages/flagstaff/src/weight.test.ts"
         ],
@@ -467,7 +467,7 @@
       "seen": {
         "version": "9.0.1",
         "weight": 26813,
-        "measured": "2026-11-06",
+        "measured": "2026-11-12",
         "cited": [
           "packages/flagstaff/src/weight.test.ts"
         ],
@@ -561,7 +561,7 @@
         "registry": "boxen",
         "version": "9.0.0",
         "shasum": "05185a8f87e418b543762d8c66673ca178431bcd",
-        "weight": 115780,
+        "weight": 116671,
         "self": 22037,
         "packages": 14,
         "files": {
@@ -579,7 +579,7 @@
           "_borderStyles",
           "default"
         ],
-        "measured": "2026-11-06"
+        "measured": "2026-11-12"
       }
     }
   ],
@@ -675,8 +675,8 @@
       "claim": "compat",
       "seen": {
         "version": "9.0.0",
-        "weight": 115780,
-        "measured": "2026-11-06",
+        "weight": 116671,
+        "measured": "2026-11-12",
         "cited": [
           "packages/flagstaff/src/weight.test.ts",
           "packages/flagstaff/README.md"
