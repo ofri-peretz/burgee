@@ -8,6 +8,9 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { discard } from './__fixtures__/scratch-dir.js';
 import { changedLines, type MutateRange, parseDiff, parseMutateSpec, parseShard, shardOf, touches, withinRange } from './lanes.js';
 
+/** The environment without git's own variables: lefthook's pre-push exports `GIT_DIR`, and a scratch `git init` must not inherit it (scripts/git-env-lock.test.ts). */
+const withoutGit = (): NodeJS.ProcessEnv => Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')));
+
 describe('the PR lane reads changed lines from git diff -U0', () => {
   const diff = [
     'diff --git a/src/a.ts b/src/a.ts',
@@ -57,7 +60,7 @@ describe('the PR lane reads changed lines from git diff -U0', () => {
 describe('changedLines runs git diff against a ref', () => {
   const repo = mkdtempSync(path.join(tmpdir(), 'oxmutate-lanes-'));
   afterAll(() => discard(repo));
-  const git = (...args: string[]): string => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', ...args], { cwd: repo, encoding: 'utf8' });
+  const git = (...args: string[]): string => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', ...args], { cwd: repo, encoding: 'utf8', env: withoutGit() });
   git('init', '-q');
   writeFileSync(path.join(repo, 'a.ts'), 'one\ntwo\nthree\n');
   git('add', '.');

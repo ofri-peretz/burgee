@@ -22,6 +22,9 @@ import { ExitCode } from './exit-code.js';
 import { program } from './program.js';
 import { processRuntime } from './runtime.js';
 
+/** The environment without git's own variables: lefthook's pre-push exports `GIT_DIR`, and a scratch `git init` must not inherit it (scripts/git-env-lock.test.ts). */
+const withoutGit = (): NodeJS.ProcessEnv => Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')));
+
 const dev = vi.hoisted(() => vi.fn((_opts: Record<string, unknown>) => ({ done: Promise.resolve() })));
 vi.mock('./dev.js', () => ({ dev }));
 
@@ -152,7 +155,7 @@ describe('burgee migrate', () => {
   it('migrates the working directory when none is given, and --force writes past a dirty tree', async () => {
     project(dir);
     // A repository whose two files are untracked: dirty, so only --force writes.
-    execFileSync('git', ['-C', dir, 'init', '-q'], { stdio: 'ignore' });
+    execFileSync('git', ['-C', dir, 'init', '-q'], { stdio: 'ignore', env: withoutGit() });
     vi.spyOn(process, 'cwd').mockReturnValue(dir);
     const refused = await runCommand(program, ['migrate']);
     expect(refused.code).not.toBe(ExitCode.OK);

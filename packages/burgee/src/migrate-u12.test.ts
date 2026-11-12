@@ -200,7 +200,9 @@ describe('U12-2 — under a release age, next pins the newest family version old
   // docs-only patches; each restarted the three-day clock, so `pnpm add roundel@^1.0.4` never installed.
   const now = new Date('2026-10-11T12:00:00Z');
   const daysAgo = (days: number): string => new Date(now.getTime() - days * 86_400_000).toISOString();
-  const versions = manifests();
+  // Injected rather than read from the manifests: each must sit above `M.0.0`, and the Version PR
+  // that bumped every package to 2.0.0 (#1497) made the live manifests exactly `M.0.0`.
+  const versions: Record<string, string> = { ...manifests(), flagstaff: '1.8.2', roundel: '1.3.2' };
   const majorOf = (name: string): string => (versions[name] as string).split('.')[0] as string;
 
   /** Each family package as the registry would list it: a lower major long ago, `M.0.0` ten days ago, the graded version yesterday. */
@@ -221,7 +223,7 @@ describe('U12-2 — under a release age, next pins the newest family version old
   }
 
   it('pins the caret floor to the newest release of the graded major that is old enough', async () => {
-    const report = await migrate({ dir: mcpc('minimumReleaseAge: 4320\n'), status: clean, registry: registry(), now });
+    const report = await migrate({ versions, dir: mcpc('minimumReleaseAge: 4320\n'), status: clean, registry: registry(), now });
     expect(report.next).toBe(`pnpm add flagstaff@^${majorOf('flagstaff')}.0.0 roundel@^${majorOf('roundel')}.0.0 && pnpm remove chalk ora`);
     expect(report.releaseAge?.pins.map((p) => [p.name, p.version, p.graded])).toEqual([
       ['flagstaff', `${majorOf('flagstaff')}.0.0`, versions['flagstaff']],
@@ -247,7 +249,7 @@ describe('U12-2 — under a release age, next pins the newest family version old
     ['an unindented block list, with a dashed key after it', 'minimumReleaseAge: 4320\nminimumReleaseAgeExclude:\n- roundel\nx-other:\n- flagstaff\n'],
     ['a block list in a CRLF file', 'minimumReleaseAge: 4320\r\nminimumReleaseAgeExclude:\r\n  - roundel\r\n'],
   ])('keeps the graded pin for a package minimumReleaseAgeExclude exempts, as %s', async (_, workspace) => {
-    const report = await migrate({ dir: mcpc(workspace), status: clean, registry: registry(), now });
+    const report = await migrate({ versions, dir: mcpc(workspace), status: clean, registry: registry(), now });
     expect(report.next).toBe(`pnpm add flagstaff@^${majorOf('flagstaff')}.0.0 roundel@^${versions['roundel'] as string} && pnpm remove chalk ora`);
   });
 
@@ -258,20 +260,20 @@ describe('U12-2 — under a release age, next pins the newest family version old
       [`${majorOf(name)}.0.3`]: daysAgo(8),
       [versions[name] as string]: daysAgo(1),
     });
-    const report = await migrate({ dir: mcpc('minimumReleaseAge: 4320\n'), status: clean, registry: patches, now });
+    const report = await migrate({ versions, dir: mcpc('minimumReleaseAge: 4320\n'), status: clean, registry: patches, now });
     expect(report.next).toBe(`pnpm add flagstaff@^${majorOf('flagstaff')}.0.3 roundel@^${majorOf('roundel')}.0.3 && pnpm remove chalk ora`);
   });
 
   it('says plainly when no version is old enough yet, and when one will be', async () => {
     const young = async (name: string): Promise<Record<string, string>> => ({ [versions[name] as string]: daysAgo(1), '0.6.2': daysAgo(30) });
-    const report = await migrate({ dir: mcpc('minimumReleaseAge: 4320\n'), status: clean, registry: young, now });
+    const report = await migrate({ versions, dir: mcpc('minimumReleaseAge: 4320\n'), status: clean, registry: young, now });
     expect(report.next).toBe(`pnpm add flagstaff@^${versions['flagstaff'] as string} roundel@^${versions['roundel'] as string} && pnpm remove chalk ora`);
     expect(report.releaseAge?.pins.map((p) => p.installable)).toEqual(['2026-10-13T12:00:00.000Z', '2026-10-13T12:00:00.000Z']);
     expect(report.releaseAge?.note).toContain(`no roundel ${majorOf('roundel')}.x is old enough until 2026-10-13 12:00 UTC`);
   });
 
   it('falls back to the graded pins, and says why, when the registry does not answer', async () => {
-    const report = await migrate({ dir: mcpc('minimumReleaseAge: 4320\n'), status: clean, registry: unreachable, now });
+    const report = await migrate({ versions, dir: mcpc('minimumReleaseAge: 4320\n'), status: clean, registry: unreachable, now });
     expect(report.next).toBe(`pnpm add flagstaff@^${versions['flagstaff'] as string} roundel@^${versions['roundel'] as string} && pnpm remove chalk ora`);
     expect(report.releaseAge?.note).toContain('the registry did not say when flagstaff, roundel were published');
   });
@@ -282,14 +284,14 @@ describe('U12-2 — under a release age, next pins the newest family version old
     ['a block list with comments, blanks and a key after it', { 'pnpm-workspace.yaml': 'minimumReleaseAgeExclude:\n  # docs-only patches\n\n  - roundel # ours\n  -\nminimumReleaseAge: 4320\nother:\n  - flagstaff\n' }],
   ])('reads the exclusions from %s', async (_, files) => {
     const dir = project({ 'package.json': manifest({ chalk: '^6.0.0', ora: '^10.0.0' }), 'pnpm-lock.yaml': '', 'src/a.ts': "import chalk from 'chalk';\nimport ora from 'ora';\n", ...files });
-    const report = await migrate({ dir, status: clean, registry: registry(), now });
+    const report = await migrate({ versions, dir, status: clean, registry: registry(), now });
     expect(report.next).toContain(`roundel@^${versions['roundel'] as string}`);
   });
 
   it('never asks the registry when the project sets no release age', async () => {
     const calls: string[] = [];
     const dir = project({ 'package.json': manifest({ chalk: '^6.0.0' }), 'src/a.ts': "import chalk from 'chalk';\n" });
-    await migrate({ dir, status: clean, registry: registry(calls), now });
+    await migrate({ versions, dir, status: clean, registry: registry(calls), now });
     expect(calls).toEqual([]);
   });
 });

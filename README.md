@@ -20,7 +20,7 @@
   <a href="https://scorecard.dev/viewer/?uri=github.com/ofri-peretz/burgee"><img src="https://api.scorecard.dev/projects/github.com/ofri-peretz/burgee/badge" alt="OpenSSF Scorecard" /></a>
   <a href="./packages/burgee/package.json"><img src="https://img.shields.io/badge/dependencies-5%20in%20family%2C%200%20outside-0a6b47?style=flat-square" alt="Five dependencies, all in the burgee family: no dependency outside the burgee family" /></a>
   <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-22.13%2B-green.svg?style=flat-square" alt="Node.js 22.13+" /></a>
-  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.7+-blue.svg?style=flat-square" alt="TypeScript" /></a>
+  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.9+-blue.svg?style=flat-square" alt="TypeScript" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License: MIT" /></a>
   <a href="https://github.com/ofri-peretz/burgee"><img src="https://img.shields.io/github/stars/ofri-peretz/burgee?style=flat&logo=github&label=Star" alt="GitHub stars" /></a>
 </p>
@@ -471,16 +471,16 @@ codebase is the number of things a user has to trust, not convenience.
 
 | | Layer | Package | What the layer owns | Migrates from | Status |
 | :-- | :-- | :-- | :-- | :-- | :-- |
-| **Engine** | argv, dispatch, manifest | [`burgee`](./packages/burgee/) | one declaration projected to help, `--json`, `--schema`, MCP, completions, types | commander · yargs · meow | released — `burgee@1.10.2` |
-| **Output stack** | colour | [`roundel`](./packages/roundel/) | one output policy, nine semantic tokens, a contrast-checked theme, and chalk's API over them | chalk · picocolors | released — `roundel@1.3.2` |
-| | render | [`flagstaff`](./packages/flagstaff/) | frame loop with a static projection; plugin host for spinners, progress, boxes, tables | ora · log-update · boxen · cli-table3 | released — `flagstaff@1.8.2` |
-| | prompt | [`caique`](./packages/caique/) | prompts that are flags first, and never hang | inquirer · clack · prompts | released — `caique@1.6.3` |
-| | screen | [`controlroom`](./packages/controlroom/) | keyboard-driven screens, inline or full-screen, over flagstaff's loop, each with a static projection | ink · @inkjs/ui | released — `controlroom@1.0.9` |
-| **Foundation** | text | [`linegauge`](./packages/linegauge/) | measure, wrap, truncate and slice styled text without the edge fraying | string-width · wrap-ansi · strip-ansi · slice-ansi | released — `linegauge@1.2.1` |
-| | config | [`seniority`](./packages/seniority/) | precedence across flag, env, project file, home file and default — with provenance | cosmiconfig · lilconfig · dotenv · rc | released — `seniority@1.2.1` |
-| | process | [`bellpull`](./packages/bellpull/) | run a subprocess; resolve the executable; return a result every caller can read | execa · cross-spawn · which | released — `bellpull@1.0.11` |
-| | lifecycle | [`closeout`](./packages/closeout/) | exit handlers that run once on every path, terminal restore, bounded deadline | signal-exit · exit-hook · restore-cursor | released — `closeout@1.1.10` |
-| | terminal | [`paratext`](./packages/paratext/) | hyperlinks, images, window title, clipboard, notifications, bell — each with a static fallback | ansi-escapes (OSC half) · terminal-link · term-img | released — `paratext@1.0.13` |
+| **Engine** | argv, dispatch, manifest | [`burgee`](./packages/burgee/) | one declaration projected to help, `--json`, `--schema`, MCP, completions, types | commander · yargs · meow | released — `burgee@2.0.0` |
+| **Output stack** | colour | [`roundel`](./packages/roundel/) | one output policy, nine semantic tokens, a contrast-checked theme, and chalk's API over them | chalk · picocolors | released — `roundel@2.0.0` |
+| | render | [`flagstaff`](./packages/flagstaff/) | frame loop with a static projection; plugin host for spinners, progress, boxes, tables | ora · log-update · boxen · cli-table3 | released — `flagstaff@2.0.0` |
+| | prompt | [`caique`](./packages/caique/) | prompts that are flags first, and never hang | inquirer · clack · prompts | released — `caique@2.0.0` |
+| | screen | [`controlroom`](./packages/controlroom/) | keyboard-driven screens, inline or full-screen, over flagstaff's loop, each with a static projection | ink · @inkjs/ui | released — `controlroom@2.0.0` |
+| **Foundation** | text | [`linegauge`](./packages/linegauge/) | measure, wrap, truncate and slice styled text without the edge fraying | string-width · wrap-ansi · strip-ansi · slice-ansi | released — `linegauge@2.0.0` |
+| | config | [`seniority`](./packages/seniority/) | precedence across flag, env, project file, home file and default — with provenance | cosmiconfig · lilconfig · dotenv · rc | released — `seniority@2.0.0` |
+| | process | [`bellpull`](./packages/bellpull/) | run a subprocess; resolve the executable; return a result every caller can read | execa · cross-spawn · which | released — `bellpull@2.0.0` |
+| | lifecycle | [`closeout`](./packages/closeout/) | exit handlers that run once on every path, terminal restore, bounded deadline | signal-exit · exit-hook · restore-cursor | released — `closeout@2.0.0` |
+| | terminal | [`paratext`](./packages/paratext/) | hyperlinks, images, window title, clipboard, notifications, bell — each with a static fallback | ansi-escapes (OSC half) · terminal-link · term-img | released — `paratext@2.0.0` |
 
 All ten are released on npm at 1.x, with their public API under semver
 ([`SECURITY.md`](./SECURITY.md) says which releases are supported). Where an incumbent's own test suite has been vendored, the

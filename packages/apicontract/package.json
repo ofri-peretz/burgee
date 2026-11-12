@@ -1,6 +1,6 @@
 {
   "name": "apicontract",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "private": true,
   "description": "One contract tool for every API in a repo: what a change breaks and for whom, an agent-sized explain, and where code disagrees with the contract. Codename; unpublished until the naming pass.",
   "license": "MIT",
@@ -33,7 +33,7 @@
     "lint": "eslint src"
   },
   "dependencies": {
-    "burgee": "^1.10.1"
+    "burgee": "^2.0.0"
   },
   "devDependencies": {
     "vitest": "^5.0.1"
