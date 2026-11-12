@@ -44,11 +44,11 @@ jobs:
         include:
           - platform: darwin-arm64
             target: aarch64-apple-darwin
-            runner: macos-14
+            runner: macos-15
             rustflags: ""
           - platform: darwin-x64
             target: x86_64-apple-darwin
-            runner: macos-14
+            runner: macos-15
             rustflags: ""
           # ubuntu-22.04 (glibc 2.35), not -latest (2.39): the .so needs no newer glibc than the
           # runner it was linked on, and an older floor installs on more machines.
