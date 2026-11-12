@@ -21,6 +21,9 @@ import { describe, expect, it } from 'vitest';
 import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { ExitCode } from './exit-code.js';
 
+/** The environment without git's own variables: lefthook's pre-push exports `GIT_DIR`, and a scratch `git init` must not inherit it (scripts/git-env-lock.test.ts). */
+const withoutGit = (): NodeJS.ProcessEnv => Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')));
+
 const scratch = scratchDirs();
 
 const CLI = resolve(fileURLToPath(new URL('..', import.meta.url)), 'dist/cli.js');
@@ -213,9 +216,9 @@ describe('U12-3 — --only and --skip, through the binary', () => {
 describe('A6 — it refuses a dirty tree through the binary, with the fix on stderr', () => {
   it('names the count and exits RUNTIME', () => {
     const dir = project({ 'src/a.ts': "import { Command } from 'commander';\n" });
-    execFileSync('git', ['-C', dir, 'init', '-q'], { stdio: 'ignore' });
+    execFileSync('git', ['-C', dir, 'init', '-q'], { stdio: 'ignore', env: withoutGit() });
     // Staged, so the change is tracked: an untracked-only tree gets the fix the next case holds (R7).
-    execFileSync('git', ['-C', dir, 'add', '-A'], { stdio: 'ignore' });
+    execFileSync('git', ['-C', dir, 'add', '-A'], { stdio: 'ignore', env: withoutGit() });
     const { code, stderr } = burgee(['migrate', dir]);
     expect(code).toBe(ExitCode.RUNTIME);
     expect(stderr).toContain('uncommitted change');
@@ -228,7 +231,7 @@ describe('A6 — it refuses a dirty tree through the binary, with the fix on std
     // R7 (migrate-preflight): @swc/cli's install wrote an untracked node-compile-cache/, and the
     // refusal said only how many changes there were.
     const dir = project({ 'package.json': DECLARES_COMMANDER, 'src/a.ts': "import { Command } from 'commander';\n" });
-    const git = (...args: string[]): void => void execFileSync('git', ['-C', dir, '-c', 'user.name=burgee', '-c', 'user.email=burgee@example.invalid', '-c', 'commit.gpgsign=false', ...args], { stdio: 'ignore' });
+    const git = (...args: string[]): void => void execFileSync('git', ['-C', dir, '-c', 'user.name=burgee', '-c', 'user.email=burgee@example.invalid', '-c', 'commit.gpgsign=false', ...args], { stdio: 'ignore', env: withoutGit() });
     git('init', '-q');
     git('add', '-A');
     git('commit', '-q', '-m', 'init');

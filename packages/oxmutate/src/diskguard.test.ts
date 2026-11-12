@@ -8,6 +8,9 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { discard } from './__fixtures__/scratch-dir.js';
 import { guardDisk, isClean, MAX_SNAPSHOT_BYTES } from './diskguard.js';
 
+/** The environment without git's own variables: lefthook's pre-push exports `GIT_DIR`, and a scratch `git init` must not inherit it (scripts/git-env-lock.test.ts). */
+const withoutGit = (): NodeJS.ProcessEnv => Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')));
+
 let root: string;
 const write = (rel: string, text: string): void => {
   mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
@@ -21,9 +24,9 @@ beforeEach(() => {
   write('package.json', '{ "name": "compat-oracle" }\n');
   write('src/vendor.ts', 'export const staging = (live: string) => `${live}.vendoring`;\n');
   write('.gitignore', '.grade-*\n');
-  execFileSync('git', ['init', '-q'], { cwd: root });
-  execFileSync('git', ['add', '.'], { cwd: root });
-  execFileSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-q', '-m', 'init'], { cwd: root, env: { ...process.env, GIT_DIR: undefined, GIT_WORK_TREE: undefined } });
+  execFileSync('git', ['init', '-q'], { cwd: root, env: withoutGit() });
+  execFileSync('git', ['add', '.'], { cwd: root, env: withoutGit() });
+  execFileSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-q', '-m', 'init'], { cwd: root, env: withoutGit() });
 });
 afterEach(() => discard(root));
 
@@ -73,8 +76,8 @@ describe('guardDisk: a write outside the sandbox is found after the unit, and pu
 
 /** Commit what is on disk now, so a guard taken after tracks it. */
 function commit(): void {
-  execFileSync('git', ['add', '-A'], { cwd: root });
-  execFileSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-q', '-m', 'more'], { cwd: root });
+  execFileSync('git', ['add', '-A'], { cwd: root, env: withoutGit() });
+  execFileSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-q', '-m', 'more'], { cwd: root, env: withoutGit() });
 }
 
 describe('guardDisk: each way a project can change is found, and each way back is checked', () => {
