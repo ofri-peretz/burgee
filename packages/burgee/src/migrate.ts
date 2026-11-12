@@ -2252,6 +2252,9 @@ export async function familyVersions(here: string = dirname(fileURLToPath(import
   }
 }
 
+/** The family versions `next` pins to: the tests' injected ones, or those the build wrote beside this module. */
+const gradedVersions = async (options: { versions?: Readonly<Record<string, string>> }): Promise<Readonly<Record<string, string>>> => options.versions ?? (await familyVersions());
+
 /** For each family package, the version from which every release of its graded major exports each subpath: `{ roundel: { './picocolors': '1.1.0' } }`. */
 export type SubpathFloors = Readonly<Record<string, Readonly<Record<string, string>>>>;
 
@@ -2962,7 +2965,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrationReport>
   const refusedFiles = new Set(refused.map((r) => r.file)).size;
   const undeclared = imported.filter((host) => !dependencies.has(host) && only?.has(host) !== true);
 
-  const graded = options.versions ?? (await familyVersions());
+  const graded = await gradedVersions(options);
   const age = await releaseAgeOf(dir);
   const now = options.now ?? new Date();
   const under =
