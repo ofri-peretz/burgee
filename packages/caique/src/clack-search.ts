@@ -6,7 +6,7 @@
  * under what has been typed.
  */
 import { type CommonOptions, formatInstructionFooter, frame, guided, type Keypress, type Option, paint, placeholderOf, type Prompt, run, runValidation, type Validate, withCursor } from './clack-core.js';
-import { boxLook, checkbox, type Choice, findCursor, labelOf, radio, radioLook, REQUIRED, toggled, windowOf } from './clack-list.js';
+import { boxLook, checkbox, type Choice, findCursor, labelOf, radio, radioLook, requiredMessage, toggled, windowOf } from './clack-list.js';
 import { entriesUnder } from './clack-path.js';
 import { type Answer } from './clack-prompts.js';
 import { processFacts } from './runtime.js';
@@ -207,7 +207,7 @@ function searchable<Value>(opts: AutocompleteSharedOptions<Value>, mode: Mode<Va
     initialUserInput: mode.initialUserInput,
     validate: (value) => {
       // Stryker disable next-line ConditionalExpression: only a multiple search is ever required, and its value is always an array
-      if (mode.required === true && Array.isArray(value) && value.length === 0) return REQUIRED;
+      if (mode.required === true && Array.isArray(value) && value.length === 0) return requiredMessage();
       return opts.validate === undefined ? undefined : runValidation(opts.validate, value);
     },
     isActionKey: (_prompt, _char, key) =>

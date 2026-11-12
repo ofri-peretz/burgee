@@ -22,12 +22,19 @@ updates:
     # of it). The hosts and their suite dependencies move only through the re-vendor flow
     # (compat-refresh.yml), never through a version bump here.
     ignore:
-      # `typescript-eslint` declares `typescript: ">=4.8.4 <6.1.0"` — no release of that
-      # line supports TypeScript 7, so a grouped bump to 7.x fails ERESOLVE on every job
-      # in the matrix before a test runs. Proposed and reverted by hand three times
-      # (#5, #31). Drop this entry when typescript-eslint ships a TS 7 peer range.
+      # `typescript-eslint` declares `typescript: ">=4.8.4 <6.1.0"`, and TypeScript 7 ships no
+      # compiler API, which the build's own scripts import (intent `typescript-matrix`). So the
+      # repository builds with the 6.0 line, and a bump past it fails ERESOLVE on every job
+      # before a test runs. Proposed and reverted by hand three times (#5, #31). Drop this entry
+      # when typescript-eslint ships a TS 7 peer range.
       - dependency-name: "typescript"
+        versions: [">=6.1"]
+      # The two other lines `scripts/typescript-matrix.test.ts` grades the published declarations
+      # under. Each alias is one minor line by name; a new line is a new alias, not a bump.
+      - dependency-name: "typescript-5.9"
         versions: [">=6"]
+      - dependency-name: "typescript-7.0"
+        versions: [">=7.1"]
       # next 16.4.x is no longer ignored (D-20261025-next-16-4-1-security). Every 16.4 release's
       # Turbopack production build is OOM-killed on the docs apps (#1088, #1148, #1181, #1210),
       # and 16.3.8 carries GHSA-2464-fhr4-w9xw, GHSA-673q-mjm6-r5xr and GHSA-p3m5-59mp-jv5r,
