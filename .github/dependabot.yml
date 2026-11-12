@@ -60,6 +60,34 @@ updates:
         versions: [">16.17.1 <16.18.0"]
       - dependency-name: "fumadocs-ui"
         versions: [">16.17.1 <16.18.0"]
+      # 2026-11-13, #1512 and #1537: fumadocs-core / fumadocs-ui 16.18.0 and 16.18.4, with
+      # fumadocs-mdx 15.5.0 and 15.5.3, fail the same way — the front-door docs app cannot prerender `/`
+      # ("You need to wrap your application inside `FrameworkProvider`") — on every Build,
+      # Typecheck, Unit Tests and Node 24 cell. Held at 16.17.x / 15.4.x until a release is
+      # shown to build the docs apps (try it in a branch of its own; drop these three entries then).
+      - dependency-name: "fumadocs-core"
+        versions: [">=16.18.0"]
+      - dependency-name: "fumadocs-ui"
+        versions: [">=16.18.0"]
+      - dependency-name: "fumadocs-mdx"
+        versions: [">=15.5.0"]
+      # 2026-11-13, #1512 and #1537: the Interlace plugins. The minor releases of 2026-11-09
+      # (secure-coding 5.6.5 and the rest) reported 285 new errors here, 125 of them "React must
+      # be in scope when using JSX" under the automatic runtime, a false positive; every plugin
+      # then shipped a new major (secure-coding 6, react-features 2, …). Taking the majors is a
+      # migration of this repo's lint config, not a grouped bump: one PR of its own, with
+      # `npm run lint` clean, and these entries go then.
+      - dependency-name: "eslint-plugin-*"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      # 2026-11-13, #1512 and #1537: supports-hyperlinks 5.0.0 is a major. paratext's hyperlink
+      # detection is graded against 4.5.0 (`paratext/src/hyperlinks.test.ts`, A27) under
+      # terminal-link's vendored suite (`suiteDeps` in compat-oracle's hosts.ts), so it moves
+      # with that re-vendor, as the hosts above do.
+      - dependency-name: "supports-hyperlinks"
+      # 2026-11-13, #1537: @commander-js/extra-typings is graded 369 / 369 at the commander
+      # release compat-oracle vendors (commander is ignored above for the same reason). 15.1.0
+      # moves with the commander 15.1 re-vendor and re-grade (#1514), not on its own.
+      - dependency-name: "@commander-js/extra-typings"
       - dependency-name: "commander"
       - dependency-name: "yargs"
       - dependency-name: "yargs-parser"

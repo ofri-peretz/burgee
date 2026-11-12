@@ -27,10 +27,21 @@ import { discard } from './scratch-dir.js';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const LOCK_BUFFER_BYTES = 64 * 1024 * 1024;
-const committedText = execFileSync('git', ['show', 'HEAD:package-lock.json'], { cwd: REPO_ROOT, encoding: 'utf8', maxBuffer: LOCK_BUFFER_BYTES });
-const committed = (): Lock => JSON.parse(committedText) as Lock;
-const write = (lock: Lock): string => `${JSON.stringify(lock, null, 2)}\n`;
 const entry = (fields: object): Lock['packages'][string] => fields;
+const write = (lock: Lock): string => `${JSON.stringify(lock, null, 2)}\n`;
+
+/**
+ * The hoisted consumer of `@emnapi/{core,runtime}` that #1438 broke. It was
+ * `@tailwindcss/oxide-wasm32-wasi`; from tailwindcss 4.3.5 that package bundles its own copies
+ * (`inBundle`), so nothing hoisted resolves to `node_modules/@emnapi/core` and pruning it dangles
+ * nothing. The fixture keeps the incident's shape with a consumer of its own, whatever the
+ * committed lock's tailwind does.
+ */
+const CONSUMER = 'node_modules/@fixture/emnapi-consumer';
+const committedLock = JSON.parse(execFileSync('git', ['show', 'HEAD:package-lock.json'], { cwd: REPO_ROOT, encoding: 'utf8', maxBuffer: LOCK_BUFFER_BYTES })) as Lock;
+committedLock.packages[CONSUMER] = entry({ version: '1.0.0', dependencies: { '@emnapi/core': '^1.11.1', '@emnapi/runtime': '^1.11.1', '@emnapi/wasi-threads': '^1.2.2' } });
+const committedText = write(committedLock);
+const committed = (): Lock => JSON.parse(committedText) as Lock;
 
 /**
  * The committed lock with the hoisted entry of each named package removed. That is exactly what
