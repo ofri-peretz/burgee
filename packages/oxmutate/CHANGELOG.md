@@ -1,5 +1,13 @@
 # oxmutate
 
+## 2.0.1
+
+### Patch Changes
+
+- [#1532](https://github.com/ofri-peretz/burgee/pull/1532) [`4af62e4`](https://github.com/ofri-peretz/burgee/commit/4af62e42013c448e12fa7c7454c84e9b699588b3) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The warm runner writes its progress mark and its result records through descriptors it keeps open, instead of opening and closing both files for every mutant run. On a machine whose endpoint scanner inspects every file close, that open-and-close was most of the warm phase: on burgee's `paratext` (1,415 mutants, about 5,000 test executions) the warm phase fell from 25 s to under 10 s and the whole run from 38 s to about 20 s, with identical verdicts. The mark is padded over the last one, never truncated, and the watchdog reads it in place on every poll. A machine without such a scanner gains less.
+
+- [#1532](https://github.com/ofri-peretz/burgee/pull/1532) [`4af62e4`](https://github.com/ofri-peretz/burgee/commit/4af62e42013c448e12fa7c7454c84e9b699588b3) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The run's stats say what the warm and isolated phases were made of. `warmUnitMs` is the warm servers' time and `warmArmedMs` the part of it inside test runs; the rest is starting workers, collecting files, canaries and hooks. `isolatedByCause` counts what sent each mutant to an isolated run: a static fallback, a watchdog stop, unfinished work, a re-run at 3x, a survivor's confirmation, or a flaky test. The summary prints both, for a phase that ran.
+
 ## 2.0.0
 
 ### Major Changes
