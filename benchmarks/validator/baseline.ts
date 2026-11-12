@@ -1,15 +1,15 @@
 /**
- * Baselines for the validator intent's metrics (`.sdlc/intents/validator/intent.md` V3, V4, V5,
- * V7), measured on the incumbents alone: Zod is the bar, the others are read beside it. One order
+ * Baselines for the validator intent's metrics (`.sdlc/intents/validator/intent.md` Z3, Z4, Z5,
+ * Z7), measured on the incumbents alone: Zod is the bar, the others are read beside it. One order
  * schema is written once per library; each reading runs the same payloads through every library on
  * this machine, in one go.
  *
  *   npx tsx benchmarks/validator/baseline.ts [workdir] > reading.json
  *
- * - V3 throughput: validations per second on a valid and an invalid payload, median of 5.
- * - V4 construction: milliseconds to build the schema 500 times, median of 5.
- * - V5 bundle: min+gzip bytes of the schema and its check, bundled by this repo's esbuild.
- * - V7 type-check: `tsc --extendedDiagnostics` on 500 copies of the schema with an inferred type each,
+ * - Z3 throughput: validations per second on a valid and an invalid payload, median of 5.
+ * - Z4 construction: milliseconds to build the schema 500 times, median of 5.
+ * - Z5 bundle: min+gzip bytes of the schema and its check, bundled by this repo's esbuild.
+ * - Z7 type-check: `tsc --extendedDiagnostics` on 500 copies of the schema with an inferred type each,
  *   under every TypeScript in `TYPESCRIPTS`, each installed on its own beside the fixtures.
  */
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
@@ -21,7 +21,7 @@ import { gzipSync } from 'node:zlib';
 import { spawnSync } from '../spawn.js';
 
 const COPIES = 500;
-/** Every TypeScript the validator has to hold V7 on: the last 5.x, 6, and the native 7. */
+/** Every TypeScript the validator has to hold Z7 on: the last 5.x, 6, and the native 7. */
 const TYPESCRIPTS = ['5.9.3', '6.0.3', '7.0.2'] as const;
 const ERROR_CHARS = 2000;
 const ISO_DATE_CHARS = 10;
@@ -118,7 +118,7 @@ const S${i} = obj({
   items: { type: 'array', items: Item${i}, minItems: 1 },
   payment: { oneOf: [obj({ kind: { const: 'card' }, last4: str({ minLength: 4, maxLength: 4 }) }), obj({ kind: { const: 'bank' }, iban: str({ minLength: 15, maxLength: 34 }) })] },
 }, ['age']);`,
-    // Compiled with `new Function` too. No inferred type, so V7 does not apply.
+    // Compiled with `new Function` too. No inferred type, so Z7 does not apply.
     check: (s) => `ajv.compile(${s})`,
   },
 };

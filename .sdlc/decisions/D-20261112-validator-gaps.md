@@ -18,8 +18,8 @@ with 113 👍 between them, which is the evidence that a format should be a plug
 
 This answers the open question with requests people filed, so "better than Zod" names gaps Zod has
 (PRINCIPLES rule 13). It does not answer speed, bundle size or type-check cost: no tracker holds
-those, and they stay as metrics V3, V4, V5 and V7 to be measured before design. The reading is also
+those, and they stay as metrics Z3, Z4, Z5 and Z7 to be measured before design. The reading is also
 modest in size, tens of 👍 against 454M installs a week, and the intent says so.
 
 **Revisit:** re-read the tracker when design starts; a gap Zod closes in the meantime leaves the
-list and metric V15's twenty.
+list and metric Z15's twenty.

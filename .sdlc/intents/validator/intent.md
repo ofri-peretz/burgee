@@ -66,14 +66,14 @@ ranked by 👍. Declined requests count as much as open ones (PRINCIPLES rule 7)
 | Discriminated unions | #1768 +30 and #1618 +18 declined; #1868 +10 open | `pick`/`omit`/`partial` on them, nested ones, a nested discriminator |
 | Object shape controls | #2623 +68 declined (record with enum keys is partial); #2893 +65 open (all fields nullable); #2062 +29 open (strict by default, deep); #2879 +28 declined and #2732 +8 open (readonly); #475 +11 open | These as one-liners, and strictness as a setting |
 | Formats people ask to add | lat/long #2600 +55, phone #3378 +45, cron #4239 +13, all declined; Temporal #5441 +15, RFC 9557 #4016 +10, BIC #6615 open | A format is a plugin: data, no maintainer needed. The clearest "support X too" signal here |
-| JSON Schema in and out | Six open bugs filed 2026-11-06 to 2026-11-09 alone (#6741, #6742, #6743, #6746, #6749; Gemini `anyOf` #5807): keywords dropped silently, values rejected | An exact round trip, with every loss reported (V10) |
-| Type-level cost and errors | #2663 +36 declined (43 comments, "not assignable to ZodType"); #4611 "excessively deep"; isolated declarations #3751 +13 declined; inference bugs #2325 +18, #2909 +14, #3079 +12 declined | Plain inferred types, isolated-declarations safe (V7) |
-| Standard Schema path | #6610 open: `~standard.validate()` runs async transforms and refinements twice | One pass (V8) |
+| JSON Schema in and out | Six open bugs filed 2026-11-06 to 2026-11-09 alone (#6741, #6742, #6743, #6746, #6749; Gemini `anyOf` #5807): keywords dropped silently, values rejected | An exact round trip, with every loss reported (Z10) |
+| Type-level cost and errors | #2663 +36 declined (43 comments, "not assignable to ZodType"); #4611 "excessively deep"; isolated declarations #3751 +13 declined; inference bugs #2325 +18, #2909 +14, #3079 +12 declined | Plain inferred types, isolated-declarations safe (Z7) |
+| Standard Schema path | #6610 open: `~standard.validate()` runs async transforms and refinements twice | One pass (Z8) |
 | Release safety | #6106 open (a human gate before publish); CVE-2023-54404 in v3, #6653 +8 open | Provenance and a gated release, which this repo already has |
 
 Two cautions. The counts are tens of 👍 on a package with 454M installs a week: Zod is healthy, and
 these are specific gaps, not a vacuum. And the two things most likely to move a team, speed and
-type-check cost, are not in a tracker at all; they are V3, V4, V5 and V7, still to be measured.
+type-check cost, are not in a tracker at all; they are Z3, Z4, Z5 and Z7, still to be measured.
 
 ### Zod's numbers, read 2026-11-12
 
@@ -112,7 +112,7 @@ What it says:
 
 - **Zod leads none of the four.** TypeBox's compiler is about 14 times faster, Valibot is 11 times
   smaller and builds 27 times quicker, and TypeBox costs slightly fewer instantiations. So beating
-  Zod on V3, V4, V5 and V7 is a reachable bar: one library here already clears all four.
+  Zod on Z3, Z4, Z5 and Z7 is a reachable bar: one library here already clears all four.
 - **Nobody leads all four.** The fast ones (TypeBox, ajv, ArkType) carry 23 to 48 KB and compile with
   `new Function`; the small one (Valibot) is the slowest and the costliest to type-check after
   ArkType. An engine that is fast, small and cheap to type-check at once is the open ground.
@@ -150,27 +150,28 @@ what a CSP-safe default is compared against.
 
 ## Success criteria
 
-Every row's target is against **Zod 4**. The other names in the Against column are read with the
+Ids are `Z1`–`Z15`, not `V…`: the family's floor ids already use `V`
+(`scripts/run-evals.ts`). Every row's target is against **Zod 4**. The other names in the Against column are read with the
 same script and published beside it, win or lose. Leading metrics run on every PR as
 control bands; lagging metrics run weekly and at each phase end. `TBM`: to be measured before design.
 
 | ID | Metric | Kind | Definition | Against | Baseline | Target |
 | :-- | :-- | :-- | :-- | :-- | :-- | :-- |
-| V1 | Suite parity | Leading | Share of the incumbent's own tests passing through its drop-in façade | Zod 4 | — (reference) | 100% of the claimed subset |
-| V2 | JSON Schema conformance | Leading | JSON-Schema-Test-Suite 2020-12 pass rate | Zod 4 (`z.fromJSONSchema`); ajv, TypeBox | TBM | > Zod |
-| V3 | Throughput | Leading | Validations per second, valid and invalid payloads, median of 5 | all six | Zod: 1.28M valid, 0.75M invalid | > Zod |
-| V4 | Schema construction | Leading | Time to build the bench schema 500 times | Zod 4, Valibot, ArkType, TypeBox, ajv | Zod: 48.4 ms | < Zod |
-| V5 | Bundle bytes | Leading | Min+gzip of the bench schema and its check, bundled and tree-shaken | all six | Zod: 27,454 B | < Zod |
-| V6 | Install size and deps | Leading | Unpacked bytes and runtime dependencies | all six | Zod: 6.15 MB, 0 deps (smallest read: arktype, 0.35 MB) | < Zod; 0 deps |
-| V7 | Type-check cost | Leading | `tsc` instantiations and check time on 500 copies of the bench schema, each with its inferred type, under every supported TypeScript | Zod 4, Valibot, ArkType, TypeBox | Zod: 332,209 instantiations on 5.9 and 6.0, 331,710 on 7.0 | < Zod on each of 5.9, 6.0 and 7.0 |
-| V8 | Standard Schema | Leading | Standard Schema and Standard JSON Schema conformance cases passing | all that implement it | TBM | 100% |
-| V9 | Error quality | Leading | Share of errors carrying a JSON Pointer, the keyword and a `fix:` line | all six | TBM | 100%, > Zod |
-| V10 | Lossless export | Leading | Refinements and transforms dropped silently on export to JSON Schema | Zod 4 (`z.toJSONSchema`) | TBM | 0 |
-| V11 | Agent authoring | Lagging | Eval: schemas an agent writes correctly in one turn, and errors it repairs in one turn | Zod 4, Valibot, ArkType | TBM | > Zod |
-| V12 | Migrations | Lagging | Public repos that replaced an incumbent | — | 0 | Tracked weekly |
-| V13 | Upstream tracking | Lagging | Days from an incumbent's release to its suite re-graded | — | — | ≤ 7 |
-| V15 | Requests Zod left open | Leading | Of Zod's 20 most-upvoted open or declined requests (the table in Why now), the share that work here, each with a test | Zod 4 | 0 of 20 by definition | ≥ 15, and the rest refused in writing |
-| V14 | Fix time | Lagging | Median days from an accepted issue to its release | Zod's median | TBM | < Zod |
+| Z1 | Suite parity | Leading | Share of the incumbent's own tests passing through its drop-in façade | Zod 4 | — (reference) | 100% of the claimed subset |
+| Z2 | JSON Schema conformance | Leading | JSON-Schema-Test-Suite 2020-12 pass rate | Zod 4 (`z.fromJSONSchema`); ajv, TypeBox | TBM | > Zod |
+| Z3 | Throughput | Leading | Validations per second, valid and invalid payloads, median of 5 | all six | Zod: 1.28M valid, 0.75M invalid | > Zod |
+| Z4 | Schema construction | Leading | Time to build the bench schema 500 times | Zod 4, Valibot, ArkType, TypeBox, ajv | Zod: 48.4 ms | < Zod |
+| Z5 | Bundle bytes | Leading | Min+gzip of the bench schema and its check, bundled and tree-shaken | all six | Zod: 27,454 B | < Zod |
+| Z6 | Install size and deps | Leading | Unpacked bytes and runtime dependencies | all six | Zod: 6.15 MB, 0 deps (smallest read: arktype, 0.35 MB) | < Zod; 0 deps |
+| Z7 | Type-check cost | Leading | `tsc` instantiations and check time on 500 copies of the bench schema, each with its inferred type, under every supported TypeScript | Zod 4, Valibot, ArkType, TypeBox | Zod: 332,209 instantiations on 5.9 and 6.0, 331,710 on 7.0 | < Zod on each of 5.9, 6.0 and 7.0 |
+| Z8 | Standard Schema | Leading | Standard Schema and Standard JSON Schema conformance cases passing | all that implement it | TBM | 100% |
+| Z9 | Error quality | Leading | Share of errors carrying a JSON Pointer, the keyword and a `fix:` line | all six | TBM | 100%, > Zod |
+| Z10 | Lossless export | Leading | Refinements and transforms dropped silently on export to JSON Schema | Zod 4 (`z.toJSONSchema`) | TBM | 0 |
+| Z11 | Agent authoring | Lagging | Eval: schemas an agent writes correctly in one turn, and errors it repairs in one turn | Zod 4, Valibot, ArkType | TBM | > Zod |
+| Z12 | Migrations | Lagging | Public repos that replaced an incumbent | — | 0 | Tracked weekly |
+| Z13 | Upstream tracking | Lagging | Days from an incumbent's release to its suite re-graded | — | — | ≤ 7 |
+| Z15 | Requests Zod left open | Leading | Of Zod's 20 most-upvoted open or declined requests (the table in Why now), the share that work here, each with a test | Zod 4 | 0 of 20 by definition | ≥ 15, and the rest refused in writing |
+| Z14 | Fix time | Lagging | Median days from an accepted issue to its release | Zod's median | TBM | < Zod |
 
 Done when every leading row holds on `main` against Zod, and the first lagging readings are
 published.
@@ -180,7 +181,7 @@ published.
 - ~~Which gap does Zod actually leave?~~ Answered 2026-11-12 from Zod's own tracker
   ([`D-20261112-validator-gaps`](../../decisions/D-20261112-validator-gaps.md)); the table is in Why
   now. Speed and type-check cost are metrics, not questions.
-- **How much of Zod's API is the drop-in subset** V1 claims?
+- **How much of Zod's API is the drop-in subset** Z1 claims?
 - **Where does it land relative to `apicontract`'s phases?** `apicontract` generates it in its Phase 2, so its contract-first side has to exist by then.
 - **Does it need a Quint model?** Likely not (stateless), unless async refinements or streaming
   validation come into scope.
