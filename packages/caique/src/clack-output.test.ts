@@ -32,6 +32,7 @@ import {
   S_SUCCESS,
   S_WARN,
   settings,
+  updateSettings,
 } from './clack-core.js';
 import { cancel, group, intro, log, note, outro, spinner, stream, tasks } from './clack-output.js';
 
@@ -607,6 +608,13 @@ describe('group', () => {
  * follow — no glyph, no guide bar, no escape — one line per start and ending, and a reminder
  * every 30 s that names the latest message.
  */
+/** An unguided spinner started on `x` and stopped on `y`, with nothing chosen for it. */
+function plain(output: Output): void {
+  const spin = spinner({ output, withGuide: false });
+  spin.start('x');
+  spin.stop('y');
+}
+
 describe('an accessible spinner', () => {
   it('writes the start, a reminder every 30 s, and the ending, as plain lines', () => {
     vi.useFakeTimers();
@@ -645,6 +653,28 @@ describe('an accessible spinner', () => {
         spin[end]();
       });
       expect(text).toBe(`Working\n${line}\n`);
+    }
+  });
+
+  it('clears without a line, as a silent ending does', () => {
+    const text = capture((output) => {
+      const spin = spinner({ output, accessible: true });
+      spin.start('Working');
+      spin.clear();
+    });
+    expect(text).toBe('Working\n');
+  });
+
+  it('is turned on by the setting, which later settings leave alone and which outranks ACCESSIBLE', () => {
+    try {
+      updateSettings({ accessible: true });
+      updateSettings({ withGuide: true });
+      expect(capture(plain)).toBe('x\ny\n');
+      vi.stubEnv('ACCESSIBLE', '1');
+      updateSettings({ accessible: false });
+      expect(capture(plain)).toBe(`◒  x...\n${S_STEP_SUBMIT}  y\n`);
+    } finally {
+      settings.accessible = undefined;
     }
   });
 

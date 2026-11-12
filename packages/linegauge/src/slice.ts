@@ -314,7 +314,7 @@ export function slice(string: string, start = 0, end = Number.POSITIVE_INFINITY)
   // before it: a cut that takes the openers back takes back what the links did after them too.
   let pendingAt: number | undefined;
   let pendingActive = active;
-  let pendingLink: LinkState = { link: undefined, linked: false, linkAt: 0 };
+  let pendingLink: LinkState | undefined;
   let column = 0;
   // Stryker disable next-line StringLiteral: replaced when the slice starts, and returned only after it has
   let body = '';
@@ -333,7 +333,7 @@ export function slice(string: string, start = 0, end = Number.POSITIVE_INFINITY)
     // Stryker disable next-line EqualityOperator,ConditionalExpression: an opener and a link are never recorded at the same offset — each one written moves `body` on — and `undefined > linkAt` is false, so the first check only names the case
     if (pendingAt !== undefined && pendingAt > linkAt) pendingAt -= length;
     // The opener is gone from `body`, so a rollback must not restore a link that points at it.
-    if (pendingLink.link === open) pendingLink = { link: undefined, linked: false, linkAt: 0 };
+    if (pendingLink?.link === open) pendingLink = undefined;
     forgetLink();
   };
   const settleLink = (open: Link): void => {
@@ -410,7 +410,8 @@ export function slice(string: string, start = 0, end = Number.POSITIVE_INFINITY)
       if (pendingAt !== undefined) {
         body = body.slice(0, pendingAt);
         active = pendingActive;
-        ({ link, linked, linkAt } = pendingLink);
+        link = pendingLink?.link;
+        if (link !== undefined) ({ linked, linkAt } = pendingLink as LinkState);
       }
       return true;
     }

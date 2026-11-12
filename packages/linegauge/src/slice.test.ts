@@ -387,6 +387,23 @@ describe('slice-ansi 10.0.1 at its edges', () => {
     expect(sliceAnsi(input, 0, 2)).toBe(`${open}A${close}`);
   });
 
+  // A link the cut took back out before the rollback stays out: the rollback must not restore it
+  // and then remove its opener's length a second time from what is left.
+  it('does not restore a link that was already taken back out', () => {
+    const input = `A${open}${ESC}[2K${ESC}[31m${close}\u{1F600}`;
+    expect(slice(input, 0, 2)).toBe(`A${ESC}[2K`);
+    expect(sliceAnsi(input, 0, 2)).toBe(`A${ESC}[2K`);
+  });
+
+  // The URI starts after the first `;` past the parameters, so a URI may itself end in `;`.
+  it('opens a link whose URI ends in a semicolon', () => {
+    const input = `a${ESC}]8;;x;${BELL}b${close}c`;
+    for (const [start, end] of [[1, 2], [0, 3]] as const) {
+      expect(slice(input, start, end), `[${String(start)}, ${String(end)})`).toBe(sliceAnsi(input, start, end));
+    }
+    expect(slice(input, 1, 2)).toBe(`${ESC}]8;;x;${BELL}b${close}`);
+  });
+
   // A style between the two halves of a surrogate pair rides inside the one code point they make.
   it('keeps a surrogate pair whole when a style separates its halves', () => {
     const input = `\uD800${ESC}[31m\uDC00ABC`;

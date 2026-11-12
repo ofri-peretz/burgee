@@ -46,6 +46,20 @@ describe('@inquirer/select 5.3.0 and @inquirer/rawlist 5.4.0', () => {
     await expect(answer).resolves.toBe(2);
   });
 
+  it('selects a two-digit index', async () => {
+    const { answer, events } = await render(select, { message: 'Select a number', choices });
+    events.type('12');
+    events.keypress('enter');
+    await expect(answer).resolves.toBe(12);
+  });
+
+  it('refuses a signed index, which parseInt would read', async () => {
+    const { events, getScreen } = await render(rawlist, { message: 'Select a number', choices: choices.slice(0, 5) });
+    events.type('+2');
+    events.keypress('enter');
+    expect(getScreen()).toContain('> "+2" isn\'t an available option');
+  });
+
   it('refuses a line that only starts with a valid index', async () => {
     const { events, getScreen } = await render(rawlist, { message: 'Select a number', choices: choices.slice(0, 5) });
     events.type('2x');
