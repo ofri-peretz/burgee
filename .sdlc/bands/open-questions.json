@@ -1,6 +1,6 @@
 {
-  "ceiling": 0,
-  "measured": "2026-09-20",
-  "why": "Zero open. 102 first read, 94 once items carrying their own answer stopped counting, 70 after the package design questions (D-013..D-033), 45 after the infrastructure ones (D-034..D-049), 0 after the last sweep (D-056..D-072). The ceiling at zero is the point: the next question raised is visible the moment it is raised, and it either closes in .sdlc/DECISIONS.md or this number moves deliberately with the reason beside it. A backlog is only invisible while nothing counts it.",
+  "ceiling": 4,
+  "measured": "2026-11-11",
+  "why": "Four open, all in the `validator` intent opened 2026-11-11 (D-20261111-layer-bar): the gap Zod leaves, the drop-in subset, where it lands against apicontract's phases, and whether it needs a model. None can close by decision alone: the first waits on a measurement, the rest on the owner. Raised from 0 so they are counted rather than written as closed; it returns to 0 as each closes. Before: Zero open. 102 first read, 94 once items carrying their own answer stopped counting, 70 after the package design questions (D-013..D-033), 45 after the infrastructure ones (D-034..D-049), 0 after the last sweep (D-056..D-072). The ceiling at zero is the point: the next question raised is visible the moment it is raised, and it either closes in .sdlc/DECISIONS.md or this number moves deliberately with the reason beside it. A backlog is only invisible while nothing counts it.",
   "closedIn": ".sdlc/decisions/"
 }

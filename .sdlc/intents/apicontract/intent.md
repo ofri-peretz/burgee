@@ -1,4 +1,4 @@
-# Intent — `apicontract`: the contract toolkit for coding agents, on burgee
+# Intent — `apicontract`: a CLI that turns specs into code and code into specs, through plugins
 
 > Stage 1 artifact of the AI-native SDLC. Opened 2026-11-06 after a scan of the JS/TS contract
 > tooling landscape. Named for the category people already search, "API contract", which covers
@@ -13,24 +13,33 @@ Design: [`spec.md`](./spec.md) · Metrics: [`metrics.md`](./metrics.md) · Roadm
 
 ---
 
-> **One contract tool for every API in your repo** — OpenAPI, AsyncAPI/WebSocket, JSON Schema, MCP,
-> and Zod/TypeBox/NestJS with no spec file. It tells you and your agent what breaks and for whom,
-> under the compatibility rule you choose, and where your code already disagrees with the contract.
-> Local, static, free, and no dependencies outside the burgee family.
+> **A CLI that turns your specs into code, and your code into specs.** Point it at the OpenAPI, AsyncAPI or JSON Schema you
+> already have and it generates what your team would otherwise write by hand: TypeScript types, a
+> JS/TS validator or plain JSON Schema for ajv, NestJS modules, and whatever a plugin adds. Point it
+> at the code you already have (validator schemas, NestJS controllers, Hono or Fastify routes) and it
+> writes the spec. Every generator and extractor is a plugin, ours included, so anyone can write one. Local, free, and no dependencies
+> outside the burgee family.
 
-Every claim in that statement was checked against the field on 2026-11-06; the per-competitor
-verdicts are in [`landscape.md` § Competitor review](./landscape.md#competitor-review--where-the-value-is-significant).
+That is the owner's definition, given 2026-11-11 ([`D-20261112-apicontract-is-a-generator`](../../decisions/D-20261112-apicontract-is-a-generator.md)). It replaces
+the statement this intent opened with on 2026-11-06, "one contract tool for every API in your repo",
+which led with `diff` and `explain`. Those commands stay in the plan behind the generators. The
+competitor verdicts of 2026-11-06 are in
+[`landscape.md` § Competitor review](./landscape.md#competitor-review--where-the-value-is-significant);
+the generator and plugin claims above have not been checked against the field in the same way yet
+(see Open questions).
 
 ## What is wanted
 
-One CLI, built on burgee, that reads every kind of API contract a TypeScript team ships and does
-every contract job an agent needs, with one vocabulary:
+One CLI, built on burgee, that reads the specs a TypeScript team already has and generates code from
+them, and specs from their code, through plugins. `gen` and `extract` are the product; the other commands read the same contracts and come
+after it ([`roadmap.md`](./roadmap.md)):
 
 | Command | Job | Incumbent it beats |
 | :-- | :-- | :-- |
+| `gen` | Spec → code, one plugin per target: TypeScript types (the migration path off openapi-typescript), our validator, JSON Schema for ajv, NestJS modules, then more | openapi-typescript (maintenance mode), hey-api, openapi-generator's NestJS server (beta), json-schema-to-typescript, Modelina |
+| `extract` | Code → spec, one plugin per source: our validator's schemas, Zod, NestJS, Hono, Express, Fastify, tRPC/oRPC; round trip with `gen` verified | @nestjs/swagger, zod-to-openapi, @hono/zod-openapi, tsoa (one framework each) |
 | `diff` | Breaking-change verdict between two refs, under the compatibility mode and side (caller or server) you pick; code-first contracts across git refs with no spec file | oasdiff, Redocly CLI `diff` (2026-10-28), Atlassian openapi-diff (stale), Optic (archived), `@asyncapi/diff`, mcpdiff |
 | `explain` | One operation, message or tool, fully resolved and size-capped, for an agent's context | reading the raw spec; kadykov schema-explorer, oasdiff's hosted MCP |
-| `gen` | Spec → TypeScript types; the migration path off openapi-typescript | openapi-typescript (maintenance mode), json-schema-to-typescript, Modelina |
 | `check` | Code call sites against the contract, statically, no running server | PactFlow bi-directional (paid), Specmatic (Enterprise for non-OpenAPI), apibreak |
 | `lint` | Spec rules with `fix:` lines, reading Spectral rulesets (only on pull) | Spectral, Redocly CLI, vacuum |
 
@@ -68,10 +77,13 @@ These are dated observations, not measurements. The first measurements are the P
 
 ## Affected users and systems
 
-- **Primary persona:** a coding agent working in a TypeScript repo, and the tech lead who gates it.
-  The agent needs the contract truth, and the lead needs a check that fails when the agent invents
-  an endpoint, a field or a tool argument.
+- **Primary persona:** an engineering team that has specs and writes the matching types, validators
+  and server modules by hand, or with generators that overwrite their code on every run.
 - **Secondary persona:** an openapi-typescript user who is blocked on TypeScript 7.
+- **Plugin authors:** anyone who wants a generator for their stack, including coding agents: the
+  bar is that an agent writes a passing plugin in one turn (PRINCIPLES rule 7).
+- **Coding agents as callers:** every command answers `--json`, `--schema` and `--mcp`; the agent
+  claims for `explain` and `check` are measured in their own phases.
 - **Customer zero:** burgee itself (CLI contracts through `diff`) and snappy-client-dashboard
   (OpenAPI clients, JSON Schema URL contracts that PostHog payloads share).
 - **Repo:** one package per purpose (diff, gen, extract, schema, check, and the umbrella `apicontract`), with extensions such as `apicontract-gen-nest` — see [`spec.md` § Packages](./spec.md#packages--one-per-purpose-r-p)
@@ -98,18 +110,26 @@ These are dated observations, not measurements. The first measurements are the P
 
 1. **SC1:** `apicontract gen` output is byte-identical to openapi-typescript on 100% of
    openapi-typescript's own fixtures, graded by `compat-oracle`.
-2. **SC2:** On the agent eval, the arm with `apicontract` beats the arm without it on invented
-   endpoints, invented fields and tokens per task, by the margins set in Phase 0.
-3. **SC3:** `diff` agrees with oasdiff on oasdiff's own test corpus at or above the Phase 0
-   target, and every disagreement is explained in `bench/disagreements.json`.
-4. **SC4:** Run over the published version history of 10 popular MCP servers, `diff` finds at least
-   one breaking change that shipped without a major version bump.
-5. **SC5:** Each new contract family lands as one adapter folder with zero lines changed in the
+2. **SC2:** Our own generators are plugins written only against the public plugin API; a lock fails
+   the build when one reaches an internal (R-EX5).
+3. **SC3:** From one spec, `gen validator` and `gen json-schema` both produce output that accepts
+   and rejects the same payloads on the fixture corpus, and the JSON Schema runs in ajv unchanged.
+4. **SC4:** The round trip holds: `extract(gen(spec))` equals `spec` after normalisation on every
+   corpus document, and no refinement, transform or decorator is dropped without a finding (R-RT).
+5. **SC5:** Regenerating NestJS modules after a spec change edits zero lines of user-owned code, and
+   every generated operation has a passing contract test.
+6. **SC6:** An agent given the plugin schema and one example writes a plugin that passes the
+   conformance suite in one turn, measured weekly.
+7. **SC7:** Each new input format or generator lands as one folder with zero lines changed in the
    core (`git diff --stat` on the PR).
-6. **SC6:** Every leading metric in [`metrics.md`](./metrics.md) is measured on every PR, and every
-   lagging metric weekly. Each one is a control band.
-7. **SC7:** Every Quint model passes `--invariant=safety` in `models.yml`, and each package's
+8. **SC8:** Every leading metric in [`metrics.md`](./metrics.md) is measured on every PR, and every
+   lagging metric weekly. Each one is a control band, and each beats the competitor it names.
+9. **SC9:** Every Quint model passes `--invariant=safety` in `models.yml`, and each package's
    oxmutate score is at or above its floor in `mutation-ratchets.json`.
+10. **SC10 (phases 5 to 7):** on the agent eval, the arm with `explain` beats the arm without it;
+   `diff` agrees with oasdiff on its own corpus at the Phase 0 target with every disagreement
+   explained; and over the version history of 10 popular MCP servers `diff` finds at least one
+   breaking change that shipped without a major version bump.
 
 ## Open questions
 
@@ -126,5 +146,5 @@ answer. `apicontract` is the working name; the final name is decided before the 
   ([`phase0.md`](./phase0.md)).
 - Does `diff` use oasdiff's rule ids or our own? Decided:
   [`D-20261106-apicontract-diff-rule-ids`](../../decisions/D-20261106-apicontract-diff-rule-ids.md).
-- Which MCP servers form the SC4 corpus? Decided:
+- Which MCP servers form the SC10 corpus? Decided:
   [`D-20261106-apicontract-mcp-corpus`](../../decisions/D-20261106-apicontract-mcp-corpus.md).

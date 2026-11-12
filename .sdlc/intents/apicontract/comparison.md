@@ -344,7 +344,7 @@ generator covering OpenAPI and AsyncAPI (R-NE).
    tools, and sends tool names and descriptions to Snyk's API
    ([GitHub](https://github.com/snyk/agent-scan), [AppSec Santa](https://appsecsanta.com/mcp-scan),
    [Rubinlake](https://rubinlake.com/en/technology-radar/ai-security-and-governance/agent-scan)).
-2. [`roadmap.md`](./roadmap.md) Phase 3 matches mcp-lint's rule set; the testing review said the
+2. [`roadmap.md`](./roadmap.md) Phase 6 matches mcp-lint's rule set; the testing review said the
    per-client matrix was not planned. The roadmap wins; the per-client matrix needs a confirmed owner.
 3. The two reviews cite different repos (`celaldrg/mcpdiff` in [`landscape.md`](./landscape.md),
    `samlader/mcpdiff` in the testing review); which is canonical was not checked.
@@ -506,11 +506,11 @@ generator covering OpenAPI and AsyncAPI (R-NE).
 - **Snyk agent-scan.** Security scan of MCP configs for tool poisoning, prompt injection and toxic flows.
   Missing: offline mode (sends tool descriptions to Snyk). **Active.** Path: none; not planned.
 - **mcp-lint.** Per-client compatibility rules for 8 clients, diff, SARIF, offline. Missing: reach (1
-  star). **Active.** Path: its rule set is the Phase 3 floor.
+  star). **Active.** Path: its rule set is the Phase 6 floor.
 - **mcp-tools-lint.** Small MCP linter. Not reviewed. Path: none.
 - **mcpdiff.** Feature-complete MCP diff: direction-aware rules, annotation weakening, description drift,
   live, snapshot or git input, stable rule ids. Missing: reach (5 a week, one release). Path: its rule set
-  is the Phase 3 floor; if one MCP diff tool clearly leads before Phase 3, we adopt its snapshot format
+  is the Phase 6 floor; if one MCP diff tool clearly leads before Phase 6, we adopt its snapshot format
   ([`roadmap.md`](./roadmap.md)).
 - **MCP registry.** Server metadata (`server.json`), not tool schemas. Path: none; tool-schema snapshots
   and gating have no incumbent here beyond mcpdiff and mcp-lint.
@@ -569,7 +569,7 @@ exist with near-zero users; Ph3).
 | Speed of a Go linter with daily releases | vacuum | Ph7 lint, on request | Intentional: lint is table stakes, not the pitch |
 | Spectral ruleset ecosystem | Spectral, vacuum, IBM, Redocly | Read in `check` (Ph4); full `lint` Ph7 | Risk, medium: parity is only promised after an outside request |
 | Usage-aware GraphQL breaking changes | graphql-inspector + Hive | Wrapped verdicts (Ph5) | Intentional; Hive usage data stays hosted |
-| Per-client MCP compatibility matrix | mcp-lint | Phase 3 floor in the roadmap | Risk: the two reviews disagree on whether it is planned |
+| Per-client MCP compatibility matrix | mcp-lint | Phase 6 floor in the roadmap | Risk: the two reviews disagree on whether it is planned |
 | MCP security scanning (tool poisoning) | Snyk agent-scan | Not planned | Unplanned: neither cut nor scheduled |
 | Arazzo workflows and Respect contract tests | Redocly, Spectral, vacuum, Bump.sh | Not planned | Unplanned: Arazzo is not in the protocol list |
 | Interactive MCP debugging | MCP Inspector | Not planned | Intentional: complement |

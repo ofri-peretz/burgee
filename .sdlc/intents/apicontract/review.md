@@ -8,6 +8,17 @@ Read: every file in this folder except `comparison.md` (headings only) and the t
 (not run), plus `packages/apicontract` on `main` and PRs #1486 and #1487. Every market number below
 was re-read on 2026-11-11 with the commands in [`landscape.md`](./landscape.md) and `gh api`.
 
+## Correction, 2026-11-12
+
+This review read the product from `intent.md` as it stood: a contract tool that leads with `diff`
+and `explain`. The owner's definition is a CLI that turns specs into generated code through plugins
+([`D-20261112-apicontract-is-a-generator`](../../decisions/D-20261112-apicontract-is-a-generator.md)).
+So two things below are wrong and are withdrawn: the verdict row that files the NestJS generator,
+the runtime validator and the plugin kit under "no evidence, park", and recommendation 3's list of
+what to park, for R-EX, R-NE, R-SC and R-TE's generate side. What stands: F1, F2, F4 and F6, the
+market readings, and F5's narrower point that those pieces still have no demand reading, which is
+now owed as a measurement, not a reason to park them.
+
 ## Verdict
 
 One part of this is something the JS/TS community demonstrably needs today, one part is a
@@ -19,7 +30,7 @@ packages in one day without a single new measurement.
 | :-- | :-- | :-- | :-- |
 | `gen`, a TS 7-safe drop-in for openapi-typescript | **Proven, urgent, contested** | 16.7M installs a week; author told users to migrate and named no successor (#2874); TS 7 crash open with 58 👍 (#2841); TypeScript's `latest` tag is 7.0.2; hey-api crashes on TS 7 too (#4235, 46 👍, no release since 2026-09-30) | The only piece with users asking |
 | `diff` for OpenAPI | Moderate | ~331k a week on dead tools (openapi-diff 242k, Optic 89k); but oasdiff shipped 1.36 and 1.37 in the last four days and Redocly (4.3M a week) now ships a diff | A migration target, not a vacuum |
-| `diff` for MCP and code-first | **Unknown** | The cited entrants have no users: apibreak 9 a week, specdrift 77. That shows supply | SC4 is the probe, and it needs no product |
+| `diff` for MCP and code-first | **Unknown** | The cited entrants have no users: apibreak 9 a week, specdrift 77. That shows supply | SC4 (SC10 since 2026-11-12) is the probe, and it needs no product |
 | `explain` and the agent claim | **Unknown; this is the core bet** | A5–A7 have no reading. Two eval cases written, none run | Cheapest thing here to test |
 | `check` (static call sites) | Plausible, unoccupied | No free static tool exists; no demand count either | Keep at Phase 4 |
 | NestJS generator, runtime validator, synthetic checks, contract-aware lint, plugin kit, per-protocol CLIs | **No evidence** | Each rests on "no tool does this" | Park |
@@ -94,9 +105,9 @@ audience size, not a count of people looking for a successor. The 👍 counts ar
 ## Recommendation
 
 1. **Run the two cheap probes before any more design.** (a) The agent eval: 20 cases on the
-   harbour fixture, arm without the tool against an arm with a prototype `explain`. (b) SC4: diff
+   harbour fixture, arm without the tool against an arm with a prototype `explain`. (b) SC4 (SC10 since 2026-11-12): diff
    the published `tools/list` histories of the ten MCP servers with a script. Each is days, and each
-   either earns its phase or removes it. A positive SC4 is also a publishable finding (rule 11).
+   either earns its phase or removes it. A positive SC4 (SC10 since 2026-11-12) is also a publishable finding (rule 11).
 2. **Decide `gen` now, either way.** Lead with it (Phase 1, graded against openapi-typescript's
    own fixtures, published with provenance) or drop the drop-in claim and name `openapi-typesafe`
    as the path. Second place behind a fork that is already at rc.5 is the outcome to avoid.
@@ -113,4 +124,6 @@ audience size, not a count of people looking for a successor. The 👍 counts ar
   ([`D-20261111-apicontract-gen-first`](../../decisions/D-20261111-apicontract-gen-first.md)); F3 and
   the kill-rule gap are closed in [`roadmap.md`](./roadmap.md).
 - Whether the skeleton stays on `main` while the intent is a draft (F1).
-- The parked list (recommendation 3).
+- The parked list (recommendation 3). **Owner direction 2026-11-11: the runtime validator is not
+  parked.** We do not use Zod and build our own ([`D-20261111-apicontract-own-validator`](../../decisions/D-20261111-apicontract-own-validator.md)).
+  The finding stands that its demand is unmeasured; the decision names the reading that is owed.

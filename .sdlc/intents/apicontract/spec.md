@@ -3,6 +3,9 @@
 Intent: [`intent.md`](./intent.md) · Metrics: [`metrics.md`](./metrics.md) · Roadmap:
 [`roadmap.md`](./roadmap.md). **Status:** draft.
 
+The product is the generator, the extractor and their plugins: spec → code and code → spec ([`D-20261112-apicontract-is-a-generator`](../../decisions/D-20261112-apicontract-is-a-generator.md));
+the order things are built in is the roadmap's, not the order of the sections below.
+
 ---
 
 ## Requirements
@@ -96,7 +99,7 @@ that workflow's `paths:` list.
   to finish. The model corrected the first draft: the same edge is inlined on one path and kept as a
   cycle `$ref` on another, so handling is per occurrence, never per edge. Consequence: `explain`
   (inlines) and `gen` (emits named component types) never share an edge-level cache.
-- **R-Q4 `guard.qnt`** (Phase 5). Runtime gate: a payload is forwarded only after a passing verdict,
+- **R-Q4 `guard.qnt`** (with the validator, if its intent finds state to model). Runtime gate: a payload is forwarded only after a passing verdict,
   and a schema swap mid-stream never validates a message against a mix of two schemas.
 
 ### oxmutate (R-M)
@@ -124,7 +127,7 @@ that workflow's `paths:` list.
 
 Owner direction 2026-11-07: **one package per purpose, as in the rest of the burgee family**,
 **everything that can be an extension is one**, and **code generators are extensions of the main
-CLI** (`apicontract gen nest`, `apicontract gen zod`, `apicontract gen ts`). A technology extension
+CLI** (`apicontract gen nest`, `apicontract gen ts`). A technology extension
 does more than generate: it also reads the spec back out of that technology and finds the entry
 points that violate it, so `apicontract check` can gate CI (R-TE). Names are working names (`apicontract-*`); the final
 names are chosen before the first publish ([`phase0.md`](./phase0.md)).
@@ -132,13 +135,13 @@ names are chosen before the first publish ([`phase0.md`](./phase0.md)).
 | Package | Purpose | Extension points it hosts | Lands |
 | :-- | :-- | :-- | :-- |
 | `@interlace/contract-model` (internal) | The protocol-neutral model, `$ref` resolver (`adapter.qnt`), and the extension API (`defineAdapter`, `defineEmitter`, `defineReader`, `defineRule`) | Protocol adapters: OpenAPI, JSON Schema, AsyncAPI, MCP, OpenRPC, … | Phase 1 |
-| `apicontract-diff` | What breaks and for whom, under a chosen mode and side; `explain` (a resolved, size-capped slice for agents) | Diff rules (oasdiff rule ids built in) | Phase 2 |
-| `apicontract-extract` | **Code → spec.** Hosts readers; emits OpenAPI 3.1/3.2, AsyncAPI 3, JSON Schema 2020-12 | Readers: Standard Schema (Zod, Valibot, ArkType), TypeBox, NestJS decorators, Hono, tRPC/oRPC | Phase 3 |
-| `apicontract-schema` | Runtime validation built from the model (R-SC); absorbs the old `guard` | — | Phase 3 |
-| `apicontract-check` | Call sites in code that disagree with the contract; native oxc core as oxmutate ships | Call-site matchers (HTTP, socket, MCP) | Phase 4 |
+| `apicontract-diff` | What breaks and for whom, under a chosen mode and side; `explain` (a resolved, size-capped slice for agents) | Diff rules (oasdiff rule ids built in) | Phase 5 |
+| `apicontract-extract` | **Code → spec.** Hosts readers; emits OpenAPI 3.1/3.2, AsyncAPI 3, JSON Schema 2020-12 | Readers: Standard Schema (Zod, Valibot, ArkType), TypeBox, NestJS decorators, Hono, tRPC/oRPC | Phase 2 |
+| `apicontract-schema` | The contract-first front door of our own validator ([`validator/intent.md`](../validator/intent.md)): validators compiled from the model (R-SC); absorbs the old `guard` | — | Phase 2 |
+| `apicontract-check` | Call sites in code that disagree with the contract; native oxc core as oxmutate ships | Call-site matchers (HTTP, socket, MCP) | Phase 7 |
 | `apicontract` | The main CLI: one install, one `--mcp`, one `--skill` for agents. Owns `gen` (**spec → code**) and dispatches to whichever purpose packages are installed; a missing one fails with a `fix:` line naming the install | **Code generators** (emitters) | Phase 1 |
 | `apicontract-gen-ts` | Generator extension of the main CLI: TypeScript types (`--compat openapi-typescript`), the openapi-typescript migration path | — | Phase 1 |
-| `apicontract-zod` | Technology extension (R-TE): Zod schemas from the spec, the spec from Zod, and drift between them | — | Phase 2 |
+| `apicontract-zod` | Technology extension (R-TE): the spec from Zod, and drift between them. It reads Zod and never generates it (R-SC0) | — | Phase 2 |
 | `apicontract-nest` | Technology extension (R-TE): NestJS modules from OpenAPI and AsyncAPI (R-NE), the spec from NestJS, and entry points that violate the spec | — | Phase 3 |
 
 **Extensions (R-EX).**
@@ -263,7 +266,20 @@ user's install).
 - **R-RT3.** Both are a Quint model (`roundtrip.qnt`) before code, and a property test with an
   oxmutate floor after.
 
-**Runtime schema (R-SC).** Not "another Zod": interop is now Standard Schema (NestJS 12, tRPC, oRPC
+**Runtime schema (R-SC).** Owner direction 2026-11-11 ([`D-20261111-apicontract-own-validator`](../../decisions/D-20261111-apicontract-own-validator.md)): **we do not
+use Zod; the validator is our own and has to be state of the art.**
+
+- **R-SC0.** Zod is never a dependency, a peer, or generated output of any package here. It is an
+  incumbent we read (code-first input, R-SC4) and migrate users off, graded by its own suite (R-C2).
+  "State of the art" is a measured bar, not a description: parity on the incumbents' suites first,
+  then the R metrics in [`metrics.md`](./metrics.md) against ajv, Zod 4, Valibot, ArkType and typia,
+  same script, subject and machine, losing numbers published.
+
+- **R-SC0a.** The validator is a product of its own, with a code-first authoring API and its own
+  intent ([`validator/intent.md`](../validator/intent.md)). R-SC1–R-SC4 are its contract-first side;
+  this spec does not define a second engine.
+
+Not "another Zod": interop is now Standard Schema (NestJS 12, tRPC, oRPC
 and Hono accept it), so a new API surface buys nothing.
 
 - **R-SC1.** Validators are compiled ahead of time from the model, and implement Standard Schema and
@@ -275,6 +291,16 @@ and Hono accept it), so a new API surface buys nothing.
   (no rewrite needed), and `apicontract-schema migrate --from zod` is a codemod for teams that want
   to drop Zod. Refinements and transforms that JSON Schema cannot express are reported per site,
   never dropped silently.
+
+**JSON Schema output (R-JS).** For a team that validates with ajv and wants nothing of ours at runtime.
+
+- **R-JS1.** `gen json-schema` writes one JSON Schema per payload (request body, parameters, each
+  response), `$ref`s resolved or bundled by choice, in draft 2020-12 or draft-07, the draft ajv reads
+  by default.
+- **R-JS2.** OpenAPI keywords JSON Schema does not have (`nullable`, `discriminator`,
+  `readOnly`/`writeOnly` by direction) are translated, and each translation that loses meaning is
+  reported, never dropped silently.
+- **R-JS3.** The output compiles in the user's own ajv, unchanged; ajv is never a dependency (R-DEP1).
 
 **NestJS (R-NE).** Researched 2026-11-07: no stable, regeneration-safe NestJS generator exists
 (openapi-generator `typescript-nestjs-server` and the hey-api Nest plugin are beta; nothing for
@@ -346,7 +372,7 @@ output, and `compat-oracle` runs openapi-typescript's own fixtures through both 
 - `npm run ci:local` — typecheck, tests and build, including the golden files.
 - `.github/workflows/models.yml` — every `.qnt` above, `--invariant=safety`.
 - `npx oxmutate run --since origin/main` — the floors in `mutation-ratchets.json`.
-- `compat-oracle` — openapi-typescript fixtures (SC1) and the oasdiff corpus (SC3).
+- `compat-oracle` — openapi-typescript fixtures (SC1) and the oasdiff corpus (SC10).
 - `npm run bench -- apicontract` — every metric in [`metrics.md`](./metrics.md).
 
 ## Rejected alternatives

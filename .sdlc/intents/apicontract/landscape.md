@@ -24,7 +24,7 @@ not re-read on this date, the row says so.
 The product sits in the governance layer and makes it usable by agents, and enters through the consumer
 layer, where the users already are (the openapi-typescript drop-in). Governance is the smallest layer
 because nobody has made it cheap enough to run on every change. That is the bet, and it is why the
-Phase 2 eval has to show agents benefit before the launch claims it.
+Phase 5 eval has to show agents benefit before the launch claims it.
 
 ## The top 20 by weekly downloads
 
@@ -61,11 +61,11 @@ Phase 2 eval has to show agents benefit before the launch claims it.
 | json-schema-to-typescript | 6,169,053 | 2026-08-28 | consumer | `/jsonschema` drop-in target; maintained |
 | swagger-ui-express | 5,631,390 | **2024-05-31** | runtime (docs) | Out of scope |
 | @hono/zod-openapi | 4,329,023 | 2026-09-04 | producer | Input |
-| @redocly/cli | 4,194,718 | 2026-10-28 | governance (lint) | Lint incumbent; Phase 6 only |
+| @redocly/cli | 4,194,718 | 2026-10-28 | governance (lint) | Lint incumbent; Phase 9 only |
 | orval | 3,626,379 | 2026-10-30 | consumer | Competitor; SDK-shaped, not a target |
 | @orpc/server | 3,052,316 | 2026-11-06 | producer | Input |
 | ts-proto | 2,413,977 | 2026-11-04 | consumer | Owner for protobuf → TS |
-| @stoplight/spectral-cli | 2,308,762 | 2026-11-06 | governance (lint) | Ruleset format to read in Phase 6 |
+| @stoplight/spectral-cli | 2,308,762 | 2026-11-06 | governance (lint) | Ruleset format to read in Phase 9 |
 | @scalar/api-reference | 2,266,752 | 2026-11-05 | runtime (docs) | Out of scope; possible sponsor |
 | @openapitools/openapi-generator-cli | 2,054,508 | 2026-10-20 | consumer (Java engine) | Out of scope (SDKs) |
 | swagger-jsdoc | 1,996,502 | 2026-05-22 | producer | Input |
@@ -104,7 +104,7 @@ an agent surface (`--json`, `--mcp`, `fix:` lines), and code call-site checks.
 | burgee CLIs | burgee `--schema` | — | **ours** | **ours** (dogfood) | — |
 
 ‡ From memory, not re-read on 2026-11-06: `buf breaking` is Buf's breaking-change check for protobuf,
-and graphql-inspector is The Guild's schema diff. Phase 5 reads both before wrapping them.
+and graphql-inspector is The Guild's schema diff. Phase 8 reads both before wrapping them.
 
 ## What the landscape says
 
@@ -118,7 +118,7 @@ and graphql-inspector is The Guild's schema diff. Phase 5 reads both before wrap
    zod-to-openapi) outweigh consumers. Many teams have no spec file. Diffing a Zod- or Nest-defined API
    across two git refs is a job nothing does. This moves the code-first input up the roadmap.
 4. **MCP is the fastest-moving protocol here** (SDK at 88M a week) and its contract tooling is a handful
-   of v0.1 tools in Go, Python and JS. Phase 3 stands.
+   of v0.1 tools in Go, Python and JS. It is Phase 6 since the 2026-11-12 reorder.
 5. **Owners exist for protobuf and GraphQL.** Cover them through their engines and add the cross-protocol
    and agent layer, not a rewrite.
 6. **Commercial vendors fund the OSS but do not maintain it.** Speakeasy and Zuplo are Gold sponsors of
@@ -153,7 +153,7 @@ instead of competing.
 | Pact / PactFlow bi-directional | consumer-vs-provider check; paid, OAS ≤ 3.1.0, single file | Static, free `check` from source; every protocol | Partial: not its `can-i-deploy` broker |
 | Specmatic | contract tests (running server); non-OpenAPI checks in Enterprise | Free AsyncAPI/GraphQL/gRPC compatibility with no server (its #679) | **Yes** for TS teams |
 | Schemathesis, Prism, Dredd | fuzzing / proxy validation / conformance — all need a running server | `check`, `diff`, agent surface | No: they complement |
-| ajv, TypeBox, zod 4 | the validators `guard` would race | WebSocket/MCP messages, OAS 3.2 | No as a lead: `guard` is Phase 6 with a cut rule |
+| ajv, TypeBox, zod 4 | the validators `guard` would race | WebSocket/MCP messages, OAS 3.2 | No as a lead: the validator has its own intent |
 | mcpdiff, mcp-lint | MCP `diff`/`lint`, strong rules, near-zero users | Reach, every protocol, MCP mode | Partial: their rules are our floor |
 | OpenAPI→MCP servers (Stainless, Speakeasy Gram, Postman, ivo-toby, openapi-mcp-generator) | call the live API | `explain`: exact, local, resolved, size-capped | **Yes**: none of them explains |
 | kadykov schema-explorer, janwilmake | one operation per request | Fully resolved (kadykov leaves `$ref`s as links), exact and local (janwilmake is hosted LLM summaries) | **Yes** |

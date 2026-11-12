@@ -20,3 +20,7 @@ Phase 2 exit means stop at Phase 1 scope, a generator).
 
 **Revisit:** if a successor clearly leads before Phase 1 exits (the first kill rule), or if the agent
 eval is run early and shows a gain large enough to lead with.
+
+**Note 2026-11-12:** the phases were renumbered when the roadmap was reordered around the generators
+([`D-20261112-apicontract-is-a-generator`](./D-20261112-apicontract-is-a-generator.md)). `gen` is
+still Phase 1; `explain` + `diff` are now Phase 5, and the second kill rule was rewritten.
