@@ -23,6 +23,9 @@ import { execFile } from './spawn.js';
 import { latestVersion, registryTime } from './upstream.js';
 import { classify, internalImports, keptPath, readSuiteDeps, rewriteAt, rootPackage, siblingImports, splitSpec, vendor } from './vendor.js';
 
+/** The environment without git's own variables: lefthook's pre-push exports `GIT_DIR`, and a scratch `git init` must not inherit it (scripts/git-env-lock.test.ts). */
+const withoutGit = (): NodeJS.ProcessEnv => Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')));
+
 // Every git call still runs for real, through bellpull; the spy only records what `vendor()` asked for.
 vi.mock('./spawn.js', async (importOriginal) => {
   const real = await importOriginal<typeof import('./spawn.js')>();
@@ -75,7 +78,7 @@ function upstream(files: Record<string, string> = SUITE): string {
     writeFileSync(join(repo, path), body);
   }
   const git = (...args: string[]): void => {
-    execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', '-c', 'tag.gpgsign=false', ...args], { cwd: repo, stdio: 'ignore' });
+    execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', '-c', 'tag.gpgsign=false', ...args], { cwd: repo, stdio: 'ignore', env: withoutGit() });
   };
   git('init', '-q');
   git('add', '.');
@@ -320,7 +323,7 @@ describe('the ref it clones', () => {
   it('clones a scoped tag, which opens with @, at the tag and not at HEAD', () => {
     const repo = upstream();
     const cwd = fileURLToPath(repo);
-    const git = (...args: string[]): string => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', '-c', 'tag.gpgsign=false', ...args], { cwd, encoding: 'utf8' }).trim();
+    const git = (...args: string[]): string => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', '-c', 'tag.gpgsign=false', ...args], { cwd, encoding: 'utf8', env: withoutGit() }).trim();
     git('tag', '@fake/host@1.0.0');
     const tagged = git('rev-parse', 'HEAD');
     git('commit', '-q', '--allow-empty', '-m', 'unreleased');

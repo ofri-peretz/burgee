@@ -34,6 +34,9 @@ import { GRADED_MAJORS } from './compat.js';
 import { ExitCode } from './exit-code.js';
 import { bindingsOf, DirtyTreeError, FACADE_EXPORTS, MAPPING, migrate, packageOf, rewriteSource, scan, sourceFiles, textOf, workingTree } from './migrate.js';
 
+/** The environment without git's own variables: lefthook's pre-push exports `GIT_DIR`, and a scratch `git init` must not inherit it (scripts/git-env-lock.test.ts). */
+const withoutGit = (): NodeJS.ProcessEnv => Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')));
+
 /**
  * Every project this file makes, `discard`ed after its last test, which the hook does not wait
  * for — under the pre-push load, unlinking a scratch directory from Node took 64.9 s
@@ -365,7 +368,7 @@ describe('A6 — never silently', () => {
     // The injected `status` above is what keeps the other cases hermetic; this is the one
     // case that grades the function they stand in for.
     const dir = project({ 'src/a.ts': "import 'commander';\n" });
-    execFileSync('git', ['-C', dir, 'init', '-q'], { stdio: 'ignore' });
+    execFileSync('git', ['-C', dir, 'init', '-q'], { stdio: 'ignore', env: withoutGit() });
     await expect(workingTree(dir)).resolves.toEqual(['?? src/']);
   });
 });

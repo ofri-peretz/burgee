@@ -61,7 +61,13 @@ function manifests(): Record<string, string> {
 
 const now = new Date('2026-10-18T12:00:00Z');
 const daysAgo = (days: number): string => new Date(now.getTime() - days * 86_400_000).toISOString();
-const graded = manifests()['roundel'] as string;
+/**
+ * roundel's graded version, injected rather than read from its manifest: the fixture needs a
+ * release above `${major}.1.0`, and on the Version PR that bumped every package to 2.0.0 (#1497)
+ * the live manifest gave `2.0.0`, below the release this file calls the first to carry the subpath.
+ */
+const graded = '1.3.2';
+const versions: Record<string, string> = { ...manifests(), roundel: graded };
 const major = graded.split('.')[0] as string;
 /** The release that first exported `./picocolors`, in the graded major: 1.1.0 on the day of the trial. */
 const first = `${major}.1.0`;
@@ -97,7 +103,7 @@ const firstOnward = async (): Promise<Record<string, string>> => ({ [first]: day
 describe('migrate-pins-carry-the-drop-in — the floor exports every subpath the rewrite imports', () => {
   it('the svgo shape: 1.0.4 is old enough and 1.1.0 is not, so next does not pin ^1.0.4 and names the day 1.1.0 installs', async () => {
     expect(graded, `the fixture needs roundel above ${first}; rewrite it on a major bump`).not.toBe(first);
-    const report = await migrate({ dir: svgo(), status: clean, registry: registry(6), now, since });
+    const report = await migrate({ versions, dir: svgo(), status: clean, registry: registry(6), now, since });
     expect(report.next).toBe(`pnpm add roundel@^${first} && pnpm remove picocolors`);
     expect(report.next).not.toContain(`^${older}`);
     expect(report.releaseAge?.pins).toEqual([
@@ -109,31 +115,31 @@ describe('migrate-pins-carry-the-drop-in — the floor exports every subpath the
   });
 
   it('pins the first release that carries the subpath once it is old enough, and says why it is not older', async () => {
-    const report = await migrate({ dir: svgo(), status: clean, registry: registry(8), now, since });
+    const report = await migrate({ versions, dir: svgo(), status: clean, registry: registry(8), now, since });
     expect(report.next).toBe(`pnpm add roundel@^${first} && pnpm remove picocolors`);
     expect(report.releaseAge?.note).toContain(`roundel ${graded} is younger than that, so next pins ^${first}, the newest roundel ${major}.x that exports roundel/picocolors (first in ${first}) old enough`);
   });
 
   it('pins nothing below the graded release once the graded release is itself old enough', async () => {
-    const report = await migrate({ dir: svgo(), status: clean, registry: allOld, now, since });
+    const report = await migrate({ versions, dir: svgo(), status: clean, registry: allOld, now, since });
     expect(report.next, 'the graded release is old enough, so nothing is pinned below it').toBe(`pnpm add roundel@^${graded} && pnpm remove picocolors`);
     expect(report.releaseAge?.pins).toEqual([]);
   });
 
   it('adds no `requires` when no release of the major was passed over', async () => {
-    const report = await migrate({ dir: svgo(), status: clean, registry: firstOnward, now, since });
+    const report = await migrate({ versions, dir: svgo(), status: clean, registry: firstOnward, now, since });
     expect(report.releaseAge?.pins).toEqual([{ name: 'roundel', version: first, graded, installable: daysAgo(23) }]);
     expect(report.releaseAge?.note).not.toContain('exports');
   });
 
   it('floors a subpath the table does not name at the graded version: nothing older is known to carry it', async () => {
-    const report = await migrate({ dir: svgo(), status: clean, registry: registry(8), now, since: { roundel: { '.': `${major}.0.0` } } });
+    const report = await migrate({ versions, dir: svgo(), status: clean, registry: registry(8), now, since: { roundel: { '.': `${major}.0.0` } } });
     expect(report.next).toBe(`pnpm add roundel@^${graded} && pnpm remove picocolors`);
     expect(report.releaseAge?.pins).toEqual([{ name: 'roundel', version: graded, graded, installable: '2026-10-24T12:00:00.000Z', requires: { specifiers: ['roundel/picocolors'], since: graded } }]);
   });
 
   it('has no floor for a package the table does not name, which is what it printed before', async () => {
-    const report = await migrate({ dir: svgo(), status: clean, registry: registry(6), now, since: {} });
+    const report = await migrate({ versions, dir: svgo(), status: clean, registry: registry(6), now, since: {} });
     expect(report.next).toBe(`pnpm add roundel@^${older} && pnpm remove picocolors`);
   });
 
@@ -144,7 +150,7 @@ describe('migrate-pins-carry-the-drop-in — the floor exports every subpath the
       'pnpm-workspace.yaml': 'minimumReleaseAge: 10080\n',
       'src/a.ts': "import colors from 'picocolors';\nimport chalk from 'chalk';\n",
     });
-    const report = await migrate({ dir, status: clean, registry: registry(8), now, since });
+    const report = await migrate({ versions, dir, status: clean, registry: registry(8), now, since });
     expect(report.next).toBe(`pnpm add roundel@^${first} && pnpm remove chalk picocolors`);
     expect(report.releaseAge?.pins[0]?.requires).toEqual({ specifiers: ['roundel/picocolors'], since: first });
   });
@@ -156,7 +162,7 @@ describe('migrate-pins-carry-the-drop-in — the floor exports every subpath the
       'pnpm-workspace.yaml': 'minimumReleaseAge: 10080\n',
       'src/a.ts': "import colors from 'picocolors';\nimport chalk from 'chalk';\n",
     });
-    const report = await migrate({ dir, status: clean, registry: registry(8), now, since: { roundel: { './chalk': first, './picocolors': first } } });
+    const report = await migrate({ versions, dir, status: clean, registry: registry(8), now, since: { roundel: { './chalk': first, './picocolors': first } } });
     expect(report.releaseAge?.pins[0]?.requires).toEqual({ specifiers: ['roundel/chalk', 'roundel/picocolors'], since: first });
     expect(report.releaseAge?.note).toContain(`that exports roundel/chalk, roundel/picocolors (first in ${first})`);
   });
@@ -169,32 +175,32 @@ describe('migrate-pins-carry-the-drop-in — the floor exports every subpath the
       'src/a.ts': "import colors from 'picocolors';\nimport chalk from 'chalk';\n",
     });
     // `roundel/chalk` sorts first and sets the higher floor; `roundel/picocolors` floors lower.
-    const report = await migrate({ dir, status: clean, registry: registry(8), now, since: { roundel: { './chalk': first, './picocolors': `${major}.0.0` } } });
+    const report = await migrate({ versions, dir, status: clean, registry: registry(8), now, since: { roundel: { './chalk': first, './picocolors': `${major}.0.0` } } });
     expect(report.releaseAge?.pins[0]?.requires).toEqual({ specifiers: ['roundel/chalk'], since: first });
   });
 
   it('counts a release exactly the age old as installable now', async () => {
-    const report = await migrate({ dir: svgo(), status: clean, registry: registry(7), now, since });
+    const report = await migrate({ versions, dir: svgo(), status: clean, registry: registry(7), now, since });
     expect(report.next).toBe(`pnpm add roundel@^${first} && pnpm remove picocolors`);
     expect(report.releaseAge?.note).toContain(`so next pins ^${first}, the newest roundel ${major}.x that exports roundel/picocolors (first in ${first}) old enough`);
   });
 
   it('with nothing old enough, waits for the release that becomes installable first, whatever order the registry lists them in', async () => {
-    const report = await migrate({ dir: svgo(), status: clean, registry: gradedListedFirst, now, since });
+    const report = await migrate({ versions, dir: svgo(), status: clean, registry: gradedListedFirst, now, since });
     expect(report.releaseAge?.pins[0]).toMatchObject({ version: first, installable: '2026-10-19T12:00:00.000Z' });
   });
 
   it('leaves a peer that is not a family package out of the release-age pins', async () => {
     const asked: string[] = [];
     const dir = project({ 'package.json': JSON.stringify({ name: 'x', dependencies: { ink: '^8.0.0' } }), 'pnpm-lock.yaml': '', 'pnpm-workspace.yaml': 'minimumReleaseAge: 10080\n', 'src/a.tsx': "import { render } from 'ink';\n" });
-    const report = await migrate({ dir, status: clean, registry: async (name) => (asked.push(name), undefined), now, since: {} });
+    const report = await migrate({ versions, dir, status: clean, registry: async (name) => (asked.push(name), undefined), now, since: {} });
     expect(asked).toEqual(['controlroom']);
     expect(report.next).toContain(' react-reconciler ');
   });
 
   it('reads no table and asks no registry when the project sets no release age', async () => {
     const asked: string[] = [];
-    const report = await migrate({ dir: svgo('packages:\n  - .\n'), status: clean, registry: async (name) => (asked.push(name), undefined), now, since });
+    const report = await migrate({ versions, dir: svgo('packages:\n  - .\n'), status: clean, registry: async (name) => (asked.push(name), undefined), now, since });
     expect(asked).toEqual([]);
     expect(report.next).toBe(`pnpm add roundel@^${graded} && pnpm remove picocolors`);
   });
@@ -303,7 +309,7 @@ describe('B-20261027-migrate-pins-match-exact-convention — next pins in the pr
       'pnpm-workspace.yaml': 'minimumReleaseAge: 10080\n',
       'lib/svgo-node.js': "import colors from 'picocolors';\nexport const red = colors.red;\n",
     });
-    const report = await migrate({ dir, status: clean, registry: registry(8), now, since });
+    const report = await migrate({ versions, dir, status: clean, registry: registry(8), now, since });
     expect(report.next).toBe(`pnpm add --save-exact roundel@${first} && pnpm remove picocolors`);
     expect(report.releaseAge?.note).toContain(`so next pins ${first}, the newest`);
   });

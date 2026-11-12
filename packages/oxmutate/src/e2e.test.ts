@@ -12,6 +12,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { discard } from './__fixtures__/scratch-dir.js';
 
+/** The environment without git's own variables: lefthook's pre-push exports `GIT_DIR`, and a scratch `git init` must not inherit it (scripts/git-env-lock.test.ts). */
+const withoutGit = (): NodeJS.ProcessEnv => Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')));
+
 const here = path.dirname(fileURLToPath(import.meta.url));
 const pkg = path.join(here, '..');
 const fixture = path.join(pkg, 'test/fixtures/registry');
@@ -336,7 +339,7 @@ describe.skipIf(!native || !existsSync(bin) || !nightly)('the frozen oracle (R14
   const repo = path.join(registry, 'reports', 'frozen-repo');
   const spec = path.join(repo, 'src/registry.spec.ts');
   const git = (...args: string[]): void => {
-    execFileSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', '-c', 'commit.gpgsign=false', ...args], { cwd: repo, stdio: 'pipe' });
+    execFileSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', '-c', 'commit.gpgsign=false', ...args], { cwd: repo, stdio: 'pipe', env: withoutGit() });
   };
   const frozen = (): { status: number | null; out: string; report: { 'x-oxmutate': { frozenOracle?: { weakened: unknown[]; changedTests: string[]; delta: number } } } } => {
     const r = spawnSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', 'out', '--reporter', 'json', '--frozen-oracle', 'HEAD'], { cwd: repo, encoding: 'utf8' });
