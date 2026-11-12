@@ -3,6 +3,23 @@ title: Changelog
 description: "Every release of seniority, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 2.0.0
+
+### Major Changes
+
+- [#1491](https://github.com/ofri-peretz/burgee/pull/1491) [`5054fb7`](https://github.com/ofri-peretz/burgee/commit/5054fb72746ccb28bc08d63d9895a5aa2c50fa77) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Requires Node 22.13 or later; Node 18 and 20 are end-of-life. `engines.node` is now `>=22.13.0` (was `^20.19.0 || >=22.13.0`), and Node 22.13, 24 and 26 are the versions tested. `burgee migrate` now warns when a project's `engines.node` admits a Node below 22.13.0, and its suggested fix is `npm pkg set "engines.node=>=22.13.0"`.
+
+### Patch Changes
+
+- [#1475](https://github.com/ofri-peretz/burgee/pull/1475) [`fca94b2`](https://github.com/ofri-peretz/burgee/commit/fca94b2e601470c0ce091f4104fd0a37c84043ae) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Six fixes.
+
+  - **`seniority/rc` keeps `NAME_a=1` whatever order the environment lists `NAME_a__b` in.** The `__` nesting walk replaced a value with an object to nest into, so `{ NAME_a: '1', NAME_a__b: '2' }` gave `{ a: { b: '2' } }` and the reverse order gave `{ a: '1' }`. rc's walk stops at a value that is not an object, and drops the deeper key: both orders now give `{ a: '1' }`.
+  - **`seniority/rc` returns objects and arrays of its own.** The merge stored a nested object or array from `defaults` or `argv` by reference, so `rc(name, defaults).a.b = 2` changed the caller's `defaults`. It now copies them, as `deep-extend` does; a `Date` or class instance is still carried whole.
+  - **`seniority/rc` skips `/etc` on Windows by default, as rc does.** `win` defaulted to `false` everywhere, so Windows read `/etc/<name>/config` and `/etc/<name>rc`. It now defaults to whether the platform is `win32`; passing `win` still decides.
+  - **`seniority/yaml` reads an indentation indicator at the top level as js-yaml does.** `|2` on a document's own block scalar counted from column 0 rather than YAML's -1, so `|2\n   x` read `' x\n'` where js-yaml reads `'  x\n'` (and `|1\n x` lost its space). A block scalar under a key or a sequence item was already right.
+  - **`seniority/yaml` reads an indented `%` line as a directive, as js-yaml does.** A document of one indented line, a space then `%x`, was refused as stray content and `%YAML 1.2\n %x\n---\na` as a bad document; the first is now js-yaml's `directives end mark is expected` and the second reads `'a'`.
+  - **`seniority/yaml` reports an unclosed multi-line quoted scalar at the end of the input as js-yaml does.** `k: "unterminated\n` was `unexpected end of the stream within a double quoted scalar`; it is now js-yaml's `deficient indentation (2:1)`.
+
 ## 1.2.1
 
 ### Patch Changes

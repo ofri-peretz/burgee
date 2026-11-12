@@ -10,7 +10,7 @@
  * of clack's suite would grade, and they are subtracted from the row by D-001: matching them
  * would be copying clack's renderer, not offering its API.
  */
-import { type CommonOptions, frame, MULTISELECT_INSTRUCTIONS, type Option, paint, placeholderOf, type Prompt, run, S_CHECKBOX_INACTIVE, S_CHECKBOX_SELECTED, S_PASSWORD_MASK, S_RADIO_ACTIVE, S_RADIO_INACTIVE, SELECT_INSTRUCTIONS, type Validate, withCursor } from './clack-core.js';
+import { type CommonOptions, frame, multiselectInstructions, type Option, paint, placeholderOf, type Prompt, run, S_CHECKBOX_INACTIVE, S_CHECKBOX_SELECTED, S_PASSWORD_MASK, S_RADIO_ACTIVE, S_RADIO_INACTIVE, selectInstructions, type Validate, withCursor } from './clack-core.js';
 import { boxLook, checkbox, type Choice, findCursor, footerOf, labelOf, radio, radioLook, requiredCheck, stepOf, summaryOf, toggled, windowOf, wrapIndex } from './clack-list.js';
 import { moveTextCursor } from './line-edit.js';
 
@@ -180,7 +180,7 @@ export const select = <Value>(opts: SelectOptions<Value>): Answer<Value> => {
       prompt.value = options[cursor]?.value;
     },
     render: (prompt) => {
-      const footer = footerOf(opts, SELECT_INSTRUCTIONS);
+      const footer = footerOf(opts, selectInstructions());
       const body = windowOf({ opts, options, cursor, style: (option, on) => radio(option, radioLook(option, on)), footer: footer?.length ?? 1 });
       const chosen = options[cursor];
       return frame(opts, prompt.state, opts.message, { body, summary: chosen === undefined ? '' : labelOf(chosen), footer });
@@ -220,7 +220,7 @@ export const selectKey = <Value extends string>(opts: SelectKeyOptions<Value>): 
 
 /** A multi-selection's frame: the window, the footer — gone while an error takes its place — and the summary. */
 function multiFrame<T extends Choice>(opts: CommonOptions & { message: string; maxItems?: number; showInstructions?: boolean }, prompt: Prompt<unknown[]>, list: { rows: T[]; cursor: number; style: (row: T, on: boolean) => string; answered: readonly Choice[] }): string {
-  const footer = prompt.state === 'error' ? undefined : footerOf(opts, MULTISELECT_INSTRUCTIONS);
+  const footer = prompt.state === 'error' ? undefined : footerOf(opts, multiselectInstructions());
   const body = windowOf({ opts, options: list.rows, cursor: list.cursor, style: list.style, footer: footer?.length ?? 2 });
   const empty = prompt.state === 'cancel' ? '' : 'none';
   return frame(opts, prompt.state, opts.message, { body, summary: summaryOf(list.answered, prompt.value as unknown[], empty), footer, error: prompt.error });

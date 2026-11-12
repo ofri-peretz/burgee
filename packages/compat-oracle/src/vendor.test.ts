@@ -15,6 +15,9 @@ import { describe, expect, it } from 'vitest';
 import { HOSTS, type Host } from './hosts.js';
 import { DEPS_MARGIN_MS, depsCutoff, rewriteAt, rootPackage, shimName, splitSpec, vendor } from './vendor.js';
 
+/** The environment without git's own variables: lefthook's pre-push exports `GIT_DIR`, and a scratch `git init` must not inherit it (scripts/git-env-lock.test.ts). */
+const withoutGit = (): NodeJS.ProcessEnv => Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')));
+
 const VENDOR_DIR = resolve(fileURLToPath(new URL('..', import.meta.url)), 'vendor');
 
 const yargs = HOSTS.find((h) => h.name === 'yargs') as Host;
@@ -260,7 +263,7 @@ function localSliceAnsi(files: Record<string, string> = {}): Host {
   writeFileSync(join(repo, 'index.d.ts'), 'export default function sliceAnsi(s: string, a: number, b?: number): string;\n');
   writeFileSync(join(repo, 'test.js'), "import test from 'ava';\nimport sliceAnsi from './index.js';\n\ntest('slices', (t) => {\n  t.is(sliceAnsi('abc', 1), 'bc');\n});\n");
   const git = (...args: string[]): void => {
-    execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', '-c', 'tag.gpgsign=false', ...args], { cwd: repo, stdio: 'ignore' });
+    execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', '-c', 'tag.gpgsign=false', ...args], { cwd: repo, stdio: 'ignore', env: withoutGit() });
   };
   git('init', '-q');
   git('add', '.');

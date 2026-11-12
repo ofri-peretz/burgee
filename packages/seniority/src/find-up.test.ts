@@ -68,9 +68,6 @@ describe('seniority/find-up walks up as find-up 8 does', () => {
   });
 
   it("matches a file unless type says otherwise, and refuses a type locate-path doesn't know", async () => {
-    // `stopAt: root` keeps the walk inside the fixture: without it the search climbs to the temp
-    // directory and on to `/`, and a stray file named `b` there (a real `/tmp/b`, 2026-11-12) is a
-    // match that has nothing to do with this package.
     expect(findUpSync('b', { cwd: at('a', 'b', 'c'), stopAt: root })).toBeUndefined();
     expect(findUpSync('b', { cwd: at('a', 'b', 'c'), type: 'directory' })).toBe(at('a', 'b'));
     expect(findUpSync('b', { cwd: at('a', 'b', 'c'), type: 'both' })).toBe(at('a', 'b'));

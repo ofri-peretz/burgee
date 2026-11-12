@@ -1,6 +1,6 @@
 {
   "name": "caique",
-  "version": "1.6.3",
+  "version": "2.0.0",
   "description": "Prompts that are flags first: an agent passes the answer up front, and a non-TTY caller gets an error naming the flag, never a prompt that waits. No dependency outside the burgee family. Drop-in path for @inquirer/core.",
   "license": "MIT",
   "author": "Ofri Peretz <ofriperetzdev@gmail.com>",
@@ -150,11 +150,11 @@
     "provenance": true
   },
   "dependencies": {
-    "bellpull": "^1.0.11",
-    "closeout": "^1.1.10",
-    "linegauge": "^1.2.1",
-    "paratext": "^1.0.13",
-    "roundel": "^1.3.2"
+    "bellpull": "^2.0.0",
+    "closeout": "^2.0.0",
+    "linegauge": "^2.0.0",
+    "paratext": "^2.0.0",
+    "roundel": "^2.0.0"
   },
   "devDependencies": {
     "vitest": "^5.0.1"

@@ -23,7 +23,7 @@
  * the prompt is when nothing moves is exactly its last frame.
  */
 import { emitKeypressEvents } from 'node:readline';
-import { styleText } from 'node:util';
+import { inspect, styleText } from 'node:util';
 
 import { hideCursor, rawMode } from 'closeout/cursor';
 import exitHook from 'closeout/exit-hook';
@@ -185,8 +185,21 @@ export const S_WARN = unicodeOr('▲', '!');
 export const S_ERROR = unicodeOr('■', 'x');
 
 type Format = Parameters<typeof styleText>[0];
-/** `styleText`, shortened, because every line of every frame calls it. */
-export const paint = (format: Format, text: string): string => styleText(format, text);
+const SGR = (code: number): string => `\u001B[${String(code)}m`;
+// Dim and bold share one close, so after it the outer one is reapplied rather than swapped in.
+const reopen = (open: number, end: string): string => (open === 1 || open === 2 ? end + SGR(open) : SGR(open));
+
+// Node 24's `styleText` reopens an outer style where an inner one closes inside it, as picocolors
+// does for clack; Node 22.13's does not, so a yellow refusal lost its colour after its first key
+// (#1498). `styleText` still decides whether to colour; the nesting is Node 24's, applied here.
+/** `styleText`, shortened, nested the same way on every Node. */
+export function paint(format: Format, text: string): string {
+  if (styleText(format, '') === '') return text;
+  const codes = [format].flat().map((key) => inspect.colors[key as keyof typeof inspect.colors] as [number, number]);
+  let body = text;
+  for (const [open, close] of codes) body = body.replaceAll(SGR(close), (end, at: number) => (at + end.length >= body.length ? end : reopen(open, end)));
+  return codes.map(([open]) => SGR(open)).join('') + body + codes.map(([, close]) => SGR(close)).reverse().join('');
+}
 
 const STEP_COLOUR: Record<State, Format> = { initial: 'cyan', active: 'cyan', cancel: 'red', error: 'yellow', submit: 'green', validating: 'dim' };
 const STEP_GLYPH: Record<State, string> = { initial: S_STEP_ACTIVE, active: S_STEP_ACTIVE, cancel: S_STEP_CANCEL, error: S_STEP_ERROR, submit: S_STEP_SUBMIT, validating: S_STEP_ACTIVE };
@@ -204,8 +217,14 @@ export function formatInstructionFooter(instructions: string[], hasGuide: boolea
   return lines;
 }
 
-export const SELECT_INSTRUCTIONS = [`${paint('dim', '↑/↓')} to navigate`, `${paint('dim', 'Enter:')} confirm`];
-export const MULTISELECT_INSTRUCTIONS = [`${paint('dim', '↑/↓')} to navigate`, `${paint('dim', 'Space:')} select`, `${paint('dim', 'Enter:')} confirm`];
+// Painted per frame: painted at import, they took the process's colour support when the module
+// loaded rather than the stream's when it drew, and Node 22.13 and 24 differ there (#1498).
+/** The key hints under a select, painted now. */
+export const selectInstructions = (): string[] => [`${paint('dim', '↑/↓')} to navigate`, `${paint('dim', 'Enter:')} confirm`];
+/** The key hints under a multiselect, painted now. */
+export const multiselectInstructions = (): string[] => [`${paint('dim', '↑/↓')} to navigate`, `${paint('dim', 'Space:')} select`, `${paint('dim', 'Enter:')} confirm`];
+export const SELECT_INSTRUCTIONS = selectInstructions();
+export const MULTISELECT_INSTRUCTIONS = multiselectInstructions();
 
 /** Whether this call draws the guide: its own option first, then the setting. */
 export const guided = (opts: CommonOptions): boolean => (opts.withGuide ?? settings.withGuide) !== false;
