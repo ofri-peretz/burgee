@@ -14,14 +14,14 @@
  * Real children, as in `signal.test.ts`: what is under test is a process dying, and the
  * built `dist/` files, because the `exports` map and the comment stripper have had their say.
  */
-import { execFileSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { signalsOn } from './signal-list.js';
@@ -33,19 +33,31 @@ const doors = manifest.exports['./signal-exit'] ?? {};
 const esDoor = new URL(`../${doors['import'] ?? ''}`, import.meta.url);
 const cjsDoor = new URL(`../${doors['require'] ?? ''}`, import.meta.url);
 
-const CASE_TIMEOUT_MS = 30_000;
+interface Death {
+  lines: string[];
+  signal: NodeJS.Signals | null;
+  status: number | null;
+}
 
-/** Run a child module to its death; its stdout lines and how it died. */
-function runChild(source: string): { lines: string[]; signal: string | null; status: number | null } {
-  const child = join(scratch('closeout-doors-'), 'child.mjs');
-  writeFileSync(child, source);
-  try {
-    const out = execFileSync(process.execPath, [child], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 20_000 });
-    return { lines: out.split('\n').filter(Boolean), signal: null, status: 0 };
-  } catch (error) {
-    const failure = error as { stdout?: string; signal?: string | null; status?: number | null };
-    return { lines: (failure.stdout ?? '').split('\n').filter(Boolean), signal: failure.signal ?? null, status: failure.status ?? null };
-  }
+/**
+ * Run a child module to its death; its stdout lines and how it died.
+ *
+ * Waited for on the child's `close` event, with no clock of its own: under the pre-push battery a
+ * node start-up plus two `dist/` imports took seconds, and the 20 s kill this used to carry turned
+ * a slow child into one "killed by SIGTERM" — a death the assertions then blamed on the doors. A
+ * child that truly hangs is bounded by the hook's timeout (vitest-timeouts.config.ts), and fails.
+ * Asynchronous, so the two children below start together and the worker is not blocked meanwhile.
+ */
+function runChild(source: string): Promise<Death> {
+  const file = join(scratch('closeout-doors-'), 'child.mjs');
+  writeFileSync(file, source);
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [file], { stdio: ['ignore', 'pipe', 'ignore'] });
+    let out = '';
+    child.stdout.setEncoding('utf8').on('data', (chunk: string) => (out += chunk));
+    child.on('error', reject);
+    child.on('close', (status, signal) => resolve({ lines: out.split('\n').filter(Boolean), signal, status }));
+  });
 }
 
 /** A child that registers one handler through each door, then ends the way `ending` says. */
@@ -62,6 +74,18 @@ const bothDoors = (ending: string): string =>
   ].join('\n');
 
 describe('the two doors of closeout/signal-exit', () => {
+  // Both children start once, together, before the cases: each case then only reads how its child
+  // died, so neither case's own clock measures a node start-up on a busy machine.
+  const fatal = process.platform !== 'win32';
+  let exited: Death;
+  let signalled: Death | undefined;
+  beforeAll(async () => {
+    [exited, signalled] = await Promise.all([
+      runChild(bothDoors('process.exitCode = 3;')),
+      fatal ? runChild(bothDoors("process.kill(process.pid, 'SIGHUP'); setTimeout(() => {}, 5000);")) : undefined,
+    ]);
+  });
+
   it('import reaches an ES file and require() the CommonJS one', () => {
     expect(doors['import'], 'the ES door').toMatch(/^\.\/dist\/signal-exit\.js$/);
     expect(doors['require'], 'the CommonJS door').toMatch(/^\.\/dist\/signal-exit\.cjs$/);
@@ -78,25 +102,15 @@ describe('the two doors of closeout/signal-exit', () => {
     expect(es['signals']).toEqual(signalsOn(process.platform));
   });
 
-  it(
-    'share one emitter: an exit runs each door’s handler once, in registration order',
-    () => {
-      const { lines, status } = runChild(bothDoors('process.exitCode = 3;'));
-      expect(lines).toEqual(['es 3 null', 'cjs 3 null']);
-      expect(status).toBe(3);
-    },
-    CASE_TIMEOUT_MS,
-  );
+  it('share one emitter: an exit runs each door’s handler once, in registration order', () => {
+    expect(exited.lines).toEqual(['es 3 null', 'cjs 3 null']);
+    expect(exited.status).toBe(3);
+  });
 
-  it.skipIf(process.platform === 'win32')(
-    'share one emitter: a fatal signal runs each handler once and the process still dies of it, once',
-    () => {
-      const { lines, signal } = runChild(bothDoors("process.kill(process.pid, 'SIGHUP'); setTimeout(() => {}, 5000);"));
-      expect(lines).toEqual(['es null SIGHUP', 'cjs null SIGHUP']);
-      expect(signal).toBe('SIGHUP');
-    },
-    CASE_TIMEOUT_MS,
-  );
+  it.skipIf(!fatal)('share one emitter: a fatal signal runs each handler once and the process still dies of it, once', () => {
+    expect(signalled?.lines).toEqual(['es null SIGHUP', 'cjs null SIGHUP']);
+    expect(signalled?.signal).toBe('SIGHUP');
+  });
 });
 
 describe('signalsOn, the one copy of the list', () => {
