@@ -186,28 +186,19 @@ export const S_ERROR = unicodeOr('■', 'x');
 
 type Format = Parameters<typeof styleText>[0];
 const SGR = (code: number): string => `\u001B[${String(code)}m`;
-const DIM_OR_BOLD = new Set([inspect.colors.dim?.[0], inspect.colors.bold?.[0]]);
+// Dim and bold share one close, so after it the outer one is reapplied rather than swapped in.
+const reopen = (open: number, end: string): string => (open === 1 || open === 2 ? end + SGR(open) : SGR(open));
 
-/**
- * `styleText`, shortened, because every line of every frame calls it, and nested the same way on
- * every Node. Node 24's `styleText` reopens an outer style where an inner one closes inside it
- * (`<33>… <90>space<39> to select…<39>` becomes `…<39><33> to select…`, as picocolors does for
- * clack); Node 22.13's does not, so a yellow refusal went uncoloured after its first key and the
- * nightly 22.13 cells disagreed with 24 (#1498). `styleText` still decides whether to colour at
- * all, and the nesting is applied here, as Node 24 applies it.
- */
+// Node 24's `styleText` reopens an outer style where an inner one closes inside it, as picocolors
+// does for clack; Node 22.13's does not, so a yellow refusal lost its colour after its first key
+// (#1498). `styleText` still decides whether to colour; the nesting is Node 24's, applied here.
+/** `styleText`, shortened, nested the same way on every Node. */
 export function paint(format: Format, text: string): string {
   if (styleText(format, '') === '') return text;
-  const codes = (Array.isArray(format) ? format : [format]).map((key) => inspect.colors[key as keyof typeof inspect.colors] as [number, number]);
-  const body = codes.reduce(
-    (inner, [open, close]) =>
-      inner.replaceAll(SGR(close), (match: string, offset: number) => {
-        if (offset + match.length >= inner.length) return match;
-        return DIM_OR_BOLD.has(open) ? `${match}${SGR(open)}` : SGR(open);
-      }),
-    text,
-  );
-  return `${codes.map(([open]) => SGR(open)).join('')}${body}${codes.map(([, close]) => SGR(close)).reverse().join('')}`;
+  const codes = [format].flat().map((key) => inspect.colors[key as keyof typeof inspect.colors] as [number, number]);
+  let body = text;
+  for (const [open, close] of codes) body = body.replaceAll(SGR(close), (end, at: number) => (at + end.length >= body.length ? end : reopen(open, end)));
+  return codes.map(([open]) => SGR(open)).join('') + body + codes.map(([, close]) => SGR(close)).reverse().join('');
 }
 
 const STEP_COLOUR: Record<State, Format> = { initial: 'cyan', active: 'cyan', cancel: 'red', error: 'yellow', submit: 'green', validating: 'dim' };
@@ -226,16 +217,13 @@ export function formatInstructionFooter(instructions: string[], hasGuide: boolea
   return lines;
 }
 
-/**
- * The key hints, painted when a frame is drawn. Painted once at import, they took whatever colour
- * support the process had when the module loaded, which is not the stream's at render time: Node
- * 22.13 and 24 decide that differently, and the nightly matrix went red on it (#1498).
- */
+// Painted per frame: painted at import, they took the process's colour support when the module
+// loaded rather than the stream's when it drew, and Node 22.13 and 24 differ there (#1498).
+/** The key hints under a select, painted now. */
 export const selectInstructions = (): string[] => [`${paint('dim', '↑/↓')} to navigate`, `${paint('dim', 'Enter:')} confirm`];
+/** The key hints under a multiselect, painted now. */
 export const multiselectInstructions = (): string[] => [`${paint('dim', '↑/↓')} to navigate`, `${paint('dim', 'Space:')} select`, `${paint('dim', 'Enter:')} confirm`];
-/** The hints as they were painted when this module loaded; the prompts paint {@link selectInstructions} per frame. */
 export const SELECT_INSTRUCTIONS = selectInstructions();
-/** The hints as they were painted when this module loaded; the prompts paint {@link multiselectInstructions} per frame. */
 export const MULTISELECT_INSTRUCTIONS = multiselectInstructions();
 
 /** Whether this call draws the guide: its own option first, then the setting. */

@@ -125,7 +125,7 @@ export function boxLook(option: Choice, active: boolean, chosen: readonly unknow
   return active ? 'active' : 'inactive';
 }
 
-/** What clack says when a required multi-selection is submitted empty, painted when it is said (#1498). */
+/** What clack says when a required multi-selection is submitted empty, painted now. */
 export const requiredMessage = (): string => `Please select at least one option.\n${paint(['reset', 'dim'], `Press ${paint(['gray', 'bgWhite', 'inverse'], ' space ')} to select, ${paint(['gray', 'bgWhite', 'inverse'], ' enter ')} to submit`)}`;
 
 /** The validator a `required` multi-selection gets: an empty answer is the one problem. */

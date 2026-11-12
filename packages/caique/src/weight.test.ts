@@ -135,9 +135,13 @@ const RULES: Record<string, EntryRule> = {
   // 62,097 B (−132) on 2026-10-05: the line editing moved into `line-edit.js`, which
   // `caique/editor` shares, so the two edit text with one copy of the code. The façade still
   // reaches neither `keys.js` nor `editor.js`: clack's keypress loop reads node's events itself.
+  // **64,000 -> 64,400 on 2026-11-12, deliberately**: measured 64,320 B once `paint` nested styles
+  // itself, as Node 24's `styleText` does, so a refusal keeps its colour on Node 22.13 too, and the
+  // list hints were painted per frame instead of at import (#1498). Correct colour on every
+  // supported Node is worth ~600 B; the budget follows the surface, not a ratchet let slip.
   './clack': {
     allow: ['closeout/cursor', 'closeout/exit-hook', 'linegauge/wrap'],
-    budget: 64_000,
+    budget: 64_400,
     denied: ['ask.js', 'decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js', 'spec.js', 'plugin.js', 'inquirer.js', 'keys.js', 'editor.js'],
   },
   // The line editor as a component a host drives (controlroom R20): history, bracketed paste and
