@@ -139,7 +139,7 @@ it.skipIf(!native || !existsSync(bin) || !nightly)('kills a mutant a beforeEach 
 // path that decides them in a live worker (.sdlc/intents/oxmutate/staticwarm.qnt) must give the same:
 // `static-const` is reached only through import-time values; `static-leak` sets a global at import
 // with `??=`, so a worker that evaluated it once would make the MODE mutant survive.
-type PhaseStats = Record<'instrumentMs' | 'dryRunMs' | 'mutationMs' | 'staticMs' | 'isolatedMs' | 'wallMs' | 'staticRecollections', number>;
+type PhaseStats = Record<'instrumentMs' | 'dryRunMs' | 'mutationMs' | 'staticMs' | 'isolatedMs' | 'wallMs' | 'staticRecollections' | 'isolatedRuns' | 'warmUnitMs' | 'warmArmedMs', number> & { isolatedByCause: Record<string, number> };
 
 /** A fixture's static mutants as `line:mutator:status`, and the run's stats, from a real run. */
 const staticRun = (name: string, file: string): { verdicts: string[]; stats: PhaseStats } => {
@@ -163,6 +163,9 @@ describe.skipIf(!native || !existsSync(bin) || !nightly)('static mutants keep th
     expect(stats.staticMs).toBeGreaterThan(0);
     const phases = stats.instrumentMs + stats.dryRunMs + stats.mutationMs + stats.staticMs + stats.isolatedMs;
     expect(phases / stats.wallMs).toBeGreaterThan(0.95);
+    // Every isolated run has a cause, and a warm server's time inside test runs is part of its time.
+    expect(Object.values(stats.isolatedByCause).reduce((sum, n) => sum + n, 0)).toBe(stats.isolatedRuns);
+    expect(stats.warmArmedMs).toBeLessThanOrEqual(stats.warmUnitMs);
     // The three mutants are one batch: re-collected unarmed after the first, then after the next two
     // together, not after each (runner.ts, staticwarm.qnt `grouped`). The verdicts above are unchanged.
     expect(stats.staticRecollections).toBe(2);

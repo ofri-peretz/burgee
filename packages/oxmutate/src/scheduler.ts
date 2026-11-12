@@ -45,6 +45,8 @@ export interface UnitOutcome {
   crashed?: boolean | undefined;
   /** The mutant in flight when the server crashed. */
   crashedFor?: string | undefined;
+  /** Wall time from the unit being sent to its outcome, on this side of the IPC. */
+  ms?: number | undefined;
   stderr: string;
 }
 
@@ -97,6 +99,7 @@ class Server {
     // run (2026-11-11). The runner and the server rewrite the same file, so this descriptor sees them.
     const progress = openSync(unit.progress, 'w+');
     const mark = Buffer.alloc(PROGRESS_BYTES);
+    const sent = performance.now();
     return new Promise((resolve) => {
       let settled = false;
       const finish = (o: UnitOutcome) => {
@@ -106,7 +109,7 @@ class Server {
         closeSync(progress);
         this.onMessage = undefined;
         this.onExit = undefined;
-        resolve(o);
+        resolve({ ...o, ms: performance.now() - sent });
       };
       const timer = setInterval(() => {
         const line = mark.toString('utf8', 0, readSync(progress, mark, 0, PROGRESS_BYTES, 0)).trim();
