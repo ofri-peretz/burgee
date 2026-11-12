@@ -1,5 +1,25 @@
 # caique
 
+## 2.0.0
+
+### Major Changes
+
+- [#1491](https://github.com/ofri-peretz/burgee/pull/1491) [`5054fb7`](https://github.com/ofri-peretz/burgee/commit/5054fb72746ccb28bc08d63d9895a5aa2c50fa77) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Requires Node 22.13 or later; Node 18 and 20 are end-of-life. `engines.node` is now `>=22.13.0` (was `^20.19.0 || >=22.13.0`), and Node 22.13, 24 and 26 are the versions tested. `burgee migrate` now warns when a project's `engines.node` admits a Node below 22.13.0, and its suggested fix is `npm pkg set "engines.node=>=22.13.0"`.
+
+### Patch Changes
+
+- [#1535](https://github.com/ofri-peretz/burgee/pull/1535) [`bad28b6`](https://github.com/ofri-peretz/burgee/commit/bad28b6bcad08e5a21d4f629d85b7c6df3194da9) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - **`caique/clack` paints its list hints and its required refusal when it draws them, and nests colours the same way on every Node.**
+
+  - The `↑/↓ to navigate` hints under `select` and `multiselect`, and the refusal a required multi-selection shows ("Please select at least one option. Press space to select…"), were painted once, when the module loaded. They took whatever colour support the process had then, not the stream's when the prompt drew, so a prompt in a terminal could show them uncoloured. They are now painted per frame, as clack paints them.
+  - On Node 22.13, an inner colour closing inside an outer one ended the outer one too: the yellow refusal lost its colour after `space`. Node 24 reopens the outer colour there, as picocolors does for clack; `caique/clack` now does the same on every Node it supports.
+
+- Updated dependencies [[`fca94b2`](https://github.com/ofri-peretz/burgee/commit/fca94b2e601470c0ce091f4104fd0a37c84043ae), [`5054fb7`](https://github.com/ofri-peretz/burgee/commit/5054fb72746ccb28bc08d63d9895a5aa2c50fa77)]:
+  - linegauge@2.0.0
+  - bellpull@2.0.0
+  - closeout@2.0.0
+  - paratext@2.0.0
+  - roundel@2.0.0
+
 ## 1.6.3
 
 ### Patch Changes
