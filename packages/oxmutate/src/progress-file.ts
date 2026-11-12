@@ -10,6 +10,7 @@
 import { closeSync, openSync, readSync, writeSync } from 'node:fs';
 
 /** More than a mark holds: a mutant id, a space and a millisecond time. */
+// Stryker disable next-line NumericLiteral: any size above the longest mark reads the same mark; one byte more or less changes no read
 const MARK_BYTES = 256;
 
 export interface MarkWriter {
@@ -28,9 +29,9 @@ export function markWriter(file: string): MarkWriter {
   let length = 0;
   return {
     write(text) {
-      const padded = text.trimEnd().padEnd(length);
+      const padded = text.padEnd(length);
       length = padded.length;
-      if (padded) writeSync(fd, padded, 0);
+      writeSync(fd, padded, 0);
     },
     close: () => closeSync(fd),
   };

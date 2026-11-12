@@ -1,15 +1,16 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { markReader, markWriter } from './progress-file.js';
 
 // This runs on Linux, macOS and Windows in CI, which the end-to-end runs do not: two descriptors
 // on one file, one of them opened with truncation while the other is held, is where they differ.
 const dir = mkdtempSync(path.join(tmpdir(), 'oxmutate-progress-'));
-afterAll(() => rmSync(dir, { recursive: true, force: true }));
+afterAll(() => discard(dir));
 
 describe('a progress file, read in place while it is rewritten', () => {
   it('shows the reader each mark the writer leaves, a shorter one after a longer one too', () => {
@@ -54,6 +55,27 @@ describe('a progress file, read in place while it is rewritten', () => {
     expect(reader.read()).toBe('7 1');
     second.close();
     reader.close();
+  });
+
+  it('writes nothing for an empty mark on a new file, and pads only to what was written', () => {
+    const file = path.join(dir, 'e.progress');
+    const writer = markWriter(file);
+    writer.write('');
+    expect(statSync(file).size).toBe(0);
+    writer.write('123 456\n');
+    writer.write('');
+    expect(statSync(file).size).toBe('123 456\n'.length);
+    writer.close();
+  });
+
+  it('closes its descriptor: a closed side can no longer read or write', () => {
+    const file = path.join(dir, 'f.progress');
+    const reader = markReader(file);
+    const writer = markWriter(file);
+    writer.close();
+    reader.close();
+    expect(() => writer.write('1 2\n')).toThrow();
+    expect(() => reader.read()).toThrow();
   });
 
   it('leaves a file that can be removed once both sides have closed it', () => {
