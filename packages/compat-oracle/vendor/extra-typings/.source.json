@@ -1,10 +1,10 @@
 {
   "repo": "https://github.com/commander-js/extra-typings",
-  "version": "15.0.0",
-  "tag": "v15.0.0",
-  "commit": "5a1af3d6f123b3180796627cc8b90ce98a49f068",
-  "vendored": "2026-11-02",
-  "depsBefore": "2026-05-29T11:43:56.059Z",
+  "version": "15.1.0",
+  "tag": "v15.1.0",
+  "commit": "b7dcd6967f23312aea4f4bae1d6ed68dbc21e789",
+  "vendored": "2026-11-12",
+  "depsBefore": "2026-11-08T02:17:47.195Z",
   "files": 13,
   "internalFiles": [],
   "internals": [],
@@ -22,7 +22,7 @@
     "tests/options.test-d.ts": "8c7e7710ce3e6b19380ff7d1d2ff628fe8866f0d486b0714d0f45073ef6714d1",
     "tests/processed-args.test-d.ts": "51393212043dcbf59f0a236171d4e0bf24a7deacbd7471a4938d1bac6a9dcca4",
     "tests/subclass.test-d.ts": "884a1b4903f7d051f9b0b406cb3f6c67108c542247b1fd478c21fa73c11dd78e",
-    "index.d.ts": "3c231c89bbbc2d083cf0138b3c8db6f2ded8fdbc01c3f6265a061c3d81a86497",
+    "index.d.ts": "8882afb3e99a1f2311af11ce7b020a560db9a88955d7035b80880e31683defee",
     "index.js": "70f3e7e9c5ce128745631d45e36778a5f4ab8f6f0ee65bf5106921715f73f08d"
   },
   "tests": {

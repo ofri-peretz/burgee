@@ -1,15 +1,15 @@
 package:  extra-typings
 repo:     https://github.com/commander-js/extra-typings
-version:  15.0.0
-tag:      v15.0.0
-commit:   5a1af3d6f123b3180796627cc8b90ce98a49f068
-vendored: 2026-11-02
+version:  15.1.0
+tag:      v15.1.0
+commit:   b7dcd6967f23312aea4f4bae1d6ed68dbc21e789
+vendored: 2026-11-12
 files:    13
 tool:     scripts/vendor-suite.ts
 
 How this directory was made
 ---------------------------
-A shallow clone of https://github.com/commander-js/extra-typings at v15.0.0, then that repository's own test directory and
+A shallow clone of https://github.com/commander-js/extra-typings at v15.1.0, then that repository's own test directory and
 its fixtures copied here. The only edit is to the import specifiers that reach the library:
 each is rewritten to a generated shim, so one unedited suite can grade any implementation.
 Everything else — assertions, fixtures, helpers — is upstream's, byte for byte.
@@ -33,7 +33,7 @@ vendor step deletes any shim it finds, so a stale one can never grade the wrong 
 
 Reproduce
 ---------
-    npx tsx scripts/vendor-suite.ts extra-typings --version 15.0.0
+    npx tsx scripts/vendor-suite.ts extra-typings --version 15.1.0
 
 Every field above is reproduced exactly, with one exception that is a date and not a
 defect: `vendored` is the day the copy was taken, so a fresh run writes today's.

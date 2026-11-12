@@ -1,5 +1,5 @@
 import { createTestCommand } from './testHelpers.js';
-import { test } from 'node:test';
+import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 
 // Executable subcommand tests that didn't fit in elsewhere.

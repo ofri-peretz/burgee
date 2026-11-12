@@ -9,8 +9,8 @@
     "url": "https://github.com/SBoudrias/Inquirer.js.git"
   },
   "devDependencies": {
-    "@inquirer/core": "12.0.6",
-    "@inquirer/ansi": "2.0.10",
-    "@inquirer/testing": "3.3.16"
+    "@inquirer/core": "12.1.0",
+    "@inquirer/ansi": "2.1.0",
+    "@inquirer/testing": "3.4.0"
   }
 }

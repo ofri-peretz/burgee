@@ -1,18 +1,18 @@
 {
   "repo": "https://github.com/antonk52/lilconfig",
-  "version": "3.1.4",
-  "tag": "v3.1.4",
-  "commit": "1e77559cb81018e0daa068cb3164efc56f05e6ec",
-  "vendored": "2026-11-02",
-  "depsBefore": "2026-10-16T19:03:45.972Z",
+  "version": "3.1.5",
+  "tag": "v3.1.5",
+  "commit": "7c0e824f2cdfef39fa8afe4bc2a69a880df4d5a8",
+  "vendored": "2026-11-12",
+  "depsBefore": "2026-11-10T00:59:20.781Z",
   "files": 1,
   "internalFiles": [],
   "internals": [],
   "hashes": {
-    "src/spec/index.spec.js": "38cfe9b83290023c61832c84a3205635e78681e08ef653570b650904e0183df2",
+    "src/spec/index.spec.js": "06dcff6382dbe3db2865d51b0542ec30d4d69b9d1b8c66344bfde183c8ca5e2c",
     "src/spec/old-node-tests.uvu.js": "b4dfc0247ac557cd6588abd8d3095fbfeeb104bba60b0e3383600134e56364a0",
     "src/index.d.ts": "240b11fb56b8f437d4fa8aa99c9fdfc49cd2156a0cde523036c8e25ddc4d30c1",
-    "src/index.js": "72f57caf57fe0b796f10a21624f1713b9a738b66fd0324825916084cfa797fa3"
+    "src/index.js": "05a4a2fb41513fa6c902d60c5f1533d8f925227ef96b3d1562f8032f36677c5a"
   },
   "tests": {
     "src/spec/index.spec.js": [
@@ -82,6 +82,8 @@
       "no extension json file",
       "package.json",
       "search",
+      "resolves a relative searchFrom against the cwd",
+      "stops at a relative stopDir with a trailing slash",
       "default for searchFrom",
       "checks in hidden .config dir",
       "default for searchFrom till root directory",
@@ -108,6 +110,8 @@
       "no extension json file",
       "package.json",
       "search",
+      "resolves a relative searchFrom against the cwd",
+      "stops at a relative stopDir with a trailing slash",
       "returns null when no config found",
       "checks in hidden .config dir",
       "searches root directory correctly",
