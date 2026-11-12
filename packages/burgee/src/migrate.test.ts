@@ -575,6 +575,18 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     expect(report.offMajor).toEqual([{ from: 'dotenv', found: '^17.0.0', graded: '18.0.10', nearest: 18, sites: [], move: null }]);
   });
 
+  // The releases graded on 2026-11-12 (D-20261112-upstream-issues-2026-11-12), each named for a
+  // project on a major that is not graded: commander 13, extra-typings 14 and clack 0.
+  it('names commander 15.1.0, extra-typings 15.1.0 and clack 1.9.0 for a project on an older major', async () => {
+    const dir = project({
+      'package.json': JSON.stringify({ name: 'x', dependencies: { commander: '^13.1.0', '@commander-js/extra-typings': '^14.0.0', '@clack/prompts': '^0.11.0' } }),
+      'src/a.ts': "import { Command } from 'commander';\nimport { program } from '@commander-js/extra-typings';\nimport { text } from '@clack/prompts';\n",
+    });
+    const report = await migrate({ dir, status: clean });
+    const graded = Object.fromEntries(report.offMajor.map((o) => [o.from, o.graded]));
+    expect(graded).toEqual({ commander: '15.1.0', '@commander-js/extra-typings': '15.1.0', '@clack/prompts': '1.9.0' });
+  });
+
   it('leaves lilconfig 2 alone, and names 3.1.5 as the release its own suite grades level', async () => {
     const dir = project({
       'package.json': JSON.stringify({ name: 'x', dependencies: { lilconfig: '^2.1.0' } }),
