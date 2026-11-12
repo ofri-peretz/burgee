@@ -521,7 +521,7 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     expect(report.dependencies.add).toEqual(['closeout', 'linegauge', 'roundel', 'seniority']);
   });
 
-  it('leaves @inquirer/core 11 and @inquirer/prompts 7 alone, and names 12.0.6 and 8.7.5 as the releases graded level', async () => {
+  it('leaves @inquirer/core 11 and @inquirer/prompts 7 alone, and names 12.1.0 and 8.8.0 as the releases graded level', async () => {
     const dir = project({
       'package.json': JSON.stringify({ name: 'x', dependencies: { '@inquirer/core': '^11.0.0', '@inquirer/prompts': '^7.0.0' } }),
       'src/a.ts': "import { createPrompt } from '@inquirer/core';\nimport { input } from '@inquirer/prompts';\n",
@@ -529,8 +529,8 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     const report = await migrate({ dir, status: clean });
     expect(read(dir, 'src/a.ts')).toBe("import { createPrompt } from '@inquirer/core';\nimport { input } from '@inquirer/prompts';\n");
     expect(report.offMajor).toEqual([
-      { from: '@inquirer/prompts', found: '^7.0.0', graded: '8.7.5', nearest: 8, sites: [], move: null },
-      { from: '@inquirer/core', found: '^11.0.0', graded: '12.0.6', nearest: 12, sites: [], move: null },
+      { from: '@inquirer/prompts', found: '^7.0.0', graded: '8.8.0', nearest: 8, sites: [], move: null },
+      { from: '@inquirer/core', found: '^11.0.0', graded: '12.1.0', nearest: 12, sites: [], move: null },
     ]);
   });
 
@@ -550,7 +550,7 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
   });
 
   it('rewrites dotenv and its side-effect entry now that the drop-in is level at 18', async () => {
-    // dotenv 18.0.9's own suite passes 197 / 197 against seniority/dotenv, as it does against
+    // dotenv 18.0.10's own suite passes 198 / 198 against seniority/dotenv, as it does against
     // dotenv. `dotenv/config` is graded too — the suite spawns `import 'dotenv/config'` — so it
     // moves rather than being reported as a deep import.
     const dir = project({
@@ -572,23 +572,23 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     });
     const report = await migrate({ dir, status: clean });
     expect(read(dir, 'src/a.ts')).toBe("import 'dotenv/config';\n");
-    expect(report.offMajor).toEqual([{ from: 'dotenv', found: '^17.0.0', graded: '18.0.9', nearest: 18, sites: [], move: null }]);
+    expect(report.offMajor).toEqual([{ from: 'dotenv', found: '^17.0.0', graded: '18.0.10', nearest: 18, sites: [], move: null }]);
   });
 
-  it('leaves lilconfig 2 alone, and names 3.1.4 as the release its own suite grades level', async () => {
+  it('leaves lilconfig 2 alone, and names 3.1.5 as the release its own suite grades level', async () => {
     const dir = project({
       'package.json': JSON.stringify({ name: 'x', dependencies: { lilconfig: '^2.1.0' } }),
       'src/a.ts': "import { lilconfig } from 'lilconfig';\n",
     });
     const report = await migrate({ dir, status: clean });
     expect(read(dir, 'src/a.ts')).toBe("import { lilconfig } from 'lilconfig';\n");
-    expect(report.offMajor).toEqual([{ from: 'lilconfig', found: '^2.1.0', graded: '3.1.4', nearest: 3, sites: [], move: null }]);
+    expect(report.offMajor).toEqual([{ from: 'lilconfig', found: '^2.1.0', graded: '3.1.5', nearest: 3, sites: [], move: null }]);
   });
 
   // ora 10.0.0 and slice-ansi 10.0.0 moved the grades on 2026-11-01 (burgee#1391, #1392). Neither 9
   // can be level with its own suite any more — ora 10 deleted cases 9 asserts, and slice-ansi 10
   // counts CRLF and a lone regional indicator the other way — so a program on 9 stays.
-  it('leaves ora 9 and slice-ansi 9 alone, and names the 10.0.0 each is graded at', async () => {
+  it('leaves ora 9 and slice-ansi 9 alone, and names the 10.0.x each is graded at', async () => {
     const dir = project({
       'package.json': JSON.stringify({ name: 'x', dependencies: { ora: '^9.4.1', 'slice-ansi': '^9.0.1' } }),
       'src/a.ts': "import ora from 'ora';\nimport sliceAnsi from 'slice-ansi';\n",
@@ -597,7 +597,7 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     expect(read(dir, 'src/a.ts')).toBe("import ora from 'ora';\nimport sliceAnsi from 'slice-ansi';\n");
     expect(report.offMajor).toEqual([
       { from: 'ora', found: '^9.4.1', graded: '10.0.0', nearest: 10, sites: [], move: null },
-      { from: 'slice-ansi', found: '^9.0.1', graded: '10.0.0', nearest: 10, sites: [], move: null },
+      { from: 'slice-ansi', found: '^9.0.1', graded: '10.0.1', nearest: 10, sites: [], move: null },
     ]);
   });
 

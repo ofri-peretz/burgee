@@ -13,7 +13,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 
 import { discard } from './__fixtures__/scratch-dir.js';
 // eslint-disable-next-line import-next/no-namespace -- The namespace object *is* the thing under test: the graded case reads `Object.keys()` of the module, so a named-import list would assert what this file typed rather than what the module publishes.
@@ -108,17 +108,17 @@ describe('the walk and its bounds', () => {
   // `stopDir` still stops the walk.
   it('resolves a relative searchFrom and a relative stopDir with a trailing slash against the cwd', async () => {
     writeFileSync(join(root, 'a', 'rel.config.js'), 'module.exports = { found: "relative" };');
-    const cwd = process.cwd();
-    process.chdir(root);
+    // The cwd is stood in for rather than changed: `process.chdir` is not available in a worker,
+    // which is where the mutation lane runs this file. `path.resolve` reads it through `process.cwd()`.
+    const cwd = vi.spyOn(process, 'cwd').mockReturnValue(root);
     try {
-      // The cwd is the real path of `root` (`/private/var` on macOS), and the result is resolved from it.
-      const found = { config: { found: 'relative' }, filepath: join(process.cwd(), 'a', 'rel.config.js') };
+      const found = { config: { found: 'relative' }, filepath: join(root, 'a', 'rel.config.js') };
       expect(lilconfigSync('rel', { stopDir: root }).search(join('a', 'b'))).toEqual(found);
       expect(await lilconfig('rel', { stopDir: root }).search(join('a', 'b'))).toEqual(found);
       expect(lilconfigSync('absent', { stopDir: 'a/' }).search(join('a', 'b'))).toBeNull();
       expect(await lilconfig('absent', { stopDir: 'a/' }).search(join('a', 'b'))).toBeNull();
     } finally {
-      process.chdir(cwd);
+      cwd.mockRestore();
       rmSync(join(root, 'a', 'rel.config.js'));
     }
   });

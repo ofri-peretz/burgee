@@ -47,7 +47,9 @@ describe('@inquirer/select 5.3.0 and @inquirer/rawlist 5.4.0', () => {
   });
 
   it('selects a two-digit index', async () => {
-    const { answer, events } = await render(select, { message: 'Select a number', choices });
+    // Named so the name never starts with the digits, or the type-to-search fallback would find it.
+    const named = choices.map(({ value }) => ({ value, name: `item ${String(value)}` }));
+    const { answer, events } = await render(select, { message: 'Select a number', choices: named });
     events.type('12');
     events.keypress('enter');
     await expect(answer).resolves.toBe(12);
