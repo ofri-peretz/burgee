@@ -135,10 +135,10 @@ const RULES: Record<string, EntryRule> = {
   // 62,097 B (−132) on 2026-10-05: the line editing moved into `line-edit.js`, which
   // `caique/editor` shares, so the two edit text with one copy of the code. The façade still
   // reaches neither `keys.js` nor `editor.js`: clack's keypress loop reads node's events itself.
-  // **64,000 -> 64,400 on 2026-11-12, deliberately**: measured 64,320 B once `paint` nested styles
-  // itself, as Node 24's `styleText` does, so a refusal keeps its colour on Node 22.13 too, and the
-  // list hints were painted per frame instead of at import (#1498). Correct colour on every
-  // supported Node is worth ~600 B; the budget follows the surface, not a ratchet let slip.
+  // **64,000 -> 64,400 on 2026-11-12, deliberately** (D-20261112-caique-clack-budget-64400):
+  // 63,602 -> 64,320 B (+718) once `paint` nested styles itself, as Node 24's `styleText` does, so
+  // a refusal keeps its colour on Node 22.13 too, and the list hints were painted per frame
+  // instead of at import (#1498).
   './clack': {
     allow: ['closeout/cursor', 'closeout/exit-hook', 'linegauge/wrap'],
     budget: 64_400,
