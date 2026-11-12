@@ -238,6 +238,10 @@ describe('the terminal summary', () => {
     const made = textSummary(await run({ stats: stats({ warmUnitMs: 19_000, warmArmedMs: 2600, isolatedRuns: 9, isolatedByCause: { static: 2, stopped: 1, unfinished: 0, rerun: 1, confirm: 5, flaky: 0 } }) })).split('\n');
     expect(made[4]).toBe('  warm servers ran 19.0 s, 2.6 s of it inside test runs');
     expect(made[5]).toBe('  isolated runs: static 2 · stopped 1 · unfinished 0 · re-run 1 · survivors confirmed 5 · flaky 0');
+    // One millisecond of warm time and one isolated run are both a phase that ran.
+    const least = textSummary(await run({ stats: stats({ warmUnitMs: 1, isolatedRuns: 1, isolatedByCause: { static: 0, stopped: 0, unfinished: 0, rerun: 0, confirm: 0, flaky: 1 } }) })).split('\n');
+    expect(least[4]).toBe('  warm servers ran 0.0 s, 0.0 s of it inside test runs');
+    expect(least[5]).toBe('  isolated runs: static 0 · stopped 0 · unfinished 0 · re-run 0 · survivors confirmed 0 · flaky 1');
     // Verdicts reused with none audited (a cache too small to sample): no audit clause.
     expect(textSummary(await run({ stats: stats({ reused: 3 }) })).split('\n')[4]).toBe('  corrected: 3 verdict(s) reused');
     expect(textSummary(await run())).not.toContain('corrected');
