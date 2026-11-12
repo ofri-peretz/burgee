@@ -61,7 +61,7 @@ updates:
       - dependency-name: "fumadocs-ui"
         versions: [">16.17.1 <16.18.0"]
       # 2026-11-13, #1512 and #1537: fumadocs-core / fumadocs-ui 16.18.0 and 16.18.4, with
-      # fumadocs-mdx 15.5.0 and 15.5.3, fail the same way — `apps/docs` cannot prerender `/`
+      # fumadocs-mdx 15.5.0 and 15.5.3, fail the same way — the front-door docs app cannot prerender `/`
       # ("You need to wrap your application inside `FrameworkProvider`") — on every Build,
       # Typecheck, Unit Tests and Node 24 cell. Held at 16.17.x / 15.4.x until a release is
       # shown to build the docs apps (try it in a branch of its own; drop these three entries then).
