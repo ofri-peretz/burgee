@@ -809,6 +809,7 @@ describe('paint nests styles as Node 24 does, on every Node', () => {
     vi.stubEnv('NO_COLOR', undefined);
     vi.stubEnv('FORCE_COLOR', '1');
     expect(esc(paint('dim', `a ${paint('bold', 'b')} c`))).toBe('<2>a <1>b<22><2> c<22>');
+    expect(esc(paint('bold', `a ${paint('dim', 'b')} c`))).toBe('<1>a <2>b<22><1> c<22>');
     expect(esc(paint(['reset', 'dim'], 'x'))).toBe('<0><2>x<22><0>');
   });
 });
