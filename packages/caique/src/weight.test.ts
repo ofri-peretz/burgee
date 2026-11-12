@@ -140,12 +140,13 @@ const RULES: Record<string, EntryRule> = {
   // 63,602 -> 64,320 B (+718) once `paint` nested styles itself, as Node 24's `styleText` does, so
   // a refusal keeps its colour on Node 22.13 too, and the list hints were painted per frame
   // instead of at import (#1498).
-  // **64,400 -> 65,000 on 2026-11-12** (D-20261112-upstream-issues-2026-11-12): the accessible
-  // spinner clack 1.9.0 added (burgee#1517) and the ansi-regex 6.6.0 pattern `linegauge/wrap`
-  // measures through. A surface the incumbent grew, not a ratchet let slip.
+  // **64,400 -> 65,700 on 2026-11-12** (D-20261112-upstream-issues-2026-11-12): measured 65,649 B,
+  // with the accessible spinner clack 1.9.0 added (burgee#1517) and the ansi-regex 6.6.0 pattern
+  // `linegauge/wrap` measures through, plus the ~32 B CI margin, rounded up to the next 50 B. A
+  // surface the incumbent grew, not a ratchet let slip.
   './clack': {
     allow: ['closeout/cursor', 'closeout/exit-hook', 'linegauge/wrap'],
-    budget: 65_000,
+    budget: 65_700,
     denied: ['ask.js', 'decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js', 'spec.js', 'plugin.js', 'inquirer.js', 'keys.js', 'editor.js'],
   },
   // The line editor as a component a host drives (controlroom R20): history, bracketed paste and
