@@ -6,6 +6,9 @@ Intent: [`intent.md`](./intent.md) · Design: [`spec.md`](./spec.md) · **Status
 subject and machine, where it beats the incumbent by the stated margin. Every number is published,
 including the ones we lose. `TBM` means to be measured in Phase 0.
 
+Ids for the plugin API are `X1`–`X5` and for `extract` `B1`–`B6`: `P` and `E` are letters the
+family's floor ids already use (`scripts/run-evals.ts`).
+
 **The bar (owner, 2026-11-11, [`D-20261111-layer-bar`](../../decisions/D-20261111-layer-bar.md)):**
 every layer has at least one leading and one lagging metric against each competitor it names, and
 the target is to beat each of them on each metric. A tie is not a pass. A metric we lose is published
@@ -80,12 +83,12 @@ and ajv, is in [`validator/intent.md`](../validator/intent.md); R1–R3 are its 
 
 | ID | Metric | Kind | Definition | Baseline | Target |
 | :-- | :-- | :-- | :-- | :-- | :-- |
-| E1 | Round trip | Leading | Share of corpus documents where `extract(gen(spec))` equals `spec` after normalisation (R-RT1) | TBM (each incumbent, where it can round-trip) | 100%, > each |
-| E2 | Fixture parity | Leading | Share of each incumbent's own fixtures producing an equivalent document | — (reference) | 100% |
-| E3 | Silent losses | Leading | Refinements, transforms or decorators dropped without a finding | TBM | 0, < each |
-| E4 | Extraction time | Leading | Wall-clock per 500 operations, no app boot | TBM | < each |
-| E5 | Frameworks covered | Lagging | Of Zod, TypeBox, NestJS, Hono, tRPC/oRPC | 1 each | 5 |
-| E6 | Migrations | Lagging | Public repos that replaced an incumbent | 0 | Tracked weekly |
+| B1 | Round trip | Leading | Share of corpus documents where `extract(gen(spec))` equals `spec` after normalisation (R-RT1) | TBM (each incumbent, where it can round-trip) | 100%, > each |
+| B2 | Fixture parity | Leading | Share of each incumbent's own fixtures producing an equivalent document | — (reference) | 100% |
+| B3 | Silent losses | Leading | Refinements, transforms or decorators dropped without a finding | TBM | 0, < each |
+| B4 | Extraction time | Leading | Wall-clock per 500 operations, no app boot | TBM | < each |
+| B5 | Frameworks covered | Lagging | Of Zod, TypeBox, NestJS, Hono, tRPC/oRPC | 1 each | 5 |
+| B6 | Migrations | Lagging | Public repos that replaced an incumbent | 0 | Tracked weekly |
 
 `lint` (Phase 9, only on an outside request) gets its table before that phase starts.
 
@@ -93,11 +96,11 @@ and ajv, is in [`validator/intent.md`](../validator/intent.md); R1–R3 are its 
 
 | ID | Metric | Kind | Definition | Baseline | Target |
 | :-- | :-- | :-- | :-- | :-- | :-- |
-| P1 | Own plugins on the public API | Leading | Imports from our generators that reach outside the public plugin API | — | 0 |
-| P2 | Plugin is data | Leading | Share of a plugin's surface that validates against the published JSON Schema without running it | TBM (each incumbent) | 100%, > each |
-| P3 | Agent writes a plugin | Leading | Eval, weekly: an agent given the schema and one example writes a plugin passing the conformance suite in one turn | TBM (same task on each incumbent's plugin API) | > each |
-| P4 | Third-party plugins | Lagging | Published packages carrying the plugin keyword that pass the conformance suite | 0 | Tracked weekly |
-| P5 | Time to a new target | Lagging | Days from an accepted request for a generator to its release | TBM (each incumbent's median) | < each |
+| X1 | Own plugins on the public API | Leading | Imports from our generators that reach outside the public plugin API | — | 0 |
+| X2 | Plugin is data | Leading | Share of a plugin's surface that validates against the published JSON Schema without running it | TBM (each incumbent) | 100%, > each |
+| X3 | Agent writes a plugin | Leading | Eval, weekly: an agent given the schema and one example writes a plugin passing the conformance suite in one turn | TBM (same task on each incumbent's plugin API) | > each |
+| X4 | Third-party plugins | Lagging | Published packages carrying the plugin keyword that pass the conformance suite | 0 | Tracked weekly |
+| X5 | Time to a new target | Lagging | Days from an accepted request for a generator to its release | TBM (each incumbent's median) | < each |
 
 ## 5c. `gen json-schema` — vs the OpenAPI → JSON Schema converters (named when read in Phase 0)
 

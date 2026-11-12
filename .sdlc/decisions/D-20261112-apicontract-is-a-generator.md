@@ -31,5 +31,5 @@ gained leading and lagging metrics.
 - `explain`, `diff`, `check` and `lint` are kept as later phases, not dropped.
 - No plugin of ours emits Zod. Whether a third party's may is not ruled.
 
-**Revisit:** if the plugin eval (P3) fails at the Phase 3 exit, or if a generator's named competitor
+**Revisit:** if the plugin eval (X3) fails at the Phase 3 exit, or if a generator's named competitor
 cannot be beaten on a metric.

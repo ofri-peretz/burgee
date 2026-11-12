@@ -327,6 +327,61 @@ AsyncAPI).
   for `extract`). A competitor release that breaks a graded migration is fixed within the band set
   in `control-bands.json`.
 
+### Phase 1 design: the plugin object (R-PL)
+
+Written 2026-11-12 for the first thing built: `gen`, the plugin API and the TypeScript types
+generator. It applies the family's contract ([`plugin-contract`](../plugin-contract/spec.md))
+rather than inventing one, so a plugin author who has written a flagstaff component already knows
+the shape.
+
+- **R-PL1. `apicontract` is the next host of the family contract.** It gets `src/plugin.ts` and the
+  family's byte-identical `src/schema.json`, `CONTRACT = 1`, and the family's error codes
+  (`E_PLUGIN_SCHEMA`, `E_PLUGIN_CONTRACT`, `E_NO_STATIC_PROJECTION`, `E_NO_CONTRIBUTION`). The keys
+  it reads are `adapters` (an input format) and `generators` in Phase 1, `extractors` in Phase 2,
+  `rules` and `detectors` later. Every other key passes through untouched, so one plugin object can
+  also carry burgee `commands`.
+- **R-PL2. A generator is data plus one function.**
+  `{ name, description, inputs, options, sample, run }`. `inputs` names the formats it accepts
+  (`openapi`, `jsonschema`, `asyncapi`). `options` are burgee option declarations, so a generator's
+  flags appear in `--help`, `--schema` and `--mcp` with no code. `run` is the only function, which
+  is what the family's R7 allows: a named member the schema describes and the host calls.
+- **R-PL3. `run` returns files; it never writes them.** `run(model, options)` returns
+  `{ path, content, owner }[]` (it may return a promise). The host writes. That puts dry runs,
+  `--check` (fail when the files on disk differ from what would be generated), the diff an agent
+  reads, and overwrite safety in one place, not in every plugin.
+- **R-PL4. Who owns a file is declared.** `owner: 'generated'` is rewritten on every run and edits
+  to it are a finding (R-BL2). `owner: 'user'` is written once, as a starting point, and never
+  touched again. This is the whole mechanism behind "regeneration changes zero user lines" (N1),
+  and it is the host's, so every generator gets it.
+- **R-PL5. `sample` is the generator's static projection (PRINCIPLES rule 6).** A small spec and
+  the exact files it produces, as plain data. A generator without one is refused with
+  `E_NO_STATIC_PROJECTION`. `apicontract check <plugin>` runs `run` on the sample twice and
+  compares both results with the declared files, byte for byte, so it proves the output is what
+  the author says and that it is deterministic. This is the check behind X3: an agent given the
+  schema and one example writes a plugin that passes it in one turn.
+- **R-PL6. Built-ins take no private path.** The TypeScript types generator and the OpenAPI adapter
+  are registered through the same `register()` and pass the same `check`. A lock fails the build
+  when either imports anything the public plugin entry does not export (X1, R-EX5).
+- **R-PL7. Loading is explicit and failure is loud** (R-EX7). `gen <target>` resolves a generator by
+  name from the `plugins` list in the project's config. An unknown target fails with a `fix:` line
+  that lists the installed generators and the install command for the missing one.
+- **R-PL8. The family schema grows by two keys, in its own PR.** `generators` and `adapters` join
+  `schema.json` as additive `$defs`; the contract stays 1. That PR touches every host's copy
+  (`npm run schema:sync`), adds `apicontract` to the routing table behind `burgee check`
+  (plugin-contract R9), and is held by the existing byte-identity and schema-agreement locks.
+
+Build order, one PR each, each with a check proven to fail first:
+
+1. The model and the `$ref` resolver, with `adapter.qnt` already modelling the walk.
+2. The OpenAPI adapter, as a plugin.
+3. The plugin host: `plugin.ts`, the schema PR (R-PL8), `apicontract check`.
+4. The TypeScript types generator, as a plugin, with openapi-typescript's fixtures vendored into
+   `compat-oracle` and a control run proving the gate (G1).
+5. `--compat openapi-typescript` flags and the migration codemod.
+
+Two defaults taken here, to be confirmed at the Design→Build accept: a generator's options are
+burgee option declarations, not a free-form JSON Schema; and `run` may be asynchronous.
+
 ### Experiment: one CLI for all protocols vs one CLI per protocol (X-1)
 
 Both ship from the same codebase, so the experiment measures which front door gets attention, not
