@@ -285,7 +285,8 @@ export function run(argv: readonly string[], proc: CliProcess = ambientProcess()
         return;
       }
       // The re-raised signal ends this process; if it is one Node ignores, the timer does.
-      setTimeout(() => proc.exit(SIGNAL_EXIT_BASE + (os.constants.signals[signal as NodeJS.Signals] ?? 0)), SIGNAL_FALLBACK_MS);
+      // `signal` is the child's own exit signal, so it is always one `os.constants.signals` names.
+      setTimeout(() => proc.exit(SIGNAL_EXIT_BASE + os.constants.signals[signal as NodeJS.Signals]), SIGNAL_FALLBACK_MS);
       proc.kill(proc.pid, signal as string);
     },
   );
