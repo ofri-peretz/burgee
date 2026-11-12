@@ -1,4 +1,4 @@
-# Intent — `validator`: a Zod alternative that beats Zod in every aspect
+# Intent — `validator`: a validator that beats Zod and ajv on features, value and latency
 
 > Stage 1 artifact of the AI-native SDLC. Opened 2026-11-11 from two owner directions given on the
 > `apicontract` review: we do not use Zod and build our own validator
@@ -27,9 +27,11 @@ One validator with two front doors over one engine:
   Schema, AsyncAPI, MCP) by `apicontract` ([`spec.md` § R-SC](../apicontract/spec.md)).
 
 It implements Standard Schema and Standard JSON Schema, so it works wherever Zod works with no shim.
-It beats Zod on every metric in the table, measured with the same script, subject and machine, and
-until it does the losing numbers are published and the claim is not made. The other validators are
-read beside it and published too; they are context, not the bar.
+It beats **both Zod and ajv**, the two validators teams run today, on **features, value and
+latency** (owner, 2026-11-12). Each of the three is a set of rows in the table under Success
+criteria, measured with the same script, subject and machine; until a row is won the losing number
+is published and the claim is not made. Valibot, ArkType, TypeBox and typia are read beside them
+and published too; they are context, not the bar.
 
 ## Why now
 
@@ -70,6 +72,21 @@ ranked by 👍. Declined requests count as much as open ones (PRINCIPLES rule 7)
 | Type-level cost and errors | #2663 +36 declined (43 comments, "not assignable to ZodType"); #4611 "excessively deep"; isolated declarations #3751 +13 declined; inference bugs #2325 +18, #2909 +14, #3079 +12 declined | Plain inferred types, isolated-declarations safe (Z7) |
 | Standard Schema path | #6610 open: `~standard.validate()` runs async transforms and refinements twice | One pass (Z8) |
 | Release safety | #6106 open (a human gate before publish); CVE-2023-54404 in v3, #6653 +8 open | Provenance and a gated release, which this repo already has |
+
+### Where ajv is beatable, read 2026-11-12
+
+ajv's tracker: 304 open issues, read with
+`gh api --paginate 'repos/ajv-validator/ajv/issues?state=open'`, ranked by 👍. Its last release and
+last commit are both 2026-04-24.
+
+| Gap | Evidence (issue, 👍) | What "better" is |
+| :-- | :-- | :-- |
+| Types that are wrong or absent | #1664 +36 (optional must be nullable), #2163 +31 (nullable not inferred), #2091 +11 (validators as type guards) | The type comes from the schema, and a passing check narrows it |
+| ESM | #2209 +32 (standalone code is not ESM-compatible), #2015 +13 (no pure-ESM build) | ESM and CJS from one build; generated validators are ESM |
+| `new Function` | #2527 +12 (separate it from code generation); React Native and Hermes, #1945 +8 and #1923 +7 | No `eval` at run time: validators are generated ahead of time by the CLI |
+| Dependencies | #2658 +9 (CVE-2026-16221 in `fast-uri`), #2660 +6 | No dependencies |
+| Standard Schema | #2605 +6 | Implemented (Z8) |
+| OpenAPI keywords | #2003 +5 (`discriminator.mapping`), #2097 +5 (`readOnly`) | First-class, since the contract is the input |
 
 Two cautions. The counts are tens of 👍 on a package with 454M installs a week: Zod is healthy, and
 these are specific gaps, not a vacuum. And the two things most likely to move a team, speed and
@@ -150,30 +167,40 @@ what a CSP-safe default is compared against.
 
 ## Success criteria
 
-Ids are `Z1`–`Z15`, not `V…`: the family's floor ids already use `V`
-(`scripts/run-evals.ts`). Every row's target is against **Zod 4**. The other names in the Against column are read with the
-same script and published beside it, win or lose. Leading metrics run on every PR as
+Ids are `Z1`–`Z16`, not `V…`: the family's floor ids already use `V`
+(`scripts/run-evals.ts`). Every row's target is against **Zod 4 and ajv 8**, row by row, in three groups: features, latency
+and value. Leading metrics run on every PR as
 control bands; lagging metrics run weekly and at each phase end. `TBM`: to be measured before design.
 
-| ID | Metric | Kind | Definition | Against | Baseline | Target |
-| :-- | :-- | :-- | :-- | :-- | :-- | :-- |
-| Z1 | Suite parity | Leading | Share of the incumbent's own tests passing through its drop-in façade | Zod 4 | — (reference) | 100% of the claimed subset |
-| Z2 | JSON Schema conformance | Leading | JSON-Schema-Test-Suite 2020-12 pass rate | Zod 4 (`z.fromJSONSchema`); ajv, TypeBox | TBM | > Zod |
-| Z3 | Throughput | Leading | Validations per second, valid and invalid payloads, median of 5 | all six | Zod: 1.28M valid, 0.75M invalid | > Zod |
-| Z4 | Schema construction | Leading | Time to build the bench schema 500 times | Zod 4, Valibot, ArkType, TypeBox, ajv | Zod: 48.4 ms | < Zod |
-| Z5 | Bundle bytes | Leading | Min+gzip of the bench schema and its check, bundled and tree-shaken | all six | Zod: 27,454 B | < Zod |
-| Z6 | Install size and deps | Leading | Unpacked bytes and runtime dependencies | all six | Zod: 6.15 MB, 0 deps (smallest read: arktype, 0.35 MB) | < Zod; 0 deps |
-| Z7 | Type-check cost | Leading | `tsc` instantiations and check time on 500 copies of the bench schema, each with its inferred type, under every supported TypeScript | Zod 4, Valibot, ArkType, TypeBox | Zod: 332,209 instantiations on 5.9 and 6.0, 331,710 on 7.0 | < Zod on each of 5.9, 6.0 and 7.0 |
-| Z8 | Standard Schema | Leading | Standard Schema and Standard JSON Schema conformance cases passing | all that implement it | TBM | 100% |
-| Z9 | Error quality | Leading | Share of errors carrying a JSON Pointer, the keyword and a `fix:` line | all six | TBM | 100%, > Zod |
-| Z10 | Lossless export | Leading | Refinements and transforms dropped silently on export to JSON Schema | Zod 4 (`z.toJSONSchema`) | TBM | 0 |
-| Z11 | Agent authoring | Lagging | Eval: schemas an agent writes correctly in one turn, and errors it repairs in one turn | Zod 4, Valibot, ArkType | TBM | > Zod |
-| Z12 | Migrations | Lagging | Public repos that replaced an incumbent | — | 0 | Tracked weekly |
-| Z13 | Upstream tracking | Lagging | Days from an incumbent's release to its suite re-graded | — | — | ≤ 7 |
-| Z15 | Requests Zod left open | Leading | Of Zod's 20 most-upvoted open or declined requests (the table in Why now), the share that work here, each with a test | Zod 4 | 0 of 20 by definition | ≥ 15, and the rest refused in writing |
-| Z14 | Fix time | Lagging | Median days from an accepted issue to its release | Zod's median | TBM | < Zod |
+| ID | Wins on | Metric | Kind | Definition | Baseline: Zod | Baseline: ajv | Target |
+| :-- | :-- | :-- | :-- | :-- | :-- | :-- | :-- |
+| Z1 | Features | Suite parity | Leading | Share of the incumbent's own tests passing through its drop-in façade | — (reference) | — (reference) | 100% of the claimed subset of each |
+| Z2 | Features | JSON Schema conformance | Leading | JSON-Schema-Test-Suite 2020-12 pass rate | TBM (`z.fromJSONSchema`) | TBM | > both |
+| Z8 | Features | Standard Schema | Leading | Standard Schema and Standard JSON Schema conformance cases passing | TBM | 0 (not supported, #2605) | 100% |
+| Z10 | Features | Lossless export | Leading | Refinements and transforms dropped silently on export to JSON Schema | TBM (`z.toJSONSchema`) | — | 0 |
+| Z15 | Features | Requests Zod left open | Leading | Of Zod's 20 most-upvoted open or declined requests, the share that work here, each with a test | 0 of 20 by definition | — | ≥ 15, and the rest refused in writing |
+| Z16 | Features | Requests ajv left open | Leading | Of ajv's 10 most-upvoted open requests, the share that work here, each with a test | — | 0 of 10 by definition | ≥ 8, and the rest refused in writing |
+| Z3 | Latency | Throughput | Leading | Validations per second, valid and invalid payloads, median of 5 | 1.28M valid, 0.75M invalid | 11.18M valid, 7.98M invalid | > both |
+| Z4 | Latency | Schema construction | Leading | Time to build the bench schema 500 times (for ajv, to compile it) | 48.4 ms | 592.9 ms | < both |
+| Z7 | Latency | Type-check cost | Leading | `tsc` instantiations and check time on 500 copies of the bench schema, each with its inferred type, under every supported TypeScript | 332,209 instantiations on 5.9 and 6.0, 331,710 on 7.0 | — (infers no type) | < Zod on each of 5.9, 6.0 and 7.0 |
+| Z5 | Value | Bundle bytes | Leading | Min+gzip of the bench schema and its check, bundled and tree-shaken | 27,454 B | 38,819 B | < both |
+| Z6 | Value | Install size and deps | Leading | Unpacked bytes and runtime dependencies | 6.15 MB, 0 deps | 1.03 MB, 4 deps | < both; 0 deps |
+| Z9 | Value | Error quality | Leading | Share of errors carrying a JSON Pointer, the keyword and a `fix:` line | TBM | TBM | 100%, > both |
+| Z11 | Value | Agent authoring | Lagging | Eval: schemas an agent writes correctly in one turn, and errors it repairs in one turn | TBM | TBM | > both |
+| Z12 | Value | Migrations | Lagging | Public repos that replaced Zod or ajv | 0 | 0 | Tracked weekly |
+| Z13 | Value | Upstream tracking | Lagging | Days from an incumbent's release to its suite re-graded | — | — | ≤ 7 |
+| Z14 | Value | Fix time | Lagging | Median days from an accepted issue to its release | TBM | TBM | < both |
 
-Done when every leading row holds on `main` against Zod, and the first lagging readings are
+**What the latency rows ask for.** ajv is 9 times faster than Zod because it compiles each schema
+with `new Function`, and it pays 593 ms to do that 500 times. Beating both Z3 and Z4, with no `eval`
+(a constraint above), points one way: validators generated ahead of time. `apicontract gen
+validator` writes the specialised code at build time, so there is nothing to compile at start-up,
+no compiler in the bundle, and the check runs as fast as compiled code. Schemas written by hand in
+TypeScript run on an interpreter by default; whether that path alone can pass ajv on Z3 is the
+first thing design has to measure, and if it cannot, the claim against ajv is made for generated
+validators only and says so.
+
+Done when every leading row holds on `main` against both, and the first lagging readings are
 published.
 
 ## Open questions
