@@ -13,7 +13,7 @@ import { stripVTControlCharacters } from 'node:util';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CANCEL_SYMBOL, S_BAR_END, S_PASSWORD_MASK, S_STEP_CANCEL, S_STEP_SUBMIT } from './clack-core.js';
-import { REQUIRED } from './clack-list.js';
+import { requiredMessage } from './clack-list.js';
 import { confirm, groupMultiselect, multiline, multiselect, password, select, selectKey, text } from './clack-prompts.js';
 
 class Output extends Writable {
@@ -192,7 +192,7 @@ describe('multiselect', () => {
 
   it('a required empty answer is refused with the instructions, which replace the footer', async () => {
     const shown = await frameAfter((io) => multiselect({ message: 'm', options: OPTIONS, ...io }), ['return']);
-    expect(shown).toContain(REQUIRED.split('\n')[0]);
+    expect(shown).toContain(requiredMessage().split('\n')[0]);
     expect(shown).not.toContain('to navigate');
   });
 
@@ -203,7 +203,7 @@ describe('multiselect', () => {
     const start = (io: { input: Input; output: Output }) => multiselect({ message: 'm', options, withGuide: false, ...io, output: Object.assign(io.output, { rows: 12 }) });
     const live = await frameAfter(start, ['down']);
     const refused = await frameAfter(start, ['return']);
-    expect(refused).toContain(REQUIRED.split('\n')[0]);
+    expect(refused).toContain(requiredMessage().split('\n')[0]);
     expect(listed(refused)).toBe(listed(live) - 1);
   });
 
@@ -512,7 +512,7 @@ describe('every prompt, frame by frame, in colour', () => {
       <36>│<39>  <90>○<39> <90>b<39> <2>(off)<22>
       <36>│<39>  <2>○<22> <2>C<22>
       <36>│<39>  <2>second line<22>
-      <36>│<39>  ↑/↓ to navigate • Enter: confirm
+      <36>│<39>  <2>↑/↓<22> to navigate • <2>Enter:<22> confirm
       <36>└<39>
       <8A><1G><J><90>│<39>
       <36>◆<39>  m
@@ -520,7 +520,7 @@ describe('every prompt, frame by frame, in colour', () => {
       <36>│<39>  <90>○<39> <90>b<39> <2>(off)<22>
       <36>│<39>  <32>●<39> C
       <36>│<39>  second line
-      <36>│<39>  ↑/↓ to navigate • Enter: confirm
+      <36>│<39>  <2>↑/↓<22> to navigate • <2>Enter:<22> confirm
       <36>└<39>
       <8A><1G><J><90>│<39>
       <32>◇<39>  m
@@ -575,7 +575,7 @@ describe('every prompt, frame by frame, in colour', () => {
       <36>│<39>  <90>◻<39> <9><90>b<39><29> <2>(off)<22>
       <36>│<39>  <2>◻<22> <2>C<22>
       <36>│<39>  <2>second line<22>
-      <36>│<39>  ↑/↓ to navigate • Space: select • Enter: confirm
+      <36>│<39>  <2>↑/↓<22> to navigate • <2>Space:<22> select • <2>Enter:<22> confirm
       <36>└<39>
       <8A><1G><J><90>│<39>
       <36>◆<39>  m
@@ -583,7 +583,7 @@ describe('every prompt, frame by frame, in colour', () => {
       <36>│<39>  <90>◻<39> <9><90>b<39><29> <2>(off)<22>
       <36>│<39>  <2>◻<22> <2>C<22>
       <36>│<39>  <2>second line<22>
-      <36>│<39>  ↑/↓ to navigate • Space: select • Enter: confirm
+      <36>│<39>  <2>↑/↓<22> to navigate • <2>Space:<22> select • <2>Enter:<22> confirm
       <36>└<39>
       <8A><1G><J><90>│<39>
       <36>◆<39>  m
@@ -591,7 +591,7 @@ describe('every prompt, frame by frame, in colour', () => {
       <36>│<39>  <90>◻<39> <9><90>b<39><29> <2>(off)<22>
       <36>│<39>  <36>◻<39> C
       <36>│<39>  second line
-      <36>│<39>  ↑/↓ to navigate • Space: select • Enter: confirm
+      <36>│<39>  <2>↑/↓<22> to navigate • <2>Space:<22> select • <2>Enter:<22> confirm
       <36>└<39>
       <8A><1G><J><90>│<39>
       <36>◆<39>  m
@@ -599,7 +599,7 @@ describe('every prompt, frame by frame, in colour', () => {
       <36>│<39>  <90>◻<39> <9><90>b<39><29> <2>(off)<22>
       <36>│<39>  <32>◼<39> C
       <36>│<39>  second line
-      <36>│<39>  ↑/↓ to navigate • Space: select • Enter: confirm
+      <36>│<39>  <2>↑/↓<22> to navigate • <2>Space:<22> select • <2>Enter:<22> confirm
       <36>└<39>
       <8A><1G><J><90>│<39>
       <36>◆<39>  m
@@ -607,7 +607,7 @@ describe('every prompt, frame by frame, in colour', () => {
       <36>│<39>  <90>◻<39> <9><90>b<39><29> <2>(off)<22>
       <36>│<39>  <32>◼<39> <2>C<22>
       <36>│<39>  <2>second line<22>
-      <36>│<39>  ↑/↓ to navigate • Space: select • Enter: confirm
+      <36>│<39>  <2>↑/↓<22> to navigate • <2>Space:<22> select • <2>Enter:<22> confirm
       <36>└<39>
       <8A><1G><J><90>│<39>
       <32>◇<39>  m
@@ -622,7 +622,7 @@ describe('every prompt, frame by frame, in colour', () => {
       <36>│<39>  <90>◻<39> <9><90>b<39><29> <2>(off)<22>
       <36>│<39>  <36>◻<39> C
       <36>│<39>  second line
-      <36>│<39>  ↑/↓ to navigate • Space: select • Enter: confirm
+      <36>│<39>  <2>↑/↓<22> to navigate • <2>Space:<22> select • <2>Enter:<22> confirm
       <36>└<39>
       <8A><1G><J><90>│<39>
       <33>▲<39>  m
@@ -631,14 +631,14 @@ describe('every prompt, frame by frame, in colour', () => {
       <33>│<39>  <36>◻<39> C
       <33>│<39>  second line
       <33>└<39>  <33>Please select at least one option.
-         Press  space  to select,  enter  to submit<39>
+         <0><2>Press <90><47><7> space <27><49><33> to select, <90><47><7> enter <27><49><33> to submit<22><0><39>
       <8A><1G><J><90>│<39>
       <36>◆<39>  m
       <36>│<39>  <32>◼<39> <2>a<22> <2>(first)<22>
       <36>│<39>  <90>◻<39> <9><90>b<39><29> <2>(off)<22>
       <36>│<39>  <32>◼<39> C
       <36>│<39>  second line
-      <36>│<39>  ↑/↓ to navigate • Space: select • Enter: confirm
+      <36>│<39>  <2>↑/↓<22> to navigate • <2>Space:<22> select • <2>Enter:<22> confirm
       <36>└<39>
       <8A><1G><J><90>│<39>
       <31>■<39>  m
@@ -672,7 +672,7 @@ describe('every prompt, frame by frame, in colour', () => {
       <36>│<39>  └ <2>◻<22> <2>b<22>
       <36>│<39>  <2>◻<22> <2>g2<22>
       <36>│<39>  └ <2>◻<22> <2>c<22>
-      <36>│<39>  ↑/↓ to navigate • Space: select • Enter: confirm
+      <36>│<39>  <2>↑/↓<22> to navigate • <2>Space:<22> select • <2>Enter:<22> confirm
       <36>└<39>
       <9A><1G><J><90>│<39>
       <36>◆<39>  m
@@ -681,7 +681,7 @@ describe('every prompt, frame by frame, in colour', () => {
       <36>│<39>  └ <32>◼<39> <2>b<22> <2>(bee)<22>
       <36>│<39>  <2>◻<22> <2>g2<22>
       <36>│<39>  └ <2>◻<22> <2>c<22>
-      <36>│<39>  ↑/↓ to navigate • Space: select • Enter: confirm
+      <36>│<39>  <2>↑/↓<22> to navigate • <2>Space:<22> select • <2>Enter:<22> confirm
       <36>└<39>
       <9A><1G><J><90>│<39>
       <36>◆<39>  m
@@ -690,7 +690,7 @@ describe('every prompt, frame by frame, in colour', () => {
       <36>│<39>  └ <32>◼<39> <2>b<22> <2>(bee)<22>
       <36>│<39>  <2>◻<22> <2>g2<22>
       <36>│<39>  └ <2>◻<22> <2>c<22>
-      <36>│<39>  ↑/↓ to navigate • Space: select • Enter: confirm
+      <36>│<39>  <2>↑/↓<22> to navigate • <2>Space:<22> select • <2>Enter:<22> confirm
       <36>└<39>
       <9A><1G><J><90>│<39>
       <36>◆<39>  m
@@ -699,7 +699,7 @@ describe('every prompt, frame by frame, in colour', () => {
       <36>│<39>  └ <32>◼<39> b <2>(bee)<22>
       <36>│<39>  <2>◻<22> <2>g2<22>
       <36>│<39>  └ <2>◻<22> <2>c<22>
-      <36>│<39>  ↑/↓ to navigate • Space: select • Enter: confirm
+      <36>│<39>  <2>↑/↓<22> to navigate • <2>Space:<22> select • <2>Enter:<22> confirm
       <36>└<39>
       <9A><1G><J><90>│<39>
       <36>◆<39>  m
@@ -708,7 +708,7 @@ describe('every prompt, frame by frame, in colour', () => {
       <36>│<39>  └ <32>◼<39> <2>b<22> <2>(bee)<22>
       <36>│<39>  <36>◻<39> g2
       <36>│<39>  └ <2>◻<22> <2>c<22>
-      <36>│<39>  ↑/↓ to navigate • Space: select • Enter: confirm
+      <36>│<39>  <2>↑/↓<22> to navigate • <2>Space:<22> select • <2>Enter:<22> confirm
       <36>└<39>
       <9A><1G><J><90>│<39>
       <36>◆<39>  m
@@ -717,7 +717,7 @@ describe('every prompt, frame by frame, in colour', () => {
       <36>│<39>  └ <32>◼<39> <2>b<22> <2>(bee)<22>
       <36>│<39>  <2>◻<22> <2>g2<22>
       <36>│<39>  └ <36>◻<39> c
-      <36>│<39>  ↑/↓ to navigate • Space: select • Enter: confirm
+      <36>│<39>  <2>↑/↓<22> to navigate • <2>Space:<22> select • <2>Enter:<22> confirm
       <36>└<39>
       <9A><1G><J><90>│<39>
       <36>◆<39>  m
@@ -726,7 +726,7 @@ describe('every prompt, frame by frame, in colour', () => {
       <36>│<39>  └ <32>◼<39> <2>b<22> <2>(bee)<22>
       <36>│<39>  <32>◼<39> <2>g2<22>
       <36>│<39>  └ <32>◼<39> c
-      <36>│<39>  ↑/↓ to navigate • Space: select • Enter: confirm
+      <36>│<39>  <2>↑/↓<22> to navigate • <2>Space:<22> select • <2>Enter:<22> confirm
       <36>└<39>
       <9A><1G><J><90>│<39>
       <32>◇<39>  m
@@ -743,7 +743,7 @@ describe('every prompt, frame by frame, in colour', () => {
       <36>│<39>  
       <36>│<39>  <2>g2<22>
       <36>│<39>    <36>◻<39> c
-      <36>│<39>  ↑/↓ to navigate • Space: select • Enter: confirm
+      <36>│<39>  <2>↑/↓<22> to navigate • <2>Space:<22> select • <2>Enter:<22> confirm
       <36>└<39>
       <11A><1G><J><90>│<39>
       <36>◆<39>  m
@@ -754,7 +754,7 @@ describe('every prompt, frame by frame, in colour', () => {
       <36>│<39>  
       <36>│<39>  <2>g2<22>
       <36>│<39>    <32>◼<39> c
-      <36>│<39>  ↑/↓ to navigate • Space: select • Enter: confirm
+      <36>│<39>  <2>↑/↓<22> to navigate • <2>Space:<22> select • <2>Enter:<22> confirm
       <36>└<39>
       <11A><1G><J><90>│<39>
       <31>■<39>  m
@@ -952,7 +952,7 @@ describe('what each prompt answers, on the keys its other cases do not press', (
     expect((await drive((io) => groupMultiselect({ message: 'm', options, initialValues: ['b'], ...io }), ['return'])).answer).toEqual(['b']);
     const { answer, writes } = await drive((io) => groupMultiselect({ message: 'm', options, ...io }), ['return', 'escape']);
     expect(answer).toBe(CANCEL_SYMBOL);
-    expect(writes.join('')).toContain(REQUIRED.split('\n')[0]);
+    expect(writes.join('')).toContain(requiredMessage().split('\n')[0]);
   });
 
   it('groupMultiselect: shows a member named like its group once in the answer', async () => {
