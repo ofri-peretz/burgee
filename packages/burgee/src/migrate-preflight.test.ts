@@ -35,10 +35,10 @@ const read = (dir: string, file: string): string => readFileSync(join(dir, file)
 /** No registry and no release age: nothing here reaches the network. */
 const run = async (dir: string, more: Partial<MigrateOptions> = {}): ReturnType<typeof migrate> => await migrate({ dir, status: () => undefined, registry: async () => undefined, since: {}, ...more });
 
-const RAISE = 'npm pkg set "engines.node=^20.19.0 || >=22.13.0"';
+const RAISE = 'npm pkg set "engines.node=>=22.13.0"';
 const FAMILY = 'bellpull|burgee|caique|closeout|controlroom|flagstaff|linegauge|paratext|roundel|seniority';
 const JEST_FIX = `set jest's transformIgnorePatterns to "node_modules/(?!(${FAMILY})/)", or run jest under node --experimental-vm-modules, then re-run burgee migrate`;
-const FLOOR_MESSAGE = "the family needs Node ^20.19.0 || >=22.13.0; adopting raises this package's floor, a semver-major for it";
+const FLOOR_MESSAGE = "the family needs Node >=22.13.0; adopting raises this package's floor, a semver-major for it";
 
 const requireEsm = (range: string, lowest: string, target = 'burgee/commander'): object => ({
   check: 'require-esm',
@@ -87,7 +87,9 @@ describe('R2 — the range reader', () => {
     expect(lowestIn('>= 20.19.0', NO_REQUIRE_ESM), "@swc/cli's own spelling; 20.19 has require(esm), 21.0 does not").toBe('21.0.0');
     expect(lowestIn('^20.19.0 || >=22.13.0', NO_REQUIRE_ESM), 'the family floor admits no Node without require(esm)').toBeUndefined();
     expect(lowestIn('>=22', NO_REQUIRE_ESM)).toBe('22.0.0');
-    expect(lowestIn('>=22', BELOW_FLOOR)).toBeUndefined();
+    expect(lowestIn('>=22.13.0', BELOW_FLOOR)).toBeUndefined();
+    expect(lowestIn('>=22', BELOW_FLOOR), '22.0 to 22.12 is below the family floor').toBe('22.0.0');
+    expect(lowestIn('^20.19.0 || >=22.13.0', BELOW_FLOOR), "the family's floor before it was raised").toBe('20.19.0');
     expect(lowestIn('18 - 22', BELOW_FLOOR)).toBe('18.0.0');
     expect(lowestIn('~20.18', BELOW_FLOOR)).toBe('20.18.0');
     expect(lowestIn('20.x', BELOW_FLOOR)).toBe('20.0.0');
@@ -232,8 +234,8 @@ describe('R4 — floor', () => {
     expect(read(dir, 'lib/svgo.js')).toBe("import pc from 'roundel/picocolors';\n");
   });
 
-  it('R4 — an ES-module project on engines.node >=22 gets no rows', async () => {
-    const dir = project({ 'package.json': JSON.stringify({ type: 'module', engines: { node: '>=22' }, dependencies: { commander: '^15.0.0' }, devDependencies: { jest: '^29.0.0' } }), 'a.js': "import { Command } from 'commander';\n" });
+  it('R4 — an ES-module project on engines.node >=22.13.0 gets no rows', async () => {
+    const dir = project({ 'package.json': JSON.stringify({ type: 'module', engines: { node: '>=22.13.0' }, dependencies: { commander: '^15.0.0' }, devDependencies: { jest: '^29.0.0' } }), 'a.js': "import { Command } from 'commander';\n" });
     const report = await run(dir);
     expect(report.preflight).toEqual([]);
     expect(report.changed).toBe(true);
@@ -245,7 +247,7 @@ describe('R4 — floor', () => {
   });
 
   it('a CommonJS project on the family floor gets no row', async () => {
-    const dir = project({ 'package.json': JSON.stringify({ engines: { node: '^20.19.0 || >=22.13.0' }, dependencies: { chalk: '^6.0.0' } }) });
+    const dir = project({ 'package.json': JSON.stringify({ engines: { node: '>=22.13.0' }, dependencies: { chalk: '^6.0.0' } }) });
     expect((await run(dir)).preflight).toEqual([]);
   });
 });
@@ -268,7 +270,7 @@ describe('R5 — jest-cjs', () => {
   });
 
   it('R5 — transformIgnorePatterns or --experimental-vm-modules clears the jest row', async () => {
-    const base = { engines: { node: '^20.19.0 || >=22.13.0' }, dependencies: { chalk: '^6.0.0' } };
+    const base = { engines: { node: '>=22.13.0' }, dependencies: { chalk: '^6.0.0' } };
     expect(await rows({ ...base, devDependencies: { jest: '^29.0.0' } })).toEqual([jestCjs('roundel/chalk')]);
     expect(await rows({ ...base, jest: { testEnvironment: 'node' } }), 'a jest key declares jest').toEqual([jestCjs('roundel/chalk')]);
     expect(await rows(base, { 'jest.config.json': '{}' }), 'a config file declares jest').toEqual([jestCjs('roundel/chalk')]);
@@ -320,7 +322,7 @@ describe('R6 — a blocking row stops the write, and --force does not lift it', 
   });
 
   it('R6 — an unblocked dry run labels its list would rewrite, and still prints its next step', async () => {
-    const dir = project({ 'package.json': JSON.stringify({ type: 'module', engines: { node: '>=20.19.0' }, dependencies: { commander: '^15.0.0' } }), 'a.js': "import { Command } from 'commander';\n" });
+    const dir = project({ 'package.json': JSON.stringify({ type: 'module', engines: { node: '>=22.13.0' }, dependencies: { commander: '^15.0.0' } }), 'a.js': "import { Command } from 'commander';\n" });
     const report = await run(dir, { dryRun: true });
     const text = textOf(report).split('\n');
     expect(text).toContain('would rewrite:');
@@ -329,7 +331,7 @@ describe('R6 — a blocking row stops the write, and --force does not lift it', 
   });
 
   it('R6 — an unblocked run still labels its list rewrote and prints its next step', async () => {
-    const dir = project({ 'package.json': JSON.stringify({ type: 'module', engines: { node: '>=20.19.0' }, dependencies: { commander: '^15.0.0' } }), 'a.js': "import { Command } from 'commander';\n" });
+    const dir = project({ 'package.json': JSON.stringify({ type: 'module', engines: { node: '>=22.13.0' }, dependencies: { commander: '^15.0.0' } }), 'a.js': "import { Command } from 'commander';\n" });
     const report = await run(dir);
     expect(report.next).toMatch(/^npm install burgee@\^\S+ && npm uninstall commander$/u);
     const text = textOf(report).split('\n');

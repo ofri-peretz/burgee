@@ -124,3 +124,28 @@ describe('ORDER is the declaration, and the union is generated from it (R14)', (
     expect(explain('region', r)).toContain('from vault acme://vault/ci');
   });
 });
+
+describe('the environment, read to the letter', () => {
+  it('reads a boolean with space around it, and names the variable as its provenance', () => {
+    const r = resolve(specs, { ...base, env: { APP_DRY_RUN: ' True ' } });
+    expect(r.values['dryRun']).toBe(true);
+    expect(r.provenance['dryRun']).toStrictEqual({ source: 'env', location: 'APP_DRY_RUN' });
+  });
+
+  it('records a default as its source alone, and a flag with no line as no line at all', () => {
+    const r = resolve(specs, { ...base, flags: { dryRun: true } });
+    expect(r.provenance['region']).toStrictEqual({ source: 'default' });
+    expect(r.provenance['dryRun']).toStrictEqual({ source: 'flag', location: '--dryRun' });
+  });
+
+  it('refuses `PREFIX_NO_X` only for a boolean: a string option may be named so', () => {
+    expect(resolve(specs, { ...base, env: { APP_NO_REGION: 'x' } }).values['region']).toBe('us-1');
+  });
+
+  it('with no prefix, reads no variable for an option that names none, and asks after no `_NO_` spelling', () => {
+    const r = resolve(specs, { flags: {}, env: { undefined_NO_DRY_RUN: '1', undefined_DRY_RUN: '1', DRY_RUN: '1' } });
+    expect(r.values).toEqual({ region: 'us-1' });
+    expect((r.candidates['dryRun'] ?? []).map((c) => c.source)).not.toContain('env');
+    expect(resolve({ f: { type: 'boolean', env: 'F' } }, { flags: {}, env: { F: '1', undefined_NO_F: '1' } }).values).toEqual({ f: true });
+  });
+});

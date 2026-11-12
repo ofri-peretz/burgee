@@ -3,7 +3,7 @@ id: D-20261020-node-26-waits-for-lts
 subject: 'Which Node majors `compat.yml` grades: the active LTS lines only, so Node 26 waits for its LTS promotion'
 taken: Taken
 date: '2026-10-20'
-superseded_by: —
+superseded_by: D-20261106-node-22-24-26
 ---
 
 **`compat.yml`'s `matrix` job runs Node 24 only. Node 26 rejoins, as `node: [24, 26]`, on the

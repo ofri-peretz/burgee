@@ -1,8 +1,9 @@
 {
   "name": "oxmutate",
-  "version": "1.5.0",
+  "version": "1.6.2",
   "description": "Mutation testing for JavaScript and TypeScript on the oxc engine, run warm inside the project's own Vitest, with CI lanes, SARIF and an agent surface. No dependency outside the burgee family. A Stryker migration path.",
   "license": "MIT",
+  "author": "Ofri Peretz <ofriperetzdev@gmail.com>",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ofri-peretz/burgee.git",
@@ -14,8 +15,13 @@
   "homepage": "https://oxmutate.interlace.tools",
   "type": "module",
   "private": false,
+  "sideEffects": [
+    "./dist/bin.js",
+    "./dist/child.js",
+    "./dist/runner.js"
+  ],
   "engines": {
-    "node": "^20.19.0 || >=22.13.0"
+    "node": ">=22.13.0"
   },
   "bin": {
     "oxmutate": "./dist/bin.js"
@@ -57,6 +63,24 @@
       ]
     }
   },
+  "keywords": [
+    "mutation-testing",
+    "mutation",
+    "mutation-score",
+    "stryker",
+    "vitest",
+    "oxc",
+    "test-quality",
+    "sarif",
+    "typescript",
+    "javascript",
+    "ci",
+    "cli"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "files": [
     "dist",
     "binding/oxmutate.*.node",
@@ -75,8 +99,8 @@
     "compat:mutation": "vitest run --config compat/vitest.config.ts"
   },
   "dependencies": {
-    "bellpull": "^1.0.10",
-    "burgee": "^1.9.2"
+    "bellpull": "^1.0.11",
+    "burgee": "^1.10.2"
   },
   "peerDependencies": {
     "vitest": ">=4.1.0"

@@ -50,7 +50,7 @@ splice it into `PATH` for the call. [Resolver plugins](/docs/guides/plugins#usin
 
 ## Can I use it from CommonJS?
 
-Yes, on Node 20.19+ and 22.13+ through `require(esm)`; `shape.test.ts` installs the packed
+Yes, on Node 22.13+ through `require(esm)`; `shape.test.ts` installs the packed
 tarball and does exactly that. `require('bellpull/cross-spawn')` returns the callable default,
 as `require('cross-spawn')` does.
 

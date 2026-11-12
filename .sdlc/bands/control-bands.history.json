@@ -35,6 +35,10 @@
     {
       "date": "2026-11-02",
       "value": 112040
+    },
+    {
+      "date": "2026-11-09",
+      "value": 115730
     }
   ],
   "lint-rules-on": [
@@ -85,6 +89,10 @@
     {
       "date": "2026-11-02",
       "value": 482
+    },
+    {
+      "date": "2026-11-09",
+      "value": 482
     }
   ],
   "lint-documented-false-positives": [
@@ -134,6 +142,10 @@
     },
     {
       "date": "2026-11-02",
+      "value": 0
+    },
+    {
+      "date": "2026-11-09",
       "value": 0
     }
   ],
@@ -75296,6 +75308,11 @@
       "date": "2026-10-27-72e3551-dispatch-40539828491-ci",
       "value": 63516,
       "measured": "2026-10-27T16:58:34.249Z"
+    },
+    {
+      "date": "2026-11-03-29fc969-weekly-ci",
+      "value": 63490,
+      "measured": "2026-11-03T13:20:38.004Z"
     }
   ],
   "agent-turns-per-task": [
@@ -75678,6 +75695,11 @@
       "date": "2026-10-27-72e3551-dispatch-40539828491-ci",
       "value": 3,
       "measured": "2026-10-27T16:58:34.249Z"
+    },
+    {
+      "date": "2026-11-03-29fc969-weekly-ci",
+      "value": 3,
+      "measured": "2026-11-03T13:20:38.004Z"
     }
   ],
   "agent-skill-bytes": [

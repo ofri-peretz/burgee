@@ -51,6 +51,8 @@ describe('protectShellToken (cmd’s rules)', () => {
   it('treats the characters at each range boundary as the ranges say', () => {
     // '/' and ':' sit either side of the digits, and both are tested above, '@' and '[' of the upper case, '`' and '{' of the lower.
     expect(protectShellToken('@[`{')).toBe('^@^[^`^{');
+    // And the characters just inside each range, and the first one past ASCII.
+    expect(protectShellToken('09AZaz\u0080')).toBe('09AZaz\u0080');
   });
 });
 
@@ -59,6 +61,7 @@ describe('envValue (Windows names are case-insensitive)', () => {
     expect(envValue({ Path: 'a' }, 'PATH')).toBe('a');
     expect(envValue({ PATH: 'first', path: 'second' }, 'PATH')).toBe('second');
     expect(envValue({}, 'PATH')).toBeUndefined();
+    expect(envValue({ undefined: 'not a match' }, 'PATH')).toBeUndefined();
   });
 });
 
@@ -67,14 +70,21 @@ describe('resolveWindowsCommand', () => {
   const bin = join(root, 'bin');
   mkdirSync(bin);
   writeFileSync(join(bin, 'probe.CMD'), '');
+  writeFileSync(join(bin, 'probe.PS1'), '');
   writeFileSync(join(root, 'local.EXE'), '');
   mkdirSync(join(root, 'dir.BAT'));
   writeFileSync(join(root, 'twice.EXE'), '');
   writeFileSync(join(root, 'twice.EXE.exe'), '');
+  writeFileSync(join(root, 'pair.EXE'), '');
+  writeFileSync(join(root, 'pair.EXE.EXE'), '');
+  writeFileSync(join(root, 'bare'), '');
+  writeFileSync(join(root, 'bare.EXE'), '');
 
   it('tries each PATHEXT suffix over the cwd and then PATH', () => {
     expect(resolveWindowsCommand('probe', { Path: bin, PATHEXT: '.EXE;.CMD' }, root)).toBe(join(bin, 'probe.CMD'));
     expect(resolveWindowsCommand('local', { PATHEXT: '.EXE' }, root)).toBe(join(root, 'local.EXE'));
+    // A suffix only the environment names, so the default list cannot be what found it.
+    expect(resolveWindowsCommand('probe', { Path: bin, PATHEXT: '.PS1' }, root)).toBe(join(bin, 'probe.PS1'));
   });
 
   it('tries the name as given first when it already carries an extension', () => {
@@ -82,11 +92,15 @@ describe('resolveWindowsCommand', () => {
     expect(resolveWindowsCommand('local.EXE', { PATHEXT: '.exe' }, root)).toBe(join(root, 'local.EXE'));
     expect(resolveWindowsCommand('twice.EXE', { PATHEXT: '.exe' }, root)).toBe(join(root, 'twice.EXE'));
     expect(resolveWindowsCommand('twice.EXE', { PATHEXT: '.cmd' }, root)).toBe(join(root, 'twice.EXE'));
+    // Any extension on the list counts, not only when it is every one of them.
+    expect(resolveWindowsCommand('pair.EXE', { PATHEXT: '.EXE;.CMD' }, root)).toBe(join(root, 'pair.EXE'));
   });
 
   it('uses the default PATHEXT when there is none, or an empty one', () => {
     expect(resolveWindowsCommand('local', {}, root)).toBe(join(root, 'local.EXE'));
     expect(resolveWindowsCommand('local', { PATHEXT: '' }, root)).toBe(join(root, 'local.EXE'));
+    // An empty entry in PATHEXT is no extension, so a bare name is still tried last.
+    expect(resolveWindowsCommand('bare', { PATHEXT: '.EXE;' }, root)).toBe(join(root, 'bare.EXE'));
   });
 
   it('looks only in the cwd for a name with a slash, strips quotes from PATH entries, and skips a directory', () => {
@@ -94,6 +108,14 @@ describe('resolveWindowsCommand', () => {
     expect(resolveWindowsCommand('probe', { Path: `"${bin}"` }, root)).toBe(join(bin, 'probe.CMD'));
     expect(resolveWindowsCommand('dir', { PATHEXT: '.BAT' }, root)).toBeUndefined();
     expect(resolveWindowsCommand('nowhere', {}, root)).toBeUndefined();
+  });
+
+  // A quote inside a PATH entry is part of the name: only one at either end is stripped.
+  it.skipIf(process.platform === 'win32')('keeps a quote inside a PATH entry', () => {
+    const quoted = join(root, 'q"d');
+    mkdirSync(quoted);
+    writeFileSync(join(quoted, 'inner.CMD'), '');
+    expect(resolveWindowsCommand('inner', { Path: quoted, PATHEXT: '.CMD' }, root)).toBe(join(quoted, 'inner.CMD'));
   });
 });
 
@@ -134,9 +156,18 @@ describe('spawnCommand', () => {
     expect(spawn).toHaveBeenLastCalledWith('cmd.exe', ['/d', '/v:off', '/s', '/c', '"missing ^"a^&b^""'], { windowsVerbatimArguments: true });
   });
 
-  it('treats an unresolved name ending in .cmd as a batch file', () => {
+  it('treats an unresolved name ending in .cmd as a batch file, and one with .cmd inside it as not', () => {
     const spawn = vi.spyOn(cp, 'spawn').mockReturnValue(fake);
     spawnCommand('gone.cmd', ['&'], { cwd: root }, context('win32'));
     expect(spawn.mock.calls[0]?.[1]).toEqual(['/d', '/v:off', '/s', '/c', '"gone.cmd ^^^"^^^&^^^""']);
+    spawnCommand('gone.cmd.txt', ['&'], { cwd: root }, context('win32'));
+    expect(spawn.mock.calls[1]?.[1]).toEqual(['/d', '/v:off', '/s', '/c', '"gone.cmd.txt ^"^&^""']);
+  });
+
+  it('runs a batch file through cmd.exe even when its name has `.exe` inside it', () => {
+    writeFileSync(join(root, 'tool.exe.BAT'), '');
+    const spawn = vi.spyOn(cp, 'spawn').mockReturnValue(fake);
+    spawnCommand('tool.exe', [], { cwd: root, env: { PATHEXT: '.BAT' } }, context('win32'));
+    expect(spawn.mock.calls[0]?.[0]).toBe('cmd.exe');
   });
 });

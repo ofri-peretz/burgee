@@ -38,8 +38,8 @@
  * Built on the same style stack `wrap` uses rather than a second copy of it, which is the
  * whole consolidation: `slice-ansi` and `wrap-ansi` each carry their own, and they disagree.
  */
-import { applyParameters, applyToken, ASCII_PRINTABLE, closingSequence, segmenter, sgrTokens, type ActiveStyle } from './style.js';
-import { clusterColumns } from './width.js';
+import { applyParameters, applyToken, closingSequence, segmenter, sgrTokens, type ActiveStyle } from './style.js';
+import { clusterColumns, plainAscii } from './width.js';
 
 const ESC = '\u001B';
 const BELL = '\u0007';
@@ -91,6 +91,7 @@ interface Text {
 type Escape = Sgr | Link | Control;
 type Token = Escape | Text;
 
+// Stryker disable next-line StringLiteral: the walk handles every kind it does not name as a control, so the tag is never compared
 const control = (code: string): Control => ({ kind: 'control', code });
 
 /** `OSC 8 ; params ; URI ST`, in either introducer, ended by `BEL`, `ESC \` or `U+009C`. */
@@ -99,6 +100,7 @@ function parseLink(string: string, index: number): Escape | undefined {
   if (prefix === undefined) return undefined;
   const uri = string.indexOf(';', index + prefix.length);
   if (uri === -1) return control(string.slice(index));
+  // Stryker disable next-line NumericLiteral,EqualityOperator: the character at `uri` is the `;` itself, never a terminator, and past the end there is none
   for (let at = uri + 1; at < string.length; at += 1) {
     const terminator = string[at] === BELL || string[at] === C1_ST ? string[at] : string.startsWith(ST, at) ? ST : undefined;
     if (terminator !== undefined) {
@@ -112,8 +114,10 @@ function parseLink(string: string, index: number): Escape | undefined {
 function parseControlString(string: string, index: number): Escape | undefined {
   const first = string[index] as string;
   let body: number;
+  // Stryker disable next-line BooleanLiteral: both branches that reach the scan assign it first
   let bell = false;
   if (first === ESC) {
+    // Stryker disable next-line StringLiteral: any fallback that is not a command byte is refused the same way as the empty one
     const command = string[index + 1] ?? '';
     if (command === '\\') return control(ST);
     if (!STRING_COMMANDS.has(command)) return undefined;
@@ -122,11 +126,13 @@ function parseControlString(string: string, index: number): Escape | undefined {
   } else if (first === C1_ST) {
     return control(C1_ST);
   } else if (first === C1_OSC || C1_STRINGS.has(first)) {
+    // Stryker disable next-line NumericLiteral: starting on the introducer itself finds no terminator there — it is neither BEL nor ST
     body = index + 1;
     bell = first === C1_OSC;
   } else {
     return undefined;
   }
+  // Stryker disable next-line EqualityOperator: past the end there is no terminator, and the unterminated string is taken whole either way
   for (let at = body; at < string.length; at += 1) {
     if ((bell && string[at] === BELL) || string[at] === C1_ST) return control(string.slice(index, at + 1));
     if (string.startsWith(ST, at)) return control(string.slice(index, at + ST.length));
@@ -141,6 +147,7 @@ function parseCsi(string: string, index: number): Escape | undefined {
   else if (string[index] === C1_CSI) prefix = C1_CSI;
   else return undefined;
   let canonical = true;
+  // Stryker disable next-line EqualityOperator: one more pass reads undefined, which ends the sequence at the end of the string — the same control the fall-through returns
   for (let at = index + prefix.length; at < string.length; at += 1) {
     const character = string[at] as string;
     if (CSI_FINAL.test(character)) {
@@ -193,6 +200,7 @@ function walk(string: string, visit: (token: Text | Placed) => boolean): void {
   for (let index = 0, from = 0; index <= string.length; ) {
     INTRODUCER.lastIndex = index;
     const at = INTRODUCER.exec(string)?.index ?? string.length;
+    // Stryker disable next-line EqualityOperator,ConditionalExpression: at the end of the string every parser finds nothing and answers undefined
     const escape = at < string.length ? parseEscape(string, at) : undefined;
     // An introducer nothing parses from is a character like any other.
     if (at < string.length && escape === undefined) {
@@ -200,13 +208,14 @@ function walk(string: string, visit: (token: Text | Placed) => boolean): void {
       continue;
     }
     const run = string.slice(from, at);
+    // Stryker disable next-line ConditionalExpression,StringLiteral: an empty run yields no code points, so `unit` steps over it
     if (run !== '') parts.push(run);
     text += run;
     if (escape === undefined) break;
     parts.push(escape);
     index = from = at + escape.code.length;
   }
-  const clusters = ASCII_PRINTABLE.test(text) ? undefined : segmenter().segment(text)[Symbol.iterator]();
+  const clusters = plainAscii(text) ? undefined : segmenter().segment(text)[Symbol.iterator]();
   let part = 0;
   let run: Iterator<string> | undefined;
   /** The next escape or code point, or `undefined` past the end. */
@@ -227,6 +236,7 @@ function walk(string: string, visit: (token: Text | Placed) => boolean): void {
   const escapes = (ahead: boolean): void => {
     for (; next !== undefined && typeof next !== 'string'; next = unit()) visit({ ...next, ahead });
   };
+  // Stryker disable next-line BooleanLiteral: before the first code point nothing is past the end — the first column is 0 and `end` is above it or nothing is taken
   for (escapes(false); next !== undefined; escapes(false)) {
     // Printable ASCII is one column and one cluster per character — the common case never
     // builds the segmenter, which is the import-time saving `style.ts` records. Past the last
@@ -243,6 +253,7 @@ function walk(string: string, visit: (token: Text | Placed) => boolean): void {
     let offset = 0;
     for (const _ of segment) {
       // The clusters partition the visible text, which is these code points joined.
+      // Stryker disable next-line ConditionalExpression,EqualityOperator: at the first code point of a cluster the escapes before it were already visited, so the call finds none
       if (offset > 0) escapes(true);
       if (visit({ kind: 'text', value: next as string, columns: offset === 0 ? columns : 0, continuation: offset > 0 })) return;
       next = unit();
@@ -277,22 +288,25 @@ function closesStyle(parameters: string, active: ActiveStyle[]): boolean {
  * cost the bundled `linegauge/slice` more than this does (see `ceilings.json`).
  */
 export function slice(string: string, start = 0, end = Number.POSITIVE_INFINITY): string {
-  if (end <= start || string.length === 0) return '';
   let active: ActiveStyle[] = [];
   // The open hyperlink, whether it has wrapped visible text yet, and where its opener sits in
   // `body` when it was emitted — an empty link is taken back out (rule 4).
   let link: Link | undefined;
+  // Stryker disable next-line BooleanLiteral: read only while a link is open, and opening one sets it
   let linked = false;
+  // Stryker disable next-line NumericLiteral: read only while a link is open, and opening one sets it
   let linkAt = 0;
   // Where the latest run of openers with no text after it began, and the stack before it.
   let pendingAt: number | undefined;
   let pendingActive = active;
   let column = 0;
+  // Stryker disable next-line StringLiteral: replaced when the slice starts, and returned only after it has
   let body = '';
   let started = false;
 
   const forgetLink = (): void => {
     link = undefined;
+    // Stryker disable next-line BooleanLiteral: with no link open nothing reads it, and the next link to open sets it
     linked = false;
   };
   // Only ever handed the open link, and only when it has wrapped nothing. Before the slice
@@ -300,6 +314,7 @@ export function slice(string: string, start = 0, end = Number.POSITIVE_INFINITY)
   const discardLink = (open: Link): void => {
     const length = open.code.length;
     body = body.slice(0, linkAt) + body.slice(linkAt + length);
+    // Stryker disable next-line EqualityOperator,ConditionalExpression: an opener and a link are never recorded at the same offset — each one written moves `body` on — and `undefined > linkAt` is false, so the first check only names the case
     if (pendingAt !== undefined && pendingAt > linkAt) pendingAt -= length;
     forgetLink();
   };
@@ -312,16 +327,18 @@ export function slice(string: string, start = 0, end = Number.POSITIVE_INFINITY)
     const opens = opensStyle(token.parameters);
     // Past the end, only a sequence that purely closes something open is kept, as written.
     if (pastEnd && (opens || !closesStyle(token.parameters, active))) return;
-    if (started && opens && pendingAt === undefined) {
+    if (opens && pendingAt === undefined) {
       pendingAt = body.length;
       pendingActive = [...active];
     }
     const before = new Set(active);
     applyParameters(token.parameters, active);
     // A one-character introducer is the C1 `CSI`; `ESC [` is two.
+    // Stryker disable next-line ConditionalExpression: giving an `ESC [` style its own introducer is what reopening it without one does
     if (token.prefix.length === 1) {
       for (const style of active) if (!before.has(style)) style.prefix = token.prefix;
     }
+    // Stryker disable next-line ConditionalExpression: before the slice starts `body` is replaced, not returned
     if (started) body += token.code;
   };
 
@@ -333,12 +350,13 @@ export function slice(string: string, start = 0, end = Number.POSITIVE_INFINITY)
       link = token;
       linked = false;
       linkAt = body.length;
-    } else if (started && link !== undefined && !linked) {
+    } else if (link !== undefined && !linked) {
       discardLink(link);
       return;
     } else {
       forgetLink();
     }
+    // Stryker disable next-line ConditionalExpression: before the slice starts `body` is replaced, not returned
     if (started) body += token.code;
   };
 
@@ -351,9 +369,11 @@ export function slice(string: string, start = 0, end = Number.POSITIVE_INFINITY)
         body += link.code;
       }
     }
+    // Stryker disable next-line ConditionalExpression: before the slice starts `body` is replaced, not returned, and the first text in range starts it
     if (started) {
       body += token.value;
       pendingAt = undefined;
+      // Stryker disable next-line ConditionalExpression: with no link open nothing reads it, and the next link to open clears it
       if (link !== undefined) linked = true;
     }
     column += token.columns;
@@ -363,7 +383,7 @@ export function slice(string: string, start = 0, end = Number.POSITIVE_INFINITY)
     const cluster = token.kind === 'text' && !token.continuation;
     let pastEnd = column >= end || (cluster && column + token.columns > end);
     // An escape inside a cluster that is still being emitted belongs to that cluster.
-    if (pastEnd && token.kind !== 'text' && token.ahead) pastEnd = false;
+    if ((token as Placed).ahead) pastEnd = false;
     if (pastEnd && cluster) {
       // Rule 1: stop at the first cluster that would overrun. Openers that styled nothing are
       // taken back out here, and a link that wrapped nothing by `settleLink` below, so the

@@ -16,7 +16,9 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { CONTRACT, overrides, PluginError, problems, register, setOverrides, validate } from './plugin.js';
+import { slice } from './slice.js';
 import { width } from './width.js';
+import { wrap } from './wrap.js';
 
 /** Each case starts from no overrides: registration is global, which is what makes it useful. */
 afterEach(() => {
@@ -61,6 +63,30 @@ describe('a plugin contributes width overrides', () => {
     // cell for it says so, and the override has to win or it is decorative.
     register({ name: 'reserves-marks', widths: { marks: { ranges: [[0x03_01, 0x03_01]] as const, columns: 1, why: 'this terminal advances the cursor on a combining acute' } } });
     expect(width('́')).toBe(1);
+  });
+});
+
+describe('a claim on a printable ASCII code point is honoured on every fast path', () => {
+  // The ASCII fast paths answered one column per code unit without asking the plugin, so a
+  // claim on `~` held only once a non-ASCII character pushed the string off the fast path.
+  const wideTilde = { name: 'wide-tilde', widths: { tilde: { ranges: [[0x7e, 0x7e]] as const, columns: 2, why: 'this font draws a two-column tilde' } } };
+
+  it('in width, alone and beside a non-ASCII character', () => {
+    register(wideTilde);
+    expect(width('~'), 'the fast path answered the string length').toBe(2);
+    expect(width('~é')).toBe(3);
+  });
+
+  it('in wrap, which breaks a hard-wrapped run of them at the claimed width', () => {
+    expect(wrap('~~', 2, { hard: true })).toBe('~~');
+    register(wideTilde);
+    expect(wrap('~~', 2, { hard: true })).toBe('~\n~');
+  });
+
+  it('in slice, which counts the claimed columns', () => {
+    expect(slice('~~', 0, 2)).toBe('~~');
+    register(wideTilde);
+    expect(slice('~~', 0, 2)).toBe('~');
   });
 });
 
@@ -144,5 +170,49 @@ describe('each range is checked on its own, and named by its index', () => {
 
   it('refuses a bound outside U+0000..U+10FFFF, and accepts both ends of it', () => {
     expect(lines([-1, 2], [0, 0x11_00_00], [0, 0x10_ff_ff])).toEqual(['widths.r.ranges[0] is outside U+0000..U+10FFFF', 'widths.r.ranges[1] is outside U+0000..U+10FFFF']);
+  });
+});
+
+/** What `run` threw, or undefined when it returned. */
+function thrown(run: () => void): PluginError | undefined {
+  try {
+    run();
+  } catch (caught) {
+    return caught as PluginError;
+  }
+  return undefined;
+}
+
+describe('every field is refused with its own line and fix', () => {
+  it('refuses an empty name, and throws a PluginError saying so', () => {
+    expect(problems({ name: '' })).toEqual([{ code: 'E_PLUGIN_SCHEMA', line: 'a plugin needs a non-empty `name`', fix: 'add `name: "my-widths"` — it is what `linegauge check` and a later registration call it' }]);
+    const error = thrown(() => validate({ name: '' }));
+    expect(error?.name).toBe('PluginError');
+    expect(error?.message).toBe('a plugin needs a non-empty `name`');
+    expect(error?.code).toBe('E_PLUGIN_SCHEMA');
+  });
+
+  it('speaks contract 1, and says so when refusing another', () => {
+    expect(CONTRACT).toBe(1);
+    expect(problems({ name: 'x', contract: 1 })).toEqual([]);
+    expect(problems({ name: 'x', contract: 2 })).toEqual([{ code: 'E_PLUGIN_CONTRACT', line: 'contract 2 is not 1', fix: 'set `contract: 1`, or drop the field — the family is on one version' }]);
+  });
+
+  it.each([[-1], [1.5], [Number.NaN], ['2']])('refuses `columns: %j`', (columns) => {
+    expect(problems({ name: 'x', widths: { a: { ranges: [[1, 2]], columns, why: 'x' } } })).toEqual([{ code: 'E_PLUGIN_SCHEMA', line: 'widths.a.columns is 0, 1 or 2', fix: '0 for a zero-width mark, 1 narrow, 2 wide' }]);
+  });
+
+  it.each([[0], [2]])('accepts `columns: %j`', (columns) => {
+    expect(problems({ name: 'x', widths: { a: { ranges: [[1, 2]], columns, why: 'x' } } })).toEqual([]);
+  });
+
+  it('refuses an empty `why`', () => {
+    expect(problems({ name: 'x', widths: { a: { ranges: [[1, 2]], columns: 1, why: '' } } })).toEqual([
+      {
+        code: 'E_PLUGIN_SCHEMA',
+        line: 'widths.a.why is required',
+        fix: 'say which terminal or font disagrees, and how you measured it — ambiguous width is wrong often enough that the next reader needs the provenance',
+      },
+    ]);
   });
 });

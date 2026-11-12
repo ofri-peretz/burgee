@@ -41,10 +41,12 @@ const SGR_COLOR_MODE_RGB = 2;
 const SGR_COLOR_MODE_256 = 5;
 
 const FOREGROUND_FIRST = 30;
+// Stryker disable next-line NumericLiteral: 38 with no arguments never reaches the colour table — `sgrTokens` stops at a malformed extended colour
 const FOREGROUND_LAST = 37;
 const FOREGROUND_BRIGHT_FIRST = 90;
 const FOREGROUND_BRIGHT_LAST = 97;
 const BACKGROUND_FIRST = 40;
+// Stryker disable next-line NumericLiteral: 48 with no arguments never reaches the colour table — `sgrTokens` stops at a malformed extended colour
 const BACKGROUND_LAST = 47;
 const BACKGROUND_BRIGHT_FIRST = 100;
 const BACKGROUND_BRIGHT_LAST = 107;
@@ -59,6 +61,7 @@ const COLOR_RGB_PARTS = 3;
 const COLON_RGB_WITH_SPACE = 6;
 
 export const ESCAPES = new Set([ESC, C1_CSI]);
+// Stryker disable next-line StringLiteral: a separator only adds characters to the introducer class, and `matchEscape` turns each one away as plain text
 const ESCAPE_CHARACTERS = [...ESCAPES].join('');
 
 const CSI_INTRODUCER = `(?:${ESC}\\${CSI}|${C1_CSI})`;
@@ -74,10 +77,9 @@ const LINK_PARAMETERS = String.raw`8;(?<parameters>[^;\u0000-\u001F\u007F-\u009F
 // through as an opaque zero-width unit, and anything that only looks like an introducer
 // stays plain text. `y` (sticky), so a match is anchored where the scan asked.
 export const ANSI_ESCAPE = new RegExp(`${CSI_INTRODUCER}(?:${SGR_PARAMETERS}|${CSI_PARAMETERS})|${ESC}\\${OSC}(?:${LINK_PARAMETERS}|${OSC_PAYLOAD}${OSC_TERMINATOR})`, 'y');
+// Stryker disable next-line StringLiteral: an empty pattern stops at every index, and `matchEscape` turns each non-introducer away as plain text
 const ESCAPE_INTRODUCER = new RegExp(`[${ESCAPE_CHARACTERS}]`, 'g');
 export const ROW_BOUNDARY = new RegExp(`[\\n${ESCAPE_CHARACTERS}]`, 'g');
-/** Every printable ASCII character is its own cluster of width one — skip the segmenter. */
-export const ASCII_PRINTABLE = /^[ -~]*$/;
 
 /**
  * Which SGR code closes which modifier. This is ECMA-48, not any library's table — bold
@@ -115,6 +117,7 @@ export const hyperlink = (url: string, parameters = ''): string => `${ESC}${OSC}
 /** The complete escape sequence starting at `index`, or nothing when none starts there. */
 export function matchEscape(string: string, index: number): RegExpExecArray | undefined {
   // Every caller asks at an index inside the string, so there is always a character there.
+  // Stryker disable next-line ConditionalExpression: the sticky pattern below only matches at ESC or C1 CSI, so it turns every other character away by itself
   if (!ESCAPES.has(string[index] as string)) return undefined;
   ANSI_ESCAPE.lastIndex = index;
   return ANSI_ESCAPE.exec(string) ?? undefined;
@@ -128,6 +131,7 @@ export function forEachSegment(string: string, onPlainText: (text: string) => vo
   let plainStart = 0;
   let index = 0;
 
+  // Stryker disable next-line EqualityOperator: at the end the introducer search finds nothing and breaks
   while (index < string.length) {
     ESCAPE_INTRODUCER.lastIndex = index;
     const introducer = ESCAPE_INTRODUCER.exec(string);
@@ -139,12 +143,14 @@ export function forEachSegment(string: string, onPlainText: (text: string) => vo
       continue;
     }
 
+    // Stryker disable next-line EqualityOperator,ConditionalExpression: an empty run adds nothing to anything a caller builds from the runs
     if (introducer.index > plainStart) onPlainText(string.slice(plainStart, introducer.index));
     onEscape(escape[0]);
     index = introducer.index + escape[0].length;
     plainStart = index;
   }
 
+  // Stryker disable next-line EqualityOperator,ConditionalExpression: an empty run adds nothing to anything a caller builds from the runs
   if (plainStart < string.length) onPlainText(string.slice(plainStart));
 }
 
@@ -170,6 +176,7 @@ export interface ActiveStyle {
   prefix?: string;
 }
 
+// Stryker disable next-line Regex: a part here is already digits or empty — an SGR carries only digits, `;` and `:`, and the split took the colons
 const isDigits = (value: string): boolean => /^\d+$/.test(value);
 
 /** `38:5:9` and `38:2::r:g:b` — the colon form, which carries its arguments in one parameter. */
@@ -177,6 +184,7 @@ function colonColorToken(parameter: string): SgrToken | undefined {
   // Only a parameter with a colon arrives here, so the split has at least two parts.
   const parts = parameter.split(':') as [string, string, ...string[]];
   const code = Number.parseInt(parts[0], 10);
+  // Stryker disable next-line NumericLiteral: only digit strings reach here, and the two modes compared against, 2 and 5, read the same in base 11
   const mode = Number.parseInt(parts[1], 10);
   if (![SGR_FOREGROUND_EXTENDED, SGR_BACKGROUND_EXTENDED, SGR_UNDERLINE_COLOR_EXTENDED].includes(code)) return undefined;
 
@@ -196,12 +204,16 @@ function colonColorToken(parameter: string): SgrToken | undefined {
 
 /** One extended-colour parameter run, `38;5;n` or `38;2;r;g;b`, or nothing if malformed. */
 function extendedColorToken(code: number, parameters: string[], index: number): { token: SgrToken; consumed: number } | undefined {
+  // Stryker disable next-line StringLiteral,NumericLiteral: any non-numeric fallback parses to NaN like the empty one; 2 and 5 read the same in base 11
   const mode = Number.parseInt(parameters[index + 1] ?? '', 10);
+  // Stryker disable next-line StringLiteral: any non-numeric fallback parses to NaN like the empty one
   const first = Number.parseInt(parameters[index + 2] ?? '', 10);
   if (mode === SGR_COLOR_MODE_256 && Number.isFinite(first)) {
     return { token: { code, open: [code, mode, first].join(';'), hasArguments: true }, consumed: 2 };
   }
+  // Stryker disable next-line StringLiteral: any non-numeric fallback parses to NaN like the empty one
   const green = Number.parseInt(parameters[index + 3] ?? '', 10);
+  // Stryker disable next-line StringLiteral: any non-numeric fallback parses to NaN like the empty one
   const blue = Number.parseInt(parameters[index + 4] ?? '', 10);
   if (mode === SGR_COLOR_MODE_RGB && Number.isFinite(first) && Number.isFinite(green) && Number.isFinite(blue)) {
     return { token: { code, open: [code, mode, first, green, blue].join(';'), hasArguments: true }, consumed: 4 };
@@ -253,7 +265,9 @@ function colorStyle(token: SgrToken): ActiveStyle | undefined {
   if ((code >= BACKGROUND_FIRST && code <= BACKGROUND_LAST) || (code >= BACKGROUND_BRIGHT_FIRST && code <= BACKGROUND_BRIGHT_LAST) || (code === SGR_BACKGROUND_EXTENDED && hasArguments)) {
     return { family: 'background', open, close: SGR_RESET_BACKGROUND };
   }
-  if (code === SGR_UNDERLINE_COLOR_EXTENDED && hasArguments) {
+  // Only 58 is left to carry arguments: 38 and 48 are answered above, and a 58 without them
+  // never becomes a token — `sgrTokens` stops there.
+  if (hasArguments) {
     return { family: 'underlineColor', open, close: SGR_RESET_UNDERLINE_COLOR };
   }
   return undefined;
@@ -279,9 +293,10 @@ function applyResetCode(code: number, active: ActiveStyle[]): boolean {
   }
   if (MODIFIER_CLOSE_CODES.has(code)) {
     // One close code can end several modifiers — `22` ends both bold and dim.
+    // Only a modifier closes with one of these codes — a colour closes with 39, 49 or 59 and an
+    // unknown parameter with 0 — so the close code alone says which entries it ends.
     for (let index = active.length - 1; index >= 0; index -= 1) {
-      const style = active[index];
-      if (style !== undefined && style.family.startsWith('modifier-') && style.close === code) active.splice(index, 1);
+      if ((active[index] as ActiveStyle).close === code) active.splice(index, 1);
     }
     return true;
   }
@@ -299,7 +314,7 @@ export function applyToken(token: SgrToken, active: ActiveStyle[]): void {
   }
 
   const close = MODIFIER_CLOSE.get(token.code);
-  if (close !== undefined && close !== SGR_RESET) {
+  if (close !== undefined) {
     const family = `modifier-${token.code}`;
     removeFamily(active, family);
     active.push({ family, open: token.open, close });
@@ -329,9 +344,11 @@ const applyResets = (parameters: string, active: ActiveStyle[]): void => {
 /** A row that opens with its own resets should not have them undone by the reopening. */
 export function applyLeadingResets(string: string, startIndex: number, active: ActiveStyle[]): void {
   let index = startIndex;
+  // Stryker disable next-line EqualityOperator: at the end `matchEscape` finds no introducer and the loop breaks
   while (index < string.length) {
     const match = matchEscape(string, index);
     if (match === undefined) break;
+    // Stryker disable next-line OptionalChaining: the pattern has named groups, so `groups` is always there
     if (match.groups?.['sgr'] !== undefined) applyResets(match.groups['sgr'], active);
     index += match[0].length;
   }

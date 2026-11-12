@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import { decide, type Runtime as DecideRuntime } from './decide.js';
-import { processRuntime, promptStreams } from './runtime.js';
+import { processFacts, processRuntime, promptStreams } from './runtime.js';
 import { streamsOf } from './terminal.js';
 
 const src = resolve(dirname(fileURLToPath(import.meta.url)));
@@ -102,6 +102,23 @@ describe('processRuntime', () => {
       if (before === undefined) delete (process.stdout as { isTTY?: boolean }).isTTY;
       else Object.defineProperty(process.stdout, 'isTTY', before);
     }
+  });
+
+  it('reads whether stdin is a terminal, and only a true isTTY is one', () => {
+    const before = Object.getOwnPropertyDescriptor(process.stdin, 'isTTY');
+    try {
+      Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true });
+      expect(processRuntime().isTTY.stdin).toBe(true);
+      Object.defineProperty(process.stdin, 'isTTY', { value: undefined, configurable: true });
+      expect(processRuntime().isTTY.stdin).toBe(false);
+    } finally {
+      if (before === undefined) delete (process.stdin as { isTTY?: boolean }).isTTY;
+      else Object.defineProperty(process.stdin, 'isTTY', before);
+    }
+  });
+
+  it('processFacts is the working directory and the platform, read when asked', () => {
+    expect(processFacts()).toEqual({ cwd: process.cwd(), platform: process.platform });
   });
 
   it('satisfies the slice `decide()` asks for, CI included', () => {

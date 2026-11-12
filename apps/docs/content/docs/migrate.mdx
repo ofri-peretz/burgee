@@ -243,12 +243,12 @@ under `preflight`, first in the text report under `before the move`:
 | check | kind | when |
 | :-- | :-- | :-- |
 | `require-esm` | block | the package is CommonJS and `engines.node` allows a Node on which `require()` of an ES module throws `ERR_REQUIRE_ESM`: below 20.19.0, or 21.0.0 to 22.11.x |
-| `floor` | warn | `engines.node` allows a Node below 20.19.0, cannot be read, or is not declared. Adopting raises your package's floor, which is a semver-major for it |
+| `floor` | warn | `engines.node` allows a Node below 22.13.0, cannot be read, or is not declared. Adopting raises your package's floor, which is a semver-major for it |
 | `jest-cjs` | block | jest runs a CommonJS package, with neither `transformIgnorePatterns` nor `--experimental-vm-modules`: jest's own module loader cannot load an ES-module-only drop-in |
 | `untracked` | warn | `--force` let untracked paths through; they are named, so the report records what it ignored |
 
 Each row has the `found` text it read, a `message`, and a `fix`. For `require-esm` and `floor` the
-fix is `npm pkg set "engines.node=^20.19.0 || >=22.13.0"`, the floor every family package
+fix is `npm pkg set "engines.node=>=22.13.0"`, the floor every family package
 declares. For `jest-cjs` it is the `transformIgnorePatterns` that lets jest transform the family's
 packages, or running jest under `node --experimental-vm-modules`. The command runs neither: it
 rewrites specifiers and nothing else.

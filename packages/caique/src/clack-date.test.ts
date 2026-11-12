@@ -84,6 +84,19 @@ describe('the layout a locale gives', () => {
     expect(await fieldsOf({ locale: 'bg' })).toBe('│  dd.mm.yyyy');
   });
 
+  it('trims the spaces around a separator that has more than spaces', async () => {
+    // Hungarian writes `2000. 01. 15.`: the separator is `. `, drawn as `.`.
+    expect(await fieldsOf({ locale: 'hu' })).toBe('│  yyyy.mm.dd');
+  });
+
+  it.each([
+    ['YMD', '│  yyyy/mm/dd'],
+    ['MDY', '│  mm/dd/yyyy'],
+    ['DMY', '│  dd/mm/yyyy'],
+  ] as const)('a format of %s orders the fields that way, with a slash between them', async (format, line) => {
+    expect(await fieldsOf({ format })).toBe(line);
+  });
+
   it('keeps a separator that is only a space', async () => {
     expect(await fieldsOf({ locale: 'yo' })).toBe('│  dd mm yyyy');
   });
@@ -107,7 +120,63 @@ describe('the layout a locale gives', () => {
   });
 });
 
+/** The field line of every frame written, in order. */
+const fieldLines = (writes: string[]): string[] => writes.map((write) => write.split('\n')[2] ?? '').filter((line) => line.startsWith('│  '));
+
 describe('typing', () => {
+  it('draws a value with its leading zeros, and a part-typed field with spaces where the digits will go', async () => {
+    const { writes } = await drive({ message: 'm', format: 'YMD', initialValue: utc(999, 3, 4) }, ['escape']);
+    expect(writes[1]).toContain('│  0999/03/04\n');
+    const typed = await drive({ message: 'm', format: 'YMD' }, ['2', 'escape']);
+    expect(fieldLines(typed.writes)).toContain('│     2/mm/dd');
+  });
+
+  it('a field typed only in part is not a date, even when every other field is', async () => {
+    const { answer } = await drive({ message: 'm', format: 'YMD' }, ['2024', '1', 'tab', '15', 'return', 'escape']);
+    expect(answer).toBe(CANCEL_SYMBOL);
+  });
+
+  it('a digit typed into a full field starts it again, rather than filling it', async () => {
+    const { answer } = await drive({ message: 'm', format: 'YMD' }, ['20240115', '3', 'return', 'escape']);
+    expect(answer).toBe(CANCEL_SYMBOL);
+  });
+
+  it('typing into a part-typed field after leaving and coming back starts it again', async () => {
+    const { answer } = await drive({ message: 'm', format: 'YMD' }, ['202', 'tab', 'shift-tab', '1999', '0304', 'return']);
+    expect(answer).toEqual(utc(1999, 3, 4));
+  });
+
+  it('right and tab past the last field stay on it', async () => {
+    const { answer } = await drive({ message: 'm', format: 'YMD' }, ['2024', '01', 'right', 'tab', '15', 'return']);
+    expect(answer).toEqual(utc(2024, 1, 15));
+  });
+
+  it('left before the first field stays on it', async () => {
+    const { answer } = await drive({ message: 'm', format: 'YMD' }, ['left', 'shift-tab', '2024', '0115', 'return']);
+    expect(answer).toEqual(utc(2024, 1, 15));
+  });
+
+  it('a key carrying more than one character types nothing, digits or not', async () => {
+    const input = new Input();
+    const answer = date({ message: 'm', format: 'YMD', initialValue: utc(2024, 1, 15), input, output: new Output() });
+    for (const char of ['5a', 'a5']) input.emit('keypress', char, { name: undefined, sequence: char });
+    input.emit('keypress', '\r', { name: 'return', sequence: '\r' });
+    expect(await answer).toEqual(utc(2024, 1, 15));
+  });
+
+  it('draws the field being edited inverted, an empty one dimmed, and the separators grey', async () => {
+    vi.stubEnv('NO_COLOR', undefined);
+    vi.stubEnv('FORCE_COLOR', '1');
+    try {
+      const line = await fieldsOf({ format: 'YMD', initialValue: utc(2024, 1, 15) });
+      expect(line).toContain('\u001B[7m2024\u001B[27m\u001B[90m/\u001B[39m01\u001B[90m/\u001B[39m15');
+      const blank = await fieldsOf({ format: 'YMD' });
+      expect(blank).toContain('\u001B[7myyyy\u001B[27m\u001B[90m/\u001B[39m\u001B[2mmm\u001B[22m\u001B[90m/\u001B[39m\u001B[2mdd\u001B[22m');
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it('starts from the initial value, and answers it', async () => {
     const { answer, writes } = await drive({ message: 'm', format: 'YMD', initialValue: utc(2024, 2, 29) }, ['return']);
     expect(answer).toEqual(utc(2024, 2, 29));
@@ -133,6 +202,24 @@ describe('typing', () => {
 });
 
 describe('stepping', () => {
+  it('an empty month starts at 12 going down and 01 going up, and stays at 12 going up', async () => {
+    expect((await drive({ message: 'm', format: 'MDY' }, ['down', 'tab', '15', '2024', 'return'])).answer).toEqual(utc(2024, 12, 15));
+    expect((await drive({ message: 'm', format: 'MDY' }, ['up', 'tab', '15', '2024', 'return'])).answer).toEqual(utc(2024, 1, 15));
+    expect((await drive({ message: 'm', format: 'MDY' }, ['12', 'shift-tab', 'up', 'tab', '15', '2024', 'return'])).answer).toEqual(utc(2024, 12, 15));
+    const { writes } = await drive({ message: 'm', format: 'MDY' }, ['up', 'escape']);
+    expect(fieldLines(writes)).toContain('│  01/dd/yyyy');
+  });
+
+  it('an empty day starts at 01 going up', async () => {
+    const { writes } = await drive({ message: 'm', format: 'DMY' }, ['up', 'escape']);
+    expect(fieldLines(writes)).toContain('│  01/mm/yyyy');
+  });
+
+  it('an empty year starts at 0001 going up when there is no minDate', async () => {
+    const { writes } = await drive({ message: 'm', format: 'YMD' }, ['up', 'escape']);
+    expect(fieldLines(writes)).toContain('│  0001/mm/dd');
+  });
+
   it('up and down step a filled field and stop at the ends of its range', async () => {
     // January has 31 days: up from 31 stays, down goes to 30.
     const { answer } = await drive({ message: 'm', format: 'YMD', initialValue: utc(2024, 1, 31) }, ['right', 'right', 'up', 'down', 'return']);
@@ -162,6 +249,37 @@ describe('stepping', () => {
 });
 
 describe('what a date is refused for', () => {
+  it.each([
+    ['a day past the end of its month', '20230230'],
+    ['day zero of a month after January', '20230200'],
+    ['month zero', '20230015'],
+    ['month thirteen', '20231315'],
+    ['year zero', '00000115'],
+  ])('refuses %s', async (_label, typed) => {
+    expect((await drive({ message: 'm', format: 'YMD' }, [typed, 'return', 'escape'])).answer).toBe(CANCEL_SYMBOL);
+  });
+
+  it('takes the last day of a month and the last month of a year', async () => {
+    expect((await drive({ message: 'm', format: 'YMD' }, ['20231231', 'return'])).answer).toEqual(utc(2023, 12, 31));
+    expect((await drive({ message: 'm', format: 'YMD' }, ['20240229', 'return'])).answer).toEqual(utc(2024, 2, 29));
+  });
+
+  it('takes a date on minDate or maxDate, whatever time of day the bound carries', async () => {
+    const minDate = new Date(Date.UTC(2024, 0, 15, 12));
+    const maxDate = new Date(Date.UTC(2024, 0, 20, 12));
+    expect((await drive({ message: 'm', format: 'YMD', minDate, maxDate }, ['20240115', 'return'])).answer).toEqual(utc(2024, 1, 15));
+    expect((await drive({ message: 'm', format: 'YMD', minDate, maxDate }, ['20240120', 'return'])).answer).toEqual(utc(2024, 1, 20));
+    const { writes } = await drive({ message: 'm', format: 'YMD', minDate, maxDate }, ['20240114', 'return', 'escape']);
+    expect(writes.join('')).toContain('Date must be on or after 2024-01-15\n');
+  });
+
+  it('shows the date it answered once submitted, and nothing once cancelled with no date', async () => {
+    const submitted = await drive({ message: 'm', format: 'YMD' }, ['20240109', 'return']);
+    expect(submitted.writes.at(-3)?.endsWith('\u001B[J│\n◇  m\n│  2024/01/09')).toBe(true);
+    const cancelled = await drive({ message: 'm', format: 'YMD' }, ['escape']);
+    expect(cancelled.writes.at(-3)?.endsWith('\u001B[J│\n■  m\n│')).toBe(true);
+  });
+
   it('an incomplete date with a default submits the default', async () => {
     const defaultValue = utc(2024, 5, 6);
     const { answer } = await drive({ message: 'm', format: 'YMD', defaultValue }, ['backspace', 'return']);
@@ -176,7 +294,7 @@ describe('what a date is refused for', () => {
 
   it('a date past maxDate is refused, naming the bound', async () => {
     const { writes } = await drive({ message: 'm', format: 'YMD', maxDate: utc(2020, 1, 1) }, ['20200102', 'return', 'escape']);
-    expect(writes.join('')).toContain('Date must be on or before 2020-01-01');
+    expect(writes.join('')).toContain('Date must be on or before 2020-01-01\n');
   });
 
   it("a complete date in range is still the caller's validator's to refuse", async () => {

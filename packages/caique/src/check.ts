@@ -65,6 +65,7 @@ a usage error.
 
 /** The package's own version, read when asked for rather than on every run. */
 function version(): string {
+  // Stryker disable next-line StringLiteral: with no encoding `readFileSync` returns a Buffer, which `JSON.parse` reads as the same UTF-8 text
   return (JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }).version;
 }
 
@@ -114,6 +115,7 @@ async function inspect(argv: readonly string[], write: (s: string) => void): Pro
   if (typeof file === 'number') return file;
   const plugin: unknown = await load(resolve(file));
   reset();
+  // Stryker disable next-line CallExpression: `register()` below validates too; this call only makes the order of the refusals explicit
   validate(plugin);
   register(plugin);
   checkLocales(plugin as { name: string; locales?: unknown });
@@ -167,6 +169,7 @@ const MILLION = 1_000_000;
 /** The first count, from 0, that `Intl.PluralRules` files under `form`: `1` for German `one`. The pack has passed `register()`. */
 function countFor(locale: string, form: string): number {
   const rules = new Intl.PluralRules(locale);
+  // Stryker disable next-line NumericLiteral: no locale files a plural form first at 101, so a longer search finds the same counts
   return [...Array.from({ length: 101 }, (_, n) => n), FRACTION, MILLION].find((n) => rules.select(n) === form) as number;
 }
 

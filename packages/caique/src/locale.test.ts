@@ -17,6 +17,7 @@ import { localise, resolvePrompts, type PromptableOption } from './binding.js';
 import { check } from './check.js';
 import { type Runtime } from './decide.js';
 import { checkLocales, sayFor } from './locale.js';
+import { MESSAGES } from './messages.js';
 import { register, reset } from './plugin.js';
 
 const scratch = scratchDirs();
@@ -42,6 +43,11 @@ const GERMAN = {
   'caique.wouldHaveAsked': 'übergeben Sie {flag}; gefragt worden wäre "{question}"',
   'caique.cancelledAt': 'bei --{option} abgebrochen',
 };
+
+/** A cancel line exactly `length` characters long. */
+const cancelledAt = (length: number): string => `cancelled at --${'x'.repeat(length - 'cancelled at --'.length)}`;
+
+const plural = (forms: string[]): string => `give every form Intl.PluralRules selects for de: ${forms.join(', ')}`;
 
 const pack = { name: 'test-de', contract: 1, locales: { de: GERMAN } };
 
@@ -122,6 +128,57 @@ describe('sayFor', () => {
     expect(say(long)).toBe(long);
   });
 
+  it('translates a line up to 2048 characters long, and leaves a longer one English', () => {
+    register(pack);
+    const say = sayFor('de');
+    expect(say(cancelledAt(2048))).toBe(`bei --${'x'.repeat(2048 - 15)} abgebrochen`);
+    expect(say(cancelledAt(2049))).toBe(cancelledAt(2049));
+  });
+
+  it('reads a line two templates both match as the one that fixes more of its text, placeholders not counted', () => {
+    const both = { 'caique.numberRange': 'range {last}', 'caique.notAChoice': 'one {answer} / {last}', 'caique.requiredNobody': 'nobody {flag}', 'caique.requiredNobodyAsked': 'asked {flag}' };
+    register({ name: 'both', locales: { de: both } });
+    const say = sayFor('de');
+    // `enter a number from 1 to {last}` is declared first, and fixes less of the line.
+    expect(say('enter a number from 1 to X is required when nobody is there to answer (--interactive needs a person, and CI or an agent is driving this)')).toBe('asked enter a number from 1 to X');
+    // Counted with its two placeholders `{answer} is not a choice…` would be the longer template.
+    expect(say('X is not a choice; use numbers from 1 to Y is required when nobody is there to answer')).toBe('nobody X is not a choice; use numbers from 1 to Y');
+  });
+
+  it('is the identity itself when the packs for the locale carry none of caique’s ids, and skips a plugin with no locales', () => {
+    register({ name: 'widgets-only', contract: 1 });
+    register({ name: 'usage', locales: { de: { 'usage.unknownOption': 'x' } } });
+    expect(sayFor('de')).toBe(String);
+  });
+
+  it.each([
+    ['caique.answerYesNo', 'answer y or n'],
+    ['caique.enterNumber', 'enter a number (1-3):'],
+    ['caique.enterNumbers', 'enter numbers separated by commas, or blank for none:'],
+    ['caique.numberRange', 'enter a number from 1 to 3'],
+    ['caique.notAChoice', 'x is not a choice; use numbers from 1 to 3'],
+    ['caique.notChoices', 'x, y are not choices; use numbers from 1 to 3'],
+    ['caique.givingUp', 'giving up after 5 attempts'],
+    ['caique.requiredUnderJson', '--out is required under --json'],
+    ['caique.noOneUnderJson', 'pass --out; --json means no one is here to answer "Where?"'],
+    ['caique.requiredNobody', '--out is required when nobody is there to answer'],
+    ['caique.requiredNobodyAsked', '--out is required when nobody is there to answer (--interactive needs a person, and CI or an agent is driving this)'],
+    ['caique.requiredNoTerminal', '--out is required when there is no terminal'],
+    ['caique.requiredNoTerminalAsked', '--out is required when there is no terminal (--interactive needs a terminal on stdin)'],
+    ['caique.wouldHaveAsked', 'pass --out; it would have been asked as "Where?"'],
+    ['caique.cancelledAt', 'cancelled at --out'],
+    ['caique.passToSkip', 'pass --out to skip the question'],
+  ])('translates %s, and nothing else', (id, line) => {
+    register({ name: 'one', locales: { de: { [id]: 'übersetzt' } } });
+    const say = sayFor('de');
+    expect(say(line)).toBe('übersetzt');
+    expect(say('')).toBe('');
+  });
+
+  it('lists every message it translates', () => {
+    expect(Object.keys(MESSAGES)).toHaveLength(16);
+  });
+
   it('takes a region’s own message over its language’s, and skips a pack for another language', () => {
     register(pack);
     register({ name: 'fr', contract: 1, locales: { fr: { 'caique.answerYesNo': 'répondez o ou n' } } });
@@ -133,29 +190,37 @@ describe('sayFor', () => {
 
 describe('a caique locale pack is checked (R6)', () => {
   it.each([
-    ['an id caique does not have', { 'caique.nope': 'x' }, 'plugin "p": locales.de["caique.nope"] is not a message caique has'],
-    ['a placeholder the English lacks', { 'caique.answerYesNo': '{flag}' }, 'plugin "p": locales.de["caique.answerYesNo"] has {flag}, which the English "answer y or n" does not'],
-    ['a missing plural form', { 'caique.givingUp': { other: '{count}' } }, 'plugin "p": locales.de["caique.givingUp"] is missing the plural form one'],
-    ['a placeholder the English lacks, naming the ones it has', { 'caique.numberRange': 'von 1 bis {max}' }, 'plugin "p": locales.de["caique.numberRange"] has {max}, which the English "enter a number from 1 to {last}" does not'],
-    ['plural forms with no count', { 'caique.answerYesNo': { one: 'a', other: 'b' } }, 'plugin "p": locales.de["caique.answerYesNo"] has plural forms, and the English has no {count}'],
-    ['a form the locale does not select', { 'caique.givingUp': { one: 'a', other: 'b', few: 'c' } }, 'plugin "p": locales.de["caique.givingUp"].few is not a plural form of de'],
-    ['a translation that is not a string', { 'caique.answerYesNo': 7 }, 'plugin "p": locales.de["caique.answerYesNo"] is not a string'],
-  ])('refuses %s', (_, messages, message) => {
-    expect(() => checkLocales({ name: 'p', locales: { de: messages } })).toThrow(message);
+    ['an id caique does not have', { 'caique.nope': 'x' }, 'locales.de["caique.nope"] is not a message caique has', `use one of ${Object.keys(MESSAGES).join(', ')}`],
+    ['a placeholder the English lacks', { 'caique.answerYesNo': '{flag}' }, 'locales.de["caique.answerYesNo"] has {flag}, which the English "answer y or n" does not', 'take the placeholder out: this message has none'],
+    ['a missing plural form', { 'caique.givingUp': { other: '{count}' } }, 'locales.de["caique.givingUp"] is missing the plural form one', plural(['one', 'other'])],
+    ['a placeholder the English lacks, naming the ones it has', { 'caique.numberRange': 'von 1 bis {max}' }, 'locales.de["caique.numberRange"] has {max}, which the English "enter a number from 1 to {last}" does not', 'use only {last}'],
+    ['plural forms with no count', { 'caique.answerYesNo': { one: 'a', other: 'b' } }, 'locales.de["caique.answerYesNo"] has plural forms, and the English has no {count}', 'write it as one string'],
+    ['a form the locale does not select', { 'caique.givingUp': { one: 'a', other: 'b', few: 'c' } }, 'locales.de["caique.givingUp"].few is not a plural form of de', 'use one, other'],
+    ['a plural form with a placeholder the English lacks', { 'caique.givingUp': { one: '{flag}', other: '{count}' } }, 'locales.de["caique.givingUp"].one has {flag}, which the English "giving up after {count} attempts" does not', 'use only {count}'],
+    ['a translation that is not a string', { 'caique.answerYesNo': 7 }, 'locales.de["caique.answerYesNo"] is not a string', 'write the translation as a string'],
+  ])('refuses %s, saying how to fix it', (_, messages, message, fix) => {
+    expect(() => checkLocales({ name: 'p', locales: { de: messages } })).toThrow(expect.objectContaining({ code: 'E_PLUGIN_SCHEMA', message: `plugin "p": ${message}`, fix }) as Error);
   });
 
   it('names every form a locale with more of them lacks, and the placeholders a message takes', () => {
     expect(() => checkLocales({ name: 'p', locales: { ru: { 'caique.givingUp': { one: '{count}', other: '{count}' } } } })).toThrow('is missing the plural forms few, many');
     expect(() => checkLocales({ name: 'p', locales: { de: { 'caique.numberRange': '{max}' } } })).toThrow(expect.objectContaining({ fix: 'use only {last}' }) as Error);
+    expect(() => checkLocales({ name: 'p', locales: { de: { 'caique.wouldHaveAsked': '{max}' } } })).toThrow(expect.objectContaining({ fix: 'use only {flag}, {question}' }) as Error);
   });
 
   it('leaves an id that is not caique’s to the package that owns it', () => {
     expect(() => checkLocales({ name: 'p', locales: { de: { 'usage.unknownOption': 'x' } } })).not.toThrow();
   });
 
-  it('refuses locales that are not a map of maps', () => {
-    expect(() => checkLocales({ name: 'p', locales: 'de' })).toThrow('plugin "p": locales must be an object');
-    expect(() => checkLocales({ name: 'p', locales: { de: 'x' } })).toThrow('plugin "p": locales.de must be an object');
+  it('refuses locales that are not a map of maps, an array included', () => {
+    const top = { message: 'plugin "p": locales must be an object', fix: 'map a language tag to its messages: `{ de: { "caique.answerYesNo": "…" } }`' };
+    const inner = { message: 'plugin "p": locales.de must be an object', fix: 'map a message id to its translation' };
+    expect(() => checkLocales({ name: 'p', locales: 'de' })).toThrow(expect.objectContaining(top) as Error);
+    expect(() => checkLocales({ name: 'p', locales: [] })).toThrow(expect.objectContaining(top) as Error);
+    expect(() => checkLocales({ name: 'p', locales: null })).toThrow(expect.objectContaining(top) as Error);
+    expect(() => checkLocales({ name: 'p', locales: { de: null } })).toThrow(expect.objectContaining(inner) as Error);
+    expect(() => checkLocales({ name: 'p', locales: { de: 'x' } })).toThrow(expect.objectContaining(inner) as Error);
+    expect(() => checkLocales({ name: 'p', locales: { de: [] } })).toThrow(expect.objectContaining(inner) as Error);
   });
 
   it('is refused under E_PLUGIN_SCHEMA by the run whose locale it speaks, and not by one in another', async () => {

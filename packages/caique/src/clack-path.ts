@@ -47,7 +47,9 @@ export function entriesUnder(typed: string, directoriesOnly: boolean, host: Path
     const base = host.exists(typed) && host.isDirectory(typed) && (!directoriesOnly || closed) ? typed : host.dirname(typed);
     // clack drops the closing separator from the prefix unless the text is a root; so does this.
     const normal = host.normalize(typed);
-    const prefix = closed && host.dirname(normal) !== normal ? normal.slice(0, -1) : normal;
+    // Stryker disable next-line ConditionalExpression: read as never a root, a root loses its separator — and every entry under a root starts with the root less its separator too, so slicing one changes nothing listed
+    const root = host.dirname(normal) === normal;
+    const prefix = closed && !root ? normal.slice(0, -1) : normal;
     return host
       .readdir(base)
       .map((name) => host.join(base, name))

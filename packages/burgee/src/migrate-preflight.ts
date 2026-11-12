@@ -130,13 +130,13 @@ export function lowestIn(range: string, gaps: readonly Interval[]): string | und
 /* ------------------------------------------------------------------ the rows */
 
 /** The family's floor, the same string `scripts/package-shape-lock.test.ts` holds every package to (`NODE_FLOOR`). */
-export const FLOOR = '^20.19.0 || >=22.13.0';
+export const FLOOR = '>=22.13.0';
 
 /** R3 — the Node lines on which `require()` of an ES module throws `ERR_REQUIRE_ESM`. */
 export const NO_REQUIRE_ESM: readonly Interval[] = [between('0.0.0', '20.19.0'), between('21.0.0', '22.12.0')];
 
 /** R4 — below the family's lowest supported Node. */
-export const BELOW_FLOOR: readonly Interval[] = [between('0.0.0', '20.19.0')];
+export const BELOW_FLOOR: readonly Interval[] = [between('0.0.0', '22.13.0')];
 
 /** `npm pkg set` edits `package.json` under every package manager, and the double quotes hold in every shell. */
 const RAISE = `npm pkg set "engines.node=${FLOOR}"`;

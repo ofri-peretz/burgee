@@ -20,7 +20,7 @@
   <a href="https://www.npmjs.com/package/closeout?activeTab=code"><img src="https://img.shields.io/npm/unpacked-size/closeout?style=flat-square" alt="Unpacked size of the latest closeout release on npm" /></a>
   <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/closeout/package.json"><img src="https://img.shields.io/badge/dependencies-0-0a6b47?style=flat-square" alt="Zero dependencies" /></a>
   <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/closeout/package.json"><img src="https://img.shields.io/badge/types-included-blue?style=flat-square" alt="TypeScript types included for every entry point" /></a>
-  <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/closeout/package.json"><img src="https://img.shields.io/badge/Node.js-20.19%2B%20%7C%2022.13%2B-green?style=flat-square" alt="Node.js 20.19+ or 22.13+" /></a>
+  <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/closeout/package.json"><img src="https://img.shields.io/badge/Node.js-22.13%2B-green?style=flat-square" alt="Node.js 22.13+" /></a>
   <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/closeout/LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="License: MIT" /></a>
   <a href="https://www.npmjs.com/package/closeout#provenance"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fregistry.npmjs.org%2Fcloseout%2Flatest&query=%24.dist.attestations.provenance~&label=npm&style=flat-square&color=0a6b47" alt="npm provenance of the latest release, read live from its registry attestation" /></a>
 </p>
@@ -381,7 +381,7 @@ Graded by the incumbent's own test suite:
 | `restore-cursor` | 6 / 6 |
 | `signal-exit` | 134 / 135 |
 
-Weight, installed and tree-inclusive: **110,915 bytes** against **183,804** for the incumbents it replaces — a ratio of **0.6034** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
+Weight, installed and tree-inclusive: **111,003 bytes** against **183,804** for the incumbents it replaces — a ratio of **0.6039** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## For agents
 

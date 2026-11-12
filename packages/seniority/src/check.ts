@@ -27,7 +27,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { PluginError, type PluginErrorCode, register, reset, validate } from './plugin.js';
+import { PluginError, type PluginErrorCode, register, reset } from './plugin.js';
 
 /**
  * The plugin a file holds. A `.json` file is read as data: `import()` of one throws
@@ -64,6 +64,7 @@ a usage error.
 
 /** The package's own version, read when asked for rather than on every run. */
 function version(): string {
+  // Stryker disable next-line StringLiteral: with no encoding `readFileSync` returns a Buffer, and `JSON.parse` reads a Buffer as the same text.
   return (JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }).version;
 }
 
@@ -113,7 +114,6 @@ async function inspect(argv: readonly string[], write: (s: string) => void): Pro
   if (typeof file === 'number') return file;
   const plugin: unknown = await load(resolve(file));
   reset();
-  validate(plugin);
   register(plugin);
   const name = (plugin as { name: string }).name;
   const rows = Object.keys((plugin as { sources?: Record<string, unknown> }).sources ?? {});

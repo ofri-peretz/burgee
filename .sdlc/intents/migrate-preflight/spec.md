@@ -58,20 +58,21 @@ at `e91f842423`**. What moved in between, and what this spec changed because of 
     version inside those lines.
   - `message`: `this package is CommonJS, and require('<first target>') throws ERR_REQUIRE_ESM on
     Node <lowest>, which engines.node allows; raising the floor is a semver-major for this package`.
-  - `fix`: `npm pkg set "engines.node=^20.19.0 || >=22.13.0"`. This is the family's own floor from
+  - `fix`: `npm pkg set "engines.node=>=22.13.0"`. This is the family's own floor from
     `scripts/package-shape-lock.test.ts` (`NODE_FLOOR`). `npm pkg set` edits `package.json` under
     every package manager, and the double quotes hold on POSIX shells, PowerShell and cmd.
   - With no `engines.node` declared, no `require-esm` row is raised, because nothing says which
     Node is promised. R4 reports it instead.
 - **R4 — `floor`, a warning.** It applies when the lowest version `engines.node` admits is below
-  `20.19.0` and R3 did not fire, or when `engines.node` is absent.
+  `22.13.0` and R3 did not fire, or when `engines.node` is absent (the floor was `20.19.0` until
+  D-20261106-node-22-24-26 raised the family to `>=22.13.0`).
   - `found`: `engines.node "<range>" admits <lowest>`, or `no engines.node`.
-  - `message`: `the family needs Node ^20.19.0 || >=22.13.0; adopting raises this package's floor,
+  - `message`: `the family needs Node >=22.13.0; adopting raises this package's floor,
     a semver-major for it`.
   - `fix`: the R3 command.
-  - Only the minimum is compared. `>=22` is not a row for an ES-module project (intent criterion 2):
-    an ES-module importer of the family needs no `require(esm)`. The 21.x and 22.0–22.11 lines
-    matter only to CommonJS, which is R3.
+  - Only the minimum is compared. An ES-module project on `>=22` gets this warning, not R3: it
+    needs no `require(esm)`, but 22.0–22.12 is below the family's `engines`. On `>=22.13.0` it
+    gets no row.
   - An unreadable range is a `floor` row with `found: engines.node "<range>" could not be read`.
 - **R5 — `jest-cjs`, blocking.** It applies when all four of these hold:
   - jest is declared: `jest` among the declared dependencies, a `jest` key in `package.json`, or a
@@ -292,9 +293,6 @@ tree is the new case beside it.
 - yarn PnP, and other test runners. mocha, ava and tap load through Node's own `require(esm)`, which
   R3 covers.
 - `tsconfig` `extends` chains. They are not read, because no `node10` row exists (see above).
-- Node 22.12.x for a CommonJS project. It has `require(esm)`, so R3 does not fire, and its minimum
-  is above 20.19.0, so R4 does not either, though the family's floor starts at 22.13.0. Only the
-  minimum is compared (R4).
 
 ## Re-grounded 2026-10-19
 

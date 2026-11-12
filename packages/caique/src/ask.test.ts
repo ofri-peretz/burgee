@@ -43,6 +43,13 @@ describe('text', () => {
     expect(world.transcript()).toBe('Where should it go? (build) ');
   });
 
+  it('a typed line wins over the initial, and an empty initial is not offered', async () => {
+    await expect(ask({ ...text, initial: 'build' }, io(['dist']))).resolves.toEqual({ ok: true, value: 'dist' });
+    const world = io(['']);
+    await expect(ask({ ...text, initial: '' }, world)).resolves.toEqual({ ok: true, value: '' });
+    expect(world.transcript()).toBe('Where should it go? ');
+  });
+
   it('with no initial, a blank line is an empty answer and not a cancellation', async () => {
     await expect(ask(text, io([''])).then((a) => a)).resolves.toEqual({ ok: true, value: '' });
   });
@@ -79,6 +86,10 @@ describe('confirm', () => {
     const spec = initial === undefined ? confirm : { ...confirm, initial };
     await expect(ask(spec, world)).resolves.toEqual({ ok: true, value });
     expect(world.transcript()).toBe(`Overwrite it?${suffix}`);
+  });
+
+  it('reads an answer padded with spaces', async () => {
+    await expect(ask(confirm, io([' y ']))).resolves.toEqual({ ok: true, value: true });
   });
 
   it('re-asks anything that is not a yes or a no', async () => {
@@ -167,6 +178,17 @@ describe('multiselect', () => {
 });
 
 describe('password and path read a line like text', () => {
+  it.each([
+    ['password', true],
+    ['text', false],
+    ['path', false],
+  ] as const)('%s asks the reader to hide the line: %s', async (kind, hidden) => {
+    const seen: unknown[] = [];
+    const world = io(['x']);
+    await ask({ kind, message: 'Token?' }, { ...world, reader: { line: (options) => (seen.push(options), world.reader.line(options)) } });
+    expect(seen).toEqual([{ hidden }]);
+  });
+
   it.each(['password', 'path'] as const)('%s', async (kind) => {
     const world = io(['secret']);
     await expect(ask({ kind, message: 'Token?' }, world)).resolves.toEqual({ ok: true, value: 'secret' });
@@ -203,6 +225,10 @@ describe('U3 · every widget has a static projection', () => {
     ['multiselect', multi, 'Which hosts?\n  1) ora\n  2) chalk\n  3) yargs\n  enter numbers separated by commas, or blank for none:'],
   ])('%s projects the question without the conversation', (_name, spec, expected) => {
     expect(projection(spec)).toBe(expected);
+  });
+
+  it('projects a select with no choices as an empty list, not an invented one', () => {
+    expect(projection({ kind: 'select', message: 'Which?' })).toBe('Which?\n\n  enter a number (1-0):');
   });
 
   it('reads nothing: a projection is what a gallery or an issue can show', () => {

@@ -206,6 +206,7 @@ export const rawlist = createPrompt(<Value>(config: RawlistConfig<Value>, done: 
     const up = isUpKey(key, keybindings);
     if (isEnterKey(key)) submit();
     else if (up || isDownKey(key, keybindings)) {
+      // Stryker disable next-line NumericLiteral: readline's `Interface#clearLine()` takes no argument; the 0 is `@inquirer/core`'s call shape
       rl.clearLine(0);
       move(up);
     } else {

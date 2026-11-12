@@ -108,6 +108,11 @@ describe('R2 · with nobody there, a missing value is an error and never a wait'
     expect(decide({ value: undefined, spec: text, option: 'out', runtime, required: true }).action).toBe('prompt');
   });
 
+  it('says a person is missing when --interactive is asked for on a terminal nobody is at', () => {
+    const d = decide({ value: undefined, spec: text, option: 'out', runtime: rt(true, true), flags: { interactive: true }, required: true });
+    expect(d).toEqual({ action: 'error', code: 'USAGE', message: '--out is required when nobody is there to answer (--interactive needs a person, and CI or an agent is driving this)', fix: 'pass --out; it would have been asked as "Where should it go?"' });
+  });
+
   it('says so when --interactive was asked for, rather than looking ignored', () => {
     const d = decide({ value: undefined, spec: text, option: 'out', runtime: rt(false), flags: { interactive: true }, required: true });
     expect(d.action).toBe('error');

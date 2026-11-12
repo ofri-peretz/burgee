@@ -310,7 +310,7 @@ also ships). Importing one never loads
 another — the tokens never carry the theme, the theme never carries the tokens, chalk
 carries neither — and `sideEffects: false` lets a bundler drop what a program does not use.
 ESM with a `default` condition, so `require('roundel/tokens')` works from CommonJS on
-Node 20.19+ and 22.13+ ([measured](https://burgee.interlace.tools/docs/benchmarks)).
+Node 22.13+ ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## Benchmarks
 

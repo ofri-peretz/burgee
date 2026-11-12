@@ -99,6 +99,37 @@ describe('createIo', () => {
   });
 });
 
+describe('the line it reads', () => {
+  it('echoes nothing on a stream that is not a terminal, and adds no newline after a plain read', async () => {
+    const s = streams(false);
+    const io = createIo({ input: s.input, output: s.output });
+    const line = io.reader.line();
+    s.input.write('plain\n');
+    await expect(line).resolves.toBe('plain');
+    expect(s.written()).toBe('');
+    io.close();
+  });
+
+  it('puts back the newline a hidden read swallowed, and only that', async () => {
+    const s = streams(false);
+    const io = createIo({ input: s.input, output: s.output });
+    const line = io.reader.line({ hidden: true });
+    // Whatever writes to the stream meanwhile is told it was written, as readline expects.
+    expect(s.output.write('dropped')).toBe(true);
+    s.input.write('secret\n');
+    await expect(line).resolves.toBe('secret');
+    expect(s.written()).toBe('\n');
+    io.close();
+  });
+
+  it('close ends the reading, so a question asked after it is a cancellation', async () => {
+    const s = streams(false);
+    const io = createIo({ input: s.input, output: s.output });
+    io.close();
+    await expect(io.reader.line()).resolves.toBeUndefined();
+  });
+});
+
 describe('a hidden answer never reaches the output stream', () => {
   it('a plain read on these streams *does* echo — so the assertions below can fail', async () => {
     const s = streams();

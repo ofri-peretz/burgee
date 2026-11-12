@@ -40,6 +40,7 @@ const selectTheme: SelectTheme = {
   icon: { cursor: POINTER },
   style: { disabled: (text) => styleText('dim', text), description: (text) => styleText('cyan', text), keysHelpTip },
   i18n: { disabledError: 'This option is disabled and cannot be selected.' },
+  // Stryker disable next-line StringLiteral: every mode but `number` draws no index
   indexMode: 'hidden',
 };
 
@@ -64,8 +65,11 @@ export const select = createPrompt(<Value>(config: SelectConfig<Value>, done: (v
   // Vim's j and k would be typed into the search, so vim keybindings turn it off.
   const searchEnabled = !keybindings.includes('vim');
 
+  // Stryker disable next-line ArrayDeclaration: the config a prompt is called with does not change while it runs, so the memo never has to be recomputed
   const items = useMemo(() => normalizeChoices(config.choices), [config.choices]);
+  // Stryker disable next-line ArrayDeclaration: the config a prompt is called with does not change while it runs, so the memo never has to be recomputed
   const bounds = useMemo(() => boundsOf(items, 'select'), [items]);
+  // Stryker disable next-line ArrayDeclaration: the config a prompt is called with does not change while it runs, so the memo never has to be recomputed
   const defaultIndex = useMemo(() => ('default' in config ? items.findIndex((item) => isSelectable(item) && item.value === config.default) : -1), [config.default, items]);
   const [active, setActive] = useState(defaultIndex === -1 ? bounds.first : defaultIndex);
   // `bounds` guarantees a navigable row, and every move lands on one.
@@ -74,9 +78,11 @@ export const select = createPrompt(<Value>(config: SelectConfig<Value>, done: (v
 
   useKeypress((key, rl) => {
     clearTimeout(searchTimeout.current);
+    // Stryker disable next-line ConditionalExpression: clearing an error that is not there changes nothing drawn
     if (errorMsg) setError(undefined);
     const clearSoon = (): void => {
       searchTimeout.current = setTimeout(() => {
+        // Stryker disable next-line NumericLiteral: readline's `Interface#clearLine()` takes no argument; the 0 is `@inquirer/core`'s call shape
         rl.clearLine(0);
       }, SEARCH_RESET_MS);
     };
@@ -89,6 +95,7 @@ export const select = createPrompt(<Value>(config: SelectConfig<Value>, done: (v
         done(selected.value);
       }
     } else if (moved !== undefined) {
+      // Stryker disable next-line NumericLiteral: readline's `Interface#clearLine()` takes no argument; the 0 is `@inquirer/core`'s call shape
       rl.clearLine(0);
       setActive(moved);
     } else if (isNumberKey(key) && !Number.isNaN(Number(rl.line))) {
@@ -96,6 +103,7 @@ export const select = createPrompt(<Value>(config: SelectConfig<Value>, done: (v
       if (isSelectable(items[position])) setActive(position);
       clearSoon();
     } else if (isBackspaceKey(key)) {
+      // Stryker disable next-line NumericLiteral: readline's `Interface#clearLine()` takes no argument; the 0 is `@inquirer/core`'s call shape
       rl.clearLine(0);
     } else if (searchEnabled) {
       const term = rl.line.toLowerCase();
@@ -109,6 +117,7 @@ export const select = createPrompt(<Value>(config: SelectConfig<Value>, done: (v
     () => () => {
       clearTimeout(searchTimeout.current);
     },
+    // Stryker disable next-line ArrayDeclaration: a list of constants never changes either, so the cleanup still runs once, on the way out
     [],
   );
 

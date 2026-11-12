@@ -12,7 +12,7 @@ Before it rewrites a file, `burgee migrate` reads the project's module format, i
 `engines.node`, its test runner and its TypeScript `moduleResolution`. The report then names
 every one of them that the move breaks or changes:
 
-- **The floor.** The project allows a Node below the family's `^20.19.0 || >=22.13.0`. Adopting
+- **The floor.** The project allows a Node below the family's `>=22.13.0` (`^20.19.0 || >=22.13.0` until D-20261106-node-22-24-26). Adopting
   raises the project's floor, which is a semver-major for it.
 - **CommonJS on a Node without `require(esm)`.** The project is CommonJS and allows a Node on
   which `require()` of an ES module throws.
@@ -85,5 +85,5 @@ Every criterion was re-read against the released code:
 | Criterion | Evidence on release |
 | :-- | :-- |
 | 1. wait-port, svgo, tsc-alias and @swc/cli fixtures each produce the matching `preflight` row; the test fails before the change | `migrate-preflight.test.ts` **25 / 25** on `main` at `aff0c31f`; its R3, R4, R-N10 and R5 cases were red on `e91f842423` (spec, *Build status*). In the field, `burgee@1.7.1`'s `dist/cli.js` from npm on a wait-port clone at `16083537`, `migrate --dry-run --json`: one row, `check: "require-esm"`, `blocking: true`, `found: engines.node ">=10" admits 10.0.0`, with `fix: npm pkg set "engines.node=^20.19.0 \|\| >=22.13.0"`, exit 0. svgo, tsc-alias and @swc/cli were re-run the same way at their trial SHAs. |
-| 2. A project on `"type": "module"` with `engines.node >= 22` gets no rows | `R4 — an ES-module project on engines.node >=22 gets no rows`, passing on `main`. In the field, postcss-cli at `03e8cee3` (ESM) reports `preflight: []`. |
+| 2. A project on `"type": "module"` with `engines.node >= 22.13.0` gets no rows (`>= 22` until D-20261106-node-22-24-26 raised the floor) | `R4 — an ES-module project on engines.node >=22.13.0 gets no rows`, passing on `main`. In the field, postcss-cli at `03e8cee3` (ESM) reports `preflight: []`. |
 | 3. `--json` carries the rows as data; the human report prints them before the rewrite list | The wait-port report above is `--json` from the published CLI. `renders every section a report can carry` and `A8 — a blocking preflight exits RUNTIME with the rows in --json` hold the order and the exit, passing on `main`. |

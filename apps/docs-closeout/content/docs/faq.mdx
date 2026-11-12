@@ -56,7 +56,7 @@ real-process signal tests are POSIX-only and skipped on Windows.
 
 ## Can I use it from CommonJS?
 
-Yes, on Node 20.19+ and 22.13+: the package is ESM with a `default` condition, so
+Yes, on Node 22.13+: the package is ESM with a `default` condition, so
 `require('closeout')` loads it through `require(esm)`. `require('closeout/signal-exit')`
 loads a CommonJS file, as signal-exit's does, and `import` an ES one over the same code.
 

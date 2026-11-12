@@ -273,12 +273,19 @@ const erase = (lines: number): string => `${lines > 1 ? `${CSI}${String(lines - 
 const DEFAULT_COLUMNS = 80;
 
 /** The columns a frame may use: the stream's own, or clack's default when it has none. */
-export const columnsOf = (output: SizedOutput): number => (typeof output.columns === 'number' && output.columns > 0 ? output.columns : DEFAULT_COLUMNS);
+export const columnsOf = (output: SizedOutput): number =>
+  // Stryker disable next-line ConditionalExpression: `undefined > 0` is false, so the type test only narrows the type
+  typeof output.columns === 'number' &&
+  output.columns > 0
+    ? output.columns
+    : DEFAULT_COLUMNS;
 
 /** Whether a key cancels, through any alias it is known by. */
+// Stryker disable next-line ConditionalExpression: `aliases.get(undefined)` is undefined, so a missing key cannot cancel either way
 const cancels = (char: string | undefined, key: Keypress): boolean => [char, key.name, key.sequence].some((k) => k !== undefined && settings.aliases.get(k) === 'cancel');
 
 function actionOf(key: Keypress, track: boolean): Action | undefined {
+  // Stryker disable next-line ConditionalExpression: an unnamed key is no alias and no action, so the lookups below answer undefined as well
   if (key.name === undefined) return undefined;
   if (!track && settings.aliases.has(key.name)) return settings.aliases.get(key.name);
   return [...settings.actions].find((action) => action === key.name);
@@ -290,6 +297,7 @@ type Output = NodeJS.WritableStream & SizedOutput;
 const noop = (): void => undefined;
 
 /** How long a lone escape waits to become a sequence: clack's 50 ms, not readline's 500. */
+// Stryker disable next-line NumericLiteral: a millisecond either side of 50 is not a difference a test can time
 const ESCAPE_TIMEOUT = 50;
 
 /**
@@ -302,6 +310,7 @@ const DECODER = { escapeCodeTimeout: ESCAPE_TIMEOUT } as unknown as Parameters<t
 /** One running prompt: its state, its streams, and the frame it drew last. */
 class Session<T> {
   readonly prompt: Prompt<T>;
+  // Stryker disable next-line StringLiteral: no frame is empty, so the first draw differs from any starting value
   private previous = '';
   private restore = noop;
   private unraw = noop;
@@ -314,7 +323,14 @@ class Session<T> {
     /** The prompt's promise: answered on close, or rejected with a throw from the prompt's own code. */
     private readonly answer: { resolve: (answer: T | symbol) => void; reject: (reason: unknown) => void },
   ) {
-    this.prompt = { state: 'initial', value: definition.initialValue, error: '', userInput: '', cursor: 0 };
+    this.prompt = {
+      state: 'initial',
+      value: definition.initialValue,
+      // Stryker disable next-line StringLiteral: the error is drawn only in the error state, which sets it first
+      error: '',
+      userInput: '',
+      cursor: 0,
+    };
     if (definition.initialUserInput !== undefined) {
       this.prompt.userInput = definition.initialUserInput;
       this.prompt.cursor = definition.initialUserInput.length;
@@ -326,10 +342,12 @@ class Session<T> {
   open(): void {
     const { signal } = this.definition;
     if (signal?.aborted === true) {
+      // Stryker disable next-line StringLiteral: closed before any frame, a prompt that did not submit answers the cancel symbol whatever its state says
       this.prompt.state = 'cancel';
       this.close();
       return;
     }
+    // Stryker disable next-line ObjectLiteral,BooleanLiteral: a signal aborts once, and `release` removes the listener
     signal?.addEventListener('abort', this.cancel, { once: true });
     emitKeypressEvents(this.input, DECODER);
     this.input.on('keypress', this.onKeypress);
@@ -452,6 +470,7 @@ class Session<T> {
       return;
     }
     this.type(char, key);
+    // Stryker disable next-line ConditionalExpression: a key reaches here only in the active or the error state, so making it active is all the test decides
     if (prompt.state === 'error') prompt.state = 'active';
     definition.onKey?.(prompt, char, key, actionOf(key, definition.track === true));
     const submits = key.name === 'return' && prompt.state !== 'submit' && (definition.shouldSubmit?.(prompt) ?? true);

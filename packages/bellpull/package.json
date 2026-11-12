@@ -1,12 +1,13 @@
 {
   "name": "bellpull",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "description": "Runs a subprocess, resolves the executable it names, and returns one structured result every caller can read: a line for a person, a --json envelope or an agent event. Zero dependencies. Drop-in paths for cross-spawn and which.",
   "license": "MIT",
+  "author": "Ofri Peretz <ofriperetzdev@gmail.com>",
   "type": "module",
   "sideEffects": ["./dist/cli.js"],
   "engines": {
-    "node": "^20.19.0 || >=22.13.0"
+    "node": ">=22.13.0"
   },
   "types": "./dist/index.d.ts",
   "exports": {
@@ -85,6 +86,10 @@
     "json",
     "zero-dependency"
   ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "devDependencies": {
     "vitest": "^5.0.1"
   },

@@ -549,6 +549,23 @@ it.skipIf(!native || !existsSync(bin))('refuses a suite that raises an unhandled
   await expect(api.run(await api.loadOptions(dir, { reporters: [] }, path.join(dir, 'oxmutate.config.json')))).rejects.toThrow(/\d+ unhandled error\(s\) with no mutant active/u);
 }, 60_000);
 
+// The dry run's run-once probe runs a test a second time. Its `toMatchSnapshot()` then read as the
+// test's second snapshot, and Vitest wrote it into the project's snapshot file: a dry run of burgee
+// added 90 lines to two committed `.snap` files (2026-11-06).
+it.skipIf(!native || !existsSync(bin))("writes nothing into the project's snapshot files during the dry run", async () => {
+  const dir = path.join(pkg, 'test/fixtures/probe-snapshot');
+  const snap = path.join(dir, 'src/__snapshots__/greet.spec.ts.snap');
+  const before = readFileSync(snap, 'utf8');
+  // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the built package under test, present only after a build; the test is skipped without it
+  const api = (await import(path.join(pkg, 'dist/index.js'))) as typeof import('./index.js');
+  try {
+    await api.run(await api.loadOptions(dir, { reporters: [], dryRunOnly: true }, path.join(dir, 'oxmutate.config.json')));
+    expect(readFileSync(snap, 'utf8')).toBe(before);
+  } finally {
+    writeFileSync(snap, before);
+  }
+}, 60_000);
+
 it.skipIf(!native || !existsSync(bin) || !nightly)('keeps a survivor whose confirmation run was only slow, not killed', () => {
   const dir = path.join(pkg, 'test/fixtures/slow-survivor');
   const reportDir = path.join(dir, 'reports');

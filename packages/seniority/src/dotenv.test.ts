@@ -509,11 +509,19 @@ describe('truthy (dotenv’s `parseBoolean`)', () => {
 });
 
 /** A fresh copy of the module over a runtime with no process, whose working directory is `cwd`. */
-async function fresh(cwd: string | undefined): Promise<typeof import('./dotenv.js')> {
+async function fresh(cwd: string | undefined, env: null | undefined = undefined): Promise<typeof import('./dotenv.js')> {
   vi.resetModules();
-  vi.doMock('./runtime.js', () => ({ ambientEnv: () => undefined, ambientCwd: () => cwd }));
+  vi.doMock('./runtime.js', () => ({ ambientEnv: () => env, ambientCwd: () => cwd }));
   return await import('./dotenv.js');
 }
+
+describe('what config() hands back', () => {
+  it('is `parsed` alone when every file loaded — no `error` key at all', () => {
+    const file = join(dir, 'strict.env');
+    writeFileSync(file, 'STRICT=1');
+    expect(config({ path: file, processEnv: {}, quiet: true })).toStrictEqual({ parsed: { STRICT: '1' } });
+  });
+});
 
 describe('dotenv with no process', () => {
   afterEach(() => {
@@ -532,6 +540,12 @@ describe('dotenv with no process', () => {
     expect(caught).toBeInstanceOf(Error);
     expect((caught as Error).message).toBe('seniority/dotenv has no environment to populate');
     expect((caught as { hint?: string }).hint).toMatch(/^pass processEnv/);
+    expect((caught as { extension?: string }).extension).toBe('');
+  });
+
+  it('refuses an environment that is `null` the same way', async () => {
+    const { config: bare } = await fresh(undefined, null);
+    expect(() => bare()).toThrow('seniority/dotenv has no environment to populate');
   });
 
   it('reads `.env` relative to `.`, when there is no working directory to ask', async () => {

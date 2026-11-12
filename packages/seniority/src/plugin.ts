@@ -173,6 +173,7 @@ export function sources(runtime: SourceRuntime): SourceLayer[] {
   const out: SourceLayer[] = [];
   for (const plugin of order.toReversed()) {
     for (const [source, spec] of Object.entries(plugin.sources ?? {})) {
+      // Stryker disable next-line OptionalChaining: `validate` refused a source with neither, so one without `values` has a `read`; the `?.` is for the compiler.
       const got = spec.values === undefined ? spec.read?.(runtime) : { values: spec.values };
       if (got === undefined) continue;
       out.push({ source, location: got.location ?? spec.location ?? source, rank: spec.rank, data: got.values });

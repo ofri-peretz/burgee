@@ -75,3 +75,24 @@ describe('linegauge/widest-line agrees with widest-line 6.0.0', () => {
     expect(widestLine(text)).toBe(widestLineIncumbent(text));
   });
 });
+
+describe('where the mark goes around the sequences at the cut', () => {
+  it.each([
+    ['inside a leading 256-colour style', '\u001B[38;5;208municorns\u001B[39m', [5, { position: 'start' }], '\u001B[38;5;208m…orns\u001B[39m'],
+    ['after a reset with no parameters, cut from the start', `${RED}ab\u001B[mcdefg`, [4, { position: 'start' }], '…efg'],
+    ['before a text that only ends like a sequence', 'abcdefx\u001B[1m', [4, {}], 'abc…'],
+    ['after a reset with no parameters, cut from the end', 'ab\u001B[mcdef', [4, {}], 'ab\u001B[mc…'],
+    ['with no space when the cut prefers a space', 'abc def ghi', [6, { space: true, preferTruncationOnSpace: true, position: 'end' }], 'abc…'],
+    // Text that only looks like part of a sequence is text: the mark goes where the text ends.
+    ['before text shaped like an SGR without its escape, from the start', 'xxxxxa[1mb', [6, { position: 'start' }], '…a[1mb'],
+    ['before a link opener whose URI begins like an SGR', '\u001B]8;;mailto:a\u0007abcdefghij\u001B]8;;\u0007', [6, { position: 'start' }], '…\u001B]8;;mailto:a\u0007fghij\u001B]8;;\u0007'],
+    ['after a CSI cut short by a character no CSI holds', 'abc\u001B[12édefg', [5, {}], 'abc\u001B[12é…'],
+    ['before a parameterless reset kept as written', `${RED}abc\u001B[mdef`, [4, {}], `${RED}abc…\u001B[m`],
+    ['after text that ends in m', 'abcmxyz', [5, {}], 'abcm…'],
+    ['after text shaped like an SGR without its escape, from the end', 'xa[1mbcdef', [6, {}], 'xa[1m…'],
+    ['after a bare escape followed by text ending in m', 'q\u001Bz1mabcdef', [5, {}], 'q\u001Bz1m…'],
+  ] as [string, string, [number, Options], string][])('%s', (_name, text, [columns, options], expected) => {
+    expect(cliTruncate(text, columns, options)).toBe(expected);
+    expect(cliTruncateIncumbent(text, columns, options)).toBe(expected);
+  });
+});
