@@ -94,18 +94,19 @@
       "claim": "compat",
       "seen": {
         "registry": "dotenv",
-        "version": "18.0.9",
-        "shasum": "5c565760ce7e6fb69f9477ebcd1a3b64c766f9c8",
-        "weight": 11149,
-        "self": 11149,
+        "version": "18.0.10",
+        "shasum": "4171e67ba539a3d1513d7cbc51b8124e60714d28",
+        "weight": 16286,
+        "self": 16286,
         "packages": 1,
         "files": {
+          "dist/cli.cjs": "9118f1f99cfdad92f4570d133011c5dd468bccf41e0f18d2e9a1ca1eb6339a74",
           "dist/config.cjs": "a0f52c85f20fb4636135cb65fce2f5e66107a00dbe10d282c67435e162c4fe88",
           "dist/config.d.ts": "2e29cd9a98755c46896f7a2d56524db2d6d96b248e36db46de14c30bf47c8d05",
-          "dist/index.cjs": "25b4ea3d783cf03df30d1606819788c2238b0ca3b459c81f8b4937cb70fabe38",
+          "dist/index.cjs": "81290c73fe225183572f520535dab54b929e6b4cc8432c24664f01f30e2c7c80",
           "dist/index.d.ts": "f40c997a341c68b8e85c22329a29a32fd907d94e3488c52fd5d1e60486baf850",
           "LICENSE": "74b629b24865e1e83c5277ee84590b7937644d6fd959d0c7bdce758676cd2ced",
-          "package.json": "e3be746d149515f88df63793b53789b1c0c0d8d073e5e62a8b92a06be111c49b",
+          "package.json": "99b0931dcb49682a781c9759dce5dd8f37f71a9c52fe8f74ed6f2d91814b7d18",
           "README.md": "8b86bfacf772764a46e6010bb76b327a2d204d32e7b7e567447b5fdf051652ae"
         },
         "exports": [
@@ -121,7 +122,7 @@
           "parse",
           "populate"
         ],
-        "measured": "2026-11-06"
+        "measured": "2026-11-12"
       }
     }
   ],
@@ -131,17 +132,17 @@
       "claim": "compat",
       "seen": {
         "registry": "lilconfig",
-        "version": "3.1.4",
-        "shasum": "d0b8ba64f16567774579b24a5e15e8bf997b4151",
-        "weight": 11672,
-        "self": 11672,
+        "version": "3.1.5",
+        "shasum": "7c9342a74d602bb15c0a1ca67f2c99be056c4656",
+        "weight": 11745,
+        "self": 11745,
         "packages": 1,
         "files": {
           "LICENSE": "d70f9e316930b4333b6f51af5f0d0cb7ded6a4a2641549aa088027aaff91e950",
-          "package.json": "66bc935323f83700a0fb2ad918078fbc174a0e496a19232598add5b8ae94f661",
+          "package.json": "6c8e75edb40f54eeed605b71452bc1da96b53d17bd88448cb6f260ebeaa6119d",
           "readme.md": "df24e0338159823bee36dbe938a7183262889038d7f30d0f064ad329e65cf3e7",
           "src/index.d.ts": "240b11fb56b8f437d4fa8aa99c9fdfc49cd2156a0cde523036c8e25ddc4d30c1",
-          "src/index.js": "72f57caf57fe0b796f10a21624f1713b9a738b66fd0324825916084cfa797fa3"
+          "src/index.js": "05a4a2fb41513fa6c902d60c5f1533d8f925227ef96b3d1562f8032f36677c5a"
         },
         "exports": [
           "LilconfigResult",
@@ -158,7 +159,7 @@
           "lilconfig",
           "lilconfigSync"
         ],
-        "measured": "2026-11-06"
+        "measured": "2026-11-12"
       }
     }
   ],

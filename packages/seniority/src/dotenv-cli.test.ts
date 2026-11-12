@@ -316,16 +316,20 @@ describe('the child', () => {
     expect([...proc.listeners.values()].every((set) => set.size === 0)).toBe(true);
   });
 
-  it('re-raises the child’s signal on itself, keeping the loop alive until it lands', () => {
-    const keepAlive = vi.spyOn(globalThis, 'setInterval').mockReturnValue(0 as unknown as NodeJS.Timeout);
+  // dotenv 18.0.10 (burgee#1516): the re-raise is backed by an exit one second later, with the
+  // shell's 128 + signal number, because Node ignores some signals — SIGPIPE — and a re-raised
+  // one never lands (`dotenv run -- cmd | head` hung).
+  it('re-raises the child’s signal on itself, and exits 128 + its number if that does not end it', () => {
+    const fallback = vi.spyOn(globalThis, 'setTimeout').mockReturnValue(0 as unknown as NodeJS.Timeout);
     const proc = fakeProcess();
     const child = fakeChild();
     run(['run', '-q', '-f', 'a.env', 'node'], proc, { spawn: () => child });
-    child.emit('exit', null, 'SIGTERM');
-    expect(keepAlive).toHaveBeenCalledWith(expect.any(Function), 1000);
-    expect((keepAlive.mock.calls[0]?.[0] as () => unknown)()).toBeUndefined();
-    expect(proc.kill).toHaveBeenCalledWith(4242, 'SIGTERM');
+    child.emit('exit', null, 'SIGPIPE');
+    expect(fallback).toHaveBeenCalledWith(expect.any(Function), 1000);
+    expect(proc.kill).toHaveBeenCalledWith(4242, 'SIGPIPE');
     expect(proc.exit).not.toHaveBeenCalled();
+    (fallback.mock.calls[0]?.[0] as () => unknown)();
+    expect(proc.exit).toHaveBeenCalledWith(128 + os.constants.signals.SIGPIPE);
   });
 
   it('reports a child that could not start, and fails', () => {

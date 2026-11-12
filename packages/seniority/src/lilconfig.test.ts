@@ -102,6 +102,26 @@ describe('the walk and its bounds', () => {
   it('returns null, not a result, when nothing is found', () => {
     expect(lilconfigSync('absent', { stopDir: root }).search(deep)).toBeNull();
   });
+
+  // lilconfig 3.1.5 (burgee#1523): `searchFrom` and `stopDir` are resolved against the cwd, so a
+  // relative one walks the same directories as its absolute form, and a trailing slash on
+  // `stopDir` still stops the walk.
+  it('resolves a relative searchFrom and a relative stopDir with a trailing slash against the cwd', async () => {
+    writeFileSync(join(root, 'a', 'rel.config.js'), 'module.exports = { found: "relative" };');
+    const cwd = process.cwd();
+    process.chdir(root);
+    try {
+      // The cwd is the real path of `root` (`/private/var` on macOS), and the result is resolved from it.
+      const found = { config: { found: 'relative' }, filepath: join(process.cwd(), 'a', 'rel.config.js') };
+      expect(lilconfigSync('rel', { stopDir: root }).search(join('a', 'b'))).toEqual(found);
+      expect(await lilconfig('rel', { stopDir: root }).search(join('a', 'b'))).toEqual(found);
+      expect(lilconfigSync('absent', { stopDir: 'a/' }).search(join('a', 'b'))).toBeNull();
+      expect(await lilconfig('absent', { stopDir: 'a/' }).search(join('a', 'b'))).toBeNull();
+    } finally {
+      process.chdir(cwd);
+      rmSync(join(root, 'a', 'rel.config.js'));
+    }
+  });
 });
 
 describe("the disagreements with cosmiconfig that lilconfig's suite asserts", () => {

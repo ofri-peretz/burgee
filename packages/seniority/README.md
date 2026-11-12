@@ -27,9 +27,9 @@
 
 <p align="center">
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/cosmiconfig%20suite-242%2F243-b45309?style=flat-square" alt="seniority passes 242 of 243 cases of the cosmiconfig test suite" /></a>
-  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/dotenv%20suite-197%2F197-0a6b47?style=flat-square" alt="seniority passes 197 of 197 cases of the dotenv test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/dotenv%20suite-198%2F198-0a6b47?style=flat-square" alt="seniority passes 198 of 198 cases of the dotenv test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/find--up%20suite-104%2F104-0a6b47?style=flat-square" alt="seniority passes 104 of 104 cases of the find-up test suite" /></a>
-  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/lilconfig%20suite-77%2F77-0a6b47?style=flat-square" alt="seniority passes 77 of 77 cases of the lilconfig test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/lilconfig%20suite-81%2F81-0a6b47?style=flat-square" alt="seniority passes 81 of 81 cases of the lilconfig test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/rc%20suite-1%2F1-0a6b47?style=flat-square" alt="seniority/rc passes 1 of 1 cases of the rc test suite" /></a>
 </p>
 
@@ -442,12 +442,12 @@ Graded by the incumbent's own test suite:
 | suite | passing |
 | :-- | --: |
 | `cosmiconfig` | 242 / 243 |
-| `dotenv` | 197 / 197 |
+| `dotenv` | 198 / 198 |
 | `find-up` | 104 / 104 |
-| `lilconfig` | 77 / 77 |
+| `lilconfig` | 81 / 81 |
 | `rc` | 1 / 1 |
 
-Weight, installed and tree-inclusive: **223,753 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.1134** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
+Weight, installed and tree-inclusive: **223,920 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.1135** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## For agents
 
