@@ -107,6 +107,9 @@ Each is a command or a recorded reading. `F` is speed, `G` is the governor, `J` 
   at the same `concurrency`, with the load recorded beside it.
 - `F5` — **the incremental cache reports its reuse.** A one-file change reports the share of
   verdicts reused and the share audited.
+- `F6` — **a warm server spends its time in tests.** On burgee's paratext, the warm servers' time
+  (`stats.warmUnitMs`) is at most 3 times the time inside test runs (`stats.warmArmedMs`). First
+  reading, 2026-11-12: 11.5 s against 1.7 s, 6.8 times.
 - `G1` — **a run holds itself under its limits.** Under a synthetic load above `maxLoad`, no new
   unit is dispatched, and dispatch resumes below it. A test shows both.
 - `G2` — **the limits do not change a verdict.** The same fixture run with the governor on and

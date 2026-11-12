@@ -75,6 +75,12 @@ export interface RunStats {
   isolatedMs: number;
   wallMs: number;
   testExecutions: number;
+  /** Warm units, send to outcome, summed over servers: what `mutationMs` is in server time. */
+  warmUnitMs: number;
+  /** Of `warmUnitMs`, the time inside armed test runs. The rest is starting workers, collecting files, canaries and hooks. */
+  warmArmedMs: number;
+  /** Isolated runs by what sent the mutant there: the parts of `isolatedRuns`. */
+  isolatedByCause: { static: number; stopped: number; unfinished: number; rerun: number; confirm: number; flaky: number };
   watchdogKills: number;
   /** Of `watchdogKills`, the stops whose worker was idle, waiting (heartbeat.ts). In an isolated run each is a Timeout as it stands. */
   idleStalls: number;
@@ -253,7 +259,7 @@ export async function run(options: Options): Promise<RunResult> {
   const { root } = options;
   const work = mkdtempSync(path.join(tmpdir(), 'oxmutate-'));
   const stats: RunStats = {
-    files: 0, mutants: 0, instrumentMs: 0, dryRunMs: 0, mutationMs: 0, staticMs: 0, staticRecollections: 0, isolatedMs: 0, wallMs: 0, testExecutions: 0,
+    files: 0, mutants: 0, instrumentMs: 0, dryRunMs: 0, mutationMs: 0, staticMs: 0, staticRecollections: 0, isolatedMs: 0, wallMs: 0, testExecutions: 0, warmUnitMs: 0, warmArmedMs: 0, isolatedByCause: { static: 0, stopped: 0, unfinished: 0, rerun: 0, confirm: 0, flaky: 0 },
     watchdogKills: 0, idleStalls: 0, deadlocks: 0, crashes: 0, canaryFiles: 0, pollutionRestarts: 0, diskWrites: 0, auditSampled: 0, auditDisagreed: 0, survivorsOverturned: 0, timeoutsOverturned: 0, compileErrors: 0, isolatedRuns: 0, reused: 0, flakyTests: 0, flakyMutants: 0, units: 0, serversSpawned: 0,
   };
   let unitSeq = 0;
@@ -616,6 +622,7 @@ export async function run(options: Options): Promise<RunResult> {
     const killedSoFar = (spec: boolean): Set<string> => new Set([...runaways, ...crashedIds, ...records.filter((r) => r.type === 'mutant' && r.status !== 'Survived' && Boolean(r.spec) === spec).map((r) => r.id ?? '')]);
     const afterUnit = async (unit: Unit, outcome: UnitOutcome): Promise<Unit[]> => {
       inFlight.delete(unit.results);
+      stats.warmUnitMs += outcome.ms ?? 0;
       const wrote = await diskWrittenDuring(unit);
       if (wrote) return wrote;
       // Verdicts a failed canary cannot vouch for are dropped; their pairs are re-queued below.
@@ -688,6 +695,7 @@ export async function run(options: Options): Promise<RunResult> {
     const byMutant = new Map<string, ChildRecord[]>();
     for (const r of records) if (r.type === 'mutant' && r.id) (byMutant.get(r.id) ?? byMutant.set(r.id, []).get(r.id))?.push(r);
     stats.testExecutions = records.filter((r) => r.type === 'mutant').length;
+    stats.warmArmedMs = records.reduce((sum, r) => sum + (r.type === 'mutant' ? (r.ms ?? 0) : 0), 0);
     stats.canaryFiles = new Set(records.filter((r) => r.type === 'polluted' && r.file).map((r) => r.file ?? '')).size;
 
     const isolatedQueue: MutantResult[] = [];
@@ -699,6 +707,7 @@ export async function run(options: Options): Promise<RunResult> {
       if (m.coveredBy.length === 0 && !runaways.has(m.id) && !crashedIds.has(m.id)) {
         continue; // reached only by a spec oracle: no test covers it, and its status says so
       } else if (runaways.has(m.id)) {
+        stats.isolatedByCause.stopped++;
         isolatedQueue.push(m); // a watchdog stop is confirmed before it is reported (6, below)
       } else if (crashedIds.has(m.id)) {
         m.status = 'RuntimeError';
@@ -712,6 +721,7 @@ export async function run(options: Options): Promise<RunResult> {
         m.status = 'Survived';
         m.testsCompleted = recs.length;
       } else {
+        stats.isolatedByCause.unfinished++;
         isolatedQueue.push(m); // unfinished: a crash left work undone
       }
     }
@@ -889,6 +899,7 @@ export async function run(options: Options): Promise<RunResult> {
     const s0 = performance.now();
     const staticBack = env['OXMUTATE_ISOLATE_STATIC'] ? staticMutants : await decideStaticLive(staticMutants);
     stats.staticMs = performance.now() - s0;
+    stats.isolatedByCause.static = staticBack.length;
     isolatedQueue.push(...staticBack);
     progress.phase(`isolated runs (static mutants and stragglers: ${String(isolatedQueue.length)})`);
     const i0 = performance.now();
@@ -901,6 +912,7 @@ export async function run(options: Options): Promise<RunResult> {
     // scores it. Re-run at 3x, 375 of them on caique's 10-31 run "finished" only because Vitest's 30 s
     // test timeout failed the test (D-20261101-idle-stall-is-timeout, stall.qnt).
     const stopped = isolatedQueue.filter((m) => first.get(m.id)?.status === 'Timeout' && !first.get(m.id)?.idle);
+    stats.isolatedByCause.rerun += stopped.length;
     const again = await runIsolated(stopped, RERUN_SLACK);
     for (const m of stopped) {
       const v = again.get(m.id);
@@ -929,11 +941,13 @@ export async function run(options: Options): Promise<RunResult> {
     // is no later test for its leftover state to reach, and the warm run already armed that test
     // through its hooks from clean state (.sdlc/intents/oxmutate/confirm.qnt).
     const survivors = toRun.filter((m) => m.status === 'Survived' && new Set(m.coveredBy).size > 1);
+    stats.isolatedByCause.confirm += survivors.length;
     const confirmed = await runIsolated(survivors);
     // A timeout here is a watchdog stop like any other, and a loaded machine makes them: two
     // closeout survivors were reported killed this way while a docs build shared the machine
     // (2026-10-27). The same rule as section 6: one more run at 3x the budget before believing it.
     const stoppedHere = survivors.filter((m) => confirmed.get(m.id)?.status === 'Timeout' && !confirmed.get(m.id)?.idle);
+    stats.isolatedByCause.rerun += stoppedHere.length;
     const recheck = await runIsolated(stoppedHere, RERUN_SLACK);
     for (const m of stoppedHere) {
       const v = recheck.get(m.id);
@@ -970,6 +984,7 @@ export async function run(options: Options): Promise<RunResult> {
     const flakyCandidates = toRun.filter((m) => m.coveredBy.some((t) => flakyTests.has(t)));
     const seen = new Map(flakyCandidates.map((m) => [m.id, new Set<string>([m.status === 'Timeout' ? 'Killed' : m.status])]));
     for (let n = 1; n <= options.flakyReruns && flakyCandidates.length; n++) {
+      stats.isolatedByCause.flaky += flakyCandidates.length;
       const again = await runIsolated(flakyCandidates);
       for (const m of flakyCandidates) {
         const v = again.get(m.id);

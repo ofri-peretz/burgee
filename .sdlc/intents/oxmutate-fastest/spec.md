@@ -36,6 +36,11 @@ Intent: [`intent.md`](./intent.md). **Status:** accepted 2026-11-11
   A mutant that reaches it is reported `Timeout` with the reason "static budget", counted
   separately in `stats`. Off by default.
 
+- `R10a` — **Warm overhead.** A warm unit's cost outside its test runs is measured
+  (`stats.warmUnitMs` against `stats.warmArmedMs`) and reduced until `F6` holds: fewer units for
+  the same pairs, fewer restarts that a clean canary would not have asked for, and no file opened
+  per write on a path that runs once per mutant.
+
 **Resources**
 
 - `R11` — `resources.maxWorkers`: a number, a percentage of the cores (`'50%'`), or `'auto'`
@@ -169,6 +174,21 @@ Decided by `M0`'s profile, not before it.
   Timeout at their budget). The lever is the spare server, so a stop costs no start-up on the
   critical path; `stats.serversSpawned` against stops shows whether it already does.
 - **`R9`** is a reporting change in the incremental reader.
+
+### Warm overhead, alongside `M3` (`R10a`)
+
+Read on paratext on 2026-11-12 (1,415 mutants, about 5,000 test runs, `concurrency: 2`):
+
+- **File writes per mutant run** were most of the warm phase on a machine with an endpoint
+  scanner: 24.8–25.8 s before, 9.3–9.9 s after the runner kept its two files open (#1532).
+- **After that, the servers ran 11.5 s for 1.7 s of test runs.** A CPU profile of the same run
+  (152 processes, 53 s busy) put about 20 s in starting Node and loading modules, and 2.6 s in the
+  package's own code and tests.
+- **72 units for 12 test files.** 18 pollution restarts each split a unit in two. Every unit is a
+  new worker: Vitest runs each `start` of a file in a fresh one when `isolate` is on.
+
+So the order is: find out which of the 18 restarts a correct canary needs, then make a unit
+larger where a file's mutants allow it. Neither changes which tests run for a mutant.
 
 ### `M4` — The runner seam
 

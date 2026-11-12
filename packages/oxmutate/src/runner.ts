@@ -22,7 +22,7 @@
  * Before each mutant the runner writes a progress line synchronously, so the coordinator can
  * attribute and kill a worker stuck in a synchronous loop that the hit counter cannot break.
  */
-import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
+import { closeSync, openSync, readFileSync, writeSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { availableParallelism, loadavg } from 'node:os';
 import path from 'node:path';
@@ -300,8 +300,41 @@ async function probe(test: AnyTask, fn: () => unknown, reset: () => Promise<void
 const POLLUTION_ERROR_CHARS = 300;
 const FILE_ERROR_CHARS = 500;
 
+// Both files are written once per mutant run, so each is opened once and kept open. Opening and
+// closing them per write cost 6.6 ms a run on a laptop whose endpoint scanner inspects every close,
+// against 0.003 ms on an open descriptor, where a median test took 0.07 ms (burgee/paratext,
+// 2026-11-11). A write on an open descriptor is in the kernel before the next mutant starts, so a
+// server the watchdog kills has still left its records and its mark.
+let resultsFd: number | undefined;
+let progressFd: number | undefined;
+let markLength = 0;
+
 function emit(record: object): void {
-  if (resultsPath) appendFileSync(resultsPath, `${JSON.stringify(record)}\n`);
+  if (!resultsPath) return;
+  resultsFd ??= openSync(resultsPath, 'a');
+  writeSync(resultsFd, `${JSON.stringify(record)}\n`);
+}
+
+/**
+ * The scheduler's watchdog reads this file: the mutant now running and when it started, or nothing.
+ * Each mark is padded to the longest one written, so it replaces the last in one write and the
+ * file is never truncated: truncating it for every mutant was 1.8 s of a 53 s run (2026-11-11).
+ * The reader trims, so the padding reads as nothing.
+ */
+function mark(text: string): void {
+  if (!progressPath) return;
+  progressFd ??= openSync(progressPath, 'w');
+  const padded = text.trimEnd().padEnd(markLength);
+  markLength = padded.length;
+  if (padded) writeSync(progressFd, padded, 0);
+}
+
+/** A worker thread's descriptors outlive it in a threads pool, so the end of its run closes them. */
+function closeFiles(): void {
+  for (const fd of [resultsFd, progressFd]) if (fd !== undefined) closeSync(fd);
+  resultsFd = undefined;
+  progressFd = undefined;
+  markLength = 0;
 }
 
 // The suites whose hooks wrap `test`, outermost first. Vitest 5 leaves a top-level `describe`'s
@@ -554,7 +587,7 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
       if (done.has(id)) continue;
       // The real clock: a test that froze it (`vi.useFakeTimers()`, never undone) made every later
       // mutant read as running since the freeze, and the watchdog stopped it at once (caique, 2026-11-02).
-      if (progressPath) writeFileSync(progressPath, `${id} ${String(realNow())}\n`);
+      mark(`${id} ${String(realNow())}\n`);
       let { status, ms, deadlock } = await runArmed(id);
       if (status === 'Polluted') break;
       // A kill that follows unchecked runs may be one of their leftovers, which this run's own cleanup
@@ -586,11 +619,11 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
     }
     // Torn down: nothing more runs in this worker, not even the test's own unmutated run.
     if (tornDown) {
-      if (progressPath) writeFileSync(progressPath, '');
+      mark('');
       return;
     }
     if (!polluted) await canary();
-    if (progressPath && ids.length) writeFileSync(progressPath, '');
+    if (ids.length) mark('');
     if (attempt > 0) await fresh();
     try {
       await run();
@@ -699,7 +732,7 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
     while (rest.length) {
       const id = rest.shift() as string;
       // The real clock, as above: the file's tests run again here, and may freeze it.
-      if (progressPath) writeFileSync(progressPath, `${id} ${String(realNow())}\n`);
+      mark(`${id} ${String(realNow())}\n`);
       held.push({ id, verdict: await evaluate(id) });
       // A deadlocked run is still pending in this worker: tear it down. The batch, held verdicts and
       // all, goes back to the fresh-worker path, where each run has its own process.
@@ -716,7 +749,7 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
       held = [];
       every = Math.min(STATIC_CANARY_MAX, every * 2);
     }
-    if (progressPath) writeFileSync(progressPath, '');
+    mark('');
     vi.resetModules();
   }
 
@@ -804,6 +837,7 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
       const timeout = ranAway() || deadlocked;
       emit({ type: 'isolated', id: env[ACTIVE_MUTANT_ENV] ?? ns.activeMutant, killed: failed.length > 0 && !timeout, failed, ran, ...(timeout && { timeout }), ...(deadlocked && { deadlock: true }) });
     }
+    closeFiles();
     return super.onAfterRunFiles?.(files);
   }
 }
