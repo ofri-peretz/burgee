@@ -12,7 +12,7 @@ import { Readable, Writable } from 'node:stream';
 import { SHOW_CURSOR } from 'closeout/cursor';
 import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 
-import { CANCEL_SYMBOL, isTTY, run, runValidation, S_BAR, S_BAR_END, settings, symbolBar, updateSettings } from './clack-core.js';
+import { CANCEL_SYMBOL, isTTY, paint, run, runValidation, S_BAR, S_BAR_END, settings, symbolBar, updateSettings } from './clack-core.js';
 import { select, text } from './clack-prompts.js';
 
 class Output extends Writable {
@@ -601,7 +601,7 @@ describe('the glyphs and instructions, read once at import', () => {
     vi.resetModules();
     const core = await import('./clack-core.js');
     const list = await import('./clack-list.js');
-    expect(shown([...core.SELECT_INSTRUCTIONS, ...core.MULTISELECT_INSTRUCTIONS, list.REQUIRED].join('\n'))).toMatchInlineSnapshot(`
+    expect(shown([...core.SELECT_INSTRUCTIONS, ...core.MULTISELECT_INSTRUCTIONS, list.requiredMessage()].join('\n'))).toMatchInlineSnapshot(`
       "<2>↑/↓<22> to navigate
       <2>Enter:<22> confirm
       <2>↑/↓<22> to navigate
@@ -785,3 +785,30 @@ describe('the loop, on the paths only its own definitions take', () => {
   });
 });
 
+
+/**
+ * #1498 — nesting is the same on every Node. Node 24's `styleText` reopens an outer colour where
+ * an inner one closes inside it; Node 22.13's does not, and the nightly 22.13 cells read a yellow
+ * refusal that lost its colour after its first key. `paint` applies the nesting itself.
+ */
+const esc = (text: string): string => text.replaceAll(/\u001B\[(\d+)m/gu, '<$1>');
+
+describe('paint nests styles as Node 24 does, on every Node', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('reopens an outer colour where an inner colour closes, and leaves a trailing close alone', () => {
+    vi.stubEnv('NO_COLOR', undefined);
+    vi.stubEnv('FORCE_COLOR', '1');
+    expect(esc(paint('yellow', `a ${paint('gray', 'b')} c`))).toBe('<33>a <90>b<33> c<39>');
+    expect(esc(paint('yellow', `a ${paint('gray', 'b')}`))).toBe('<33>a <90>b<39><39>');
+  });
+
+  it('reapplies dim and bold after an inner close, since they share one', () => {
+    vi.stubEnv('NO_COLOR', undefined);
+    vi.stubEnv('FORCE_COLOR', '1');
+    expect(esc(paint('dim', `a ${paint('bold', 'b')} c`))).toBe('<2>a <1>b<22><2> c<22>');
+    expect(esc(paint(['reset', 'dim'], 'x'))).toBe('<0><2>x<22><0>');
+  });
+});

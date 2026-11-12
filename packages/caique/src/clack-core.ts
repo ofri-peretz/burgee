@@ -23,7 +23,7 @@
  * the prompt is when nothing moves is exactly its last frame.
  */
 import { emitKeypressEvents } from 'node:readline';
-import { styleText } from 'node:util';
+import { inspect, styleText } from 'node:util';
 
 import { hideCursor, rawMode } from 'closeout/cursor';
 import exitHook from 'closeout/exit-hook';
@@ -185,8 +185,30 @@ export const S_WARN = unicodeOr('▲', '!');
 export const S_ERROR = unicodeOr('■', 'x');
 
 type Format = Parameters<typeof styleText>[0];
-/** `styleText`, shortened, because every line of every frame calls it. */
-export const paint = (format: Format, text: string): string => styleText(format, text);
+const SGR = (code: number): string => `\u001B[${String(code)}m`;
+const DIM_OR_BOLD = new Set([inspect.colors.dim?.[0], inspect.colors.bold?.[0]]);
+
+/**
+ * `styleText`, shortened, because every line of every frame calls it, and nested the same way on
+ * every Node. Node 24's `styleText` reopens an outer style where an inner one closes inside it
+ * (`<33>… <90>space<39> to select…<39>` becomes `…<39><33> to select…`, as picocolors does for
+ * clack); Node 22.13's does not, so a yellow refusal went uncoloured after its first key and the
+ * nightly 22.13 cells disagreed with 24 (#1498). `styleText` still decides whether to colour at
+ * all, and the nesting is applied here, as Node 24 applies it.
+ */
+export function paint(format: Format, text: string): string {
+  if (styleText(format, '') === '') return text;
+  const codes = (Array.isArray(format) ? format : [format]).map((key) => inspect.colors[key as keyof typeof inspect.colors] as [number, number]);
+  const body = codes.reduce(
+    (inner, [open, close]) =>
+      inner.replaceAll(SGR(close), (match: string, offset: number) => {
+        if (offset + match.length >= inner.length) return match;
+        return DIM_OR_BOLD.has(open) ? `${match}${SGR(open)}` : SGR(open);
+      }),
+    text,
+  );
+  return `${codes.map(([open]) => SGR(open)).join('')}${body}${codes.map(([, close]) => SGR(close)).reverse().join('')}`;
+}
 
 const STEP_COLOUR: Record<State, Format> = { initial: 'cyan', active: 'cyan', cancel: 'red', error: 'yellow', submit: 'green', validating: 'dim' };
 const STEP_GLYPH: Record<State, string> = { initial: S_STEP_ACTIVE, active: S_STEP_ACTIVE, cancel: S_STEP_CANCEL, error: S_STEP_ERROR, submit: S_STEP_SUBMIT, validating: S_STEP_ACTIVE };
@@ -204,8 +226,17 @@ export function formatInstructionFooter(instructions: string[], hasGuide: boolea
   return lines;
 }
 
-export const SELECT_INSTRUCTIONS = [`${paint('dim', '↑/↓')} to navigate`, `${paint('dim', 'Enter:')} confirm`];
-export const MULTISELECT_INSTRUCTIONS = [`${paint('dim', '↑/↓')} to navigate`, `${paint('dim', 'Space:')} select`, `${paint('dim', 'Enter:')} confirm`];
+/**
+ * The key hints, painted when a frame is drawn. Painted once at import, they took whatever colour
+ * support the process had when the module loaded, which is not the stream's at render time: Node
+ * 22.13 and 24 decide that differently, and the nightly matrix went red on it (#1498).
+ */
+export const selectInstructions = (): string[] => [`${paint('dim', '↑/↓')} to navigate`, `${paint('dim', 'Enter:')} confirm`];
+export const multiselectInstructions = (): string[] => [`${paint('dim', '↑/↓')} to navigate`, `${paint('dim', 'Space:')} select`, `${paint('dim', 'Enter:')} confirm`];
+/** The hints as they were painted when this module loaded; the prompts paint {@link selectInstructions} per frame. */
+export const SELECT_INSTRUCTIONS = selectInstructions();
+/** The hints as they were painted when this module loaded; the prompts paint {@link multiselectInstructions} per frame. */
+export const MULTISELECT_INSTRUCTIONS = multiselectInstructions();
 
 /** Whether this call draws the guide: its own option first, then the setting. */
 export const guided = (opts: CommonOptions): boolean => (opts.withGuide ?? settings.withGuide) !== false;

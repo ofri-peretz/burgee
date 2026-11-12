@@ -14,7 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { CANCEL_SYMBOL } from './clack-core.js';
-import { findCursor, REQUIRED } from './clack-list.js';
+import { findCursor, requiredMessage } from './clack-list.js';
 import { autocomplete, autocompleteMultiselect, path } from './clack-search.js';
 
 class Output extends Writable {
@@ -189,7 +189,7 @@ describe('autocompleteMultiselect', () => {
     const { answer, writes } = await drive((io) => autocompleteMultiselect({ message: 'm', options: FRUIT, required: true, ...io }), ['return', 'escape']);
     expect(answer).toBe(CANCEL_SYMBOL);
     const refused = writes.at(-4) ?? '';
-    expect(refused).toContain(REQUIRED.split('\n')[0]);
+    expect(refused).toContain(requiredMessage().split('\n')[0]);
     expect(refused).not.toContain('to search');
     // The list keeps its rows while the footer is gone.
     expect(refused).toContain('cherry');
@@ -202,7 +202,7 @@ describe('a refusal in a short terminal', () => {
     const rows = 8;
     const { writes } = await drive((io) => autocompleteMultiselect({ message: 'm', options, required: true, withGuide: false, ...io, output: Object.assign(io.output, { rows }) }), ['return', 'escape']);
     const refused = writes.at(-4) ?? '';
-    expect(refused).toContain(REQUIRED.split('\n')[0]);
+    expect(refused).toContain(requiredMessage().split('\n')[0]);
     expect(refused.replace(/^\u001B\[\d*A?\u001B\[1G\u001B\[J/u, '').trimEnd().split('\n').length).toBeLessThanOrEqual(rows);
   });
 });

@@ -125,15 +125,15 @@ export function boxLook(option: Choice, active: boolean, chosen: readonly unknow
   return active ? 'active' : 'inactive';
 }
 
-/** What clack says when a required multi-selection is submitted empty. */
-export const REQUIRED = `Please select at least one option.\n${paint(['reset', 'dim'], `Press ${paint(['gray', 'bgWhite', 'inverse'], ' space ')} to select, ${paint(['gray', 'bgWhite', 'inverse'], ' enter ')} to submit`)}`;
+/** What clack says when a required multi-selection is submitted empty, painted when it is said (#1498). */
+export const requiredMessage = (): string => `Please select at least one option.\n${paint(['reset', 'dim'], `Press ${paint(['gray', 'bgWhite', 'inverse'], ' space ')} to select, ${paint(['gray', 'bgWhite', 'inverse'], ' enter ')} to submit`)}`;
 
 /** The validator a `required` multi-selection gets: an empty answer is the one problem. */
 export const requiredCheck =
   <T>(required: boolean) =>
   (value: T[] | undefined): string | undefined =>
     // Stryker disable next-line ConditionalExpression: every multi-selection starts as an array and stays one, so the value is never undefined
-    required && (value === undefined || value.length === 0) ? REQUIRED : undefined;
+    required && (value === undefined || value.length === 0) ? requiredMessage() : undefined;
 
 /** The labels of the chosen options, in list order: what a multi-selection shows once answered. */
 export const summaryOf = (options: readonly Choice[], chosen: readonly unknown[], empty: string): string =>
