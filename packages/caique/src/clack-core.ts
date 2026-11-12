@@ -47,6 +47,11 @@ export interface CommonOptions {
   signal?: AbortSignal;
   withGuide?: boolean;
   /**
+   * Static, screen-reader friendly output (clack 1.9.0): plain lines, appended, with no glyph,
+   * guide or escape. Unset, the setting decides, and then `ACCESSIBLE` in the environment.
+   */
+  accessible?: boolean;
+  /**
    * The caller's runtime — burgee's `ctx.runtime` — and the one way `--quiet` reaches this port
    * (`caique-quiet-seam` R1). With `quiet`, the writers that decorate draw nothing; prompts
    * ignore it. Its `env` is the one `CI` is read from. It carries no streams, so `input` and
@@ -91,6 +96,8 @@ export interface ClackSettings {
   messages?: { cancel?: string; error?: string };
   /** `false` draws every prompt without its left-hand guide. */
   withGuide?: boolean;
+  /** `true` makes every spinner accessible (static lines) unless it says otherwise. */
+  accessible?: boolean;
 }
 
 /** The process-wide settings every prompt here reads, and `updateSettings` writes. */
@@ -106,6 +113,7 @@ export const settings = {
   ]),
   messages: { cancel: 'Canceled', error: 'Something went wrong' },
   withGuide: true,
+  accessible: undefined as boolean | undefined,
 };
 
 /**
@@ -123,6 +131,7 @@ export function updateSettings(updates: ClackSettings): void {
   if (updates.messages?.cancel !== undefined) settings.messages.cancel = updates.messages.cancel;
   if (updates.messages?.error !== undefined) settings.messages.error = updates.messages.error;
   if (updates.withGuide !== undefined) settings.withGuide = updates.withGuide !== false;
+  if (updates.accessible !== undefined) settings.accessible = updates.accessible;
 }
 
 /** What every prompt resolves to when it is cancelled. Test it with `isCancel`. */
@@ -153,6 +162,17 @@ export const unicode = unicodeSupported();
  * A caller's runtime is read when one is passed (`caique-quiet-seam` R1), the process's otherwise.
  */
 export const isCI = (runtime: { env: PolicyRuntime['env'] } = processRuntime()): boolean => runtime.env['CI'] === 'true';
+/**
+ * Whether output is accessible (clack 1.9.0's `isAccessible`): the option, else the setting, else
+ * `ACCESSIBLE` set to anything but empty, `0` or `false`. Read from the caller's runtime when one
+ * is passed, as `CI` is.
+ */
+export const isAccessible = (option: boolean | undefined, runtime: { env: PolicyRuntime['env'] } = processRuntime()): boolean => {
+  if (option !== undefined) return option;
+  if (settings.accessible !== undefined) return settings.accessible;
+  const value = runtime.env['ACCESSIBLE'];
+  return value !== undefined && value !== '' && value !== '0' && value !== 'false';
+};
 /** Whether a stream is a terminal. */
 export const isTTY = (output: { isTTY?: boolean }): boolean => output.isTTY === true;
 /** The first glyph where the terminal draws unicode, the second where it does not. */

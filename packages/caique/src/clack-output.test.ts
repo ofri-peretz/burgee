@@ -601,3 +601,71 @@ describe('group', () => {
     expect(results).toEqual({ first: CANCEL_SYMBOL, second: 'two' });
   });
 });
+
+/**
+ * clack 1.9.0's accessible spinner (burgee#1517): static, append-only lines a screen reader can
+ * follow — no glyph, no guide bar, no escape — one line per start and ending, and a reminder
+ * every 30 s that names the latest message.
+ */
+describe('an accessible spinner', () => {
+  it('writes the start, a reminder every 30 s, and the ending, as plain lines', () => {
+    vi.useFakeTimers();
+    const text = capture((output) => {
+      const spin = spinner({ output, accessible: true, withGuide: true });
+      spin.start('Loading');
+      spin.message('Installing');
+      spin.message('Linking');
+      vi.advanceTimersByTime(30_000);
+      spin.stop('Installed');
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(text).toBe('Loading\nstill working: Linking\nInstalled\n');
+  });
+
+  it('reminds with no message as plain words, and ends with the elapsed time under the timer', () => {
+    vi.useFakeTimers();
+    const text = capture((output) => {
+      const spin = spinner({ output, accessible: true, indicator: 'timer' });
+      spin.start();
+      vi.advanceTimersByTime(30_000);
+      spin.stop('Built');
+    });
+    expect(text).toMatch(/^still working\nBuilt \[\d+s\]\n$/u);
+  });
+
+  it('ends on a plain status word when the ending names nothing, and on the setting for a cancel', () => {
+    for (const [end, line] of [
+      ['stop', 'Done'],
+      ['cancel', settings.messages.cancel],
+      ['error', settings.messages.error],
+    ] as const) {
+      const text = capture((output) => {
+        const spin = spinner({ output, accessible: true });
+        spin.start('Working');
+        spin[end]();
+      });
+      expect(text).toBe(`Working\n${line}\n`);
+    }
+  });
+
+  it('is turned on by ACCESSIBLE, ahead of CI, and off by the option', () => {
+    vi.stubEnv('ACCESSIBLE', '1');
+    vi.stubEnv('CI', 'true');
+    const on = capture((output) => {
+      const spin = spinner({ output });
+      spin.start('Loading');
+      spin.stop('Done');
+    });
+    expect(on).toBe('Loading\nDone\n');
+    const off = capture((output) => {
+      const spin = spinner({ output, accessible: false, withGuide: false });
+      spin.start('Loading');
+      spin.stop('Done');
+    });
+    expect(off).toBe(`◒  Loading...\n${S_STEP_SUBMIT}  Done\n`);
+    for (const value of ['', '0', 'false']) {
+      vi.stubEnv('ACCESSIBLE', value);
+      expect(capture((output) => spinner({ output, withGuide: false }).start('x'))).toBe('◒  x...\n');
+    }
+  });
+});

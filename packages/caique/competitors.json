@@ -6,16 +6,16 @@
       "claim": "surface",
       "seen": {
         "registry": "@clack/prompts",
-        "version": "1.8.1",
-        "shasum": "39a134cae495843904b57cc1e8300ead81ae7830",
-        "weight": 101684,
-        "self": 50896,
+        "version": "1.9.0",
+        "shasum": "23dfad8d03bf58330fc54a88f82e20d5fb7d110a",
+        "weight": 103050,
+        "self": 51772,
         "packages": 6,
         "files": {
-          "dist/index.d.mts": "c5d7fefbd6e4d634c239ff0f60e2dbac2fe4f6e6da66e208268884dff74a4729",
-          "dist/index.mjs": "1b024b83b4b4c1d5540fb129e7169c7471bb82bc85e9160e84072ceda85cbef9",
+          "dist/index.d.mts": "0f656acb14915e3ca0df40c824b9290aac200d2c8c5014833a55cb267aa71a81",
+          "dist/index.mjs": "9ea68e529d4aca6b9c34559ddc71c3cdd2dc0a81b73e807feacff1ed993dddb6",
           "LICENSE": "3e873d2aba8b76bcbe151ba558506ca6bfa8437db9323fa87086c5a7fcf10f42",
-          "package.json": "66ba5b8f6a2808384e2807d46b909aa27d8bc17d6e0fb354e72e3680a6a8b3be",
+          "package.json": "8252546ffb0064a99aa8ad669414842c70418e0741a390d450638356f1cec710",
           "README.md": "b7e91131cf29a58120b99f6671b35083c45ae36b9fd373d1b08f641130659335"
         },
         "exports": [
@@ -85,7 +85,7 @@
           "unicodeOr",
           "updateSettings"
         ],
-        "measured": "2026-11-06"
+        "measured": "2026-11-12"
       }
     },
     {
@@ -93,10 +93,10 @@
       "claim": "surface",
       "seen": {
         "registry": "inquirer",
-        "version": "14.2.5",
-        "shasum": "2767afd0d6c0c27fb74c33adbfbee936efa45697",
-        "weight": 574187,
-        "self": 22882,
+        "version": "14.3.0",
+        "shasum": "a44a065b4ba6eaa7f2741431c0dd05809e5aea61",
+        "weight": 575230,
+        "self": 23283,
         "packages": 27,
         "files": {
           "dist/index.d.ts": "27cdbcf2193a24799770fa7750ca60968215589f4c3db5210b6c7d41321b6f29",
@@ -104,11 +104,11 @@
           "dist/types.d.ts": "e2a135e0eb0da7e1d94b58aeaf2d6653f4f84e4ffacbaa721845f7ddf1929b77",
           "dist/types.js": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
           "dist/ui/prompt.d.ts": "58e58a99e87ba5ca1668d9a57a538a4c6c9de8f444e299a3bb23d506c4c36b70",
-          "dist/ui/prompt.js": "771e44a5115b3cb616ee1f5747609a13f88bc85d60336734f6b06aab0bd8ca4c",
+          "dist/ui/prompt.js": "41f6fe1238f1c39f6774cdba0d208717b86ec13952c43f39e677dfc02434b48e",
           "dist/utils/observable.d.ts": "87916a41bc4da9752bd311bc7eb58d9b9eec835737a5ac677c3ebffa48279915",
           "dist/utils/observable.js": "a276459b02b62bc60d7eea7b29700306be7833eadb4a9170b892ccc94ceaba8c",
           "LICENSE": "85aca0b12ce5ade4ff76e9cbbe7e0d5a4cdde979e3930727c272e1fa04b8cc23",
-          "package.json": "d4b68431b59bcbb8ebbfe8eebf986a4afb81af408e10a90122ce52c934e9a9f2",
+          "package.json": "f6fabb434fda1793c49434e4ba489813d3d5a6dd499af8de1f2b88d616c7d521",
           "README.md": "13c365916112363e573296385c5c9edc0b8b1e0028412a4b7f6e9ad6fdc30ea2"
         },
         "exports": [
@@ -146,7 +146,7 @@
           "isObservableLike",
           "observableToAsyncIterable"
         ],
-        "measured": "2026-11-06"
+        "measured": "2026-11-12"
       }
     }
   ],
@@ -156,16 +156,16 @@
       "claim": "weight",
       "seen": {
         "registry": "@clack/prompts",
-        "version": "1.8.1",
-        "shasum": "39a134cae495843904b57cc1e8300ead81ae7830",
-        "weight": 101684,
-        "self": 50896,
+        "version": "1.9.0",
+        "shasum": "23dfad8d03bf58330fc54a88f82e20d5fb7d110a",
+        "weight": 103050,
+        "self": 51772,
         "packages": 6,
         "files": {
-          "dist/index.d.mts": "c5d7fefbd6e4d634c239ff0f60e2dbac2fe4f6e6da66e208268884dff74a4729",
-          "dist/index.mjs": "1b024b83b4b4c1d5540fb129e7169c7471bb82bc85e9160e84072ceda85cbef9",
+          "dist/index.d.mts": "0f656acb14915e3ca0df40c824b9290aac200d2c8c5014833a55cb267aa71a81",
+          "dist/index.mjs": "9ea68e529d4aca6b9c34559ddc71c3cdd2dc0a81b73e807feacff1ed993dddb6",
           "LICENSE": "3e873d2aba8b76bcbe151ba558506ca6bfa8437db9323fa87086c5a7fcf10f42",
-          "package.json": "66ba5b8f6a2808384e2807d46b909aa27d8bc17d6e0fb354e72e3680a6a8b3be",
+          "package.json": "8252546ffb0064a99aa8ad669414842c70418e0741a390d450638356f1cec710",
           "README.md": "b7e91131cf29a58120b99f6671b35083c45ae36b9fd373d1b08f641130659335"
         },
         "exports": [
@@ -235,7 +235,7 @@
           "unicodeOr",
           "updateSettings"
         ],
-        "measured": "2026-11-06"
+        "measured": "2026-11-12"
       }
     }
   ],
@@ -246,10 +246,10 @@
       "registry": "@inquirer/core",
       "seen": {
         "registry": "@inquirer/core",
-        "version": "12.0.6",
-        "shasum": "7b426c029925817f3ec333e7dbb146aecbff144c",
-        "weight": 84494,
-        "self": 33719,
+        "version": "12.1.0",
+        "shasum": "a0c1327728170e89a45002818c62bd2dee5c70ac",
+        "weight": 84649,
+        "self": 33874,
         "packages": 10,
         "files": {
           "dist/index.d.ts": "e1d6ddd0c300ba35bd166063d5b2456e9d84fe96bdb7c16ad9379e50dca5dcda",
@@ -263,7 +263,7 @@
           "dist/lib/key.d.ts": "10043f2974346ba2baca701cd0a2bca1bda974d626a5d7eb92b741757a42443e",
           "dist/lib/key.js": "23a8ce908654922f130da62b1b0146c2107dd939019d3ee67c69ef5bb56b336f",
           "dist/lib/make-theme.d.ts": "5a7fe6ef136e88ee70d3cd0b1aa0d6875178b2682542ca340875a2711c81d779",
-          "dist/lib/make-theme.js": "72a098c4380c97f0691cc7c71c7c07e18761a9b770e8a6254e8bd6137a0ae2c3",
+          "dist/lib/make-theme.js": "382e0236f50a641c0e3b20d31f6f089b7e14fa56abfcdba4f3f595ed345b7ba0",
           "dist/lib/pagination/use-pagination.d.ts": "6efe6725728024c1b6cf22b47fe1dcaecc951444e7cb6fe0037d96123bb75667",
           "dist/lib/pagination/use-pagination.js": "76a0d215997ec3d54fa8066a9be3f08115f8d079247aa60d19796daf05fe1202",
           "dist/lib/screen-manager.d.ts": "681cac7cfb615498ee2cf79c930d8b55e2da6c9a3c58971b3324205e218cf838",
@@ -287,7 +287,7 @@
           "dist/lib/utils.d.ts": "7c8e5a4aaee3a6e83251ac295ab33a9e0aa2891c97674b9844128a8335aadc6b",
           "dist/lib/utils.js": "d8cb8eb6e124597db38be65c61f77fe84d6951183183729021303f2f32caaa02",
           "LICENSE": "85aca0b12ce5ade4ff76e9cbbe7e0d5a4cdde979e3930727c272e1fa04b8cc23",
-          "package.json": "a175be0cb8487b0c6a5ca46eb8d8514219fb66a642ff486bf22563e3f068f573",
+          "package.json": "99fad47f9a260d4be563c9478c5cef3e86e13aaad2cc978572b067a7980fd87f",
           "README.md": "3755b653465b536e1f5fedccc71985ce26c2b669f95f71028d46e0f1f338e2ca"
         },
         "exports": [
@@ -329,7 +329,7 @@
           "withPointer",
           "withUpdates"
         ],
-        "measured": "2026-11-06"
+        "measured": "2026-11-12"
       }
     }
   ],
@@ -340,16 +340,16 @@
       "registry": "@inquirer/prompts",
       "seen": {
         "registry": "@inquirer/prompts",
-        "version": "8.7.5",
-        "shasum": "54dd89759606617d8369a21ee7d8f8f6323b3eff",
-        "weight": 547628,
+        "version": "8.8.0",
+        "shasum": "5e5900c3a0817ee4b6b393c748c1f4697d17bc1a",
+        "weight": 548270,
         "self": 561,
         "packages": 25,
         "files": {
           "dist/index.d.ts": "736a3485c9e96b87b11fe6e55b5455e9f85ef59edc09bff1eb2f114ef661d1e5",
           "dist/index.js": "736a3485c9e96b87b11fe6e55b5455e9f85ef59edc09bff1eb2f114ef661d1e5",
           "LICENSE": "85aca0b12ce5ade4ff76e9cbbe7e0d5a4cdde979e3930727c272e1fa04b8cc23",
-          "package.json": "23ca035f6b451d9cb423c7fe919b20da97c74976cf047d8ee9656badc0cef99b",
+          "package.json": "695729527c259461fc3d6d8d2fcbea7852ad7af59ad21773c718a2dab465760d",
           "README.md": "e8793d3ce668616bf5bff1fa95585885cf68d40e6420409ef742cb02fb04c990"
         },
         "exports": [
@@ -365,7 +365,7 @@
           "search",
           "select"
         ],
-        "measured": "2026-11-06"
+        "measured": "2026-11-12"
       }
     }
   ]

@@ -178,7 +178,8 @@ export const number = createPrompt(<Required extends boolean>(config: NumberConf
     setStatus('loading');
     // An empty answer is a valid one unless `required` says otherwise.
     let verdict: string | boolean = required || answer != null ? checkNumber(answer, { min, max, step }) : true;
-    if (verdict === true && answer != null) verdict = await validate(answer);
+    // @inquirer/number 4.3.0: an optional prompt left empty still asks validate, with `undefined`.
+    if (verdict === true) verdict = await validate(answer as number);
     if (verdict === true) {
       setValue(String(answer ?? ''));
       setStatus('done');

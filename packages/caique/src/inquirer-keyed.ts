@@ -144,14 +144,15 @@ const isRow = <Value>(row: Separator | RawlistRow<Value> | undefined): row is Ra
 
 /**
  * The choice `typed` picks and where it is: a choice's own key first (as typed, then trimmed),
- * then a 1-based position among the choices when it holds a digit.
+ * then a 1-based position among the choices when it is digits and nothing else, around its
+ * whitespace (@inquirer/rawlist 5.4.0: `2x` is not choice 2).
  */
 function picked<Value>(typed: string, rows: readonly (Separator | RawlistRow<Value>)[]): RawlistRow<Value> | undefined {
   const choices = rows.filter(isRow);
   const trimmed = typed.trim();
   const byKey = choices.find((row) => row.key === trimmed);
-  if (byKey !== undefined || !/\d/u.test(typed)) return byKey;
-  return choices[Number.parseInt(typed, DECIMAL) - 1];
+  if (byKey !== undefined || !/^\d+$/u.test(trimmed)) return byKey;
+  return choices[Number.parseInt(trimmed, DECIMAL) - 1];
 }
 
 export const rawlist = createPrompt(<Value>(config: RawlistConfig<Value>, done: (value: Value) => void) => {

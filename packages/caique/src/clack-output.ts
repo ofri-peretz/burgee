@@ -20,6 +20,7 @@ import {
   type CommonOptions,
   guided,
   isCancel,
+  isAccessible,
   isCI,
   isTTY,
   paint,
@@ -227,6 +228,8 @@ const withoutDots = (msg: string): string => {
   return msg.slice(0, end);
 };
 const noop = (): void => undefined;
+/** How often an accessible spinner says it is still working (clack 1.9.0). */
+const STILL_WORKING_MS = 30_000;
 /** POSIX: a process ended by a signal leaves with 128 plus its number. */
 const SIGNAL_EXIT = 128;
 
@@ -235,6 +238,12 @@ type Ending = 'stop' | 'cancel' | 'error';
 function endGlyph(ending: Ending): string {
   if (ending === 'stop') return paint('green', S_STEP_SUBMIT);
   return paint('red', ending === 'cancel' ? S_STEP_CANCEL : S_STEP_ERROR);
+}
+
+/** An accessible spinner's ending when it names none: a plain word, the configured one for a cancel or an error. */
+function accessibleEnding(ending: Ending, opts: SpinnerOptions): string {
+  if (ending === 'stop') return 'Done';
+  return ending === 'cancel' ? (opts.cancelMessage ?? settings.messages.cancel) : (opts.errorMessage ?? settings.messages.error);
 }
 
 /** A spinner on the guide: animated on a terminal, printed once per message anywhere else. */
@@ -249,6 +258,8 @@ class Spinner implements SpinnerResult {
   private restore = noop;
   private unhook = noop;
   private readonly live: boolean;
+  /** Plain appended lines only — no glyph, guide, animation or escape (clack 1.9.0). */
+  private readonly accessible: boolean;
   private readonly output: Output;
   private readonly frames: readonly string[];
   /** What a run that does not animate prints in the frame's place: the style's own projection (U3). */
@@ -259,7 +270,8 @@ class Spinner implements SpinnerResult {
     // Quiet draws nothing and, because `SILENT` is no terminal, never arms the interval: a
     // quiet run cannot hold the event loop open (`caique-quiet-seam` R2). The lifecycle still runs.
     this.output = outputOf(opts);
-    this.live = !isCI(opts.runtime) && isTTY(this.output);
+    this.accessible = isAccessible(opts.accessible, opts.runtime);
+    this.live = !this.accessible && !isCI(opts.runtime) && isTTY(this.output);
     this.frames = opts.frames ?? opts.style?.frames ?? (unicode ? ['◒', '◐', '◓', '◑'] : ['•', 'o', 'O', '0']);
     this.still = opts.style?.static ?? this.frames[0] ?? '';
     this.style = opts.styleFrame ?? magenta;
@@ -316,11 +328,14 @@ class Spinner implements SpinnerResult {
     this.cancelled = false;
     this.text = withoutDots(msg);
     this.since = performance.now();
-    if (guided(this.opts)) this.output.write(`${paint('gray', S_BAR)}\n`);
+    if (guided(this.opts) && !this.accessible) this.output.write(`${paint('gray', S_BAR)}\n`);
     // Stryker disable next-line ObjectLiteral,BooleanLiteral: a signal aborts once, and the ending removes the listener
     this.opts.signal?.addEventListener('abort', this.onAbort, { once: true });
     this.unhook = exitHook(this.onExit);
-    if (this.live) this.animate();
+    if (this.accessible) {
+      if (this.text !== '') this.output.write(`${this.text}\n`);
+      this.timer = setInterval(() => this.output.write(this.text === '' ? 'still working\n' : `still working: ${this.text}\n`), STILL_WORKING_MS);
+    } else if (this.live) this.animate();
     else this.output.write(`${this.style(this.still)}  ${this.text}...\n`);
   }
 
@@ -330,10 +345,14 @@ class Spinner implements SpinnerResult {
     clearInterval(this.timer);
     this.opts.signal?.removeEventListener('abort', this.onAbort);
     if (this.live) this.output.write(eraseLines(this.drawn.split('\n').length));
-    this.text = msg === '' ? this.text : msg;
-    const glyph = endGlyph(ending);
     const timer = this.opts.indicator === 'timer' ? ` ${elapsed(this.since)}` : '';
-    if (!silent) this.output.write(`${glyph}  ${this.text}${timer}\n`);
+    if (this.accessible) {
+      // clack 1.9.0: the ending's own words, else a plain status word for it.
+      if (!silent) this.output.write(`${msg || accessibleEnding(ending, this.opts)}${timer}\n`);
+    } else {
+      this.text = msg === '' ? this.text : msg;
+      if (!silent) this.output.write(`${endGlyph(ending)}  ${this.text}${timer}\n`);
+    }
     this.unhook();
     this.restore();
   }
@@ -354,7 +373,7 @@ class Spinner implements SpinnerResult {
 
   message(msg = ''): void {
     const next = withoutDots(msg === '' ? this.text : msg);
-    if (!this.live && this.spinning && next !== this.text) this.output.write(`${this.style(this.still)}  ${next}...\n`);
+    if (!this.live && !this.accessible && this.spinning && next !== this.text) this.output.write(`${this.style(this.still)}  ${next}...\n`);
     this.text = next;
   }
 
