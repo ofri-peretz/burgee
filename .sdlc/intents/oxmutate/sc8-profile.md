@@ -204,3 +204,34 @@ the runner counts unhandled errors per mutant run and scores one Killed, and the
 suite that raises one unmutated. On the fix, 61 of 61 mutants on those lines agree with Stryker,
 the two as Killed. Fixtures `test/fixtures/unhandled` and `unhandled-baseline`; both cases fail
 on the previous build.
+
+## 6. compat-oracle's `hosts.ts`: the 1.1.0 kills were false (2026-11-12)
+
+[`oxmutate-fastest`](../oxmutate-fastest/intent.md) criterion `F0`. The 2026-10-31 run (1.1.0)
+left **0** survivors in `packages/compat-oracle/src/hosts.ts`; the 2026-11-05 run (1.5.0) left
+**963**, and the package's score fell from 91.17% to 74.61%. Either 1.1.0 scored false kills or
+the live static path misses real ones. Checked on one line, `hosts.ts:699`
+(`EXECA_UNGRADED`, 10 static mutants), in the full-run worktree at `c44a2ce6d8`, `concurrency: 2`:
+
+| Engine and path | Killed | Survived | Wall |
+| :-- | --: | --: | --: |
+| 1.6.2-dev, live static path | 0 | 10 | 425 s |
+| 1.6.2-dev, fresh worker per mutant (`OXMUTATE_ISOLATE_STATIC=1`) | 0 | 10 | 808 s |
+| published 1.1.0 | 2 | 8 | 991 s |
+
+- **The live path and the fresh-worker path agree**, 10 of 10.
+- **1.1.0's two kills do not reproduce by hand.** They were `'convert'` → `''` and `'io'` → `''`,
+  credited to tests `1573152066_0_8` and `1573152066_0_0`. With `'convert'` → `''` written into
+  the source, `npx vitest run` in the package passes: 917 of 917 tests, exit 0. The mutant
+  survives, as the current engine says.
+- **So the drop is the score becoming true, not a missed kill**, on this line. What 1.1.0 did to
+  fail those two tests is not traced; 1.1.0 is superseded, and the candidates are the defects
+  fixed since (the file-level hooks in #1374, the on-disk pollution in #1453).
+
+**Not done:** `F0` asks for 30 mutants and this is 10 on one line. The other rows of `hosts.ts`
+are object literals read by more tests, and a sample from them is still owed before the static
+path is changed.
+
+**The cost, as a side reading.** The live path spent 389 s at two workers on these 10 mutants,
+about 78 worker-seconds each: every survivor runs every test file that loads `hosts.ts`. That is
+the cost `M1` (grouped static survivors) is aimed at.
