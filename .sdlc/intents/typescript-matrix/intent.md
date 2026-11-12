@@ -1,6 +1,6 @@
 # Intent — the repository builds on TypeScript 6.0, and its packages are graded under 5.9, 6.0 and 7.0
 
-**Status:** review · **Opened:** `2026-11-12` · **Owner:** `@ofri-peretz`
+**Status:** approved · **Opened:** `2026-11-12` · **Owner:** `@ofri-peretz`
 
 Opened on the owner's instruction of 2026-11-12: "We need to move to higher TS. we can support
 multi TS versions." The product half of that is in the `apicontract` intents. This is the
@@ -109,6 +109,7 @@ Three readings:
   `Quality (Full) Gate` with no workflow change.
 - **`.github/dependabot.yml`:** the `typescript` ignore moves from `>=6` to `>=6.1`, and the two
   aliases are held to their lines.
+- **`README.md`:** the badge reads "TypeScript 5.9+", the oldest line graded.
 - **No published package changes.** 6.0.3 emits the same bytes as 5.9.3, so no tarball moves and
   no changeset is owed.
 
@@ -156,11 +157,10 @@ Three readings:
 
 ## Open questions
 
-1. **The README says "TypeScript 5.7+", and the oldest line graded is 5.9.** The owner named 5.9,
-   6.0 and 7.0. Either the badge moves to 5.9+, or `typescript-5.7` and `typescript-5.8` join the
-   matrix as two more aliases and ten more cells. Recommendation: move the badge. 5.9 has been
-   the only 5.x line ever run here, and each extra line is another compiler in every install.
-2. **Should 7.0 run the repository's `typecheck` while 6.0 keeps the build?** It would cut the
-   type-check of burgee from 2.2 s to 0.4 s. It would also put two compilers in the gate, where a
-   disagreement between them fails a push for a reason that is not in the code. Recommendation:
-   no, until 7.0 can also build.
+None. Two were raised and closed on 2026-11-12:
+
+- ~~Which floor the README states, 5.7+ as written or 5.9 as graded.~~ Decided: 5.9, and the badge
+  says so ([D-20261112-typescript-floor-is-5-9](../../decisions/D-20261112-typescript-floor-is-5-9.md)).
+- ~~Whether 7.0 runs the repository's `typecheck` while 6.0 keeps the build.~~ Decided: no, until
+  7.0 can also build
+  ([D-20261112-typescript-7-does-not-typecheck-yet](../../decisions/D-20261112-typescript-7-does-not-typecheck-yet.md)).
