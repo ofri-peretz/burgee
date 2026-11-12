@@ -38,8 +38,8 @@ OpenAPI; openapi-typescript's own fixtures; oasdiff's test corpus; 10 MCP server
 | G2 | Generation time | Leading | Wall-clock per 1,000 operations, cold, median of 5 | TBM | ≥ 2x faster |
 | G3 | Install size | Leading | Unpacked bytes, including all transitive dependencies | TBM (`npm pack` of each) | ≤ 25% |
 | G4 | Dependencies outside the family | Leading | Count | TBM (openapi-typescript: Redocly core and more) | 0 |
-| G5 | TypeScript 7 | Leading | Generated output passes `tsrs --noEmit` and TS 6 `tsc --noEmit` | ✗ (#2841) | ✓ both |
-| G6 | Type-check time of output | Leading | `tsrs --noEmit` time on the generated Stripe types | TBM | < baseline |
+| G5 | TypeScript versions | Leading | Generated output passes `tsc --noEmit` under each supported TypeScript: 5.9, 6.0 and 7.0 | ✗ on 7 (#2841); peer conflict on 6 | ✓ all three |
+| G6 | Type-check time of output | Leading | `tsc --noEmit` time and instantiations on the generated Stripe types, under each supported TypeScript | TBM | < baseline on each |
 | G7 | Upstream bugs fixed | Lagging | Of #941, #1464, #2012, #2366, #2577, #1922: fixed behind `--fix-upstream-bugs` | 0 / 6 | 6 / 6 |
 | G8 | Migrations | Lagging | Public repos that replaced openapi-typescript with `apicontract` | 0 | Tracked weekly |
 

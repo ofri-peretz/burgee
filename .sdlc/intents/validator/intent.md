@@ -79,7 +79,7 @@ type-check cost, are not in a tracker at all; they are V3, V4, V5 and V7, still 
 
 `npx tsx benchmarks/validator/baseline.ts <workdir>`: one order schema (nested object, array of
 objects, enum, optional, two regexes, a discriminated union) written once per library, the same two
-payloads through each. Node 24.13.0, TypeScript 5.9.3, Apple M4 Pro. **The machine was loaded (load
+payloads through each. Node 24.13.0, Apple M4 Pro; the `tsc` columns of this first table are TypeScript 5.9.3. **The machine was loaded (load
 average 185)**, so every time is an upper bound and only the ratios between rows are worth reading;
 bundle bytes and instantiations do not depend on load. Re-read on a quiet machine before any claim.
 
@@ -90,6 +90,23 @@ bundle bytes and instantiations do not depend on load. Re-read on a quiet machin
 | arktype 2.2.9 | 11.63M | 0.19M | 109.6 ms | 48,069 B | 5,589,780 | 5.07 s |
 | @sinclair/typebox 0.34.52, compiled | 18.55M | 11.74M | 17.1 ms | 22,880 B | 325,056 | 1.36 s |
 | ajv 8.20.0 | 11.18M | 7.98M | 592.9 ms | 38,819 B | — | — |
+
+The same fixture under each supported TypeScript (second run the same day, load average 98; each
+version installed on its own, its own `tsc --extendedDiagnostics`):
+
+| Library | Instantiations ×500: 5.9.3 | 6.0.3 | 7.0.2 | Check time: 5.9.3 | 6.0.3 | 7.0.2 |
+| :-- | --: | --: | --: | --: | --: | --: |
+| **zod 4.6.7** | **332,209** | **332,209** | **331,710** | **1.22 s** | **1.33 s** | **1.00 s** |
+| valibot 1.5.0 | 1,537,716 | 1,537,732 | 1,527,451 | 5.85 s | 5.42 s | 3.37 s |
+| arktype 2.2.9 | 5,589,780 | 5,589,780 | 5,466,076 | 7.45 s | 5.87 s | 2.12 s |
+| @sinclair/typebox 0.34.52 | 325,056 | 325,056 | 325,056 | 1.50 s | 1.45 s | 0.87 s |
+
+Instantiations are a property of the library's types, not of the compiler: identical on 5.9 and
+6.0, and within 2% on 7.0. TypeScript 7 checks the same work faster (1.2 to 3.5 times here) and in
+about 40% less memory, so the ranking holds on every version and the gap in seconds narrows. That
+second run also moved ArkType's runtime numbers by a factor of three (11.6M to 3.7M valid a second)
+while its instantiation count did not move at all, which is why timings from a loaded machine are
+not quoted as claims.
 
 What it says:
 
@@ -105,8 +122,7 @@ What it says:
   what plugs into it. The reason to move is the table above this one, on top of numbers that win.
 
 Limits of this reading: one schema shape; TypeBox and ajv return a boolean where Zod, Valibot and
-ArkType also build an error report, which flatters the first two on the invalid payload; TypeScript
-5.9, not 7; and it is not yet checked whether Zod's own fast path uses `new Function`, which decides
+ArkType also build an error report, which flatters the first two on the invalid payload; and it is not yet checked whether Zod's own fast path uses `new Function`, which decides
 what a CSP-safe default is compared against.
 
 ## Affected users and systems
@@ -126,6 +142,8 @@ what a CSP-safe default is compared against.
 - Drop-in paths are graded by the incumbent's own suite through `compat-oracle`, with a control run
   and a pass rate that only rises (rule 3).
 - No TypeScript compiler plugin or transformer needed at build time (typia's requirement).
+- Several TypeScript versions are supported at once (owner, 2026-11-12): 5.9, 6.0 and 7.0 today.
+  Every type-level metric is read under each of them, and a win on one version is not a win.
 - Node `^20.19.0 || >=22.13.0`; ESM and CJS; works in browsers and edge runtimes (no `eval` or
   `new Function` on the default path, which CSP forbids).
 - No public name, publish or claim before the capabilities are implemented and the metrics read.
@@ -144,7 +162,7 @@ control bands; lagging metrics run weekly and at each phase end. `TBM`: to be me
 | V4 | Schema construction | Leading | Time to build the bench schema 500 times | Zod 4, Valibot, ArkType, TypeBox, ajv | Zod: 48.4 ms | < Zod |
 | V5 | Bundle bytes | Leading | Min+gzip of the bench schema and its check, bundled and tree-shaken | all six | Zod: 27,454 B | < Zod |
 | V6 | Install size and deps | Leading | Unpacked bytes and runtime dependencies | all six | Zod: 6.15 MB, 0 deps (smallest read: arktype, 0.35 MB) | < Zod; 0 deps |
-| V7 | Type-check cost | Leading | `tsc` instantiations and check time on 500 copies of the bench schema, each with its inferred type | Zod 4, Valibot, ArkType, TypeBox | Zod: 332,209 instantiations, 1.25 s | < Zod |
+| V7 | Type-check cost | Leading | `tsc` instantiations and check time on 500 copies of the bench schema, each with its inferred type, under every supported TypeScript | Zod 4, Valibot, ArkType, TypeBox | Zod: 332,209 instantiations on 5.9 and 6.0, 331,710 on 7.0 | < Zod on each of 5.9, 6.0 and 7.0 |
 | V8 | Standard Schema | Leading | Standard Schema and Standard JSON Schema conformance cases passing | all that implement it | TBM | 100% |
 | V9 | Error quality | Leading | Share of errors carrying a JSON Pointer, the keyword and a `fix:` line | all six | TBM | 100%, > Zod |
 | V10 | Lossless export | Leading | Refinements and transforms dropped silently on export to JSON Schema | Zod 4 (`z.toJSONSchema`) | TBM | 0 |

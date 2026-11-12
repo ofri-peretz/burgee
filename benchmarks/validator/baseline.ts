@@ -9,7 +9,8 @@
  * - V3 throughput: validations per second on a valid and an invalid payload, median of 5.
  * - V4 construction: milliseconds to build the schema 500 times, median of 5.
  * - V5 bundle: min+gzip bytes of the schema and its check, bundled by this repo's esbuild.
- * - V7 type-check: `tsc --extendedDiagnostics` on 500 copies of the schema with an inferred type each.
+ * - V7 type-check: `tsc --extendedDiagnostics` on 500 copies of the schema with an inferred type each,
+ *   under every TypeScript in `TYPESCRIPTS`, each installed on its own beside the fixtures.
  */
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -20,6 +21,8 @@ import { gzipSync } from 'node:zlib';
 import { spawnSync } from '../spawn.js';
 
 const COPIES = 500;
+/** Every TypeScript the validator has to hold V7 on: the last 5.x, 6, and the native 7. */
+const TYPESCRIPTS = ['5.9.3', '6.0.3', '7.0.2'] as const;
 const ERROR_CHARS = 2000;
 const ISO_DATE_CHARS = 10;
 const EMAIL = String.raw`/^[^@\s]+@[^@\s]+\.[a-z]+$/`;
@@ -159,10 +162,15 @@ writeFileSync(path.join(dir, 'package.json'), '{"private":true,"type":"module"}'
 mustRun('npm', ['i', '--silent', '--no-audit', '--no-fund', ...Object.values(LIBRARIES).map((l) => l.pkg)], dir);
 writeFileSync(path.join(dir, 'run.mjs'), RUNNER);
 
-const emptyTs = path.join(dir, 'empty.ts');
-writeFileSync(emptyTs, 'export {};\n');
 const TSC = ['--noEmit', '--strict', '--skipLibCheck', '--target', 'es2022', '--module', 'nodenext', '--moduleResolution', 'nodenext', '--extendedDiagnostics'];
-const emptyCheck = diagnostic(mustRun(bin('tsc'), [...TSC, emptyTs], dir), 'Total time');
+/** One `tsc` per version, each in its own folder so no two share a `node_modules/typescript`. */
+const compilers = TYPESCRIPTS.map((version) => {
+  const home = path.join(dir, `ts-${version}`);
+  mkdirSync(home, { recursive: true });
+  writeFileSync(path.join(home, 'package.json'), '{"private":true}');
+  mustRun('npm', ['i', '--silent', '--no-audit', '--no-fund', `typescript@${version}`], home);
+  return { version, tsc: path.join(home, 'node_modules', '.bin', 'tsc') };
+});
 
 const readings: Record<string, unknown> = {};
 for (const [name, library] of Object.entries(LIBRARIES)) {
@@ -176,18 +184,20 @@ for (const [name, library] of Object.entries(LIBRARIES)) {
   mustRun(bin('esbuild'), [entry, '--bundle', '--minify', '--format=esm', '--platform=browser', `--outfile=${bundle}`, '--log-level=error'], dir);
   const bundled = readFileSync(bundle);
 
-  let types: Record<string, number> | undefined;
+  let types: Record<string, Record<string, number>> | undefined;
   if (library.infer) {
     const source = path.join(dir, `types-${name}.ts`);
     const copies = Array.from({ length: COPIES }, (_, i) => `${library.schema(String(i))}\nexport type T${String(i)} = ${library.infer?.(String(i)) ?? 'never'};\nexport const zip${String(i)} = (x: T${String(i)}): string => x.address.zip;`);
     writeFileSync(source, `${library.imports}\n${copies.join('\n')}\n`);
-    const output = mustRun(bin('tsc'), [...TSC, source], dir);
-    types = { instantiations: diagnostic(output, 'Instantiations'), checkSeconds: diagnostic(output, 'Check time'), totalSeconds: diagnostic(output, 'Total time'), memoryK: diagnostic(output, 'Memory used') };
+    types = Object.fromEntries(compilers.map(({ version, tsc }) => {
+      const output = mustRun(tsc, [...TSC, source], dir);
+      return [version, { instantiations: diagnostic(output, 'Instantiations'), checkSeconds: diagnostic(output, 'Check time'), totalSeconds: diagnostic(output, 'Total time'), memoryK: diagnostic(output, 'Memory used') }];
+    }));
   }
   readings[name] = { package: library.pkg, ...runtime, bundleMinBytes: bundled.length, bundleGzipBytes: gzipSync(bundled).length, types };
 }
 
 console.log(JSON.stringify({
-  date: new Date().toISOString().slice(0, ISO_DATE_CHARS), node: process.version, typescript: mustRun(bin('tsc'), ['-v'], dir).trim(),
-  loadAverage1m: Math.round(loadavg()[0] ?? 0), schemaCopiesForTypes: COPIES, emptyProjectTotalSeconds: emptyCheck, readings,
+  date: new Date().toISOString().slice(0, ISO_DATE_CHARS), node: process.version, typescripts: TYPESCRIPTS,
+  loadAverage1m: Math.round(loadavg()[0] ?? 0), schemaCopiesForTypes: COPIES, readings,
 }, undefined, 2));

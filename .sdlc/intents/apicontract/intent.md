@@ -95,8 +95,9 @@ These are dated observations, not measurements. The first measurements are the P
 
 - No dependency outside the burgee family. YAML is read with `seniority/yaml`; processes use
   `bellpull`.
-- No TypeScript compiler at runtime. Generated output type-checks under TS 6 `tsc` and TS 7
-  `tsrs`.
+- No TypeScript compiler at runtime. Several TypeScript versions are supported at once (owner,
+  2026-11-12): generated output type-checks under TypeScript 5.9, 6.0 and 7.0, each with its own
+  `tsc`, and a new TypeScript release joins that list within the upstream-tracking band (Q5).
 - Node `^20.19.0 || >=22.13.0`, the same range as the rest of the family.
 - Drop-in paths read the incumbent's config and write the incumbent's output, so switching is one
   change in `package.json`.
