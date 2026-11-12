@@ -27,7 +27,7 @@
 
 <p align="center">
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/cli--truncate%20suite-17%2F17-0a6b47?style=flat-square" alt="linegauge passes 17 of 17 cases of the cli-truncate test suite" /></a>
-  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/slice--ansi%20suite-106%2F106-0a6b47?style=flat-square" alt="linegauge/slice passes 106 of 106 cases of the slice-ansi test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/slice--ansi%20suite-129%2F129-0a6b47?style=flat-square" alt="linegauge/slice passes 129 of 129 cases of the slice-ansi test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/string--width%20suite-233%2F233-0a6b47?style=flat-square" alt="linegauge passes 233 of 233 cases of the string-width test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/strip--ansi%20suite-8%2F8-0a6b47?style=flat-square" alt="linegauge/strip passes 8 of 8 cases of the strip-ansi test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/widest--line%20suite-1%2F1-0a6b47?style=flat-square" alt="linegauge passes 1 of 1 cases of the widest-line test suite" /></a>
@@ -233,13 +233,13 @@ Graded by the incumbent's own test suite:
 | suite | passing |
 | :-- | --: |
 | `cli-truncate` | 17 / 17 |
-| `slice-ansi` | 106 / 106 |
+| `slice-ansi` | 129 / 129 |
 | `string-width` | 233 / 233 |
 | `strip-ansi` | 8 / 8 |
 | `widest-line` | 1 / 1 |
 | `wrap-ansi` | 85 / 85 |
 
-Weight, installed and tree-inclusive: **107,852 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.5550** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
+Weight, installed and tree-inclusive: **108,571 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.5587** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## For agents
 

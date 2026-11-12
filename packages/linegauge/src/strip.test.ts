@@ -121,8 +121,8 @@ describe('where Node\u2019s own stripper diverges', () => {
  * `0x9B` is also present and kept when not, as strip-ansi's fast path does, and `ESC [` before a
  * byte that is no final is text.
  *
- * The first five are ansi-regex 6.5.0's, held here to a literal as well as to the incumbent, so a
- * strip-ansi that resolved an older ansi-regex would name itself rather than pass.
+ * The literals below are ansi-regex 6.6.0's, held here to a literal as well as to the incumbent,
+ * so a strip-ansi that resolved an older ansi-regex would name itself rather than pass.
  */
 describe('strip is strip-ansi at the edges too', () => {
   it.each([
@@ -140,16 +140,38 @@ describe('strip is strip-ansi at the edges too', () => {
     ['C1 OSC alone, which strip-ansi returns as it is', '\u009D0;title\u009Cplain'],
     ['ESC [ before a non-final byte', 'a\u001B[aa'],
     ['a CSI with no final byte before a link', '\u001B[\u001B]8;;x\u0007t'],
+    // ansi-regex 6.6.0 (2026-11-08): the CSI is ECMA-48's own shape — parameter bytes, then
+    // intermediates, then any final from `@` to `~` — and DCS, SOS, PM, APC, the escapes whose
+    // final byte is a digit, the Linux palette and a cancelled control string are new
+    // (burgee#1501–#1509).
+    ['a DCS, sixel', 'a\u001BPq#0;2;0;0;0\u001B\\b'],
+    ['an APC, the kitty graphics protocol', 'a\u001B_Gf=24;x\u001B\\b'],
+    ['a C1 DCS beside a CSI', 'a\u001B[1m\u0090x\u009Cb'],
+    ['a BEL inside a DCS, which only an OSC ends on', 'a\u001BPx\u0007y\u001B\\b'],
+    ['save cursor', 'a\u001B7b'],
+    ['restore cursor, then text', 'a\u001B8lb'],
+    ['the line-drawing character set', 'a\u001B(0b'],
+    ['screen alignment', 'a\u001B#8b'],
+    ['a CSI with an intermediate byte', 'a\u001B[2 qb'],
+    ['the Linux console palette', 'a\u001B]P0ff0000b'],
+    ['an OSC cancelled by CAN', 'a\u001B]0;t\u0018b\u0007c'],
+    ['a two-byte escape ending in |', 'a\u001B|b'],
   ])('%s', (_name, input) => {
     expect(strip(input)).toBe(stripAnsi(input));
   });
 
   it.each([
-    ['a\u001B[5db', 'a\u001B[5db'],
+    ['a\u001B[5db', 'ab'],
+    ['a\u001B[aa', 'aa'],
     ['a\u001B[12;40Hb', 'ab'],
     ['a\u001B[>0;276;0cb', 'ab'],
     ['a\u009B<1;2Mb', 'ab'],
-  ])('turns %j into %j, as ansi-regex 6.5.0 does', (input, expected) => {
+    ['a\u001BPq#0;2;0;0;0\u001B\\b', 'ab'],
+    ['a\u001B7lb', 'alb'],
+    ['a\u001B]P0ff0000b', 'ab'],
+    ['a\u001B]0;t\u0018b\u0007c', 'a\u001B]0;t\u0018b\u0007c'],
+    ['\u001B[31', '\u001B[31'],
+  ])('turns %j into %j, as ansi-regex 6.6.0 does', (input, expected) => {
     expect(strip(input)).toBe(expected);
   });
 });
