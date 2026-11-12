@@ -20,7 +20,7 @@
   <a href="https://scorecard.dev/viewer/?uri=github.com/ofri-peretz/burgee"><img src="https://api.scorecard.dev/projects/github.com/ofri-peretz/burgee/badge" alt="OpenSSF Scorecard" /></a>
   <a href="./packages/burgee/package.json"><img src="https://img.shields.io/badge/dependencies-5%20in%20family%2C%200%20outside-0a6b47?style=flat-square" alt="Five dependencies, all in the burgee family: no dependency outside the burgee family" /></a>
   <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-22.13%2B-green.svg?style=flat-square" alt="Node.js 22.13+" /></a>
-  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.7+-blue.svg?style=flat-square" alt="TypeScript" /></a>
+  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.9+-blue.svg?style=flat-square" alt="TypeScript" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License: MIT" /></a>
   <a href="https://github.com/ofri-peretz/burgee"><img src="https://img.shields.io/github/stars/ofri-peretz/burgee?style=flat&logo=github&label=Star" alt="GitHub stars" /></a>
 </p>
