@@ -110,6 +110,15 @@ Each is a command or a recorded reading. `F` is speed, `G` is the governor, `J` 
 - `F6` — **a warm server spends its time in tests.** On burgee's paratext, the warm servers' time
   (`stats.warmUnitMs`) is at most 3 times the time inside test runs (`stats.warmArmedMs`). First
   reading, 2026-11-12: 11.5 s against 1.7 s, 6.8 times.
+- `F7` — **at least 1.5x faster than Stryker on compat-oracle, on the same mutants.** The owner,
+  2026-11-12: "we need to beat by at least 1.5x stryker on compat-oracle", and "we want to compare
+  apples to apples". Both engines on one machine, one after the other, the same `concurrency`,
+  the load recorded, and **the same graded set**: oxmutate runs with `strykerCompat` and skips
+  what Stryker skips, `hosts.ts` from line 802 on (`bench/burgee-pair.mts --clip
+  src/hosts.ts:1-801 --stryker-compat`). `pair.json`'s `sets` must show the two sets matching.
+  Not measured yet: no valid head-to-head exists on this package (`sc8/RUNS.md`). The readings
+  that exist are not like for like: Stryker 57.7 min on a CI runner at 4,620 mutants, oxmutate
+  1,063 min here at 6,695.
 - `G1` — **a run holds itself under its limits.** Under a synthetic load above `maxLoad`, no new
   unit is dispatched, and dispatch resumes below it. A test shows both.
 - `G2` — **the limits do not change a verdict.** The same fixture run with the governor on and

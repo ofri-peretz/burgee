@@ -28,6 +28,7 @@ import { availableParallelism, loadavg } from 'node:os';
 import path from 'node:path';
 
 import { BEAT_ENV, markTest, realNow, startHeartbeat } from './heartbeat.js';
+import { markWriter, type MarkWriter } from './progress-file.js';
 import { isDeadlock, takeFloor, trackRpc, trackTimers, watch } from './quiescence.js';
 import { resolveEsm } from './resolve.js';
 import { ACTIVE_MUTANT_ENV, FILE_KEY, NAMESPACE, cwd, env, type Namespace } from './runtime.js';
@@ -306,8 +307,7 @@ const FILE_ERROR_CHARS = 500;
 // 2026-11-11). A write on an open descriptor is in the kernel before the next mutant starts, so a
 // server the watchdog kills has still left its records and its mark.
 let resultsFd: number | undefined;
-let progressFd: number | undefined;
-let markLength = 0;
+let progress: MarkWriter | undefined;
 
 /** Whether a failed test failed by Vitest's own timeout, of the test or of one of its hooks. */
 const OWN_TIMEOUT = /^(?:Test|Hook) timed out in \d+ms/u;
@@ -322,26 +322,19 @@ function emit(record: object): void {
   writeSync(resultsFd, `${JSON.stringify(record)}\n`);
 }
 
-/**
- * The scheduler's watchdog reads this file: the mutant now running and when it started, or nothing.
- * Each mark is padded to the longest one written, so it replaces the last in one write and the
- * file is never truncated: truncating it for every mutant was 1.8 s of a 53 s run (2026-11-11).
- * The reader trims, so the padding reads as nothing.
- */
+/** The mark the scheduler's watchdog reads (progress-file.ts). */
 function mark(text: string): void {
   if (!progressPath) return;
-  progressFd ??= openSync(progressPath, 'w');
-  const padded = text.trimEnd().padEnd(markLength);
-  markLength = padded.length;
-  if (padded) writeSync(progressFd, padded, 0);
+  progress ??= markWriter(progressPath);
+  progress.write(text);
 }
 
 /** A worker thread's descriptors outlive it in a threads pool, so the end of its run closes them. */
 function closeFiles(): void {
-  for (const fd of [resultsFd, progressFd]) if (fd !== undefined) closeSync(fd);
+  if (resultsFd !== undefined) closeSync(resultsFd);
+  progress?.close();
   resultsFd = undefined;
-  progressFd = undefined;
-  markLength = 0;
+  progress = undefined;
 }
 
 // The suites whose hooks wrap `test`, outermost first. Vitest 5 leaves a top-level `describe`'s
