@@ -34,11 +34,11 @@
     "./testing": "./src/testing.ts"
   },
   "dependencies": {
-    "fumadocs-core": "^16.17.1",
-    "fumadocs-mdx": "^15.4.10",
-    "fumadocs-ui": "^16.17.1",
-    "next": "^16.4.3",
-    "posthog-js": "1.443.0",
+    "fumadocs-core": "^16.18.4",
+    "fumadocs-mdx": "^15.5.3",
+    "fumadocs-ui": "^16.18.4",
+    "next": "^16.4.5",
+    "posthog-js": "1.447.4",
     "react": "^19.3.0"
   },
   "devDependencies": {
