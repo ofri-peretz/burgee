@@ -441,7 +441,7 @@ describe('A7 — the numbers in the report are read, not typed', () => {
     // `compat-oracle/baseline/commander.json`. This case only proves the report reaches them.
     // `control` joined the row with A12 (D-137): it is what decides whether a drop-in is
     // rewritten at all, so the report shows it beside the grade.
-    expect((await migrate({ dir, status: clean })).graded).toEqual([{ host: 'commander', reference: 1360, passed: 1360, rate: 1, control: 1360 }]);
+    expect((await migrate({ dir, status: clean })).graded).toEqual([{ host: 'commander', reference: 1418, passed: 1418, rate: 1, control: 1418 }]);
   });
 
   it('does not claim a graded row for a host the project does not use', async () => {
@@ -777,8 +777,8 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     const report = await migrate({ dir, status: clean });
     expect(report.offMajor).toEqual([]);
     expect(read(dir, 'src/a.ts')).toBe("import { Command } from 'burgee/commander';\n");
-    expect(report.graded).toEqual([{ host: 'commander', reference: 1360, passed: 1360, rate: 1, control: 1360 }]);
-    expect(textOf(report)).toContain('\ngraded by the incumbent’s own suite:\n  commander  1360 / 1360 (the incumbent passes 1360)\n');
+    expect(report.graded).toEqual([{ host: 'commander', reference: 1418, passed: 1418, rate: 1, control: 1418 }]);
+    expect(textOf(report)).toContain('\ngraded by the incumbent’s own suite:\n  commander  1418 / 1418 (the incumbent passes 1418)\n');
   });
 
   it('leaves a drop-in that is not level yet alone, and says so with its grade', async () => {

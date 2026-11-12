@@ -93,7 +93,7 @@ describe('demo-cli-commander — the codemod against the hand-written drop-in', 
     expect(r.detected).toEqual({ declared: ['commander'], imported: ['commander'] });
     // `add` and `control` joined the report with A12 (D-137); `add` is empty because the demo already declares burgee.
     expect(r.dependencies).toEqual({ before: ['commander'], removable: ['commander'], after: 0, add: [] });
-    expect(r.graded).toEqual([{ host: 'commander', reference: 1360, passed: 1360, rate: 1, control: 1360 }]);
+    expect(r.graded).toEqual([{ host: 'commander', reference: 1418, passed: 1418, rate: 1, control: 1418 }]);
   });
 });
 
