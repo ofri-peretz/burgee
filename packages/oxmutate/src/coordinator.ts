@@ -135,6 +135,10 @@ interface Verdict {
   /** An idle Timeout the worker called itself, its wait able to end by nothing (quiescence.ts). Never re-run, as an idle stop. */
   deadlock?: boolean | undefined;
   killedBy?: string[] | undefined;
+  /** A Killed whose failing tests all failed by their own timeout: re-run once before it is believed. */
+  slow?: boolean | undefined;
+  /** A Timeout from two such runs. */
+  slowTwice?: boolean | undefined;
   /** Tests that ran across its files: Stryker's `testsCompleted`. */
   testsCompleted?: number | undefined;
 }
@@ -151,6 +155,8 @@ interface ChildRecord {
   file?: string;
   killed?: boolean;
   failed?: string[];
+  /** `isolated`: every test that failed did so by its own timeout: on a loaded machine, a slow test and not a kill. */
+  slow?: boolean;
   /** `mutant`: how long this execution took. */
   ms?: number;
   /** `mutant`, `isolated`: a Timeout the worker called itself: its wait could never end (quiescence.ts). */
@@ -226,6 +232,7 @@ const DEADLOCK_REASON = 'its test deadlocked: nothing left in the worker could r
 function timeoutReason(v: Verdict): string {
   if (v.deadlock) return DEADLOCK_REASON;
   if (v.idle) return 'its test waited past the budget with the worker idle: a hang, not a slow test';
+  if (v.slowTwice) return "its tests failed only by their own timeout, in two runs";
   return 'stopped by the watchdog twice, the second time with 3x the budget';
 }
 
@@ -877,7 +884,7 @@ export async function run(options: Options): Promise<RunResult> {
             const prev = verdicts.get(rec.id);
             const testsCompleted = (prev?.testsCompleted ?? 0) + (rec.ran ?? 0);
             if (rec.timeout) verdicts.set(rec.id, { status: 'Timeout', testsCompleted, ...(rec.deadlock && { idle: true, deadlock: true }) });
-            else if (rec.killed) verdicts.set(rec.id, { status: 'Killed', killedBy: [...(prev?.killedBy ?? []), ...(rec.failed ?? [])], testsCompleted });
+            else if (rec.killed) verdicts.set(rec.id, { status: 'Killed', killedBy: [...(prev?.killedBy ?? []), ...(rec.failed ?? [])], testsCompleted, slow: rec.slow === true && (prev?.status !== 'Killed' || prev.slow === true) });
             else verdicts.set(rec.id, { status: prev?.status ?? 'Survived', killedBy: prev?.killedBy, testsCompleted });
           }
           if (outcome.killedFor) verdicts.set(outcome.killedFor, { status: 'Timeout', idle: outcome.stall === 'idle' });
@@ -911,12 +918,22 @@ export async function run(options: Options): Promise<RunResult> {
     // on something the mutant never lets happen, which no budget cures; it is a Timeout as Stryker
     // scores it. Re-run at 3x, 375 of them on caique's 10-31 run "finished" only because Vitest's 30 s
     // test timeout failed the test (D-20261101-idle-stall-is-timeout, stall.qnt).
-    const stopped = isolatedQueue.filter((m) => first.get(m.id)?.status === 'Timeout' && !first.get(m.id)?.idle);
+    // A test that failed by its own timeout is the same reading from the other side: Vitest stopped
+    // it, not the watchdog. On compat-oracle's `hosts.ts`, with the load average at 45 to 120, 8 of 15
+    // static mutants were Killed this way by tests that clone repositories, and survive a quiet run
+    // (sc8-profile.md §6, A-20261112-oxmutate-test-timeout-kill). One more run decides it.
+    const slowKill = (v: Verdict | undefined): boolean => v?.status === 'Killed' && v.slow === true;
+    const stopped = isolatedQueue.filter((m) => (first.get(m.id)?.status === 'Timeout' && !first.get(m.id)?.idle) || slowKill(first.get(m.id)));
     stats.isolatedByCause.rerun += stopped.length;
     const again = await runIsolated(stopped, RERUN_SLACK);
     for (const m of stopped) {
       const v = again.get(m.id);
-      if (v && v.status !== 'Timeout' && v.status !== 'RuntimeError') {
+      if (!v || v.status === 'RuntimeError') continue;
+      if (slowKill(first.get(m.id))) {
+        // Slow twice is a Timeout, as a second watchdog stop is; anything else is the second run's verdict.
+        first.set(m.id, slowKill(v) ? { status: 'Timeout', slowTwice: true, testsCompleted: v.testsCompleted } : v);
+        if (v.status === 'Survived') stats.timeoutsOverturned++;
+      } else if (v.status !== 'Timeout') {
         first.set(m.id, v);
         stats.timeoutsOverturned++;
       }
@@ -946,19 +963,19 @@ export async function run(options: Options): Promise<RunResult> {
     // A timeout here is a watchdog stop like any other, and a loaded machine makes them: two
     // closeout survivors were reported killed this way while a docs build shared the machine
     // (2026-10-27). The same rule as section 6: one more run at 3x the budget before believing it.
-    const stoppedHere = survivors.filter((m) => confirmed.get(m.id)?.status === 'Timeout' && !confirmed.get(m.id)?.idle);
+    const stoppedHere = survivors.filter((m) => (confirmed.get(m.id)?.status === 'Timeout' && !confirmed.get(m.id)?.idle) || slowKill(confirmed.get(m.id)));
     stats.isolatedByCause.rerun += stoppedHere.length;
     const recheck = await runIsolated(stoppedHere, RERUN_SLACK);
     for (const m of stoppedHere) {
       const v = recheck.get(m.id);
-      if (v) confirmed.set(m.id, v);
+      if (v) confirmed.set(m.id, slowKill(confirmed.get(m.id)) && slowKill(v) ? { status: 'Timeout', slowTwice: true, testsCompleted: v.testsCompleted } : v);
     }
     for (const m of survivors) {
       const v = confirmed.get(m.id);
       if (v && v.status !== 'Survived' && v.status !== 'RuntimeError') {
         m.status = v.status;
         m.killedBy = v.killedBy;
-        m.statusReason = 'killed only when the mutant stays active across the whole test file (cross-test effect)';
+        m.statusReason = v.slowTwice ? timeoutReason(v) : 'killed only when the mutant stays active across the whole test file (cross-test effect)';
         stats.survivorsOverturned++;
       }
     }
