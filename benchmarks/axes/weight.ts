@@ -533,7 +533,11 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // 110,400 on 2026-11-12 (D-20261112-upstream-issues-2026-11-12): `linegauge/strip` carries ansi-regex 6.6.0's pattern,
   // which strip-ansi 7.2.0 resolves since 2026-11-08 and cliui measures through. CI read 110,366 on
   // the pull request; rounded up to the next 50. Still 1,320 B under yargs' 111,686.
-  'burgee/yargs': 110_400,
+  // 110,500 on 2026-11-13 (D-20261113-yargs-argsert-usage-cache-bytes): `argsert` parses each usage string once, which
+  // takes B5's `burgee/yargs ÷ yargs` from 1.12 to 0.82. Main at `8886ca5e0d` measured 110,366
+  // locally and this reads 110,446 (+80); plus the ~32 B, rounded up to the next 50. Still 1,240 B
+  // under yargs' 111,686.
+  'burgee/yargs': 110_500,
   // The foundation layers, first measured 2026-09-16 when they got B4 pairs at all. Each
   // ceiling is the measurement rounded up to the next fifty — a ratchet on what a user's
   // bundle grows by, set where the number actually is, so the next byte is a decision.
