@@ -344,9 +344,9 @@
         "note": "NaN is not a JSON value."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
+        "level": "yes",
+        "how": "nan()",
+        "evidence": "source schema.ts `nan`, check.ts `isNan`; confirmed by probes/ours.mjs › \"ours prim.nan\" on a copy of the source",
         "note": ""
       }
     }
@@ -784,10 +784,10 @@
         "note": "No void."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": "undefinedOf() accepts undefined and rejects null, but there is no builder typed void."
+        "level": "yes",
+        "how": "voidOf()",
+        "evidence": "source schema.ts `voidOf`; confirmed by probes/ours.mjs › \"ours prim.void\" on a copy of the source",
+        "note": "The node of undefinedOf(), typed void."
       }
     }
   },
@@ -960,9 +960,9 @@
         "note": "Not in ajv or ajv-formats. The separate ajv-keywords package advertises this; it was not installed, so not probed."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
+        "level": "yes",
+        "how": "lowercase(string())",
+        "evidence": "source schema.ts `lowercase`; confirmed by probes/ours.mjs › \"ours str.lowercase\" on a copy of the source",
         "note": ""
       }
     }
@@ -1092,10 +1092,10 @@
         "note": "No such keyword."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": ""
+        "level": "yes",
+        "how": "normalize(string(), 'NFC')",
+        "evidence": "source schema.ts `normalize`; confirmed by probes/ours.mjs › \"ours str.normalize\" on a copy of the source",
+        "note": "NFC by default; NFD, NFKC and NFKD by name."
       }
     }
   },
@@ -1224,10 +1224,10 @@
         "note": "Not in ajv or ajv-formats. The separate ajv-keywords package advertises this; it was not installed, so not probed."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": ""
+        "level": "yes",
+        "how": "trim(string())",
+        "evidence": "source schema.ts `trim`; confirmed by probes/ours.mjs › \"ours str.trim\" on a copy of the source",
+        "note": "A transform: the schema describes the string as it arrives, so trim(string({ min: 1 })) accepts \"   \" and hands out \"\". pipe(trim(string()), string({ min: 1 })) validates the trimmed string."
       }
     }
   },
@@ -1268,9 +1268,9 @@
         "note": "Not in ajv or ajv-formats. The separate ajv-keywords package advertises this; it was not installed, so not probed."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
+        "level": "yes",
+        "how": "uppercase(string())",
+        "evidence": "source schema.ts `uppercase`; confirmed by probes/ours.mjs › \"ours str.uppercase\" on a copy of the source",
         "note": ""
       }
     }
@@ -1752,10 +1752,10 @@
         "note": "Not in ajv-formats."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": ""
+        "level": "yes",
+        "how": "string({ format: hex })",
+        "evidence": "source formats.ts `hex`; confirmed by probes/ours.mjs › \"ours fmt.hex\" on a copy of the source",
+        "note": "One or more of RFC 5234's HEXDIG, in either case: no 0x prefix, and not the empty string."
       }
     }
   },
@@ -1796,10 +1796,10 @@
         "note": "Needs ajv-formats: bare ajv throws \"unknown format\" at compile time in strict mode."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": ""
+        "level": "yes",
+        "how": "string({ format: hostname })",
+        "evidence": "source formats.ts `hostname`; confirmed by probes/ours.mjs › \"ours fmt.hostname\" on a copy of the source",
+        "note": "RFC 1123 section 2.1: one label is a host name, so \"localhost\" passes; no trailing dot, no underscore."
       }
     }
   },
@@ -2104,10 +2104,10 @@
         "note": "Needs ajv-formats: bare ajv throws \"unknown format\" at compile time in strict mode. RFC 3339: 'time' requires an offset, so the probe shows plain 12:30:00 is rejected; 'iso-time' makes it optional."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": ""
+        "level": "yes",
+        "how": "string({ format: time }) / string({ format: localTime })",
+        "evidence": "source formats.ts `time`, `localTime`; confirmed by probes/ours.mjs › \"ours fmt.time\" on a copy of the source",
+        "note": "Two formats, each with its reference: `time` is RFC 3339 full-time and requires the offset (as ajv-formats' `time`); `localTime` is RFC 3339 partial-time, with none (what zod and valibot call an ISO time). The probe holds each to its competitors' values."
       }
     }
   },
@@ -2720,10 +2720,10 @@
         "note": "Probe: { type: 'integer' } accepts 2**53. ajv-formats has int32/int64 number formats, but no safe-integer one."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": "int is Number.isInteger, so 2**53 passes."
+        "level": "yes",
+        "how": "safeInteger()",
+        "evidence": "source schema.ts `safeInteger`; confirmed by probes/ours.mjs › \"ours num.safe_int\" on a copy of the source",
+        "note": "A builder of its own: the safe range is put into the number node's two bounds, so check tests nothing it did not test already. number({ int: true }) stays any integer-valued double (parity.md decision 5)."
       }
     }
   },
@@ -2984,9 +2984,9 @@
         "note": "JSON only."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
+        "level": "yes",
+        "how": "mapOf(string(), number())",
+        "evidence": "source schema.ts `mapOf`, check.ts `isMap`; confirmed by probes/ours.mjs › \"ours col.map\" on a copy of the source",
         "note": ""
       }
     }
@@ -3204,10 +3204,10 @@
         "note": "JSON only."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": ""
+        "level": "yes",
+        "how": "setOf(number())",
+        "evidence": "source schema.ts `setOf`, check.ts `isSet`; confirmed by probes/ours.mjs › \"ours col.set\" on a copy of the source",
+        "note": "{ min, max } bound its size."
       }
     }
   },
@@ -3952,10 +3952,10 @@
         "note": ""
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": ""
+        "level": "yes",
+        "how": "properties(record(number()), { min: 1, max: 2 })",
+        "evidence": "source schema.ts `properties`, check.ts `isCounted`; confirmed by probes/ours.mjs › \"ours obj.property_count\" on a copy of the source",
+        "note": "A wrapper for an object or a record; exported as minProperties / maxProperties."
       }
     }
   },
@@ -4568,10 +4568,10 @@
         "note": "No static types."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": ""
+        "level": "yes",
+        "how": "brand(string(), 'Id')",
+        "evidence": "types only: checked by tsc 6.0.3 on types/ours.brand.ts (probes/ours.mjs › \"ours val.brand\")",
+        "note": "Type only: the node is the one it was given. The brand is on the input type too, so a passing check() narrows to it."
       }
     }
   },
@@ -4832,10 +4832,10 @@
         "note": "Probe: `errorMessage` is an unknown keyword in strict mode. The separate ajv-errors package was not installed."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": "refine() takes a message; the built-in constraints do not. A message map (issues(..., { message })) can replace any of them."
+        "level": "yes",
+        "how": "message(string({ min: 3 }), { type: 'E1', min: 'E2' })",
+        "evidence": "source schema.ts `message`, own.ts `worded`; confirmed by probes/ours.mjs › \"ours val.custom_message\" on a copy of the source",
+        "note": "One message for a schema's own issues, or one a keyword. It stands over the per-call message hook."
       }
     }
   },
@@ -5096,10 +5096,10 @@
         "note": "No pipe."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": "A refinement tests the input of a transform, not its output; there is no schema after a transform."
+        "level": "yes",
+        "how": "pipe(transform(string(), Number), number({ min: 5 }))",
+        "evidence": "source schema.ts `pipe`, own.ts `piped`; confirmed by probes/ours.mjs › \"ours val.pipe\" on a copy of the source",
+        "note": "check(), issues() and the emitted code describe what goes in, the first schema alone; only parse() can refuse on the second schema's account."
       }
     }
   },
@@ -5140,10 +5140,10 @@
         "note": "No preprocess."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": ""
+        "level": "yes",
+        "how": "preprocess(fn, string({ min: 1 }))",
+        "evidence": "source schema.ts `preprocess`, own.ts `before`; confirmed by probes/ours.mjs › \"ours val.preprocess\" on a copy of the source",
+        "note": "A coercion of the caller's own: parse() runs it before validation; check() describes the value after it and never runs it."
       }
     }
   },
@@ -5272,9 +5272,9 @@
         "note": ""
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
+        "level": "yes",
+        "how": "refineAsync(string(), async (s) => s === 'ok') with parseAsync()",
+        "evidence": "source schema.ts `refineAsync`, async.ts `parseAsync`; confirmed by probes/ours.mjs › \"ours val.refine_async\" on a copy of the source",
         "note": ""
       }
     }
@@ -5492,10 +5492,10 @@
         "note": ""
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": ""
+        "level": "yes",
+        "how": "parseAsync(schema, value)",
+        "evidence": "source async.ts `parseAsync`, schema.ts `transformAsync`; confirmed by probes/ours.mjs › \"ours beh.async_parse\" on a copy of the source",
+        "note": "A separate export. One pass: every awaited rule and map runs exactly once."
       }
     }
   },
@@ -5844,10 +5844,10 @@
         "note": "Paths are JSON Pointer strings."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": "Paths are JSON Pointer strings."
+        "level": "yes",
+        "how": "keysOf(issue.path, value)",
+        "evidence": "source issues.ts `keysOf`; confirmed by probes/ours.mjs › \"ours beh.path_array\" on a copy of the source",
+        "note": "A function of the JSON Pointer and the value, not a second member on every issue: an index into an array is a number, as zod writes it. Standard Schema issues carry it."
       }
     }
   },
@@ -6416,10 +6416,10 @@
         "note": "Probe: a compiled validate function has no '~standard' (ajv #2605)."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": "Not in the source today. Planned in spec.md build step 6. (R12)"
+        "level": "yes",
+        "how": "standard(schema)['~standard'].validate(v) from validator/standard",
+        "evidence": "source standard.ts `standard`, `standardAsync`; confirmed by probes/ours.mjs › \"ours io.standard_schema\" on a copy of the source",
+        "note": "A wrapper on its own subpath: standard(schema) is the same schema with `~standard` on it. validate is one call of parse(), or of parseAsync() for standardAsync(): it never tries one way and then the other."
       }
     }
   },
@@ -6724,10 +6724,10 @@
         "note": "One Ajv class holding every vocabulary; code is generated at run time, so a bundler cannot drop unused keywords."
       },
       "ours": {
-        "level": "partial",
+        "level": "yes",
         "how": "import { string, object, check } from 'validator'",
-        "evidence": "source schema.ts (one export per builder; each puts its kind's check on the node), check.ts (no switch over kinds); confirmed by probes/ours.mjs › \"ours rt.tree_shake\" on a copy of the source",
-        "note": "check() carries only the kinds a program builds (measured 2026-11-13 with esbuild: 721 B min+gzip for string and check). Still partial: issues() and parse() each read a table of every kind, and package.json has no sideEffects field."
+        "evidence": "source schema.ts (one export per builder; each puts its kind's check, and its reader and filler, on the node), check.ts (no switch over kinds), own.ts; confirmed by probes/ours.mjs › \"ours rt.tree_shake\" on a copy of the source",
+        "note": "Measured 2026-11-13 with esbuild, min+gzip: string and check 699 B. issues() and parse() carry the eight kinds of the design's first step and every other kind brings its own reader and filler on its node; formats, JSON Schema, the emitter, parseAsync and Standard Schema are separate exports or subpaths."
       }
     }
   },

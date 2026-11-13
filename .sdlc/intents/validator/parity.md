@@ -159,6 +159,63 @@ prints it with `String()`, which runs an object's own `toString`.
 Partial rows: the message hook is per call, with no locale bundles; `promise` and `func` check that
 a value is one, not what it resolves to or takes.
 
+## Wave 3 as built, 2026-11-14
+
+The features three of the five competitors have, all 21 rows, and the debts from the earlier waves.
+Ours now reads **119 yes, 4 partial, 31 no**. 969 tests, 100% coverage, no surviving mutant, and
+still the 24 excluded mutants of wave 1, none added.
+
+| Group | What landed |
+| :-- | :-- |
+| Kinds | `nan`, `voidOf`, `safeInteger`, `mapOf`, `setOf` |
+| Strings | `trim`, `lowercase`, `uppercase`, `normalize`; formats `time`, `localTime`, `hex`, `hostname` |
+| Wrappers | `properties` (min and max), `brand`, `message`, `pipe`, `preprocess` |
+| Async | `refineAsync`, `transformAsync`, `parseAsync`, as their own exports: the sync path does not carry them |
+| Issues | `keysOf(issue.path, value)` gives the path as an array |
+| Standard Schema, on `./standard` | `standard(schema)` and `standardAsync(schema)`, one pass each |
+
+The debts: a hand-built node of an unknown kind is refused by every reader with a `fix:` line, and
+the emitter's refusal of a bad bound names its type and runs nothing of it.
+
+**`issues` and `parse` no longer carry every kind, at a price that is the owner's call.** A static
+import graph includes code if anything included refers to it, so "only the issue code of the kinds
+a schema uses" can only mean the builder refers to that code. `issues` and `parse` now read the
+eight kinds of the design's first step themselves; every other kind's builder puts its reader and
+filler on the node, as it puts `check`.
+
+| On the order schema | Before | After |
+| :-- | --: | --: |
+| `check` and `issues` | 3,972 B | 3,175 B |
+| `parse` | 5,007 B | 3,872 B |
+| `check` only | 1,733 B | 1,705 B |
+| Valid orders a second, `check` | 4.00 to 4.10M | 4.09 to 4.14M |
+
+The price: a program that calls only `check` and builds a kind outside the eight now carries that
+kind's reader and filler too. A `check`-only bundle of union, record, tuple, nullable and
+intersection went from 1,311 B to 2,377 B. The default taken is the split, because a validator's
+errors are most of why it is used; the alternative is the old tables, where `check`-only stays lean
+for every kind and `issues` and `parse` grow with each wave.
+
+Other costs: `issues` on an invalid order is about 8% slower (0.31M to 0.28M a second); a `parse`
+user who uses neither pipe nor async pays 92 B for the failure channel they need; Standard Schema is
+169 B over `parse`, `parseAsync` 951 B. Type instantiations are unchanged at 461.
+
+Choices wave 3 made, each reversible:
+
+| Question | Taken | Why |
+| :-- | :-- | :-- |
+| `transform`, `pipe`, `preprocess` | `transform(s, f)` validates then maps; `pipe(a, b)` parses what `a` produced with `b`; `preprocess(f, s)` runs `f` on the raw input, then validates | Three names for three orders |
+| What `check` says of a pipe | It describes `a` alone, so `parse` can refuse a value `check` accepts | `check` never runs a user's function; this is the one place the two differ |
+| String transforms | They are transforms: `trim(string({ min: 1 }))` accepts three spaces | To validate the trimmed value, pipe it |
+| Safe integers | A builder, `safeInteger`, whose range lives in the node's own bounds | `check` and `number` pay nothing for it |
+| `message` | Replaces the whole message, the `fix:` line included, for the wrapped schema's own issues | The author asked for those words |
+| The path as an array | A function, not a second member on every issue | An issue stays three members |
+| Async | Awaited rules run after `check`, on the input, siblings together; maps run only once every rule holds; `parse` throws on a schema with an awaited kind | One order, and no silent skipping |
+| The Standard Schema vendor | One constant, `validator`, until the name is chosen | — |
+| `time` | Two formats: `time` needs an offset (RFC 3339 full-time), `localTime` has none | zod and valibot refuse any offset and ajv requires one, so no single value passes all three |
+
+Not started: waves 4 and 5, so there is no JSON Schema import yet.
+
 ## The build list, in waves
 
 A feature's wave is how many of the five competitors have it (yes, partial or add-on). The list is
