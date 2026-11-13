@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { check } from './check.js';
 import { emit, emitWith } from './emit.js';
 import { issues } from './issues.js';
-import { BIGINT, CUSTOM, DATE, EVERY, INSTANCE, LATER, MAPPED, NEVER, NULLABLE, NULLISH, RECORD, REFINED, TUPLE, TYPE, UNION, UNKNOWN } from './own.js';
+import { BEFORE, BIGINT, COUNTED, CUSTOM, DATE, EVERY, INSTANCE, LATER, MAP, MAPPED, NAN, NEVER, NULLABLE, NULLISH, PIPED, RECORD, REFINED, SET, TUPLE, TYPE, UNION, UNKNOWN, WORDED } from './own.js';
 import { parse } from './parse.js';
 import {
   type AnySchema,
@@ -22,15 +22,22 @@ import {
   intersection,
   lazy,
   literal,
+  mapOf,
+  message,
+  nan,
   never,
   nullable,
   nullish,
   number,
   object,
   type Own,
+  pipe,
+  preprocess,
   promise,
+  properties,
   record,
   refine,
+  setOf,
   string,
   symbol,
   transform,
@@ -95,6 +102,13 @@ describe('a kind brings its own reading for issues and parse', () => {
     ['promise', promise(), INSTANCE],
     ['refine', refine(string(), always), REFINED],
     ['transform', transform(string(), upper), MAPPED],
+    ['nan', nan(), NAN],
+    ['mapOf', mapOf(string(), string()), MAP],
+    ['setOf', setOf(string()), SET],
+    ['properties', properties(object({}), {}), COUNTED],
+    ['message', message(string(), 'x'), WORDED],
+    ['pipe', pipe(string(), string()), PIPED],
+    ['preprocess', preprocess(always, string()), BEFORE],
   ];
 
   it.each(CORE)('%s is one of the eight kinds issues and parse read themselves, and carries none', (_, schema) => {

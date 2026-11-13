@@ -1,3 +1,4 @@
+import { keyCount } from './check.js';
 import { type Filler, type Issue, type Node, type Own, type Pass, type Reader, type Rule, type Test, type Walk } from './schema.js';
 
 /**
@@ -39,12 +40,24 @@ const noKind = (kind: unknown): string =>
 
 const same: Filler = (_, value) => value;
 
+/**
+ * What a schema makes of a member of the value, with the member's key noted for as long as it
+ * takes: `pass.at` is where the walk is, which is what a pipe's second schema and a rule that is
+ * awaited report their issues under.
+ */
+const under = (pass: Pass, key: unknown, schema: Node, value: unknown): unknown => {
+  pass.at.push(key);
+  const out = pass.fill(schema, value, pass);
+  pass.at.pop();
+  return out;
+};
+
 /** The items an array's schemas produce: `value` itself when none changed. `of` gives the schema at an index. */
 const items = (value: readonly unknown[], count: number, of: (index: number) => Node, pass: Pass): unknown => {
   let out: unknown[] | null = pass.copy ? [...value] : null;
   for (let index = 0; index < count; index++) {
     const before: unknown = value[index];
-    const after = pass.fill(of(index), before, pass);
+    const after = under(pass, index, of(index), before);
     if (Object.is(after, before)) continue;
     out ??= [...value];
     out[index] = after;
@@ -70,7 +83,7 @@ interface Notes {
 
 /** Notes under `key` what a schema makes of a member, when that is not the member itself. */
 const note = (notes: Notes, key: string, schema: Node, before: unknown): void => {
-  const after = notes.pass.fill(schema, before, notes.pass);
+  const after = under(notes.pass, key, schema, before);
   if (!Object.is(after, before)) notes.changed.set(key, after);
 };
 
@@ -326,18 +339,180 @@ const mapped: Reader = (walk, schema, got, path) => {
   walk.visit(walk, schema.item as Node, got, path);
 };
 
-/** A transform's map runs after `check`, on what the schema it wraps then produces. Before it, the walk only notes that there is one. */
+/**
+ * A transform's map runs after `check`, on what the schema it wraps then produces. Before it, the
+ * walk only notes that there is one. Once a pipe inside has failed, what the schema produced is not
+ * what the map was promised, and the map is not run: the parse has failed already. A failure
+ * elsewhere, beside this schema and not inside it, takes nothing from what this map was promised.
+ */
 const mappedFill: Filler = (schema, value, pass) => {
+  const before = pass.failed.length;
   const out = inner(schema, value, pass);
-  if (pass.late) return (schema.value as (value: unknown) => unknown)(out);
+  if (pass.late) return pass.failed.length > before ? out : (schema.value as (value: unknown) => unknown)(out);
   pass.met = true;
   return out;
 };
 
 const MAPPED: Own = /* @__PURE__ */ Object.freeze({ issues: mapped, fill: mappedFill });
 
+
+const nan: Reader = (walk, _, got, path) => {
+  if (!Number.isNaN(got)) walk.add(walk, { path, keyword: 'type', expected: 'NaN', got, fix: 'send NaN' });
+};
+
+const NAN: Own = /* @__PURE__ */ Object.freeze({ issues: nan, fill: same });
+
+/** Where an entry of a `Map` is reported: under its key when that is a string or a number, and otherwise under its place in the order the map gives its entries. */
+const entryKey = (name: unknown, index: number): string | number => (typeof name === 'string' || typeof name === 'number' ? name : index);
+
+const map: Reader = (walk, schema, got, path) => {
+  if (!(got instanceof Map)) {
+    walk.add(walk, { path, keyword: 'type', expected: 'a Map', got, fix: 'send a Map' });
+    return;
+  }
+  let index = 0;
+  for (const [name, member] of got) {
+    const at = path + token(entryKey(name, index));
+    walk.visit(walk, schema.key as Node, name, at);
+    walk.visit(walk, schema.item as Node, member, at);
+    index += 1;
+  }
+};
+
+/** A new `Map` when a key or a value changed, or a copy was asked for; the entries keep their order. */
+const mapFill: Filler = (schema, value, pass) => {
+  if (!(value instanceof Map)) return value;
+  const out = new Map<unknown, unknown>();
+  let changed = pass.copy;
+  let index = 0;
+  for (const [name, member] of value) {
+    const at = entryKey(name, index);
+    const key = under(pass, at, schema.key as Node, name);
+    const item = under(pass, at, schema.item as Node, member);
+    if (!Object.is(key, name) || !Object.is(item, member)) changed = true;
+    out.set(key, item);
+    index += 1;
+  }
+  return changed ? out : value;
+};
+
+const MAP: Own = /* @__PURE__ */ Object.freeze({ issues: map, fill: mapFill });
+
+const set: Reader = (walk, schema, got, path) => {
+  if (!(got instanceof Set)) {
+    walk.add(walk, { path, keyword: 'type', expected: 'a Set', got, fix: 'send a Set' });
+    return;
+  }
+  const [min, max] = [String(schema.min), String(schema.max)];
+  if (got.size < schema.min) walk.add(walk, { path, keyword: 'min', expected: `at least ${min} members`, got, fix: `send ${min} or more` });
+  else if (got.size > schema.max) walk.add(walk, { path, keyword: 'max', expected: `at most ${max} members`, got, fix: `send ${max} or fewer` });
+  let index = 0;
+  for (const member of got) {
+    walk.visit(walk, schema.item as Node, member, path + token(index));
+    index += 1;
+  }
+};
+
+/** A new `Set` when a member changed, or a copy was asked for. Two members that become the same value become one. */
+const setFill: Filler = (schema, value, pass) => {
+  if (!(value instanceof Set)) return value;
+  const out = new Set<unknown>();
+  let changed = pass.copy;
+  let index = 0;
+  for (const member of value) {
+    const item = under(pass, index, schema.item as Node, member);
+    if (!Object.is(item, member)) changed = true;
+    out.add(item);
+    index += 1;
+  }
+  return changed ? out : value;
+};
+
+const SET: Own = /* @__PURE__ */ Object.freeze({ issues: set, fill: setFill });
+
+/** The wrapped schema's issues, and then the count of keys: asked only of an object, and only when nothing has yet stopped the walk. */
+const counted: Reader = (walk, schema, got, path) => {
+  const before = walk.found.length;
+  walk.visit(walk, schema.item as Node, got, path);
+  if (full(walk)) return;
+  if (!isMembers(got)) {
+    // What the wrapped schema refused it has already named; an object is asked for only where it let something else through.
+    if (walk.found.length === before) walk.add(walk, { path, keyword: 'type', expected: 'an object', got, fix: 'send an object' });
+    return;
+  }
+  const count = keyCount(got);
+  const [min, max] = [String(schema.min), String(schema.max)];
+  if (count < schema.min) walk.add(walk, { path, keyword: 'minProperties', expected: `at least ${min} keys`, got, fix: `send ${min} or more` });
+  else if (count > schema.max) walk.add(walk, { path, keyword: 'maxProperties', expected: `at most ${max} keys`, got, fix: `send ${max} or fewer` });
+};
+
+const COUNTED: Own = /* @__PURE__ */ Object.freeze({ issues: counted, fill: inner });
+
+/** The keywords a schema reports one key below itself, about that key: of an object, a record or a discriminated union. */
+const ABOUT_A_KEY: ReadonlySet<string> = /* @__PURE__ */ new Set(['required', 'unknown', 'undefined', 'key', 'tag']);
+
+/**
+ * Whether an issue is the wrapped schema's own, and so one its message is for: reported where the
+ * schema stands, or one key below under a keyword that is about the key itself. What a schema
+ * inside it reports is that schema's own.
+ */
+const isOwn = (issue: Issue, path: string): boolean =>
+  // Every issue found under the wrapped schema is at its path or below it: what is left of the path is empty, or starts a key.
+  issue.path === path || (ABOUT_A_KEY.has(issue.keyword) && !issue.path.slice(path.length).includes('/', 1));
+
+/**
+ * The wrapped schema's issues, each of its own with the message the schema was given for it: one
+ * message for all of them, or one a keyword. The words are the caller's, whole: no `fix:` line is
+ * added to them. They are put in last, so they stand whatever a per-call message hook said.
+ */
+const worded: Reader = (walk, schema, got, path) => {
+  const before = walk.found.length;
+  walk.visit(walk, schema.item as Node, got, path);
+  const words = schema.value as string | ReadonlyMap<string, string>;
+  for (let index = before; index < walk.found.length; index++) {
+    const issue = walk.found[index] as Issue;
+    const message = typeof words === 'string' ? words : words.get(issue.keyword);
+    if (message !== undefined && isOwn(issue, path)) walk.found.splice(index, 1, { ...issue, message });
+  }
+};
+
+const WORDED: Own = /* @__PURE__ */ Object.freeze({ issues: worded, fill: inner });
+
+/**
+ * A function of the caller's, run on what arrived before anything is validated: a coercion of
+ * their own. It runs once, on the first walk; after `check` the value is already what it made.
+ */
+const before: Filler = (schema, value, pass) => pass.fill(schema.item as Node, pass.late ? value : (schema.value as (value: unknown) => unknown)(value), pass);
+
+const BEFORE: Own = /* @__PURE__ */ Object.freeze({ issues: mapped, fill: before });
+
+/**
+ * A pipe's first schema is filled as if it stood alone; then, after `check`, what it produced is
+ * parsed by the second, whole: filled, checked and mapped. Where the second refuses it the parse
+ * fails with the second's issues, each under the place the pipe stands at.
+ */
+const piped: Filler = (schema, value, pass) => {
+  const before = pass.failed.length;
+  const out = inner(schema, value, pass);
+  if (!pass.late) {
+    pass.met = true;
+    return out;
+  }
+  // What the first schema made is not sound where a pipe inside it failed; and a call that asked for the first issue has it.
+  if (pass.failed.length > before || (pass.options.first === true && before > 0)) return out;
+  const result = pass.parse(schema.key as Node, out, pass.options);
+  if (result.ok) return result.value;
+  const prefix = pass.at.map((key) => token(key as string | number)).join('');
+  for (const issue of result.issues) pass.failed.push({ ...issue, path: prefix + issue.path });
+  return out;
+};
+
+const PIPED: Own = /* @__PURE__ */ Object.freeze({ issues: mapped, fill: piped });
+
 export {
+  BEFORE,
   BIGINT,
+  COUNTED,
   CUSTOM,
   DATE,
   EVERY,
@@ -346,22 +521,28 @@ export {
   isMembers,
   items,
   LATER,
+  MAP,
   MAPPED,
   type Members,
   named,
+  NAN,
   NEVER,
   noKind,
   note,
   type Notes,
   NULLABLE,
   NULLISH,
+  PIPED,
   rebuilt,
   RECORD,
   REFINED,
   same,
+  SET,
   token,
   TUPLE,
   TYPE,
+  under,
   UNION,
   UNKNOWN,
+  WORDED,
 };

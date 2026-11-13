@@ -160,6 +160,24 @@ function visit(walk: Walk, schema: Node, got: unknown, path: string): void {
 }
 
 /**
+ * The keys a JSON Pointer names (RFC 6901 §4), in order: an issue's `path` as an array. Given the
+ * value the issue is about, a key that is an index into an array is a number, as zod writes a
+ * path; without it, and under a `Map` or a `Set`, every key is a string.
+ */
+export const keysOf = (path: string, value?: unknown): (string | number)[] => {
+  let at = value;
+  return path
+    .split('/')
+    .slice(1)
+    .map((part) => {
+      const key = part.replaceAll('~1', '/').replaceAll('~0', '~');
+      const inArray = Array.isArray(at);
+      at = typeof at === 'object' && at !== null ? (at as Record<string, unknown>)[key] : undefined;
+      return inArray ? Number(key) : key;
+    });
+};
+
+/**
  * The second pass (spec.md R6, R7): every reason `value` is not what the schema describes. Empty
  * exactly when `check` says yes.
  */

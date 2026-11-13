@@ -154,7 +154,7 @@ const array = (emitter: Emitter, schema: Node): string => {
  * whatever its schema would say of `undefined` (`check` asks that first), so for these the text
  * asks it too; for every other kind the kind's test already refuses `undefined`.
  */
-const UNDEFINED_MAY_PASS: ReadonlySet<Kind> = new Set(['unknown', 'nullable', 'nullish', 'union', 'intersection', 'lazy', 'custom', 'refine', 'transform']);
+const UNDEFINED_MAY_PASS: ReadonlySet<Kind> = new Set(['unknown', 'nullable', 'nullish', 'union', 'intersection', 'lazy', 'custom', 'refine', 'transform', 'message', 'pipe', 'preprocess']);
 
 /** Whether a field's own test can be true of `undefined`: one of those kinds, or the literal `undefined`. */
 const mayPassUndefined = (field: Node): boolean => UNDEFINED_MAY_PASS.has(field.kind) || (field.kind === 'literal' && field.value === undefined);
@@ -218,6 +218,30 @@ ${chosen.join('\n')}
   }
 }`;
 };
+
+const map = (emitter: Emitter, schema: Node): string => `(v) => {
+  if (!(v instanceof Map)) return false;
+  for (const [k, x] of v) if (!(${test(emitter, schema.key as Node, 'k')}) || !(${test(emitter, schema.item as Node, 'x')})) return false;
+  return true;
+}`;
+
+const set = (emitter: Emitter, schema: Node): string => {
+  const [min, max] = [numeric(schema.min), numeric(schema.max)];
+  const bounds = [schema.min > 0 ? ` || v.size < ${min}` : '', schema.max < Number.MAX_VALUE ? ` || v.size > ${max}` : ''];
+  return `(v) => {
+  if (!(v instanceof Set)${bounds.join('')}) return false;
+  for (const x of v) if (!(${test(emitter, schema.item as Node, 'x')})) return false;
+  return true;
+}`;
+};
+
+/** An object the wrapped schema accepts, and the count of its keys: `for … in`, as `isCounted` counts them. */
+const counted = (emitter: Emitter, schema: Node): string => `(v) => {
+  if (!(${isObject('v')}) || !(${test(emitter, schema.item as Node, 'v')})) return false;
+  let n = 0;
+  for (const k in v) n += 1;
+  return n >= ${numeric(schema.min)} && n <= ${numeric(schema.max)};
+}`;
 
 /** A function the schema names, by where the text will find it. What is not a function is refused, not called: `what` says what it was to be. */
 const hook = (emitter: Emitter, named: unknown, what: string): string => {
@@ -305,6 +329,14 @@ const WRITERS: Readonly<Record<Kind, (emitter: Emitter, schema: Node, ref: strin
   refine: (emitter, schema, ref) => `((${test(emitter, schema.item as Node, ref)}) && ${tested(emitter, schema.rule as Rule)}(${ref}) === true)`,
   // A transform describes what goes in, so its test is the test of what it wraps: the map is `parse`'s to run.
   transform: (emitter, schema, ref) => test(emitter, schema.item as Node, ref),
+  nan: (_, __, ref) => `Number.isNaN(${ref})`,
+  map: (emitter, schema, ref) => `${named(emitter, schema, map)}(${ref})`,
+  set: (emitter, schema, ref) => `${named(emitter, schema, set)}(${ref})`,
+  count: (emitter, schema, ref) => `${named(emitter, schema, counted)}(${ref})`,
+  // Words for an issue, a second schema for what `parse` produces, a function `parse` runs first: none is `check`'s to read.
+  message: (emitter, schema, ref) => test(emitter, schema.item as Node, ref),
+  pipe: (emitter, schema, ref) => test(emitter, schema.item as Node, ref),
+  preprocess: (emitter, schema, ref) => test(emitter, schema.item as Node, ref),
 };
 
 function test(emitter: Emitter, schema: Node, ref: string): string {

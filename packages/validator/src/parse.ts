@@ -105,13 +105,14 @@ function fill(schema: Node, value: unknown, pass: Pass): unknown {
  * transform runs last, and only on a value the whole schema accepted.
  */
 const parse = <T, O>(schema: Schema<T, O>, value: unknown, options: ParseOptions = {}): Parsed<Out<T, O>> => {
-  const pass: Pass = { late: false, copy: options.copy === true, met: false, fill };
+  const pass: Pass = { late: false, copy: options.copy === true, met: false, fill, at: [], failed: [], parse: parse as Pass['parse'], options };
   const filled = fill(schema, value, pass);
   if (!schema.check(schema, filled)) return { ok: false, issues: issues(schema, filled, options) };
   // A schema with no transform in it is walked once.
   if (!pass.met) return { ok: true, value: filled as Out<T, O> };
   pass.late = true;
-  return { ok: true, value: fill(schema, filled, pass) as Out<T, O> };
+  const out = fill(schema, filled, pass);
+  return pass.failed.length === 0 ? { ok: true, value: out as Out<T, O> } : { ok: false, issues: pass.failed };
 };
 
 export { parse, type Parsed, type ParseOptions };

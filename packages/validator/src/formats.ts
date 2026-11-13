@@ -9,7 +9,7 @@ import { type Format } from './schema.js';
  * On a subpath of its own, and each a value of its own: a program carries the formats it imports
  * and no other. That is what the `@__PURE__` marks are for: a bundler keeps a call it cannot see
  * through, and freezing is a call (measured 2026-11-13 with esbuild: without the marks a schema
- * with one format carried all nine). All but the two URL formats are patterns, so `emit` can write them as text; the
+ * with one format carried all of them). All but the two URL formats are patterns, so `emit` can write them as text; the
  * patterns are anchored and bounded, and take time in proportion to the string.
  *
  * `string({ format: email })`.
@@ -91,6 +91,46 @@ const base64 = /* @__PURE__ */ Object.freeze({
 }) satisfies Format;
 
 /**
+ * RFC 3339 §5.6 `full-time`: hours, minutes and seconds with any fraction, then `Z` or a numeric
+ * offset with its colon. It is the time half of `datetime`, and what JSON Schema's `time` format
+ * names. A time with no offset is `localTime`. A leap second is accepted where `datetime` accepts
+ * it: `23:59:60` at `Z` or `±00:00`.
+ */
+const time = /* @__PURE__ */ Object.freeze({
+  name: 'time',
+  pattern: /^(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:[Zz]|[+-](?:[01]\d|2[0-3]):[0-5]\d)|23:59:60(?:\.\d+)?(?:[Zz]|[+-]00:00))$/u,
+}) satisfies Format;
+
+/**
+ * RFC 3339 §5.6 `partial-time`: `hh:mm:ss` with any fraction, and no offset, which is ISO 8601's
+ * local time in its extended format with seconds. It is what zod and valibot call an ISO time. No
+ * leap second: with no offset there is no telling whether the minute had one.
+ */
+const localTime = /* @__PURE__ */ Object.freeze({
+  name: 'local-time',
+  pattern: /^(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?$/u,
+}) satisfies Format;
+
+/**
+ * One or more of RFC 5234's `HEXDIG` (appendix B.1), in either case, as ABNF reads its own
+ * letters: the digits of a number written in base 16, or of bytes written two digits each (RFC 4648
+ * §8). No `0x` in front, and not the empty string, which is no number.
+ */
+const hex = /* @__PURE__ */ Object.freeze({ name: 'hex', pattern: /^[0-9a-fA-F]+$/u }) satisfies Format;
+
+/**
+ * A host name as RFC 1123 §2.1 has it: RFC 952's labels of letters, digits and hyphens joined by
+ * dots, a label neither starting nor ending with a hyphen, and a digit allowed first. A label is
+ * at most 63 characters and the whole name at most 253 (RFC 1035 §2.3.4). One label is a host
+ * name, so `localhost` passes. No trailing dot, no underscore, and no character outside ASCII: an
+ * internationalised name is written in its `xn--` form.
+ */
+const hostname = /* @__PURE__ */ Object.freeze({
+  name: 'hostname',
+  pattern: /^(?=.{1,253}$)[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/u,
+}) satisfies Format;
+
+/**
  * What the WHATWG URL parser removes before it reads: a space or a control at either end, and a
  * tab or a line break anywhere. A string it has to cut first is not the URL it then parses.
  */
@@ -117,4 +157,4 @@ const isHttpUrl = (text: string): boolean => HTTP.test(text) && isUrl(text);
 /** The same, with the scheme `http` or `https` and a host: what may be offered as a link. */
 const httpUrl = /* @__PURE__ */ Object.freeze({ name: 'http-url', test: isHttpUrl }) satisfies Format;
 
-export { base64, date, datetime, email, httpUrl, ipv4, ipv6, url, uuid };
+export { base64, date, datetime, email, hex, hostname, httpUrl, ipv4, ipv6, localTime, time, url, uuid };

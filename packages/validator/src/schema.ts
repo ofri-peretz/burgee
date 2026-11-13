@@ -13,14 +13,17 @@ import {
   isBoolean,
   isCase,
   isClosed,
+  isCounted,
   isCustom,
   isDate,
   isEvery,
   isInstance,
   isLater,
   isLiteral,
+  isMap,
   isMapped,
   isMember,
+  isNan,
   isNothing,
   isNullable,
   isNullish,
@@ -28,12 +31,13 @@ import {
   isObject,
   isRecord,
   isRefined,
+  isSet,
   isString,
   isTuple,
   isTypeOf,
   isUnion,
 } from './check.js';
-import { BIGINT, CUSTOM, DATE, EVERY, INSTANCE, LATER, MAPPED, NEVER, NULLABLE, NULLISH, RECORD, REFINED, TUPLE, TYPE, UNION, UNKNOWN } from './own.js';
+import { BEFORE, BIGINT, COUNTED, CUSTOM, DATE, EVERY, INSTANCE, LATER, MAP, MAPPED, NAN, NEVER, NULLABLE, NULLISH, PIPED, RECORD, REFINED, SET, TUPLE, TYPE, UNION, UNKNOWN, WORDED } from './own.js';
 
 export type Check = (schema: Node, value: unknown) => boolean;
 
@@ -61,7 +65,14 @@ export type Kind =
   | 'type'
   | 'instance'
   | 'refine'
-  | 'transform';
+  | 'transform'
+  | 'nan'
+  | 'map'
+  | 'set'
+  | 'count'
+  | 'message'
+  | 'pipe'
+  | 'preprocess';
 
 /** A predicate a node names (spec.md R10). Beside `check`, `get` and a transform's map, it is the only kind of function a node may hold. */
 export type Test = (value: unknown) => boolean;
@@ -89,10 +100,10 @@ export interface Issue {
   /**
    * What failed: `type`, `min`, `max`, `gt`, `lt`, `integer`, `multipleOf`, `pattern`, `format`,
    * `literal`, `enum`, `required`, `unknown`, `key`, `length`, `tag`, `union`, `never`, `custom`,
-   * `date`, `instance`, `undefined`, `refine`.
+   * `date`, `instance`, `undefined`, `refine`, `minProperties`, `maxProperties`.
    */
   readonly keyword: string;
-  /** What was expected and what arrived, ending in a `fix:` line. */
+  /** What was expected and what arrived, ending in a `fix:` line; or the words a schema was given with `message`. */
   readonly message: string;
 }
 
@@ -145,6 +156,15 @@ export interface Pass {
   met: boolean;
   /** The way of `parse` into a schema inside this one, handed over as a walk's `visit` is. */
   readonly fill: Filler;
+  /** Where the walk is: the keys from the root to the member being filled. */
+  readonly at: unknown[];
+  /** What the walk after `check` found wrong: the issues of a pipe's second schema. One of them fails the parse. */
+  readonly failed: Issue[];
+  /** `parse` itself and the options it was called with, for a schema that parses what another produced. */
+  readonly parse: (schema: Node, value: unknown, options: IssueOptions) => { readonly ok: true; readonly value: unknown } | { readonly ok: false; readonly issues: Issue[] };
+  readonly options: IssueOptions;
+  /** Set by `parseAsync` alone: a schema that has to be awaited refuses a walk without it. */
+  readonly wait?: boolean;
 }
 
 /** What `parse` runs for a kind: the value the schema makes of `value`, which is `value` itself when nothing changed. */
@@ -166,7 +186,7 @@ export interface Node {
   readonly kind: Kind;
   /** The kind's own check, put here by the builder so that a bundle carries only the kinds it builds. It captures nothing. */
   readonly check: Check;
-  /** Length for a string or an array, value for a number. */
+  /** Length for a string or an array, value for a number, size for a set, the number of keys for a count of them. */
   readonly min: number;
   readonly max: number;
   /** A number's exclusive bounds: the infinities when there are none. */
@@ -182,14 +202,19 @@ export interface Node {
   readonly rule: Rule | null;
   /**
    * The literal's value; a bigint's two bounds, lowest first; the name `typeof` gives the values of
-   * a `type` node; the class an `instance` node's values are instances of; a transform's map.
+   * a `type` node; the class an `instance` node's values are instances of; a transform's map; the
+   * function a `preprocess` node runs first; the words of a `message` node, one string or one a keyword.
    */
   readonly value: unknown;
   /** The enum's members; on an object that closes or strips, its keys; on a refinement, the keys its rule reads. */
   readonly values: ReadonlySet<unknown> | null;
-  /** The array's element, the record's value, the schema of an object's unnamed keys or of a tuple's items past its last, or what `nullable`, `nullish`, a refinement or a transform wraps. */
+  /**
+   * The array's or the set's element, the record's or the map's value, the schema of an object's
+   * unnamed keys or of a tuple's items past its last, or what a schema that wraps another wraps: for
+   * a pipe, its first schema.
+   */
   readonly item: Node | null;
-  /** The record's key. */
+  /** The record's or the map's key; a pipe's second schema. */
   readonly key: Node | null;
   /** The object's keys and, in the same order, their schemas; on a refinement, the path its issue is reported at. */
   readonly keys: readonly string[] | null;
@@ -483,6 +508,23 @@ export const instanceOf = <T>(type: abstract new (...args: never[]) => T): Schem
  */
 export const promise = (): Schema<Promise<unknown>> => node('instance', isInstance, { value: Promise, own: INSTANCE });
 
+/** `NaN`, and no other number: `number()` refuses it, as JSON does. */
+export const nan = (): Schema<number> => node('nan', isNan, { own: NAN });
+
+/** Only `undefined`, typed `void`: what a function that returns nothing returns. The same node as `undefinedOf`. */
+export const voidOf = (): Schema<void> => node('literal', isLiteral, {});
+
+/**
+ * An integer every double can tell from its neighbours: from `Number.MIN_SAFE_INTEGER` to
+ * `Number.MAX_SAFE_INTEGER`, so 2 ** 53 fails (parity.md decision 5: `number({ int: true })` is any
+ * integer-valued double). The safe range is put into the node's own two bounds, so `check` tests
+ * nothing it did not test already, and a builder of its own, so `number` is no larger for it.
+ */
+export const safeInteger = (options: Omit<NumberOptions, 'int'> = {}): Schema<number> => {
+  const whole = number({ ...options, int: true });
+  return Object.freeze({ ...whole, min: Math.max(whole.min, Number.MIN_SAFE_INTEGER), max: Math.min(whole.max, Number.MAX_SAFE_INTEGER) });
+};
+
 /** Accepts every value. `any` is the same node with the type that switches checking off. */
 export const unknown = (): Schema<unknown> => node('unknown', isAnything, { own: UNKNOWN });
 
@@ -498,6 +540,14 @@ export interface ArrayOptions {
 
 export const array = <T, O>(item: Schema<T, O>, options: ArrayOptions = {}): Schema<T[], [O] extends [Same] ? Same : O[]> =>
   node('array', isArray, { item, min: options.min ?? 0, max: options.max });
+
+/** A `Map` whose keys match one schema and whose values match another. */
+export const mapOf = <K, KO, V, VO>(key: Schema<K, KO>, value: Schema<V, VO>): Schema<Map<K, V>, [KO | VO] extends [Same] ? Same : Map<Out<K, KO>, Out<V, VO>>> =>
+  node('map', isMap, { key, item: value, own: MAP });
+
+/** A `Set` whose members each match one schema; `min` and `max` bound its size. */
+export const setOf = <T, O>(item: Schema<T, O>, options: ArrayOptions = {}): Schema<Set<T>, [O] extends [Same] ? Same : Set<O>> =>
+  node('set', isSet, { item, min: options.min ?? 0, max: options.max, own: SET });
 
 interface TupleBuilder {
   <const T extends Schemas>(items: T): Schema<TupleOf<T>, TupleOut<T>>;
@@ -701,3 +751,82 @@ export const refine = <T, O, const K extends keyof T & string = never>(
  * only on a value the whole schema accepted.
  */
 export const transform = <T, M, R>(schema: Schema<T, M>, map: (value: Out<T, M>) => R): Schema<T, R> => node('transform', isMapped, { item: schema, value: map, own: MAPPED });
+
+export interface PropertiesOptions {
+  /** The fewest and the most keys the object may have. */
+  readonly min?: number;
+  readonly max?: number;
+}
+
+/**
+ * The schema, held to a number of keys: JSON Schema's `minProperties` and `maxProperties`, for an
+ * object or a record. The keys are counted as a record's are read, so an enumerable key of the
+ * prototype counts (parity.md decision 3). A wrapper and not an option of `object`, so an object
+ * that does not count its keys pays nothing for those that do.
+ */
+export const properties = <T extends object, O>(schema: Schema<T, O>, options: PropertiesOptions): Schema<T, O> =>
+  node('count', isCounted, { item: schema, min: options.min ?? 0, max: options.max, own: COUNTED });
+
+/**
+ * The schema, with your words for its issues: one message for every issue it reports, or one for
+ * each keyword you name (`{ type: '…', min: '…' }`). The words replace the whole message, `fix:`
+ * line included, and stand whatever a per-call `message` hook says: the schema's own words are the
+ * more specific. Only the wrapped schema's own issues are reworded, those reported where it stands
+ * and those about one of its keys (`required`, `unknown`, `undefined`, `key`, `tag`); a schema
+ * inside it keeps its own.
+ */
+export const message = <T, O>(schema: Schema<T, O>, words: string | Readonly<Record<string, string>>): Schema<T, O> =>
+  node('message', isMapped, { item: schema, value: typeof words === 'string' ? words : new Map(Object.entries(words)), own: WORDED });
+
+/**
+ * Two schemas in a row: what `parse` makes of the first is parsed by the second, and what the
+ * second makes of it is the output. `transform` maps a value and trusts the result; a pipe holds
+ * the result to a schema: `pipe(transform(string(), Number), number({ min: 5 }))`.
+ *
+ * `check`, `issues`, the emitted code and the input type describe what goes in, which is the first
+ * schema alone. The second sees a value only `parse` makes, so only `parse` can refuse on its
+ * account: a value `check` accepts may still fail to parse, with the second schema's issues.
+ */
+export const pipe = <T, M, U, R>(first: Schema<T, M>, second: Schema<U, R>): Schema<T, Out<U, R>> => node('pipe', isMapped, { item: first, key: second, own: PIPED });
+
+/**
+ * The schema, and a function `parse` runs on what arrived before anything is validated: a coercion
+ * of your own. `transform` runs after validation, on a value of the schema's type; this runs
+ * before it, on a value of any type, and what it returns is validated.
+ *
+ * As with `coerce`, `check`, `issues`, the emitted code and the input type describe the value the
+ * schema accepts, which is the value after the function has run; `check` never runs it. The
+ * function runs once for each time `parse` reads the value through this schema, which inside a
+ * union is once a member tried: keep it free of side effects.
+ */
+export const preprocess = <T, O>(map: (value: unknown) => unknown, schema: Schema<T, O>): Schema<T, O> => node('preprocess', isMapped, { item: schema, value: map, own: BEFORE });
+
+const trimmed = (text: string): string => text.trim();
+const lowered = (text: string): string => text.toLowerCase();
+const raised = (text: string): string => text.toUpperCase();
+
+/** A schema whose output is a string: the only kind the four string transforms below take. */
+type Text<T extends string, M extends string | Same> = Schema<T, M>;
+
+/**
+ * The string with the white space at its two ends removed (`String.prototype.trim`). Like every
+ * transform it runs after validation: the schema describes the string as it arrives. To hold the
+ * trimmed string to a schema, `pipe(trim(string()), string({ min: 1 }))`.
+ */
+export const trim = <T extends string, M extends string | Same = Same>(schema: Text<T, M>): Schema<T, string> => transform(schema, trimmed as (value: Out<T, M>) => string);
+
+/** The string in lower case (`String.prototype.toLowerCase`, which follows no locale). */
+export const lowercase = <T extends string, M extends string | Same = Same>(schema: Text<T, M>): Schema<T, string> => transform(schema, lowered as (value: Out<T, M>) => string);
+
+/** The string in upper case (`String.prototype.toUpperCase`). */
+export const uppercase = <T extends string, M extends string | Same = Same>(schema: Text<T, M>): Schema<T, string> => transform(schema, raised as (value: Out<T, M>) => string);
+
+export type NormalForm = 'NFC' | 'NFD' | 'NFKC' | 'NFKD';
+
+const FORMS: ReadonlySet<unknown> = /* @__PURE__ */ new Set(['NFC', 'NFD', 'NFKC', 'NFKD']);
+
+/** The string in a Unicode normalization form (UAX #15, `String.prototype.normalize`): NFC unless another is named. */
+export const normalize = <T extends string, M extends string | Same = Same>(schema: Text<T, M>, form: NormalForm = 'NFC'): Schema<T, string> => {
+  if (!FORMS.has(form)) throw new TypeError(`cannot normalize to ${typeof form === 'string' ? JSON.stringify(form) : `a value of the type ${typeof form}`}: there is no such form. fix: name NFC, NFD, NFKC or NFKD`);
+  return transform(schema, (text) => (text as string).normalize(form));
+};
