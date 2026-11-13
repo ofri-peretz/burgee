@@ -266,6 +266,8 @@ describe('the terminal summary', () => {
     expect(textSummary(await run({ mutants: skipped })).split('\n')[4]).toBe('  static mutants: 1 ignored (ignoreStatic), not scored');
     const outOfTime = [mutant({ static: true, status: 'Killed' }), mutant({ static: true, status: 'Ignored', statusReason: 'static mutant (static budget spent)' }), mutant({ static: true, status: 'Ignored', statusReason: 'static mutant (static budget spent)' })];
     expect(textSummary(await run({ mutants: outOfTime, stats: stats({ staticMs: 2500, wallMs: 5000 }) })).split('\n')[4]).toBe('  static mutants: 1 decided in 2.5 s, 2 left undecided when the static budget ran out, not scored');
+    // One left undecided is enough to say so.
+    expect(textSummary(await run({ mutants: outOfTime.slice(0, 2), stats: stats({ staticMs: 2500, wallMs: 5000 }) })).split('\n')[4]).toBe('  static mutants: 1 decided in 2.5 s, 1 left undecided when the static budget ran out, not scored');
     expect(textSummary(await run({ mutants: [mutant()] })).split('\n')[4]).not.toMatch(/static mutants/u);
     // One millisecond of warm time and one isolated run are both a phase that ran.
     const least = textSummary(await run({ stats: stats({ warmUnitMs: 1, isolatedRuns: 1, isolatedByCause: { static: 0, stopped: 0, unfinished: 0, rerun: 0, confirm: 0, flaky: 1 } }) })).split('\n');
