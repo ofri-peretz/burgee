@@ -6,76 +6,78 @@ import assert from 'node:assert/strict';
 // and not exhaustively testing all methods elsewhere.
 
 describe('Command arguments added using different methods', () => {
-  describe('when add "<arg>" then argument required', () => {
-    getSingleArgCases('<explicit-required>').forEach(([methodName, cmd]) => {
-      test(`using ${methodName}`, () => {
+  test('when add "<arg>" then argument required', async (t) => {
+    for (const [methodName, cmd] of getSingleArgCases('<explicit-required>')) {
+      await t.test(`using ${methodName}`, () => {
         const argument = cmd.registeredArguments[0];
         assert.equal(argument._name, 'explicit-required');
         assert.equal(argument.required, true);
         assert.equal(argument.variadic, false);
         assert.equal(argument.description, '');
       });
-    });
+    }
   });
 
-  describe('when add "arg" then argument required', () => {
-    getSingleArgCases('implicit-required').forEach(([methodName, cmd]) => {
-      test(`using ${methodName}`, () => {
+  test('when add "arg" then argument required', async (t) => {
+    for (const [methodName, cmd] of getSingleArgCases('implicit-required')) {
+      await t.test(`using ${methodName}`, () => {
         const argument = cmd.registeredArguments[0];
         assert.equal(argument._name, 'implicit-required');
         assert.equal(argument.required, true);
         assert.equal(argument.variadic, false);
         assert.equal(argument.description, '');
       });
-    });
+    }
   });
 
-  describe('when add "[arg]" then argument optional', () => {
-    getSingleArgCases('[optional]').forEach(([methodName, cmd]) => {
-      test(`using ${methodName}`, () => {
+  test('when add "[arg]" then argument optional', async (t) => {
+    for (const [methodName, cmd] of getSingleArgCases('[optional]')) {
+      await t.test(`using ${methodName}`, () => {
         const argument = cmd.registeredArguments[0];
         assert.equal(argument._name, 'optional');
         assert.equal(argument.required, false);
         assert.equal(argument.variadic, false);
         assert.equal(argument.description, '');
       });
-    });
+    }
   });
 
-  describe('when add "<arg...>" then argument required and variadic', () => {
-    getSingleArgCases('<explicit-required...>').forEach(([methodName, cmd]) => {
-      test(`using ${methodName}`, () => {
+  test('when add "<arg...>" then argument required and variadic', async (t) => {
+    for (const [methodName, cmd] of getSingleArgCases(
+      '<explicit-required...>',
+    )) {
+      await t.test(`using ${methodName}`, () => {
         const argument = cmd.registeredArguments[0];
         assert.equal(argument._name, 'explicit-required');
         assert.equal(argument.required, true);
         assert.equal(argument.variadic, true);
         assert.equal(argument.description, '');
       });
-    });
+    }
   });
 
-  describe('when add "arg..." then argument required and variadic', () => {
-    getSingleArgCases('implicit-required...').forEach(([methodName, cmd]) => {
-      test(`using ${methodName}`, () => {
+  test('when add "arg..." then argument required and variadic', async (t) => {
+    for (const [methodName, cmd] of getSingleArgCases('implicit-required...')) {
+      await t.test(`using ${methodName}`, () => {
         const argument = cmd.registeredArguments[0];
         assert.equal(argument._name, 'implicit-required');
         assert.equal(argument.required, true);
         assert.equal(argument.variadic, true);
         assert.equal(argument.description, '');
       });
-    });
+    }
   });
 
-  describe('when add "[arg...]" then argument optional and variadic', () => {
-    getSingleArgCases('[optional...]').forEach(([methodName, cmd]) => {
-      test(`using ${methodName}`, () => {
+  test('when add "[arg...]" then argument optional and variadic', async (t) => {
+    for (const [methodName, cmd] of getSingleArgCases('[optional...]')) {
+      await t.test(`using ${methodName}`, () => {
         const argument = cmd.registeredArguments[0];
         assert.equal(argument._name, 'optional');
         assert.equal(argument.required, false);
         assert.equal(argument.variadic, true);
         assert.equal(argument.description, '');
       });
-    });
+    }
   });
 
   function getSingleArgCases(arg) {
@@ -92,13 +94,16 @@ describe('Command arguments added using different methods', () => {
     ];
   }
 
-  describe('when add two arguments then two arguments', () => {
-    getMultipleArgCases('<first>', '[second]').forEach(([methodName, cmd]) => {
-      test(`using ${methodName}`, () => {
+  test('when add two arguments then two arguments', async (t) => {
+    for (const [methodName, cmd] of getMultipleArgCases(
+      '<first>',
+      '[second]',
+    )) {
+      await t.test(`using ${methodName}`, () => {
         assert.equal(cmd.registeredArguments[0].name(), 'first');
         assert.equal(cmd.registeredArguments[1].name(), 'second');
       });
-    });
+    }
   });
 
   function getMultipleArgCases(arg1, arg2) {

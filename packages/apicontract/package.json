@@ -2,7 +2,7 @@
   "name": "apicontract",
   "version": "0.0.1",
   "private": true,
-  "description": "One contract tool for every API in a repo: what a change breaks and for whom, an agent-sized explain, and where code disagrees with the contract. Codename; unpublished until the naming pass.",
+  "description": "A CLI that turns specs into code and code into specs, through plugins: TypeScript types, validators, NestJS modules, and the spec back from each. Codename; unpublished until the naming pass.",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -14,6 +14,21 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./core": {
+      "types": "./dist/core/index.d.ts",
+      "import": "./dist/core/index.js",
+      "default": "./dist/core/index.js"
+    },
+    "./openapi": {
+      "types": "./dist/openapi.d.ts",
+      "import": "./dist/openapi.js",
+      "default": "./dist/openapi.js"
+    },
+    "./openapi-typescript": {
+      "types": "./dist/openapi-typescript.d.ts",
+      "import": "./dist/openapi-typescript.js",
+      "default": "./dist/openapi-typescript.js"
     },
     "./package.json": "./package.json"
   },
@@ -33,7 +48,8 @@
     "lint": "eslint src"
   },
   "dependencies": {
-    "burgee": "^2.0.0"
+    "burgee": "^2.0.0",
+    "seniority": "^2.0.0"
   },
   "devDependencies": {
     "vitest": "^5.0.1"

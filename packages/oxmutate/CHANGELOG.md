@@ -1,5 +1,11 @@
 # oxmutate
 
+## 2.0.2
+
+### Patch Changes
+
+- [#1547](https://github.com/ofri-peretz/burgee/pull/1547) [`95ffaeb`](https://github.com/ofri-peretz/burgee/commit/95ffaebf3e6675f551d7f1d2a6072b137d345756) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A mutant whose only failing tests failed by their own timeout is run once more before it is reported. On a loaded machine a slow test times out with no help from the mutant, and that was scored Killed: 8 of 15 static mutants on one file, by tests that clone repositories, all of which survive a quiet run. A second run that passes is Survived; one that is slow again is a Timeout with its reason; a failed assertion in either run is Killed, as before.
+
 ## 2.0.1
 
 ### Patch Changes

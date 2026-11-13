@@ -89,23 +89,34 @@ interface Text {
   continuation: boolean;
 }
 type Escape = Sgr | Link | Control;
+/** The open link, whether it has wrapped text, and where its opener sits in the output. */
+interface LinkState {
+  link: Link | undefined;
+  linked: boolean;
+  linkAt: number;
+}
 type Token = Escape | Text;
 
 // Stryker disable next-line StringLiteral: the walk handles every kind it does not name as a control, so the tag is never compared
 const control = (code: string): Control => ({ kind: 'control', code });
 
-/** `OSC 8 ; params ; URI ST`, in either introducer, ended by `BEL`, `ESC \` or `U+009C`. */
+/**
+ * `OSC 8 ; params ; URI ST`, in either introducer, ended by `BEL`, `ESC \` or `U+009C`. The
+ * URI's `;` is looked for before the terminator and never past it, as slice-ansi 10.0.1 does: a
+ * link with none is an ordinary OSC, left to `parseControlString` (burgee#1515).
+ */
 function parseLink(string: string, index: number): Escape | undefined {
   const prefix = LINK_PREFIXES.find((candidate) => string.startsWith(candidate, index));
   if (prefix === undefined) return undefined;
-  const uri = string.indexOf(';', index + prefix.length);
-  if (uri === -1) return control(string.slice(index));
-  // Stryker disable next-line NumericLiteral,EqualityOperator: the character at `uri` is the `;` itself, never a terminator, and past the end there is none
-  for (let at = uri + 1; at < string.length; at += 1) {
+  let uri = -1;
+  // Stryker disable next-line EqualityOperator: past the end there is no terminator, and the unterminated link is taken whole either way
+  for (let at = index + prefix.length; at < string.length; at += 1) {
     const terminator = string[at] === BELL || string[at] === C1_ST ? string[at] : string.startsWith(ST, at) ? ST : undefined;
     if (terminator !== undefined) {
+      if (uri === -1) return undefined;
       return { kind: 'link', code: string.slice(index, at + terminator.length), open: at !== uri + 1, close: `${prefix};${terminator}` };
     }
+    if (uri === -1 && string[at] === ';') uri = at;
   }
   return control(string.slice(index));
 }
@@ -250,14 +261,17 @@ function walk(string: string, visit: (token: Text | Placed) => boolean): void {
     // lone regional indicator is 1. slice-ansi 9 counted each at least one position and a lone
     // indicator two, and `positions()` here followed it until 2026-11-01 (burgee#1392).
     const columns = whole ? clusterColumns(segment) : 1;
-    let offset = 0;
-    for (const _ of segment) {
-      // The clusters partition the visible text, which is these code points joined.
+    // The clusters partition the visible text, and the units are taken until they cover the
+    // cluster's code units rather than one per code point of it: a style between the two halves
+    // of a surrogate pair makes them two units and one code point (slice-ansi 10.0.1,
+    // `keeps UTF-16 offsets when ANSI separates surrogate halves`).
+    for (let covered = 0; covered < segment.length; ) {
       // Stryker disable next-line ConditionalExpression,EqualityOperator: at the first code point of a cluster the escapes before it were already visited, so the call finds none
-      if (offset > 0) escapes(true);
-      if (visit({ kind: 'text', value: next as string, columns: offset === 0 ? columns : 0, continuation: offset > 0 })) return;
+      if (covered > 0) escapes(true);
+      const value = next as string;
+      if (visit({ kind: 'text', value, columns: covered === 0 ? columns : 0, continuation: covered > 0 })) return;
       next = unit();
-      offset += 1;
+      covered += value.length;
     }
   }
 }
@@ -296,9 +310,11 @@ export function slice(string: string, start = 0, end = Number.POSITIVE_INFINITY)
   let linked = false;
   // Stryker disable next-line NumericLiteral: read only while a link is open, and opening one sets it
   let linkAt = 0;
-  // Where the latest run of openers with no text after it began, and the stack before it.
+  // Where the latest run of openers with no text after it began, and the stack and the link
+  // before it: a cut that takes the openers back takes back what the links did after them too.
   let pendingAt: number | undefined;
   let pendingActive = active;
+  let pendingLink: LinkState | undefined;
   let column = 0;
   // Stryker disable next-line StringLiteral: replaced when the slice starts, and returned only after it has
   let body = '';
@@ -316,6 +332,8 @@ export function slice(string: string, start = 0, end = Number.POSITIVE_INFINITY)
     body = body.slice(0, linkAt) + body.slice(linkAt + length);
     // Stryker disable next-line EqualityOperator,ConditionalExpression: an opener and a link are never recorded at the same offset — each one written moves `body` on — and `undefined > linkAt` is false, so the first check only names the case
     if (pendingAt !== undefined && pendingAt > linkAt) pendingAt -= length;
+    // The opener is gone from `body`, so a rollback must not restore a link that points at it.
+    if (pendingLink?.link === open) pendingLink = undefined;
     forgetLink();
   };
   const settleLink = (open: Link): void => {
@@ -330,6 +348,7 @@ export function slice(string: string, start = 0, end = Number.POSITIVE_INFINITY)
     if (opens && pendingAt === undefined) {
       pendingAt = body.length;
       pendingActive = [...active];
+      pendingLink = { link, linked, linkAt };
     }
     const before = new Set(active);
     applyParameters(token.parameters, active);
@@ -391,6 +410,8 @@ export function slice(string: string, start = 0, end = Number.POSITIVE_INFINITY)
       if (pendingAt !== undefined) {
         body = body.slice(0, pendingAt);
         active = pendingActive;
+        link = pendingLink?.link;
+        if (link !== undefined) ({ linked, linkAt } = pendingLink as LinkState);
       }
       return true;
     }

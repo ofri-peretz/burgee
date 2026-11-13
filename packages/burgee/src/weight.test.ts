@@ -750,9 +750,14 @@ const RULES: Record<string, EntryRule> = {
   // up to the next 50 B: 112,100. That is 14,265 B under commander's own `lib/` (126,365) and
   // 15,900 under the 128,000 the spec states, so this entry is a parity bar again rather than
   // a round number above the reading (D-20261019-commander-walk-budget-ratchet).
+  //
+  // **2026-11-12: 112,100 -> 112,250 (D-20261112-upstream-issues-2026-11-12).** commander 15.1.0's
+  // five changes to `lib/` (burgee#1494) are ported: the inspector-port bump reads `--inspect-wait`
+  // and a bracketed IPv6 host, a help option keeps its group, a global source is taken only from a
+  // command that set one. Measured 112,215, plus the ~32 B CI margin, rounded up to the next 50 B.
   "./commander": {
     allow: [],
-    budget: 112_100,
+    budget: 112_250,
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },
   // `extra-typings-drop-in` R5: `@commander-js/extra-typings`' door. Its JavaScript is one
@@ -780,9 +785,13 @@ const RULES: Record<string, EntryRule> = {
   //
   // **2026-10-26: 112,750 -> 112,800 (D-20261026-typed-positionals-r4-weight).** `schema.js`
   // publishes an argument's JSON type and typed default: +134 B in this walk, 112,633 -> 112,767.
+  //
+  // **2026-11-12: 112,800 -> 112,950 (D-20261112-upstream-issues-2026-11-12).** The shared front-end
+  // took commander 15.1.0's port (see `./commander`): measured 112,902, plus the ~32 B CI margin,
+  // rounded up to the next 50 B. commander 14's own suite still grades the entry 1331 / 1331.
   "./commander/v14": {
     allow: [],
-    budget: 112_800,
+    budget: 112_950,
     denied: ["testing.js", "testing-helpers.js", "dev.js"],
   },
   // yargs 18 ported method for method, with its whole dependency tree — yargs-parser 22,

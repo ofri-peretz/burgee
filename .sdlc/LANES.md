@@ -20,6 +20,7 @@ and `chalk` (wave 0.4, the red ratchet) is roundel's incumbent, not anyone else'
 | `caique` | `lane/caique` | `packages/caique/**`, `.sdlc/intents/caique/**` | harness 2.0 |
 | `seniority` | `lane/seniority` | `packages/seniority/**`, `.sdlc/intents/seniority/**` | harness 2.0 |
 | `apicontract` | `lane/apicontract` | `packages/apicontract/**`, `.sdlc/intents/apicontract/**`, `benchmarks/apicontract/**` | harness 2.0 |
+| `validator` | `lane/validator` | `packages/validator/**`, `.sdlc/intents/validator/**`, `benchmarks/validator/**` | harness 2.0 |
 | `closeout` | `lane/closeout` | `packages/closeout/**`, `.sdlc/intents/closeout/**` | harness 2.0 |
 | `bellpull` | `lane/bellpull` | `packages/bellpull/**`, `.sdlc/intents/bellpull/**` | harness 2.0 |
 | `controlroom` | `lane/controlroom` | `packages/controlroom/**`, `.sdlc/intents/controlroom/**` | closeout R4 (controlroom spec R1); caique `./keys` and flagstaff's seam (R2, R3) |

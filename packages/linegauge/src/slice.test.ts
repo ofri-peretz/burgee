@@ -285,6 +285,12 @@ describe('an escape slice does not interpret is carried whole, and ends where sl
     ['a CSI with a private parameter byte ending in m, which is not an SGR', `${ESC}[>4;1m`],
     ['a CSI with an intermediate byte', `${ESC}[1 q`],
     ['a CSI ending in m after an intermediate, which is not an SGR', `${ESC}[1 m`],
+    // slice-ansi 10.0.1 (burgee#1515): a link's URI separator is looked for before its
+    // terminator, never past it, so a link with none is an OSC like any other. 10.0.0 read on
+    // past the BEL to the next `;` and took the rest of the string.
+    ['a link with no URI separator before its BEL', `${ESC}]8;params${BEL}`],
+    ['a link with no URI separator before its ST', `${ESC}]8;id=x${ST}`],
+    ['a C1 link with no URI separator before its C1 ST', `\u009D8;id=x${C1_ST}`],
   ])('%s', (_name, sequence) => {
     const input = `a${sequence}bc`;
     for (const [start, end, expected] of [[0, 2, `a${sequence}b`], [1, 2, 'b']] as const) {
@@ -296,7 +302,6 @@ describe('an escape slice does not interpret is carried whole, and ends where sl
   // With no terminator where one is needed, the rest of the string is the sequence: [0, 2) is
   // the whole input, and there is no column 1 left to cut.
   it.each([
-    ['a link with no URI separator, even past a BEL', `${ESC}]8;params${BEL}`],
     ['a link with no terminator', `${ESC}]8;;https://x.example`],
     ['an unterminated OSC', `${ESC}]0;title`],
     ['an unterminated DCS', `${ESC}Pqx`],
@@ -361,6 +366,52 @@ describe('a link or a style that ends up around no text is taken back out', () =
     const input = `${OPEN_A}a${OPEN_B}b${CLOSE}`;
     expect(slice(input)).toBe(`${OPEN_A}a${CLOSE}${OPEN_B}b${CLOSE}`);
     expect(sliceAnsi(input, 0)).toBe(slice(input));
+  });
+});
+
+describe('slice-ansi 10.0.1 at its edges', () => {
+  const BELL = String.fromCodePoint(7);
+  const open = `${ESC}]8;;https://one.test${BELL}`;
+  const close = `${ESC}]8;;${BELL}`;
+
+  // A cut that takes back an opener with no text after it takes back the link moves after it
+  // too: the link that wrapped `A` is still the one to close, whatever replaced or closed it
+  // between the opener and the wide character the cut stopped at.
+  it.each([
+    ['another link opened', `${ESC}]8;;https://two.test${BELL}`],
+    ['the link closed', close],
+    ['another link opened and closed', `${ESC}]8;;https://two.test${BELL}${close}`],
+  ])('rolls back the link with the styles when %s after the last text', (_name, transition) => {
+    const input = `${open}A${ESC}[31m${transition}\u{1F600}`;
+    expect(slice(input, 0, 2)).toBe(`${open}A${close}`);
+    expect(sliceAnsi(input, 0, 2)).toBe(`${open}A${close}`);
+  });
+
+  // A link the cut took back out before the rollback stays out: the rollback must not restore it
+  // and then remove its opener's length a second time from what is left.
+  it('does not restore a link that was already taken back out', () => {
+    const input = `A${open}${ESC}[2K${ESC}[31m${close}\u{1F600}`;
+    expect(slice(input, 0, 2)).toBe(`A${ESC}[2K`);
+    expect(sliceAnsi(input, 0, 2)).toBe(`A${ESC}[2K`);
+  });
+
+  // The URI starts after the first `;` past the parameters, so a URI may itself end in `;`.
+  it('opens a link whose URI ends in a semicolon', () => {
+    const input = `a${ESC}]8;;x;${BELL}b${close}c`;
+    for (const [start, end] of [[1, 2], [0, 3]] as const) {
+      expect(slice(input, start, end), `[${String(start)}, ${String(end)})`).toBe(sliceAnsi(input, start, end));
+    }
+    expect(slice(input, 1, 2)).toBe(`${ESC}]8;;x;${BELL}b${close}`);
+  });
+
+  // A style between the two halves of a surrogate pair rides inside the one code point they make.
+  it('keeps a surrogate pair whole when a style separates its halves', () => {
+    const input = `\uD800${ESC}[31m\uDC00ABC`;
+    for (const [start, end] of [[0, 1], [1, 2], [0, 4]] as const) {
+      expect(slice(input, start, end), `[${String(start)}, ${String(end)})`).toBe(sliceAnsi(input, start, end));
+    }
+    expect(slice(input, 0, 1)).toBe(`\uD800${ESC}[31m\uDC00${ESC}[39m`);
+    expect(slice(input, 1, 2)).toBe(`${ESC}[31mA${ESC}[39m`);
   });
 });
 
@@ -455,7 +506,6 @@ describe('a close code ends only what it closes', () => {
 
 describe('the less common sequences and the bookkeeping around them', () => {
   const ST = `${ESC}\\`;
-  const BELL_CLOSE = `${ESC}]8;;${BEL}`;
   it.each([
     ['a C1 SOS string, zero columns to its ST', 'a\u0098xyz\u009Cbc', [0, 2], 'a\u0098xyz\u009Cb'],
     ['a C1 PM string, zero columns to its ST', 'a\u009Exyz\u009Cbc', [0, 2], 'a\u009Exyz\u009Cb'],
@@ -463,7 +513,9 @@ describe('the less common sequences and the bookkeeping around them', () => {
     ['an OSC ended by the BEL straight after its introducer', `${ESC}]${BEL}ab`, [0, 1], 'a'],
     ['an OSC after a BEL two characters before it', `${BEL}z${ESC}]0;t${BEL}ab`, [0, 3], `${BEL}z${ESC}]0;t${BEL}ab`],
     ['a C1 OSC right after a BEL', `a${BEL}\u009D0;t${BEL}bc`, [0, 3], `a${BEL}\u009D0;t${BEL}bc`],
-    ['a link whose parameters hold a BEL', `${ESC}]8;${BEL};u${BEL}ab`, [0, 1], `${ESC}]8;${BEL};u${BEL}a${BELL_CLOSE}`],
+    // Since slice-ansi 10.0.1 the BEL ends it: `ESC]8;BEL` is an OSC with no URI, and the `;` is
+    // text (burgee#1515). It read on to the second BEL before, as one link.
+    ['a link whose parameters hold a BEL, which ends it', `${ESC}]8;${BEL};u${BEL}ab`, [0, 1], ';'],
     ['a reset that opens a colour past the end, which is dropped', `${ESC}[1mab${ESC}[0;31mcd`, [0, 2], `${ESC}[1mab${ESC}[22m`],
     ['a link taken back out with no opener pending', `a${OPEN_A}${CLOSE}古`, [0, 2], 'a'],
     ['a link taken back out after an opener it does not move', `a${RED}${OPEN_A}${CLOSE}古`, [0, 2], 'a'],

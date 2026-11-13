@@ -166,8 +166,15 @@ export interface RunIo {
 /** The signals `dotenv run` forwards. */
 const FORWARDED = ['SIGINT', 'SIGTERM', 'SIGHUP', 'SIGQUIT'] as const;
 const SECOND_INTERRUPT = 2;
-/** Keeps the event loop alive while a re-raised signal is delivered, so Node cannot exit 0 first. */
-const KEEP_ALIVE_MS = 1000;
+/**
+ * How long a re-raised signal has to end this process before it exits with the shell's
+ * `128 + signal` itself. The timer also keeps the loop alive meanwhile, so Node cannot exit 0
+ * first. dotenv 18.0.10 added the exit: Node ignores some signals (SIGPIPE), and a re-raised
+ * one never lands, so `dotenv run -- cmd | head` hung (burgee#1516).
+ */
+const SIGNAL_FALLBACK_MS = 1000;
+/** The shell's exit status for a process ended by a signal: 128 plus the signal's number. */
+const SIGNAL_EXIT_BASE = 128;
 
 /** Send `signal` to the child (and its group, when it has one); a child already gone is not an error. */
 function forwarder(child: ChildProcess, proc: CliProcess, useProcessGroup: boolean, spawnSync: () => void): (signal: string) => void {
@@ -277,9 +284,9 @@ export function run(argv: readonly string[], proc: CliProcess = ambientProcess()
         proc.exit(exitCode);
         return;
       }
-      // Keep the loop alive until the re-raised signal ends this process; otherwise Node can
-      // finish normally before it is delivered and report exit 0.
-      setInterval(() => undefined, KEEP_ALIVE_MS);
+      // The re-raised signal ends this process; if it is one Node ignores, the timer does.
+      // `signal` is the child's own exit signal, so it is always one `os.constants.signals` names.
+      setTimeout(() => proc.exit(SIGNAL_EXIT_BASE + os.constants.signals[signal as NodeJS.Signals]), SIGNAL_FALLBACK_MS);
       proc.kill(proc.pid, signal as string);
     },
   );

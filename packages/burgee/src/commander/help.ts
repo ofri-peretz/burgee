@@ -45,8 +45,9 @@ export class Help {
       const removeShort = helpOption.short && cmd._findOption(helpOption.short);
       const removeLong = helpOption.long && cmd._findOption(helpOption.long);
       if (!removeShort && !removeLong) visibleOptions.push(helpOption);
-      else if (helpOption.long && !removeLong) visibleOptions.push(cmd.createOption(helpOption.long, helpOption.description));
-      else if (helpOption.short && !removeShort) visibleOptions.push(cmd.createOption(helpOption.short, helpOption.description));
+      // commander 15.1.0: the help option keeps its group when one of its flags is taken.
+      else if (helpOption.long && !removeLong) visibleOptions.push(cmd.createOption(helpOption.long, helpOption.description).helpGroup(helpOption.helpGroupHeading as string));
+      else if (helpOption.short && !removeShort) visibleOptions.push(cmd.createOption(helpOption.short, helpOption.description).helpGroup(helpOption.helpGroupHeading as string));
     }
     if (this.sortOptions) visibleOptions.sort(this.compareOptions);
     return visibleOptions;

@@ -277,7 +277,7 @@ under *Benchmarks* below and published on the
 Every subpath is a lock, not a convention: `weight.test.ts` walks each entry's import graph in
 `dist/` and asserts its budget and what it may reach, and the figures below are what it
 measured. **The ceiling is clack**: `@clack/prompts`
-1.8.0 is **101,684 B across six packages** — itself, `@clack/core`, `fast-string-width`,
+1.9.0 is **103,050 B across six packages** — itself, `@clack/core`, `fast-string-width`,
 `fast-string-truncated-width`, `fast-wrap-ansi` and `sisteransi` ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 | Subpath | Bytes | Reaches |
@@ -324,11 +324,11 @@ Graded by the incumbent's own test suite:
 
 | suite | passing |
 | :-- | --: |
-| `clack` | 16 / 16 |
-| `inquirer-core` | 46 / 46 |
-| `inquirer-prompts` | 222 / 222 |
+| `clack` | 23 / 23 |
+| `inquirer-core` | 47 / 47 |
+| `inquirer-prompts` | 228 / 228 |
 
-Weight, installed and tree-inclusive: **301,150 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.7741** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
+Weight, installed and tree-inclusive: **303,265 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.7795** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## For agents
 

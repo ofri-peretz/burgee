@@ -419,6 +419,7 @@ const settings: {
         error: string;
     };
     withGuide: boolean;
+    accessible: boolean | undefined;
 };
 ```
 
@@ -529,6 +530,8 @@ interface ClackSettings {
     };
     /** `false` draws every prompt without its left-hand guide. */
     withGuide?: boolean;
+    /** `true` makes every spinner accessible (static lines) unless it says otherwise. */
+    accessible?: boolean;
 }
 ```
 
@@ -542,6 +545,11 @@ interface CommonOptions {
     output?: NodeJS.WritableStream & SizedOutput;
     signal?: AbortSignal;
     withGuide?: boolean;
+    /**
+     * Static, screen-reader friendly output (clack 1.9.0): plain lines, appended, with no glyph,
+     * guide or escape. Unset, the setting decides, and then `ACCESSIBLE` in the environment.
+     */
+    accessible?: boolean;
     /**
      * The caller's runtime — burgee's `ctx.runtime` — and the one way `--quiet` reaches this port
      * (`caique-quiet-seam` R1). With `quiet`, the writers that decorate draw nothing; prompts

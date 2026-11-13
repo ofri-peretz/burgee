@@ -197,13 +197,13 @@ Graded by the incumbent's own test suite:
 | suite | passing |
 | :-- | --: |
 | `cli-truncate` | 17 / 17 |
-| `slice-ansi` | 106 / 106 |
+| `slice-ansi` | 129 / 129 |
 | `string-width` | 233 / 233 |
 | `strip-ansi` | 8 / 8 |
 | `widest-line` | 1 / 1 |
 | `wrap-ansi` | 85 / 85 |
 
-Weight, installed and tree-inclusive: **107,852 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.5550** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
+Weight, installed and tree-inclusive: **108,568 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.5587** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## For agents
 

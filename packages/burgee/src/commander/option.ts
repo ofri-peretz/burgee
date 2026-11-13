@@ -28,7 +28,7 @@ export class Option {
     this.required = flags.includes('<');
     this.optional = flags.includes('[');
     // `<value,...>` describes custom splitting of one argument, not a variadic option.
-    this.variadic = /\w\.\.\.[>\]]$/.test(flags);
+    this.variadic = /\p{ID_Continue}\.\.\.[>\]]$/u.test(flags);
     const { shortFlag, longFlag } = splitOptionFlags(flags);
     this.short = shortFlag;
     this.long = longFlag;

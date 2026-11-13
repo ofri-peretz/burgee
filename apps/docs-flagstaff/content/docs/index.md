@@ -322,11 +322,11 @@ the `spinners` corpus, the stream hooks that keep a `console.log` above the fram
 synchronized-output sequences, the pause while another writer's line is unfinished, the frame
 kept above the last row of the screen, the stdin discarder.
 
-What changes is the bill. ora 10.0.0 ships 128,182 B of JavaScript across **seventeen
+What changes is the bill. ora 10.0.0 ships 129,073 B of JavaScript across **seventeen
 packages** — ora, chalk, cli-spinners, string-width, log-symbols, cli-cursor,
 restore-cursor, onetime, mimic-function, signal-exit, is-interactive, is-unicode-supported,
 stdin-discarder, yoctocolors, strip-ansi, ansi-regex, get-east-asian-width. `flagstaff/ora`
-is 53,486 B across **two** — itself and roundel — **42% of ora's**, and 20,250 B of that is
+is 53,486 B across **two** — itself and roundel — **41% of ora's**, and 20,250 B of that is
 the spinner corpus ora's API re-exports. Nothing in it reaches the frame loop, so a program
 that migrates its spinner today can adopt `hoist()` a file at a time, or never ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
@@ -369,7 +369,7 @@ screen, not the bytes.
 `logUpdateStderr`, with the row-level diffing intact: a five-row frame whose last row is a
 counter costs one row of output per tick, not five.
 
-log-update ships 114.3 KB across **sixteen** packages. This subpath reaches two, both from
+log-update ships 115.2 KB across **sixteen** packages. This subpath reaches two, both from
 this repository: `linegauge/wrap` for the wrapper, and `closeout` for the cursor.
 It carries no port of `slice-ansi` — the wrapper already makes every row self-contained,
 so clipping a frame to the terminal's height is an array slice. `signal-exit`, 22.0 KB of
@@ -452,9 +452,9 @@ Every subpath is a lock, not a convention, and the numbers below are asserted by
 `weight.test.ts` against `dist/`, not estimated: `flagstaff/loop` reaches 4.4 KB on disk and
 never the plugin registry; `flagstaff/plugin` 8.4 KB, of which 2.4 KB is the schema;
 `flagstaff/spinner` 9.4 KB; `flagstaff/ora` 44.1 KB — 53.5 KB with roundel counted, against
-ora 10's own 128.2 KB; `flagstaff/log-update` 29.6 KB, against
-log-update's own 114.3 KB across sixteen, reaching only `linegauge/wrap` and `closeout`; `flagstaff/boxen` 17.6 KB — 67.8 KB with linegauge and
-roundel counted, against boxen 9's own 115.8 KB across fourteen; `flagstaff/cli-table3` 32.9 KB —
+ora 10's own 129.1 KB; `flagstaff/log-update` 29.6 KB, against
+log-update's own 115.2 KB across sixteen, reaching only `linegauge/wrap` and `closeout`; `flagstaff/boxen` 17.6 KB — 67.8 KB with linegauge and
+roundel counted, against boxen 9's own 116.7 KB across fourteen; `flagstaff/cli-table3` 32.9 KB —
 42.3 KB with roundel, against cli-table3's own 106.0 KB across seven. The three façades share `wrap.js` and
 `width.js`, and the first two share `closeout`; none reaches another's port, and none
 reaches the core. `sideEffects: false` lets a

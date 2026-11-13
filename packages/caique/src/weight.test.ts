@@ -7,7 +7,8 @@
  * in the family that talks to a person — and to an agent — was the one making an unmeasured
  * claim. This is that gap closed.
  *
- * **The ceiling is clack.** `@clack/prompts` 1.8.0 is 101,684 B across six packages —
+ * **The ceiling is clack.** `@clack/prompts` 1.9.0 is 103,050 B across six packages (1.8.0's
+ * was 101,684 B, the figure the measurements below were taken against) —
  * itself, `@clack/core`, `fast-string-width`, `fast-string-truncated-width`,
  * `fast-wrap-ansi` and `sisteransi` — measured on 2026-09-09 the way every other bill in
  * this repo is: shipped code and data (`.js`/`.mjs`/`.cjs` plus imported `.json`,
@@ -139,9 +140,13 @@ const RULES: Record<string, EntryRule> = {
   // 63,602 -> 64,320 B (+718) once `paint` nested styles itself, as Node 24's `styleText` does, so
   // a refusal keeps its colour on Node 22.13 too, and the list hints were painted per frame
   // instead of at import (#1498).
+  // **64,400 -> 65,700 on 2026-11-12** (D-20261112-upstream-issues-2026-11-12): measured 65,649 B,
+  // with the accessible spinner clack 1.9.0 added (burgee#1517) and the ansi-regex 6.6.0 pattern
+  // `linegauge/wrap` measures through, plus the ~32 B CI margin, rounded up to the next 50 B. A
+  // surface the incumbent grew, not a ratchet let slip.
   './clack': {
     allow: ['closeout/cursor', 'closeout/exit-hook', 'linegauge/wrap'],
-    budget: 64_400,
+    budget: 65_700,
     denied: ['ask.js', 'decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js', 'spec.js', 'plugin.js', 'inquirer.js', 'keys.js', 'editor.js'],
   },
   // The line editor as a component a host drives (controlroom R20): history, bracketed paste and
