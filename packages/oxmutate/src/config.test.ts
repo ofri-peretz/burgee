@@ -258,7 +258,7 @@ describe('Stryker keys oxmutate does not use', () => {
     expect((await loadOptions(root)).unused).toEqual(Object.entries(reasons).map(([key, why]) => ({ key, why })));
   });
   it('the keys it reads are not reported, and neither is anything in oxmutate.config', async () => {
-    const used = ['mutate', 'vitest', 'concurrency', 'timeoutMS', 'timeoutFactor', 'thresholds', 'ignoreStatic', 'reporters', 'jsonReporter', 'htmlReporter', 'incremental', 'incrementalFile', '$schema', 'mutator', 'dryRunOnly', 'dryRunTimeoutMinutes', 'buildCommand', 'testRunnerNodeArgs', 'allowEmpty', 'warnings', 'testRunner', 'commandRunner', 'checkers', 'tsconfigFile'];
+    const used = ['mutate', 'vitest', 'concurrency', 'timeoutMS', 'timeoutFactor', 'thresholds', 'ignoreStatic', 'static', 'reporters', 'jsonReporter', 'htmlReporter', 'incremental', 'incrementalFile', '$schema', 'mutator', 'dryRunOnly', 'dryRunTimeoutMinutes', 'buildCommand', 'testRunnerNodeArgs', 'allowEmpty', 'warnings', 'testRunner', 'commandRunner', 'checkers', 'tsconfigFile'];
     const root = project({ 'stryker.config.json': Object.fromEntries(used.map((k) => [k, null])), 'oxmutate.config.json': { inPlace: true } });
     expect((await loadOptions(root)).unused).toEqual([]);
   });
