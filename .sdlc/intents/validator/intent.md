@@ -7,7 +7,7 @@
 > ([`D-20261111-layer-bar`](../../decisions/D-20261111-layer-bar.md)). `validator` is a working
 > name; the name is chosen after the capabilities are implemented.
 
-**Status:** draft (the owner's go-ahead is given, [`D-20261113-apicontract-build-go-ahead`](../../decisions/D-20261113-apicontract-build-go-ahead.md); it becomes approved when its `spec.md` is written) · **Opened:** `2026-11-11` · **Owner:** `@ofri-peretz`
+**Status:** approved (2026-11-13, [`D-20261113-apicontract-build-go-ahead`](../../decisions/D-20261113-apicontract-build-go-ahead.md); design: [`spec.md`](./spec.md)) · **Opened:** `2026-11-11` · **Owner:** `@ofri-peretz`
 
 **Proposed name, not accepted and not reserved:** `loadline` — the line painted on a ship's hull
 that marks how far it may be loaded; what is over the line does not sail. Read 2026-11-11
@@ -208,7 +208,9 @@ published.
 - ~~Which gap does Zod actually leave?~~ Answered 2026-11-12 from Zod's own tracker
   ([`D-20261112-validator-gaps`](../../decisions/D-20261112-validator-gaps.md)); the table is in Why
   now. Speed and type-check cost are metrics, not questions.
-- **How much of Zod's API is the drop-in subset** Z1 claims?
-- **Where does it land relative to `apicontract`'s phases?** `apicontract` generates it in its Phase 2, so its contract-first side has to exist by then.
-- **Does it need a Quint model?** Likely not (stateless), unless async refinements or streaming
-  validation come into scope.
+- ~~How much of Zod's API is the drop-in subset Z1 claims?~~ Answered in [`spec.md`](./spec.md): whatever share of
+  Zod's own suite the façade passes at its build step 8, published as a number.
+- ~~Where does it land relative to `apicontract`'s phases?~~ Answered in [`spec.md`](./spec.md): the engine and the
+  emitter (build steps 1 to 3) land before `apicontract`'s Phase 2.
+- ~~Does it need a Quint model?~~ Answered in [`spec.md`](./spec.md): no, nothing in it has state or ordering;
+  that changes if async refinement or streaming comes into scope.

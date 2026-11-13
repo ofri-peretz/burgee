@@ -642,6 +642,10 @@
           "minutes": 18.96
         }
       ]
+    },
+    "validator": {
+      "status": "unmeasured",
+      "reason": "New on 2026-11-13: nodes, the check pass and the issues pass. The changed-lines run on its first commits scored 100% (437 killed, 0 survived); the floor is set by its first full weekly run."
     }
   }
 }

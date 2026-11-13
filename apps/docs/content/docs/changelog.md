@@ -3,6 +3,32 @@ title: Changelog
 description: "Every release of burgee, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 2.1.0
+
+### Minor Changes
+
+- [#1548](https://github.com/ofri-peretz/burgee/pull/1548) [`f190400`](https://github.com/ofri-peretz/burgee/commit/f190400f5e759373a662db67062bdd641ad3c8dd) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee/commander` follows commander 15.1.0, graded 1418 / 1418 by commander's own 15.1.0 suite (control 1418 / 1418):
+
+  - A negative number may write its exponent with a capital `E` (`-1E3`).
+  - A help option keeps its help group when one of its flags is taken by another option.
+  - `getOptionValueSourceWithGlobals()` takes a source only from a command that set the value. A value set with no source answers `undefined`.
+  - A variadic option's name may end in any identifier character, not only an ASCII one (`[café...]`).
+  - An executable subcommand bumps the inspector port of `--inspect-wait` and of a bracketed IPv6 host.
+
+  `burgee migrate` also reads the new graded releases:
+
+  - commander 15.1.0 and `@commander-js/extra-typings` 15.1.0;
+  - slice-ansi 10.0.1;
+  - lilconfig 3.1.5 and dotenv 18.0.10;
+  - `@clack/prompts` 1.9.0;
+  - `@inquirer/prompts` 8.8.0 and `@inquirer/core` 12.1.0.
+
+### Patch Changes
+
+- Updated dependencies [[`f190400`](https://github.com/ofri-peretz/burgee/commit/f190400f5e759373a662db67062bdd641ad3c8dd), [`f190400`](https://github.com/ofri-peretz/burgee/commit/f190400f5e759373a662db67062bdd641ad3c8dd)]:
+  - linegauge@2.1.0
+  - seniority@2.0.1
+
 ## 2.0.0
 
 ### Major Changes
