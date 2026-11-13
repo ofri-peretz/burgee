@@ -103,7 +103,7 @@ export interface Node {
   readonly value: unknown;
   /** The enum's members; on an object that closes or strips, its keys. */
   readonly values: ReadonlySet<unknown> | null;
-  /** The array's element, the record's value, the schema of an object's unnamed keys, or what `nullable` and `nullish` wrap. */
+  /** The array's element, the record's value, the schema of an object's unnamed keys or of a tuple's items past its last, or what `nullable` and `nullish` wrap. */
   readonly item: Node | null;
   /** The record's key. */
   readonly key: Node | null;
@@ -111,8 +111,8 @@ export interface Node {
   readonly keys: readonly string[] | null;
   /** An object's fields, a tuple's items, or the members of a union or an intersection. */
   readonly fields: readonly Node[] | null;
-  /** On an object's field: the key may be absent. */
-  readonly optional: boolean;
+  /** On an object's field: the key may be absent. `'exact'` is absent or a value, and never `undefined`. */
+  readonly optional: boolean | 'exact';
   /** What `parse` puts where `undefined` arrived; `undefined` when there is none. */
   readonly default: unknown;
   readonly unknown: Unknown;
@@ -139,10 +139,10 @@ export interface OptionalSchema<T, F = T | undefined> extends Schema<T> {
 
 export type Infer<S extends Schema<unknown>> = S['~type'];
 
-type Shape = Readonly<Record<string, Schema<unknown>>>;
+export type Shape = Readonly<Record<string, Schema<unknown>>>;
 type MayBeAbsent = Readonly<Record<'~optional', unknown>>;
 type OptionalKeys<S extends Shape> = { [K in keyof S]: S[K] extends MayBeAbsent ? K : never }[keyof S];
-type Flat<T> = { [K in keyof T]: T[K] };
+export type Flat<T> = { [K in keyof T]: T[K] };
 export type ObjectOf<S extends Shape> = Flat<
   { [K in Exclude<keyof S, OptionalKeys<S>>]: S[K]['~type'] } & { [K in OptionalKeys<S>]?: (S[K] & MayBeAbsent)['~optional'] }
 >;
@@ -331,17 +331,36 @@ export interface ArrayOptions {
 export const array = <T>(item: Schema<T>, options: ArrayOptions = {}): Schema<T[]> =>
   node('array', isArray, { item, min: options.min ?? 0, max: options.max });
 
-/** Exactly these items, in this order: one more or one fewer fails (parity.md decision 12). */
-export const tuple = <const T extends Schemas>(items: T): Schema<TupleOf<T>> => node('tuple', isTuple, { fields: [...items] });
-
-export interface RecordOptions {
-  /** What every key must be. A key is always a string, so this is a string schema or an enum of strings. */
-  readonly key?: Schema<string>;
+interface TupleBuilder {
+  <const T extends Schemas>(items: T): Schema<TupleOf<T>>;
+  <const T extends Schemas, R>(items: T, options: { readonly rest: Schema<R> }): Schema<[...TupleOf<T>, ...R[]]>;
 }
 
-/** An object with any keys, each value matching one schema. */
-export const record = <V>(value: Schema<V>, options: RecordOptions = {}): Schema<Record<string, V>> =>
+/**
+ * Exactly these items, in this order: one more or one fewer fails (parity.md decision 12). With
+ * `rest`, any number of further items, each matching that schema.
+ */
+export const tuple: TupleBuilder = (items: Schemas, options: { readonly rest?: Schema<unknown> } = {}): Schema<never> =>
+  node('tuple', isTuple, { fields: [...items], item: options.rest });
+
+export interface RecordOptions<K extends string = string> {
+  /** What every key must be. A key is always a string, so this is a string schema or an enum of strings. */
+  readonly key?: Schema<K>;
+}
+
+/** A record's type: any string as a key, or, when its keys are an enum, some of those and no other. */
+export type RecordOf<K extends string, V> = string extends K ? Record<string, V> : { [P in K]?: V };
+
+/**
+ * An object with any keys, each value matching one schema. With an enum for `key` only its members
+ * are keys, and none of them has to be there: `recordOf` is the record that needs every one.
+ */
+export const record = <V, K extends string = string>(value: Schema<V>, options: RecordOptions<K> = {}): Schema<RecordOf<K, V>> =>
   node('record', isRecord, { item: value, key: options.key });
+
+/** A record with exactly these keys, every one of them there, each value matching one schema: a closed object, written once. */
+export const recordOf = <const K extends string, V>(keys: readonly K[], value: Schema<V>): Schema<Record<K, V>> =>
+  node('object', isClosed, { keys: [...keys], fields: keys.map(() => value), values: new Set(keys), unknown: 'strict' });
 
 export interface OptionalOptions<T> {
   /**
@@ -360,6 +379,13 @@ export interface OptionalOptions<T> {
  */
 export const optional = <T>(schema: Schema<T>, options: OptionalOptions<T> = {}): OptionalSchema<T> =>
   Object.freeze({ ...schema, optional: true, default: options.default }) as OptionalSchema<T>;
+
+/**
+ * Marks an object's field as one that may be absent and, when it is there, is not `undefined`
+ * (`optional` reads `undefined` as absent, parity.md decision 2). A key the prototype holds counts
+ * as there, as it does for a required field (decision 3).
+ */
+export const exactOptional = <T>(schema: Schema<T>): OptionalSchema<T, T> => Object.freeze({ ...schema, optional: 'exact' }) as OptionalSchema<T, T>;
 
 /** `T` or `null`. */
 export const nullable = <T>(schema: Schema<T>): Schema<T | null> => node('nullable', isNullable, { item: schema });

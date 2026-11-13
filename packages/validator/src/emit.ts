@@ -171,7 +171,9 @@ const object = (emitter: Emitter, schema: Node): string => {
     const field = fields[index] as Node;
     const ref = `v[${literal(key)}]`;
     const inner = test(emitter, field, ref);
-    if (field.optional) return `(${ref} === undefined || (${inner}))`;
+    if (field.optional === true) return `(${ref} === undefined || (${inner}))`;
+    // An exact key: `undefined` only because the key is absent, as `check` asks with `in`.
+    if (field.optional !== false) return `(${ref} === undefined ? !(${literal(key)} in v) : (${inner}))`;
     return mayPassUndefined(field) ? `(${ref} !== undefined && (${inner}))` : `(${inner})`;
   });
   if (schema.unknown === 'strict' || schema.item !== null) tests.push(`${declare(emitter, 'f', extras(emitter, schema))}(v)`);
@@ -190,7 +192,13 @@ const record = (emitter: Emitter, schema: Node): string => {
 const tuple = (emitter: Emitter, schema: Node): string => {
   const fields = schema.fields as readonly Node[];
   const tests = fields.map((field, index) => `(${test(emitter, field, `v[${String(index)}]`)})`);
-  return `(v) => ${[`Array.isArray(v) && v.length === ${String(fields.length)}`, ...tests].join('\n  && ')}`;
+  const count = String(fields.length);
+  if (schema.item === null) return `(v) => ${[`Array.isArray(v) && v.length === ${count}`, ...tests].join('\n  && ')}`;
+  return `(v) => {
+  if (!(${[`Array.isArray(v) && v.length >= ${count}`, ...tests].join('\n  && ')})) return false;
+  for (let i = ${count}; i < v.length; i++) if (!(${test(emitter, schema.item, 'v[i]')})) return false;
+  return true;
+}`;
 };
 
 const cases = (emitter: Emitter, schema: Node): string => {

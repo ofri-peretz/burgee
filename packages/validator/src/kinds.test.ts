@@ -378,7 +378,7 @@ describe('the inferred types of the wave 1 builders', () => {
     const scores = record(number());
     expectTypeOf<Infer<typeof scores>>().toEqualTypeOf<Record<string, number>>();
     const keyed = record(array(boolean()), { key: enumOf(['a', 'b']) });
-    expectTypeOf<Infer<typeof keyed>>().toEqualTypeOf<Record<string, boolean[]>>();
+    expectTypeOf<Infer<typeof keyed>>().toEqualTypeOf<{ a?: boolean[]; b?: boolean[] }>();
     // @ts-expect-error a key is a string, so a number schema cannot describe one
     record(number(), { key: number() });
   });

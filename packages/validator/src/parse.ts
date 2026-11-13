@@ -50,10 +50,12 @@ const items = (value: readonly unknown[], count: number, of: (index: number) => 
 const array = (schema: Node, value: unknown): unknown =>
   Array.isArray(value) ? items(value, value.length, () => schema.item as Node) : value;
 
-// Only as many items as the tuple has and the value has: a tuple of the wrong length fails as it arrived.
+// Only as many items as the tuple has and the value has, unless it has a schema for the rest: a tuple of the wrong length fails as it arrived.
 const tuple = (schema: Node, value: unknown): unknown => {
   const fields = schema.fields as readonly Node[];
-  return Array.isArray(value) ? items(value, Math.min(value.length, fields.length), (index) => fields[index] as Node) : value;
+  const rest = schema.item;
+  if (!Array.isArray(value)) return value;
+  return items(value, rest === null ? Math.min(value.length, fields.length) : value.length, (index) => (fields[index] ?? rest) as Node);
 };
 
 /**

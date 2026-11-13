@@ -144,8 +144,10 @@ const isObject = (schema: Node, value: unknown): boolean => {
   const fields = schema.fields as readonly Node[];
   for (let index = 0; index < keys.length; index++) {
     const field = fields[index] as Node;
-    const member = value[keys[index] as string];
-    if (member === undefined ? !field.optional : !run(field, member)) return false;
+    const key = keys[index] as string;
+    const member = value[key];
+    // An optional key may be `undefined`; a required one may not; an exact one may only be absent.
+    if (member === undefined ? field.optional !== true && (field.optional === false || key in value) : !run(field, member)) return false;
   }
   return true;
 };
@@ -157,11 +159,15 @@ const isCase = (schema: Node, value: unknown): boolean => {
   return chosen !== undefined && run(chosen, value);
 };
 
-/** An array of exactly the schema's items (parity.md decision 12: a tuple is closed). */
+/**
+ * An array of exactly the schema's items (parity.md decision 12: a tuple is closed), or of those
+ * and then any number that match the schema in `item`.
+ */
 const isTuple = (schema: Node, value: unknown): boolean => {
   const fields = schema.fields as readonly Node[];
-  if (!Array.isArray(value) || value.length !== fields.length) return false;
-  for (let index = 0; index < fields.length; index++) if (!run(fields[index] as Node, value[index])) return false;
+  const rest = schema.item;
+  if (!Array.isArray(value) || (rest === null ? value.length !== fields.length : value.length < fields.length)) return false;
+  for (let index = 0; index < value.length; index++) if (!run((fields[index] ?? rest) as Node, value[index])) return false;
   return true;
 };
 

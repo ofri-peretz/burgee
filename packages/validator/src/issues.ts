@@ -7,7 +7,7 @@ export interface Issue {
   /**
    * What failed: `type`, `min`, `max`, `gt`, `lt`, `integer`, `multipleOf`, `pattern`, `format`,
    * `literal`, `enum`, `required`, `unknown`, `key`, `length`, `tag`, `union`, `never`, `custom`,
-   * `date`, `instance`.
+   * `date`, `instance`, `undefined`.
    */
   readonly keyword: string;
   /** What was expected and what arrived, ending in a `fix:` line. */
@@ -168,9 +168,10 @@ const object = (walk: Walk, schema: Node, got: unknown, path: string): void => {
     const field = fields[index] as Node;
     const value = got[key];
     if (value !== undefined) visit(walk, field, value, path + token(key));
-    else if (!field.optional && !full(walk)) {
-      add(walk, { path: path + token(key), keyword: 'required', expected: 'a value', got: value, fix: `add "${key}"` });
-    }
+    // As `check` asks it: an optional key may be `undefined`, a required one may not, and any other is exact.
+    else if (field.optional === true || full(walk)) continue;
+    else if (field.optional === false) add(walk, { path: path + token(key), keyword: 'required', expected: 'a value', got: value, fix: `add "${key}"` });
+    else if (key in got) add(walk, { path: path + token(key), keyword: 'undefined', expected: 'a value, or no key at all', got: value, fix: `remove "${key}", or give it a value` });
   }
   extras(walk, schema, got, path);
 };
@@ -196,9 +197,14 @@ const tuple = (walk: Walk, schema: Node, got: unknown, path: string): void => {
     return;
   }
   const fields = schema.fields as readonly Node[];
+  const rest = schema.item;
   const count = String(fields.length);
-  if (got.length !== fields.length) add(walk, { path, keyword: 'length', expected: `exactly ${count} items`, got, fix: `send ${count}` });
-  for (const [index, field] of fields.entries()) if (index < got.length) visit(walk, field, got[index], path + token(index));
+  if (rest === null && got.length !== fields.length) add(walk, { path, keyword: 'length', expected: `exactly ${count} items`, got, fix: `send ${count}` });
+  else if (got.length < fields.length) add(walk, { path, keyword: 'length', expected: `at least ${count} items`, got, fix: `send ${count} or more` });
+  for (const [index, element] of got.entries()) {
+    const field = fields[index] ?? rest;
+    if (field !== null) visit(walk, field, element, path + token(index));
+  }
 };
 
 const pick = (walk: Walk, schema: Node, got: unknown, path: string): void => {
