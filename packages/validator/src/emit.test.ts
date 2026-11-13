@@ -4,6 +4,7 @@ import { verdict } from './__fixtures__/readers.js';
 import { check } from './check.js';
 import { extend, keyof, omit, partial, pick, readonly, required } from './derive.js';
 import { emit, emitWith } from './emit.js';
+import { email, uuid } from './formats.js';
 import { issues } from './issues.js';
 import {
   type AnySchema,
@@ -329,6 +330,12 @@ return (v) => f1(v);
       ['the literal undefined', undefinedOf(), undefined, null],
       ['the members of a native enum', nativeEnum({ A: closing, B: breakout }), closing, 'A'],
       ['a tag that is a number', discriminatedBy(breakout, [object({ [breakout]: literal(1) })]), { [breakout]: 1 }, { [breakout]: '1' }],
+      ['an exact optional key', object({ [breakout]: exactOptional(string()), [closing]: exactOptional(number()) }), { [breakout]: 'x' }, { [breakout]: 'x', [closing]: undefined }],
+      ['the keys of an exhaustive record', recordOf([breakout, closing, separators], number()), { [breakout]: 1, [closing]: 2, [separators]: 3 }, { [breakout]: 1, [closing]: 2 }],
+      ['the keys of a schema made from another', keyof(extend(object({ [breakout]: string() }), { [closing]: string() })), closing, 'other'],
+      ['a key kept by pick in a strict object', pick(object({ [closing]: string(), [breakout]: string() }, { unknown: 'strict' }), [closing]), { [closing]: 'x' }, { [closing]: 'x', [breakout]: 'y' }],
+      ['a built-in format', string({ format: email }), 'a@b.co', '</script>'],
+      ['a tuple with a rest of literals', tuple([literal(closing)], { rest: literal(breakout) }), [closing, breakout, breakout], [closing, closing]],
     ])('%s is written as a literal, and still means what it said', (_, schema, accepted, refused) => {
       const source = emit(schema);
       expect(source).not.toMatch(/<\/script|\u2028|\u2029/u);
@@ -704,6 +711,8 @@ const Wave2 = object({
   size: transform(string(), lengthOf),
   flag: boolean({ coerce: true }),
   when: date({ coerce: true }),
+  mail: string({ format: email }),
+  id: optional(string({ format: uuid })),
 });
 
 /** A value the `Wave2` schema accepts, made new each time: a probe is written into it. */
@@ -731,9 +740,10 @@ const wave2 = (): Record<string, unknown> => ({
   size: 'abc',
   flag: true,
   when: new Date(1),
+  mail: 'a@b.co',
 });
 
-const WAVE2_PROBES: unknown[] = [undefined, null, true, false, 0, 1, 2, 3, -1, 1n, 11n, -1n, '', 'a', 'b', 'x', 'true', '2020-01-01', 'Low', new Date(0), new Date(Number.NaN), Symbol('p'), new Map(), new Set(), nothing, Promise.resolve(0), [], ['a'], ['a', 1], ['a', 'b'], [1], {}, { a: 'x' }, { a: undefined }, { a: 'x', b: undefined }, { a: 'x', b: 1 }, { a: 'x', b: 1, c: true }, { a: 'x', c: true, d: 'y' }, { x: 1, y: 2 }, { x: 1 }, { a: 1, b: 2 }, { a: 1, c: 3 }, { t: 1, n: 1 }, { t: true }, { t: '1', s: 's' }, { t: 'true' }, { a: 'p', b: 'q', c: 0 }, { a: 'p', b: 'q', c: 'x' }, { a: 'p', b: 'p', c: 'x' }];
+const WAVE2_PROBES: unknown[] = [undefined, null, true, false, 0, 1, 2, 3, -1, 1n, 11n, -1n, '', 'a', 'b', 'x', 'true', '2020-01-01', 'Low', 'a@b', '550e8400-e29b-41d4-a716-446655440000', new Date(0), new Date(Number.NaN), Symbol('p'), new Map(), new Set(), nothing, Promise.resolve(0), [], ['a'], ['a', 1], ['a', 'b'], [1], {}, { a: 'x' }, { a: undefined }, { a: 'x', b: undefined }, { a: 'x', b: 1 }, { a: 'x', b: 1, c: true }, { a: 'x', c: true, d: 'y' }, { x: 1, y: 2 }, { x: 1 }, { a: 1, b: 2 }, { a: 1, c: 3 }, { t: 1, n: 1 }, { t: true }, { t: '1', s: 's' }, { t: 'true' }, { a: 'p', b: 'q', c: 0 }, { a: 'p', b: 'q', c: 'x' }, { a: 'p', b: 'p', c: 'x' }];
 
 /** That value with the member at `path` replaced by `probe`. */
 const probedAt = (path: Path, probe: unknown): unknown => {
@@ -757,6 +767,6 @@ describe('the readers, for the wave 2 kinds', () => {
         else refused += 1;
       }
     }
-    expect([paths.length * WAVE2_PROBES.length, refused, accepted]).toEqual([2254, 2077, 177]);
+    expect([paths.length * WAVE2_PROBES.length, refused, accepted]).toEqual([2397, 2205, 192]);
   });
 });
