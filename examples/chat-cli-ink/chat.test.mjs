@@ -94,6 +94,13 @@ describe('--json, which Ink has no equivalent for', () => {
 /** Ink draws at most 30 frames a second; a few frames' wait lets the last state reach the stream. */
 const FRAME_MS = 40;
 const settle = () => new Promise((resolve) => setTimeout(resolve, FRAME_MS));
+/**
+ * How long `until` waits for a frame before it fails: only a ceiling for one that never comes.
+ * Ink holds a lone Esc 20 ms in case a sequence follows it, and a frame waits out its 33 ms
+ * throttle, both on the real clock; on a busy Windows runner (2026-11-13) `(interrupted)` was
+ * drawn after a fixed `settle` had already looked.
+ */
+const NEVER_MS = 10_000;
 
 /** A terminal that is not one: buffers, a stepped clock, a stdin that can go raw. */
 function terminal() {
@@ -138,13 +145,52 @@ function terminal() {
     stdin.write(keys);
     await settle();
   };
-  return { io: { stdin, stdout, stderr, clock }, out, tick, type };
+  /**
+   * Resolve once what was drawn satisfies `drawn`, checked again on every write: a wait for the
+   * frame, not a guess at how fast the machine draws one. A frame that never comes fails after
+   * `NEVER_MS`, saying what was drawn instead.
+   */
+  const until = (drawn, what) =>
+    new Promise((resolve, reject) => {
+      const check = () => {
+        if (!drawn(plain(out.join('')))) return;
+        stdout.off('data', check);
+        clearTimeout(ceiling);
+        resolve();
+      };
+      const ceiling = setTimeout(() => {
+        stdout.off('data', check);
+        reject(new assert.AssertionError({ message: `never drew ${what}; drew:\n${plain(out.join(''))}` }));
+      }, NEVER_MS);
+      // Added after `out`'s own listener, so the chunk that satisfies `drawn` is already in `out`.
+      stdout.on('data', check);
+      check();
+    });
+  return { io: { stdin, stdout, stderr, clock }, out, tick, type, until };
 }
 
 /** The frames without their colour, for an assertion about the words on them. */
 const plain = (s) => s.replaceAll(/\u001B\[[\d;?]*[A-Za-z]/gu, '');
 const A_FEW_WORDS = 3;
 const THE_WHOLE_REPLY = 100;
+/** The whole reply is on the screen, below the last frame that still showed the status line. */
+const committed = (s) => s.lastIndexOf('real client') > s.lastIndexOf('thinking');
+
+/**
+ * Run the chat on a fresh terminal, drive it with `body`, then press Ctrl+C, and resolve to the
+ * exit code. Ctrl+C is pressed when `body` fails too: a status line left on screen keeps its
+ * spinner's interval running, and that would hold the test process open instead of failing it.
+ */
+async function session(body) {
+  const t = terminal();
+  const done = run([], t.io);
+  try {
+    await body(t);
+  } finally {
+    await t.type('\u0003');
+  }
+  return done;
+}
 
 describe('the chat, on a terminal', () => {
   // Ink decides from `CI` whether anyone is watching, and under it draws only the last frame —
@@ -160,53 +206,58 @@ describe('the chat, on a terminal', () => {
   });
 
   it('a reply streams under a status line, then settles with the status cleared; Ctrl+C quits', async () => {
-    const t = terminal();
-    const done = run([], t.io);
-    await t.type('hello');
-    await t.type('\r');
-    await t.tick(TICK * A_FEW_WORDS);
-    assert.match(plain(t.out.join('')), /thinking · \d+\.\ds · 3 tokens/u);
-    t.out.length = 0;
-    await t.tick(TICK * THE_WHOLE_REPLY);
-    const settled = plain(t.out.join(''));
-    // The reply is committed after the last frame that showed the status line, not before it.
-    assert.ok(settled.lastIndexOf('real client') > settled.lastIndexOf('thinking'));
-    await t.type('\u0003');
-    assert.equal(await done, 0);
+    const code = await session(async (t) => {
+      await t.type('hello');
+      // Enter submits what the field holds when the key is read, so it waits until the field holds it.
+      await t.until((s) => s.includes('> hello'), 'the typed prompt');
+      await t.type('\r');
+      // The first word is due at once and each next one a TICK later, so this is A_FEW_WORDS words.
+      await t.tick(TICK * (A_FEW_WORDS - 1));
+      await t.until((s) => /thinking · \d+\.\ds · 3 tokens/u.test(s), 'the status line at 3 tokens');
+      t.out.length = 0;
+      await t.tick(TICK * THE_WHOLE_REPLY);
+      // The reply is committed after the last frame that showed the status line, not before it.
+      await t.until(committed, 'the reply after the last status line');
+      await settle();
+      assert.ok(committed(plain(t.out.join(''))), 'a status line was drawn after the reply was committed');
+    });
+    assert.equal(code, 0);
   });
 
   it('Esc interrupts a reply mid-stream', async () => {
-    const t = terminal();
-    const done = run([], t.io);
-    await t.type('hello');
-    await t.type('\r');
-    await t.tick(TICK * 2);
-    await t.type('\u001B');
-    assert.ok(plain(t.out.join('')).includes('(interrupted)'));
-    await t.type('\u0003');
-    await done;
+    await session(async (t) => {
+      await t.type('hello');
+      await t.until((s) => s.includes('> hello'), 'the typed prompt');
+      await t.type('\r');
+      await t.tick(TICK * 2);
+      await t.until((s) => s.includes('thinking'), 'the reply streaming');
+      await t.type('\u001B');
+      await t.until((s) => s.includes('(interrupted)'), 'the interrupted reply');
+    });
   });
 
   it('Tab completes a slash command', async () => {
-    const t = terminal();
-    const done = run([], t.io);
-    await t.type('/he');
-    await t.type('\t');
-    await t.type('\r');
-    assert.ok(plain(t.out.join('')).includes('/help  show the commands'));
-    await t.type('\u0003');
-    await done;
+    await session(async (t) => {
+      await t.type('/he');
+      await t.until((s) => s.includes('> /he'), 'the typed prefix');
+      await t.type('\t');
+      await t.until((s) => s.includes('> /help'), 'the completed command');
+      await t.type('\r');
+      await t.until((s) => s.includes('/help  show the commands'), "/help's answer");
+    });
   });
 
   it('↑ brings back the last entry', async () => {
-    const t = terminal();
-    const done = run([], t.io);
-    await t.type('/help');
-    await t.type('\r');
-    t.out.length = 0;
-    await t.type('\u001B[A');
-    assert.ok(plain(t.out.join('')).includes('> /help'));
-    await t.type('\u0003');
-    await done;
+    await session(async (t) => {
+      await t.type('/help');
+      await t.until((s) => s.includes('> /help'), 'the typed command');
+      await t.type('\r');
+      // Every frame of the entry (its echo, its answer) is in before the slate is wiped for ↑'s.
+      await t.until((s) => s.includes('/exit  leave'), "/help's answer");
+      await settle();
+      t.out.length = 0;
+      await t.type('\u001B[A');
+      await t.until((s) => s.includes('> /help'), 'the recalled entry');
+    });
   });
 });

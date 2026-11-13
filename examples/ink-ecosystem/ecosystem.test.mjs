@@ -61,21 +61,45 @@ const plain = (s) =>
     .split('\n')
     .map((line) => line.trimEnd())
     .join('\n');
-const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-const FRAME_MS = 50;
 /** cli-spinners' `dots`, ink-spinner's default: 80 ms a frame. */
 const DOTS = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-const A_FEW_DOTS_MS = 300;
-/** At 80 ms a frame, 300 ms draws at least three. */
+/** Three distinct frames: the first and two moves, so one stray redraw is not an animation. */
 const AT_LEAST = 3;
+/**
+ * How long a wait for a frame or a callback goes on before it fails: only a ceiling for one that
+ * never comes. The spinner's 80 ms interval and Ink's 33 ms throttle run on the real clock, and a
+ * busy macOS runner (2026-11-13) drew 2 distinct frames in the fixed 300 ms this used to wait.
+ */
+const NEVER_MS = 10_000;
+/** How often `until` asks again. */
+const POLL_MS = 5;
+/** Resolve once `done()` holds, asked again every few ms; fail after `NEVER_MS`, with `what()` saying what there was instead. */
+const until = (done, what) =>
+  new Promise((resolve, reject) => {
+    const started = Date.now();
+    const poll = () => {
+      if (done()) resolve();
+      else if (Date.now() - started > NEVER_MS) reject(new assert.AssertionError({ message: what() }));
+      else setTimeout(poll, POLL_MS);
+    };
+    poll();
+  });
 
 describe('ink-spinner 5.0.0', () => {
   it('draws the dots spinner beside its label, and animates it', async () => {
     const t = terminal();
+    const distinct = () => [...new Set(t.frames.map(plain).filter((f) => f.endsWith(' working')))];
     const app = t.mount(h(Text, null, h(Spinner, { type: 'dots' }), ' working'));
-    await wait(A_FEW_DOTS_MS);
-    app.unmount();
-    const drawn = [...new Set(t.frames.map(plain).filter((f) => f.endsWith(' working')))];
+    try {
+      await until(
+        () => distinct().length >= AT_LEAST,
+        () => `only ${String(distinct().length)} distinct frames`,
+      );
+    } finally {
+      // Also on a failure: a mounted spinner's interval would hold the process open instead.
+      app.unmount();
+    }
+    const drawn = distinct();
     assert.equal(drawn[0], '⠋ working');
     assert.ok(drawn.length >= AT_LEAST, `only ${String(drawn.length)} distinct frames`);
     for (const frame of drawn) assert.ok(DOTS.includes(frame.slice(0, 1)), frame);
@@ -95,14 +119,18 @@ describe('ink-text-input 6.0.0', () => {
       return h(TextInput, { value, onChange: change, onSubmit: (v) => (seen.submitted = v), placeholder: 'type here' });
     }
     const app = t.mount(h(Field));
-    await wait(FRAME_MS);
-    assert.equal(t.last(), 'type here');
-    t.stdin.write('hi');
-    await wait(FRAME_MS);
-    assert.equal(t.last(), 'hi');
-    t.stdin.write('\r');
-    await wait(FRAME_MS);
-    app.unmount();
+    try {
+      await until(() => t.last() === 'type here', t.last);
+      t.stdin.write('hi');
+      await until(() => t.last() === 'hi', t.last);
+      t.stdin.write('\r');
+      await until(
+        () => seen.submitted !== undefined,
+        () => JSON.stringify(seen),
+      );
+    } finally {
+      app.unmount();
+    }
     assert.deepEqual(seen, { changed: ['hi'], submitted: 'hi' });
   });
 });
@@ -116,16 +144,21 @@ describe('ink-select-input 6.2.0', () => {
     ];
     let selected;
     const app = t.mount(h(SelectInput, { items, onSelect: (item) => (selected = item) }));
-    await wait(FRAME_MS);
     // `figures` draws the pointer as ❯, or as > where the terminal is not known to be Unicode (Windows).
-    const [, pointer] = /^([❯>]) First\n {2}Second$/u.exec(t.last()) ?? [];
-    assert.ok(pointer !== undefined, t.last());
-    t.stdin.write('\u001B[B');
-    await wait(FRAME_MS);
-    assert.equal(t.last(), `  First\n${pointer} Second`);
-    t.stdin.write('\r');
-    await wait(FRAME_MS);
-    app.unmount();
+    const marked = () => /^([❯>]) First\n {2}Second$/u.exec(t.last())?.[1];
+    try {
+      await until(() => marked() !== undefined, t.last);
+      const pointer = marked();
+      t.stdin.write('\u001B[B');
+      await until(() => t.last() === `  First\n${pointer} Second`, t.last);
+      t.stdin.write('\r');
+      await until(
+        () => selected !== undefined,
+        () => 'nothing was selected',
+      );
+    } finally {
+      app.unmount();
+    }
     assert.deepEqual(selected, { label: 'Second', value: 'two' });
   });
 });
