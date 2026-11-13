@@ -59,7 +59,7 @@ const RULES: Record<string, EntryRule> = {
   // reducer, `fit` from an offset with the `↓ N` hint, `extents()` for the reducer, the static
   // frame grown to every line (R6), and the scroll keys in the default keymap, and `extents` exported beside `reduce`.
   '.': {
-    // 24,200 -> 24,250 on 2026-11-13 (D-20261113-string-width-9: measuring comes from `linegauge/v8`, string-width 8's rules, beside the root's `widest` and `truncate`; measured 24,231).
+    // 24,200 -> 24,250 on 2026-11-13 (D-20261113-string-width-9: measuring comes from `linegauge/v8`, beside the root's `widest` and `truncate`; measured 24,231).
     allow: ['caique/editor', 'caique/keys', 'closeout', 'closeout/cursor', 'flagstaff/loop', 'flagstaff/plugin', 'linegauge', 'linegauge/v8', 'roundel/policy'],
     budget: 24_250,
     denied: ['react', 'react-reconciler', ...INK],

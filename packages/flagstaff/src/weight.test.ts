@@ -300,7 +300,7 @@ const RULES: Record<string, EntryRule> = {
   // on `/(\s+)/` and counts with its own `strlen`, which a wrap-ansi port does not
   // reproduce, so sharing would be a divergence dressed up as reuse.
   // 29,300 -> 29,350 on 2026-11-13 (D-20261113-string-width-9): `measure` now comes from
-  // `linegauge/v8`, string-width 8's rules, a second entry beside the root; measured 29,303.
+  // `linegauge/v8`, a second entry beside the root; measured 29,303.
   './cli-table3': { allow: ['linegauge/v8', 'paratext/link', 'roundel/chalk'], budget: 29_350, measured: 29_303, denied: ['ora.js', 'spinners.json', 'boxen.js', 'log-update.js', 'loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js'] },
   // The four remaining built-ins (R4). `progress` is arithmetic and a token — 971 B, and it
   // reaches nothing, not even the registry. `tasks` reads its glyphs and its spinner style
