@@ -117,6 +117,11 @@ describe('moved — whether a release is worth an issue', () => {
     expect(moved(held(), fresh({ weight: 101 }), NOTHING, { weighs: false })).toBe(false);
   });
 
+  it('is false when the held record has no weight, whatever the fresh one weighs', () => {
+    // An older `seen` block written before weights were recorded: nothing to compare against.
+    expect(moved(held({ weight: null }), fresh({ weight: 101 }), NOTHING)).toBe(false);
+  });
+
   it('still reports a new version when the weight is not claimed', () => {
     expect(moved(held(), fresh({ version: '2.0.0', weight: 101 }), NOTHING, { weighs: false })).toBe(true);
   });
@@ -260,6 +265,28 @@ describe('check and fingerprint, over a workspace', () => {
     expect(result.updates).toEqual([]);
     expect(result.unfingerprinted).toEqual([]);
     expect(sink.out).toContain('up to date');
+    // Nothing drifted, so the log has no weight to name.
+    expect(sink.out).not.toContain('weight not claimed');
+  });
+
+  it('does not call a weight unclaimed when the competitor is weighed and the held record has none', async () => {
+    // A held record without a weight is not drift (`moved` skips it), and a `weight` claim is
+    // claimed, so the plain "up to date" line is the only true one.
+    const { root, packagesDir } = workspace({
+      flagstaff: { '.': [{ package: 'chalk', claim: 'weight' }] },
+    });
+    await fingerprint(packagesDir, () => {}, REGISTRY);
+    const file = join(packagesDir, 'flagstaff', 'competitors.json');
+    const raw = JSON.parse(readFileSync(file, 'utf8')) as Record<string, { seen: Seen }[]>;
+    for (const entries of Object.values(raw)) for (const e of entries) e.seen.weight = null;
+    writeFileSync(file, JSON.stringify(raw));
+    const sink = lines();
+
+    const result = await check(packagesDir, root, sink.write, REGISTRY);
+
+    expect(result.updates).toEqual([]);
+    expect(sink.out).toContain('up to date');
+    expect(sink.out).not.toContain('weight not claimed');
   });
 
   it('reports one update when the held version is behind what the registry serves', async () => {
