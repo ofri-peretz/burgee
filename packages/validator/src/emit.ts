@@ -154,7 +154,7 @@ const array = (emitter: Emitter, schema: Node): string => {
  * whatever its schema would say of `undefined` (`check` asks that first), so for these the text
  * asks it too; for every other kind the kind's test already refuses `undefined`.
  */
-const UNDEFINED_MAY_PASS: ReadonlySet<Kind> = new Set(['unknown', 'nullable', 'nullish', 'union', 'intersection', 'lazy', 'custom', 'refine', 'transform', 'message', 'pipe', 'preprocess']);
+const UNDEFINED_MAY_PASS: ReadonlySet<Kind> = new Set(['unknown', 'nullable', 'nullish', 'union', 'intersection', 'lazy', 'custom', 'refine', 'transform', 'message', 'pipe', 'preprocess', 'refineAsync', 'transformAsync']);
 
 /** Whether a field's own test can be true of `undefined`: one of those kinds, or the literal `undefined`. */
 const mayPassUndefined = (field: Node): boolean => UNDEFINED_MAY_PASS.has(field.kind) || (field.kind === 'literal' && field.value === undefined);
@@ -337,6 +337,9 @@ const WRITERS: Readonly<Record<Kind, (emitter: Emitter, schema: Node, ref: strin
   message: (emitter, schema, ref) => test(emitter, schema.item as Node, ref),
   pipe: (emitter, schema, ref) => test(emitter, schema.item as Node, ref),
   preprocess: (emitter, schema, ref) => test(emitter, schema.item as Node, ref),
+  // A rule or a map that is awaited is `parseAsync`'s to call: the text answers at once, for what goes in.
+  refineAsync: (emitter, schema, ref) => test(emitter, schema.item as Node, ref),
+  transformAsync: (emitter, schema, ref) => test(emitter, schema.item as Node, ref),
 };
 
 function test(emitter: Emitter, schema: Node, ref: string): string {

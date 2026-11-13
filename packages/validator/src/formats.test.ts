@@ -755,6 +755,7 @@ describe('time: RFC 3339 §5.6 `full-time`, the time half of a date-time', () =>
       ['23:59:60+00:00', true, 'and at no offset'],
       ['23:59:60-00:00', true, 'the same'],
       ['23:59:60.5z', true, 'with a fraction'],
+      ['23:59:60.55Z', true, 'of more than one digit'],
       ['23:59:60+01:00', false, 'a leap second at another offset stands at another minute'],
       ['22:59:60Z', false, 'a sixtieth second in another minute'],
       ['24:00:00Z', false, 'no hour 24'],

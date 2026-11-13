@@ -37,7 +37,7 @@ import {
   isTypeOf,
   isUnion,
 } from './check.js';
-import { BEFORE, BIGINT, COUNTED, CUSTOM, DATE, EVERY, INSTANCE, LATER, MAP, MAPPED, NAN, NEVER, NULLABLE, NULLISH, PIPED, RECORD, REFINED, SET, TUPLE, TYPE, UNION, UNKNOWN, WORDED } from './own.js';
+import { AWAITED_MAP, AWAITED_RULE, BEFORE, BIGINT, COUNTED, CUSTOM, DATE, EVERY, INSTANCE, LATER, MAP, MAPPED, NAN, NEVER, NULLABLE, NULLISH, PIPED, RECORD, REFINED, SET, TUPLE, TYPE, UNION, UNKNOWN, WORDED } from './own.js';
 
 export type Check = (schema: Node, value: unknown) => boolean;
 
@@ -72,7 +72,9 @@ export type Kind =
   | 'count'
   | 'message'
   | 'pipe'
-  | 'preprocess';
+  | 'preprocess'
+  | 'refineAsync'
+  | 'transformAsync';
 
 /** A predicate a node names (spec.md R10). Beside `check`, `get` and a transform's map, it is the only kind of function a node may hold. */
 export type Test = (value: unknown) => boolean;
@@ -163,8 +165,8 @@ export interface Pass {
   /** `parse` itself and the options it was called with, for a schema that parses what another produced. */
   readonly parse: (schema: Node, value: unknown, options: IssueOptions) => { readonly ok: true; readonly value: unknown } | { readonly ok: false; readonly issues: Issue[] };
   readonly options: IssueOptions;
-  /** Set by `parseAsync` alone: a schema that has to be awaited refuses a walk without it. */
-  readonly wait?: boolean;
+  /** Set by `parseAsync` alone: a schema that has to be awaited refuses a walk without it, and a rule that is awaited counts itself here. */
+  readonly wait?: { rules: number };
 }
 
 /** What `parse` runs for a kind: the value the schema makes of `value`, which is `value` itself when nothing changed. */
@@ -203,7 +205,8 @@ export interface Node {
   /**
    * The literal's value; a bigint's two bounds, lowest first; the name `typeof` gives the values of
    * a `type` node; the class an `instance` node's values are instances of; a transform's map; the
-   * function a `preprocess` node runs first; the words of a `message` node, one string or one a keyword.
+   * function a `preprocess` node runs first; the words of a `message` node, one string or one a keyword;
+   * the rule or the map that `parseAsync` awaits.
    */
   readonly value: unknown;
   /** The enum's members; on an object that closes or strips, its keys; on a refinement, the keys its rule reads. */
@@ -830,3 +833,36 @@ export const normalize = <T extends string, M extends string | Same = Same>(sche
   if (!FORMS.has(form)) throw new TypeError(`cannot normalize to ${typeof form === 'string' ? JSON.stringify(form) : `a value of the type ${typeof form}`}: there is no such form. fix: name NFC, NFD, NFKC or NFKD`);
   return transform(schema, (text) => (text as string).normalize(form));
 };
+
+export interface RefineAsyncOptions {
+  /** Where under the value the issue is reported: the keys that lead there. The value itself when there are none. */
+  readonly path?: readonly (string | number)[];
+  /** What the rule expects, for the issue: it reads "expected <message>, got …". */
+  readonly message?: string;
+}
+
+/**
+ * The schema, and a rule of your own that answers with a promise: a lookup, a call to a service.
+ * `parseAsync` awaits it, on a value the whole schema accepted and before any transform runs, and
+ * reports it under the keyword `refine`. `parse` refuses a schema that has one.
+ *
+ * `check`, `issues` and the emitted code describe what goes in, as they do for a transform: they
+ * read the schema the rule is on, and never call the rule.
+ */
+export const refineAsync = <T, O>(schema: Schema<T, O>, test: (value: T) => Promise<boolean>, options: RefineAsyncOptions = {}): Schema<T, O> =>
+  node('refineAsync', isMapped, {
+    item: schema,
+    // What the rule expects is kept where a rule's name is kept; the rule itself is in `value`, since it answers with a promise and a `Test` answers at once.
+    rule: Object.freeze({ name: options.message ?? 'a value the rule accepts', pattern: null, test: null }),
+    value: test,
+    keys: (options.path ?? []).map(String),
+    own: AWAITED_RULE,
+  });
+
+/**
+ * The schema, and a function that answers with a promise of what `parseAsync` hands out. It runs
+ * as a transform does: after validation, on what the schema it wraps produced. `parse` refuses a
+ * schema that has one.
+ */
+export const transformAsync = <T, M, R>(schema: Schema<T, M>, map: (value: Out<T, M>) => Promise<R>): Schema<T, R> =>
+  node('transformAsync', isMapped, { item: schema, value: map, own: AWAITED_MAP });

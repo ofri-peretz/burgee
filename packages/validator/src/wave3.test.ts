@@ -250,6 +250,13 @@ describe('setOf', () => {
     ]);
   });
 
+  it('is written with its bounds only where it has them', () => {
+    expect(emit(Numbers)).not.toContain('v.size');
+    expect(emit(setOf(number(), { min: 2, max: 3 }))).toContain('if (!(v instanceof Set) || v.size < 2 || v.size > 3) return false;');
+    expect(emit(setOf(number(), { min: 1 }))).toContain('if (!(v instanceof Set) || v.size < 1) return false;');
+    expect(emit(setOf(number(), { max: 0 }))).toContain('if (!(v instanceof Set) || v.size > 0) return false;');
+  });
+
   it('says which member is wrong by its place, and what is no Set', () => {
     expect(issues(Numbers, [1])).toEqual([{ path: '', keyword: 'type', message: 'expected a Set, got an array. fix: send a Set' }]);
     expect(issues(Numbers, new Set([1, 'a', 2, 'b'])).map(({ path }) => path)).toEqual(['/1', '/3']);
@@ -635,6 +642,19 @@ const wave3 = (): Record<string, unknown> => ({
   few: { a: 1 },
   worded: { a: 'x' },
   before: 'abc',
+});
+
+describe('a key that must be there', () => {
+  // A required key is there whatever its schema says of `undefined`: each of these wraps a schema that accepts it.
+  it.each<[string, AnySchema]>([
+    ['message', message(unknown(), 'x')],
+    ['pipe', pipe(unknown(), unknown())],
+    ['preprocess', preprocess(trimIfString, unknown())],
+    ['properties', properties(unknown() as Schema<object>, {})],
+  ])('is asked for by the emitted code too, under a %s', (_, field) => {
+    expect(verdicts(object({ a: field }), [{ a: {} }, {}, { a: undefined }])).toEqual([true, false, false]);
+    expect(verdicts(object({ a: optional(field) }), [{ a: {} }, {}, { a: undefined }])).toEqual([true, true, true]);
+  });
 });
 
 describe('the readers, for the wave 3 kinds', () => {

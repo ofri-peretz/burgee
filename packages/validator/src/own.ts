@@ -509,7 +509,30 @@ const piped: Filler = (schema, value, pass) => {
 
 const PIPED: Own = /* @__PURE__ */ Object.freeze({ issues: mapped, fill: piped });
 
+/**
+ * On the first walk a schema that is awaited is the schema it wraps, and says only that there is
+ * more to do. `parse` has no later walk that awaits, and is refused here; `parseAsync` reads these
+ * two kinds itself after `check`, by the pair on the node.
+ */
+const waiting: Filler = (schema, value, pass) => {
+  if (pass.wait === undefined) throw new TypeError('cannot parse a schema that has a rule or a map to await with `parse`. fix: call `parseAsync`');
+  pass.met = true;
+  return pass.fill(schema.item as Node, value, pass);
+};
+
+const waitingRule: Filler = (schema, value, pass) => {
+  const out = waiting(schema, value, pass);
+  (pass.wait as { rules: number }).rules += 1;
+  return out;
+};
+
+const AWAITED_RULE: Own = /* @__PURE__ */ Object.freeze({ issues: mapped, fill: waitingRule });
+
+const AWAITED_MAP: Own = /* @__PURE__ */ Object.freeze({ issues: mapped, fill: waiting });
+
 export {
+  AWAITED_MAP,
+  AWAITED_RULE,
   BEFORE,
   BIGINT,
   COUNTED,

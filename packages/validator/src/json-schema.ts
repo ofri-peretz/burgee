@@ -364,6 +364,8 @@ const WRITERS: Readonly<Record<Kind, (writer: Writer, schema: Node, path: string
   message: (writer, schema, path) => write(writer, schema.item as Node, path),
   pipe: piped,
   preprocess: before,
+  refineAsync: refined,
+  transformAsync: mapped,
 };
 
 /** A schema with more keywords beside it. In draft-07 a `$ref` silences its siblings, so there it is put under `allOf`. */

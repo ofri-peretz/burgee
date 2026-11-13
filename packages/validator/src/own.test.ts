@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { check } from './check.js';
 import { emit, emitWith } from './emit.js';
 import { issues } from './issues.js';
-import { BEFORE, BIGINT, COUNTED, CUSTOM, DATE, EVERY, INSTANCE, LATER, MAP, MAPPED, NAN, NEVER, NULLABLE, NULLISH, PIPED, RECORD, REFINED, SET, TUPLE, TYPE, UNION, UNKNOWN, WORDED } from './own.js';
+import { AWAITED_MAP, AWAITED_RULE, BEFORE, BIGINT, COUNTED, CUSTOM, DATE, EVERY, INSTANCE, LATER, MAP, MAPPED, NAN, NEVER, NULLABLE, NULLISH, PIPED, RECORD, REFINED, SET, TUPLE, TYPE, UNION, UNKNOWN, WORDED } from './own.js';
 import { parse } from './parse.js';
 import {
   type AnySchema,
@@ -37,16 +37,19 @@ import {
   properties,
   record,
   refine,
+  refineAsync,
   setOf,
   string,
   symbol,
   transform,
+  transformAsync,
   tuple,
   union,
   unknown,
 } from './schema.js';
 
 const always = (): boolean => true;
+const later = (): Promise<boolean> => Promise.resolve(true);
 const upper = (text: string): string => text.toUpperCase();
 
 const called: string[] = [];
@@ -109,6 +112,8 @@ describe('a kind brings its own reading for issues and parse', () => {
     ['message', message(string(), 'x'), WORDED],
     ['pipe', pipe(string(), string()), PIPED],
     ['preprocess', preprocess(always, string()), BEFORE],
+    ['refineAsync', refineAsync(string(), later), AWAITED_RULE],
+    ['transformAsync', transformAsync(string(), later), AWAITED_MAP],
   ];
 
   it.each(CORE)('%s is one of the eight kinds issues and parse read themselves, and carries none', (_, schema) => {
@@ -211,6 +216,10 @@ describe('a bound the emitter refuses', () => {
     ['a bigint bound that is an object', { ...bigint(), value: [odd, 1n] }, 'cannot emit the bound a value of the type object: it is not a bigint. fix: build the schema with `bigint({ min, max })`'],
     ['an upper bigint bound that is an object', { ...bigint(), value: [0n, odd] }, 'cannot emit the bound a value of the type object: it is not a bigint.'],
     ['a bigint bound that is a number', { ...bigint(), value: [0n, 1] }, 'cannot emit the bound a value of the type number: it is not a bigint.'],
+    ['a set bound that is a string', { ...setOf(string()), min: '0 || globalThis.__emitted' }, 'cannot emit the bound "0 || globalThis.__emitted": it is not a number.'],
+    ['an upper set bound that is an object', { ...setOf(string()), max: odd }, 'cannot emit the bound a value of the type object: it is not a number.'],
+    ['a count of keys that is a string', { ...properties(object({}), {}), min: '0; globalThis.__emitted = 1' }, 'cannot emit the bound "0; globalThis.__emitted = 1": it is not a number.'],
+    ['an upper count of keys that is an object', { ...properties(object({}), {}), max: odd }, 'cannot emit the bound a value of the type object: it is not a number.'],
   ])('is named by its type for %s, and nothing of it is run', (_, node, message) => {
     called.length = 0;
     expect(() => emit(node as unknown as AnySchema)).toThrow(TypeError);

@@ -85,14 +85,19 @@ const FILLERS: ReadonlyMap<unknown, Filler> = new Map<unknown, Filler>([
   ['discriminated', picked],
 ]);
 
+/** The filler of a node's kind: its own, or one of the eight here. A kind there is neither for is refused. */
+const filler = (schema: Node): Filler => {
+  const make = schema.own?.fill ?? FILLERS.get(schema.kind);
+  if (make === undefined) throw new TypeError(`parse ${noKind(schema.kind)}`);
+  return make;
+};
+
 /**
  * What the kind makes of the value, or, where `undefined` arrived and the schema has a default, of
  * that default: it stands for the input that was not there, so a transform runs on it too.
  */
 function fill(schema: Node, value: unknown, pass: Pass): unknown {
-  const make = schema.own?.fill ?? FILLERS.get(schema.kind);
-  if (make === undefined) throw new TypeError(`parse ${noKind(schema.kind)}`);
-  return make(schema, value === undefined ? schema.default : value, pass);
+  return filler(schema)(schema, value === undefined ? schema.default : value, pass);
 }
 
 /**
@@ -105,7 +110,7 @@ function fill(schema: Node, value: unknown, pass: Pass): unknown {
  * transform runs last, and only on a value the whole schema accepted.
  */
 const parse = <T, O>(schema: Schema<T, O>, value: unknown, options: ParseOptions = {}): Parsed<Out<T, O>> => {
-  const pass: Pass = { late: false, copy: options.copy === true, met: false, fill, at: [], failed: [], parse: parse as Pass['parse'], options };
+  const pass = starting(options);
   const filled = fill(schema, value, pass);
   if (!schema.check(schema, filled)) return { ok: false, issues: issues(schema, filled, options) };
   // A schema with no transform in it is walked once.
@@ -115,4 +120,10 @@ const parse = <T, O>(schema: Schema<T, O>, value: unknown, options: ParseOptions
   return pass.failed.length === 0 ? { ok: true, value: out as Out<T, O> } : { ok: false, issues: pass.failed };
 };
 
-export { parse, type Parsed, type ParseOptions };
+/** The walk a parse starts with: the one before `check`, at the root, with nothing yet found. */
+function starting(options: ParseOptions): Pass {
+  return { late: false, copy: options.copy === true, met: false, fill, at: [], failed: [], parse: parse as Pass['parse'], options };
+}
+
+// `filler` and `starting` are for `parseAsync`, which walks as `parse` does; the package's entry does not hand them on.
+export { filler, parse, type Parsed, type ParseOptions, starting };
