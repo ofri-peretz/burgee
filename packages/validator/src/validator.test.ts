@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import {
@@ -76,6 +78,17 @@ describe('a schema is data', () => {
       expect(Object.keys(schema as object)).toEqual(members);
       expect(Object.isFrozen(schema)).toBe(true);
     }
+  });
+
+  // parity.md: a bundle carries only the kinds its schemas use. The node brings its kind's check,
+  // so the interpreter must never name the kinds: one `switch` over them puts every kind in every bundle.
+  it('carries its own check, which captures nothing and is shared by every node of the kind', () => {
+    expect(string().check).toBe(string({ min: 1 }).check);
+    expect(string().check).not.toBe(number().check);
+    expect(optional(Item).check).toBe(Item.check);
+    expect(string().check(string({ min: 2 }), 'ab')).toBe(true);
+    expect(string().check(string({ min: 2 }), 'a')).toBe(false);
+    expect(readFileSync(`${import.meta.dirname}/check.ts`, 'utf8')).not.toMatch(/\bswitch\b|\.kind\b/u);
   });
 
   it('refuses a pattern that keeps state between tests', () => {

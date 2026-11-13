@@ -4,8 +4,9 @@ import { type Node, type Schema } from './schema.js';
  * The first pass (spec.md R6): yes or no, and nothing allocated on a yes. No `eval` (R3).
  * `issues` is the second pass and runs only after a no.
  *
- * One function per kind, called from one `switch`: each stays small enough to inline, and every
- * call site sees one kind.
+ * One function per kind, and each builder puts its kind's function on the node it returns
+ * (parity.md, "a bundle carries only the kinds its schemas use"): nothing here names every kind,
+ * so a bundler drops the functions of the kinds a program never builds. None captures anything.
  */
 
 const isString = (schema: Node, value: unknown): boolean =>
@@ -18,7 +19,31 @@ const isString = (schema: Node, value: unknown): boolean =>
 const isNumber = (schema: Node, value: unknown): boolean =>
   typeof value === 'number' && value >= schema.min && value <= schema.max && (!schema.int || Number.isInteger(value));
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
+const isLiteral = (schema: Node, value: unknown): boolean => value === schema.value;
+
+const isMember = (schema: Node, value: unknown): boolean => (schema.values as ReadonlySet<unknown>).has(value);
+
+const isBoolean = (_: Node, value: unknown): boolean => typeof value === 'boolean';
+
+/**
+ * Calls the node's own check. The three commonest are called by name, so the engine can inline
+ * them into the loop that asked: measured 2026-11-13 on the order schema, calling `schema.check`
+ * alone costs 11% of the throughput (3.96M against 4.45M validations a second) and this costs 2%.
+ * A bundle that builds an array or an object therefore carries these three; one that builds only
+ * scalars does not carry this function at all.
+ */
+const run = (schema: Node, value: unknown): boolean => {
+  const own = schema.check;
+  // Stryker disable next-line ConditionalExpression: equivalent, the last line calls the same function; this line is only what lets the engine inline it
+  if (own === isString) return isString(schema, value);
+  // Stryker disable next-line ConditionalExpression: equivalent, the last line calls the same function; this line is only what lets the engine inline it
+  if (own === isNumber) return isNumber(schema, value);
+  // Stryker disable next-line ConditionalExpression: equivalent, the last line calls the same function; this line is only what lets the engine inline it
+  if (own === isBoolean) return isBoolean(schema, value);
+  return own(schema, value);
+};
+
+const isPlain = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
 const isArray = (schema: Node, value: unknown): boolean => {
@@ -31,7 +56,7 @@ const isArray = (schema: Node, value: unknown): boolean => {
 };
 
 const isObject = (schema: Node, value: unknown): boolean => {
-  if (!isRecord(value)) return false;
+  if (!isPlain(value)) return false;
   const keys = schema.keys as readonly string[];
   const fields = schema.fields as readonly Node[];
   for (let index = 0; index < keys.length; index++) {
@@ -43,41 +68,16 @@ const isObject = (schema: Node, value: unknown): boolean => {
 };
 
 const isCase = (schema: Node, value: unknown): boolean => {
-  if (!isRecord(value)) return false;
+  if (!isPlain(value)) return false;
   const tag = value[schema.tag as string];
   const cases = schema.cases as Readonly<Record<string, Node>>;
   // eslint-disable-next-line conventions/consistent-existence-index-check -- Own cases only: a tag of "toString" must not pick an inherited function
-  return typeof tag === 'string' && Object.hasOwn(cases, tag) && run(cases[tag] as Node, value);
+  if (typeof tag !== 'string' || !Object.hasOwn(cases, tag)) return false;
+  const chosen = cases[tag] as Node;
+  return run(chosen, value);
 };
 
-function run(schema: Node, value: unknown): boolean {
-  switch (schema.kind) {
-    case 'string': {
-      return isString(schema, value);
-    }
-    case 'number': {
-      return isNumber(schema, value);
-    }
-    case 'boolean': {
-      return typeof value === 'boolean';
-    }
-    case 'literal': {
-      return value === schema.value;
-    }
-    case 'enum': {
-      return (schema.values as ReadonlySet<unknown>).has(value);
-    }
-    case 'array': {
-      return isArray(schema, value);
-    }
-    case 'object': {
-      return isObject(schema, value);
-    }
-    case 'discriminated': {
-      return isCase(schema, value);
-    }
-  }
-}
-
 /** Whether `value` is what the schema describes. A type guard, so a passing check narrows. */
-export const check = <T>(schema: Schema<T>, value: unknown): value is T => run(schema, value);
+const check = <T>(schema: Schema<T>, value: unknown): value is T => schema.check(schema, value);
+
+export { check, isArray, isBoolean, isCase, isLiteral, isMember, isNumber, isObject, isString };

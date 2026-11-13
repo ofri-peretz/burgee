@@ -6,10 +6,16 @@
  * them sees one object shape.
  */
 
+import { isArray, isBoolean, isCase, isLiteral, isMember, isNumber, isObject, isString } from './check.js';
+
+export type Check = (schema: Node, value: unknown) => boolean;
+
 export type Kind = 'string' | 'number' | 'boolean' | 'literal' | 'enum' | 'array' | 'object' | 'discriminated';
 
 export interface Node {
   readonly kind: Kind;
+  /** The kind's own check, put here by the builder so that a bundle carries only the kinds it builds. It captures nothing. */
+  readonly check: Check;
   /** Length for a string or an array, value for a number. */
   readonly min: number;
   readonly max: number;
@@ -52,10 +58,11 @@ export type ObjectOf<S extends Shape> = Flat<
 
 type Part = { readonly [K in keyof Node]?: Node[K] | undefined };
 
-const node = <S extends Schema<unknown>>(kind: Kind, part: Part): S =>
+const node = <S extends Schema<unknown>>(kind: Kind, check: Check, part: Part): S =>
   // eslint-disable-next-line reliability/no-unsafe-type-narrowing -- `~type` exists only in the type system: the node carries no member for it
   Object.freeze({
     kind,
+    check,
     min: part.min ?? -Number.MAX_VALUE,
     max: part.max ?? Number.MAX_VALUE,
     int: part.int ?? false,
@@ -83,7 +90,7 @@ export const string = (options: StringOptions = {}): Schema<string> => {
   if (pattern !== undefined && (pattern.global || pattern.sticky)) {
     throw new TypeError(`pattern ${String(pattern)} keeps state between tests. fix: remove its g and y flags`);
   }
-  return node('string', { min: options.length ?? options.min ?? 0, max: options.length ?? options.max, pattern });
+  return node('string', isString, { min: options.length ?? options.min ?? 0, max: options.length ?? options.max, pattern });
 };
 
 export interface NumberOptions {
@@ -93,15 +100,15 @@ export interface NumberOptions {
 }
 
 /** A finite number: `NaN` and the infinities fail, as they do in JSON. */
-export const number = (options: NumberOptions = {}): Schema<number> => node('number', options);
+export const number = (options: NumberOptions = {}): Schema<number> => node('number', isNumber, options);
 
-export const boolean = (): Schema<boolean> => node('boolean', {});
+export const boolean = (): Schema<boolean> => node('boolean', isBoolean, {});
 
 export const literal = <const T extends string | number | boolean | null>(value: T): Schema<T> =>
-  node('literal', { value });
+  node('literal', isLiteral, { value });
 
 export const enumOf = <const T extends readonly (string | number)[]>(values: T): Schema<T[number]> =>
-  node('enum', { values: new Set(values) });
+  node('enum', isMember, { values: new Set(values) });
 
 export interface ArrayOptions {
   readonly min?: number;
@@ -109,7 +116,7 @@ export interface ArrayOptions {
 }
 
 export const array = <T>(item: Schema<T>, options: ArrayOptions = {}): Schema<T[]> =>
-  node('array', { item, min: options.min ?? 0, max: options.max });
+  node('array', isArray, { item, min: options.min ?? 0, max: options.max });
 
 /** Marks an object's field as one that may be absent. */
 export const optional = <T>(schema: Schema<T>): OptionalSchema<T | undefined> =>
@@ -117,10 +124,10 @@ export const optional = <T>(schema: Schema<T>): OptionalSchema<T | undefined> =>
 
 /** Keys the shape does not name are allowed and left alone. */
 export const object = <const S extends Shape>(shape: S): Schema<ObjectOf<S>> =>
-  node('object', { keys: Object.keys(shape), fields: Object.values(shape) });
+  node('object', isObject, { keys: Object.keys(shape), fields: Object.values(shape) });
 
 type Cases = Readonly<Record<string, Schema<unknown>>>;
 
 /** One object schema per value of `tag`. The case is picked by that value, never by trying each. */
 export const discriminated = <const C extends Cases>(tag: string, cases: C): Schema<C[keyof C]['~type']> =>
-  node('discriminated', { tag, cases: Object.freeze({ ...cases }) });
+  node('discriminated', isCase, { tag, cases: Object.freeze({ ...cases }) });
