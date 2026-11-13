@@ -85,10 +85,10 @@ The figures are from `npm run bench -- --axis weight --axis runtime --axis perf`
 
 | | linegauge | string-width 9.0.0 | gate |
 | :-- | --: | --: | :-- |
-| one symbol, bundled and minified | 6,674 B | 6,845 B | ratio 0.975, at most 1 |
+| one symbol, bundled and minified | 6,707 B | 6,845 B | ratio 0.980, at most 1 |
 | 1,000 mixed lines, runtime ratio | 0.749 | 1 | at most 0.85 |
 | cold start | 40.4 ms | 57.45 ms | delta -15.75 ms, at most 0 |
-| installed, with dependencies | 116,829 B | 45,582 B | none |
+| installed, with dependencies | 116,780 B | 45,582 B | none |
 
 **The first port was slower, and the gate caught it.** With 9's rules ported as they are written,
 the runtime ratio read 1.372 against the 0.85 gate. string-width 9 is faster than 8 was: the
@@ -105,11 +105,11 @@ ratio in the table is the bench's.
 
 **Weight.** That fast path first measured 7,200 B, heavier than string-width. The property
 classes now use their short aliases (`DI`, `Cf`, `EMod`), and the code-unit tests are two
-regex classes rather than a function of named bounds. That brought the bundle to 6,674 B. The B4
+regex classes rather than a function of named bounds. That brought the bundle to 6,707 B. The B4
 ceiling moves 5,950 -> 6,800: the measured figure plus the 80 B CI margin, rounded up to the
 next 50. The ratio gate stays at 1.
 
 **Installed, linegauge is the larger package.** It carries the six drop-ins, and now two width
-measurements. The foundation band moves 108,568 -> 116,829 against the 194,329 B of the
-incumbents it replaces (0.6012). `ceilings.json` moves `cli-truncate.js` 35,864 -> 35,909 and
+measurements. The foundation band moves 108,568 -> 116,780 against the 194,329 B of the
+incumbents it replaces (0.6009). `ceilings.json` moves `cli-truncate.js` 35,864 -> 35,909 and
 `widest-line.js` 12,236 -> 12,284 for `claimOf`, and records `v8.js` at 11,999.

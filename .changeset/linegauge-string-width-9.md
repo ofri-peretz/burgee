@@ -16,6 +16,6 @@ New entry: `linegauge/v8`. It is string-width 8.3.0's measurement, graded 233 / 
 
 Against string-width 9.0.0, measured with `npm run bench` on darwin arm64 (Node 24.13.0, a loaded machine):
 
-- One symbol bundles to 6,674 B against 6,845 B.
+- One symbol bundles to 6,707 B against 6,845 B.
 - 1,000 mixed lines take 0.749 of string-width's time. The printable ASCII, Latin-1, kana, Han and Hangul syllables at each end of a string are counted without the segmenter.
 - Cold start is 15.75 ms faster: 40.4 ms against 57.45 ms.

@@ -36,6 +36,7 @@ const WIDE_COLUMNS = 2;
 
 /** The last printable ASCII code point: nothing at or below it is in either width table. */
 const TILDE = 0x7e;
+// Stryker disable next-line NumericLiteral: at 0x21 a space is not answered here but by the segmenter, which counts it one column too
 const SPACE = 0x20;
 
 /**
@@ -43,6 +44,12 @@ const SPACE = 0x20;
  * builds a `\p{…}` set when it compiles the literal, so a module carrying them pays at import
  * whether or not anything is measured (`width.ts` has the measurement). One binding per class,
  * because a minifier renames a `let` and cannot rename a property.
+ *
+ * Each source is a module constant rather than written inside its builder. The builder caches
+ * what it builds, so a test run that changed the text inside it after the first build would
+ * still be served the first build: the mutation lane read every variant of these six as a
+ * survivor, and each one fails `width9.test.ts` when run on its own. A constant is evaluated
+ * once, at import, which is where a mutant of it takes effect.
  */
 let visibleClass: RegExp | undefined;
 let emojiClass: RegExp | undefined;
@@ -65,26 +72,38 @@ const PREPENDED = '\\u{600}-\\u{605}\\u{6DD}\\u{890}\\u{891}\\u{8E2}\\u{110BD}\\
  * their short aliases (`DI` is Default_Ignorable_Code_Point, `Cf` Format, `EMod` Emoji_Modifier):
  * the same sets in fewer bundled bytes.
  */
-const VISIBLE = (): RegExp => (visibleClass ??= new RegExp(`[^\\p{DI}\\p{Cc}\\p{Me}\\p{Mn}[\\p{Cf}--[${PREPENDED}]]]`, 'v'));
+const VISIBLE_SOURCE = `[^\\p{DI}\\p{Cc}\\p{Me}\\p{Mn}[\\p{Cf}--[${PREPENDED}]]]`;
+// Stryker disable next-line StringLiteral: the flags are written inside the cached builder, where `no-unsafe-regex-construction` wants them, so the lane serves the first build to every variant; without `v` every property class here is a syntax error or a different set, which width9.test.ts fails on when run alone
+const VISIBLE = (): RegExp => (visibleClass ??= new RegExp(VISIBLE_SOURCE, 'v'));
 /**
  * A cluster that **opens** with an emoji: an RGI sequence, one or two regional indicators (a
  * lone one, or a pair naming no flag, is still drawn as one wide symbol), or a digit, `#` or `*`
  * with `U+FE0F`. Not anchored at the end, so a dangling joiner or an extra selector after it
  * does not hide it.
  */
-const EMOJI = (): RegExp => (emojiClass ??= new RegExp('^(?:\\p{RGI_Emoji}|\\p{RI}{1,2}|[\\d#*]\\u{FE0F})', 'v'));
+const EMOJI_SOURCE = '^(?:\\p{RGI_Emoji}|\\p{RI}{1,2}|[\\d#*]\\u{FE0F})';
+const EMOJI = (): RegExp => (emojiClass ??= new RegExp(EMOJI_SOURCE, 'v'));
 /** A wide BMP emoji asking for its text style with `U+FE0E`: one column. */
-const TEXT_STYLE = (): RegExp => (textStyleClass ??= new RegExp('^[\\p{EPres}--[\\u{10000}-\\u{10FFFF}]]\\u{FE0E}', 'v'));
+const TEXT_STYLE_SOURCE = '^[\\p{EPres}--[\\u{10000}-\\u{10FFFF}]]\\u{FE0E}';
+// Stryker disable next-line StringLiteral: the flags are written inside the cached builder, where `no-unsafe-regex-construction` wants them, so the lane serves the first build to every variant; without `v` every property class here is a syntax error or a different set, which width9.test.ts fails on when run alone
+const TEXT_STYLE = (): RegExp => (textStyleClass ??= new RegExp(TEXT_STYLE_SOURCE, 'v'));
 /** A joiner binding a pictograph, which GB11 allows only after another: a ZWJ sequence. */
-const JOINED = (): RegExp => (joinedClass ??= new RegExp('\\u{200D}\\p{ExtPict}', 'v'));
+const JOINED_SOURCE = '\\u{200D}\\p{ExtPict}';
+// Stryker disable next-line StringLiteral: the flags are written inside the cached builder, where `no-unsafe-regex-construction` wants them, so the lane serves the first build to every variant; without `v` every property class here is a syntax error or a different set, which width9.test.ts fails on when run alone
+const JOINED = (): RegExp => (joinedClass ??= new RegExp(JOINED_SOURCE, 'v'));
 /** An emoji modifier with no modifier base (or joiner) before it: drawn as a swatch. */
-const STRAY_MODIFIER = (): RegExp => (modifierClass ??= new RegExp('(?<![\\p{EBase}\\u{200D}])\\p{EMod}', 'gv'));
-const LEADING_MARKS = (): RegExp => (marksClass ??= new RegExp(`^[${PREPENDED}]+`, 'v'));
+const STRAY_MODIFIER_SOURCE = '(?<![\\p{EBase}\\u{200D}])\\p{EMod}';
+// Stryker disable next-line StringLiteral: the flags are written inside the cached builder, where `no-unsafe-regex-construction` wants them, so the lane serves the first build to every variant; without `v` every property class here is a syntax error or a different set, which width9.test.ts fails on when run alone
+const STRAY_MODIFIER = (): RegExp => (modifierClass ??= new RegExp(STRAY_MODIFIER_SOURCE, 'gv'));
+const LEADING_MARKS_SOURCE = `^[${PREPENDED}]+`;
+const LEADING_MARKS = (): RegExp => (marksClass ??= new RegExp(LEADING_MARKS_SOURCE, 'v'));
 
 /** A cluster opening with a Hangul jamo, a filler or a precomposed syllable. */
+// Stryker disable next-line Regex: unanchored it matches the same clusters, since nothing joins a Hangul code point to a cluster after its first but a prepended mark, which `markedColumns` takes first
 const HANGUL = /^[\u1100-\u11FF\uA960-\uA97C\uAC00-\uD7A3\uD7B0-\uD7C6\uD7CB-\uD7FB]/u;
 
 /** Kirat Rai's vowel signs: a run of them is one glyph, however it is spelled. */
+// Stryker disable next-line Regex: one sign at a time removes the same ones, since the look-behind reads the string as it was before the replace
 const KIRAT_RAI_RUN = /(?<=[\u{16D63}-\u{16D6A}])[\u{16D63}-\u{16D6A}]+/gu;
 
 /**
@@ -111,9 +130,15 @@ const ALONE = /[ -~\xA0-\xA8\xAA-\xAC\xAF-\xFF\u3000-\u3029\u3031-\u303C\u303E-\
  */
 const HOLDS = /[\u0600-\u08FF\u0D4E\u1100-\u11FF\uA960-\uA97F\uD7B0-\uDFFF]/u;
 
-/** Whether the code unit at `at` stands alone, printable ASCII answered without the regex. */
+/**
+ * Whether the code unit at `at` stands alone, printable ASCII answered without the regex.
+ * Answering false only hands the code unit to the segmenter, which measures it the same, so the
+ * mutants that only answer false more often are the shortcut's speed and not its result.
+ */
+// Stryker disable next-line BlockStatement: no code unit stands alone, and every one is segmented and measured the same
 function alone(text: string, at: number): boolean {
   const code = text.codePointAt(at) as number;
+  // Stryker disable next-line EqualityOperator,ConditionalExpression: `~` and a space answered by the regex, or a space answered false, are measured the same
   return code <= TILDE ? code >= SPACE : ALONE.test(text.charAt(at));
 }
 
@@ -179,7 +204,7 @@ function emojiColumns(cluster: string): number | undefined {
  * user describing the terminal in front of them outranks a table describing terminals in
  * general.
  */
-export function clusterColumns(segment: string, ambiguousIsWide = false): number {
+function clusterColumns(segment: string, ambiguousIsWide: boolean): number {
   const first = segment.codePointAt(0) as number;
   const claimed = claimOf(first);
   if (claimed !== undefined) return claimed;
@@ -196,8 +221,11 @@ export function clusterColumns(segment: string, ambiguousIsWide = false): number
   const skipped = segment.search(VISIBLE());
   if (skipped === -1) return 0;
   // Asked of the whole cluster, which may open with a Default_Ignorable Hangul filler.
+  // Stryker disable next-line NumericLiteral: the first code point of a Hangul cluster is no emoji modifier, so counting from it counts the same
   if (HANGUL.test(segment)) return columnsOf(first, ambiguousIsWide) + strays(segment, 1);
+  // Stryker disable next-line MethodExpression: what precedes the first visible code point is extenders, which every rule below reads past or does not count
   const cluster = segment.slice(skipped);
+  // Stryker disable next-line ConditionalExpression: a cluster the gate keeps out matches no emoji rule and holds no Kirat Rai, so it is measured the same either way
   if (!MAY_BE_EMOJI.test(cluster)) return visibleColumns(cluster, ambiguousIsWide);
   // A run of Kirat Rai vowel signs is astral, so it is behind the gate with the emoji.
   return emojiColumns(cluster) ?? visibleColumns(cluster.replace(KIRAT_RAI_RUN, ''), ambiguousIsWide);
@@ -225,23 +253,31 @@ export function measure(text: string, ambiguousIsWide = false): number {
   // Stryker disable next-line ConditionalExpression: without the shortcut the clusters below are one column each, the same length
   if (plainAscii(text)) return text.length;
   // `plainAscii('')` is true exactly when no plugin is installed.
+  // Stryker disable next-line StringLiteral,ConditionalExpression: any printable ASCII string asks the same question, and segmenting every string measures it the same
   if (!plainAscii('')) return segmented(text, ambiguousIsWide);
   let columns = 0;
   let start = 0;
   let end = text.length;
+  // Both loops are a shortcut and not a rule: whatever they leave is segmented and measured the
+  // same, so a mutant that stops them early, or never starts them, changes the speed only.
   // Each code unit is asked once going forward: whether it stands alone is the next step's
   // question about the one before it.
   let here = alone(text, start);
+  // Stryker disable next-line ConditionalExpression,EqualityOperator: past the end `alone` answers false, so the loop stops there either way; never entering it segments the whole string
   while (here && start < end) {
+    // Stryker disable next-line ConditionalExpression,LogicalOperator,ArithmeticOperator,NumericLiteral: each variant answers false at least as often, which only segments more
     here = start + 1 === end || alone(text, start + 1);
+    // Stryker disable next-line ConditionalExpression: always stopping counts no prefix, and the segmenter counts it the same
     if (!here) break;
     columns += columnsOf(text.codePointAt(start) as number, ambiguousIsWide);
     start += 1;
   }
+  // Stryker disable next-line ConditionalExpression,ArithmeticOperator,NumericLiteral,MethodExpression: each variant counts a shorter suffix or none, or asks the whole string whether it may join, which only segments more
   while (end > start && alone(text, end - 1) && !HOLDS.test(text.charAt(end - 2))) {
     columns += columnsOf(text.codePointAt(end - 1) as number, ambiguousIsWide);
     end -= 1;
   }
+  // Stryker disable next-line ConditionalExpression: an empty stretch segments to nothing
   return start === end ? columns : columns + segmented(text.slice(start, end), ambiguousIsWide);
 }
 

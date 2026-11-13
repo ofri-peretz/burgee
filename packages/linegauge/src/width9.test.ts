@@ -119,6 +119,34 @@ describe('the root measures by string-width 9.0.0', () => {
     expect(lineCount('\u{1F1E6}\u{1F1E6}\n', 1)).toBe(3);
   });
 
+  // Each case below is one the mutation lane found no test for (2026-11-13).
+  it('draws nothing for DEL, a control, wherever it stands among ASCII', () => {
+    expect(width('a\u007Fb')).toBe(2);
+    expect(width('\u00E9\u007F')).toBe(1);
+  });
+
+  it('draws nothing for a Hangul filler that only marks follow', () => {
+    expect(width('\u115F\u0301')).toBe(0);
+  });
+
+  it('finds the wide glyph after the extenders that follow a prepended mark', () => {
+    expect(width('\u0600\u0301\u{16FF0}')).toBe(2);
+  });
+
+  it('counts ambiguous characters narrow unless measure is told otherwise', () => {
+    expect(measure('\u00B1\u00E9')).toBe(2);
+    expect(measure('\u00B1\u00E9', true)).toBe(4);
+  });
+
+  it('divides by the terminal width to count lines', () => {
+    expect(lineCount('ab\u{1F1E6}', 2)).toBe(2);
+  });
+
+  it('asks a plugin about printable ASCII too, beside text it would otherwise count directly', () => {
+    register({ name: 'tilde', widths: { tilde: { ranges: [[0x7e, 0x7e]] as const, columns: 2, why: 'a test font draws a wide tilde' } } });
+    expect(width('~\u00E9')).toBe(3);
+  });
+
   it('asks a plugin first, before the emoji rules', () => {
     register({ name: 'indicators', widths: { lone: { ranges: [[0x1f_1e_6, 0x1f_1f_f]] as const, columns: 1, why: 'a test terminal draws a lone indicator narrow' } } });
     expect(width('\u{1F1E6}')).toBe(1);
