@@ -19,7 +19,7 @@ import { ambientRuntime, run as spawn } from 'bellpull';
 import { checkSurvivors } from './checker.js';
 import type { Unit } from './child.js';
 import { runCommandMutants } from './command-runner.js';
-import { IGNORE_STATIC_REASON, disables, type Options } from './config.js';
+import { IGNORE_STATIC_REASON, STATIC_BUDGET_REASON, disables, type Options } from './config.js';
 import { rangeDisables } from './directives.js';
 import { guardDisk, isClean, type DiskChange } from './diskguard.js';
 import { globToRegExp, matchFiles } from './files.js';
@@ -220,6 +220,7 @@ const verdictOptions = (o: Options): unknown => ({
   excludedMutations: [...o.excludedMutations].sort(),
   ignoreStatic: o.ignoreStatic,
   staticGroup: o.staticGroup,
+  staticBudgetMs: o.staticBudgetMs,
   strykerCompat: o.strykerCompat,
   testOverrides: o.testOverrides,
   vitestConfig: o.vitestConfig && existsSync(o.vitestConfig) ? sha(readFileSync(o.vitestConfig, 'utf8')) : null,
@@ -893,7 +894,12 @@ export async function run(options: Options): Promise<RunResult> {
         if (outcome.killedFor || outcome.crashed) for (const id of unit.staticIds ?? []) if (!decided.has(id)) back.add(id);
         return [];
       };
+      // `static.budgetMs`: no unit starts once it is spent. Units already running finish, so the
+      // phase can end one unit's time past it.
+      const deadline = options.staticBudgetMs === undefined ? Infinity : performance.now() + options.staticBudgetMs;
+      const spent = (): boolean => performance.now() >= deadline;
       const keepUndecided = (unit: Unit): boolean => {
+        if (spent()) return false;
         unit.staticIds = (unit.staticIds ?? []).filter((id) => !killed.has(id) && !back.has(id));
         if (unit.staticGroups) unit.staticGroups = unit.staticGroups.map((g) => g.filter((id) => !killed.has(id) && !back.has(id))).filter((g) => g.length > 0);
         return unit.staticIds.length > 0;
@@ -920,6 +926,11 @@ export async function run(options: Options): Promise<RunResult> {
         } else if (!back.has(m.id) && filesFor(m).every((f) => passed.get(m.id)?.has(f))) {
           m.status = 'Survived';
           m.testsCompleted = ran.get(m.id) ?? 0;
+        } else if (spent()) {
+          // Out of time: not decided, so not scored. It does not go to a fresh worker either, which
+          // would spend the time the budget was set to save.
+          m.status = 'Ignored';
+          m.statusReason = STATIC_BUDGET_REASON;
         } else undecided.push(m);
       }
       return undecided;
