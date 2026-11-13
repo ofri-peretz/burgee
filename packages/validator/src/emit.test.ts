@@ -73,6 +73,49 @@ describe('emit', () => {
     expect(source.split('\n').filter((line) => line.includes('"sku"'))).toHaveLength(1);
   });
 
+  // The text itself, so a bound nobody set is not written and the layout stays readable.
+  it('writes exactly this for a small schema', () => {
+    const small = object({
+      tags: array(string(), { min: 1, max: 3 }),
+      code: string({ pattern: /^a$/ }),
+      any: array(number()),
+      pay: discriminated('kind', { a: object({ kind: literal('a') }), b: object({ kind: literal('b') }) }),
+    });
+    expect(emit(small)).toBe(`(() => {
+const f0 = (v) => {
+  if (!Array.isArray(v) || v.length < 1 || v.length > 3) return false;
+  for (let i = 0; i < v.length; i++) if (!(typeof v[i] === "string")) return false;
+  return true;
+};
+const r1 = /^a$/;
+const f2 = (v) => {
+  if (!Array.isArray(v)) return false;
+  for (let i = 0; i < v.length; i++) if (!(typeof v[i] === "number" && v[i] >= -1.7976931348623157e+308 && v[i] <= 1.7976931348623157e+308)) return false;
+  return true;
+};
+const f3 = (v) => typeof v === "object" && v !== null && !Array.isArray(v)
+  && (v["kind"] === "a");
+const f4 = (v) => typeof v === "object" && v !== null && !Array.isArray(v)
+  && (v["kind"] === "b");
+const f5 = (v) => {
+  if (!(typeof v === "object" && v !== null && !Array.isArray(v))) return false;
+  switch (v["kind"]) {
+    case "a": return f3(v);
+    case "b": return f4(v);
+    default: return false;
+  }
+};
+const f6 = (v) => typeof v === "object" && v !== null && !Array.isArray(v)
+  && (f0(v["tags"]))
+  && (typeof v["code"] === "string" && r1.test(v["code"]))
+  && (f2(v["any"]))
+  && (f5(v["pay"]));
+return (v) => f6(v);
+})()`);
+    expect(emit(string({ min: 0, max: Number.MAX_VALUE }))).toBe('(() => {\n\nreturn (v) => typeof v === "string";\n})()');
+    expect(emit(string({ min: 1, max: 2 }))).toBe('(() => {\n\nreturn (v) => typeof v === "string" && v.length >= 1 && v.length <= 2;\n})()');
+  });
+
   it('is the same text on every run', () => {
     expect(emit(Order)).toBe(emit(Order));
   });
