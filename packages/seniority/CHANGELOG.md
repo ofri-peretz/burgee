@@ -1,5 +1,13 @@
 # seniority
 
+## 2.0.1
+
+### Patch Changes
+
+- [#1548](https://github.com/ofri-peretz/burgee/pull/1548) [`f190400`](https://github.com/ofri-peretz/burgee/commit/f190400f5e759373a662db67062bdd641ad3c8dd) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `seniority/lilconfig` follows lilconfig 3.1.5 (81 / 81, control 81 / 81): a relative `searchFrom` and a relative or slash-ended `stopDir` are resolved against the working directory.
+
+  `seniority/dotenv`'s `dotenv run` follows dotenv 18.0.10 (198 / 198, control 198 / 198). When the command dies from a signal, the signal is re-raised as before. If that does not end the process, it now exits with `128 + signal` a second later instead of hanging. That is the case for a signal Node ignores, such as SIGPIPE (`dotenv run -- cmd | head`).
+
 ## 2.0.0
 
 ### Major Changes
