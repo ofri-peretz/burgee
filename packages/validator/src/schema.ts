@@ -19,6 +19,7 @@ import {
   isInstance,
   isLater,
   isLiteral,
+  isMapped,
   isMember,
   isNothing,
   isNullable,
@@ -26,6 +27,7 @@ import {
   isNumber,
   isObject,
   isRecord,
+  isRefined,
   isString,
   isTuple,
   isTypeOf,
@@ -56,9 +58,11 @@ export type Kind =
   | 'bigint'
   | 'date'
   | 'type'
-  | 'instance';
+  | 'instance'
+  | 'refine'
+  | 'transform';
 
-/** A predicate a node names (spec.md R10). It is the only kind of function a node may hold, beside `check` and `get`. */
+/** A predicate a node names (spec.md R10). Beside `check`, `get` and a transform's map, it is the only kind of function a node may hold. */
 export type Test = (value: unknown) => boolean;
 
 /** A named rule, as data (spec.md R11): a string's format, or the whole of a custom type. One of `pattern` and `test` is set. */
@@ -91,23 +95,23 @@ export interface Node {
   /** What a number must be a multiple of; zero when it need not be. */
   readonly step: number;
   readonly int: boolean;
-  /** On a number: `parse` reads it from a string that is a JSON number. */
+  /** `parse` reads the value from a string: a number from a JSON number, a boolean from `true` or `false`, a date from an RFC 3339 date or date-time. */
   readonly coerce: boolean;
   readonly pattern: RegExp | null;
-  /** A string's format, or a custom type's predicate. */
+  /** A string's format, a custom type's predicate, or a refinement's rule: its name is what the rule expects. */
   readonly rule: Rule | null;
   /**
    * The literal's value; a bigint's two bounds, lowest first; the name `typeof` gives the values of
-   * a `type` node; the class an `instance` node's values are instances of.
+   * a `type` node; the class an `instance` node's values are instances of; a transform's map.
    */
   readonly value: unknown;
-  /** The enum's members; on an object that closes or strips, its keys. */
+  /** The enum's members; on an object that closes or strips, its keys; on a refinement, the keys its rule reads. */
   readonly values: ReadonlySet<unknown> | null;
-  /** The array's element, the record's value, the schema of an object's unnamed keys or of a tuple's items past its last, or what `nullable` and `nullish` wrap. */
+  /** The array's element, the record's value, the schema of an object's unnamed keys or of a tuple's items past its last, or what `nullable`, `nullish`, a refinement or a transform wraps. */
   readonly item: Node | null;
   /** The record's key. */
   readonly key: Node | null;
-  /** The object's keys and, in the same order, their schemas. */
+  /** The object's keys and, in the same order, their schemas; on a refinement, the path its issue is reported at. */
   readonly keys: readonly string[] | null;
   /** An object's fields, a tuple's items, or the members of a union or an intersection. */
   readonly fields: readonly Node[] | null;
@@ -326,7 +330,12 @@ export const number = (options: NumberOptions = {}): Schema<number> => {
   });
 };
 
-export const boolean = (): Schema<boolean> => node('boolean', isBoolean, {});
+export interface BooleanOptions {
+  /** `parse` reads the boolean from the string `true` or `false`, exactly. `check` never does. */
+  readonly coerce?: boolean;
+}
+
+export const boolean = (options: BooleanOptions = {}): Schema<boolean> => node('boolean', isBoolean, { coerce: options.coerce });
 
 export const literal = <const T extends string | number | bigint | boolean | null | undefined>(value: T): Schema<T> =>
   node('literal', isLiteral, { value });
@@ -362,13 +371,34 @@ export interface BigintOptions {
 export const bigint = (options: BigintOptions = {}): Schema<bigint> =>
   node('bigint', isBigint, { value: Object.freeze([options.min ?? Number.NEGATIVE_INFINITY, options.max ?? Number.POSITIVE_INFINITY]) });
 
+export interface DateOptions {
+  /**
+   * `parse` reads the date from a string that is, whole, an RFC 3339 date-time (`2020-01-01T00:00:00Z`,
+   * with any offset and any fraction) or full-date (`2020-01-01`, read as midnight UTC). `check` never does.
+   */
+  readonly coerce?: boolean;
+}
+
 /** A `Date` that is a time: `new Date(NaN)` fails, and so does a string or a number that could be read as one. */
-export const date = (): Schema<Date> => node('date', isDate, {});
+export const date = (options: DateOptions = {}): Schema<Date> => node('date', isDate, { coerce: options.coerce });
 
 export const symbol = (): Schema<symbol> => node('type', isTypeOf, { value: 'symbol' });
 
+/**
+ * Any function. What it takes and returns is not checked, since that cannot be known without
+ * calling it: typebox reads a function schema the same way, and zod, valibot and arktype wrap the
+ * function to check each call, which is another thing than validating a value.
+ */
+export const func = (): Schema<(...args: never[]) => unknown> => node('type', isTypeOf, { value: 'function' });
+
 /** A value made by `new` of a class, or of one that extends it. The emitted code takes the class as a hook: text cannot hold it. */
 export const instanceOf = <T>(type: abstract new (...args: never[]) => T): Schema<T> => node('instance', isInstance, { value: type });
+
+/**
+ * A `Promise`. What it resolves to is not checked: that is only known later, and `check` answers
+ * now. valibot, arktype and typebox read a promise schema the same way.
+ */
+export const promise = (): Schema<Promise<unknown>> => node('instance', isInstance, { value: Promise });
 
 /** Accepts every value. `any` is the same node with the type that switches checking off. */
 export const unknown = (): Schema<unknown> => node('unknown', isAnything, {});
@@ -422,9 +452,10 @@ export const recordOf = <const K extends string, V, O>(keys: readonly K[], value
 
 export interface OptionalOptions<T> {
   /**
-   * What `parse` puts where the value is absent or `undefined`. It is handed out as it is, never
-   * copied and never checked: freeze an object you give here. `check` and the inferred type still
-   * describe the input, where the key may be absent.
+   * What `parse` puts where the value is absent or `undefined`. It stands for the input that was
+   * not there, so it is then read as an input is: coerced, filled and mapped by this schema where
+   * the schema does those things, and otherwise handed out as it is, uncopied. Freeze an object
+   * you give here. `check` and the input type still describe the input, where the key may be absent.
    */
   readonly default?: T;
 }
@@ -546,3 +577,43 @@ export const custom = <T>(name: string, test: Test): Schema<T> =>
 /** The same schema with a title, a description or examples on it. Nothing that validates reads them. */
 export const annotate = <S extends AnySchema>(schema: S, meta: Meta): S =>
   Object.freeze({ ...schema, meta: Object.freeze({ ...schema.meta, ...meta }) });
+
+export interface RefineOptions<K extends string = string> {
+  /** Where under the value the issue is reported: the keys that lead there. The value itself when there are none. */
+  readonly path?: readonly (string | number)[];
+  /** What the rule expects, for the issue: it reads "expected <message>, got …". */
+  readonly message?: string;
+  /**
+   * The keys of the object that the rule reads. With them the rule runs whenever those fields are
+   * sound, whatever is wrong with the others, and is handed a value typed with those keys alone.
+   * Without them it runs only on a value that is sound all through.
+   */
+  readonly uses?: readonly K[];
+}
+
+/**
+ * The schema, and a rule of your own on top of it (spec.md R10). The rule is handed what the
+ * schema accepted, so it can rely on the type; it returns true for a value it allows.
+ *
+ * A rule across fields, such as "the two passwords match", names the fields it reads in `uses`
+ * and the field to report at in `path`. It is then run and reported even when another field of the
+ * object is wrong, so one `issues` call says everything there is to fix.
+ */
+export const refine = <T, O, const K extends keyof T & string = never>(
+  schema: Schema<T, O>,
+  test: (value: NoInfer<[K] extends [never] ? T : Pick<T, K>>) => boolean,
+  options: RefineOptions<K> = {},
+): Schema<T, O> =>
+  node('refine', isRefined, {
+    item: schema,
+    rule: Object.freeze({ name: options.message ?? 'a value the rule accepts', pattern: null, test: test as Test }),
+    keys: (options.path ?? []).map(String),
+    values: options.uses === undefined ? null : new Set(options.uses),
+  });
+
+/**
+ * The schema, and a function that makes of what it accepts what `parse` hands out (spec.md R10).
+ * `check`, `issues` and the input type describe what goes in; only `parse` runs the function, and
+ * only on a value the whole schema accepted.
+ */
+export const transform = <T, M, R>(schema: Schema<T, M>, map: (value: Out<T, M>) => R): Schema<T, R> => node('transform', isMapped, { item: schema, value: map });

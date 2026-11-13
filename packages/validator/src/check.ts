@@ -213,6 +213,12 @@ const isLater = (schema: Node, value: unknown): boolean => run((schema.get as ()
 
 const isCustom = (schema: Node, value: unknown): boolean => ((schema.rule as Rule).test as Test)(value) === true;
 
+/** What the schema accepts, and of that what its rule allows. The rule is asked only about a value the schema accepted. */
+const isRefined = (schema: Node, value: unknown): boolean => run(schema.item as Node, value) && ((schema.rule as Rule).test as Test)(value) === true;
+
+/** A transform describes what goes in: `check` asks the schema it wraps, and never runs the map. */
+const isMapped = (schema: Node, value: unknown): boolean => run(schema.item as Node, value);
+
 /** Whether `value` is what the schema describes. A type guard, so a passing check narrows. */
 const check = <T>(schema: Schema<T, unknown>, value: unknown): value is T => schema.check(schema, value);
 
@@ -230,6 +236,7 @@ export {
   isInstance,
   isLater,
   isLiteral,
+  isMapped,
   isMember,
   isMultiple,
   isNothing,
@@ -238,6 +245,7 @@ export {
   isNumber,
   isObject,
   isRecord,
+  isRefined,
   isString,
   isTuple,
   isTypeOf,

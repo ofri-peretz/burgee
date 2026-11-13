@@ -7,31 +7,41 @@ export interface Issue {
   /**
    * What failed: `type`, `min`, `max`, `gt`, `lt`, `integer`, `multipleOf`, `pattern`, `format`,
    * `literal`, `enum`, `required`, `unknown`, `key`, `length`, `tag`, `union`, `never`, `custom`,
-   * `date`, `instance`, `undefined`.
+   * `date`, `instance`, `undefined`, `refine`.
    */
   readonly keyword: string;
   /** What was expected and what arrived, ending in a `fix:` line. */
   readonly message: string;
 }
 
+/** One failed expectation at one place, before it is put into words: what a message is made from. */
+export interface Miss {
+  readonly path: string;
+  readonly keyword: string;
+  /** What was expected, in English: the message reads "expected <expected>, got …". */
+  readonly expected: string;
+  /** The value that arrived. */
+  readonly got: unknown;
+  /** What to do about it, in English: the message ends "fix: <fix>". */
+  readonly fix: string;
+}
+
 export interface IssueOptions {
   /** Stop at the first issue. */
   readonly first?: boolean;
+  /**
+   * The message for an issue, in your words or your language. It is asked about every issue of
+   * every schema, and what it returns is the whole message. Where it returns nothing the message
+   * stays as it was, with its `fix:` line: a map can cover the keywords it knows and leave the rest.
+   */
+  readonly message?: (miss: Miss) => string | null | undefined;
 }
 
 /** Where the walk is, and where it writes. */
 interface Walk {
   readonly found: Issue[];
   readonly first: boolean;
-}
-
-/** One failed expectation at one place. */
-interface Miss {
-  readonly path: string;
-  readonly keyword: string;
-  readonly expected: string;
-  readonly got: unknown;
-  readonly fix: string;
+  readonly message: IssueOptions['message'];
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -59,7 +69,7 @@ const received = (value: unknown): string => {
 const token = (key: string | number): string => `/${String(key).replaceAll('~', '~0').replaceAll('/', '~1')}`;
 
 const add = (walk: Walk, miss: Miss): void => {
-  walk.found.push({ path: miss.path, keyword: miss.keyword, message: `expected ${miss.expected}, got ${received(miss.got)}. fix: ${miss.fix}` });
+  walk.found.push({ path: miss.path, keyword: miss.keyword, message: walk.message?.(miss) ?? `expected ${miss.expected}, got ${received(miss.got)}. fix: ${miss.fix}` });
 };
 
 const full = (walk: Walk): boolean => walk.first && walk.found.length > 0;
@@ -236,7 +246,7 @@ const union = (walk: Walk, schema: Node, got: unknown, path: string): void => {
   const misses: string[] = [];
   for (const [index, member] of members.entries()) {
     // Stryker disable next-line BooleanLiteral: equivalent, only the member's first issue is read; stopping there saves finding the rest
-    const inner: Walk = { found: [], first: true };
+    const inner: Walk = { found: [], first: true, message: undefined };
     visit(inner, member, got, path);
     const [miss] = inner.found;
     if (miss === undefined) return;
@@ -281,6 +291,35 @@ const instance = (walk: Walk, schema: Node, got: unknown, path: string): void =>
   if (!(got instanceof type)) add(walk, { path, keyword: 'instance', expected: `an instance of ${type.name}`, got, fix: `send one made by ${type.name}` });
 };
 
+/** Whether an issue found inside a refined value is one that keeps its rule from running: at the value itself, or at or under a key the rule reads. */
+const blocks = (issue: Issue, path: string, uses: ReadonlySet<unknown>): boolean => {
+  const under = issue.path.slice(path.length);
+  // What is left is empty, or starts with the reference token of a key of the value: "/a" in "/a/0/b".
+  const end = under.indexOf('/', 1);
+  const head = end === -1 ? under : under.slice(0, end);
+  return head === '' || new Set([...uses].map((name) => token(name as string))).has(head);
+};
+
+/**
+ * The wrapped schema's issues, and then the rule's own. The rule is asked only about what it can
+ * rely on: a value with no issue at all, or, when it names the keys it reads, one with no issue at
+ * those keys. So a rule across two fields still speaks when a third is wrong.
+ */
+const refined = (walk: Walk, schema: Node, got: unknown, path: string): void => {
+  const before = walk.found.length;
+  visit(walk, schema.item as Node, got, path);
+  const inside = walk.found.slice(before);
+  const uses = schema.values;
+  if (full(walk) || (inside.length > 0 && (uses === null || inside.some((issue) => blocks(issue, path, uses))))) return;
+  const { name, test } = schema.rule as Rule;
+  if ((test as Test)(got) === true) return;
+  add(walk, { path: path + (schema.keys as readonly string[]).map(token).join(''), keyword: 'refine', expected: name, got, fix: 'change the value so that the rule holds' });
+};
+
+const mapped = (walk: Walk, schema: Node, got: unknown, path: string): void => {
+  visit(walk, schema.item as Node, got, path);
+};
+
 /** One reader per kind. A table and not a `switch`: the kinds are data, and only a program that imports `issues` carries it. */
 const READERS: Readonly<Record<Kind, (walk: Walk, schema: Node, got: unknown, path: string) => void>> = {
   string,
@@ -305,6 +344,8 @@ const READERS: Readonly<Record<Kind, (walk: Walk, schema: Node, got: unknown, pa
   date,
   type: typed,
   instance,
+  refine: refined,
+  transform: mapped,
 };
 
 function visit(walk: Walk, schema: Node, got: unknown, path: string): void {
@@ -316,7 +357,7 @@ function visit(walk: Walk, schema: Node, got: unknown, path: string): void {
  * exactly when `check` says yes.
  */
 export const issues = <T>(schema: Schema<T, unknown>, value: unknown, options: IssueOptions = {}): Issue[] => {
-  const walk: Walk = { found: [], first: options.first === true };
+  const walk: Walk = { found: [], first: options.first === true, message: options.message };
   visit(walk, schema, value, '');
   return walk.found;
 };

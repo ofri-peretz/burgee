@@ -147,7 +147,7 @@ const array = (emitter: Emitter, schema: Node): string => {
  * whatever its schema would say of `undefined` (`check` asks that first), so for these the text
  * asks it too; for every other kind the kind's test already refuses `undefined`.
  */
-const UNDEFINED_MAY_PASS: ReadonlySet<Kind> = new Set(['unknown', 'nullable', 'nullish', 'union', 'intersection', 'lazy', 'custom']);
+const UNDEFINED_MAY_PASS: ReadonlySet<Kind> = new Set(['unknown', 'nullable', 'nullish', 'union', 'intersection', 'lazy', 'custom', 'refine', 'transform']);
 
 /** Whether a field's own test can be true of `undefined`: one of those kinds, or the literal `undefined`. */
 const mayPassUndefined = (field: Node): boolean => UNDEFINED_MAY_PASS.has(field.kind) || (field.kind === 'literal' && field.value === undefined);
@@ -295,6 +295,9 @@ const WRITERS: Readonly<Record<Kind, (emitter: Emitter, schema: Node, ref: strin
   date: (_, __, ref) => `(${ref} instanceof Date && !Number.isNaN(${ref}.getTime()))`,
   type: (_, schema, ref) => `typeof ${ref} === ${literal(schema.value)}`,
   instance,
+  refine: (emitter, schema, ref) => `((${test(emitter, schema.item as Node, ref)}) && ${tested(emitter, schema.rule as Rule)}(${ref}) === true)`,
+  // A transform describes what goes in, so its test is the test of what it wraps: the map is `parse`'s to run.
+  transform: (emitter, schema, ref) => test(emitter, schema.item as Node, ref),
 };
 
 function test(emitter: Emitter, schema: Node, ref: string): string {
@@ -312,8 +315,8 @@ const write = (schema: Node): { body: string; hooks: readonly unknown[] } => {
  * JavaScript for a function `(value) => boolean` that answers what `check(schema, value)` answers.
  * It is one expression, so `export const isOrder = ${emit(Order)};` is a module.
  *
- * A schema that names a function (a custom type, a class to be an instance of, or a format with a
- * test) has no such text: text cannot hold a function. `emitWith` is for those.
+ * A schema that names a function (a custom type, a refinement, a class to be an instance of, or a
+ * format with a test) has no such text: text cannot hold a function. `emitWith` is for those.
  */
 const emit = <T>(schema: Schema<T, unknown>): string => {
   const { body, hooks } = write(schema);
