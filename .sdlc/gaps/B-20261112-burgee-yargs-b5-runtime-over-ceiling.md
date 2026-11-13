@@ -69,7 +69,8 @@ fresh processes (per-process spread 0.7–1.9), but it agrees on the fix: main 1
 fix 0.923 (0.850–1.028), nine interleaved B5 processes each.
 
 **The fix.** `argsert` parses each usage string once (`usageOf` in `packages/burgee/src/yargs/utils.ts`),
-frozen and capped at 256 entries. parse-command itself keeps #1407's linear helpers, so
+cached and capped at 256 entries, for +80 B bundled and +180 B on each static walk
+(D-20261113-yargs-argsert-usage-cache-bytes). parse-command itself keeps #1407's linear helpers, so
 `utils.test.ts`' growth locks still hold. yargs' suite grades the façade 816 / 816 and yargs 17's
 793 / 794, both unchanged against the baseline.
 

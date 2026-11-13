@@ -96,29 +96,19 @@ const positionName = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth'];
  * and every builder method calls `argsert`: the B5 workload's one `parseSync()` of a 21-option
  * program ran parse-command 70 times to parse the same few string literals again. #1407 made each
  * of those calls dearer in a fresh process (a regex split per word where there had been a
- * character loop, and a typed array per call), and B5's `burgee/yargs ÷
- * yargs` stepped from 1.07 to 1.13 on GitHub's x64 runners; parsed once, it reads 0.82
- * (B-20261112-burgee-yargs-b5-runtime-over-ceiling). The parse is frozen because every later call
- * shares it; the cache stops growing at `USAGE_CACHE_MAX`, since `argsert` is exported and a
- * program could hand it strings without end.
+ * character loop, and a typed array per call), and B5's `burgee/yargs ÷ yargs` stepped from 1.07
+ * to 1.13 on GitHub's x64 runners; parsed once, it reads 0.82
+ * (B-20261112-burgee-yargs-b5-runtime-over-ceiling). `argsert` only reads the parse, so every
+ * call shares it. The cache stops at 256 strings, since `argsert` is exported and a program could
+ * hand it strings without end; the ports' own usage strings are a few dozen.
  */
 const usages = new Map<string, ParsedCommand>();
-const USAGE_CACHE_MAX = 256;
-const NO_USAGE: ParsedCommand = Object.freeze({ cmd: '', demanded: Object.freeze([]) as unknown as Positional[], optional: Object.freeze([]) as unknown as Positional[] });
-
-export function usageOf(usage: string): ParsedCommand {
-  const cached = usages.get(usage);
-  if (cached !== undefined) return cached;
-  const { cmd, demanded, optional } = parseCommand(`cmd ${usage}`);
-  const freeze = (ps: Positional[]): Positional[] => Object.freeze(ps.map((p) => Object.freeze({ cmd: Object.freeze(p.cmd) as string[], variadic: p.variadic }))) as Positional[];
-  const parsed: ParsedCommand = Object.freeze({ cmd, demanded: freeze(demanded), optional: freeze(optional) });
-  if (usages.size < USAGE_CACHE_MAX) usages.set(usage, parsed);
-  return parsed;
-}
+export const usageOf = (usage: string): ParsedCommand =>
+  usages.get(usage) ?? (usages.size < 256 ? (usages.set(usage, parseCommand(`cmd ${usage}`)).get(usage) as ParsedCommand) : parseCommand(`cmd ${usage}`));
 
 export function argsert(arg1: string | any[], arg2?: any, arg3?: number): void {
   function parseArgs(): [ParsedCommand, any, number | undefined] {
-    return typeof arg1 === 'object' ? [NO_USAGE, arg1, arg2] : [usageOf(arg1), arg2, arg3];
+    return typeof arg1 === 'object' ? [{ cmd: '', demanded: [], optional: [] }, arg1, arg2] : [usageOf(arg1), arg2, arg3];
   }
   try {
     let position = 0;

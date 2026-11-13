@@ -58,13 +58,11 @@ describe('argsert parses each usage string once, not once per call', () => {
     expect(tokenisations(parse)).toBe(0);
   });
 
-  it('the shared parse is the one parse-command gives, and frozen, so no call can change it for the next', () => {
+  it('the shared parse is the one parse-command gives, handed out again rather than parsed again', () => {
     const usage = '<string|object> [object|boolean]';
     const parsed = usageOf(usage);
     expect(usageOf(usage)).toBe(parsed);
     expect(parsed).toEqual(parseCommand(`cmd ${usage}`));
-    expect(Object.isFrozen(parsed)).toBe(true);
-    expect(Object.isFrozen(parsed.demanded[0]?.cmd)).toBe(true);
   });
 
   it('argsert still refuses the wrong type and the wrong count, as yargs words it', () => {
