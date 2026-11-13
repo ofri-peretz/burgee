@@ -170,15 +170,26 @@ resolves without a code change too:
 { "overrides": { "string-width": "npm:linegauge@^2" } }
 ```
 
+**On string-width 8?** The root follows string-width 9.0.0, which rewrote how a cluster is
+measured: a lone regional indicator, a run of Hangul jamo, an Indic conjunct, a stray skin tone
+and a wide emoji with `U+FE0E` all moved. `linegauge/v8` is 8.3.0's measurement, graded by its
+own suite, for a project that pins 8 — and what `slice`, `wrap`, `truncate` and `widest` cut by,
+because slice-ansi 10, wrap-ansi 10 and cli-truncate 6 still resolve string-width 8:
+
+```diff
+- import stringWidth from 'string-width'; // ^8
++ import stringWidth from 'linegauge/v8';
+```
+
 Or let the codemod make the import change: `npx burgee migrate --dry-run` lists every import it
 would rewrite — only drop-ins graded level with their incumbent — and `npx burgee migrate` makes
 it ([Migrate](https://burgee.interlace.tools/docs/migrate)).
 
 ## Compatibility
 
-The incumbent is the specification. `width` runs against `string-width`, `wrap` against
-`wrap-ansi`, `slice` against `slice-ansi`, and the `cli-truncate` and `widest-line` paths
-against their namesakes.
+The incumbent is the specification. `width` runs against `string-width` 9.0.0 (466 / 466),
+`linegauge/v8` against string-width 8.3.0 (233 / 233), `wrap` against `wrap-ansi`, `slice`
+against `slice-ansi`, and the `cli-truncate` and `widest-line` paths against their namesakes.
 
 The six drop-in paths are graded by each incumbent's own suite, unedited, through
 `compat-oracle`; the grades are generated under *Benchmarks* below and published on the
@@ -198,12 +209,12 @@ Graded by the incumbent's own test suite:
 | :-- | --: |
 | `cli-truncate` | 17 / 17 |
 | `slice-ansi` | 129 / 129 |
-| `string-width` | 233 / 233 |
+| `string-width` | 466 / 466 |
 | `strip-ansi` | 8 / 8 |
 | `widest-line` | 1 / 1 |
 | `wrap-ansi` | 85 / 85 |
 
-Weight, installed and tree-inclusive: **108,568 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.5587** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
+Weight, installed and tree-inclusive: **116,829 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.6012** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## For agents
 

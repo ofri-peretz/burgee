@@ -591,7 +591,13 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // ended by ST, the digit-final escapes, the Linux palette and a cancelled OSC — five branches
   // where 6.5.0 had three. CI read 5,925 and 572 on the pull request; each rounded up to the next
   // 50. Both entries stay lighter than the incumbent (`lighter-than-strip-ansi`, 0.767).
-  linegauge: 5_950,
+  //
+  // **2026-11-13 (D-20261113-string-width-9): `linegauge` 5,950 → 6,800.** The root follows
+  // string-width 9.0.0 (466 / 466): `width9.ts` carries 9's per-cluster rules and a prefix and
+  // suffix of code units that stand alone (ASCII, Latin-1, kana, Han, Hangul syllables) counted
+  // without the segmenter. Measured 6,674 on darwin against string-width 9.0.0's 6,845 (0.975),
+  // plus the 80 B CI margin, rounded up to the next 50. Still lighter than the incumbent.
+  linegauge: 6_800,
 
   'linegauge/wrap': 11_560,
 

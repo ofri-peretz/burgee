@@ -28,7 +28,7 @@
 <p align="center">
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/cli--truncate%20suite-17%2F17-0a6b47?style=flat-square" alt="linegauge passes 17 of 17 cases of the cli-truncate test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/slice--ansi%20suite-129%2F129-0a6b47?style=flat-square" alt="linegauge/slice passes 129 of 129 cases of the slice-ansi test suite" /></a>
-  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/string--width%20suite-233%2F233-0a6b47?style=flat-square" alt="linegauge passes 233 of 233 cases of the string-width test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/string--width%20suite-466%2F466-0a6b47?style=flat-square" alt="linegauge passes 466 of 466 cases of the string-width test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/strip--ansi%20suite-8%2F8-0a6b47?style=flat-square" alt="linegauge/strip passes 8 of 8 cases of the strip-ansi test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/widest--line%20suite-1%2F1-0a6b47?style=flat-square" alt="linegauge passes 1 of 1 cases of the widest-line test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/wrap--ansi%20suite-85%2F85-0a6b47?style=flat-square" alt="linegauge/wrap passes 85 of 85 cases of the wrap-ansi test suite" /></a>
@@ -206,15 +206,26 @@ resolves without a code change too:
 { "overrides": { "string-width": "npm:linegauge@^2" } }
 ```
 
+**On string-width 8?** The root follows string-width 9.0.0, which rewrote how a cluster is
+measured: a lone regional indicator, a run of Hangul jamo, an Indic conjunct, a stray skin tone
+and a wide emoji with `U+FE0E` all moved. `linegauge/v8` is 8.3.0's measurement, graded by its
+own suite, for a project that pins 8 — and what `slice`, `wrap`, `truncate` and `widest` cut by,
+because slice-ansi 10, wrap-ansi 10 and cli-truncate 6 still resolve string-width 8:
+
+```diff
+- import stringWidth from 'string-width'; // ^8
++ import stringWidth from 'linegauge/v8';
+```
+
 Or let the codemod make the import change: `npx burgee migrate --dry-run` lists every import it
 would rewrite — only drop-ins graded level with their incumbent — and `npx burgee migrate` makes
 it ([Migrate](https://burgee.interlace.tools/docs/migrate)).
 
 ## Compatibility
 
-The incumbent is the specification. `width` runs against `string-width`, `wrap` against
-`wrap-ansi`, `slice` against `slice-ansi`, and the `cli-truncate` and `widest-line` paths
-against their namesakes.
+The incumbent is the specification. `width` runs against `string-width` 9.0.0 (466 / 466),
+`linegauge/v8` against string-width 8.3.0 (233 / 233), `wrap` against `wrap-ansi`, `slice`
+against `slice-ansi`, and the `cli-truncate` and `widest-line` paths against their namesakes.
 
 The six drop-in paths are graded by each incumbent's own suite, unedited, through
 `compat-oracle`; the grades are generated under *Benchmarks* below and published on the
@@ -234,12 +245,12 @@ Graded by the incumbent's own test suite:
 | :-- | --: |
 | `cli-truncate` | 17 / 17 |
 | `slice-ansi` | 129 / 129 |
-| `string-width` | 233 / 233 |
+| `string-width` | 466 / 466 |
 | `strip-ansi` | 8 / 8 |
 | `widest-line` | 1 / 1 |
 | `wrap-ansi` | 85 / 85 |
 
-Weight, installed and tree-inclusive: **108,568 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.5587** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
+Weight, installed and tree-inclusive: **116,829 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.6012** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## For agents
 

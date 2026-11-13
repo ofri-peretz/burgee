@@ -1,6 +1,6 @@
 ---
 title: Coming from string-width
-description: "A string-width alternative with zero dependencies: linegauge's default export is string-width, graded 233 / 233 by its own suite — plus wrap-ansi, strip-ansi and slice-ansi paths, grapheme-correct over Intl.Segmenter and pure, so a pipe and a terminal get the same columns."
+description: "A string-width alternative with zero dependencies: linegauge's default export is string-width, graded 466 / 466 by string-width 9.0.0's own suite, with linegauge/v8 for string-width 8 — plus wrap-ansi, strip-ansi and slice-ansi paths, grapheme-correct over Intl.Segmenter and pure, so a pipe and a terminal get the same columns."
 ---
 
 **linegauge** is a **string-width alternative** you adopt by changing one import. Its default
@@ -18,7 +18,8 @@ It also answers the questions string-width's neighbours do, one subpath each:
 
 | Incumbent | linegauge path |
 | :-- | :-- |
-| `string-width` | `linegauge` (the default export) |
+| `string-width` 9 | `linegauge` (the default export) |
+| `string-width` 8 | `linegauge/v8` (the default export) |
 | `strip-ansi` | `linegauge/strip` |
 | `wrap-ansi` | `linegauge/wrap` |
 | `slice-ansi` | `linegauge/slice` |
@@ -35,13 +36,56 @@ real package:
 
 | | linegauge | control |
 | :-- | --: | --: |
-| `string-width` → `linegauge` | 233 / 233 | 233 / 233 |
+| `string-width` 9.0.0 → `linegauge` | 466 / 466 | 466 / 466 |
+| `string-width` 8.3.0 → `linegauge/v8` | 233 / 233 | 233 / 233 |
 | `strip-ansi` → `linegauge/strip` | 8 / 8 | 8 / 8 |
 | `wrap-ansi` → `linegauge/wrap` | 85 / 85 | 85 / 85 |
-| `slice-ansi` → `linegauge/slice` | 106 / 106 | 106 / 106 |
+| `slice-ansi` → `linegauge/slice` | 129 / 129 | 129 / 129 |
 
 From [Compatibility](https://burgee.interlace.tools/docs/compatibility), which `npm run compat:page` generates from the
 oracle's last run; that page is the authority.
+
+## string-width 9 or string-width 8
+
+string-width 9.0.0 (2026-11-11) rewrote how a grapheme cluster is measured, and the root follows
+it. These moved:
+
+- a lone regional indicator and a digit with `U+FE0F`: now two columns;
+- a run of Hangul jamo: now one syllable block;
+- an Indic conjunct, and Thai or Lao AM: every visible code point counts;
+- a stray skin tone: a two-column swatch;
+- a wide emoji with `U+FE0E`: one column;
+- a lone surrogate: drawn as `U+FFFD`;
+- `U+0600` ARABIC NUMBER SIGN: one column before a narrow glyph.
+
+A project pinned to 8 imports `linegauge/v8`, which measures as 8.3.0 does. `npx burgee
+migrate` picks the entry from the major you are on.
+
+slice-ansi 10, wrap-ansi 10 and cli-truncate 6 still depend on string-width 8, and
+slice-ansi's suite asserts 8's answers. So `linegauge/slice`, `linegauge/wrap`, `truncate` and
+`widest` measure with `linegauge/v8`, and burgee, caique, controlroom and flagstaff do too. Each
+surface measures as the incumbent it replaces.
+
+## Lighter and faster than string-width 9
+
+Measured by `npm run bench` against string-width 9.0.0 on darwin arm64, Node 24.13.0, on a
+loaded machine. The [benchmarks page](https://burgee.interlace.tools/docs/benchmarks) holds
+the published run.
+
+| | linegauge | string-width 9.0.0 |
+| :-- | --: | --: |
+| one symbol, bundled and minified | 6,674 B | 6,845 B |
+| installed, with dependencies | 116,829 B, one package | 45,582 B, four packages |
+| 1,000 mixed lines (runtime ratio) | 0.749 | 1 |
+| cold start | 40.4 ms | 57.45 ms |
+
+The runtime gain comes from the segmenter. string-width 9 skips `Intl.Segmenter` for the
+printable ASCII at each end of a string. linegauge also skips it for the Latin-1, kana, Han and
+Hangul syllables at each end, so a line of Japanese is never segmented.
+
+Installed, linegauge is the larger package, because it also ships the strip-ansi, wrap-ansi,
+slice-ansi, cli-truncate and widest-line drop-ins. Against all six incumbents together it is the
+lighter tree. The ratio is on the [linegauge](/docs) page.
 
 string-width's options carry over under their own names and defaults. Ambiguous-width
 characters count narrow unless you pass `ambiguousIsNarrow: false`, which counts them two
