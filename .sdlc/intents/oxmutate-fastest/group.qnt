@@ -73,3 +73,5 @@ module groupLoop {
 
 module auditAll { import groupLoop(AUDIT_ALL = true).* }
 module auditNone { import groupLoop(AUDIT_ALL = false).* }
+// The module the workflow's sweep runs for every model (`--invariant=safety`, main named after the file): the shipped design.
+module group { import groupLoop(AUDIT_ALL = true).* }
