@@ -25,6 +25,16 @@
       "import": "./dist/jit.js",
       "default": "./dist/jit.js"
     },
+    "./formats": {
+      "types": "./dist/formats.d.ts",
+      "import": "./dist/formats.js",
+      "default": "./dist/formats.js"
+    },
+    "./json-schema": {
+      "types": "./dist/json-schema.d.ts",
+      "import": "./dist/json-schema.js",
+      "default": "./dist/json-schema.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

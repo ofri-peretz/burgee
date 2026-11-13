@@ -1,6 +1,9 @@
+import { readFileSync } from 'node:fs';
+
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import {
+  type AnySchema,
   array,
   boolean,
   check,
@@ -78,6 +81,17 @@ describe('a schema is data', () => {
     }
   });
 
+  // parity.md: a bundle carries only the kinds its schemas use. The node brings its kind's check,
+  // so the interpreter must never name the kinds: one `switch` over them puts every kind in every bundle.
+  it('carries its own check, which captures nothing and is shared by every node of the kind', () => {
+    expect(string().check).toBe(string({ min: 1 }).check);
+    expect(string().check).not.toBe(number().check);
+    expect(optional(Item).check).toBe(Item.check);
+    expect(string().check(string({ min: 2 }), 'ab')).toBe(true);
+    expect(string().check(string({ min: 2 }), 'a')).toBe(false);
+    expect(readFileSync(`${import.meta.dirname}/check.ts`, 'utf8')).not.toMatch(/\bswitch\b|\.kind\b/u);
+  });
+
   it('refuses a pattern that keeps state between tests', () => {
     expect(() => string({ pattern: /a/g })).toThrow('fix: remove its g and y flags');
     expect(() => string({ pattern: /a/y })).toThrow(TypeError);
@@ -88,7 +102,7 @@ describe('a schema is data', () => {
     const cases: Record<string, typeof Item> = { a: Item };
     const schema = discriminated('kind', cases);
     cases.b = Item;
-    expect(Object.keys(schema.cases ?? {})).toEqual(['a']);
+    expect([...(schema.cases ?? new Map<unknown, unknown>()).keys()]).toEqual(['a']);
   });
 });
 
@@ -99,7 +113,7 @@ const WRONG: [string, (v: ReturnType<typeof valid>) => void, string, string, str
   ['too short', (v) => (v.id = ''), '/id', 'min', 'expected at least 1 characters, got string "". fix: send 1 or more'],
   ['a pattern miss', (v) => (v.email = 'ada'), '/email', 'pattern', String.raw`expected a string matching /^[^@\s]+@[^@\s]+\.[a-z]+$/, got string "ada". fix: send a value the pattern accepts`],
   ['not a number', (v) => (v.age = '36'), '/age', 'type', 'expected a number, got string "36". fix: send a finite number'],
-  ['NaN', (v) => (v.age = Number.NaN), '/age', 'type', 'expected a number, got number null. fix: send a finite number'],
+  ['NaN', (v) => (v.age = Number.NaN), '/age', 'type', 'expected a number, got number NaN. fix: send a finite number'],
   ['below the minimum', (v) => (v.age = -1), '/age', 'min', 'expected a number of at least 0, got number -1. fix: send 0 or more'],
   ['above the maximum', (v) => (v.age = 151), '/age', 'max', 'expected a number of at most 150, got number 151. fix: send 150 or less'],
   ['a fraction', (v) => (v.age = 1.5), '/age', 'integer', 'expected a whole number, got number 1.5. fix: drop the fraction'],
@@ -119,6 +133,8 @@ const WRONG: [string, (v: ReturnType<typeof valid>) => void, string, string, str
   ['the right case, wrong inside', (v) => (v.payment = { kind: 'card', last4: '424' }), '/payment/last4', 'min', 'expected at least 4 characters, got string "424". fix: send 4 or more'],
   ['a string too long', (v) => (v.payment = { kind: 'card', last4: '42424' }), '/payment/last4', 'max', 'expected at most 4 characters, got string "42424". fix: send 4 or fewer'],
 ];
+
+const neverPrinted = (): string => 'its source is never printed';
 
 describe('check and issues', () => {
   it('accept the valid order, with and without its optional key, and with keys the schema does not name', () => {
@@ -164,7 +180,7 @@ describe('check and issues', () => {
       [number({ min: 0 }), 0],
       [string(), ''],
       [array(string()), []],
-    ] as [Schema<unknown>, unknown][]) {
+    ] as [AnySchema, unknown][]) {
       expect(check(schema, value)).toBe(true);
       expect(issues(schema, value)).toEqual([]);
     }
@@ -190,6 +206,36 @@ describe('check and issues', () => {
     expect(check(literal(1), '1')).toBe(false);
     expect(check(literal(1), 1)).toBe(true);
     expect(issues(literal(1), '1')).toEqual([{ path: '', keyword: 'literal', message: 'expected 1, got string "1". fix: send 1' }]);
+  });
+
+  // The probes of 2026-11-13 found `issues` throwing on a bigint: it printed what arrived with JSON.stringify.
+  it.each<[string, unknown, string]>([
+    ['a bigint', 1n, 'bigint 1'],
+    ['a symbol', Symbol('x'), 'symbol Symbol(x)'],
+    ['a function', neverPrinted, 'a function'],
+    ['a class', class Named {}, 'a function'],
+    ['undefined', undefined, 'undefined undefined'],
+    ['a boolean', true, 'boolean true'],
+    ['a date', new Date(0), 'an object'],
+    ['a string of exactly the most a message quotes', 'x'.repeat(80), `string "${'x'.repeat(80)}"`],
+    ['a longer string', `${'x'.repeat(80)}yz`, `string "${'x'.repeat(80)}" and 2 more characters`],
+    ['a string with a quote in it', 'a"b', String.raw`string "a\"b"`],
+    ['a long bigint', 10n ** 99n, `bigint 1${'0'.repeat(79)} and 20 more characters`],
+  ])('say what arrived when it is %s, without throwing', (_, value, text) => {
+    expect(check(number(), value)).toBe(false);
+    expect(issues(number(), value)).toEqual([{ path: '', keyword: 'type', message: `expected a number, got ${text}. fix: send a finite number` }]);
+  });
+
+  it('never walk an object to say what arrived, so one that holds itself is safe', () => {
+    const cyclic: Record<string, unknown> = {};
+    cyclic.self = cyclic;
+    const list: unknown[] = [];
+    list.push(list);
+    expect(issues(string(), cyclic)).toEqual([{ path: '', keyword: 'type', message: 'expected a string, got an object. fix: send a string' }]);
+    expect(issues(string(), list)).toEqual([{ path: '', keyword: 'type', message: 'expected a string, got an array. fix: send a string' }]);
+    expect(issues(object({ self: object({ self: string() }) }), cyclic)).toEqual([
+      { path: '/self/self', keyword: 'type', message: 'expected a string, got an object. fix: send a string' },
+    ]);
   });
 
   it('escape a key in the path as JSON Pointer does', () => {

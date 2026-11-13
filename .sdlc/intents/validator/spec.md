@@ -53,6 +53,11 @@ instantiations against Zod's 330,444, check time level at 0.89 s and 0.88 s. Bot
 readings from throwaway scripts on one compiler; `baseline.ts` under 5.9, 6.0 and 7.0 is owed
 before either is a claim.
 
+**Parity comes before any comparison** (owner, 2026-11-13): [`parity.md`](./parity.md) has the
+measured feature matrix (34 of 154 today), the build list in waves, the twelve semantic defaults and
+the benchmark's fairness rules. The readings above were taken at nine kinds of node and are not
+comparable with a competitor's until the waves land.
+
 ## Requirements
 
 - **R1. A schema is data.** Every builder returns a plain, frozen node: a kind and its constraints.
