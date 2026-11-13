@@ -258,3 +258,46 @@ engine. The sample is 25, not 30, and all 8 disputed mutants were not each run b
 **The cost, as a side reading.** The live path spent 389 s at two workers on these 10 mutants,
 about 78 worker-seconds each: every survivor runs every test file that loads `hosts.ts`. That is
 the cost `M1` (grouped static survivors) is aimed at.
+
+## 7. caique after #1532 and #1547: 3.65x faster than Stryker, on the same mutants (2026-11-13)
+
+One pair, in a checkout nothing else touched (`burgee-mutation-weekly` at `0a8ecee757`), Apple M4
+Pro, `concurrency: 4`, `bench/burgee-pair.mts --package caique --stryker-compat`, Stryker first.
+The 1-minute load was sampled every minute.
+
+| Run | Engine | Wall | CPU | Peak memory | Load: mean / max | Killed · Timeout · Survived |
+| :-- | :-- | --: | --: | --: | :-- | :-- |
+| S1 | Stryker 10.1.1 | 3,391 s | 2,343 s | 597 MB | 19.3 / 52.6 | 5,743 · 468 · 7 (5 runtime errors) |
+| O1 | oxmutate at `0a8ecee757` | 928 s | 1,108 s | 688 MB | 13.4 / 26.6 | 5,635 · 562 · 1 |
+
+- **3.65x faster** (3,391 s against 928 s). The mean loads are 1.44x apart, inside the 1.5x a
+  pair needs to count. Stryker's maximum, 52.6, was in its first minutes, while a push from
+  another checkout was finishing.
+- **The same mutants.** Stryker reported 6,441 and oxmutate 6,428. All 6,428 matched a Stryker
+  mutant; 13 are Stryker's alone.
+- **99.74% agreement** on the matched set: 6,411 of 6,428. The 17 disagreements are two causes,
+  and neither is a verdict oxmutate got wrong:
+  - **12 are mutants oxmutate ignores and Stryker grades**, at six places where the source says
+    `// Stryker disable next-line <mutator>: <reason>` above an `else if`, or above a call in the
+    middle of a method chain (`clack-date.ts:223`, `clack-prompts.ts:256` and `:344`,
+    `inquirer-checkbox.ts:129`, `inquirer-keys.ts:44`). Stryker reads a directive only as the
+    leading comment of the next node, and a comment in those two positions leads none, so it
+    grades the mutants the author meant to switch off; five of its seven survivors are these.
+    oxmutate reads the comment where it is written. The same rule hid `hosts.ts`'s `restore`
+    comments (§1).
+  - **5 are Regex mutants in `locale.ts:83` that Stryker reports RuntimeError** ("An error
+    occurred outside of a test run") and oxmutate Killed: the unhandled-error rule from #1477.
+- **Where oxmutate's 926 s went:** warm 537 s, isolated 336 s, static 49 s, dry run 4 s. The warm
+  servers ran 1,988 s for 1,448 s inside test runs, so on this package most of the warm phase is
+  the tests themselves. 670 watchdog stops, 281 of them deadlocks the worker called itself, and
+  200 pollution restarts across 1,531 units.
+
+**Against the earlier readings** (`sc8/RUNS.md`, before #1532): Stryker 3,322 to 4,835 s and
+oxmutate 3,143 to 3,147 s, 1.30x to 1.54x. Stryker is where it was. oxmutate is 3.4x faster than
+its own earlier runs. The two changes in between were the open descriptors (#1532) and the slow
+test that is no longer a kill (#1547); which one carried how much is not separated here.
+
+**What this is not.** One pair, not a median. caique's suite also changed since 2026-11-03
+(Stryker's survivors went from about 740 to 7), so the earlier runs and this one are not the same
+workload. A second pair in the other order (oxmutate, then Stryker) is owed before this number
+goes anywhere public.

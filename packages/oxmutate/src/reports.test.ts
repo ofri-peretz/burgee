@@ -238,6 +238,22 @@ describe('the terminal summary', () => {
     const made = textSummary(await run({ stats: stats({ warmUnitMs: 19_000, warmArmedMs: 2600, isolatedRuns: 9, isolatedByCause: { static: 2, stopped: 1, unfinished: 0, rerun: 1, confirm: 5, flaky: 0 } }) })).split('\n');
     expect(made[4]).toBe('  warm servers ran 19.0 s, 2.6 s of it inside test runs');
     expect(made[5]).toBe('  isolated runs: static 2 · stopped 1 · unfinished 0 · re-run 1 · survivors confirmed 5 · flaky 0');
+    // The static phase: what it cost, with the way out named once it is half the run.
+    const twoStatic = [mutant({ static: true }), mutant({ static: true, status: 'Survived' }), mutant()];
+    const small = textSummary(await run({ mutants: twoStatic, stats: stats({ staticMs: 3394, wallMs: 6789 }) })).split('\n');
+    expect(small[4]).toBe('  static mutants: 2 decided in 3.4 s, 50% of the run');
+    const half = textSummary(await run({ mutants: twoStatic, stats: stats({ staticMs: 3395, wallMs: 6789 }) })).split('\n');
+    expect(half[4]).toBe('  static mutants: 2 decided in 3.4 s, 50% of the run; --ignore-static skips them, and the score then leaves them out');
+    // Exactly half the run names the flag, and a run of one millisecond has a share.
+    const exactlyHalf = textSummary(await run({ mutants: twoStatic, stats: stats({ staticMs: 500, wallMs: 1000 }) })).split('\n');
+    expect(exactlyHalf[4]).toBe('  static mutants: 2 decided in 0.5 s, 50% of the run; --ignore-static skips them, and the score then leaves them out');
+    const oneMillisecond = textSummary(await run({ mutants: twoStatic, stats: stats({ staticMs: 1, wallMs: 1 }) })).split('\n');
+    expect(oneMillisecond[4]).toBe('  static mutants: 2 decided in 0.0 s, 100% of the run; --ignore-static skips them, and the score then leaves them out');
+    const unknownWall = textSummary(await run({ mutants: twoStatic, stats: stats({ staticMs: 500, wallMs: 0 }) })).split('\n');
+    expect(unknownWall[4]).toBe('  static mutants: 2 decided in 0.5 s, 0% of the run');
+    const skipped = [mutant({ static: true, status: 'Ignored', statusReason: 'static mutant (ignoreStatic)' }), mutant({ static: true, status: 'Ignored', statusReason: 'disabled by a comment' })];
+    expect(textSummary(await run({ mutants: skipped })).split('\n')[4]).toBe('  static mutants: 1 ignored (ignoreStatic), not scored');
+    expect(textSummary(await run({ mutants: [mutant()] })).split('\n')[4]).not.toMatch(/static mutants/u);
     // One millisecond of warm time and one isolated run are both a phase that ran.
     const least = textSummary(await run({ stats: stats({ warmUnitMs: 1, isolatedRuns: 1, isolatedByCause: { static: 0, stopped: 0, unfinished: 0, rerun: 0, confirm: 0, flaky: 1 } }) })).split('\n');
     expect(least[4]).toBe('  warm servers ran 0.0 s, 0.0 s of it inside test runs');
