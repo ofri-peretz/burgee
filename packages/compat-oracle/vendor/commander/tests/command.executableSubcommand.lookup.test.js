@@ -1,3 +1,4 @@
+/* eslint-disable node-test/no-conditional-assertion */
 import * as childProcess from 'child_process';
 import * as path from 'path';
 import * as util from 'util';
@@ -9,17 +10,15 @@ import assert from 'node:assert/strict';
 // This file does end-to-end tests actually spawning program.
 // See also command.executableSubcommand.search.test.js
 
-// Suppress false positive warnings due to use of testOrSkipOnWindows
-
-const testOrSkipOnWindows = process.platform === 'win32' ? test.skip : test;
+const isWindows = process.platform === 'win32';
 const pm = path.join(import.meta.dirname, './fixtures/pm');
 
-describe('executable subcommand lookup ', () => {
+describe('executable subcommand lookup', () => {
   test('when subcommand file missing then error', () => {
     return execFileAsync('node', [pm, 'list']).catch((err) => {
       if (process.platform === 'win32') {
         // Get uncaught thrown error on Windows
-        assert.ok(err.stderr !== undefined);
+        assert.notStrictEqual(err.stderr, undefined);
       } else {
         assert.match(err.stderr, /Error: 'pm-list' does not exist/);
       }
@@ -30,7 +29,7 @@ describe('executable subcommand lookup ', () => {
     return execFileAsync('node', [pm, 'lst']).catch((err) => {
       if (process.platform === 'win32') {
         // Get uncaught thrown error on Windows
-        assert.ok(err.stderr !== undefined);
+        assert.notStrictEqual(err.stderr, undefined);
       } else {
         assert.match(err.stderr, /Error: 'pm-list' does not exist/);
       }
@@ -67,8 +66,10 @@ describe('executable subcommand lookup ', () => {
     assert.equal(stdout, 'publish\n');
   });
 
-  testOrSkipOnWindows(
+  test(
     'when subcommand file is symlink then lookup succeeds',
+    // eslint-disable-next-line node-test/no-skip-test
+    { skip: isWindows },
     async () => {
       const pmlink = path.join(import.meta.dirname, 'fixtures', 'pmlink');
       const { stdout } = await execFileAsync('node', [pmlink, 'install']);
@@ -76,8 +77,10 @@ describe('executable subcommand lookup ', () => {
     },
   );
 
-  testOrSkipOnWindows(
+  test(
     'when subcommand file is double symlink then lookup succeeds',
+    // eslint-disable-next-line node-test/no-skip-test
+    { skip: isWindows },
     async () => {
       const pmlink = path.join(
         import.meta.dirname,
@@ -90,8 +93,7 @@ describe('executable subcommand lookup ', () => {
     },
   );
 
-  // This test currently fails on Node 20 when run as ESM because Node does not execute .ts files as JavaScript by default.
-  test.skip('when subcommand suffix is .ts then lookup succeeds', async () => {
+  test('when subcommand suffix is .ts then lookup succeeds', async () => {
     // We support looking for ts files for ts-node in particular, but don't need to test ts-node itself.
     // The subcommand is both plain JavaScript code for this test.
     const binLinkTs = path.join(

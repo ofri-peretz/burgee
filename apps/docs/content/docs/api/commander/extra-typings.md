@@ -7,7 +7,7 @@ description: "burgee/commander/extra-typings is a drop-in for @commander-js/extr
 
 `burgee/commander/extra-typings` is a drop-in for `@commander-js/extra-typings`, graded by the incumbent's own test suite. Its API is the incumbent's, so its reference is the incumbent's own documentation.
 
-- **Reference:** [@commander-js/extra-typings 15.0.0](https://www.npmjs.com/package/@commander-js/extra-typings/v/15.0.0), the release that suite is run at.
+- **Reference:** [@commander-js/extra-typings 15.1.0](https://www.npmjs.com/package/@commander-js/extra-typings/v/15.1.0), the release that suite is run at.
 - **How closely it matches:** [Compatibility](/docs/compatibility), that suite's result in CI, with every case left out of the gate and the reason.
 - **Moving a program over:** [`burgee migrate`](/docs/migrate) rewrites `'@commander-js/extra-typings'` to `'burgee/commander/extra-typings'` across a project.
 

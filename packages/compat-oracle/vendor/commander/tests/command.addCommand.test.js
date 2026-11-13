@@ -36,6 +36,7 @@ describe('Command.addCommand()', () => {
         case 'number':
         case 'undefined':
           // Compare values in a way that will be readable in test failure message.
+          // eslint-disable-next-line node-test/no-conditional-assertion
           assert.equal(`${key}:${cmd1[key]}`, `${key}:${cmd2[key]}`);
           break;
       }
@@ -47,7 +48,7 @@ describe('Command.addCommand()', () => {
     const cmd = new commander.Command();
     assert.throws(() => {
       program.addCommand(cmd);
-    });
+    }, /Command passed to \.addCommand\(\) must have a name/);
   });
 
   test('when executable command with custom executableFile passed to .addCommand then ok', () => {

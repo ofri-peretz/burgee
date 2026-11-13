@@ -41,7 +41,7 @@
             "string-width": { "status": "n/a", "source": "node_modules/string-width/index.js", "quote": "export default function stringWidth(", "note": "measures; its one export is the width, and it does not cut" },
             "wrap-ansi": { "status": "n/a", "source": "node_modules/wrap-ansi/index.js", "lacks": "sliceAnsi", "note": "folds text into rows; it takes no column range" },
             "strip-ansi": { "status": "n/a", "source": "node_modules/strip-ansi/index.js", "lacks": "slice", "note": "removes escape sequences; it does not cut" },
-            "slice-ansi": { "status": "yes", "source": "node_modules/slice-ansi/index.js", "quote": "function undoAnsiCodes(activeStyles) {" }
+            "slice-ansi": { "status": "yes", "source": "node_modules/slice-ansi/index.js", "quote": "this.#output.push(...[...this.#styles.keys()].toReversed());" }
           }
         },
         {

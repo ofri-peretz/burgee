@@ -5,29 +5,29 @@
       "package": "commander",
       "claim": "compat",
       "seen": {
-        "version": "15.0.0",
-        "weight": 126702,
-        "measured": "2026-11-06",
+        "version": "15.1.0",
+        "weight": 127451,
+        "measured": "2026-11-12",
         "cited": [
           "packages/burgee/README.md"
         ],
         "registry": "commander",
-        "shasum": "96f3961f12adac1799ef3fbd8bc61d40572d1b11",
-        "self": 126702,
+        "shasum": "397e6a353fda8e9d4e1eb9e3c0c28644cfd69406",
+        "self": 127451,
         "packages": 1,
         "files": {
-          "index.js": "3b1110c896b70704627d415e6658953a5a6f099e0b141311c73dfb06e55bdbcc",
+          "index.js": "732a09a62a766dabc012a5edc592c2f9866f1a2028763b9319e44ac0313e3225",
           "lib/argument.js": "a86c43174d904198b92ece266e97b6b711e640f3b89ac45291b682a753e145e4",
-          "lib/command.js": "751c19479dac3e3f415fbbd709df90d25c595034f699dba7bef6eeab4dc1304b",
+          "lib/command.js": "99cecd3ca1720f9a9ae06c150a3b25e210d80713ae28591916b120319c228c2b",
           "lib/error.js": "98ac5e1b63894792fa7740e5fb2b79ef8c016d94fc41e55bb6ff85fff3346e72",
-          "lib/help.js": "c1a58d89555b8c0cef5c3da9b173c998ce1faf43fe2cdcb331c0fd2c3a455c38",
-          "lib/option.js": "29fc1d0311f16f33fd0df2d8589c93b0a7e37fb89afd852672ba3b7083fa1515",
+          "lib/help.js": "e3c4c079a2596b233a38c1d57b52e08408da0adb258369487ce4d69b87fb7941",
+          "lib/option.js": "94c2b305718c5fcf222d2977505ff320f2b6d6b76e629e4ddcff8708c9c32371",
           "lib/suggestSimilar.js": "eaa0c4bd9f4d51259c9107e65173f7de37a5413cbd5de39a5795d83d3c7deb3f",
           "LICENSE": "04512a63dce4d2d506ad612dc0bd7681ccf6e3655f7b6eaef7dfac8323d1ec0b",
           "package-support.json": "fdce1022e389b2774b706b3f4851c7938a52d099ee39153fc1d965ab7b5b7f81",
-          "package.json": "6ea3e19871a9a05fa0c8b89595b6df05d23d266936b9785607128fd420864337",
-          "Readme.md": "e219aeefbaea202ffb39b94a50812a4a2e69e91b67db3a5e39f3e0eeae2d7686",
-          "typings/index.d.ts": "a6005262ef9ae5d7325a381df594d6b35babfb6df4a89c4febd06e6101d05bc1"
+          "package.json": "130b7d64b2681da74e60757da092067ec3b69315acbb4549c79f9f0e1d13a40d",
+          "Readme.md": "b8da3574e5c21bca9cb82c616f87322c25f25b1502652dbd4f396165286b45fd",
+          "typings/index.d.ts": "003af0daee9bc184c545c7e89f00278ebdec36e39069fb407eb2b1bc99a166ed"
         },
         "exports": [
           "AddHelpTextContext",
@@ -182,8 +182,8 @@
       "claim": "compat",
       "seen": {
         "version": "18.2.0",
-        "weight": 367924,
-        "measured": "2026-11-06",
+        "weight": 368815,
+        "measured": "2026-11-12",
         "cited": [
           "packages/burgee/README.md"
         ],

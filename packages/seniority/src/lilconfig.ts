@@ -219,6 +219,8 @@ function getOptions(name: string, options: Options | OptionsSync, sync: boolean)
     ...options,
     loaders: { ...(sync ? defaultLoadersSync : defaultLoaders), ...options.loaders },
   };
+  // lilconfig 3.1.5: a relative or slash-ended `stopDir` is compared as the directory it names.
+  conf.stopDir = resolvePath(conf.stopDir);
   for (const place of conf.searchPlaces) {
     const key = extname(place) || 'noExt';
     const loader = conf.loaders[key];
@@ -278,7 +280,8 @@ export function lilconfig(name: string, options?: Options): AsyncSearcher {
     async search(searchFrom = currentDir()): Promise<LilconfigResult> {
       const result: LilconfigResult = { config: null, filepath: '' };
       const visited = new Set<string>();
-      let dir = searchFrom;
+      // lilconfig 3.1.5: a relative `searchFrom` walks from the cwd.
+      let dir = resolvePath(searchFrom);
       dirLoop: while (true) {
         // Stryker disable next-line ConditionalExpression: with the cache off nothing is stored, so asking it finds nothing, and `visited` is read only to store.
         if (cache) {
@@ -396,7 +399,8 @@ export function lilconfigSync(name: string, options?: OptionsSync): SyncSearcher
     search(searchFrom = currentDir()): LilconfigResult {
       const result: LilconfigResult = { config: null, filepath: '' };
       const visited = new Set<string>();
-      let dir = searchFrom;
+      // lilconfig 3.1.5: a relative `searchFrom` walks from the cwd.
+      let dir = resolvePath(searchFrom);
       dirLoop: while (true) {
         // Stryker disable next-line ConditionalExpression: with the cache off nothing is stored, so asking it finds nothing, and `visited` is read only to store.
         if (cache) {

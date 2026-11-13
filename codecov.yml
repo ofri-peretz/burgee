@@ -48,6 +48,9 @@ component_management:
     - component_id: apicontract
       name: apicontract
       paths: [packages/apicontract/**]
+    - component_id: validator
+      name: validator
+      paths: [packages/validator/**]
     - component_id: bellpull
       name: bellpull
       paths: [packages/bellpull/**]

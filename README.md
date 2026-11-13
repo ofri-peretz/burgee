@@ -47,7 +47,7 @@
 <p align="center">
   <strong>Proved by the incumbents' own tests.</strong> Each drop-in path is graded by the
   original package's own test suite, run in CI beside a control that runs the real package:
-  commander's 1360 of 1360, yargs' 816 of 816, and 38 more hosts on the compatibility page.
+  commander's 1418 of 1418, yargs' 816 of 816, and 38 more hosts on the compatibility page.
   The benchmarks below publish every comparison, the rows burgee loses included.
 </p>
 
@@ -243,7 +243,7 @@ burgee and run in CI against a control that runs the real host:
 
 | Host | Front-end | burgee | rate |
 | :-- | :-- | ---: | ---: |
-| commander | `burgee/commander` | 1360 / 1360 | **100%** |
+| commander | `burgee/commander` | 1418 / 1418 | **100%** |
 | yargs | `burgee/yargs` | 816 / 816 | **100%** |
 
 Measured 2026-09-09 (yargs 2026-09-30, at 18.2.0); 38 more hosts are in
@@ -300,10 +300,10 @@ median of a named window of CI runs rather than any one run** ([measured](https:
 | the core entry point is under 52 KB bundled | `core-under-52kb-bundled` | 24,528 bytes | ✅ met |
 | `burgee/yargs` is lighter in a user's bundle than `yargs` | `lighter-than-yargs` | 0.985× | ✅ met |
 | `burgee` is lighter than `cac` **plus what a cac user installs to match it** | `lighter-than-cac-at-parity` | 0.251× | ✅ met |
-| `burgee/commander` is lighter than `commander` **plus the same** | `lighter-than-commander-at-parity` | 0.438× | ✅ met |
+| `burgee/commander` is lighter than `commander` **plus the same** | `lighter-than-commander-at-parity` | 0.439× | ✅ met |
 | `burgee/yargs` is lighter than `yargs` **plus the same** | `lighter-than-yargs-at-parity` | 0.554× | ✅ met |
 | `burgee` starts within 1.55× of `cac`, the lightest framework in the landscape (ratchet; lowered as it speeds up) | `cold-start-at-or-below-cac` | 1.443× | ✅ met |
-| `burgee/commander` stays within 1.42× of `commander` alone in a user's bundle (ratchet; lowered as it shrinks) | `lighter-than-commander` | 1.417× | ✅ met |
+| `burgee/commander` stays within 1.42× of `commander` alone in a user's bundle (ratchet; lowered as it shrinks) | `lighter-than-commander` | 1.416× | ✅ met |
 | `burgee` stays within 2.35× of `cac` alone in a user's bundle (ratchet; lowered as it shrinks) | `lighter-than-cac` | 2.347× | ✅ met |
 | an agent spends ≥40% fewer tokens over the benchmark tasks (total over every task-run) | `agent-tokens-40pct` | median 0.502× over the 52 CI readings dated 2026-10-10 to 2026-10-18 (range 0.434–0.627), at or under 0.6 in 51 of them | ✅ met |
 | an agent takes ≥30% fewer turns over the benchmark tasks (total over every task-run) | `agent-turns-30pct` | median 0.522× over the 52 CI readings dated 2026-10-10 to 2026-10-18 (range 0.446–0.634), at or under 0.7 in 52 of them | ✅ met |
@@ -332,8 +332,8 @@ with ([measured](https://burgee.interlace.tools/docs/benchmarks)):
 | | the incumbent alone | + what you add to match burgee | ours |
 | :--- | ---: | ---: | ---: |
 | `cac` | 10,452 B | **97,692 B** | 24,528 B |
-| `commander` | 39,084 B | **126,335 B** | 55,393 B |
-| `yargs` | 111,794 B | **198,892 B** | 110,108 B |
+| `commander` | 39,205 B | **126,456 B** | 55,514 B |
+| `yargs` | 111,994 B | **199,092 B** | 110,366 B |
 
 The additions are `cosmiconfig` (find and load a config file), `exit-hook` (run cleanup on
 every path out, including a signal) and `restore-cursor` (hand the terminal back), bundled
@@ -361,7 +361,7 @@ choices, relations, Standard Schema, configuration precedence, signal-bound shut
 restore and agent detection.
 Our `commander/command.js` is 33,487 bundled against commander's 27,226, and the front-end also
 carries a cross-platform spawn that cannot go lazy without giving up `parse()`'s synchronous
-contract and the 1360 / 1360 compat row that rests on it. And `import 'cac'` is one file in
+contract and the 1418 / 1418 compat row that rests on it. And `import 'cac'` is one file in
 4.2 ms where `import 'burgee'` is twenty-one in 20 ms. Closing them means deleting the product,
 not optimising it: the analysis is [D-102](./.sdlc/decisions/D-102.md), and the shrink that moved every
 non-default path behind `await import()` is [D-148](./.sdlc/decisions/D-148.md) ([measured](https://burgee.interlace.tools/docs/benchmarks)).
@@ -471,13 +471,13 @@ codebase is the number of things a user has to trust, not convenience.
 
 | | Layer | Package | What the layer owns | Migrates from | Status |
 | :-- | :-- | :-- | :-- | :-- | :-- |
-| **Engine** | argv, dispatch, manifest | [`burgee`](./packages/burgee/) | one declaration projected to help, `--json`, `--schema`, MCP, completions, types | commander · yargs · meow | released — `burgee@2.0.0` |
+| **Engine** | argv, dispatch, manifest | [`burgee`](./packages/burgee/) | one declaration projected to help, `--json`, `--schema`, MCP, completions, types | commander · yargs · meow | released — `burgee@2.1.0` |
 | **Output stack** | colour | [`roundel`](./packages/roundel/) | one output policy, nine semantic tokens, a contrast-checked theme, and chalk's API over them | chalk · picocolors | released — `roundel@2.0.0` |
-| | render | [`flagstaff`](./packages/flagstaff/) | frame loop with a static projection; plugin host for spinners, progress, boxes, tables | ora · log-update · boxen · cli-table3 | released — `flagstaff@2.0.0` |
-| | prompt | [`caique`](./packages/caique/) | prompts that are flags first, and never hang | inquirer · clack · prompts | released — `caique@2.0.0` |
+| | render | [`flagstaff`](./packages/flagstaff/) | frame loop with a static projection; plugin host for spinners, progress, boxes, tables | ora · log-update · boxen · cli-table3 | released — `flagstaff@2.0.1` |
+| | prompt | [`caique`](./packages/caique/) | prompts that are flags first, and never hang | inquirer · clack · prompts | released — `caique@2.1.0` |
 | | screen | [`controlroom`](./packages/controlroom/) | keyboard-driven screens, inline or full-screen, over flagstaff's loop, each with a static projection | ink · @inkjs/ui | released — `controlroom@2.0.0` |
-| **Foundation** | text | [`linegauge`](./packages/linegauge/) | measure, wrap, truncate and slice styled text without the edge fraying | string-width · wrap-ansi · strip-ansi · slice-ansi | released — `linegauge@2.0.0` |
-| | config | [`seniority`](./packages/seniority/) | precedence across flag, env, project file, home file and default — with provenance | cosmiconfig · lilconfig · dotenv · rc | released — `seniority@2.0.0` |
+| **Foundation** | text | [`linegauge`](./packages/linegauge/) | measure, wrap, truncate and slice styled text without the edge fraying | string-width · wrap-ansi · strip-ansi · slice-ansi | released — `linegauge@2.1.0` |
+| | config | [`seniority`](./packages/seniority/) | precedence across flag, env, project file, home file and default — with provenance | cosmiconfig · lilconfig · dotenv · rc | released — `seniority@2.0.1` |
 | | process | [`bellpull`](./packages/bellpull/) | run a subprocess; resolve the executable; return a result every caller can read | execa · cross-spawn · which | released — `bellpull@2.0.0` |
 | | lifecycle | [`closeout`](./packages/closeout/) | exit handlers that run once on every path, terminal restore, bounded deadline | signal-exit · exit-hook · restore-cursor | released — `closeout@2.0.0` |
 | | terminal | [`paratext`](./packages/paratext/) | hyperlinks, images, window title, clipboard, notifications, bell — each with a static fallback | ansi-escapes (OSC half) · terminal-link · term-img | released — `paratext@2.0.0` |

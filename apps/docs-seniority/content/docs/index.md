@@ -407,12 +407,12 @@ Graded by the incumbent's own test suite:
 | suite | passing |
 | :-- | --: |
 | `cosmiconfig` | 242 / 243 |
-| `dotenv` | 197 / 197 |
+| `dotenv` | 198 / 198 |
 | `find-up` | 104 / 104 |
-| `lilconfig` | 77 / 77 |
+| `lilconfig` | 81 / 81 |
 | `rc` | 1 / 1 |
 
-Weight, installed and tree-inclusive: **223,753 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.1134** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
+Weight, installed and tree-inclusive: **223,913 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.1135** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## For agents
 

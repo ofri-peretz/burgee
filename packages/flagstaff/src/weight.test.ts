@@ -227,6 +227,7 @@ const RULES: Record<string, EntryRule> = {
   // 9,368 B (chalk.js, policy.js, tokens.js and the colour-level probe), measured 2026-11-01.
   // **53,486 B in two packages, against ora 10.0.0's 128,182 B in seventeen — 42%.**
   // Before ora 10 (burgee#1396) the figure was 55,641 B against ora 9.4.1's 113,577 — 49%.
+  // ora's tree is 129,073 B on 2026-11-12, with ansi-regex 6.6.0 (burgee#1504): 41%.
   //
   // The method, so the number reproduces: shipped code and data — `.js`/`.mjs`/`.cjs` plus
   // the `.json` a module imports, `package.json` never counted. Ours is `walk()` below over
@@ -259,7 +260,8 @@ const RULES: Record<string, EntryRule> = {
   // log-update's own 113,368 B across sixteen packages (slice-ansi 27,630 · signal-exit 21,983
   // · wrap-ansi 20,004 · the rest) — 2026-09-09 figures, when slice-ansi resolved to 9.0.0; it
   // is 26,813 at 9.0.1 (2026-09-27), and wrap-ansi is 20,370 at 10.0.2, the tree 113,442 B
-  // (2026-10-06, burgee#705) and 114,295 B on 2026-11-01, with ansi-regex 6.5.0 (burgee#1379). signal-exit's 21,983 B is what `closeout` replaces, shared
+  // (2026-10-06, burgee#705), 114,295 B on 2026-11-01, with ansi-regex 6.5.0 (burgee#1379), and
+  // 115,186 B on 2026-11-12, with ansi-regex 6.6.0 (burgee#1503). signal-exit's 21,983 B is what `closeout` replaces, shared
   // with `./ora` rather than ported twice — and, since 2026-09-15, owned one package over
   // rather than here.
   //
@@ -283,7 +285,8 @@ const RULES: Record<string, EntryRule> = {
   // B self). Measured across packages the way `competitors.json` measures boxen — every file
   // the import reaches — `flagstaff/boxen` is **67,748 B in three packages** (flagstaff 17,600,
   // linegauge 40,787, roundel 9,361), **against boxen 9.0.0's 114,927 B in fourteen — 59%.** The
-  // boxen tree is 115,780 B on 2026-11-01, with ansi-regex 6.5.0 (burgee#1376): still 59%.
+  // boxen tree is 115,780 B on 2026-11-01, with ansi-regex 6.5.0 (burgee#1376): still 59%; and
+  // 116,671 B on 2026-11-12, with ansi-regex 6.6.0 (burgee#1500).
   // linegauge is reached whole through its main entry, as it already was for `width`, and is
   // shared with every other façade, so a program on two of them pays for it once.
   './boxen': { allow: ['linegauge', 'linegauge/wrap', 'roundel/chalk'], budget: 18_000, measured: 17_600, denied: ['ora.js', 'spinners.json', 'loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js', 'log-update.js'] },
