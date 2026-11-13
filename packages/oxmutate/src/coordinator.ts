@@ -19,7 +19,7 @@ import { ambientRuntime, run as spawn } from 'bellpull';
 import { checkSurvivors } from './checker.js';
 import type { Unit } from './child.js';
 import { runCommandMutants } from './command-runner.js';
-import { disables, type Options } from './config.js';
+import { IGNORE_STATIC_REASON, disables, type Options } from './config.js';
 import { rangeDisables } from './directives.js';
 import { guardDisk, isClean, type DiskChange } from './diskguard.js';
 import { globToRegExp, matchFiles } from './files.js';
@@ -457,7 +457,7 @@ export async function run(options: Options): Promise<RunResult> {
         m.static = true;
         if (options.ignoreStatic) {
           m.status = 'Ignored';
-          m.statusReason = 'static mutant (ignoreStatic)';
+          m.statusReason = IGNORE_STATIC_REASON;
         }
       }
     }

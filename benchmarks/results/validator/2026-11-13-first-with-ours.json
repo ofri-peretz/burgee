@@ -1,0 +1,169 @@
+{
+  "date": "2026-11-13",
+  "node": "v24.13.0",
+  "typescripts": [
+    "5.9.3",
+    "6.0.3",
+    "7.0.2"
+  ],
+  "loadAverage1m": 13,
+  "schemaCopiesForTypes": 500,
+  "readings": {
+    "ours": {
+      "package": "file:packages/validator",
+      "constructMs": 1.1,
+      "validPerSec": 4594348,
+      "invalidPerSec": 4456768,
+      "bundleMinBytes": 2283,
+      "bundleGzipBytes": 1114,
+      "types": {
+        "5.9.3": {
+          "instantiations": 163836,
+          "checkSeconds": 0.6,
+          "totalSeconds": 0.99,
+          "memoryK": 174626
+        },
+        "6.0.3": {
+          "instantiations": 163836,
+          "checkSeconds": 0.6,
+          "totalSeconds": 0.95,
+          "memoryK": 180471
+        },
+        "7.0.2": {
+          "instantiations": 163836,
+          "checkSeconds": 0.37,
+          "totalSeconds": 0.423,
+          "memoryK": 74966
+        }
+      }
+    },
+    "oursEmitted": {
+      "package": "file:packages/validator",
+      "constructMs": 6.3,
+      "validPerSec": 20993299,
+      "invalidPerSec": 16504170,
+      "bundleMinBytes": 3402,
+      "bundleGzipBytes": 1542
+    },
+    "zod": {
+      "package": "zod@4.6.7",
+      "constructMs": 39.5,
+      "validPerSec": 1292527,
+      "invalidPerSec": 853322,
+      "bundleMinBytes": 94067,
+      "bundleGzipBytes": 27454,
+      "types": {
+        "5.9.3": {
+          "instantiations": 332209,
+          "checkSeconds": 0.97,
+          "totalSeconds": 1.31,
+          "memoryK": 291662
+        },
+        "6.0.3": {
+          "instantiations": 332209,
+          "checkSeconds": 1.01,
+          "totalSeconds": 1.25,
+          "memoryK": 299888
+        },
+        "7.0.2": {
+          "instantiations": 331710,
+          "checkSeconds": 0.795,
+          "totalSeconds": 0.842,
+          "memoryK": 185668
+        }
+      }
+    },
+    "valibot": {
+      "package": "valibot@1.5.0",
+      "constructMs": 1.4,
+      "validPerSec": 1019370,
+      "invalidPerSec": 917185,
+      "bundleMinBytes": 7688,
+      "bundleGzipBytes": 2485,
+      "types": {
+        "5.9.3": {
+          "instantiations": 1537716,
+          "checkSeconds": 4.18,
+          "totalSeconds": 4.4,
+          "memoryK": 384476
+        },
+        "6.0.3": {
+          "instantiations": 1537732,
+          "checkSeconds": 4.34,
+          "totalSeconds": 4.56,
+          "memoryK": 404031
+        },
+        "7.0.2": {
+          "instantiations": 1527451,
+          "checkSeconds": 2.114,
+          "totalSeconds": 2.145,
+          "memoryK": 222595
+        }
+      }
+    },
+    "arktype": {
+      "package": "arktype@2.2.9",
+      "constructMs": 94.1,
+      "validPerSec": 11894610,
+      "invalidPerSec": 203459,
+      "bundleMinBytes": 156612,
+      "bundleGzipBytes": 48069,
+      "types": {
+        "5.9.3": {
+          "instantiations": 5589780,
+          "checkSeconds": 4.28,
+          "totalSeconds": 4.86,
+          "memoryK": 770193
+        },
+        "6.0.3": {
+          "instantiations": 5589780,
+          "checkSeconds": 4.21,
+          "totalSeconds": 4.52,
+          "memoryK": 747049
+        },
+        "7.0.2": {
+          "instantiations": 5466076,
+          "checkSeconds": 1.792,
+          "totalSeconds": 1.828,
+          "memoryK": 289694
+        }
+      }
+    },
+    "typebox": {
+      "package": "@sinclair/typebox@0.34.52",
+      "constructMs": 15.7,
+      "validPerSec": 20008292,
+      "invalidPerSec": 14646266,
+      "bundleMinBytes": 93380,
+      "bundleGzipBytes": 22880,
+      "types": {
+        "5.9.3": {
+          "instantiations": 325056,
+          "checkSeconds": 1.14,
+          "totalSeconds": 1.81,
+          "memoryK": 229417
+        },
+        "6.0.3": {
+          "instantiations": 325056,
+          "checkSeconds": 1.24,
+          "totalSeconds": 1.5,
+          "memoryK": 220160
+        },
+        "7.0.2": {
+          "instantiations": 325056,
+          "checkSeconds": 0.738,
+          "totalSeconds": 0.782,
+          "memoryK": 118406
+        }
+      }
+    },
+    "ajv": {
+      "package": "ajv@8.20.0",
+      "constructMs": 520.5,
+      "validPerSec": 12265016,
+      "invalidPerSec": 8918306,
+      "bundleMinBytes": 125351,
+      "bundleGzipBytes": 38819
+    }
+  }
+}

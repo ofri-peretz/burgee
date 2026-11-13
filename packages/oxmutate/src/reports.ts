@@ -7,6 +7,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 
+import { IGNORE_STATIC_REASON } from './config.js';
 import type { MutantResult, RunResult } from './coordinator.js';
 
 /** The package's own version, read from its manifest so `--version` and the reports never drift from it. */
@@ -143,13 +144,34 @@ function frozenLine(r: RunResult): string[] {
 }
 
 /** The terminal summary: the score, what to look at first, what the run corrected. */
+/** The share of a run's wall time past which the static phase is worth pointing at. */
+const STATIC_SHARE_WORTH_SAYING = 0.5;
+const PERCENT = 100;
+
+/**
+ * What the static phase cost, or what `ignoreStatic` left out. A static mutant is decided by
+ * re-evaluating its module for every test file that loads it, and on a file of import-time data
+ * that is most of a run: 80% of compat-oracle's on 2026-11-05. Stryker skips them with the same key.
+ */
+function staticLine(r: RunResult): string[] {
+  const statics = r.mutants.filter((m) => m.static);
+  if (statics.length === 0) return [];
+  const ignored = statics.filter((m) => m.statusReason === IGNORE_STATIC_REASON).length;
+  if (ignored > 0) return [`  static mutants: ${String(ignored)} ignored (ignoreStatic), not scored`];
+  const share = r.stats.wallMs > 0 ? r.stats.staticMs / r.stats.wallMs : 0;
+  const hint = share >= STATIC_SHARE_WORTH_SAYING ? '; --ignore-static skips them, and the score then leaves them out' : '';
+  return [`  static mutants: ${String(statics.length)} decided in ${(r.stats.staticMs / MS_PER_S).toFixed(1)} s, ${(share * PERCENT).toFixed(0)}% of the run${hint}`];
+}
+
 /**
  * What the warm and isolated phases were made of, when they ran: how much of the warm servers' time
  * was inside a test run, and what sent each mutant to an isolated run.
  */
-function whereItWent(s: RunResult['stats']): string[] {
+function whereItWent(r: RunResult): string[] {
+  const s = r.stats;
   const lines: string[] = [];
   if (s.warmUnitMs > 0) lines.push(`  warm servers ran ${(s.warmUnitMs / MS_PER_S).toFixed(1)} s, ${(s.warmArmedMs / MS_PER_S).toFixed(1)} s of it inside test runs`);
+  lines.push(...staticLine(r));
   const c = s.isolatedByCause;
   const causes = [`static ${String(c.static)}`, `stopped ${String(c.stopped)}`, `unfinished ${String(c.unfinished)}`, `re-run ${String(c.rerun)}`, `survivors confirmed ${String(c.confirm)}`, `flaky ${String(c.flaky)}`];
   if (s.isolatedRuns > 0) lines.push(`  isolated runs: ${causes.join(' · ')}`);
@@ -171,7 +193,7 @@ export function textSummary(r: RunResult, opts: { survivors?: number } = {}): st
   ];
   const corrected = corrections(s);
   if (corrected.length) lines.push(`  corrected: ${corrected.join(' · ')}`);
-  lines.push(...whereItWent(s));
+  lines.push(...whereItWent(r));
   lines.push(...frozenLine(r));
   lines.push(...specLines(r));
   const survivors = r.mutants.filter((m) => m.status === 'Survived' || m.status === 'NoCoverage');
