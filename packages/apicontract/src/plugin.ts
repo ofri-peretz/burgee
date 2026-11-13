@@ -88,7 +88,8 @@ const text = (value: unknown): value is string => typeof value === 'string' && v
  * the one place its output meets the user's disk.
  */
 const inside = (path: string): boolean =>
-  path !== '' && !path.startsWith('/') && !path.includes('\\') && !path.includes(':') && !path.split('/').some((part) => part === '..' || part === '.' || part === '');
+  // An empty path and a leading `/` both show up as an empty part.
+  !path.includes('\\') && !path.includes(':') && !path.split('/').some((part) => part === '..' || part === '.' || part === '');
 
 /** Refuse a list of files a host must not write. `where` names who produced it. */
 export const validateFiles = (files: unknown, where: string): GeneratedFile[] => {
@@ -260,9 +261,9 @@ const render = (files: readonly GeneratedFile[]): Rendered => new Map(files.map(
  * author says it is, and that it is the same on every run.
  */
 export const checkPlugin = async (plugin: unknown): Promise<Finding[]> => {
-  validate(plugin);
   const host = createHost();
   host.register(plugin);
+  const [registered] = host.plugins() as [Plugin];
   const checkOne = async ([name, generator]: [string, Generator]): Promise<Finding[]> => {
     const contract = host.read(generator.sample.document);
     const run = async (): Promise<Rendered> =>
@@ -270,6 +271,6 @@ export const checkPlugin = async (plugin: unknown): Promise<Finding[]> => {
     const first = await run();
     return compare(name, first, await run(), render(generator.sample.files));
   };
-  const findings = await Promise.all(Object.entries(plugin.generators ?? {}).map(async (entry) => checkOne(entry)));
+  const findings = await Promise.all(Object.entries(registered.generators ?? {}).map(async (entry) => checkOne(entry)));
   return findings.flat();
 };

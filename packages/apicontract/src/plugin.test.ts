@@ -183,6 +183,12 @@ describe('a host', () => {
     await expect(host.generate('list', document)).rejects.toThrow('no input format recognises this document. fix: pass one of: openapi; or install the plugin that reads it');
   });
 
+  it('names every format a generator accepts when none of them recognises the document', async () => {
+    const host = createHost();
+    host.register({ name: 'p', generators: { list: generator({ inputs: ['openapi', 'asyncapi'] }) } });
+    await expect(host.generate('list', document)).rejects.toThrow('fix: pass one of: openapi, asyncapi; or install the plugin that reads it');
+  });
+
   it('names the generators it has when asked for one it has not, and ignores inherited names', () => {
     const host = createHost();
     expect(refusal(() => host.generator('ts')).message).toBe('no generator is named "ts". fix: use one of: none; or install the plugin that provides it and add it to `plugins`');
@@ -214,8 +220,10 @@ describe('checkPlugin', () => {
     expect(await checkPlugin(plugin({ sample }))).toEqual([]);
   });
 
-  it('refuses a plugin that is not one', async () => {
-    await expect(checkPlugin(null)).rejects.toThrow(PluginError);
+  it('refuses a plugin that is not one, and a generator whose output must not be written', async () => {
+    await expect(checkPlugin(null)).rejects.toThrow('a plugin is a plain object');
+    const escaping = plugin({ run: () => [{ path: '/abs.ts', content: '', owner: 'generated' }] });
+    await expect(checkPlugin(escaping)).rejects.toThrow('generator "list" returned the path "/abs.ts", which leaves the output folder');
   });
 
   it('finds a file that differs, in content or in owner', async () => {
