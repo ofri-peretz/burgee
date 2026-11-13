@@ -41,10 +41,17 @@ const unquoted = (value: unknown): string | null => {
 const literal = (value: unknown): string =>
   (unquoted(value) ?? String(JSON.stringify(value))).replaceAll(/[<>/\u2028\u2029]/gu, (unit) => `\\u${(unit.codePointAt(0) as number).toString(HEX).padStart(UNIT, '0')}`);
 
+/**
+ * A value a hand-built node holds where it should not, for the message that refuses it: a string
+ * as an escaped literal, and anything else by the name of its type. It is never turned into a
+ * string, which would run an object's own `toString`.
+ */
+const shown = (value: unknown): string => (typeof value === 'string' ? literal(value) : `a value of the type ${typeof value}`);
+
 /** A bound as source. A node is data and may have been built by hand, so what is not a number is refused, not printed. */
 const numeric = (value: unknown): string => {
   if (typeof value !== 'number') {
-    throw new TypeError(`cannot emit the bound ${literal(String(value))}: it is not a number. fix: build the schema with the builders, or give the node numeric bounds`);
+    throw new TypeError(`cannot emit the bound ${shown(value)}: it is not a number. fix: build the schema with the builders, or give the node numeric bounds`);
   }
   return String(value);
 };
@@ -60,7 +67,7 @@ const pattern = (value: unknown): string => {
 /** A bigint's bound as source; what is not a bigint is refused, as `numeric` refuses what is not a number. */
 const big = (value: unknown): string => {
   if (typeof value !== 'bigint') {
-    throw new TypeError(`cannot emit the bound ${literal(String(value))}: it is not a bigint. fix: build the schema with \`bigint({ min, max })\``);
+    throw new TypeError(`cannot emit the bound ${shown(value)}: it is not a bigint. fix: build the schema with \`bigint({ min, max })\``);
   }
   return literal(value);
 };
@@ -301,6 +308,10 @@ const WRITERS: Readonly<Record<Kind, (emitter: Emitter, schema: Node, ref: strin
 };
 
 function test(emitter: Emitter, schema: Node, ref: string): string {
+  // eslint-disable-next-line conventions/consistent-existence-index-check -- Own kinds only: a node whose kind is "constructor" must not be written by what every object inherits
+  if (typeof schema.kind !== 'string' || !Object.hasOwn(WRITERS, schema.kind)) {
+    throw new TypeError(`cannot emit a node of the kind ${shown(schema.kind)}: there is no such kind. fix: build the schema with the builders`);
+  }
   return WRITERS[schema.kind](emitter, schema, ref);
 }
 

@@ -1,5 +1,5 @@
-import { type Issue, issues } from './issues.js';
-import { type Schema } from './schema.js';
+import { issues } from './issues.js';
+import { type Issue, type Schema } from './schema.js';
 
 /** What `assert` throws: a `TypeError` whose message is the first issue, carrying every one of them. */
 interface Invalid extends TypeError {
