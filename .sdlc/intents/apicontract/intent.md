@@ -6,7 +6,7 @@
 > the name would promise an edge the main package does not have. Not a bare `contract*`: in JS
 > that reads as smart contracts (`@celo/contractkit`, 7.6k weekly downloads).
 
-**Status:** draft · **Opened:** `2026-11-06` · **Owner:** `@ofri-peretz`
+**Status:** approved (2026-11-13, [`D-20261113-apicontract-build-go-ahead`](../../decisions/D-20261113-apicontract-build-go-ahead.md)) · **Opened:** `2026-11-06` · **Owner:** `@ofri-peretz`
 
 Design: [`spec.md`](./spec.md) · Metrics: [`metrics.md`](./metrics.md) · Roadmap:
 [`roadmap.md`](./roadmap.md) · Vision (proposal): [`vision.md`](./vision.md)

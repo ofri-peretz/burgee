@@ -379,7 +379,8 @@ Build order, one PR each, each with a check proven to fail first:
    `compat-oracle` and a control run proving the gate (G1).
 5. `--compat openapi-typescript` flags and the migration codemod.
 
-Two defaults taken here, to be confirmed at the Design→Build accept: a generator's options are
+Two defaults taken here, standing since the accept of 2026-11-13
+([`D-20261113-apicontract-build-go-ahead`](../../decisions/D-20261113-apicontract-build-go-ahead.md)): a generator's options are
 burgee option declarations, not a free-form JSON Schema; and `run` may be asynchronous.
 
 ### Experiment: one CLI for all protocols vs one CLI per protocol (X-1)
