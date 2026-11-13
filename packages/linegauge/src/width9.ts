@@ -97,6 +97,7 @@ const STRAY_MODIFIER_SOURCE = '(?<![\\p{EBase}\\u{200D}])\\p{EMod}';
 // Stryker disable next-line StringLiteral: the flags are written inside the cached builder, where `no-unsafe-regex-construction` wants them, so the lane serves the first build to every variant; without `v` every property class here is a syntax error or a different set, which width9.test.ts fails on when run alone
 const STRAY_MODIFIER = (): RegExp => (modifierClass ??= new RegExp(STRAY_MODIFIER_SOURCE, 'gv'));
 const LEADING_MARKS_SOURCE = `^[${PREPENDED}]+`;
+// Stryker disable next-line StringLiteral: the flags are written inside the cached builder, where `no-unsafe-regex-construction` wants them, so the lane serves the first build to every variant; without `v` every property class here is a syntax error or a different set, which width9.test.ts fails on when run alone
 const LEADING_MARKS = (): RegExp => (marksClass ??= new RegExp(LEADING_MARKS_SOURCE, 'v'));
 
 /** A cluster opening with a Hangul jamo, a filler or a precomposed syllable. */
