@@ -6,23 +6,23 @@
       "claim": "compat",
       "seen": {
         "registry": "string-width",
-        "version": "8.3.0",
-        "shasum": "f1e85ca6d276ed9226c979c3651fb7abf548fbbe",
-        "weight": 18667,
-        "self": 6447,
+        "version": "9.0.0",
+        "shasum": "c73ae65bd89657fcfbd05e3e6f80c5d801a8e6d5",
+        "weight": 23964,
+        "self": 11744,
         "packages": 4,
         "files": {
-          "index.d.ts": "2386b50ac5929c1a1374725e6b4b9dcbf06a5843c107713fbc54c652bcf59290",
-          "index.js": "abc20775da6b552188b098688ebec671e29f5416d6339d3534bb7b016174003e",
+          "index.d.ts": "a48c395a6e3711053e00eff2dfa55a8af19e8071d218d10e45c80b3fab07fc96",
+          "index.js": "a27ae068893613ed731ff795d1db247c76e6f0fac810e47b460f9006c9e67d02",
           "license": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3",
-          "package.json": "91dd282553b13e201d56de724f61c6755996f3120c3ff4d024a8a7171e0aa2cb",
-          "readme.md": "f634d81182a56e7732165e16c49215688911d560d5b738ff6741c51d964b19c6"
+          "package.json": "777acd8cd2a6d8cbfafb0f74153b99a3d7b26d08acc9ff690e9251c3c972ca29",
+          "readme.md": "09724d86ccfa607354f303f47f55603aeb1cd7f0b57e5b14997cdf4748acf0d5"
         },
         "exports": [
           "Options",
           "default"
         ],
-        "measured": "2026-11-08"
+        "measured": "2026-11-13"
       }
     }
   ],

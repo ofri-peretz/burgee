@@ -65,8 +65,18 @@ describe('the root default stays `width`', () => {
    * breaking the one drop-in recipe the README publishes.
    */
   it('is `width`, not one of the three new subpath defaults', async () => {
-    const index = (await import('./index.js')) as { default: unknown };
-    const { width } = await import('./width.js');
+    const index = (await import('./index.js')) as { default: unknown; width: unknown };
+    const { width } = await import('./width9.js');
     expect(index.default).toBe(width);
+    expect(index.width).toBe(width);
+  });
+
+  // `linegauge/v8` is string-width 8's drop-in, so its default is 8's `width` — the measurement
+  // `slice` and `wrap` cut by (D-20261113-string-width-9).
+  it('is 8.3.0\'s `width` under `linegauge/v8`', async () => {
+    const v8 = (await import('./v8.js')) as { default: unknown; width: unknown };
+    const { width } = await import('./width.js');
+    expect(v8.default).toBe(width);
+    expect(v8.width).toBe(width);
   });
 });
