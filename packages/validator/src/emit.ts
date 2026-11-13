@@ -30,7 +30,8 @@ const UNIT = 4;
  * there, and the two Unicode line separators cannot end a line in an older parser.
  */
 const literal = (value: unknown): string =>
-  String(JSON.stringify(value)).replaceAll(/[<>/\u2028\u2029]/gu, (unit) => `\\u${(unit.codePointAt(0) as number).toString(HEX).padStart(UNIT, '0')}`);
+  // JSON has no text for a number that is not finite and calls it null, which is another value.
+  (typeof value === 'number' && !Number.isFinite(value) ? String(value) : String(JSON.stringify(value))).replaceAll(/[<>/\u2028\u2029]/gu, (unit) => `\\u${(unit.codePointAt(0) as number).toString(HEX).padStart(UNIT, '0')}`);
 
 /** A bound as source. A node is data and may have been built by hand, so what is not a number is refused, not printed. */
 const numeric = (value: unknown): string => {
@@ -109,7 +110,8 @@ const number = (emitter: Emitter, schema: Node, ref: string): string => {
 };
 
 const member = (_: Emitter, schema: Node, ref: string): string => {
-  const tests = [...(schema.values as ReadonlySet<unknown>)].map((value) => `${ref} === ${literal(value)}`);
+  // A set holds `NaN`, which nothing is identical to: it is the one value that differs from itself.
+  const tests = [...(schema.values as ReadonlySet<unknown>)].map((value) => (Number.isNaN(value) ? `${ref} !== ${ref}` : `${ref} === ${literal(value)}`));
   return tests.length === 0 ? 'false' : `(${tests.join(' || ')})`;
 };
 
@@ -173,9 +175,7 @@ const tuple = (emitter: Emitter, schema: Node): string => {
 };
 
 const cases = (emitter: Emitter, schema: Node): string => {
-  const chosen = Object.entries(schema.cases as Readonly<Record<string, Node>>).map(
-    ([tag, one]) => `    case ${literal(tag)}: return ${test(emitter, one, 'v')};`,
-  );
+  const chosen = [...(schema.cases as ReadonlyMap<unknown, Node>)].map(([tag, one]) => `    case ${literal(tag)}: return ${test(emitter, one, 'v')};`);
   return `(v) => {
   if (!(${isObject('v')})) return false;
   switch (v[${literal(schema.tag)}]) {

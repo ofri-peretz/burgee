@@ -105,9 +105,9 @@ export interface Node {
   /** What `parse` puts where `undefined` arrived; `undefined` when there is none. */
   readonly default: unknown;
   readonly unknown: Unknown;
-  /** The discriminated union's key and its cases by that key's value. */
+  /** The discriminated union's key and its cases by that key's value: a string, a number or a boolean (parity.md decision 9). */
   readonly tag: string | null;
-  readonly cases: Readonly<Record<string, Node>> | null;
+  readonly cases: ReadonlyMap<unknown, Node> | null;
   /** A lazy node's schema, asked for when it is read: what lets a schema name itself. */
   readonly get: (() => Node) | null;
   readonly meta: Meta | null;
@@ -118,18 +118,22 @@ export interface Schema<T> extends Node {
   readonly '~type': T;
 }
 
-/** A field whose key may be absent. */
-export interface OptionalSchema<T> extends Schema<T> {
-  readonly '~optional': true;
+/**
+ * A field whose key may be absent. `F` is what the key may hold when it is there, which for
+ * `optional` is the schema's own type or `undefined` (parity.md decision 2).
+ */
+export interface OptionalSchema<T, F = T | undefined> extends Schema<T> {
+  readonly '~optional': F;
 }
 
 export type Infer<S extends Schema<unknown>> = S['~type'];
 
 type Shape = Readonly<Record<string, Schema<unknown>>>;
-type OptionalKeys<S extends Shape> = { [K in keyof S]: S[K] extends OptionalSchema<unknown> ? K : never }[keyof S];
+type MayBeAbsent = Readonly<Record<'~optional', unknown>>;
+type OptionalKeys<S extends Shape> = { [K in keyof S]: S[K] extends MayBeAbsent ? K : never }[keyof S];
 type Flat<T> = { [K in keyof T]: T[K] };
 export type ObjectOf<S extends Shape> = Flat<
-  { [K in Exclude<keyof S, OptionalKeys<S>>]: S[K]['~type'] } & { [K in OptionalKeys<S>]?: S[K]['~type'] }
+  { [K in Exclude<keyof S, OptionalKeys<S>>]: S[K]['~type'] } & { [K in OptionalKeys<S>]?: (S[K] & MayBeAbsent)['~optional'] }
 >;
 
 type Schemas = readonly Schema<unknown>[];
@@ -301,15 +305,20 @@ export interface OptionalOptions<T> {
   readonly default?: T;
 }
 
-/** Marks an object's field as one that may be absent. */
-export const optional = <T>(schema: Schema<T>, options: OptionalOptions<T> = {}): OptionalSchema<T | undefined> =>
-  Object.freeze({ ...schema, optional: true, default: options.default }) as OptionalSchema<T | undefined>;
+/**
+ * Marks an object's field as one that may be absent or `undefined`. It says that of the key, not of
+ * the value: anywhere else (at the root, in an array, a tuple or a record) the schema is what it
+ * was, so `check(optional(string()), undefined)` is false and the type says so. A value that may
+ * itself be `undefined` is `nullish`, or a union with `literal(undefined)`.
+ */
+export const optional = <T>(schema: Schema<T>, options: OptionalOptions<T> = {}): OptionalSchema<T> =>
+  Object.freeze({ ...schema, optional: true, default: options.default }) as OptionalSchema<T>;
 
 /** `T` or `null`. */
 export const nullable = <T>(schema: Schema<T>): Schema<T | null> => node('nullable', isNullable, { item: schema });
 
 /** `T`, `null` or `undefined`; as an object's field, the key may be absent. */
-export const nullish = <T>(schema: Schema<T>): OptionalSchema<T | null | undefined> =>
+export const nullish = <T>(schema: Schema<T>): OptionalSchema<T | null | undefined, T | null | undefined> =>
   node('nullish', isNullish, { item: schema, optional: true });
 
 export interface ObjectOptions<U> {
@@ -338,9 +347,41 @@ export const object: ObjectBuilder = (shape: Shape, options: ObjectOptions<Unkno
 
 type Cases = Readonly<Record<string, Schema<unknown>>>;
 
-/** One object schema per value of `tag`. The case is picked by that value, never by trying each. */
+/** The value a case is picked by: what the literal under `tag` in a case's own shape says. */
+const tagOf = (tag: string, one: Node, index: number): unknown => {
+  const field = one.fields?.[one.keys?.indexOf(tag) ?? -1];
+  const value: unknown = field?.kind === 'literal' ? field.value : undefined;
+  if (typeof value !== 'string' && typeof value !== 'boolean' && !Number.isFinite(value)) {
+    throw new TypeError(`case ${String(index)} of the union on "${tag}" names no tag. fix: make it an object with "${tag}" a literal string, number or boolean`);
+  }
+  return value;
+};
+
+/** The cases by their tag, in the order given. Two cases under one tag would leave the first unreachable. */
+const casesOf = (tag: string, cases: readonly Node[]): ReadonlyMap<unknown, Node> => {
+  const out = new Map<unknown, Node>();
+  for (const [index, one] of cases.entries()) {
+    const value = tagOf(tag, one, index);
+    if (out.has(value)) throw new TypeError(`case ${String(index)} of the union on "${tag}" repeats the tag of an earlier case. fix: give each case its own tag`);
+    out.set(value, one);
+  }
+  return out;
+};
+
+/**
+ * One object schema per value of `tag`, which is the case's key in `cases` and so a string. The
+ * case is picked by that value, never by trying each.
+ */
 export const discriminated = <const C extends Cases>(tag: string, cases: C): Schema<C[keyof C]['~type']> =>
-  node('discriminated', isCase, { tag, cases: Object.freeze({ ...cases }) });
+  node('discriminated', isCase, { tag, cases: new Map(Object.entries(cases)) });
+
+/**
+ * The same, for tags that are strings, numbers or booleans (parity.md decision 9): each case is an
+ * object whose `tag` key is a literal, and that literal is its tag. A builder of its own, so that a
+ * program whose tags are all strings does not carry the reading of them.
+ */
+export const discriminatedBy = <const C extends Schemas>(tag: string, cases: C): Schema<C[number]['~type']> =>
+  node('discriminated', isCase, { tag, cases: casesOf(tag, cases) });
 
 /** What any one member accepts. The members are tried in order, and the first to accept decides what `parse` returns. */
 export const union = <const T extends Schemas>(members: T): Schema<T[number]['~type']> =>

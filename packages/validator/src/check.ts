@@ -139,12 +139,9 @@ const isObject = (schema: Node, value: unknown): boolean => {
 
 const isCase = (schema: Node, value: unknown): boolean => {
   if (!isPlain(value)) return false;
-  const tag = value[schema.tag as string];
-  const cases = schema.cases as Readonly<Record<string, Node>>;
-  // eslint-disable-next-line conventions/consistent-existence-index-check -- Own cases only: a tag of "toString" must not pick an inherited function
-  if (typeof tag !== 'string' || !Object.hasOwn(cases, tag)) return false;
-  const chosen = cases[tag] as Node;
-  return run(chosen, value);
+  // A map, so a tag is found by its value and its type: 1 is not "1", and "toString" is no case.
+  const chosen = (schema.cases as ReadonlyMap<unknown, Node>).get(value[schema.tag as string]);
+  return chosen !== undefined && run(chosen, value);
 };
 
 /** An array of exactly the schema's items (parity.md decision 12: a tuple is closed). */

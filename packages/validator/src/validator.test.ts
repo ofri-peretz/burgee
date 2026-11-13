@@ -101,7 +101,7 @@ describe('a schema is data', () => {
     const cases: Record<string, typeof Item> = { a: Item };
     const schema = discriminated('kind', cases);
     cases.b = Item;
-    expect(Object.keys(schema.cases ?? {})).toEqual(['a']);
+    expect([...(schema.cases ?? new Map<unknown, unknown>()).keys()]).toEqual(['a']);
   });
 });
 
@@ -112,7 +112,7 @@ const WRONG: [string, (v: ReturnType<typeof valid>) => void, string, string, str
   ['too short', (v) => (v.id = ''), '/id', 'min', 'expected at least 1 characters, got string "". fix: send 1 or more'],
   ['a pattern miss', (v) => (v.email = 'ada'), '/email', 'pattern', String.raw`expected a string matching /^[^@\s]+@[^@\s]+\.[a-z]+$/, got string "ada". fix: send a value the pattern accepts`],
   ['not a number', (v) => (v.age = '36'), '/age', 'type', 'expected a number, got string "36". fix: send a finite number'],
-  ['NaN', (v) => (v.age = Number.NaN), '/age', 'type', 'expected a number, got number null. fix: send a finite number'],
+  ['NaN', (v) => (v.age = Number.NaN), '/age', 'type', 'expected a number, got number NaN. fix: send a finite number'],
   ['below the minimum', (v) => (v.age = -1), '/age', 'min', 'expected a number of at least 0, got number -1. fix: send 0 or more'],
   ['above the maximum', (v) => (v.age = 151), '/age', 'max', 'expected a number of at most 150, got number 151. fix: send 150 or less'],
   ['a fraction', (v) => (v.age = 1.5), '/age', 'integer', 'expected a whole number, got number 1.5. fix: drop the fraction'],

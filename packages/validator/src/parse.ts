@@ -97,11 +97,9 @@ const record = (schema: Node, value: unknown): unknown => {
 const wrapped = (schema: Node, value: unknown): unknown => fill(schema.item as Node, value);
 
 const picked = (schema: Node, value: unknown): unknown => {
-  const cases = schema.cases as Readonly<Record<string, Node>>;
-  const tag = isMembers(value) ? value[schema.tag as string] : undefined;
-  // A tag that is not a string picks no case for `check`, so what is made of the value then does not matter.
-  // eslint-disable-next-line conventions/consistent-existence-index-check -- Own cases only, as `check` picks them
-  return Object.hasOwn(cases, tag as string) ? fill(cases[tag as string] as Node, value) : value;
+  // A tag that picks no case fails `check`, so what is made of the value then does not matter.
+  const chosen = isMembers(value) ? (schema.cases as ReadonlyMap<unknown, Node>).get(value[schema.tag as string]) : undefined;
+  return chosen === undefined ? value : fill(chosen, value);
 };
 
 /** The first member whose own output it then accepts decides: the order of a union's members is the order of trying. */

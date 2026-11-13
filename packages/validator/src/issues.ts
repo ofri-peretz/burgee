@@ -48,8 +48,8 @@ const received = (value: unknown): string => {
   if (Array.isArray(value)) return 'an array';
   if (isRecord(value)) return 'an object';
   if (typeof value === 'function') return 'a function';
-  // `JSON.stringify` has no text for `undefined` or a symbol and throws on a bigint, so it is asked only about a number.
-  const text = typeof value === 'number' ? JSON.stringify(value) : String(value);
+  // `String`, not `JSON.stringify`, which has no text for `undefined` or a symbol, throws on a bigint and calls `NaN` null.
+  const text = String(value);
   const cut = text.slice(0, SHOWN);
   const more = text.length > SHOWN ? ` and ${String(text.length - SHOWN)} more characters` : '';
   return `${typeof value} ${typeof value === 'string' ? JSON.stringify(cut) : cut}${more}`;
@@ -119,15 +119,18 @@ const never = (walk: Walk, _: Node, got: unknown, path: string): void => {
   add(walk, { path, keyword: 'never', expected: 'no value', got, fix: 'remove it' });
 };
 
+/** A value a schema names, for a message: a string in quotes, so that 1 and "1" read differently. */
+const named = (value: unknown): string => (typeof value === 'string' ? JSON.stringify(value) : String(value));
+
 const literal = (walk: Walk, schema: Node, got: unknown, path: string): void => {
-  const value = JSON.stringify(schema.value);
+  const value = named(schema.value);
   if (got !== schema.value) add(walk, { path, keyword: 'literal', expected: value, got, fix: `send ${value}` });
 };
 
 const member = (walk: Walk, schema: Node, got: unknown, path: string): void => {
   const values = schema.values as ReadonlySet<unknown>;
   if (values.has(got)) return;
-  const names = [...values].map((value) => JSON.stringify(value)).join(', ');
+  const names = [...values].map(named).join(', ');
   add(walk, { path, keyword: 'enum', expected: `one of ${names}`, got, fix: 'send one of them' });
 };
 
@@ -195,16 +198,14 @@ const tuple = (walk: Walk, schema: Node, got: unknown, path: string): void => {
 };
 
 const pick = (walk: Walk, schema: Node, got: unknown, path: string): void => {
-  const cases = schema.cases as Readonly<Record<string, Node>>;
+  const cases = schema.cases as ReadonlyMap<unknown, Node>;
   const tag = isRecord(got) ? got[schema.tag as string] : undefined;
-  // eslint-disable-next-line conventions/consistent-existence-index-check -- Own cases only: a tag of "toString" must not pick an inherited function
-  if (typeof tag === 'string' && Object.hasOwn(cases, tag)) {
-    visit(walk, cases[tag] as Node, got, path);
+  const chosen = cases.get(tag);
+  if (chosen !== undefined) {
+    visit(walk, chosen, got, path);
     return;
   }
-  const names = Object.keys(cases)
-    .map((name) => JSON.stringify(name))
-    .join(', ');
+  const names = [...cases.keys()].map(named).join(', ');
   add(walk, { path: path + token(schema.tag as string), keyword: 'tag', expected: `one of ${names}`, got: tag, fix: 'send one of them' });
 };
 
