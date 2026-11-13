@@ -190,6 +190,42 @@ describe.skipIf(!native || !existsSync(bin) || !nightly)('a kill that is only a 
   });
 });
 
+/** A fixture's verdicts as `line:column:mutator:status`, its stats and its exit code, with `static.group` and an environment. */
+const groupRun = (name: string, file: string, args: string[], env: Record<string, string> = {}): { verdicts: string[]; stats: Record<string, number>; status: number | null; stderr: string } => {
+  const dir = path.join(pkg, 'test/fixtures', name);
+  const reportDir = mkdtempSync(path.join(tmpdir(), `oxmutate-${name}-`));
+  const r = spawnSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json', ...args], { cwd: dir, encoding: 'utf8', env: { ...process.env, ...env } });
+  const report = JSON.parse(readFileSync(path.join(reportDir, 'mutation.json'), 'utf8')) as { files: Record<string, { mutants: ReportMutant[] }>; 'x-oxmutate': { stats: Record<string, number> } };
+  rmSync(reportDir, { recursive: true, force: true });
+  const verdicts = (report.files[file]?.mutants ?? []).map((m) => `${String(m.location.start.line)}:${String(m.location.start.column)}:${m.mutatorName}:${m.status}`);
+  return { verdicts, stats: report['x-oxmutate'].stats, status: r.status, stderr: r.stderr };
+};
+
+// `static.group` arms several static mutants in one re-collection of a file that is not their
+// first (oxmutate-fastest R3–R6, D-20261113-oxmutate-static-group-disjoint).
+describe.skipIf(!native || !existsSync(bin) || !nightly)('static survivors armed in groups', () => {
+  it('gives every mutant the verdict it gets alone, in fewer runs', () => {
+    const alone = groupRun('static-group', 'src/table.ts', []);
+    const grouped = groupRun('static-group', 'src/table.ts', ['--static-group', '4']);
+    expect(grouped.verdicts).toEqual(alone.verdicts);
+    expect(alone.verdicts.some((v) => v.endsWith(':Survived'))).toBe(true);
+    expect(alone.verdicts.some((v) => v.endsWith(':Killed'))).toBe(true);
+    expect(alone.stats['staticGroupRuns']).toBe(0);
+    expect(grouped.stats['staticGroupRuns']).toBeGreaterThan(0);
+    expect(grouped.status).toBe(0);
+  });
+
+  it('a pair that hides each other is found by the audit: both Killed, and the run fails', () => {
+    const alone = groupRun('static-mask', 'src/pair.ts', []);
+    expect(alone.verdicts.filter((v) => v.includes(':StringLiteral:'))).toEqual(['3:14:StringLiteral:Killed', '4:15:StringLiteral:Killed']);
+    const grouped = groupRun('static-mask', 'src/pair.ts', ['--static-group', '4'], { OXMUTATE_STATIC_AUDIT: 'all' });
+    expect(grouped.verdicts).toEqual(alone.verdicts);
+    expect(grouped.stats['staticAuditDisagreed']).toBe(2);
+    expect(grouped.status).toBe(1);
+    expect(grouped.stderr).toMatch(/2 mutant\(s\) reported as survivors by a group were killed when run alone/u);
+  });
+});
+
 describe.skipIf(!native || !existsSync(bin) || !nightly)('static mutants keep their fresh-worker verdicts', () => {
   it('an import-time constant decides its mutants; an unread one survives', () => {
     const { verdicts, stats } = staticRun('static-const', 'src/limits.ts');
