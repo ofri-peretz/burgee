@@ -123,6 +123,7 @@ function corrections(s: RunResult['stats']): string[] {
     s.survivorsOverturned && `${String(s.survivorsOverturned)} survivor(s) killed by a whole-file re-run`,
     s.timeoutsOverturned && `${String(s.timeoutsOverturned)} timeout(s) that finished given 3x the time`,
     s.compileErrors && `${String(s.compileErrors)} survivor(s) that do not type-check, out of the score`,
+    s.staticAuditDisagreed && `${String(s.staticAuditDisagreed)} kill(s) a static group hid, found by the audit`,
     s.reused && `${String(s.reused)} verdict(s) reused${s.auditSampled ? ` (${String(s.auditSampled)} audited, ${String(s.auditDisagreed)} disagreeing)` : ''}`,
     s.crashes && `${String(s.crashes)} worker crash(es)`,
   ].filter((c): c is string => Boolean(c));

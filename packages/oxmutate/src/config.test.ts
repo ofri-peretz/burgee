@@ -32,6 +32,7 @@ const defaults = (root: string): Options => ({
   thresholds: { high: 80, low: 60, break: null },
   excludedMutations: [],
   ignoreStatic: false,
+  staticGroup: 1,
   strykerCompat: false,
   reporters: ['clear-text', 'json'],
   jsonReport: path.join(root, 'reports/mutation/mutation.json'),
@@ -142,6 +143,18 @@ describe('options from a config file', () => {
       typeChecker: 'npx tsgo',
       commandRunner: 'npm run unit',
     });
+  });
+
+  it('static.group is a whole number of at least one; anything else arms each static mutant alone', async () => {
+    const group = async (value: unknown): Promise<number> => (await loadOptions(project({ 'oxmutate.config.json': { static: { group: value } } }))).staticGroup;
+    expect(await group(25)).toBe(25);
+    expect(await group(2.9)).toBe(2);
+    expect(await group(1)).toBe(1);
+    expect(await group(0)).toBe(1);
+    expect(await group(-4)).toBe(1);
+    expect(await group('many')).toBe(1);
+    expect((await loadOptions(project({ 'oxmutate.config.json': { static: {} } }))).staticGroup).toBe(1);
+    expect((await loadOptions(project({ 'oxmutate.config.json': { static: { group: 8 } } }), { staticGroup: 3 })).staticGroup).toBe(3);
   });
 
   it('booleans are on only when literally true, and strings only when strings', async () => {

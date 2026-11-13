@@ -124,6 +124,17 @@ const decidedBySpec = new Set<string>();
 const only = mode === 'isolated' && env['OXMUTATE_ONLY_TESTS'] ? new Set(JSON.parse(env['OXMUTATE_ONLY_TESTS']) as string[]) : undefined;
 /** `static`: the static mutants this file run decides in the live worker. */
 const staticIds = mode === 'static' && env['OXMUTATE_STATIC'] ? (JSON.parse(env['OXMUTATE_STATIC']) as string[]) : [];
+/**
+ * `static`: mutants armed together in one re-collection, for a file that is not their first
+ * (`static.group`). A group whose run passes is a group of survivors in this file; one that fails is
+ * split until each failing mutant is found alone.
+ */
+const staticGroups = mode === 'static' && env['OXMUTATE_STATIC_GROUPS'] ? (JSON.parse(env['OXMUTATE_STATIC_GROUPS']) as string[][]) : [];
+/** One group-survived mutant in this many is run again alone; `OXMUTATE_STATIC_AUDIT=all` audits every one (the masking fixture). */
+const GROUP_AUDIT_EVERY = 20;
+const auditAll = env['OXMUTATE_STATIC_AUDIT'] === 'all';
+/** Deterministic, so a run audits the same mutants each time: the id's characters, summed. */
+const audited = (id: string): boolean => auditAll || [...id].reduce((sum, c) => sum + (c.codePointAt(0) ?? 0), 0) % GROUP_AUDIT_EVERY === 0;
 /** `static`: each mutant's hit-count limit. */
 const staticLimits = mode === 'static' && env['OXMUTATE_HIT_LIMITS'] ? (JSON.parse(env['OXMUTATE_HIT_LIMITS']) as Record<string, number>) : {};
 // `isolated`: the mutant is armed from process start, so its hit counter is too. A loop it causes
@@ -697,8 +708,12 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
     const { collectTests } = browser;
     const { vi } = vitest;
     if (!collectTests || !vi) return fallback('this Vitest has no public collect'); // Vitest 4: the fresh path decides
-    const evaluate = async (armed: string | undefined): Promise<{ failed: string[]; ran: number; timeout: boolean; deadlock?: boolean; error?: string }> => {
+    const evaluate = async (arm: string | readonly string[] | undefined): Promise<{ failed: string[]; ran: number; timeout: boolean; deadlock?: boolean; error?: string }> => {
+      // One mutant keeps its hit-count limit. A group has none: a loop one of them causes is the
+      // watchdog's, and the unit then goes to the fresh-worker path.
+      const armed = typeof arm === 'string' ? arm : undefined;
       ns.activeMutant = armed;
+      ns.activeGroup = arm !== undefined && typeof arm !== 'string' ? Object.fromEntries(arm.map((id) => [id, true as const])) : undefined;
       ns.hitCount = armed ? 0 : undefined;
       ns.hitLimit = armed ? (staticLimits[armed] ?? Number.MAX_SAFE_INTEGER) : undefined;
       deadlocked = false;
@@ -712,6 +727,7 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
         return { ...result, timeout: ranAway() || deadlocked, ...(deadlocked ? { deadlock: true } : {}) };
       } finally {
         ns.activeMutant = undefined;
+        ns.activeGroup = undefined;
         ns.hitCount = undefined;
         ns.hitLimit = undefined;
       }
@@ -729,23 +745,62 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
       held = [];
       fallback(reason, keys);
     };
-    while (rest.length) {
-      const id = rest.shift() as string;
+    /**
+     * A group survivor's verdict in this file: the group's, or its own when it is drawn for the audit
+     * and fails alone. `undefined` when its own run deadlocked.
+     */
+    const auditMember = async (member: string, ran: number): Promise<Awaited<ReturnType<typeof evaluate>> | undefined> => {
+      const passed = { failed: [], ran, timeout: false };
+      if (!audited(member)) return passed;
+      const alone = await evaluate(member);
+      if (alone.deadlock) return undefined;
+      const hid = alone.failed.length > 0 || alone.timeout;
+      emit({ type: 'static-audit', id: member, disagreed: hid });
+      return hid ? alone : passed;
+    };
+    // What is left to decide, as groups: one mutant each, unless the coordinator sent groups. `rest`
+    // stays the flat list of everything undecided, for a fallback.
+    const queue: string[][] = staticGroups.length ? staticGroups.map((g) => [...g]) : rest.map((id) => [id]);
+    const decided = (ids: readonly string[]): void => {
+      for (const id of ids) rest.splice(rest.indexOf(id), 1);
+    };
+    while (queue.length) {
+      const group = queue.shift() as string[];
+      const [id = ''] = group;
       // The real clock, as above: the file's tests run again here, and may freeze it.
       mark(`${id} ${String(realNow())}\n`);
-      held.push({ id, verdict: await evaluate(id) });
+      const verdict = await evaluate(group.length === 1 ? id : group);
       // A deadlocked run is still pending in this worker: tear it down. The batch, held verdicts and
       // all, goes back to the fresh-worker path, where each run has its own process.
-      if (held.at(-1)?.verdict.deadlock) return back('torn down: a deadlocked run is still pending in this worker');
+      if (verdict.deadlock) return back('torn down: a deadlocked run is still pending in this worker');
       const left = snapshotDiff(before, snapshot());
       if (left.length) return back('the mutant left a trace', left);
-      if (held.length < every && rest.length) continue;
+      if (group.length > 1) {
+        emit({ type: 'static-group', size: group.length, passed: verdict.failed.length === 0 && !verdict.timeout });
+        if (verdict.failed.length > 0 || verdict.timeout) {
+          // Somebody in the group is detected here: halve it until each one is run alone.
+          const half = Math.ceil(group.length / 2);
+          queue.unshift(group.slice(0, half), group.slice(half));
+          continue;
+        }
+        // Every member survives this file. Two mutants can hide each other, so a share of them is
+        // run again alone at once; one that fails alone is a kill the group hid.
+        for (const member of group) {
+          const own = await auditMember(member, verdict.ran);
+          if (own === undefined) return back('torn down: a deadlocked run is still pending in this worker');
+          held.push({ id: member, verdict: own });
+        }
+      } else {
+        held.push({ id, verdict });
+      }
+      decided(group);
+      if (held.length < every && queue.length) continue;
       const unarmed = await evaluate(undefined);
       emit({ type: 'recollection' });
       if (unarmed.failed.length > 0) return back('the unarmed re-collection failed', unarmed.error ? [unarmed.error] : []);
       const after = snapshotDiff(before, snapshot());
       if (after.length) return back('the unarmed re-collection left a trace', after);
-      for (const { id: done, verdict } of held) emit({ type: 'isolated', id: done, killed: verdict.failed.length > 0 && !verdict.timeout, failed: verdict.failed, ran: verdict.ran, ...(verdict.timeout && { timeout: true }), ...(verdict.deadlock && { deadlock: true }) });
+      for (const { id: done, verdict: v } of held) emit({ type: 'isolated', id: done, killed: v.failed.length > 0 && !v.timeout, failed: v.failed, ran: v.ran, ...(v.timeout && { timeout: true }), ...(v.deadlock && { deadlock: true }) });
       held = [];
       every = Math.min(STATIC_CANARY_MAX, every * 2);
     }

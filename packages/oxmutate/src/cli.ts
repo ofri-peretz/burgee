@@ -70,6 +70,7 @@ function overridesFrom(o: Record<string, unknown>, root: string): Partial<Option
   if (typeof o['mutantTimeout'] === 'number') overrides.timeoutMS = o['mutantTimeout'];
   if (o['strykerCompat'] === true) overrides.strykerCompat = true;
   if (o['ignoreStatic'] === true) overrides.ignoreStatic = true;
+  if (typeof o['staticGroup'] === 'number') overrides.staticGroup = Math.max(1, Math.floor(o['staticGroup']));
   if (o['incremental'] === true) overrides.incremental = true;
   if (typeof o['flakyReruns'] === 'number') overrides.flakyReruns = o['flakyReruns'];
   if (typeof o['reporter'] === 'string') overrides.reporters = o['reporter'].split(',').map((s) => s.trim());
@@ -98,6 +99,7 @@ const runCommand = defineCommand({
     mutantTimeout: { type: 'number', description: 'absolute slack per mutant, ms (default 500; Stryker 5000)' },
     strykerCompat: { type: 'boolean', description: 'reproduce Stryker 10.0.0 skips (no mutants inside `as` casts or enums)' },
     ignoreStatic: { type: 'boolean', description: 'skip static mutants (module-level code): faster, and the score leaves them out' },
+    staticGroup: { type: 'number', description: 'arm this many static mutants together in a file that is not their first (default 1; a heuristic, audited)' },
     incremental: { type: 'boolean', description: 'reuse verdicts whose source and covering tests did not change' },
     flakyReruns: { type: 'number', description: 're-runs for verdicts with nondeterministic tests (default 2; 0 disables)' },
     reporter: { type: 'string', description: 'comma-separated: clear-text, json, sarif, html (default clear-text,json)' },
@@ -126,6 +128,10 @@ const runCommand = defineCommand({
     const weakened = result.frozen?.weakened ?? [];
     if (weakened.length) {
       stderr.write(`oxmutate: the change weakened its tests: ${String(weakened.length)} mutant(s) the tests at ${result.frozen?.base ?? ''} detect now survive (${weakened.slice(0, WEAKENED_SHOWN).map((w) => `${w.file}:${String(w.line)} ${w.mutatorName}`).join('; ')}). fix: restore the assertions the change removed, or replace them with ones that kill these mutants\n`);
+      data['exitCode'] = ExitCode.RUNTIME;
+    }
+    if (result.stats.staticAuditDisagreed > 0) {
+      stderr.write(`oxmutate: ${String(result.stats.staticAuditDisagreed)} mutant(s) reported as survivors by a group were killed when run alone; they are reported Killed. fix: run without static.group, and report the mutants named in the JSON report's x-oxmutate stats\n`);
       data['exitCode'] = ExitCode.RUNTIME;
     }
     const floor = options_.thresholds.break;

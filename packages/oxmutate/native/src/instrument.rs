@@ -25,7 +25,7 @@ fn header(namespace: &str) -> String {
         "// @ts-nocheck\n\
 function oxmNS() {{ var g = globalThis; var ns = g.{namespace} || (g.{namespace} = {{}}); if (ns.activeMutant === undefined && g.process && g.process.env && g.process.env.__OXMUTATE_ACTIVE_MUTANT__) {{ ns.activeMutant = g.process.env.__OXMUTATE_ACTIVE_MUTANT__; }} oxmNS = function () {{ return ns; }}; return ns; }}\n\
 function oxmCov() {{ var ns = oxmNS(); var cov = ns.mutantCoverage || (ns.mutantCoverage = {{ static: {{}}, perTest: {{}} }}); var c = cov.static; if (ns.currentTestId) {{ c = cov.perTest[ns.currentTestId] || (cov.perTest[ns.currentTestId] = {{}}); }} for (var i = 0; i < arguments.length; i++) {{ c[arguments[i]] = (c[arguments[i]] || 0) + 1; }} }}\n\
-function oxmAct(id) {{ var ns = oxmNS(); if (ns.activeMutant === id) {{ if (ns.hitCount !== undefined && ++ns.hitCount > ns.hitLimit) {{ throw new Error('oxmutate: Hit count limit reached (' + ns.hitCount + ')'); }} return true; }} return false; }}\n"
+function oxmAct(id) {{ var ns = oxmNS(); if (ns.activeMutant === id) {{ if (ns.hitCount !== undefined && ++ns.hitCount > ns.hitLimit) {{ throw new Error('oxmutate: Hit count limit reached (' + ns.hitCount + ')'); }} return true; }} return ns.activeGroup !== undefined && ns.activeGroup[id] === true; }}\n"
     )
 }
 
