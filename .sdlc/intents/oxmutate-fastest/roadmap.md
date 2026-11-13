@@ -15,7 +15,7 @@ what the profile suggests, and each item ships only when its own measurement say
 | Package | Against Stryker | Reading |
 | :-- | :-- | :-- |
 | paratext | at least **21.5x faster** | _measured_ 2026-11-12, one machine, 4 workers, load about 50: Stryker 380.0 s, oxmutate 17.7 s. oxmutate graded more mutants (1,332 against 1,255), so equal sets can only raise it. One run each. |
-| caique | **1.3x to 1.5x faster** | _measured_ 2026-11-02/03 on the build before #1532, equal sets (`sc8/RUNS.md`). Not re-measured since. |
+| caique | **3.65x faster** | _measured_ 2026-11-13, equal sets (6,428 mutants matched), one machine, 4 workers: Stryker 3,391 s, oxmutate 928 s, mean loads 19.3 and 13.4. One pair. Before #1532 it was 1.3x to 1.5x (`sc8/RUNS.md`). |
 | compat-oracle | **unknown, probably slower** | No valid head-to-head. The last full run took 1,063 minutes here; Stryker's took 58 on a CI runner while skipping 1,298 mutants. |
 
 **Where a run's time goes** (_measured_, the 2026-11-04/05 full run, all 12 packages):
@@ -33,7 +33,7 @@ fewer processes, never decide the same mutant twice, and use the machine well.**
 | Package | Today | Target | Criterion |
 | :-- | :-- | :-- | :-- |
 | compat-oracle | unknown | at least 1.5x faster than Stryker, same graded set | `F7` (the owner's) |
-| caique | 1.3x to 1.5x | at least 3x | new, `F8` |
+| caique | 3.65x (one pair) | at least 3x, as a median of two pairs | new, `F8` |
 | paratext | 21.5x | at least 30x | new, `F9` |
 | A one-file change, any package | not measured | under 60 s, on the changed lines | new, `F10` |
 | The full repository | 37.5 hours | under 4 hours at 4 workers | `F4` asks for 3x; this is 9x |
@@ -55,7 +55,7 @@ The warm phase and every small run. Judged on paratext.
 | # | Item | Evidence | Expected | Risk to verdicts |
 | :-- | :-- | :-- | :-- | :-- |
 | `1.1` | Keep the progress and results files open | Done, #1532. _Measured_: paratext warm 24.8–25.8 s → 9.3–9.9 s | — | None; same bytes |
-| `1.2` | Node's compile cache for servers and workers | 152 processes each compile the same code: about 4.5 s of 53 s busy | 5–10% of a run | None; Node's own cache |
+| `1.2` | Node's compile cache for servers and workers | **Tried and dropped, 2026-11-13.** _Measured_ with `bench/ab.mjs`, main against the change, two rounds: every verdict equal, and slower on 9 of 11 targets, paratext 18.4 s → 20.0 s (0.92x), fixtures 0.81x to 1.05x. The cache is more small files to open, which is the cost #1532 removed | — | — |
 | `1.3` | Recover from pollution inside the worker | paratext: 18 restarts, each a new process and a unit split in two; the static path already resets a module registry in 0.5 ms | 20–30% of paratext's warm phase | Medium: touches the canary. Needs a model and a fixture |
 | `1.4` | Fewer, larger units | About 136 ms a unit outside its tests; the cap is 400 pairs | 10–20% of warm | Low: after `1.3`, since a restart then redoes more |
 | `1.5` | A worker that outlives its unit | Most of the remaining start-up. Vitest starts a fresh worker for every `start` when `isolate` is on | Large, up to 2x on warm | High: isolation is what several guarantees rest on. Only if `1.2`–`1.4` leave start-up dominant |
@@ -73,7 +73,7 @@ and caique.
 | `2.3` | Drop mutants that compile to the same code | Two mutants whose minified output is identical have one verdict; a mutant identical to the original is equivalent. oxc's minifier makes the comparison cheap | Fewer mutants to run; published results for the technique vary, and nothing is measured here | Low: identical code, identical behaviour. Reported, never silently dropped |
 | `2.4` | Choose a static mutant's tests by what reads it | Today every file that loads the module runs. `oxc_semantic` knows which functions reference the mutated binding | Large where data is read by few tests; none where one table feeds everything | Low if exact; falls back to all files when a binding escapes |
 | `2.5` | Confirm survivors in batches | Each warm survivor gets a fresh process today | Up to 2x on the isolated phase, if the profile says confirmations dominate | Medium: same guards as the static path |
-| `2.6` | `ignoreStatic` as a flag, and a static budget | The config key exists; no flag, no cap, and the summary does not say what the static phase cost | The user's choice: removes the static phase | None to what is graded; the score covers less, and says so |
+| `2.6` | `ignoreStatic` as a flag, and a static budget | The flag `--ignore-static` and a summary line for the static phase are done (the PR after #1547). The budget, `static.budgetMs`, is not | The user's choice: removes the static phase | None to what is graded; the score covers less, and says so |
 | `2.7` | Likeliest killer first | A killed mutant stops at its first failing test. History of which test killed which mutant orders them | 10–20% on warm for a mature suite | None: same tests, another order |
 
 ## Track 3 — Never decide the same mutant twice
@@ -104,7 +104,7 @@ here: a process per mutant with no coverage, against a warm worker with per-test
 
 ## Order
 
-1. **Now:** `2.2` (done here), `1.2`, `2.6`, `3.1`. Small, safe, and each measurable in a day.
+1. **Now:** `2.2` and `2.6`'s flag (done), `1.2` (tried, dropped), `3.1`. Small, safe, and each measurable in a day.
 2. **Then the two big ones:** `2.1` for the static phase, `1.3` for the warm phase. Each needs a
    model and a fixture that fails without its guard.
 3. **Then:** `1.4`, `2.5`, `2.3`, `3.2`, `3.3`, each decided by the counters after step 2.

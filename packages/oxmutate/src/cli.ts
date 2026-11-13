@@ -69,6 +69,7 @@ function overridesFrom(o: Record<string, unknown>, root: string): Partial<Option
   if (typeof o['concurrency'] === 'number') overrides.concurrency = o['concurrency'];
   if (typeof o['mutantTimeout'] === 'number') overrides.timeoutMS = o['mutantTimeout'];
   if (o['strykerCompat'] === true) overrides.strykerCompat = true;
+  if (o['ignoreStatic'] === true) overrides.ignoreStatic = true;
   if (o['incremental'] === true) overrides.incremental = true;
   if (typeof o['flakyReruns'] === 'number') overrides.flakyReruns = o['flakyReruns'];
   if (typeof o['reporter'] === 'string') overrides.reporters = o['reporter'].split(',').map((s) => s.trim());
@@ -96,6 +97,7 @@ const runCommand = defineCommand({
     concurrency: { type: 'number', description: 'worker processes (default: cores - 1, at most 8)' },
     mutantTimeout: { type: 'number', description: 'absolute slack per mutant, ms (default 500; Stryker 5000)' },
     strykerCompat: { type: 'boolean', description: 'reproduce Stryker 10.0.0 skips (no mutants inside `as` casts or enums)' },
+    ignoreStatic: { type: 'boolean', description: 'skip static mutants (module-level code): faster, and the score leaves them out' },
     incremental: { type: 'boolean', description: 'reuse verdicts whose source and covering tests did not change' },
     flakyReruns: { type: 'number', description: 're-runs for verdicts with nondeterministic tests (default 2; 0 disables)' },
     reporter: { type: 'string', description: 'comma-separated: clear-text, json, sarif, html (default clear-text,json)' },
