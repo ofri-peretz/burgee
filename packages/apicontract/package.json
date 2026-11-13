@@ -25,6 +25,11 @@
       "import": "./dist/openapi.js",
       "default": "./dist/openapi.js"
     },
+    "./openapi-typescript": {
+      "types": "./dist/openapi-typescript.d.ts",
+      "import": "./dist/openapi-typescript.js",
+      "default": "./dist/openapi-typescript.js"
+    },
     "./package.json": "./package.json"
   },
   "bin": {
@@ -43,7 +48,8 @@
     "lint": "eslint src"
   },
   "dependencies": {
-    "burgee": "^2.0.0"
+    "burgee": "^2.0.0",
+    "seniority": "^2.0.0"
   },
   "devDependencies": {
     "vitest": "^5.0.1"
