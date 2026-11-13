@@ -12,6 +12,7 @@ import {
   number,
   object,
   optional,
+  type Schema,
   string,
 } from './index.js';
 
@@ -163,10 +164,18 @@ describe('check and issues', () => {
       [number({ min: 0 }), 0],
       [string(), ''],
       [array(string()), []],
-    ] as const) {
+    ] as [Schema<unknown>, unknown][]) {
       expect(check(schema, value)).toBe(true);
       expect(issues(schema, value)).toEqual([]);
     }
+  });
+
+  it('still test the pattern of a string exactly at its longest', () => {
+    const schema = string({ max: 3, pattern: /^a+$/ });
+    expect(check(schema, 'abc')).toBe(false);
+    expect(issues(schema, 'abc')).toEqual([
+      { path: '', keyword: 'pattern', message: 'expected a string matching /^a+$/, got string "abc". fix: send a value the pattern accepts' },
+    ]);
   });
 
   it('pick a case only by a string tag', () => {
