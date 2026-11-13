@@ -1016,12 +1016,15 @@ export const HOSTS: Host[] = [
     imports: [{ upstream: './index.js', subpath: '', reexportDefault: true }],
     surfaceFiles: ['index.d.ts', 'index.js'],
     // 9.0.0 moved its suite from ava to `node --test`; left at ava, both runs read 0.
+    // Stryker disable next-line StringLiteral: graded in another process: the compat ratchet's run and its `--control` run read this row against `baseline/string-width.json` (466 of 466), and a runner other than `node:test` cannot run the suite at all — both read 0.
     runner: 'node:test',
     // The incumbent installed beside the suite, as `slice-ansi-7` does, so the control is 9.0.0
     // itself. The workspace root stays at `^8.3.0`: slice-ansi 10.0.1, wrap-ansi 10.0.2,
     // cli-truncate 6.2.0, widest-line, boxen and ink all still depend on `^8`, and a root at 9
     // nests a copy of 8 under each of them (D-20261113-string-width-9).
+    // Stryker disable next-line StringLiteral: graded in another process: only a re-vendor reads the pin, and the vendored `PROVENANCE` and `.source.json` record the release it produced (9.0.0)
     pinnedVersion: '9.0.0',
+    // Stryker disable next-line StringLiteral,ArrayDeclaration: graded in another process: the `--control` run installs this beside the suite and reads 466 of 466 only against 9.0.0 itself
     suiteDeps: ['string-width@9.0.0'],
     target: 'linegauge',
     status: 'active',
@@ -2446,6 +2449,7 @@ export const PREVIOUS_MAJORS: Host[] = [
     // the entry graded here. The suite is the one the current row graded until 2026-11-13,
     // re-vendored at the same tag, and the incumbent is installed beside it so the control is 8.3.0
     // itself whatever the root resolves (D-20261113-string-width-9).
+    // Stryker disable all: graded in another process: the compat ratchet's `--majors` and `--majors --control` runs read this row against `baseline/majors/string-width-8.json` (233 of 233), and a mutant here moves one of those counts
     name: 'string-width-8',
     npmName: 'string-width',
     majorOf: 'string-width',
@@ -2460,6 +2464,7 @@ export const PREVIOUS_MAJORS: Host[] = [
     target: 'linegauge/v8',
     status: 'active',
     note: '**Measured 2026-11-13: 233 / 233 against a control of 233 / 233, level and claimed** (`SUPPORTED_MAJORS["string-width"]` is `[8, 9]`). `linegauge/v8` is the measurement the current row graded 233 / 233 until 9.0.0, unchanged; the root moved to 9.0.0\'s rules.',
+    // Stryker restore all
   },
   {
     // slice-ansi 7, kept graded when the current row moved to 9 (burgee#317), because 7 is

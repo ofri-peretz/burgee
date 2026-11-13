@@ -152,11 +152,6 @@ function visibleColumns(visible: string, ambiguousIsWide: boolean): number {
 }
 
 /**
- * Columns one grapheme cluster occupies. A plugin's claim comes first, as in `width.ts`: a
- * user describing the terminal in front of them outranks a table describing terminals in
- * general.
- */
-/**
  * A cluster opening with prepended marks: a column each, unless the glyph after them is wide —
  * East Asian Wide, or an emoji not asked for in text style — and draws them inside its own cell.
  */
