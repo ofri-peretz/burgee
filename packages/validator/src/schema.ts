@@ -65,7 +65,7 @@ const node = <S extends Schema<unknown>>(kind: Kind, part: Part): S =>
     item: part.item ?? null,
     keys: part.keys ?? null,
     fields: part.fields ?? null,
-    optional: part.optional ?? false,
+    optional: false,
     tag: part.tag ?? null,
     cases: part.cases ?? null,
   }) as unknown as S;

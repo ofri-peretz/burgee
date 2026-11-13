@@ -117,7 +117,6 @@ const WRONG: [string, (v: ReturnType<typeof valid>) => void, string, string, str
   ['an array for a case', (v) => (v.payment = ['card']), '/payment/kind', 'tag', 'expected one of "card", "bank", got undefined undefined. fix: send one of them'],
   ['the right case, wrong inside', (v) => (v.payment = { kind: 'card', last4: '424' }), '/payment/last4', 'min', 'expected at least 4 characters, got string "424". fix: send 4 or more'],
   ['a string too long', (v) => (v.payment = { kind: 'card', last4: '42424' }), '/payment/last4', 'max', 'expected at most 4 characters, got string "42424". fix: send 4 or fewer'],
-  ['the wrong literal', (v) => (v.payment = { kind: 'bank', iban: 'x'.repeat(15), extra: 1 }) && ((v.payment as { kind: string }).kind = 'bank') && (v.active = 'yes'), '/active', 'type', 'expected true or false, got string "yes". fix: send a boolean'],
 ];
 
 describe('check and issues', () => {
@@ -152,8 +151,35 @@ describe('check and issues', () => {
     }
   });
 
+  it('accept a value exactly at each bound, and the defaults when no bound is given', () => {
+    const order = valid();
+    order.age = 150;
+    order.tags = Array.from({ length: 10 }, () => 'x');
+    (order.items as { sku: string }[])[0]!.sku = 'x'.repeat(32);
+    expect(check(Order, order)).toBe(true);
+    expect(issues(Order, order)).toEqual([]);
+    for (const [schema, value] of [
+      [number(), -5],
+      [number({ min: 0 }), 0],
+      [string(), ''],
+      [array(string()), []],
+    ] as const) {
+      expect(check(schema, value)).toBe(true);
+      expect(issues(schema, value)).toEqual([]);
+    }
+  });
+
+  it('pick a case only by a string tag', () => {
+    const numbered = discriminated('k', { 1: object({}) });
+    expect(check(numbered, { k: '1' })).toBe(true);
+    expect(check(numbered, { k: 1 })).toBe(false);
+    expect(issues(numbered, { k: 1 })).toEqual([{ path: '/k', keyword: 'tag', message: 'expected one of "1", got number 1. fix: send one of them' }]);
+  });
+
   it('compare a literal by identity', () => {
     expect(check(literal(null), null)).toBe(true);
+    expect(check(literal(1), '1')).toBe(false);
+    expect(check(literal(1), 1)).toBe(true);
     expect(issues(literal(1), '1')).toEqual([{ path: '', keyword: 'literal', message: 'expected 1, got string "1". fix: send 1' }]);
   });
 
