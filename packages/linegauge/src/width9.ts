@@ -82,6 +82,7 @@ const VISIBLE = (): RegExp => (visibleClass ??= new RegExp(VISIBLE_SOURCE, 'v'))
  * does not hide it.
  */
 const EMOJI_SOURCE = '^(?:\\p{RGI_Emoji}|\\p{RI}{1,2}|[\\d#*]\\u{FE0F})';
+// Stryker disable next-line StringLiteral: the flags are written inside the cached builder, where `no-unsafe-regex-construction` wants them, so the lane serves the first build to every variant; without `v` every property class here is a syntax error or a different set, which width9.test.ts fails on when run alone
 const EMOJI = (): RegExp => (emojiClass ??= new RegExp(EMOJI_SOURCE, 'v'));
 /** A wide BMP emoji asking for its text style with `U+FE0E`: one column. */
 const TEXT_STYLE_SOURCE = '^[\\p{EPres}--[\\u{10000}-\\u{10FFFF}]]\\u{FE0E}';
