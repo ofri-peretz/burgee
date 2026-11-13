@@ -57,11 +57,6 @@ vendor/*/package-lock.json
 # clack's internal shims: its tests sit in `packages/prompts/test/`, so `../src/common.js`
 # is written under the sub-package, not at the vendored root like every host before it.
 vendor/*/packages/prompts/src/
-# openapi-typescript's, the same way: its tests sit in `packages/openapi-typescript/test/` and
-# reach `../src/lib/ts.js`, `../../src/transform/*.js` and `../src/types.js`.
-vendor/*/packages/openapi-typescript/src/
-# and its `entries` file: `cli.test.ts` and `yaml.test.ts` spawn `./bin/cli.js` there.
-vendor/*/packages/openapi-typescript/bin/
 # The same two generated files for a monorepo host, where vitest's root is the
 # sub-package's own directory rather than the vendored root.
 vendor/*/packages/*/vitest.config.mjs

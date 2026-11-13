@@ -306,19 +306,6 @@ export interface Host {
    */
   publishedInternalDir?: string;
   /**
-   * The extension the published package gives those compiled modules, when it is not the
-   * `.js` the suite writes. Read only beside {@link publishedInternalDir}.
-   *
-   * openapi-typescript's tests import `../../src/transform/components-object.js` for its
-   * **default** export, and the tarball carries that module as
-   * `dist/transform/components-object.mjs` (unbuild writes `.mjs` and `.cjs`, and the package's
-   * exports map sends `./*.js` to `./*.mjs`). Without this the control found no file of that
-   * name, fell back to the package's main entry, and an `export *` of it has no default: 152
-   * of the 203 informational cases failed against openapi-typescript itself at link time
-   * (measured 2026-11-13). With it the path is linked to the compiled file, as ink's is.
-   */
-  publishedInternalExtension?: string;
-  /**
    * For a **target** run only, the export the target publishes under each internal path.
    *
    * The default shim re-exports the target's whole main entry at every internal path, which
@@ -712,10 +699,6 @@ export interface Host {
 const EXECA_UNGRADED = ['convert', 'io', 'ipc', 'pipe', 'resolve', 'stdio', 'terminate', 'transform', 'verbose'];
 const EXECA_UNGRADED_WHY =
   "Vendored and not graded, for cost. execa's suite is 5,125 cases run one file at a time (upstream's own `concurrency: 1`, `--test-concurrency=1` since 10.1.0), and the control measured **647 s** across the twelve directories on 2026-09-27 — past the oracle's 300 s cap on one suite run, and more than half of the ratchet job's 20 minutes on its own. The graded slice is `arguments/`, `methods/` and `return/`: how a command is built, the entry points, and the result and error a caller reads, which is the whole of what bellpull's `run` overlaps with execa (bellpull R1, R6). Nothing is hidden by leaving these out: graded over all 149 files the same day, `bellpull` passed **0** — every file imports `execa`, which bellpull does not export, and fails at link time. Re-measured at 10.1.0 on 2026-10-07 over all 152 files: **0**, for the same reason. D-160.";
-
-/** The reason fifteen of openapi-typescript's cases are subtracted, once; each entry adds which document. */
-const BIG_EXAMPLE =
-  "Upstream's `examples/` is 69 MB in 2,052 files (measured at the 7.13.0 tag), and this case converts one of its documents and compares the result with the committed output beside it";
 
 /** The four names dotenv's `index.js` assigns one by one so Node can see them from ESM. */
 const DOTENV_NAMES = ['config', 'configDotenv', 'parse', 'populate'];
@@ -2307,109 +2290,6 @@ export const HOSTS: Host[] = [
     peers: ['react', 'react-reconciler'],
     status: 'active',
     note: "**2026-10-06: 102 / 102, control 102 / 102, with one case excluded because ink 8 fails it too.** `controlroom/ink` now follows ink 8.0.0, and `spinner › spinner` asserts ink 5's unmount writes; real ink 8.0.0 under `@inkjs/ui` 2.0.0's suite on React 19.3.0 was measured at 102 of 103 with this case the one failure (see `excludes`). The rest of the row is unchanged, and the drop-in is still graded on React 18 here. Vendored 2026-10-05 at **2.0.0**, the latest release (2024-05-22). `controlroom/spec.md` R17: `@inkjs/ui` runs unmodified with `'ink'` resolved to the drop-in, and there is no `@inkjs/ui` façade — so this row grades `@inkjs/ui` itself on both runs and moves only `ink` under it (`alias`). **13 files, 103 cases. Control 103 / 103** on darwin, against `ink@5.2.1` and `react@18.3.1`: upstream's own devDependencies at v2.0.0 (`ink ^5.0.0`, `react ^18.3.1`), which is not what ink's own row runs (6.8.0, React 19) — the drop-in is graded on both React lines. One substitution, and it touches no assertion: upstream loads its TypeScript with `--import=tsimp`, and tsimp 2.0.12 on Node 24 loads nothing — measured 2026-10-05, `node --import=tsimp` on a two-line `.ts` exits 0 without running it, and ava reports `Timed out while running tests` with 0 cases. `tsx`, which ink's own suite uses, runs all 103. Target `controlroom` read **0 / 103** while the alias landed on the root, which had none of ink's names. **On `controlroom/ink` since 2026-10-05: 103 / 103**, control 103 / 103, on `@inkjs/ui`'s own React 18.3.1 and `react-reconciler` 0.29.2 (resolved from this suite's tree through `peers`), so the drop-in's one host config is graded on React 18 here and React 19 on ink's row. Seven of the 103 are cases upstream marks `test.failing` because ink 5's string-width draws ✔, ⚠ and ℹ two columns wide; the drop-in draws them one column wide, as the boxen expectation in each case says, and the oracle counts a failing case that passes as passed.",
-  },
-  {
-    // apicontract's first incumbent, and a monorepo package like clack: the suite sits in
-    // `packages/openapi-typescript/test/` and reaches the library as `../src/index.js`.
-    name: 'openapi-typescript',
-    repo: 'https://github.com/openapi-ts/openapi-typescript',
-    tagPrefix: 'openapi-typescript@',
-    testDir: 'packages/openapi-typescript/test',
-    packageDir: 'packages/openapi-typescript',
-    // `cjs.test.js` is the one file this leaves out: it `require`s `../dist/index.cjs` and
-    // snapshots against `examples/stripe-api.ts`, which is not vendored (see `extraDirs`).
-    testGlob: '*.test.ts',
-    internalDir: 'src',
-    // The tarball carries each module the suite reaches under `src/` as `dist/<same>.mjs`, and
-    // the transform suites import those for their default export.
-    publishedInternalDir: 'dist',
-    publishedInternalExtension: '.mjs',
-    imports: [{ upstream: '../src/index.js', subpath: '', reexportDefault: true }],
-    surfaceFiles: ['packages/openapi-typescript/src/index.ts'],
-    // `cli.test.ts` and `yaml.test.ts` spawn `./bin/cli.js` from the package's directory. The
-    // control links the incumbent's own; a target run writes a module that loads the target,
-    // which is no executable, so those cases fail until the drop-in ships a CLI there.
-    entries: [{ at: 'packages/openapi-typescript/bin/cli.js', control: 'bin/cli.js', target: '' }],
-    // Four files of upstream's `examples/`, 24 kB: the document and the committed output that
-    // seven cases read. The other 69 MB of that directory is not vendored; see `excludes`.
-    extraDirs: [
-      'packages/openapi-typescript/examples/simple-example.yaml',
-      'packages/openapi-typescript/examples/simple-example.ts',
-      'packages/openapi-typescript/examples/enum-root-types.yaml',
-      'packages/openapi-typescript/examples/enum-root-types.ts',
-    ],
-    suiteDeps: [
-      // The incumbent itself, for the control, at the release the suite comes from.
-      'openapi-typescript@7.13.0',
-      // Its peer, which the suite also imports by name to build the AST nodes it passes in;
-      // one copy beside both, at the version upstream's lockfile resolves.
-      'typescript@5.9.3',
-      // `test-helpers.ts` builds every transform context with its `createConfig`.
-      '@redocly/openapi-core@1.34.6',
-      // `cli.test.ts` and `yaml.test.ts` spawn `./bin/cli.js` with execa, and one case strips
-      // the colour from what it printed.
-      'execa@9.6.1',
-      'strip-ansi@7.2.0',
-    ],
-    // Upstream's own `vitest.config.ts`, less `globals`, which the generated config always sets —
-    // and one setting that is the harness's, not upstream's. vitest 5 keeps transformed modules
-    // on disk between runs (`fsModuleCache`, on by default, under the workspace root), and a
-    // cached test file carries the path each import resolved to. A control run resolves
-    // `../../src/lib/utils.js` through its link to the incumbent's compiled file, so the target
-    // run that followed loaded openapi-typescript's own module from the cache: the stub read
-    // 161 / 203 on the informational line, with no such export in it (measured 2026-11-13).
-    vitestConfig: { environment: 'node', clearMocks: true, fsModuleCache: false },
-    // ---------------------------------------------------------------------------------
-    // Seventeen cases, subtracted from both runs, for two reasons and no others.
-    //
-    // **Fifteen read a document this repository does not vendor.** Each converts one of
-    // upstream's large examples (GitHub's API, Stripe's, DigitalOcean's, Octokit's GHES diff)
-    // and compares the output with a committed `.ts` of 0.5 to 6 MB. The directory is 69 MB;
-    // the four small files the other example cases need are in `extraDirs`. Left in, each
-    // fails against openapi-typescript itself on `ENOENT` before any snapshot is compared.
-    // A table-driven title is matched as a substring, because the vendor record holds only the
-    // titles written as literals; every line a substring reaches is listed in its reason.
-    //
-    // **Two fetch a document from raw.githubusercontent.com**, so they grade the network.
-    // ---------------------------------------------------------------------------------
-    excludes: [
-      {
-        match: 'test/cli.test.ts > CLI > snapshot > GitHub API',
-        why: `5 cases: \`GitHub API\`, \`(immutable)\`, \`(types + immutable)\`, \`(root types)\` and \`(next)\`. ${BIG_EXAMPLE}: \`examples/github-api.yaml\` (8.5 MB) or \`github-api-next.yaml\` (8.5 MB) through \`./bin/cli.js\`, against outputs of 5.5 to 6.1 MB each.`,
-      },
-      { match: 'test/cli.test.ts > CLI > snapshot > Octokit GHES 3.6 Diff to API', why: `1 case. ${BIG_EXAMPLE}: \`examples/octokit-ghes-3.6-diff-to-api.json\` (0.9 MB) through \`./bin/cli.js\`.` },
-      { match: 'test/cli.test.ts > CLI > snapshot > Stripe API', why: `1 case. ${BIG_EXAMPLE}: \`examples/stripe-api.yaml\` (5.5 MB) through \`./bin/cli.js\`.` },
-      { match: 'test/cli.test.ts > CLI > snapshot > DigitalOcean', why: `1 case. ${BIG_EXAMPLE}: \`examples/digital-ocean-api/\`, 2,034 files, through \`./bin/cli.js\`.` },
-      { match: 'test/cli.test.ts > CLI > stdin', exact: true, why: `1 case. ${BIG_EXAMPLE}: \`examples/stripe-api.yaml\` (5.5 MB), piped to \`./bin/cli.js\` on stdin.` },
-      {
-        match: 'test/cli.test.ts > CLI > flags > --properties-required-by-default',
-        exact: true,
-        why: `1 case. ${BIG_EXAMPLE}: \`examples/github-api.yaml\` (8.5 MB) against \`github-api-required.ts\` (5.5 MB). The flag itself stays graded through the library by \`index.test.ts\`.`,
-      },
-      {
-        match: 'test/node-api.test.ts > Node.js API > snapshot > GitHub',
-        why: `2 cases: \`snapshot > GitHub\` and \`snapshot > GitHub (next)\`. ${BIG_EXAMPLE}: \`examples/github-api.yaml\` and \`github-api-next.yaml\` (8.5 MB each) through \`openapiTS()\`.`,
-      },
-      { match: 'test/node-api.test.ts > Node.js API > snapshot > Octokit GHES 3.6 Diff to API', why: `1 case. ${BIG_EXAMPLE}: \`examples/octokit-ghes-3.6-diff-to-api.json\` (0.9 MB) through \`openapiTS()\`.` },
-      { match: 'test/node-api.test.ts > Node.js API > snapshot > Stripe', why: `1 case. ${BIG_EXAMPLE}: \`examples/stripe-api.yaml\` (5.5 MB) through \`openapiTS()\`.` },
-      { match: 'test/node-api.test.ts > Node.js API > snapshot > DigitalOcean', why: `1 case. ${BIG_EXAMPLE}: \`examples/digital-ocean-api/\`, 2,034 files, through \`openapiTS()\`.` },
-      {
-        match: 'test/node-api.test.ts > Node.js API > input > string > URL',
-        why: '1 case. It hands `openapiTS()` an `https://raw.githubusercontent.com/Redocly/redocly-cli/…` address as a string, so it grades whether this machine reaches GitHub. The same document is vendored as `examples/simple-example.yaml` and graded offline by `input > URL > local`.',
-      },
-      {
-        match: 'test/node-api.test.ts > Node.js API > input > URL > remote',
-        why: '1 case. The same remote document as `input > string > URL`, handed over as a `URL`: a grade that reads the network. `input > URL > local` grades a `URL` input from the vendored copy.',
-      },
-    ],
-    runner: 'vitest',
-    target: 'apicontract/openapi-typescript',
-    // Vendored and measured, not claimed. `active` needs a baseline fragment, and a row with one
-    // must be in `burgee migrate`'s `DROP_INS` (`migrate-drop-ins-lock.test.ts`) and on the
-    // published compatibility page: both would name `apicontract`, which is private and
-    // unpublished, as a path a program can take today.
-    status: 'planned',
-    note: "Vendored at 7.13.0 and measured 2026-11-13, not claimed: `apicontract/openapi-typescript` is in an unpublished package. Control 61 / 61 against openapi-typescript 7.13.0 (informational line 203 / 203), with 17 cases subtracted from both runs: 15 read a document from upstream's 69 MB `examples/`, which is not vendored, and 2 fetch one from raw.githubusercontent.com. The drop-in read 0 / 61 as a stub and reads 37 / 61 with the compiler-free generator behind it (informational line 14 / 203: the transforms are not yet shimmed module by module). The 24 it fails: 9 run the incumbent's CLI (7 in `cli.test.ts` and both of `yaml.test.ts`), 7 pass or receive TypeScript compiler nodes, 6 need `$ref`s to other files bundled, and one each for `inject` and an unresolved-`$ref` message.",
   },
 ];
 
