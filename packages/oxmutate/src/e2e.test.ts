@@ -5,6 +5,7 @@
  */
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -188,48 +189,65 @@ const alive = (pid: number): boolean => {
   }
 };
 
-// A coordinator that dies while its servers are still loading Vitest: a server listened for the
-// disconnect only once Vitest had loaded, so it outlived its coordinator until then. At load 25–35,
-// T6 below found two such servers alive 5 s after the kill in 3 of 5 pre-push runs (2026-11-02).
-// The fixture's config takes 4 s to load, so each server is inside `createVitest` at the kill.
-it.skipIf(!native || !existsSync(bin))('leaves no server running when the coordinator dies while its servers load Vitest (T6)', async () => {
-  const dir = path.join(pkg, 'test/fixtures/slow-start');
-  const run = spawn(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', path.join(dir, 'reports'), '--reporter', 'json'], { cwd: dir, stdio: 'ignore' });
-  let servers: number[] = [];
-  for (let i = 0; i < 400 && !servers.length; i++) {
-    await new Promise((r) => setTimeout(r, 10));
-    servers = spawnSync('pgrep', ['-P', String(run.pid)], { encoding: 'utf8' }).stdout.split('\n').filter(Boolean).map(Number);
-  }
-  expect(servers.length).toBeGreaterThan(0);
-  await new Promise((r) => setTimeout(r, 500)); // into the config's load
+/**
+ * T6 waits on events, never on a clock that guesses how busy the machine is. At load 25–35 these
+ * cases found servers alive 5 s after the kill in 3 of 5 pre-push runs (2026-11-02); at load 200
+ * a server took 25 s to start and up to 21 s to notice its coordinator was gone, and then went
+ * (2026-11-12): slow, not orphaned. So each case kills on a marker the fixture writes when a server
+ * is where the case needs it, and gives the servers until GONE_MS to go — a ceiling that only
+ * bounds a hang, which is what an orphan is. Alone, every wait ends on its event. START_MS bounds
+ * reaching the marker: at load ~200 one run took over 45 s to get its server into the spinning test.
+ */
+const START_MS = 90_000;
+const GONE_MS = 60_000;
+const T6_CASE_MS = START_MS + GONE_MS + 30_000;
+const until = async (done: () => boolean, ceiling: number): Promise<boolean> => {
+  for (const start = Date.now(); Date.now() - start < ceiling; await new Promise((r) => setTimeout(r, 50))) if (done()) return true;
+  return done();
+};
+const markers = (dir: string, kind: string): string[] => readdirSync(dir).filter((f) => f.startsWith(`m.${kind}-`));
+
+/** Runs a fixture, kills its coordinator once `ready` holds, and waits for its servers to go. */
+const t6Run = async (fixture: string, ready: (marks: string) => boolean): Promise<{ started: boolean; servers: number[]; left: number[]; marks: string }> => {
+  const dir = path.join(pkg, 'test/fixtures', fixture);
+  const marks = mkdtempSync(path.join(tmpdir(), 'oxmutate-t6-'));
+  const run = spawn(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', path.join(dir, 'reports'), '--reporter', 'json'], {
+    cwd: dir,
+    stdio: 'ignore',
+    env: { ...process.env, OXMUTATE_E2E_MARKER: path.join(marks, 'm') },
+  });
+  const started = await until(() => ready(marks), START_MS);
+  const servers = spawnSync('pgrep', ['-P', String(run.pid)], { encoding: 'utf8' }).stdout.split('\n').filter(Boolean).map(Number);
   run.kill('SIGKILL');
-  for (let waited = 0; waited < 2500 && servers.some(alive); waited += 100) await new Promise((r) => setTimeout(r, 100));
+  await until(() => !servers.some(alive), GONE_MS);
   const left = servers.filter(alive);
   for (const pid of left) process.kill(pid, 'SIGKILL');
-  rmSync(path.join(dir, 'reports'), { recursive: true, force: true });
+  discard(path.join(dir, 'reports'));
+  return { started, servers, left, marks };
+};
+
+// A coordinator that dies while its servers are still loading Vitest: a server listened for the
+// disconnect only once Vitest had loaded, so it outlived its coordinator until then. The fixture's
+// config holds each server inside `createVitest` for 60 s and marks both ends of the load.
+it.skipIf(!native || !existsSync(bin))('leaves no server running when the coordinator dies while its servers load Vitest (T6)', async () => {
+  const { started, servers, left, marks } = await t6Run('slow-start', (m) => markers(m, 'loading').length > 0);
+  const loaded = markers(marks, 'loaded');
+  discard(marks);
+  expect(started, 'a server reached the config load').toBe(true);
+  expect(servers.length).toBeGreaterThan(0);
   expect(left).toEqual([]);
-}, 60_000);
+  // The event, not a clock: no server finished a load that its dead coordinator could not use.
+  expect(loaded).toEqual([]);
+}, T6_CASE_MS);
 
 // The orphans found on 2026-10-27 were servers whose worker thread was looping in a test.
 it.skipIf(!native || !existsSync(bin))('leaves no server running when the coordinator is killed mid-runaway (T6)', async () => {
-  const spin = path.join(pkg, 'test/fixtures/spin');
-  const run = spawn(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', path.join(spin, 'reports'), '--reporter', 'json'], { cwd: spin, stdio: 'ignore' });
-  let servers: number[] = [];
-  for (let i = 0; i < 200 && !servers.length; i++) {
-    await new Promise((r) => setTimeout(r, 50));
-    servers = spawnSync('pgrep', ['-P', String(run.pid)], { encoding: 'utf8' }).stdout.split('\n').filter(Boolean).map(Number);
-  }
+  const { started, servers, left, marks } = await t6Run('spin', (m) => markers(m, 'spinning').length > 0);
+  discard(marks);
+  expect(started, 'a server reached the spinning test').toBe(true);
   expect(servers.length).toBeGreaterThan(0);
-  await new Promise((r) => setTimeout(r, 1500)); // into the spinning test
-  run.kill('SIGKILL');
-  // Up to 5 s for the servers to notice, as before, but no longer than they take: a fixed 5 s wait
-  // made this case 7.1 s on CI whatever happened (D-20261101-tests-under-5s).
-  for (let waited = 0; waited < 5000 && servers.some(alive); waited += 100) await new Promise((r) => setTimeout(r, 100));
-  const left = servers.filter(alive);
-  for (const pid of left) process.kill(pid, 'SIGKILL');
-  rmSync(path.join(spin, 'reports'), { recursive: true, force: true });
   expect(left).toEqual([]);
-}, 60_000);
+}, T6_CASE_MS);
 
 it.skipIf(!native || !existsSync(bin) || !nightly)('confirms a watchdog stop with 3x the budget before reporting a timeout', () => {
   const slow = path.join(pkg, 'test/fixtures/slow');
