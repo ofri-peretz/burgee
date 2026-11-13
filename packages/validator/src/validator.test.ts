@@ -133,6 +133,8 @@ const WRONG: [string, (v: ReturnType<typeof valid>) => void, string, string, str
   ['a string too long', (v) => (v.payment = { kind: 'card', last4: '42424' }), '/payment/last4', 'max', 'expected at most 4 characters, got string "42424". fix: send 4 or fewer'],
 ];
 
+const neverPrinted = (): string => 'its source is never printed';
+
 describe('check and issues', () => {
   it('accept the valid order, with and without its optional key, and with keys the schema does not name', () => {
     const order = valid();
@@ -203,6 +205,36 @@ describe('check and issues', () => {
     expect(check(literal(1), '1')).toBe(false);
     expect(check(literal(1), 1)).toBe(true);
     expect(issues(literal(1), '1')).toEqual([{ path: '', keyword: 'literal', message: 'expected 1, got string "1". fix: send 1' }]);
+  });
+
+  // The probes of 2026-11-13 found `issues` throwing on a bigint: it printed what arrived with JSON.stringify.
+  it.each<[string, unknown, string]>([
+    ['a bigint', 1n, 'bigint 1'],
+    ['a symbol', Symbol('x'), 'symbol Symbol(x)'],
+    ['a function', neverPrinted, 'a function'],
+    ['a class', class Named {}, 'a function'],
+    ['undefined', undefined, 'undefined undefined'],
+    ['a boolean', true, 'boolean true'],
+    ['a date', new Date(0), 'an object'],
+    ['a string of exactly the most a message quotes', 'x'.repeat(80), `string "${'x'.repeat(80)}"`],
+    ['a longer string', `${'x'.repeat(80)}yz`, `string "${'x'.repeat(80)}" and 2 more characters`],
+    ['a string with a quote in it', 'a"b', String.raw`string "a\"b"`],
+    ['a long bigint', 10n ** 99n, `bigint 1${'0'.repeat(79)} and 20 more characters`],
+  ])('say what arrived when it is %s, without throwing', (_, value, text) => {
+    expect(check(number(), value)).toBe(false);
+    expect(issues(number(), value)).toEqual([{ path: '', keyword: 'type', message: `expected a number, got ${text}. fix: send a finite number` }]);
+  });
+
+  it('never walk an object to say what arrived, so one that holds itself is safe', () => {
+    const cyclic: Record<string, unknown> = {};
+    cyclic.self = cyclic;
+    const list: unknown[] = [];
+    list.push(list);
+    expect(issues(string(), cyclic)).toEqual([{ path: '', keyword: 'type', message: 'expected a string, got an object. fix: send a string' }]);
+    expect(issues(string(), list)).toEqual([{ path: '', keyword: 'type', message: 'expected a string, got an array. fix: send a string' }]);
+    expect(issues(object({ self: object({ self: string() }) }), cyclic)).toEqual([
+      { path: '/self/self', keyword: 'type', message: 'expected a string, got an object. fix: send a string' },
+    ]);
   });
 
   it('escape a key in the path as JSON Pointer does', () => {

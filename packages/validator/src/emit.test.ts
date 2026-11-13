@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { check } from './check.js';
 import { emit } from './emit.js';
+import { issues } from './issues.js';
 import { array, boolean, discriminated, enumOf, literal, number, object, optional, type Schema, string } from './schema.js';
 
 /** Run emitted code. Only here: the package itself never evaluates text (spec.md R3). */
@@ -113,7 +114,83 @@ const f6 = (v) => typeof v === "object" && v !== null && !Array.isArray(v)
 return (v) => f6(v);
 })()`);
     expect(emit(string({ min: 0, max: Number.MAX_VALUE }))).toBe('(() => {\n\nreturn (v) => typeof v === "string";\n})()');
-    expect(emit(string({ min: 1, max: 2 }))).toBe('(() => {\n\nreturn (v) => typeof v === "string" && v.length >= 1 && v.length <= 2;\n})()');
+    expect(emit(string({ min: 1 }))).toBe('(() => {\n\nreturn (v) => typeof v === "string" && v.length >= 1;\n})()');
+  });
+
+  // parity.md decision 4: a length is in code points. One unit or none needs no count, and a
+  // string is counted only when its `length` does not already decide the bound.
+  it('writes a length bound in code points, with the counter written once', () => {
+    expect(emit(object({ a: string({ min: 1, max: 2 }), b: string({ min: 4, max: 5 }) }))).toBe(`(() => {
+const p0 = (s) => {
+  let n = s.length;
+  for (let i = 0; i < s.length; i++) if (s.codePointAt(i) > 65535) n -= 1;
+  return n;
+};
+const f1 = (v) => typeof v === "object" && v !== null && !Array.isArray(v)
+  && (typeof v["a"] === "string" && v["a"].length >= 1 && (v["a"].length <= 2 || p0(v["a"]) <= 2))
+  && (typeof v["b"] === "string" && (v["b"].length >= 8 || p0(v["b"]) >= 4) && (v["b"].length <= 5 || p0(v["b"]) <= 5));
+return (v) => f1(v);
+})()`);
+  });
+
+  const LEAD = '\uD83D';
+  const TRAIL = '\uDE00';
+  const FACE = LEAD + TRAIL;
+
+  // [the schema, the string, how many code points it has]
+  it.each<[string, number]>([
+    ['', 0],
+    ['a', 1],
+    [FACE, 1],
+    [`${FACE}a`, 2],
+    [`a${FACE}`, 2],
+    [FACE + FACE, 2],
+    [`${FACE}ab`, 3],
+    [FACE + FACE + FACE, 3],
+    [`a${FACE}b${FACE}`, 4],
+    [LEAD, 1],
+    [TRAIL, 1],
+    [LEAD + LEAD, 2],
+    [TRAIL + TRAIL, 2],
+    [TRAIL + LEAD, 2],
+    [LEAD + LEAD + TRAIL, 2],
+    [LEAD + TRAIL + TRAIL, 2],
+    ['\uD800\uDC00', 1],
+    ['\uDBFF\uDFFF', 1],
+    ['\uD7FF\uDC00', 2],
+    ['\uDC00\uDC00', 2],
+    ['\uD800\uDBFF', 2],
+    ['\uD800\uE000', 2],
+    ['\uD800\uDFFF', 1],
+    ['\uDBFF\uDC00', 1],
+    ['\uD800a', 2],
+    ['a\uDC00', 2],
+    ['\uFFFF', 1],
+    ['\uFFFF\uFFFF', 2],
+    [`\uFFFF${FACE}`, 2],
+    [`${FACE}\uFFFF\uFFFF`, 3],
+  ])('counts %j as %i code points in all three readers, at every bound around it', (text, count) => {
+    expect([...text]).toHaveLength(count);
+    for (const bound of [count - 1, count, count + 1, text.length - 1, text.length, text.length + 1, text.length * 2 - 1, Math.ceil(text.length / 2), Math.floor(text.length / 2)].filter((size) => size >= 0)) {
+      for (const [schema, yes] of [
+        [string({ min: bound }), count >= bound],
+        [string({ max: bound }), count <= bound],
+        [string({ length: bound }), count === bound],
+      ] as const) {
+        const name = `${JSON.stringify(text)} against ${String(schema.min)}..${String(schema.max)}`;
+        expect(check(schema, text), name).toBe(yes);
+        expect(load(emit(schema))(text), name).toBe(yes);
+        expect(issues(schema, text).length === 0, name).toBe(yes);
+      }
+    }
+  });
+
+  it('says how many characters a string with an emoji is short or over by its code points', () => {
+    expect(issues(string({ min: 2 }), FACE)).toEqual([{ path: '', keyword: 'min', message: `expected at least 2 characters, got string "${FACE}". fix: send 2 or more` }]);
+    expect(issues(string({ max: 1 }), FACE + FACE)).toEqual([{ path: '', keyword: 'max', message: `expected at most 1 characters, got string "${FACE}${FACE}". fix: send 1 or fewer` }]);
+    expect(issues(string({ max: 1, pattern: /^a$/ }), FACE)).toEqual([
+      { path: '', keyword: 'pattern', message: `expected a string matching /^a$/, got string "${FACE}". fix: send a value the pattern accepts` },
+    ]);
   });
 
   // A schema is data and its strings may come from a document somebody else wrote. None of them

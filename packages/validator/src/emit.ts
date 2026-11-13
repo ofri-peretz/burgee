@@ -13,6 +13,8 @@ interface Emitter {
   readonly lines: string[];
   /** The function already written for a node. */
   readonly named: Map<Node, string>;
+  /** The code-point counter's name, once a string bound has needed it. */
+  points: string | null;
 }
 
 const HEX = 16;
@@ -50,11 +52,31 @@ const declare = (emitter: Emitter, prefix: string, source: string): string => {
   return name;
 };
 
+/**
+ * The code-point counter, written once and only for a schema that needs it: the loop of `points`
+ * in check.ts, as text.
+ */
+const POINTS = `(s) => {
+  let n = s.length;
+  for (let i = 0; i < s.length; i++) if (s.codePointAt(i) > 65535) n -= 1;
+  return n;
+}`;
+
+const points = (emitter: Emitter): string => {
+  emitter.points ??= declare(emitter, 'p', POINTS);
+  return emitter.points;
+};
+
+/**
+ * A string's tests. Length is in code points (parity.md decision 4), decided from `length` alone
+ * wherever that is enough, exactly as `check` decides it: one unit or none needs no count.
+ */
 const string = (emitter: Emitter, schema: Node, ref: string): string => {
   const parts = [`typeof ${ref} === "string"`];
   const [min, max] = [numeric(schema.min), numeric(schema.max)];
-  if (schema.min > 0) parts.push(`${ref}.length >= ${min}`);
-  if (schema.max < Number.MAX_VALUE) parts.push(`${ref}.length <= ${max}`);
+  if (schema.min > 1) parts.push(`(${ref}.length >= ${String(schema.min * 2)} || ${points(emitter)}(${ref}) >= ${min})`);
+  else if (schema.min > 0) parts.push(`${ref}.length >= ${min}`);
+  if (schema.max < Number.MAX_VALUE) parts.push(`(${ref}.length <= ${max} || ${points(emitter)}(${ref}) <= ${max})`);
   if (schema.pattern !== null) parts.push(`${declare(emitter, 'r', pattern(schema.pattern))}.test(${ref})`);
   return parts.join(' && ');
 };
@@ -150,7 +172,7 @@ function test(emitter: Emitter, schema: Node, ref: string): string {
  * It is one expression, so `export const isOrder = ${emit(Order)};` is a module.
  */
 export const emit = <T>(schema: Schema<T>): string => {
-  const emitter: Emitter = { lines: [], named: new Map() };
+  const emitter: Emitter = { lines: [], named: new Map(), points: null };
   const entry = test(emitter, schema, 'v');
   return `(() => {\n${emitter.lines.join('\n')}\nreturn (v) => ${entry};\n})()`;
 };

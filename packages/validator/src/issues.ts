@@ -1,3 +1,4 @@
+import { points } from './check.js';
 import { type Node, type Schema } from './schema.js';
 
 export interface Issue {
@@ -32,10 +33,23 @@ interface Miss {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
+/** The most characters of a received value that a message quotes. */
+const SHOWN = 80;
+
+/**
+ * What arrived, for a message. Safe for every value: an object is never walked (it may be cyclic),
+ * a function is never printed (its text is its source), and a long text is cut.
+ */
 const received = (value: unknown): string => {
   if (value === null) return 'null';
   if (Array.isArray(value)) return 'an array';
-  return isRecord(value) ? 'an object' : `${typeof value} ${JSON.stringify(value) ?? String(value)}`;
+  if (isRecord(value)) return 'an object';
+  if (typeof value === 'function') return 'a function';
+  // `JSON.stringify` has no text for `undefined` or a symbol and throws on a bigint, so it is asked only about a number.
+  const text = typeof value === 'number' ? JSON.stringify(value) : String(value);
+  const cut = text.slice(0, SHOWN);
+  const more = text.length > SHOWN ? ` and ${String(text.length - SHOWN)} more characters` : '';
+  return `${typeof value} ${typeof value === 'string' ? JSON.stringify(cut) : cut}${more}`;
 };
 
 const token = (key: string | number): string => `/${String(key).replaceAll('~', '~0').replaceAll('/', '~1')}`;
@@ -46,19 +60,23 @@ const add = (walk: Walk, miss: Miss): void => {
 
 const full = (walk: Walk): boolean => walk.first && walk.found.length > 0;
 
-/** A length outside the schema's bounds, in characters or items. */
-const size = (walk: Walk, schema: Node, at: { path: string; got: { length: number }; unit: string }): void => {
-  const { path, got, unit } = at;
-  if (got.length < schema.min) {
+/** A length outside the schema's bounds: `count` code points of a string, or items of an array. */
+const size = (walk: Walk, schema: Node, at: { path: string; got: unknown; count: number; unit: string }): void => {
+  const { path, got, count, unit } = at;
+  if (count < schema.min) {
     add(walk, { path, keyword: 'min', expected: `at least ${String(schema.min)} ${unit}`, got, fix: `send ${String(schema.min)} or more` });
-  } else if (got.length > schema.max) {
+  } else if (count > schema.max) {
     add(walk, { path, keyword: 'max', expected: `at most ${String(schema.max)} ${unit}`, got, fix: `send ${String(schema.max)} or fewer` });
   }
 };
 
 const string = (walk: Walk, schema: Node, got: unknown, path: string): void => {
-  if (typeof got !== 'string') add(walk, { path, keyword: 'type', expected: 'a string', got, fix: 'send a string' });
-  else if (got.length < schema.min || got.length > schema.max) size(walk, schema, { path, got, unit: 'characters' });
+  if (typeof got !== 'string') {
+    add(walk, { path, keyword: 'type', expected: 'a string', got, fix: 'send a string' });
+    return;
+  }
+  const count = points(got);
+  if (count < schema.min || count > schema.max) size(walk, schema, { path, got, count, unit: 'characters' });
   else if (schema.pattern !== null && !schema.pattern.test(got)) {
     add(walk, { path, keyword: 'pattern', expected: `a string matching ${String(schema.pattern)}`, got, fix: 'send a value the pattern accepts' });
   }
@@ -92,7 +110,7 @@ const array = (walk: Walk, schema: Node, got: unknown, path: string): void => {
     add(walk, { path, keyword: 'type', expected: 'an array', got, fix: 'send an array' });
     return;
   }
-  size(walk, schema, { path, got, unit: 'items' });
+  size(walk, schema, { path, got, count: got.length, unit: 'items' });
   for (const [index, element] of got.entries()) visit(walk, schema.item as Node, element, path + token(index));
 };
 
