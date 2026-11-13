@@ -1,7 +1,7 @@
 ---
 id: A-20261112-oxmutate-test-timeout-kill
 section: A
-status: open
+status: closed
 source: 'oxmutate-fastest F0, 2026-11-12: compat-oracle hosts.ts:708-718, fresh-worker path, load average 45 to 120'
 done_when: 'a mutant whose only failing tests failed by their own timeout is re-run once before it is reported Killed, as a watchdog stop is, with a fixture whose test times out only under a delay and survives the re-run; the fixture fails on the build before the change'
 ---
@@ -25,3 +25,14 @@ nobody checks. A watchdog stop already gets one more run at 3x before it is beli
 
 **Not known.** How often this happens at an ordinary load. The 2026-10-31 run that left 0
 survivors in `hosts.ts` may be the same effect, or the defects fixed since; that was not traced.
+
+**Closed, 2026-11-12.** An isolated run records when every failing test failed by Vitest's own
+timeout, of the test or of a hook. The mutant gets one more run with 3x the watchdog budget, in
+section 6 and in survivor confirmation. Passing it is Survived; slow again is a Timeout with the
+reason "its tests failed only by their own timeout, in two runs"; a failed assertion in either
+run is Killed. The live static path and the warm path were never affected: they run tests in
+oxmutate's own loop, where Vitest's timeout does not apply.
+
+Fixture `test/fixtures/slow-test`, two cases in `e2e.test.ts` ("a kill that is only a slow test
+is run again"). On the build before the change the unread constant is reported Killed; on this
+one, Survived with `timeoutsOverturned: 1`.

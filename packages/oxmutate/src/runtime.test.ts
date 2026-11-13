@@ -44,13 +44,11 @@ describe('the runner writes through open descriptors', () => {
   it('calls no fs function that opens and closes a file for one write', () => {
     expect(runner.match(/\b(?:writeFileSync|appendFileSync)\(/gu) ?? []).toEqual([]);
   });
-  it('never truncates the mark: each one is padded over the last', () => {
-    expect(runner).not.toMatch(/ftruncateSync/u);
-    expect(runner).toMatch(/padEnd\(markLength\)/u);
-  });
-  it('the watchdog reads the mark in place, without opening it on every poll', () => {
+  it('writes the mark through the one module that keeps it open', () => {
+    expect(runner).toMatch(/progress \?\?= markWriter\(progressPath\)/u);
     const scheduler = readFileSync(new URL('./scheduler.ts', import.meta.url), 'utf8');
-    expect(scheduler).toMatch(/readSync\(progress, mark, 0, PROGRESS_BYTES, 0\)/u);
+    expect(scheduler).toMatch(/const progress = markReader\(unit\.progress\)/u);
+    expect(scheduler).toMatch(/const line = progress\.read\(\)/u);
   });
   it('closes what it opened when the run ends, for a pool whose workers are threads', () => {
     expect(runner).toMatch(/closeFiles\(\);\n\s+return super\.onAfterRunFiles/u);

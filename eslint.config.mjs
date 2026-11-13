@@ -1188,6 +1188,7 @@ export default [
     // `compare-reports.mjs`), never imported, and what they print is their result: a JSON
     // record, and under it the indented list of disagreements.
     files: [
+      "packages/oxmutate/bench/ab.mjs",
       "packages/oxmutate/bench/burgee-pair.mts",
       "packages/oxmutate/bench/compare-reports.mjs",
       "packages/oxmutate/bench/metrics.mjs",
