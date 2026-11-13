@@ -15,7 +15,7 @@ what the profile suggests, and each item ships only when its own measurement say
 | Package | Against Stryker | Reading |
 | :-- | :-- | :-- |
 | paratext | at least **21.5x faster** | _measured_ 2026-11-12, one machine, 4 workers, load about 50: Stryker 380.0 s, oxmutate 17.7 s. oxmutate graded more mutants (1,332 against 1,255), so equal sets can only raise it. One run each. |
-| caique | **1.3x to 1.5x faster** | _measured_ 2026-11-02/03 on the build before #1532, equal sets (`sc8/RUNS.md`). Not re-measured since. |
+| caique | **3.65x faster** | _measured_ 2026-11-13, equal sets (6,428 mutants matched), one machine, 4 workers: Stryker 3,391 s, oxmutate 928 s, mean loads 19.3 and 13.4. One pair. Before #1532 it was 1.3x to 1.5x (`sc8/RUNS.md`). |
 | compat-oracle | **unknown, probably slower** | No valid head-to-head. The last full run took 1,063 minutes here; Stryker's took 58 on a CI runner while skipping 1,298 mutants. |
 
 **Where a run's time goes** (_measured_, the 2026-11-04/05 full run, all 12 packages):
@@ -33,7 +33,7 @@ fewer processes, never decide the same mutant twice, and use the machine well.**
 | Package | Today | Target | Criterion |
 | :-- | :-- | :-- | :-- |
 | compat-oracle | unknown | at least 1.5x faster than Stryker, same graded set | `F7` (the owner's) |
-| caique | 1.3x to 1.5x | at least 3x | new, `F8` |
+| caique | 3.65x (one pair) | at least 3x, as a median of two pairs | new, `F8` |
 | paratext | 21.5x | at least 30x | new, `F9` |
 | A one-file change, any package | not measured | under 60 s, on the changed lines | new, `F10` |
 | The full repository | 37.5 hours | under 4 hours at 4 workers | `F4` asks for 3x; this is 9x |
