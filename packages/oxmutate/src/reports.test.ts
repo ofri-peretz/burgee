@@ -244,6 +244,11 @@ describe('the terminal summary', () => {
     expect(small[4]).toBe('  static mutants: 2 decided in 3.4 s, 50% of the run');
     const half = textSummary(await run({ mutants: twoStatic, stats: stats({ staticMs: 3395, wallMs: 6789 }) })).split('\n');
     expect(half[4]).toBe('  static mutants: 2 decided in 3.4 s, 50% of the run; --ignore-static skips them, and the score then leaves them out');
+    // Exactly half the run names the flag, and a run of one millisecond has a share.
+    const exactlyHalf = textSummary(await run({ mutants: twoStatic, stats: stats({ staticMs: 500, wallMs: 1000 }) })).split('\n');
+    expect(exactlyHalf[4]).toBe('  static mutants: 2 decided in 0.5 s, 50% of the run; --ignore-static skips them, and the score then leaves them out');
+    const oneMillisecond = textSummary(await run({ mutants: twoStatic, stats: stats({ staticMs: 1, wallMs: 1 }) })).split('\n');
+    expect(oneMillisecond[4]).toBe('  static mutants: 2 decided in 0.0 s, 100% of the run; --ignore-static skips them, and the score then leaves them out');
     const unknownWall = textSummary(await run({ mutants: twoStatic, stats: stats({ staticMs: 500, wallMs: 0 }) })).split('\n');
     expect(unknownWall[4]).toBe('  static mutants: 2 decided in 0.5 s, 0% of the run');
     const skipped = [mutant({ static: true, status: 'Ignored', statusReason: 'static mutant (ignoreStatic)' }), mutant({ static: true, status: 'Ignored', statusReason: 'disabled by a comment' })];
