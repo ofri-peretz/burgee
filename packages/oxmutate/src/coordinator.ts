@@ -258,14 +258,23 @@ function overlap(a: MutantResult, b: MutantResult): boolean {
 }
 
 /**
- * Mutants as groups of at most `size`, no two in a group touching the same source text: a mutant
- * inside another (an object literal emptied, and a string in it) is the pair most able to hide
- * each other. First fit, in the order given.
+ * The mutators whose mutants may share a group: each changes one value and removes nothing. A mutant
+ * that empties a structure (`[]`, `{}`, a block, a flipped flag) can switch off the very test another
+ * mutant fails: on compat-oracle's `hosts.ts`, emptying the list of ungraded directories hid the
+ * emptied reason those directories carry, Killed alone and Survived in a group of 25 (2026-11-13,
+ * sc8-profile.md §8). Those run alone.
+ */
+const GROUPABLE: ReadonlySet<string> = new Set(['StringLiteral', 'NumericLiteral', 'Regex']);
+
+/**
+ * Mutants as groups of at most `size`. Only value mutants are grouped (GROUPABLE), and no two in a
+ * group touch the same source text. First fit, in the order given; every other mutant is a group of
+ * one.
  */
 export function disjointGroups(mutants: readonly MutantResult[], size: number): string[][] {
   const groups: MutantResult[][] = [];
   for (const m of mutants) {
-    const home = groups.find((g) => g.length < size && !g.some((other) => overlap(m, other)));
+    const home = GROUPABLE.has(m.mutatorName) ? groups.find((g) => g.length < size && GROUPABLE.has(g[0]?.mutatorName ?? '') && !g.some((other) => overlap(m, other))) : undefined;
     if (home) home.push(m);
     else groups.push([m]);
   }

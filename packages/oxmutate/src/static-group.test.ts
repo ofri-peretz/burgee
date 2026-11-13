@@ -4,10 +4,10 @@ import { disjointGroups, type MutantResult } from './coordinator.js';
 
 let next = 0;
 /** A mutant spanning `[startLine, startColumn, endLine, endColumn]`. */
-const at = ([startLine, startColumn, endLine, endColumn]: [number, number, number, number], file = 'src/a.ts'): MutantResult => ({
+const at = ([startLine, startColumn, endLine, endColumn]: [number, number, number, number], file = 'src/a.ts', mutatorName = 'StringLiteral'): MutantResult => ({
   id: `m${String(next++)}`,
   file,
-  mutatorName: 'StringLiteral',
+  mutatorName,
   replacement: '""',
   start: { line: startLine, column: startColumn },
   end: { line: endLine, column: endColumn },
@@ -26,6 +26,7 @@ describe('static mutants, grouped so that no two in a group touch the same text'
   });
 
   it('keeps a mutant apart from one it sits inside, and from one it overlaps', () => {
+    // A template string and a string inside its expression: both value mutants, one inside the other.
     const object = at([10, 3, 14, 4]);
     const inside = at([11, 5, 11, 12]);
     const overlapping = at([14, 2, 15, 9]);
@@ -44,5 +45,15 @@ describe('static mutants, grouped so that no two in a group touch the same text'
     const one = at([3, 4, 3, 9]);
     const other = at([3, 4, 3, 9]);
     expect(disjointGroups([one, other], 2)).toEqual([[one.id], [other.id]]);
+  });
+
+  it('groups value mutants only: one that empties a structure, or flips a flag, runs alone', () => {
+    const list = at([1, 10, 1, 40], 'src/a.ts', 'ArrayDeclaration');
+    const first = at([2, 1, 2, 5]);
+    const flag = at([3, 1, 3, 5], 'src/a.ts', 'BooleanLiteral');
+    const second = at([4, 1, 4, 5], 'src/a.ts', 'NumericLiteral');
+    const object = at([5, 1, 5, 9], 'src/a.ts', 'ObjectLiteral');
+    const third = at([6, 1, 6, 5], 'src/a.ts', 'Regex');
+    expect(disjointGroups([list, first, flag, second, object, third], 4)).toEqual([[list.id], [first.id, second.id, third.id], [flag.id], [object.id]]);
   });
 });
