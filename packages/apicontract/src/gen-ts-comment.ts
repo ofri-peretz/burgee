@@ -6,7 +6,7 @@ const CONTINUATION = '\n *     ';
 const JSON_INDENT = 2;
 
 const inline = (value: unknown): string => {
-  const text = typeof value === 'object' && value !== null ? JSON.stringify(value, null, JSON_INDENT) : value;
+  const text = isDict(value) || Array.isArray(value) ? JSON.stringify(value, null, JSON_INDENT) : value;
   return String(text).trim().replaceAll(LINE_BREAK, CONTINUATION);
 };
 

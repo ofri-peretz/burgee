@@ -1,7 +1,7 @@
 /** The options a run is generated under, and the state the transforms share while it runs. */
 import { type EnumStatement, type Statement } from './gen-ts-ast.js';
 import { resolveRef } from './gen-ts-ref.js';
-import { type NameState } from './gen-ts-text.js';
+import { type NameState, newNameState } from './gen-ts-text.js';
 
 /** openapi-typescript's data-only options, under the same names and defaults. */
 export interface GenerateOptions {
@@ -84,7 +84,7 @@ const STATES = new WeakMap<Context, RunState>();
 export const stateOf = (ctx: Context): RunState => {
   let state = STATES.get(ctx);
   if (state === undefined) {
-    state = { names: { sticky: false }, enums: new Map() };
+    state = { names: newNameState(), enums: new Map() };
     STATES.set(ctx, state);
   }
   return state;

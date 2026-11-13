@@ -114,11 +114,12 @@ export const transformSchema = (document: unknown, ctx: Context): Statement[] =>
   const statements: Statement[] = ctx.readWriteMarkers ? [READ_WRITE_MARKERS] : [];
   for (const [root, transform] of ROOTS) {
     const node = declared[root];
-    const nodes = node && typeof node === 'object' ? transform(node, ctx) : [];
-    statements.push(...(nodes.length > 0 ? nodes.map((item) => rootStatement(root, item, ctx)) : [empty(root)]));
+    const isDeclared = node && typeof node === 'object';
+    statements.push(...(isDeclared ? transform(node, ctx).map((item) => rootStatement(root, item, ctx)) : [empty(root)]));
   }
   statements.push(...ctx.injectFooter);
-  const hasOperations = ctx.injectFooter.some((statement) => statement.kind === 'interface' && statement.name === 'operations');
+  // Nothing else hoisted can be called `operations`: an enum's name starts with a capital, a values array's ends in `Values`.
+  const hasOperations = ctx.injectFooter.some((statement) => statement.name === 'operations');
   if (!hasOperations) statements.push(empty('operations'));
   if (ctx.makePathsEnum && declared.paths) statements.push(pathsEnum(declared.paths));
   return statements;

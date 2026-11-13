@@ -7,6 +7,7 @@ import {
   type EnumMember,
   type ListNode,
   type Member,
+  type Property,
   type Statement,
   type TypeNode,
   type ValuesStatement,
@@ -22,7 +23,7 @@ const pad = (level: number): string => INDENT.repeat(level);
 // The printer splits a comment on every line terminator the scanner knows.
 const COMMENT_LINE = /\r\n|[\r\n\u2028\u2029]/;
 // From the first character that is not blank to the printer: what is left is the line's indentation.
-const TEXT_ONWARDS = /[^ \t\v\f\u0085\u00A0\u1680\u2000-\u200B\u202F\u205F\u3000\uFEFF][^]*$/;
+const TEXT_ONWARDS = /[^ \t\v\f\u0085\u00A0\u1680\u2000-\u200B\u202F\u205F\u3000\uFEFF][^]*/;
 
 /** The width of a line's leading whitespace, a tab reaching the next four-column stop. */
 const leadingWidth = (line: string): number => {
@@ -39,9 +40,9 @@ const leadingWidth = (line: string): number => {
  * trimmed.
  */
 const blockComment = (text: string, level: number): string => {
-  const [first = '', ...others] = `/*${text}*/`.split(COMMENT_LINE);
-  const moved = others.map((line) => ' '.repeat(level * TAB_STOP + leadingWidth(line)) + line.trim());
-  return [pad(level) + first.trim(), ...moved].join('\n');
+  const lines = `/*${text}*/`.split(COMMENT_LINE);
+  // The first line opens the comment, so it has no leading whitespace of its own to add.
+  return lines.map((line) => ' '.repeat(level * TAB_STOP + leadingWidth(line)) + line.trim()).join('\n');
 };
 
 type Printer = (type: TypeNode, level: number) => string;
@@ -146,9 +147,9 @@ const printStatement = (statement: Statement): string => {
   }
 };
 
-export type Printable = Statement | TypeNode | Member;
+export type Printable = Statement | TypeNode | Property;
 
-const isMember = (node: Printable): node is Member => node.kind === 'property' || node.kind === 'index';
+const isMember = (node: Printable): node is Property => node.kind === 'property';
 
 const STATEMENT_KINDS: ReadonlySet<string> = new Set(['interface', 'alias', 'enum', 'values', 'helper']);
 

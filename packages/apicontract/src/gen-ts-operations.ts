@@ -6,6 +6,7 @@ import {
   type InterfaceStatement,
   type Member,
   NEVER,
+  type Property,
   STRING,
   type TypeNode,
   UNKNOWN,
@@ -18,11 +19,11 @@ import { type Dict, dict, entries, isDict, list } from './gen-ts-dict.js';
 import { enumStatement } from './gen-ts-enums.js';
 import { childPath, createRef, refType } from './gen-ts-ref.js';
 import { transformSchemaObject } from './gen-ts-schema.js';
-import { propertyName } from './gen-ts-text.js';
+import { newNameState, propertyName } from './gen-ts-text.js';
 
 export const METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'] as const;
 
-const never = (name: string, readonly: boolean): Member => property({ readonly, name, optional: true, type: NEVER });
+const never = (name: string, readonly: boolean): Property => property({ readonly, name, optional: true, type: NEVER });
 
 /** A Media Type Object: its schema, or `unknown` without one. */
 const mediaType = (media: unknown, options: TransformOptions): TypeNode => {
@@ -126,7 +127,8 @@ const impliedPathParameters = (declared: readonly Parameter[], path: string): Pa
   const added: Parameter[] = [];
   for (const name of names) {
     const isDeclared = [...declared, ...added].some((known) => known.resolved.in === 'path' && known.resolved.name === name);
-    const implied = { name, in: 'path', required: true, schema: { type: 'string' } };
+    // A path parameter is required wherever it is declared, so the implied one need not say so.
+    const implied = { name, in: 'path', schema: { type: 'string' } };
     if (!isDeclared) added.push({ original: implied, resolved: implied });
   }
   return added;
@@ -135,7 +137,7 @@ const impliedPathParameters = (declared: readonly Parameter[], path: string): Pa
 const isDeprecated = ({ resolved: parameter }: Parameter): boolean =>
   Boolean(parameter.deprecated) || Boolean(dict(parameter.schema).deprecated);
 
-const parameterMember = ({ original, resolved: parameter }: Parameter, options: TransformOptions): Member => {
+const parameterMember = ({ original, resolved: parameter }: Parameter, options: TransformOptions): Property => {
   const inline = (): TypeNode => {
     const path = createRef([options.path, 'parameters', String(parameter.in), String(parameter.name)]);
     // A parameter without a schema is assumed to be a string.
@@ -153,7 +155,7 @@ const parameterMember = ({ original, resolved: parameter }: Parameter, options: 
 const LOCATIONS = ['query', 'header', 'path', 'cookie'] as const;
 
 /** `parameters: { query, header, path, cookie }`, each location optional unless something in it is required. */
-export const parametersMember = (parameters: unknown, options: TransformOptions): Member => {
+export const parametersMember = (parameters: unknown, options: TransformOptions): Property => {
   const { ctx } = options;
   let all = list(parameters).map((original): Parameter => ({ original: dict(original), resolved: resolved(original, ctx) }));
   if (ctx.generatePathParams && options.path !== undefined) all.push(...impliedPathParameters(all, options.path));
@@ -166,14 +168,14 @@ export const parametersMember = (parameters: unknown, options: TransformOptions)
     return property({
       readonly: ctx.immutable,
       name: location,
-      optional: members.every((member) => member.kind === 'property' && member.optional),
+      optional: members.every((member) => member.optional),
       type: members.length > 0 ? object(members) : NEVER,
     });
   });
   return property({ readonly: ctx.immutable, name: 'parameters', type: object(locations) });
 };
 
-const requestBodyMember = (requestBody: unknown, options: TransformOptions): Member => {
+const requestBodyMember = (requestBody: unknown, options: TransformOptions): Property => {
   const { ctx } = options;
   if (!requestBody) return never('requestBody', ctx.immutable);
   const declared = dict(requestBody);
@@ -190,7 +192,7 @@ const requestBodyMember = (requestBody: unknown, options: TransformOptions): Mem
 };
 
 /** An Operation Object's members: `parameters`, `requestBody`, `responses`. */
-export const transformOperationObject = (operation: unknown, options: TransformOptions): Member[] => {
+export const transformOperationObject = (operation: unknown, options: TransformOptions): Property[] => {
   const { parameters, requestBody, responses } = dict(operation);
   return [
     parametersMember(parameters, options),
@@ -201,9 +203,8 @@ export const transformOperationObject = (operation: unknown, options: TransformO
 
 /** The top-level `operations` interface, created the first time an operation is hoisted into it. */
 const operationsInterface = (ctx: Context): InterfaceStatement => {
-  const found = ctx.injectFooter.find(
-    (statement): statement is InterfaceStatement => statement.kind === 'interface' && statement.name === 'operations',
-  );
+  // Only this interface is ever hoisted under the name: enums start with a capital, values arrays end in `Values`.
+  const found = ctx.injectFooter.find((statement): statement is InterfaceStatement => statement.name === 'operations');
   if (found !== undefined) return found;
   const created: InterfaceStatement = { kind: 'interface', name: 'operations', members: [] };
   ctx.injectFooter.push(created);
@@ -262,7 +263,8 @@ const TEMPLATE_TYPES: ReadonlyMap<unknown, string> = new Map([
 
 /** Every path parameter the path item or one of its operations declares, by name; the last one wins. */
 const pathParameters = (pathItem: Dict, ctx: Context): Map<unknown, Dict> => {
-  const operations = METHODS.filter((method) => method in pathItem).map((method) => resolved(pathItem[method], ctx));
+  // A method the path item lacks resolves to an object with no parameters.
+  const operations = METHODS.map((method) => resolved(pathItem[method], ctx));
   const declared = [pathItem, ...operations].flatMap((holder) => list(holder.parameters));
   const found = new Map<unknown, Dict>();
   for (const parameter of declared.map((item) => resolved(item, ctx))) {
@@ -292,7 +294,7 @@ const pathMember = (url: string, pathItem: Dict, ctx: Context): Member => {
     return property({ readonly, name: propertyName(url), type: refType(String(pathItem.$ref)), comment: jsDoc(pathItem) });
   }
   const type = transformPathItemObject(pathItem, { path: createRef(['paths', url]), ctx });
-  const template = ctx.pathParamsAsTypes && url.includes('{') ? templateType(url, pathItem, ctx) : undefined;
+  const template = ctx.pathParamsAsTypes ? templateType(url, pathItem, ctx) : undefined;
   if (template === undefined) return property({ readonly, name: propertyName(url), type });
   return { kind: 'index', readonly, parameter: 'path', parameterType: template, type };
 };
@@ -335,5 +337,5 @@ export const pathsEnum = (paths: unknown): ReturnType<typeof enumStatement> => {
       .filter(([method]) => METHOD_NAMES.has(method))
       .map(([method, operation]) => ({ value: url, name: dict(operation).operationId || pathName(method, url) })),
   );
-  return enumStatement({ name: 'ApiPaths', entries: operations }, { sticky: false });
+  return enumStatement({ name: 'ApiPaths', entries: operations }, newNameState());
 };

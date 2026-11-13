@@ -19,7 +19,7 @@ const NAMED_ESCAPES: ReadonlyMap<string, string> = new Map([
   ['"', String.raw`\"`],
 ]);
 
-const DIGIT = /^\d$/;
+const DIGIT = /\d/;
 
 const escapeUnit = (unit: string, next: string): string => {
   const named = NAMED_ESCAPES.get(unit);
@@ -60,16 +60,19 @@ export const propertyName = (index: unknown): string => {
  * for that `lastIndex`, so the names come out the same.
  */
 export interface NameState {
-  sticky: boolean;
+  /** Whether that expression stands at its start, where a test reads what it is given. */
+  rewound: boolean;
 }
 
+export const newNameState = (): NameState => ({ rewound: true });
+
 const lastUnit = (state: NameState, last: string): string => {
-  if (state.sticky) {
-    state.sticky = false;
+  if (!state.rewound) {
+    state.rewound = true;
     return last.toUpperCase();
   }
   if (INVALID_UNIT.test(last)) {
-    state.sticky = true;
+    state.rewound = false;
     return '';
   }
   return last.toUpperCase();
@@ -85,7 +88,7 @@ const SPECIAL: ReadonlyMap<string, string> = new Map([['+', 'Plus']]);
 
 const invalidRunsReplaced = (name: string, state: NameState): string => {
   // `String#match` rewinds the shared regular expression upstream, hit or miss.
-  state.sticky = false;
+  state.rewound = true;
   const runs = name.match(INVALID_RUN);
   if (runs === null) return name;
   return runs[0] === name ? `"${name}"` : name.replaceAll(INVALID_RUN, (run) => SPECIAL.get(run) ?? '_');
@@ -102,13 +105,12 @@ export const enumMemberName = (given: string, state: NameState): string => {
 
 const LOWER_UPPER = /([\p{Ll}\d])(\p{Lu})/gu;
 const UPPER_UPPER_LOWER = /(\p{Lu})([\p{Lu}][\p{Ll}])/gu;
-const NOT_WORD = /[^\p{L}\d]+/giu;
+const NOT_WORD = /[^\p{L}\d]/giu;
 const BOUNDARY = '\0';
 const SPLIT = `$1${BOUNDARY}$2`;
 
 const words = (value: string): string[] => {
   const marked = value
-    .trim()
     .replaceAll(LOWER_UPPER, SPLIT)
     .replaceAll(UPPER_UPPER_LOWER, SPLIT)
     .replaceAll(NOT_WORD, BOUNDARY);
@@ -117,7 +119,8 @@ const words = (value: string): string[] => {
 
 const pascalWord = (word: string, index: number): string => {
   const first = word.charAt(0);
-  const initial = index > 0 && first >= '0' && first <= '9' ? `_${first}` : first.toUpperCase();
+  // A word holds letters and digits only, and every digit sorts before every letter.
+  const initial = index > 0 && first <= '9' ? `_${first}` : first.toUpperCase();
   return initial + word.slice(1).toLowerCase();
 };
 

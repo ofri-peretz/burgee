@@ -45,18 +45,22 @@ const repeated = (type: TypeNode, count: number): TypeNode[] => Array.from({ len
 /** Past this many tuple elements in total, TypeScript struggles to infer; upstream stops at the same number. */
 const TUPLE_BUDGET = 30;
 
+const NO_MAXIMUM = -1;
+
 const count = (value: unknown): number | undefined => (typeof value === 'number' && value >= 0 ? value : undefined);
 
 /** `minItems`/`maxItems` as tuples, or nothing when the bounds are absent or too wide to spell out. */
 const boundedArray = (schema: Dict, itemType: TypeNode): TypeNode | undefined => {
   const min = count(schema.minItems) ?? 0;
-  const declaredMax = count(schema.maxItems);
-  const max = declaredMax !== undefined && min <= declaredMax ? declaredMax : undefined;
+  // No declared maximum reads as one below every minimum.
+  const declaredMax = count(schema.maxItems) ?? NO_MAXIMUM;
+  const max = min <= declaredMax ? declaredMax : undefined;
   const size = max === undefined ? min : (max * (max + 1) - min * (min - 1)) / 2;
   if ((min === 0 && max === undefined) || size >= TUPLE_BUDGET) return undefined;
   if (min === max) return tuple(repeated(itemType, min));
   if ((schema.maxItems as number) > 0) {
-    const lengths = Array.from({ length: (max ?? 0) - min + 1 }, (_unused, extra) => extra);
+    // A maximum below the minimum leaves no length to list, and the union of nothing is `never`.
+    const lengths = Array.from({ length: declaredMax - min + 1 }, (_unused, extra) => extra);
     return union(lengths.map((extra) => tuple(repeated(itemType, extra))));
   }
   return tuple([...repeated(itemType, min), rest(array(itemType))]);
@@ -129,8 +133,7 @@ const REQUEST_PATHS = ['parameters', 'requestBody', 'requestBodies'] as const;
 
 /** A default makes a property present in what the server sends, never in what the client must send. */
 const defaultsApply = (schema: Dict, options: TransformOptions): boolean => {
-  const path = options.path ?? '';
-  return schema.default !== undefined && options.ctx.defaultNonNullable && !REQUEST_PATHS.some((part) => path.includes(part));
+  return schema.default !== undefined && options.ctx.defaultNonNullable && !REQUEST_PATHS.some((part) => options.path?.includes(part));
 };
 
 const isRequired = (parent: Dict, key: string, ctx: Context): boolean =>
@@ -191,7 +194,7 @@ const indexTypes = (schema: Dict, options: TransformOptions): TypeNode[] => {
   const { additionalProperties, patternProperties } = schema;
   const declared = size(additionalProperties);
   const types: TypeNode[] = [];
-  if (declared !== undefined && declared > 0) types.push(transformSchemaObject(additionalProperties, options, true));
+  if ((declared ?? 0) > 0) types.push(transformSchemaObject(additionalProperties, options, true));
   if (additionalProperties === true || declared === 0 || (!additionalProperties && options.ctx.additionalProperties)) {
     types.push(UNKNOWN);
   }

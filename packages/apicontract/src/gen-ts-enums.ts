@@ -23,7 +23,7 @@ import {
 import { type Context, type TransformOptions, stateOf } from './gen-ts-context.js';
 import { type Dict, list } from './gen-ts-dict.js';
 import { FLATTENED_DEEP_REQUIRED, READONLY_ARRAY, requireHelper } from './gen-ts-helpers.js';
-import { createRef, pointerOf, refType } from './gen-ts-ref.js';
+import { createRef, pathTokens, refType } from './gen-ts-ref.js';
 import { type NameState, enumMemberName, memberName, propertyName } from './gen-ts-text.js';
 
 const objectLiteral = (value: object): TypeNode => {
@@ -59,20 +59,18 @@ const memberComment = (description: unknown): string | undefined => {
   return trimmed === '' ? undefined : ` ${trimmed}`;
 };
 
+// Stryker disable next-line StringLiteral: the stand-in for a missing description only has to be one constant; no other text changes which enums share a key, short of a description that is the mutant's own text
+const describedAs = (entry: EnumEntry): string => String(entry.description || '');
+
 /** Upstream's key: the values sorted, each beside the metadata at its sorted position. */
 const cacheKey = (entries: readonly EnumEntry[]): string => {
   // The default comparison, as upstream: the key has to match its key.
   const sorted = entries.map((entry) => entry.value).sort();
-  return entries.map((entry, index) => `${String(entry.name ?? sorted[index])}:${String(entry.description || '')}`).join(',');
+  return entries.map((entry, index) => `${String(entry.name ?? sorted[index])}:${describedAs(entry)}`).join(',');
 };
 
-/** The first letter in the case `change` gives it. A name with nothing in it cannot be declared. */
-const withFirst = (name: string, source: string, change: (letter: string) => string): string => {
-  if (name === '') {
-    throw new Error(`cannot name the enum at \`${source}\`: nothing is left of its path. fix: give the schema a path with letters or digits in it`);
-  }
-  return change(name.charAt(0)) + name.slice(1);
-};
+/** The first letter in the case `change` gives it. */
+const withFirst = (name: string, change: (letter: string) => string): string => change(name.charAt(0)) + name.slice(1);
 
 const upper = (letter: string): string => letter.toUpperCase();
 const lower = (letter: string): string => letter.toLowerCase();
@@ -86,7 +84,12 @@ export interface EnumInit {
 
 /** A TypeScript enum with a sanitised name and members. */
 export const enumStatement = (init: EnumInit, names: NameState): EnumStatement => {
-  const name = withFirst(memberName(init.name, names), init.name, upper);
+  const sanitized = memberName(init.name, names);
+  // A name with nothing in it cannot be declared.
+  if (sanitized === '') {
+    throw new Error(`cannot name the enum at \`${init.name}\`: nothing is left of its path. fix: give the schema a path with letters or digits in it`);
+  }
+  const name = withFirst(sanitized, upper);
   const key = cacheKey(init.entries);
   const cached = init.cache?.get(key);
   if (cached !== undefined) return cached;
@@ -102,7 +105,13 @@ export const enumStatement = (init: EnumInit, names: NameState): EnumStatement =
   return statement;
 };
 
-const META_KEYS = ['x-enum-varnames', 'x-enumNames', 'x-enum-descriptions', 'x-enumDescriptions'] as const;
+const NAME_KEYS = ['x-enum-varnames', 'x-enumNames'] as const;
+const DESCRIPTION_KEYS = ['x-enum-descriptions', 'x-enumDescriptions'] as const;
+const META_KEYS = [...NAME_KEYS, ...DESCRIPTION_KEYS] as const;
+
+/** What the first of two `x-enum-*` lists says about the member at `index`, or else the second. */
+const metaAt = (schema: Dict, [first, second]: readonly [string, string], index: number): unknown =>
+  list(schema[first])[index] ?? list(schema[second])[index];
 
 const isScalar = (value: unknown): value is string | number => typeof value === 'string' || typeof value === 'number';
 
@@ -114,18 +123,14 @@ const becomesTsEnum = (schema: Dict, ctx: Context): boolean => {
 const SCHEMAS_PREFIX = 'components/schemas';
 
 /** A name from where the schema sits; `#/components/schemas/X` is just `X`. */
-const nameAt = (path: string | undefined): string =>
-  pointerOf(path ?? '')
-    .join('/')
-    .replace(SCHEMAS_PREFIX, '');
+const nameAt = (path: string | undefined): string => pathTokens(path).join('/').replace(SCHEMAS_PREFIX, '');
 
 const tsEnumType = (schema: Dict, options: TransformOptions): TypeNode => {
   const { ctx } = options;
-  const [names, alternateNames, descriptions, alternateDescriptions] = META_KEYS.map((key) => list(schema[key]));
   const entries = (list(schema.enum) as (string | number)[]).map((value, index) => ({
     value,
-    name: names?.[index] ?? alternateNames?.[index],
-    description: descriptions?.[index] ?? alternateDescriptions?.[index],
+    name: metaAt(schema, NAME_KEYS, index),
+    description: metaAt(schema, DESCRIPTION_KEYS, index),
   }));
   const state = stateOf(ctx);
   const cache = ctx.dedupeEnums ? state.enums : undefined;
@@ -148,15 +153,15 @@ const UNION_STEP = 2;
  * A pointer with its `anyOf/0` steps removed, and the property segments after any such step:
  * those are reached through `Extract<>`, since only some variants may have them.
  */
-const withoutUnionSteps = (pointer: readonly string[]): { cleaned: string[]; extract: string[] } => {
+const withoutUnionSteps = (pointer: readonly string[]): { cleaned: string[]; extract: Set<string> } => {
   const cleaned: string[] = [];
-  const extract: string[] = [];
+  const extract = new Set<string>();
   let resume = 0;
   for (const [index, segment] of pointer.entries()) {
     if (index < resume) continue;
     if (isUnionIndex(pointer, index)) {
       resume = index + UNION_STEP;
-      extract.push(...pointer.slice(resume).filter((later) => isPropertySegment(later)));
+      for (const later of pointer.slice(resume).filter((segment) => isPropertySegment(segment))) extract.add(later);
     } else {
       cleaned.push(segment);
     }
@@ -166,8 +171,8 @@ const withoutUnionSteps = (pointer: readonly string[]): { cleaned: string[]; ext
 
 const declareValues = (schema: Dict, options: TransformOptions, fromAdditionalProperties: boolean): void => {
   const { ctx } = options;
-  const { cleaned, extract } = withoutUnionSteps(pointerOf(options.path ?? ''));
-  const name = withFirst(memberName(`${nameAt(options.path)}Values`, stateOf(ctx).names), 'Values', lower);
+  const { cleaned, extract } = withoutUnionSteps(pathTokens(options.path));
+  const name = withFirst(memberName(`${nameAt(options.path)}Values`, stateOf(ctx).names), lower);
   requireHelper(ctx.injectFooter, FLATTENED_DEEP_REQUIRED);
   requireHelper(ctx.injectFooter, READONLY_ARRAY);
   const element = refType(createRef(cleaned), { deep: true, extract });

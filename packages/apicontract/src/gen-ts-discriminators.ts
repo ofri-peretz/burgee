@@ -55,8 +55,9 @@ const mappedValues = (oneOf: readonly unknown[], discriminator: Discriminator): 
   const inferred = new Map<string, string[]>();
   for (const item of oneOf) {
     const ref = dict(item).$ref;
-    const name = typeof ref === 'string' ? ref.split('/').pop() : undefined;
-    if (typeof ref === 'string' && name) inferred.set(ref, [name]);
+    if (typeof ref !== 'string') continue;
+    const name = ref.split('/').pop();
+    if (name) inferred.set(ref, [name]);
   }
   const defined = new Map<string, string[]>();
   for (const [value, ref] of Object.entries(discriminator.mapping ?? {})) {

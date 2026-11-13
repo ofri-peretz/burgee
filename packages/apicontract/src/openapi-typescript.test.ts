@@ -58,6 +58,23 @@ describe('the openapi-typescript drop-in', () => {
     expect(failure.message).toBe(`${message}, and this package does not fetch.\nfix: download the document and pass its text, its parsed value or a \`file:\` URL`);
   });
 
+  it('refuses a remote address behind leading blanks, and names it without them', async () => {
+    const failure = (await openapiTS('  https://example.com/api.yaml').catch((cause: unknown) => cause)) as Error;
+    expect(failure.message).toMatch(/^`https:\/\/example\.com\/api\.yaml` is a remote address/u);
+  });
+
+  it('reads YAML that mentions an address further in', async () => {
+    const withServer = `${yaml}servers:\n  - url: https://example.com/v1\n`;
+    expect(await openapiTS(withServer)).toBe(want);
+  });
+
+  // Upstream hands text that opens with a brace to its JSON parser, and nothing else.
+  it('reads text that opens with a brace as JSON, not as a YAML flow mapping', async () => {
+    const failure = (await openapiTS('{openapi: 3.1.0}').catch((cause: unknown) => cause)) as Error;
+    expect(failure).toBeInstanceOf(SyntaxError);
+    expect(await openapiTS('openapi: 3.1.0 # {')).toBe(generate({ openapi: '3.1.0' }));
+  });
+
   it.each([undefined, null, ''])('refuses %j as an empty schema, with a fix', async (source) => {
     const failure = (await openapiTS(source as unknown as string).catch((cause: unknown) => cause)) as Error;
     expect(failure.message).toBe('Empty schema.\nfix: pass a document, its YAML or JSON text, or a `file:` URL');
