@@ -2464,8 +2464,8 @@ export const PREVIOUS_MAJORS: Host[] = [
     target: 'linegauge/v8',
     status: 'active',
     note: '**Measured 2026-11-13: 233 / 233 against a control of 233 / 233, level and claimed** (`SUPPORTED_MAJORS["string-width"]` is `[8, 9]`). `linegauge/v8` is the measurement the current row graded 233 / 233 until 9.0.0, unchanged; the root moved to 9.0.0\'s rules.',
-    // Stryker restore all
   },
+  // Stryker restore all
   {
     // slice-ansi 7, kept graded when the current row moved to 9 (burgee#317), because 7 is
     // the major `SUPPORTED_MAJORS` claimed until then and a claim does not lapse by a bump:
