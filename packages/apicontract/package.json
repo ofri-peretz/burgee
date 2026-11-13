@@ -20,6 +20,11 @@
       "import": "./dist/core/index.js",
       "default": "./dist/core/index.js"
     },
+    "./openapi": {
+      "types": "./dist/openapi.d.ts",
+      "import": "./dist/openapi.js",
+      "default": "./dist/openapi.js"
+    },
     "./package.json": "./package.json"
   },
   "bin": {
