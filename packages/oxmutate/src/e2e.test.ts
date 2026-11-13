@@ -217,7 +217,8 @@ describe.skipIf(!native || !existsSync(bin) || !nightly)('static survivors armed
 
   it('a pair that hides each other is found by the audit: both Killed, and the run fails', () => {
     const alone = groupRun('static-mask', 'src/pair.ts', []);
-    expect(alone.verdicts.filter((v) => v.includes(':StringLiteral:'))).toEqual(['3:14:StringLiteral:Killed', '4:15:StringLiteral:Killed']);
+    // Lines 3 and 4 are the pair.
+    expect(alone.verdicts.filter((v) => /^[34]:/u.test(v))).toEqual(['3:14:StringLiteral:Killed', '4:15:StringLiteral:Killed']);
     const grouped = groupRun('static-mask', 'src/pair.ts', ['--static-group', '4'], { OXMUTATE_STATIC_AUDIT: 'all' });
     expect(grouped.verdicts).toEqual(alone.verdicts);
     expect(grouped.stats['staticAuditDisagreed']).toBe(2);

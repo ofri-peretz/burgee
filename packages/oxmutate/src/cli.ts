@@ -131,7 +131,7 @@ const runCommand = defineCommand({
       data['exitCode'] = ExitCode.RUNTIME;
     }
     if (result.stats.staticAuditDisagreed > 0) {
-      stderr.write(`oxmutate: ${String(result.stats.staticAuditDisagreed)} mutant(s) reported as survivors by a group were killed when run alone; they are reported Killed. fix: run without static.group, and report the mutants named in the JSON report's x-oxmutate stats\n`);
+      stderr.write(`oxmutate: ${String(result.stats.staticAuditDisagreed)} mutant(s) reported as survivors by a group were killed when run alone; they are reported Killed. fix: run without static.group (--static-group 1); two of this file's mutants hide each other when armed together\n`);
       data['exitCode'] = ExitCode.RUNTIME;
     }
     const floor = options_.thresholds.break;

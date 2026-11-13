@@ -14,3 +14,17 @@ export function shout(word: string): string {
 export function twice(word: string): string {
   return word + word;
 }
+
+const LIMIT = 3;
+
+export function clamp(n: number): number {
+  return n > LIMIT ? LIMIT : n;
+}
+
+export function join(words: string[]): string {
+  return words.filter((w) => w.length > 0).join('-');
+}
+
+export function isEven(n: number): boolean {
+  return n % 2 === 0;
+}
