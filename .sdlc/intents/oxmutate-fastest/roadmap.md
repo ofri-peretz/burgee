@@ -68,7 +68,7 @@ and caique.
 
 | # | Item | Evidence | Expected | Risk to verdicts |
 | :-- | :-- | :-- | :-- | :-- |
-| `2.1` | Group static survivors (`M1`) | _Measured_: 10 static mutants on one line cost 389 s, each alone in every loading file | 5–15x on the static phase | Real: two mutants can mask each other. Off by default, different statements only, 5% audited |
+| `2.1` | Group static survivors (`M1`) | _Measured_ 2026-11-13, `hosts.ts:699-718`, 31 static mutants: static phase 1,717 s → 577 s (**3.0x**), 31 of 31 verdicts equal. A first version that grouped any mutator was 4.5x and got one verdict wrong: an emptied list hid an emptied string | 3x on the static phase where most static mutants are values | Real: two mutants can mask each other. Off by default, value mutants only, 5% audited |
 | `2.2` | A slow test is not a kill | Done on this branch. Fewer false kills, and fewer re-runs they caused | Correctness first | Removes a false-kill path |
 | `2.3` | Drop mutants that compile to the same code | Two mutants whose minified output is identical have one verdict; a mutant identical to the original is equivalent. oxc's minifier makes the comparison cheap | Fewer mutants to run; published results for the technique vary, and nothing is measured here | Low: identical code, identical behaviour. Reported, never silently dropped |
 | `2.4` | Choose a static mutant's tests by what reads it | Today every file that loads the module runs. `oxc_semantic` knows which functions reference the mutated binding | Large where data is read by few tests; none where one table feeds everything | Low if exact; falls back to all files when a binding escapes |

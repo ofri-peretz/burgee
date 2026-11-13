@@ -18,7 +18,8 @@ Intent: [`intent.md`](./intent.md). **Status:** accepted 2026-11-11
   up to `static.group` mutants are armed in one re-collection. A passing run scores every mutant
   in the group Survived in that file. A failing run is bisected until each failing mutant is
   found alone (`F2`).
-- `R4` — A group never holds two mutants that touch the same source text: neither inside the
+- `R4` — A group holds value mutants only (StringLiteral, NumericLiteral, Regex), and never two
+  that touch the same source text: neither inside the
   other, nor overlapping
   ([`D-20261113-oxmutate-static-group-disjoint`](../../decisions/D-20261113-oxmutate-static-group-disjoint.md),
   which replaced "different top-level statements": one data table is one statement).

@@ -301,3 +301,33 @@ test that is no longer a kill (#1547); which one carried how much is not separat
 (Stryker's survivors went from about 740 to 7), so the earlier runs and this one are not the same
 workload. A second pair in the other order (oxmutate, then Stryker) is owed before this number
 goes anywhere public.
+
+## 8. Static groups on `hosts.ts`: 3.0x on the static phase, after one wrong verdict (2026-11-13)
+
+`static.group` arms several static mutants together in a test file that is not their first
+(`oxmutate-fastest` `M1`). Measured on `packages/compat-oracle/src/hosts.ts:699-718`, 31 static
+mutants (25 StringLiteral, 4 ArrayDeclaration, 1 ObjectLiteral, 1 BooleanLiteral), `concurrency: 2`,
+each run alone on that slice, with a Stryker run sharing the machine (load average 22 to 59).
+
+| Run | Static phase | Wall | Group runs / split | Verdicts against ungrouped |
+| :-- | --: | --: | :-- | :-- |
+| ungrouped (`static.group: 1`) | 1,717 s | 1,824 s | — | — |
+| groups of 25, any mutator | 378 s | 424 s | 58 / 5 | **30 of 31: one Killed reported Survived** |
+| groups of 25, value mutants only | 577 s | 620 s | 38 / 9 | 31 of 31 |
+
+- **The wrong verdict was two mutants hiding each other, in real code.** `hosts.ts:701`'s reason
+  string, emptied, is Killed alone by `vendored-suite.test.ts` ("execa's ungraded directories
+  exist, hold tests, and …"). Beside it in the group was `hosts.ts:699`, the list of those
+  directories, emptied. With the list empty the test reads no reason. The audit, one group
+  survivor in twenty, drew none of the 31.
+- **The rule that came out of it:** only mutants that change one value share a group
+  (StringLiteral, NumericLiteral, Regex). One that empties a structure or flips a flag runs
+  alone, because it can switch off the test another mutant fails
+  ([`D-20261113-oxmutate-static-group-disjoint`](../../decisions/D-20261113-oxmutate-static-group-disjoint.md)).
+- **With that rule every verdict is the ungrouped one, and the static phase is 3.0x shorter**
+  (1,717 s to 577 s). The six structure and flag mutants run alone, which is the difference from
+  4.5x.
+
+**What this does not show.** 31 mutants on one file. Two value mutants can still hide each other
+(the `static-mask` fixture is such a pair), so the option stays off by default and audited. The
+ratio is from runs that shared the machine with other work; the verdicts are exact.

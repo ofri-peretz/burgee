@@ -31,3 +31,10 @@ the ones the spec already had, and they now carry more weight:
 - the first file a mutant runs in, the one most likely to kill it, is never grouped.
 
 **Reversible.** A rule inside one function, behind an option that is off.
+
+**Amended the same day, after the first measurement.** Disjoint text was not enough. On
+compat-oracle's `hosts.ts`, a group held an emptied list and the emptied string its entries carry:
+different places, and the list hid the string's kill (`sc8-profile.md` §8). A group now holds
+**value mutants only**: StringLiteral, NumericLiteral and Regex, each of which changes one value
+and removes nothing. Every other mutant runs alone. On that slice the verdicts are then the
+ungrouped ones, 31 of 31, with the static phase 3.0x shorter instead of 4.5x.
