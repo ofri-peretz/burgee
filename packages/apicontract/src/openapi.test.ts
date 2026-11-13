@@ -118,6 +118,14 @@ describe('read', () => {
     ]);
   });
 
+  it('reads every HTTP method OpenAPI names, and escapes a path as JSON Pointer does', () => {
+    const methods = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace', 'query'];
+    const every = { openapi: '3.2.0', paths: { '/a~b': Object.fromEntries(methods.map((method) => [method, {}])) } };
+    expect(read(every).operations.map(({ id, source }) => [id, source])).toEqual(
+      methods.map((method) => [`${method} /a~b`, `#/paths/~1a~0b/${method}`]),
+    );
+  });
+
   it('reads a document with no paths as no operations', () => {
     expect(read({ openapi: '3.0.0', paths: [] }).operations).toEqual([]);
   });
