@@ -32,6 +32,11 @@ What it decides:
 - Both interpreters build 500 schemas in under half a millisecond, against 36 ms for Zod and 1.2 s
   for ajv. Construction is won by not doing work at construction.
 
+**Step 1 as built, 2026-11-13** (same schema, payloads and machine, load average 16): 4.43M valid and
+4.21M invalid a second against Zod's 1.30M and 0.85M, so 3.4 and 5.0 times; 500 schemas built in
+0.9 ms against 36.8 ms. It is not yet in `baseline.ts`, which installs each library from npm; it
+joins that script with the emitter (step 3), and until then these are a prototype's readings.
+
 ## Requirements
 
 - **R1. A schema is data.** Every builder returns a plain, frozen node: a kind and its constraints.
