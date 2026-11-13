@@ -1,0 +1,35 @@
+{
+  "name": "validator",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A JS/TS validator whose schemas are data: checked with no eval, or compiled ahead of time from a contract. Working name; unpublished until the capabilities are measured.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": "^20.19.0 || >=22.13.0"
+  },
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.map",
+    "!dist/**/*.test.*"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage.enabled",
+    "lint": "eslint src"
+  },
+  "devDependencies": {
+    "vitest": "^5.0.1"
+  }
+}
