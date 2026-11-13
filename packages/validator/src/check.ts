@@ -1,4 +1,4 @@
-import { type Node, type Schema } from './schema.js';
+import { type Node, type Rule, type Schema, type Test } from './schema.js';
 
 /**
  * The first pass (spec.md R6): yes or no, and nothing allocated on a yes. No `eval` (R3).
@@ -48,15 +48,43 @@ const shortEnough = (value: string, max: number): boolean =>
   value.length <= max ||
   points(value) <= max;
 
+/** Whether a string is what a format names: its pattern, or else its test. */
+const matches = (rule: Rule, value: string): boolean =>
+  rule.pattern === null ? (rule.test as Test)(value) === true : rule.pattern.test(value);
+
 const isString = (schema: Node, value: unknown): boolean =>
   typeof value === 'string' &&
   longEnough(value, schema.min) &&
   shortEnough(value, schema.max) &&
-  (schema.pattern === null || schema.pattern.test(value));
+  (schema.pattern === null || schema.pattern.test(value)) &&
+  (schema.rule === null || matches(schema.rule, value));
+
+/**
+ * Whether `value` is a multiple of `step`. The remainder is exact, so for a whole `step` it must be
+ * zero. A fraction such as 0.1 has no exact double, and neither has 0.3, so there a value counts as a
+ * multiple when it is within one rounding error of one: `|value| × Number.EPSILON`, which is the
+ * most the two doubles can be off by together. So 0.3 and 0.1 + 0.2 are multiples of 0.1, as they are in the
+ * decimal text of a JSON document, and 0.35 is not. (zod compares the decimal digits and ajv the bare
+ * remainder: ajv refuses 0.3 as a multiple of 0.1.)
+ */
+const isMultiple = (value: number, step: number): boolean => {
+  const rest = Math.abs(value % step);
+  return rest === 0 || (!Number.isInteger(step) && Math.min(rest, step - rest) <= Math.abs(value) * Number.EPSILON);
+};
 
 // The default bounds are the largest finite numbers, so `NaN` and the infinities fail the comparisons.
 const isNumber = (schema: Node, value: unknown): boolean =>
-  typeof value === 'number' && value >= schema.min && value <= schema.max && (!schema.int || Number.isInteger(value));
+  typeof value === 'number' &&
+  value >= schema.min &&
+  value <= schema.max &&
+  value > schema.above &&
+  value < schema.below &&
+  (!schema.int || Number.isInteger(value)) &&
+  (schema.step === 0 || isMultiple(value, schema.step));
+
+const isAnything = (): boolean => true;
+
+const isNothing = (): boolean => false;
 
 const isLiteral = (schema: Node, value: unknown): boolean => value === schema.value;
 
@@ -116,7 +144,81 @@ const isCase = (schema: Node, value: unknown): boolean => {
   return run(chosen, value);
 };
 
+/** An array of exactly the schema's items (parity.md decision 12: a tuple is closed). */
+const isTuple = (schema: Node, value: unknown): boolean => {
+  const fields = schema.fields as readonly Node[];
+  if (!Array.isArray(value) || value.length !== fields.length) return false;
+  for (let index = 0; index < fields.length; index++) if (!run(fields[index] as Node, value[index])) return false;
+  return true;
+};
+
+/**
+ * `for … in`, here and in `isClosed`, because it allocates nothing. It also reads the enumerable
+ * keys of the prototype, which is the reading parity.md decision 3 gives a named field.
+ */
+const isRecord = (schema: Node, value: unknown): boolean => {
+  if (!isPlain(value)) return false;
+  const item = schema.item as Node;
+  const { key } = schema;
+  for (const name in value) if ((key !== null && !run(key, name)) || !run(item, value[name])) return false;
+  return true;
+};
+
+/** An object whose unnamed keys are refused, or must each match the schema in `item`. */
+const isClosed = (schema: Node, value: unknown): boolean => {
+  if (!isObject(schema, value)) return false;
+  const named = schema.values as ReadonlySet<unknown>;
+  const rest = schema.item;
+  const members = value as Record<string, unknown>;
+  for (const name in members) if (!named.has(name) && (rest === null || !run(rest, members[name]))) return false;
+  return true;
+};
+
+const isNullable = (schema: Node, value: unknown): boolean => value === null || run(schema.item as Node, value);
+
+const isNullish = (schema: Node, value: unknown): boolean =>
+  value === null || value === undefined || run(schema.item as Node, value);
+
+/** Whether any member of a union or an intersection answers `verdict` for the value. */
+const anyAnswers = (schema: Node, value: unknown, verdict: boolean): boolean => {
+  const members = schema.fields as readonly Node[];
+  for (let index = 0; index < members.length; index++) if (run(members[index] as Node, value) === verdict) return true;
+  return false;
+};
+
+const isUnion = (schema: Node, value: unknown): boolean => anyAnswers(schema, value, true);
+
+const isEvery = (schema: Node, value: unknown): boolean => !anyAnswers(schema, value, false);
+
+const isLater = (schema: Node, value: unknown): boolean => run((schema.get as () => Node)(), value);
+
+const isCustom = (schema: Node, value: unknown): boolean => ((schema.rule as Rule).test as Test)(value) === true;
+
 /** Whether `value` is what the schema describes. A type guard, so a passing check narrows. */
 const check = <T>(schema: Schema<T>, value: unknown): value is T => schema.check(schema, value);
 
-export { check, isArray, isBoolean, isCase, isLiteral, isMember, isNumber, isObject, isString, points };
+export {
+  check,
+  isAnything,
+  isArray,
+  isBoolean,
+  isCase,
+  isClosed,
+  isCustom,
+  isEvery,
+  isLater,
+  isLiteral,
+  isMember,
+  isMultiple,
+  isNothing,
+  isNullable,
+  isNullish,
+  isNumber,
+  isObject,
+  isRecord,
+  isString,
+  isTuple,
+  isUnion,
+  matches,
+  points,
+};

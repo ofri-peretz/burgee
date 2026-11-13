@@ -1,10 +1,13 @@
-import { points } from './check.js';
-import { type Node, type Schema } from './schema.js';
+import { isMultiple, matches, points } from './check.js';
+import { type Kind, type Node, type Rule, type Schema, type Test } from './schema.js';
 
 export interface Issue {
   /** JSON Pointer to the value that failed; `''` is the root. */
   readonly path: string;
-  /** What failed: `type`, `min`, `max`, `pattern`, `integer`, `literal`, `enum`, `required`, `tag`. */
+  /**
+   * What failed: `type`, `min`, `max`, `gt`, `lt`, `integer`, `multipleOf`, `pattern`, `format`,
+   * `literal`, `enum`, `required`, `unknown`, `key`, `length`, `tag`, `union`, `never`, `custom`.
+   */
   readonly keyword: string;
   /** What was expected and what arrived, ending in a `fix:` line. */
   readonly message: string;
@@ -79,6 +82,19 @@ const string = (walk: Walk, schema: Node, got: unknown, path: string): void => {
   if (count < schema.min || count > schema.max) size(walk, schema, { path, got, count, unit: 'characters' });
   else if (schema.pattern !== null && !schema.pattern.test(got)) {
     add(walk, { path, keyword: 'pattern', expected: `a string matching ${String(schema.pattern)}`, got, fix: 'send a value the pattern accepts' });
+  } else if (schema.rule !== null && !matches(schema.rule, got)) {
+    add(walk, { path, keyword: 'format', expected: `a string in the format ${schema.rule.name}`, got, fix: `send one in the format ${schema.rule.name}` });
+  }
+};
+
+/** A number outside an exclusive bound, with a fraction where none is allowed, or off the step. */
+const numberMore = (walk: Walk, schema: Node, got: number, path: string): void => {
+  const [above, below, step] = [String(schema.above), String(schema.below), String(schema.step)];
+  if (got <= schema.above) add(walk, { path, keyword: 'gt', expected: `a number above ${above}`, got, fix: `send more than ${above}` });
+  else if (got >= schema.below) add(walk, { path, keyword: 'lt', expected: `a number below ${below}`, got, fix: `send less than ${below}` });
+  else if (schema.int && !Number.isInteger(got)) add(walk, { path, keyword: 'integer', expected: 'a whole number', got, fix: 'drop the fraction' });
+  else if (schema.step !== 0 && !isMultiple(got, schema.step)) {
+    add(walk, { path, keyword: 'multipleOf', expected: `a multiple of ${step}`, got, fix: `send a multiple of ${step}` });
   }
 };
 
@@ -88,9 +104,19 @@ const number = (walk: Walk, schema: Node, got: unknown, path: string): void => {
     add(walk, { path, keyword: 'min', expected: `a number of at least ${String(schema.min)}`, got, fix: `send ${String(schema.min)} or more` });
   } else if (got > schema.max) {
     add(walk, { path, keyword: 'max', expected: `a number of at most ${String(schema.max)}`, got, fix: `send ${String(schema.max)} or less` });
-  } else if (schema.int && !Number.isInteger(got)) {
-    add(walk, { path, keyword: 'integer', expected: 'a whole number', got, fix: 'drop the fraction' });
-  }
+  } else numberMore(walk, schema, got, path);
+};
+
+const boolean = (walk: Walk, _: Node, got: unknown, path: string): void => {
+  if (typeof got !== 'boolean') add(walk, { path, keyword: 'type', expected: 'true or false', got, fix: 'send a boolean' });
+};
+
+const nothing = (): void => {
+  // Every value is what `unknown` describes.
+};
+
+const never = (walk: Walk, _: Node, got: unknown, path: string): void => {
+  add(walk, { path, keyword: 'never', expected: 'no value', got, fix: 'remove it' });
 };
 
 const literal = (walk: Walk, schema: Node, got: unknown, path: string): void => {
@@ -114,6 +140,17 @@ const array = (walk: Walk, schema: Node, got: unknown, path: string): void => {
   for (const [index, element] of got.entries()) visit(walk, schema.item as Node, element, path + token(index));
 };
 
+/** The keys an object's shape does not name: refused when it is strict, or held to the schema for them. */
+const extras = (walk: Walk, schema: Node, got: Record<string, unknown>, path: string): void => {
+  if (schema.unknown !== 'strict' && schema.item === null) return;
+  const named = schema.values as ReadonlySet<unknown>;
+  for (const key in got) {
+    if (named.has(key)) continue;
+    if (schema.item !== null) visit(walk, schema.item, got[key], path + token(key));
+    else if (!full(walk)) add(walk, { path: path + token(key), keyword: 'unknown', expected: 'no such key', got: got[key], fix: `remove "${key}"` });
+  }
+};
+
 const object = (walk: Walk, schema: Node, got: unknown, path: string): void => {
   if (!isRecord(got)) {
     add(walk, { path, keyword: 'type', expected: 'an object', got, fix: 'send an object' });
@@ -128,6 +165,33 @@ const object = (walk: Walk, schema: Node, got: unknown, path: string): void => {
       add(walk, { path: path + token(key), keyword: 'required', expected: 'a value', got: value, fix: `add "${key}"` });
     }
   }
+  extras(walk, schema, got, path);
+};
+
+const record = (walk: Walk, schema: Node, got: unknown, path: string): void => {
+  if (!isRecord(got)) {
+    add(walk, { path, keyword: 'type', expected: 'an object', got, fix: 'send an object' });
+    return;
+  }
+  const { key } = schema;
+  for (const name in got) {
+    const at = path + token(name);
+    if (key !== null && !key.check(key, name) && !full(walk)) {
+      add(walk, { path: at, keyword: 'key', expected: 'a key the record allows', got: name, fix: 'rename the key, or remove it' });
+    }
+    visit(walk, schema.item as Node, got[name], at);
+  }
+};
+
+const tuple = (walk: Walk, schema: Node, got: unknown, path: string): void => {
+  if (!Array.isArray(got)) {
+    add(walk, { path, keyword: 'type', expected: 'an array', got, fix: 'send an array' });
+    return;
+  }
+  const fields = schema.fields as readonly Node[];
+  const count = String(fields.length);
+  if (got.length !== fields.length) add(walk, { path, keyword: 'length', expected: `exactly ${count} items`, got, fix: `send ${count}` });
+  for (const [index, field] of fields.entries()) if (index < got.length) visit(walk, field, got[index], path + token(index));
 };
 
 const pick = (walk: Walk, schema: Node, got: unknown, path: string): void => {
@@ -144,41 +208,70 @@ const pick = (walk: Walk, schema: Node, got: unknown, path: string): void => {
   add(walk, { path: path + token(schema.tag as string), keyword: 'tag', expected: `one of ${names}`, got: tag, fix: 'send one of them' });
 };
 
-function visit(walk: Walk, schema: Node, got: unknown, path: string): void {
-  if (full(walk)) return;
-  switch (schema.kind) {
-    case 'string': {
-      string(walk, schema, got, path);
-      return;
-    }
-    case 'number': {
-      number(walk, schema, got, path);
-      return;
-    }
-    case 'boolean': {
-      if (typeof got !== 'boolean') add(walk, { path, keyword: 'type', expected: 'true or false', got, fix: 'send a boolean' });
-      return;
-    }
-    case 'literal': {
-      literal(walk, schema, got, path);
-      return;
-    }
-    case 'enum': {
-      member(walk, schema, got, path);
-      return;
-    }
-    case 'array': {
-      array(walk, schema, got, path);
-      return;
-    }
-    case 'object': {
-      object(walk, schema, got, path);
-      return;
-    }
-    case 'discriminated': {
-      pick(walk, schema, got, path);
-    }
+const nullable = (walk: Walk, schema: Node, got: unknown, path: string): void => {
+  if (got !== null) visit(walk, schema.item as Node, got, path);
+};
+
+const nullish = (walk: Walk, schema: Node, got: unknown, path: string): void => {
+  if (got !== null && got !== undefined) visit(walk, schema.item as Node, got, path);
+};
+
+/**
+ * One issue for the whole union, since no single member is the one that was meant. Its `fix:` line
+ * says where each member first fails, which is what tells a caller which one it was nearest to.
+ */
+const union = (walk: Walk, schema: Node, got: unknown, path: string): void => {
+  const members = schema.fields as readonly Node[];
+  const misses: string[] = [];
+  for (const [index, member] of members.entries()) {
+    // Stryker disable next-line BooleanLiteral: equivalent, only the member's first issue is read; stopping there saves finding the rest
+    const inner: Walk = { found: [], first: true };
+    visit(inner, member, got, path);
+    const [miss] = inner.found;
+    if (miss === undefined) return;
+    misses.push(`member ${String(index)} fails ${miss.keyword} at "${miss.path}"`);
   }
+  const count = String(members.length);
+  add(walk, { path, keyword: 'union', expected: `a value one of ${count} members accepts`, got, fix: ['satisfy one of them', ...misses].join('; ') });
+};
+
+const every = (walk: Walk, schema: Node, got: unknown, path: string): void => {
+  for (const member of schema.fields as readonly Node[]) visit(walk, member, got, path);
+};
+
+const later = (walk: Walk, schema: Node, got: unknown, path: string): void => {
+  visit(walk, (schema.get as () => Node)(), got, path);
+};
+
+const custom = (walk: Walk, schema: Node, got: unknown, path: string): void => {
+  const { name, test } = schema.rule as Rule;
+  if ((test as Test)(got) !== true) add(walk, { path, keyword: 'custom', expected: name, got, fix: `send a value that is ${name}` });
+};
+
+/** One reader per kind. A table and not a `switch`: the kinds are data, and only a program that imports `issues` carries it. */
+const READERS: Readonly<Record<Kind, (walk: Walk, schema: Node, got: unknown, path: string) => void>> = {
+  string,
+  number,
+  boolean,
+  literal,
+  enum: member,
+  array,
+  object,
+  discriminated: pick,
+  unknown: nothing,
+  never,
+  record,
+  tuple,
+  nullable,
+  nullish,
+  union,
+  intersection: every,
+  lazy: later,
+  custom,
+};
+
+function visit(walk: Walk, schema: Node, got: unknown, path: string): void {
+  if (!full(walk)) READERS[schema.kind](walk, schema, got, path);
 }
 
 /**

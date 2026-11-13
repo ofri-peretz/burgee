@@ -1,11 +1,37 @@
 import { describe, expect, it } from 'vitest';
 
 import { check } from './check.js';
-import { emit } from './emit.js';
+import { emit, emitWith } from './emit.js';
 import { issues } from './issues.js';
-import { array, boolean, discriminated, enumOf, literal, number, object, optional, type Schema, string } from './schema.js';
+import {
+  annotate,
+  any,
+  array,
+  boolean,
+  custom,
+  discriminated,
+  enumOf,
+  intersection,
+  lazy,
+  literal,
+  never,
+  nullable,
+  nullish,
+  number,
+  object,
+  optional,
+  record,
+  type Schema,
+  string,
+  tuple,
+  union,
+  unknown,
+} from './schema.js';
 
 /** Run emitted code. Only here: the package itself never evaluates text (spec.md R3). */
+const isOne = (value: unknown): boolean => value === 1;
+const isE = (text: string): boolean => text === 'e';
+
 const load = (source: string): ((value: unknown) => boolean) =>
   // eslint-disable-next-line secure-coding/no-unsafe-deserialization, node-security/detect-eval-with-expression -- The emitted text is the subject under test
   new Function(`return ${source};`)() as (value: unknown) => boolean;
@@ -207,6 +233,13 @@ return (v) => f1(v);
       ['a discriminator and its tags', discriminated(breakout, { [closing]: object({}) }), { [breakout]: closing }, { [breakout]: 'x' }],
       ['a key with line separators', object({ [separators]: number() }), { [separators]: 1 }, { [separators]: '1' }],
       ['a pattern', string({ pattern: /^<\/script>\u2028$/u }), '</script>\u2028', '</script>'],
+      ['a strict object\'s key', object({ [breakout]: string() }, { unknown: 'strict' }), { [breakout]: 'x' }, { [breakout]: 'x', other: 1 }],
+      ['a key beside a schema for the rest', object({ [closing]: string() }, { unknown: number() }), { [closing]: 'x', b: 1 }, { [closing]: 'x', b: 'y' }],
+      ['a record\'s key', record(number(), { key: enumOf([closing, breakout]) }), { [closing]: 1, [breakout]: 2 }, { x: 1 }],
+      ['a format\'s name and pattern', string({ format: { name: breakout, pattern: /^<\/script>\u2028$/u } }), '</script>\u2028', 'x'],
+      ['a default', object({ a: optional(string(), { default: `${breakout}${closing}${separators}` }) }), {}, { a: 1 }],
+      ['a title, a description and examples', annotate(string(), { title: closing, description: breakout, examples: [separators, breakout] }), 'a', 1],
+      ['a literal in a tuple in a union', union([tuple([literal(closing)]), nullable(literal(breakout))]), [closing], [breakout]],
     ])('%s is written as an escaped literal, and still means what it said', (_, schema, accepted, refused) => {
       const source = emit(schema);
       // The code itself has `<=` and `=>`; what must not survive is a tag that closes a script, or a raw line separator.
@@ -216,6 +249,17 @@ return (v) => f1(v);
       expect(emitted(refused)).toBe(false);
       expect(check(schema, accepted)).toBe(true);
       expect('__emitted' in globalThis).toBe(false);
+    });
+
+    // A default and metadata are not what `check` reads, so the text has no place for them at all.
+    it('writes nothing of a default, a title, a description, an example or a rule\'s name', () => {
+      const marked = object({
+        a: annotate(optional(string({ format: { name: 'MARK-format', pattern: /^a$/ } }), { default: 'MARK-default' }), { title: 'MARK-title', description: 'MARK-description', examples: ['MARK-example'] }),
+        b: custom('MARK-custom', isOne),
+        c: string({ format: { name: 'MARK-tested', test: isE } }),
+      });
+      expect(emitWith(marked).source).not.toContain('MARK');
+      expect(emitWith(marked).hooks).toEqual([isOne, isE]);
     });
 
     it('writes a slash only where it is code, never inside a value', () => {
@@ -229,6 +273,10 @@ return (v) => f1(v);
       ['an upper string bound', { ...string(), max: 'Infinity || globalThis.__emitted' }],
       ['an upper array bound', { ...array(string()), max: '9 || globalThis.__emitted' }],
       ['a lower number bound', { ...number(), min: '0 || globalThis.__emitted' }],
+      ['an exclusive lower bound', { ...number(), above: '0 || globalThis.__emitted' }],
+      ['an exclusive upper bound', { ...number(), below: '0 || globalThis.__emitted' }],
+      ['a step', { ...number({ multipleOf: 2 }), step: '2) || globalThis.__emitted || (1' }],
+      ['a step where none was asked for', { ...number(), step: '0' }],
     ])('refuses a hand-built node with %s that is not a number', (_, node) => {
       expect(() => emit(node as unknown as Schema<unknown>)).toThrow(TypeError);
       expect(() => emit(node as unknown as Schema<unknown>)).toThrow('it is not a number. fix: build the schema with the builders, or give the node numeric bounds');
@@ -237,6 +285,21 @@ return (v) => f1(v);
     it('refuses a hand-built node whose pattern is not a RegExp', () => {
       const node = { ...string(), pattern: { source: 'x', flags: '', test: () => true } } as unknown as Schema<unknown>;
       expect(() => emit(node)).toThrow('cannot emit a pattern that is not a RegExp. fix: build the schema with `string({ pattern })`');
+    });
+
+    it('refuses a hand-built format whose pattern is not a RegExp', () => {
+      const node = { ...string(), rule: { name: 'x', pattern: { source: 'x', flags: '', test: () => true }, test: null } } as unknown as Schema<unknown>;
+      expect(() => emit(node)).toThrow('cannot emit a pattern that is not a RegExp. fix: build the schema with `string({ pattern })`');
+    });
+
+    it.each<[string, Record<string, unknown>]>([
+      ['custom type', { ...custom('x', isOne), rule: { name: closing, pattern: null, test: 'globalThis.__emitted = 1' } }],
+      ['format', { ...string(), rule: { name: closing, pattern: null, test: null } }],
+    ])('refuses a hand-built %s whose test is not a function, and escapes its name in saying so', (_, node) => {
+      expect(() => emitWith(node as unknown as Schema<unknown>)).toThrow(TypeError);
+      expect(() => emitWith(node as unknown as Schema<unknown>)).toThrow(
+        `${String.raw`cannot emit the rule "\u003c\u002fscript\u003e\u003cscript\u003ealert(1)\u002f\u002f"`}: it has neither a pattern nor a test. fix: build it with \`string({ format })\` or \`custom\``,
+      );
     });
 
     it('keeps a pattern\'s flags', () => {
@@ -284,5 +347,252 @@ return (v) => f1(v);
   ])('answers what check answers for %s', (_, schema, values) => {
     const emitted = load(emit(schema));
     for (const value of values) expect(emitted(value), JSON.stringify(value)).toBe(check(schema, value));
+  });
+});
+
+interface Tree {
+  v: number;
+  kids: Tree[];
+}
+const TreeSchema: Schema<Tree> = object({ v: number(), kids: array(lazy(() => TreeSchema)) });
+
+interface Left {
+  b: Right[];
+}
+interface Right {
+  a?: Left | undefined;
+}
+const LeftSchema: Schema<Left> = object({ b: array(lazy(() => RightSchema)) });
+const RightSchema: Schema<Right> = object({ a: optional(LeftSchema) });
+
+const loadWith = (schema: Schema<unknown>): ((value: unknown) => boolean) => {
+  const { source, hooks } = emitWith(schema);
+  // eslint-disable-next-line secure-coding/no-unsafe-deserialization, node-security/detect-eval-with-expression -- The emitted text is the subject under test
+  return (new Function(`return ${source};`)() as (hooks: readonly unknown[]) => (value: unknown) => boolean)(hooks);
+};
+
+/** A value with a member of every wave 1 kind, which the `Wave` schema below accepts. */
+const wave = (): Record<string, unknown> => ({
+  n: 2.5,
+  whole: 9,
+  d: '7',
+  e: 'e',
+  r: { ab: -1, cd: -2.5 },
+  t: ['a', null, undefined],
+  u: 'ab',
+  i: { a: 'x', b: 1, c: 'rest' },
+  s: { a: 'x', b: 0 },
+  tree: { v: 1, kids: [{ v: 2, kids: [] }] },
+  left: { b: [{ a: { b: [{}] } }] },
+  c: 1,
+});
+
+/** That value with the member at `path` replaced by `probe`. */
+const replacedIn = (path: Path, probe: unknown): unknown => {
+  if (path.length === 0) return probe;
+  const value = wave();
+  let parent = value as Record<string | number, unknown>;
+  for (const key of path.slice(0, -1)) parent = parent[key] as Record<string | number, unknown>;
+  parent[path.at(-1) as string] = probe;
+  return value;
+};
+
+describe('emit, for the wave 1 kinds', () => {
+  it('writes exactly this for one schema of every new kind', () => {
+    const every = object({
+      n: number({ gt: 0, lt: 10, multipleOf: 0.5, int: true }),
+      m: number({ multipleOf: 3, positive: true }),
+      d: string({ format: { name: 'digit', pattern: /^\d$/ } }),
+      r: record(number(), { key: string({ pattern: /^x/ }) }),
+      q: record(unknown()),
+      t: tuple([string(), nullable(number())]),
+      e: tuple([]),
+      u: union([string(), number(), never()]),
+      i: intersection([any(), nullish(string())]),
+      none: union([]),
+      all: intersection([]),
+      s: object({ a: optional(string()) }, { unknown: 'strict' }),
+      c: object({ 'a"': string(), 'b': string() }, { unknown: enumOf([1]) }),
+      z: object({}, { unknown: 'strict' }),
+      p: object({ a: string() }, { unknown: 'strip' }),
+    });
+    expect(emit(every)).toBe(String.raw`(() => {
+const m0 = (v, s) => {
+  const r = Math.abs(v % s);
+  return r === 0 || (!Number.isInteger(s) && Math.min(r, s - r) <= Math.abs(v) * Number.EPSILON);
+};
+const r1 = new RegExp("^\\d$", "");
+const r2 = new RegExp("^x", "");
+const f3 = (v) => {
+  if (!(typeof v === "object" && v !== null && !Array.isArray(v))) return false;
+  for (const k in v) if (!(typeof k === "string" && r2.test(k)) || !(typeof v[k] === "number" && v[k] >= -1.7976931348623157e+308 && v[k] <= 1.7976931348623157e+308)) return false;
+  return true;
+};
+const f4 = (v) => {
+  if (!(typeof v === "object" && v !== null && !Array.isArray(v))) return false;
+  for (const k in v) if (!(true)) return false;
+  return true;
+};
+const f5 = (v) => Array.isArray(v) && v.length === 2
+  && (typeof v[0] === "string")
+  && ((v[1] === null || (typeof v[1] === "number" && v[1] >= -1.7976931348623157e+308 && v[1] <= 1.7976931348623157e+308)));
+const f6 = (v) => Array.isArray(v) && v.length === 0;
+const f7 = (v) => {
+  for (const k in v) if (!(k === "a")) return false;
+  return true;
+};
+const f8 = (v) => typeof v === "object" && v !== null && !Array.isArray(v)
+  && (v["a"] === undefined || (typeof v["a"] === "string"))
+  && f7(v);
+const f9 = (v) => {
+  for (const k in v) if (!(k === "a\"" || k === "b") && !((v[k] === 1))) return false;
+  return true;
+};
+const f10 = (v) => typeof v === "object" && v !== null && !Array.isArray(v)
+  && (typeof v["a\""] === "string")
+  && (typeof v["b"] === "string")
+  && f9(v);
+const f11 = (v) => {
+  for (const k in v) if (!(false)) return false;
+  return true;
+};
+const f12 = (v) => typeof v === "object" && v !== null && !Array.isArray(v)
+  && f11(v);
+const f13 = (v) => typeof v === "object" && v !== null && !Array.isArray(v)
+  && (typeof v["a"] === "string");
+const f14 = (v) => typeof v === "object" && v !== null && !Array.isArray(v)
+  && (typeof v["n"] === "number" && v["n"] >= -1.7976931348623157e+308 && v["n"] <= 1.7976931348623157e+308 && v["n"] > 0 && v["n"] < 10 && Number.isInteger(v["n"]) && m0(v["n"], 0.5))
+  && (typeof v["m"] === "number" && v["m"] >= -1.7976931348623157e+308 && v["m"] <= 1.7976931348623157e+308 && v["m"] > 0 && m0(v["m"], 3))
+  && (typeof v["d"] === "string" && r1.test(v["d"]))
+  && (f3(v["r"]))
+  && (f4(v["q"]))
+  && (f5(v["t"]))
+  && (f6(v["e"]))
+  && (v["u"] !== undefined && (((typeof v["u"] === "string") || (typeof v["u"] === "number" && v["u"] >= -1.7976931348623157e+308 && v["u"] <= 1.7976931348623157e+308) || (false))))
+  && (v["i"] !== undefined && (((true) && ((v["i"] === null || v["i"] === undefined || (typeof v["i"] === "string"))))))
+  && (v["none"] !== undefined && (false))
+  && (v["all"] !== undefined && (true))
+  && (f8(v["s"]))
+  && (f10(v["c"]))
+  && (f12(v["z"]))
+  && (f13(v["p"]));
+return (v) => f14(v);
+})()`);
+  });
+
+  // A schema that names itself: its function is named before its body is written, so the text is
+  // finite, and each function is written once.
+  it('writes a schema that names itself as functions that call each other', () => {
+    expect(emit(TreeSchema)).toBe(`(() => {
+const f0 = (v) => {
+  if (!Array.isArray(v)) return false;
+  for (let i = 0; i < v.length; i++) if (!(g0(v[i]))) return false;
+  return true;
+};
+const f1 = (v) => typeof v === "object" && v !== null && !Array.isArray(v)
+  && (typeof v["v"] === "number" && v["v"] >= -1.7976931348623157e+308 && v["v"] <= 1.7976931348623157e+308)
+  && (f0(v["kids"]));
+const g0 = (v) => f1(v);
+return (v) => f1(v);
+})()`);
+    expect(emit(lazy(() => string()))).toBe('(() => {\nconst g0 = (v) => typeof v === "string";\nreturn (v) => g0(v);\n})()');
+  });
+
+  it('writes two schemas that name each other, and two lazy schemas under two names', () => {
+    expect(emit(LeftSchema)).toBe(`(() => {
+const f0 = (v) => {
+  if (!Array.isArray(v)) return false;
+  for (let i = 0; i < v.length; i++) if (!(g0(v[i]))) return false;
+  return true;
+};
+const f1 = (v) => typeof v === "object" && v !== null && !Array.isArray(v)
+  && (f0(v["b"]));
+const f2 = (v) => typeof v === "object" && v !== null && !Array.isArray(v)
+  && (v["a"] === undefined || (f1(v["a"])));
+const g0 = (v) => f2(v);
+const f4 = (v) => typeof v === "object" && v !== null && !Array.isArray(v)
+  && (f0(v["b"]));
+return (v) => f4(v);
+})()`);
+    const one = lazy(() => string());
+    expect(emit(tuple([one, lazy(() => boolean()), one]))).toBe(`(() => {
+const g0 = (v) => typeof v === "string";
+const g1 = (v) => typeof v === "boolean";
+const f2 = (v) => Array.isArray(v) && v.length === 3
+  && (g0(v[0]))
+  && (g1(v[1]))
+  && (g0(v[2]));
+return (v) => f2(v);
+})()`);
+  });
+
+  it('has no text for a schema that names a function, and says what to do', () => {
+    for (const schema of [custom('one', isOne), object({ a: string({ format: { name: 'e', test: isE } }) })]) {
+      expect(() => emit(schema)).toThrow(TypeError);
+      expect(() => emit(schema)).toThrow(
+        'cannot emit a schema that names a function as text alone: a custom type, or a format with a test. fix: give the format a pattern, or use `emitWith` and hand its hooks to the text',
+      );
+    }
+    expect(emit(string({ format: { name: 'e', pattern: /^e$/ } }))).toBe('(() => {\nconst r0 = new RegExp("^e$", "");\nreturn (v) => typeof v === "string" && r0.test(v);\n})()');
+  });
+
+  it('writes a function the schema names as a call into the hooks it is handed, in the order it met them', () => {
+    const schema = object({ a: custom('one', isOne), f: string({ format: { name: 'e', test: isE } }), again: custom('one', isOne) });
+    const { source, hooks } = emitWith(schema);
+    expect(source).toBe(`(h) => {
+const f0 = (v) => typeof v === "object" && v !== null && !Array.isArray(v)
+  && (v["a"] !== undefined && (h[0](v["a"]) === true))
+  && (typeof v["f"] === "string" && h[1](v["f"]) === true)
+  && (v["again"] !== undefined && (h[2](v["again"]) === true));
+return (v) => f0(v);
+}`);
+    expect(hooks).toEqual([isOne, isE, isOne]);
+    expect(emitWith(string()).source).toBe('(h) => {\n\nreturn (v) => typeof v === "string";\n}');
+    expect(emitWith(string()).hooks).toEqual([]);
+  });
+
+  // spec.md R2 for the wave 1 kinds: one value with a member of every new kind, each member replaced
+  // by every probe, and the three readers asked about each.
+  const Wave = object(
+    {
+      n: number({ gt: 0, lt: 10, multipleOf: 0.5 }),
+      whole: number({ positive: true, int: true, multipleOf: 3 }),
+      d: string({ format: { name: 'digit', pattern: /^\d$/ } }),
+      e: string({ format: { name: 'e', test: isE } }),
+      r: record(number({ negative: true }), { key: string({ min: 2 }) }),
+      t: tuple([string(), nullable(number()), nullish(boolean())]),
+      u: union([string({ min: 2 }), number({ int: true }), literal(null)]),
+      i: intersection([object({ a: string() }), object({ b: optional(number()) }, { unknown: string() })]),
+      s: object({ a: optional(string()), b: any() }, { unknown: 'strict' }),
+      tree: TreeSchema,
+      left: LeftSchema,
+      c: custom('one', isOne),
+      gone: optional(never()),
+    },
+    { unknown: 'strip' },
+  );
+  const WAVE_PROBES: unknown[] = [undefined, null, true, 0, 1, -1, 0.5, 2.5, 3, 9, 10, 0.3, '', 'a', 'ab', 'e', '7', '77', [], {}, ['a'], ['a', 1, true], { a: 'x' }, { b: 1 }, { ab: -1 }, { a: 'x', extra: 1 }, { v: 1, kids: [] }, { b: [] }, Number.NaN, 1n];
+
+  it('answers what check and issues answer, on a value of every new kind with one member replaced by every probe', () => {
+    const emitted = loadWith(Wave);
+    expect(check(Wave, wave())).toBe(true);
+    expect(emitted(wave())).toBe(true);
+    expect(issues(Wave, wave())).toEqual([]);
+    let refused = 0;
+    let accepted = 0;
+    const paths = pathsOf(wave());
+    for (const path of paths) {
+      for (const probe of WAVE_PROBES) {
+        const value = replacedIn(path, probe);
+        const name = `/${path.join('/')} = ${typeof probe === 'bigint' ? 'a bigint' : String(JSON.stringify(probe))}`;
+        const yes = check(Wave, value);
+        expect(emitted(value), name).toBe(yes);
+        expect(issues(Wave, value).length === 0, name).toBe(yes);
+        expect(issues(Wave, value, { first: true }).length === 0, `${name}, first`).toBe(yes);
+        if (yes) accepted += 1;
+        else refused += 1;
+      }
+    }
+    expect([paths.length * WAVE_PROBES.length, refused, accepted]).toEqual([990, 849, 141]);
   });
 });
