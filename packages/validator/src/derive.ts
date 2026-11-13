@@ -81,4 +81,17 @@ const keyof = <T>(schema: Schema<T, unknown>): Schema<keyof T & string> => enumO
  */
 const readonly = <T, O>(schema: Schema<T, O>): Schema<Readonly<T>, [O] extends [Same] ? Same : Readonly<O>> => schema as Schema<Readonly<T>, never>;
 
-export { extend, keyof, omit, partial, pick, readonly, required };
+/** What a brand adds to a type: a member no value has, named by the brand. Two brands on one type are both there. */
+interface Brand<B extends string | symbol> {
+  readonly '~brand': { readonly [K in B]: true };
+}
+
+/**
+ * The same schema, with a brand on its type: a `string` branded `'UserId'` is not assignable from a
+ * plain `string`, so only a value that passed this schema can be used as one. Type only, as
+ * `readonly` is: the node is the one it was given. The brand is on the input type too, which is
+ * what a passing `check` narrows to.
+ */
+const brand = <T, O, const B extends string | symbol>(schema: Schema<T, O>, _name: B): Schema<T & Brand<B>, [O] extends [Same] ? Same : O & Brand<B>> => schema as Schema<T & Brand<B>, never>;
+
+export { type Brand, brand, extend, keyof, omit, partial, pick, readonly, required };

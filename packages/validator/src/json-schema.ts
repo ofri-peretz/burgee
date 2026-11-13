@@ -26,7 +26,7 @@ interface Finding {
   readonly path: string;
   /**
    * What was lost: `not-json`, `custom`, `refine`, `transform`, `format`, `pattern`, `coerce`,
-   * `strip`, `multipleOf`, `default`, `enum`, `tag`, `meta`.
+   * `strip`, `multipleOf`, `default`, `enum`, `tag`, `meta`, `pipe`, `preprocess`.
    */
   readonly keyword: string;
   readonly message: string;
@@ -308,6 +308,28 @@ const mapped = (writer: Writer, schema: Node, path: string): JsonSchema => {
   return write(writer, schema.item as Node, path);
 };
 
+/**
+ * A count of keys is `minProperties` and `maxProperties`, which bind only an object: beside an
+ * object's or a record's own keywords they say all there is to say, and beside anything else the
+ * document also has to ask for an object, as `check` does.
+ */
+const counted = (writer: Writer, schema: Node, path: string): JsonSchema => {
+  const bounds = sized(schema, 'minProperties', 'maxProperties');
+  const inner = schema.item as Node;
+  if (inner.kind === 'object' || inner.kind === 'record') return { ...write(writer, inner, path), ...bounds };
+  return { allOf: [write(writer, inner, `${path}/allOf/0`), { type: 'object', ...bounds }] };
+};
+
+const piped = (writer: Writer, schema: Node, path: string): JsonSchema => {
+  lose(writer, path, 'pipe', 'the second schema of the pipe reads what parse makes of the first, which JSON Schema cannot say: the document describes what goes in, the first schema alone');
+  return write(writer, schema.item as Node, path);
+};
+
+const before = (writer: Writer, schema: Node, path: string): JsonSchema => {
+  lose(writer, path, 'preprocess', 'parse runs a function on the value before it is validated, which JSON Schema cannot carry: the document describes the value after the function has run');
+  return write(writer, schema.item as Node, path);
+};
+
 const WRITERS: Readonly<Record<Kind, (writer: Writer, schema: Node, path: string) => JsonSchema>> = {
   string,
   number,
@@ -334,6 +356,16 @@ const WRITERS: Readonly<Record<Kind, (writer: Writer, schema: Node, path: string
   instance: (writer, _, path) => notJson(writer, path, 'an instance of a class'),
   refine: refined,
   transform: mapped,
+  nan: (writer, _, path) => notJson(writer, path, 'NaN'),
+  map: (writer, _, path) => notJson(writer, path, 'a Map'),
+  set: (writer, _, path) => notJson(writer, path, 'a Set'),
+  count: counted,
+  // The words a schema has for its issues change no verdict: the document is the schema's own.
+  message: (writer, schema, path) => write(writer, schema.item as Node, path),
+  pipe: piped,
+  preprocess: before,
+  refineAsync: refined,
+  transformAsync: mapped,
 };
 
 /** A schema with more keywords beside it. In draft-07 a `$ref` silences its siblings, so there it is put under `allOf`. */

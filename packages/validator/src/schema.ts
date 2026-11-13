@@ -13,14 +13,17 @@ import {
   isBoolean,
   isCase,
   isClosed,
+  isCounted,
   isCustom,
   isDate,
   isEvery,
   isInstance,
   isLater,
   isLiteral,
+  isMap,
   isMapped,
   isMember,
+  isNan,
   isNothing,
   isNullable,
   isNullish,
@@ -28,11 +31,13 @@ import {
   isObject,
   isRecord,
   isRefined,
+  isSet,
   isString,
   isTuple,
   isTypeOf,
   isUnion,
 } from './check.js';
+import { AWAITED_MAP, AWAITED_RULE, BEFORE, BIGINT, COUNTED, CUSTOM, DATE, EVERY, INSTANCE, LATER, MAP, MAPPED, NAN, NEVER, NULLABLE, NULLISH, PIPED, RECORD, REFINED, SET, TUPLE, TYPE, UNION, UNKNOWN, WORDED } from './own.js';
 
 export type Check = (schema: Node, value: unknown) => boolean;
 
@@ -60,7 +65,16 @@ export type Kind =
   | 'type'
   | 'instance'
   | 'refine'
-  | 'transform';
+  | 'transform'
+  | 'nan'
+  | 'map'
+  | 'set'
+  | 'count'
+  | 'message'
+  | 'pipe'
+  | 'preprocess'
+  | 'refineAsync'
+  | 'transformAsync';
 
 /** A predicate a node names (spec.md R10). Beside `check`, `get` and a transform's map, it is the only kind of function a node may hold. */
 export type Test = (value: unknown) => boolean;
@@ -82,11 +96,99 @@ export interface Meta {
 /** What an object does with a key its shape does not name. `strip` is `keep` to `check`: only `parse` leaves the key out. */
 export type Unknown = 'keep' | 'strict' | 'strip';
 
+export interface Issue {
+  /** JSON Pointer to the value that failed; `''` is the root. */
+  readonly path: string;
+  /**
+   * What failed: `type`, `min`, `max`, `gt`, `lt`, `integer`, `multipleOf`, `pattern`, `format`,
+   * `literal`, `enum`, `required`, `unknown`, `key`, `length`, `tag`, `union`, `never`, `custom`,
+   * `date`, `instance`, `undefined`, `refine`, `minProperties`, `maxProperties`.
+   */
+  readonly keyword: string;
+  /** What was expected and what arrived, ending in a `fix:` line; or the words a schema was given with `message`. */
+  readonly message: string;
+}
+
+/** One failed expectation at one place, before it is put into words: what a message is made from. */
+export interface Miss {
+  readonly path: string;
+  readonly keyword: string;
+  /** What was expected, in English: the message reads "expected <expected>, got …". */
+  readonly expected: string;
+  /** The value that arrived. */
+  readonly got: unknown;
+  /** What to do about it, in English: the message ends "fix: <fix>". */
+  readonly fix: string;
+}
+
+export interface IssueOptions {
+  /** Stop at the first issue. */
+  readonly first?: boolean;
+  /**
+   * The message for an issue, in your words or your language. It is asked about every issue of
+   * every schema, and what it returns is the whole message. Where it returns nothing the message
+   * stays as it was, with its `fix:` line: a map can cover the keywords it knows and leave the rest.
+   */
+  readonly message?: (miss: Miss) => string | null | undefined;
+}
+
+/**
+ * Where a walk of `issues` is, and where it writes. It also holds the two things of `issues` that a
+ * reader calls, the way into a schema inside this one and the writing down of an issue, so that a
+ * reader a node carries imports neither and a bundle without `issues` does not carry them.
+ */
+export interface Walk {
+  readonly found: Issue[];
+  readonly first: boolean;
+  readonly message: IssueOptions['message'];
+  readonly visit: Reader;
+  readonly add: (walk: Walk, miss: Miss) => void;
+}
+
+/** What `issues` runs for a kind: it writes down every reason `got` is not what the schema describes. */
+export type Reader = (walk: Walk, schema: Node, got: unknown, path: string) => void;
+
+/** One walk of `parse` over a value. It makes two: one before `check`, and one after it when there is a transform to run. */
+export interface Pass {
+  /** The walk after `check`: every value is one its schema accepted, and transforms run. */
+  late: boolean;
+  /** Every object and array the schema describes is rebuilt, changed or not. */
+  readonly copy: boolean;
+  /** Set by the first walk when it meets a transform: what makes the second worth making. */
+  met: boolean;
+  /** The way of `parse` into a schema inside this one, handed over as a walk's `visit` is. */
+  readonly fill: Filler;
+  /** Where the walk is: the keys from the root to the member being filled. */
+  readonly at: unknown[];
+  /** What the walk after `check` found wrong: the issues of a pipe's second schema. One of them fails the parse. */
+  readonly failed: Issue[];
+  /** `parse` itself and the options it was called with, for a schema that parses what another produced. */
+  readonly parse: (schema: Node, value: unknown, options: IssueOptions) => { readonly ok: true; readonly value: unknown } | { readonly ok: false; readonly issues: Issue[] };
+  readonly options: IssueOptions;
+  /** Set by `parseAsync` alone: a schema that has to be awaited refuses a walk without it, and a rule that is awaited counts itself here. */
+  readonly wait?: { rules: number };
+}
+
+/** What `parse` runs for a kind: the value the schema makes of `value`, which is `value` itself when nothing changed. */
+export type Filler = (schema: Node, value: unknown, pass: Pass) => unknown;
+
+/**
+ * What a kind brings for `issues` and for `parse`, when they do not know the kind themselves. They
+ * know the eight kinds the design's first step named (string, number, boolean, literal, enum, array,
+ * object, discriminated); every other kind's builder puts this on its node, as it puts `check`.
+ * So `issues` and `parse` do not grow with the number of kinds, and a bundle carries the reading
+ * of the kinds it builds.
+ */
+export interface Own {
+  readonly issues: Reader;
+  readonly fill: Filler;
+}
+
 export interface Node {
   readonly kind: Kind;
   /** The kind's own check, put here by the builder so that a bundle carries only the kinds it builds. It captures nothing. */
   readonly check: Check;
-  /** Length for a string or an array, value for a number. */
+  /** Length for a string or an array, value for a number, size for a set, the number of keys for a count of them. */
   readonly min: number;
   readonly max: number;
   /** A number's exclusive bounds: the infinities when there are none. */
@@ -102,14 +204,20 @@ export interface Node {
   readonly rule: Rule | null;
   /**
    * The literal's value; a bigint's two bounds, lowest first; the name `typeof` gives the values of
-   * a `type` node; the class an `instance` node's values are instances of; a transform's map.
+   * a `type` node; the class an `instance` node's values are instances of; a transform's map; the
+   * function a `preprocess` node runs first; the words of a `message` node, one string or one a keyword;
+   * the rule or the map that `parseAsync` awaits.
    */
   readonly value: unknown;
   /** The enum's members; on an object that closes or strips, its keys; on a refinement, the keys its rule reads. */
   readonly values: ReadonlySet<unknown> | null;
-  /** The array's element, the record's value, the schema of an object's unnamed keys or of a tuple's items past its last, or what `nullable`, `nullish`, a refinement or a transform wraps. */
+  /**
+   * The array's or the set's element, the record's or the map's value, the schema of an object's
+   * unnamed keys or of a tuple's items past its last, or what a schema that wraps another wraps: for
+   * a pipe, its first schema.
+   */
   readonly item: Node | null;
-  /** The record's key. */
+  /** The record's or the map's key; a pipe's second schema. */
   readonly key: Node | null;
   /** The object's keys and, in the same order, their schemas; on a refinement, the path its issue is reported at. */
   readonly keys: readonly string[] | null;
@@ -126,6 +234,8 @@ export interface Node {
   /** A lazy node's schema, asked for when it is read: what lets a schema name itself. */
   readonly get: (() => Node) | null;
   readonly meta: Meta | null;
+  /** The kind's own reading for `issues` and `parse`; null for the eight kinds they read themselves. */
+  readonly own: Own | null;
 }
 
 /**
@@ -229,8 +339,8 @@ const node = <S extends AnySchema>(kind: Kind, check: Check, part: Part): S => {
     check,
     min: -Number.MAX_VALUE,
     max: Number.MAX_VALUE,
-    above: Number.NEGATIVE_INFINITY,
-    below: Number.POSITIVE_INFINITY,
+    above: -Infinity,
+    below: Infinity,
     step: 0,
     int: false,
     coerce: false,
@@ -249,6 +359,7 @@ const node = <S extends AnySchema>(kind: Kind, check: Check, part: Part): S => {
     cases: null,
     get: null,
     meta: null,
+    own: null,
   };
   // eslint-disable-next-line secure-coding/detect-object-injection -- `part` is written by the builders in this file, member by member; no caller's key reaches it
   for (const [name, value] of Object.entries(part)) if (value !== undefined) out[name] = value;
@@ -316,14 +427,14 @@ export interface NumberOptions {
 /** A finite number: `NaN` and the infinities fail, as they do in JSON. */
 export const number = (options: NumberOptions = {}): Schema<number> => {
   const step = options.multipleOf ?? 0;
-  if (options.multipleOf !== undefined && !(step > 0 && step < Number.POSITIVE_INFINITY)) {
+  if (options.multipleOf !== undefined && !(step > 0 && step < Infinity)) {
     throw new TypeError(`multipleOf ${String(step)} has no multiples to test. fix: give a finite number above zero`);
   }
   return node('number', isNumber, {
     min: options.min,
     max: options.max,
-    above: Math.max(options.gt ?? Number.NEGATIVE_INFINITY, options.positive === true ? 0 : Number.NEGATIVE_INFINITY),
-    below: Math.min(options.lt ?? Number.POSITIVE_INFINITY, options.negative === true ? 0 : Number.POSITIVE_INFINITY),
+    above: Math.max(options.gt ?? -Infinity, options.positive === true ? 0 : -Infinity),
+    below: Math.min(options.lt ?? Infinity, options.negative === true ? 0 : Infinity),
     step,
     int: options.int,
     coerce: options.coerce,
@@ -369,7 +480,7 @@ export interface BigintOptions {
  * `value`; a bound nobody set is an infinity, which every bigint is inside.
  */
 export const bigint = (options: BigintOptions = {}): Schema<bigint> =>
-  node('bigint', isBigint, { value: Object.freeze([options.min ?? Number.NEGATIVE_INFINITY, options.max ?? Number.POSITIVE_INFINITY]) });
+  node('bigint', isBigint, { own: BIGINT, value: Object.freeze([options.min ?? -Infinity, options.max ?? Infinity]) });
 
 export interface DateOptions {
   /**
@@ -380,33 +491,50 @@ export interface DateOptions {
 }
 
 /** A `Date` that is a time: `new Date(NaN)` fails, and so does a string or a number that could be read as one. */
-export const date = (options: DateOptions = {}): Schema<Date> => node('date', isDate, { coerce: options.coerce });
+export const date = (options: DateOptions = {}): Schema<Date> => node('date', isDate, { coerce: options.coerce, own: DATE });
 
-export const symbol = (): Schema<symbol> => node('type', isTypeOf, { value: 'symbol' });
+export const symbol = (): Schema<symbol> => node('type', isTypeOf, { value: 'symbol', own: TYPE });
 
 /**
  * Any function. What it takes and returns is not checked, since that cannot be known without
  * calling it: typebox reads a function schema the same way, and zod, valibot and arktype wrap the
  * function to check each call, which is another thing than validating a value.
  */
-export const func = (): Schema<(...args: never[]) => unknown> => node('type', isTypeOf, { value: 'function' });
+export const func = (): Schema<(...args: never[]) => unknown> => node('type', isTypeOf, { value: 'function', own: TYPE });
 
 /** A value made by `new` of a class, or of one that extends it. The emitted code takes the class as a hook: text cannot hold it. */
-export const instanceOf = <T>(type: abstract new (...args: never[]) => T): Schema<T> => node('instance', isInstance, { value: type });
+export const instanceOf = <T>(type: abstract new (...args: never[]) => T): Schema<T> => node('instance', isInstance, { value: type, own: INSTANCE });
 
 /**
  * A `Promise`. What it resolves to is not checked: that is only known later, and `check` answers
  * now. valibot, arktype and typebox read a promise schema the same way.
  */
-export const promise = (): Schema<Promise<unknown>> => node('instance', isInstance, { value: Promise });
+export const promise = (): Schema<Promise<unknown>> => node('instance', isInstance, { value: Promise, own: INSTANCE });
+
+/** `NaN`, and no other number: `number()` refuses it, as JSON does. */
+export const nan = (): Schema<number> => node('nan', isNan, { own: NAN });
+
+/** Only `undefined`, typed `void`: what a function that returns nothing returns. The same node as `undefinedOf`. */
+export const voidOf = (): Schema<void> => node('literal', isLiteral, {});
+
+/**
+ * An integer every double can tell from its neighbours: from `Number.MIN_SAFE_INTEGER` to
+ * `Number.MAX_SAFE_INTEGER`, so 2 ** 53 fails (parity.md decision 5: `number({ int: true })` is any
+ * integer-valued double). The safe range is put into the node's own two bounds, so `check` tests
+ * nothing it did not test already, and a builder of its own, so `number` is no larger for it.
+ */
+export const safeInteger = (options: Omit<NumberOptions, 'int'> = {}): Schema<number> => {
+  const whole = number({ ...options, int: true });
+  return Object.freeze({ ...whole, min: Math.max(whole.min, Number.MIN_SAFE_INTEGER), max: Math.min(whole.max, Number.MAX_SAFE_INTEGER) });
+};
 
 /** Accepts every value. `any` is the same node with the type that switches checking off. */
-export const unknown = (): Schema<unknown> => node('unknown', isAnything, {});
+export const unknown = (): Schema<unknown> => node('unknown', isAnything, { own: UNKNOWN });
 
-export const any = (): Schema<any> => node('unknown', isAnything, {});
+export const any = (): Schema<any> => node('unknown', isAnything, { own: UNKNOWN });
 
 /** Accepts no value. */
-export const never = (): Schema<never> => node('never', isNothing, {});
+export const never = (): Schema<never> => node('never', isNothing, { own: NEVER });
 
 export interface ArrayOptions {
   readonly min?: number;
@@ -415,6 +543,14 @@ export interface ArrayOptions {
 
 export const array = <T, O>(item: Schema<T, O>, options: ArrayOptions = {}): Schema<T[], [O] extends [Same] ? Same : O[]> =>
   node('array', isArray, { item, min: options.min ?? 0, max: options.max });
+
+/** A `Map` whose keys match one schema and whose values match another. */
+export const mapOf = <K, KO, V, VO>(key: Schema<K, KO>, value: Schema<V, VO>): Schema<Map<K, V>, [KO | VO] extends [Same] ? Same : Map<Out<K, KO>, Out<V, VO>>> =>
+  node('map', isMap, { key, item: value, own: MAP });
+
+/** A `Set` whose members each match one schema; `min` and `max` bound its size. */
+export const setOf = <T, O>(item: Schema<T, O>, options: ArrayOptions = {}): Schema<Set<T>, [O] extends [Same] ? Same : Set<O>> =>
+  node('set', isSet, { item, min: options.min ?? 0, max: options.max, own: SET });
 
 interface TupleBuilder {
   <const T extends Schemas>(items: T): Schema<TupleOf<T>, TupleOut<T>>;
@@ -429,7 +565,7 @@ interface TupleBuilder {
  * `rest`, any number of further items, each matching that schema.
  */
 export const tuple: TupleBuilder = (items: Schemas, options: { readonly rest?: AnySchema } = {}): Schema<never> =>
-  node('tuple', isTuple, { fields: [...items], item: options.rest });
+  node('tuple', isTuple, { fields: [...items], item: options.rest, own: TUPLE });
 
 export interface RecordOptions<K extends string = string> {
   /** What every key must be. A key is always a string, so this is a string schema or an enum of strings. */
@@ -444,7 +580,7 @@ export type RecordOf<K extends string, V> = string extends K ? Record<string, V>
  * are keys, and none of them has to be there: `recordOf` is the record that needs every one.
  */
 export const record = <V, O, K extends string = string>(value: Schema<V, O>, options: RecordOptions<K> = {}): Schema<RecordOf<K, V>, [O] extends [Same] ? Same : RecordOf<K, O>> =>
-  node('record', isRecord, { item: value, key: options.key });
+  node('record', isRecord, { item: value, key: options.key, own: RECORD });
 
 /** A record with exactly these keys, every one of them there, each value matching one schema: a closed object, written once. */
 export const recordOf = <const K extends string, V, O>(keys: readonly K[], value: Schema<V, O>): Schema<Record<K, V>, [O] extends [Same] ? Same : Record<K, O>> =>
@@ -485,11 +621,11 @@ export const exactOptional = <T, O>(schema: Schema<T, O>): OptionalSchema<T, O, 
   Object.freeze({ ...schema, optional: 'exact' }) as OptionalSchema<T, O, T, never>;
 
 /** `T` or `null`. */
-export const nullable = <T, O>(schema: Schema<T, O>): Schema<T | null, [O] extends [Same] ? Same : O | null> => node('nullable', isNullable, { item: schema });
+export const nullable = <T, O>(schema: Schema<T, O>): Schema<T | null, [O] extends [Same] ? Same : O | null> => node('nullable', isNullable, { item: schema, own: NULLABLE });
 
 /** `T`, `null` or `undefined`; as an object's field, the key may be absent. */
 export const nullish = <T, O>(schema: Schema<T, O>): OptionalSchema<T | null | undefined, [O] extends [Same] ? Same : O | null | undefined, T | null | undefined> =>
-  node('nullish', isNullish, { item: schema, optional: true });
+  node('nullish', isNullish, { item: schema, optional: true, own: NULLISH });
 
 export interface ObjectOptions<U> {
   /**
@@ -558,21 +694,21 @@ export const discriminatedBy = <const C extends Schemas>(tag: string, cases: C):
 
 /** What any one member accepts. The members are tried in order, and the first to accept decides what `parse` returns. */
 export const union = <const T extends Schemas>(members: T): Schema<T[number]['~type'], AnyOut<T[number]>> =>
-  node('union', isUnion, { fields: [...members] });
+  node('union', isUnion, { fields: [...members], own: UNION });
 
 /** What every member accepts. */
 export const intersection = <const T extends Schemas>(members: T): Schema<AllOf<T>, AllOut<T>> =>
-  node('intersection', isEvery, { fields: [...members] });
+  node('intersection', isEvery, { fields: [...members], own: EVERY });
 
 /**
  * A schema asked for when it is read, which is what lets one name itself or another that names it
  * back: `const Tree: Schema<Tree> = object({ kids: array(lazy(() => Tree)) })`.
  */
-export const lazy = <T, O = Same>(get: () => Schema<T, O>): Schema<T, O> => node('lazy', isLater, { get });
+export const lazy = <T, O = Same>(get: () => Schema<T, O>): Schema<T, O> => node('lazy', isLater, { get, own: LATER });
 
 /** A type that is whatever a named predicate says it is (spec.md R10). The static type is the caller's to state. */
 export const custom = <T>(name: string, test: Test): Schema<T> =>
-  node('custom', isCustom, { rule: Object.freeze({ name, pattern: null, test }) });
+  node('custom', isCustom, { rule: Object.freeze({ name, pattern: null, test }), own: CUSTOM });
 
 /** The same schema with a title, a description or examples on it. Nothing that validates reads them. */
 export const annotate = <S extends AnySchema>(schema: S, meta: Meta): S =>
@@ -609,6 +745,7 @@ export const refine = <T, O, const K extends keyof T & string = never>(
     rule: Object.freeze({ name: options.message ?? 'a value the rule accepts', pattern: null, test: test as Test }),
     keys: (options.path ?? []).map(String),
     values: options.uses === undefined ? null : new Set(options.uses),
+    own: REFINED,
   });
 
 /**
@@ -616,4 +753,116 @@ export const refine = <T, O, const K extends keyof T & string = never>(
  * `check`, `issues` and the input type describe what goes in; only `parse` runs the function, and
  * only on a value the whole schema accepted.
  */
-export const transform = <T, M, R>(schema: Schema<T, M>, map: (value: Out<T, M>) => R): Schema<T, R> => node('transform', isMapped, { item: schema, value: map });
+export const transform = <T, M, R>(schema: Schema<T, M>, map: (value: Out<T, M>) => R): Schema<T, R> => node('transform', isMapped, { item: schema, value: map, own: MAPPED });
+
+export interface PropertiesOptions {
+  /** The fewest and the most keys the object may have. */
+  readonly min?: number;
+  readonly max?: number;
+}
+
+/**
+ * The schema, held to a number of keys: JSON Schema's `minProperties` and `maxProperties`, for an
+ * object or a record. The keys are counted as a record's are read, so an enumerable key of the
+ * prototype counts (parity.md decision 3). A wrapper and not an option of `object`, so an object
+ * that does not count its keys pays nothing for those that do.
+ */
+export const properties = <T extends object, O>(schema: Schema<T, O>, options: PropertiesOptions): Schema<T, O> =>
+  node('count', isCounted, { item: schema, min: options.min ?? 0, max: options.max, own: COUNTED });
+
+/**
+ * The schema, with your words for its issues: one message for every issue it reports, or one for
+ * each keyword you name (`{ type: '…', min: '…' }`). The words replace the whole message, `fix:`
+ * line included, and stand whatever a per-call `message` hook says: the schema's own words are the
+ * more specific. Only the wrapped schema's own issues are reworded, those reported where it stands
+ * and those about one of its keys (`required`, `unknown`, `undefined`, `key`, `tag`); a schema
+ * inside it keeps its own.
+ */
+export const message = <T, O>(schema: Schema<T, O>, words: string | Readonly<Record<string, string>>): Schema<T, O> =>
+  node('message', isMapped, { item: schema, value: typeof words === 'string' ? words : new Map(Object.entries(words)), own: WORDED });
+
+/**
+ * Two schemas in a row: what `parse` makes of the first is parsed by the second, and what the
+ * second makes of it is the output. `transform` maps a value and trusts the result; a pipe holds
+ * the result to a schema: `pipe(transform(string(), Number), number({ min: 5 }))`.
+ *
+ * `check`, `issues`, the emitted code and the input type describe what goes in, which is the first
+ * schema alone. The second sees a value only `parse` makes, so only `parse` can refuse on its
+ * account: a value `check` accepts may still fail to parse, with the second schema's issues.
+ */
+export const pipe = <T, M, U, R>(first: Schema<T, M>, second: Schema<U, R>): Schema<T, Out<U, R>> => node('pipe', isMapped, { item: first, key: second, own: PIPED });
+
+/**
+ * The schema, and a function `parse` runs on what arrived before anything is validated: a coercion
+ * of your own. `transform` runs after validation, on a value of the schema's type; this runs
+ * before it, on a value of any type, and what it returns is validated.
+ *
+ * As with `coerce`, `check`, `issues`, the emitted code and the input type describe the value the
+ * schema accepts, which is the value after the function has run; `check` never runs it. The
+ * function runs once for each time `parse` reads the value through this schema, which inside a
+ * union is once a member tried: keep it free of side effects.
+ */
+export const preprocess = <T, O>(map: (value: unknown) => unknown, schema: Schema<T, O>): Schema<T, O> => node('preprocess', isMapped, { item: schema, value: map, own: BEFORE });
+
+const trimmed = (text: string): string => text.trim();
+const lowered = (text: string): string => text.toLowerCase();
+const raised = (text: string): string => text.toUpperCase();
+
+/** A schema whose output is a string: the only kind the four string transforms below take. */
+type Text<T extends string, M extends string | Same> = Schema<T, M>;
+
+/**
+ * The string with the white space at its two ends removed (`String.prototype.trim`). Like every
+ * transform it runs after validation: the schema describes the string as it arrives. To hold the
+ * trimmed string to a schema, `pipe(trim(string()), string({ min: 1 }))`.
+ */
+export const trim = <T extends string, M extends string | Same = Same>(schema: Text<T, M>): Schema<T, string> => transform(schema, trimmed as (value: Out<T, M>) => string);
+
+/** The string in lower case (`String.prototype.toLowerCase`, which follows no locale). */
+export const lowercase = <T extends string, M extends string | Same = Same>(schema: Text<T, M>): Schema<T, string> => transform(schema, lowered as (value: Out<T, M>) => string);
+
+/** The string in upper case (`String.prototype.toUpperCase`). */
+export const uppercase = <T extends string, M extends string | Same = Same>(schema: Text<T, M>): Schema<T, string> => transform(schema, raised as (value: Out<T, M>) => string);
+
+export type NormalForm = 'NFC' | 'NFD' | 'NFKC' | 'NFKD';
+
+const FORMS: ReadonlySet<unknown> = /* @__PURE__ */ new Set(['NFC', 'NFD', 'NFKC', 'NFKD']);
+
+/** The string in a Unicode normalization form (UAX #15, `String.prototype.normalize`): NFC unless another is named. */
+export const normalize = <T extends string, M extends string | Same = Same>(schema: Text<T, M>, form: NormalForm = 'NFC'): Schema<T, string> => {
+  if (!FORMS.has(form)) throw new TypeError(`cannot normalize to ${typeof form === 'string' ? JSON.stringify(form) : `a value of the type ${typeof form}`}: there is no such form. fix: name NFC, NFD, NFKC or NFKD`);
+  return transform(schema, (text) => (text as string).normalize(form));
+};
+
+export interface RefineAsyncOptions {
+  /** Where under the value the issue is reported: the keys that lead there. The value itself when there are none. */
+  readonly path?: readonly (string | number)[];
+  /** What the rule expects, for the issue: it reads "expected <message>, got …". */
+  readonly message?: string;
+}
+
+/**
+ * The schema, and a rule of your own that answers with a promise: a lookup, a call to a service.
+ * `parseAsync` awaits it, on a value the whole schema accepted and before any transform runs, and
+ * reports it under the keyword `refine`. `parse` refuses a schema that has one.
+ *
+ * `check`, `issues` and the emitted code describe what goes in, as they do for a transform: they
+ * read the schema the rule is on, and never call the rule.
+ */
+export const refineAsync = <T, O>(schema: Schema<T, O>, test: (value: T) => Promise<boolean>, options: RefineAsyncOptions = {}): Schema<T, O> =>
+  node('refineAsync', isMapped, {
+    item: schema,
+    // What the rule expects is kept where a rule's name is kept; the rule itself is in `value`, since it answers with a promise and a `Test` answers at once.
+    rule: Object.freeze({ name: options.message ?? 'a value the rule accepts', pattern: null, test: null }),
+    value: test,
+    keys: (options.path ?? []).map(String),
+    own: AWAITED_RULE,
+  });
+
+/**
+ * The schema, and a function that answers with a promise of what `parseAsync` hands out. It runs
+ * as a transform does: after validation, on what the schema it wraps produced. `parse` refuses a
+ * schema that has one.
+ */
+export const transformAsync = <T, M, R>(schema: Schema<T, M>, map: (value: Out<T, M>) => Promise<R>): Schema<T, R> =>
+  node('transformAsync', isMapped, { item: schema, value: map, own: AWAITED_MAP });

@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import { verdict } from './__fixtures__/readers.js';
 import { emit, emitWith } from './emit.js';
-import { base64, date, datetime, email, httpUrl, ipv4, ipv6, url, uuid } from './formats.js';
+import { base64, date, datetime, email, hex, hostname, httpUrl, ipv4, ipv6, localTime, time, url, uuid } from './formats.js';
 import { check, date as dateSchema, type Format, issues, parse, string } from './index.js';
 
 /**
@@ -70,6 +70,34 @@ const ALL: [string, Format][] = [
   ['http-url', httpUrl],
 ];
 
+/** The formats of wave 3. Some accept a long run of one character, so they are held to the clock on strings of their own and not to a verdict. */
+const WAVE3: [string, { readonly name: string; readonly pattern: RegExp }][] = [
+  ['time', time],
+  ['local-time', localTime],
+  ['hex', hex],
+  ['hostname', hostname],
+];
+
+/** What each of them repeats, at length, ending in what it refuses or in nothing at all. */
+const HOSTILE3: string[] = [
+  ...HOSTILE,
+  `${'f'.repeat(LONG)}g`,
+  `12:30:00.${'0'.repeat(LONG)}`,
+  `12:30:00.${'0'.repeat(LONG)}Z`,
+  `12:30:00.${'0'.repeat(LONG)}+00:0`,
+  `${'12:'.repeat(LONG / 3)}`,
+  `${'a-'.repeat(LONG / 2)}`,
+  `${'a.'.repeat(LONG / 2)}a`,
+  `${'a'.repeat(63)}.`.repeat(LONG / 64),
+  `${'-'.repeat(LONG)}a`,
+  `a${'-'.repeat(LONG)}`,
+  `${'a-'.repeat(126)}a`,
+  `${'a-'.repeat(126)}-`,
+];
+
+/** The hostile strings a format accepts, each by how it starts and how long it is. */
+const accepted = (format: Format): string[] => HOSTILE3.filter((text) => check(string({ format }), text)).map((text) => `${text.slice(0, 8)}…${String(text.length)}`);
+
 describe('the built-in formats', () => {
   it.each(ALL)('%s is data: a frozen name and a pattern, or a test', (name, format) => {
     expect(format.name).toBe(name);
@@ -100,8 +128,32 @@ describe('the built-in formats', () => {
   it('are each marked as free of side effects, so a bundle carries only the ones it imports', () => {
     const source = readFileSync(`${import.meta.dirname}/formats.ts`, 'utf8');
     const frozen = source.split('Object.freeze(').length - 1;
-    expect(frozen).toBe(ALL.length);
+    expect(frozen).toBe(ALL.length + WAVE3.length);
     expect(source.split('= /* @__PURE__ */ Object.freeze(').length - 1).toBe(frozen);
+  });
+
+  it.each(WAVE3)('%s is data: a frozen name and a pattern with the flag u, which the emitter writes as text', (name, format) => {
+    expect(format.name).toBe(name);
+    expect(Object.isFrozen(format)).toBe(true);
+    expect(format.pattern.flags).toBe('u');
+    expect(string({ format }).rule?.name).toBe(name);
+    expect(emit(string({ format }))).toContain('new RegExp(');
+  });
+
+  it.each(WAVE3)('%s decides each of 36 hostile strings of some 50,000 characters in time proportional to its length, and every reader agrees', (_, format) => {
+    const schema = string({ format });
+    const started = performance.now();
+    const accepted = HOSTILE3.filter((text) => check(schema, text));
+    expect(performance.now() - started).toBeLessThan(BOUND_MS);
+    expect(HOSTILE3).toHaveLength(36);
+    for (const text of HOSTILE3) expect(verdict(schema, text)).toBe(accepted.includes(text));
+  });
+
+  it('accept of the hostile strings only the ones that are what the format names', () => {
+    expect(accepted(time)).toEqual(['12:30:00…50010']);
+    expect(accepted(localTime)).toEqual(['12:30:00…50009']);
+    expect(accepted(hex)).toEqual(['aaaaaaaa…50001', '11111111…50001', 'ffffffff…50001']);
+    expect(accepted(hostname)).toEqual([]);
   });
 
   it('report under the keyword format, by name', () => {
@@ -675,6 +727,173 @@ describe('http-url: the same, with the scheme http or https and a host', () => {
       ['https://example.com\n', false, 'a line break after it'],
       ['not a url', false, 'no scheme'],
       ['', false, 'nothing'],
+    ]);
+  });
+});
+
+describe('time: RFC 3339 §5.6 `full-time`, the time half of a date-time', () => {
+  it('fmt.time: accepts 12:30:00Z and refuses 25:00:00Z, and a time with no offset', () => {
+    holds(time, [
+      ['12:30:00Z', true, 'hours, minutes, seconds and the offset Z'],
+      ['25:00:00Z', false, 'no such hour'],
+      ['12:30:00', false, 'no offset: that is `localTime`'],
+    ]);
+  });
+
+  it('says of the edges of the grammar', () => {
+    holds(time, [
+      ['00:00:00Z', true, 'midnight'],
+      ['23:59:59Z', true, 'the last second of a day'],
+      ['12:30:00z', true, 'a lower-case z, which the grammar\'s note allows'],
+      ['12:30:00.5Z', true, 'a fraction'],
+      ['12:30:00.123456789Z', true, 'a long one'],
+      ['12:30:00+02:00', true, 'an offset ahead'],
+      ['12:30:00-11:30', true, 'an offset behind'],
+      ['12:30:00+23:59', true, 'the largest offset'],
+      ['19:59:59+00:00', true, 'an hour whose first digit is one'],
+      ['23:59:60Z', true, 'a leap second at Z'],
+      ['23:59:60+00:00', true, 'and at no offset'],
+      ['23:59:60-00:00', true, 'the same'],
+      ['23:59:60.5z', true, 'with a fraction'],
+      ['23:59:60.55Z', true, 'of more than one digit'],
+      ['23:59:60+01:00', false, 'a leap second at another offset stands at another minute'],
+      ['22:59:60Z', false, 'a sixtieth second in another minute'],
+      ['24:00:00Z', false, 'no hour 24'],
+      ['12:60:00Z', false, 'no minute 60'],
+      ['12:30:61Z', false, 'no second 61'],
+      ['12:30Z', false, 'no seconds'],
+      ['12:30:00.Z', false, 'a point with no fraction'],
+      ['12:30:00+0200', false, 'an offset with no colon'],
+      ['12:30:00+02', false, 'an offset of hours alone'],
+      ['12:30:00+24:00', false, 'no offset of 24 hours'],
+      ['12:30:00+02:60', false, 'no offset of 60 minutes'],
+      ['12:30:00 Z', false, 'a space'],
+      ['T12:30:00Z', false, 'the T of a date-time'],
+      ['2020-01-01T12:30:00Z', false, 'a whole date-time'],
+      ['1:30:00Z', false, 'an hour of one digit'],
+      ['12:3:00Z', false, 'a minute of one digit'],
+      ['12:30:0Z', false, 'a second of one digit'],
+      ['12:30:00ZZ', false, 'two offsets'],
+      ['x12:30:00Z', false, 'something in front'],
+      ['12:30:00Z\n', false, 'a line break after'],
+      ['', false, 'nothing'],
+    ]);
+  });
+});
+
+describe('local-time: RFC 3339 §5.6 `partial-time`, a time with no offset', () => {
+  it('fmt.time, as zod and valibot read it: accepts 12:30:00 and refuses 25:00:00', () => {
+    holds(localTime, [
+      ['12:30:00', true, 'hours, minutes and seconds'],
+      ['25:00:00', false, 'no such hour'],
+    ]);
+  });
+
+  it('says of the edges of the grammar', () => {
+    holds(localTime, [
+      ['00:00:00', true, 'midnight'],
+      ['23:59:59', true, 'the last second of a day'],
+      ['19:00:00', true, 'an hour whose first digit is one'],
+      ['12:30:00.5', true, 'a fraction'],
+      ['12:30:00.123456789', true, 'a long one'],
+      ['12:30:00Z', false, 'an offset: that is `time`'],
+      ['12:30:00+02:00', false, 'the same'],
+      ['23:59:60', false, 'a leap second, which no offset places'],
+      ['24:00:00', false, 'no hour 24'],
+      ['12:60:00', false, 'no minute 60'],
+      ['12:30:60', false, 'no second 60'],
+      ['12:30', false, 'no seconds'],
+      ['12:30:00.', false, 'a point with no fraction'],
+      ['1:30:00', false, 'an hour of one digit'],
+      ['12:3:00', false, 'a minute of one digit'],
+      ['12:30:0', false, 'a second of one digit'],
+      ['12:30:00 ', false, 'a space after'],
+      [' 12:30:00', false, 'a space before'],
+      ['12:30:00\n', false, 'a line break after'],
+      ['', false, 'nothing'],
+    ]);
+  });
+});
+
+describe('hex: one or more of RFC 5234\'s `HEXDIG`, in either case', () => {
+  it('fmt.hex: accepts deadBEEF and refuses xyz', () => {
+    holds(hex, [
+      ['deadBEEF', true, 'digits in both cases'],
+      ['xyz', false, 'no hex digit at all'],
+    ]);
+  });
+
+  it('says of the edges of the grammar', () => {
+    holds(hex, [
+      ['0', true, 'one digit'],
+      ['0123456789', true, 'the ten digits'],
+      ['abcdef', true, 'the six letters'],
+      ['ABCDEF', true, 'and in upper case'],
+      ['fff', true, 'an odd number of digits: not whole bytes, and still a number'],
+      ['', false, 'no digit is no number'],
+      ['0x1f', false, 'a prefix is not a digit'],
+      ['1g', false, 'the letter after f'],
+      ['1G', false, 'and after F'],
+      ['1`', false, 'the character before a'],
+      ['1@', false, 'the character before A'],
+      ['1/', false, 'the character before 0'],
+      ['1:', false, 'the character after 9'],
+      ['12 34', false, 'a space'],
+      ['12\n', false, 'a line break after'],
+      ['\n12', false, 'a line break before'],
+      ['-1f', false, 'a sign'],
+      ['١٢', false, 'digits that are not ASCII'],
+    ]);
+  });
+});
+
+describe('hostname: RFC 1123 §2.1, labels of letters, digits and hyphens', () => {
+  const label63 = 'a'.repeat(63);
+
+  it('fmt.hostname: accepts example.com and refuses "exa mple"', () => {
+    holds(hostname, [
+      ['example.com', true, 'two labels'],
+      ['exa mple', false, 'a space'],
+    ]);
+  });
+
+  it('says of the edges of the grammar', () => {
+    holds(hostname, [
+      ['localhost', true, 'one label is a host name'],
+      ['a', true, 'of one character'],
+      ['EXAMPLE.Com', true, 'either case'],
+      ['3com.com', true, 'a digit first, which RFC 1123 allows'],
+      ['127.0.0.1', true, 'all digits: the grammar cannot tell it from an address'],
+      ['a-b.c-d', true, 'a hyphen inside a label'],
+      ['a--b.com', true, 'two of them'],
+      ['xn--bcher-kva.example', true, 'an internationalised name in its ASCII form'],
+      ['a.b.c.d.e.f', true, 'many labels'],
+      [`${label63}.com`, true, 'a label of 63 characters'],
+      [`${label63}a.com`, false, 'a label of 64'],
+      [`${`${label63}.`.repeat(3)}${'a'.repeat(61)}`, true, '253 characters in all'],
+      [`${`${label63}.`.repeat(3)}${'a'.repeat(62)}`, false, '254'],
+      ['', false, 'nothing'],
+      ['example.com.', false, 'a trailing dot'],
+      ['.example.com', false, 'a leading dot'],
+      ['example..com', false, 'an empty label'],
+      ['-example.com', false, 'a hyphen first'],
+      ['example-.com', false, 'a hyphen last'],
+      ['example.-com', false, 'a hyphen first in a later label'],
+      ['example.com-', false, 'a hyphen at the very end'],
+      ['-', false, 'a hyphen alone'],
+      ['exa_mple.com', false, 'an underscore'],
+      ['bücher.example', false, 'a character outside ASCII'],
+      ['example.com/path', false, 'a path'],
+      ['example.com:80', false, 'a port'],
+      ['user@example.com', false, 'a user'],
+      ['example.com\n', false, 'a line break after'],
+      ['exa\tmple.com', false, 'a tab'],
+      ['a.b@', false, 'the character before A in a later label'],
+      ['a.b[', false, 'the character after Z'],
+      ['a.b`', false, 'the character before a'],
+      ['a.b{', false, 'the character after z'],
+      ['a.b/', false, 'the character before 0'],
+      ['a.b:', false, 'the character after 9'],
     ]);
   });
 });
