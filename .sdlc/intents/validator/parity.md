@@ -40,6 +40,55 @@ Three things the probes found that the intent had wrong or did not know:
 - **A bug in ours:** `issues()` throws on a bigint input, because it prints the received value with
   `JSON.stringify`. `check()` is unaffected.
 
+## Wave 1 as built, 2026-11-13
+
+All 24 features that every competitor has are in, with the parse path that defaults, strip and
+coercion need. Ours now reads **60 yes, 2 partial, 92 no** (from 34, 2, 118): the 24, plus the
+run-time door and ahead-of-time code generation, which existed but the first reading had not seen.
+314 tests, 100% coverage, no surviving mutant on the changed lines; 24 mutants are excluded, each
+with its reason in the source, and they are the fast paths, where a mutant changes speed and not
+the answer.
+
+What parity cost so far, on the order schema, same script before and after (load average 21 to 45,
+so the ratios, not the absolutes):
+
+| | Before | After the restructure | After wave 1 |
+| :-- | --: | --: | --: |
+| Valid orders a second, interpreted | 4.45M | 4.38M | 4.04M |
+| Bundle, `string` and `check` only | 761 B | 453 B | 723 B |
+| Bundle, the whole order schema | 1,122 B | 1,108 B | 1,730 B |
+| Type instantiations per schema | 328 | — | 333 to 339 |
+
+- **A node carries its kind's check, and a bundle carries only the kinds it uses.** Calling it
+  blind cost 11% (one call site sees every kind and is never inlined), so inside arrays, objects and
+  unions the call goes through a three-way test on string, number and boolean, which the engine
+  inlines. That costs 2% and keeps the tree shakeable.
+- **Almost all of the 8.5% lost is counting code points.** With counting off the same tree reads
+  4.26M. `length` is an upper bound and half of it a lower bound, so most strings are decided without
+  counting; a field of fixed length (`last4`) has to be scanned.
+- **The bundle grew 54%** for the full schema: a 24-member node, code points, formats, and the
+  closed-object check. It is still under Valibot's 2,485 B on the earlier reading, and it is the
+  number to watch each wave.
+
+Choices wave 1 had to make that the twelve defaults did not cover, each reversible:
+
+| Question | Taken | Why |
+| :-- | :-- | :-- |
+| `multipleOf` with a fractional step | A value within one rounding error of a multiple counts, so 0.3 is a multiple of 0.1 | Only zod agrees on all six probed values; valibot and typebox refuse 0.3, ajv refuses 0.3 and accepts 1.1, arktype throws |
+| String to number | Only a whole string that is a JSON number (RFC 8259) and a finite double | The five agree on none of `""`, `" 1"`, `"0x10"`, `"Infinity"`, null |
+| `check` and coercion | `check` never coerces; `parse` does | A guard that changes its input is not a guard |
+| A union's issues | One issue, whose fix line says where each member first fails | No single member is the one that was meant |
+| A union's parse | The first member that accepts its own output decides | — |
+| An intersection's parse | Each member parses the input, and objects merge one level deep | One member's strip cannot starve the next |
+| A required key | Must be present whatever its schema says of `undefined` | zod and valibot both refuse `{}` for a required `unknown` key |
+| Recursion in emitted code | A lazy node's function is named before its body is written | Emitted functions call each other |
+| Defaults | Applied wherever `undefined` arrives; handed out as given | Copying and validating a default is the author's choice, not a cost on every parse |
+| Functions in a schema | `emit` refuses a schema that names one; `emitWith` takes them as hooks | No value a schema carries may become code |
+
+Known and left for their own wave: discriminator tags are still strings only (decision 9), a
+default or a coercion does not yet change the static output type (wave 2's input and output types),
+and `issues` prints `NaN` as `number null`.
+
 ## The build list, in waves
 
 A feature's wave is how many of the five competitors have it (yes, partial or add-on). The list is

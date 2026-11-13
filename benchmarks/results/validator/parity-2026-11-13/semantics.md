@@ -11,17 +11,17 @@ The same nominal feature gives different answers in the places below. Each one i
 3. **What an object schema accepts besides a plain object.** valibot and arktype accept an array for an object schema (arktype a function too); zod, typebox, ajv and ours reject arrays.
 4. **`undefined` vs a missing key.** arktype's default optional key rejects `{ a: undefined }`; the other five treat undefined as absent.
 5. **Integer vs `1.0`, and how large an integer may be.** zod's `z.int()` is the safe-integer range and rejects 2^53; the other five accept any integer-valued double, including 1e300.
-6. **String length: UTF-16 units or code points.** zod and ajv count code points; valibot, arktype, typebox and ours count UTF-16 units (`.length`), so one emoji is length 1 for the first pair and 2 for the other four.
+6. **String length: UTF-16 units or code points.** zod, ajv and ours count code points; valibot, arktype and typebox count UTF-16 units (`.length`), so one emoji is length 1 for the first three and 2 for the other three.
 7. **What "email" accepts.** arktype accepts leading and doubled dots and a domain starting with a hyphen, ajv accepts a one-letter TLD, and only zod and ajv accept an apostrophe in the local part (5 of 16 payloads split the libraries).
 8. **What "url" accepts.** All four accept any scheme, `javascript:` and `mailto:` included; they split on an empty host (only ajv accepts `https://`) and on a non-ASCII host or a space in the path (only ajv rejects) (3 of 17 payloads split the libraries).
 9. **What "uuid" accepts.** zod and arktype enforce the version and variant nibbles (nil and max still pass); valibot and ajv accept any hex in the 8-4-4-4-12 shape, and ajv also takes a `urn:uuid:` prefix (4 of 13 payloads split the libraries).
 10. **What "datetime" accepts.** Only `YYYY-MM-DDTHH:MM:SS(.fff)Z` is accepted by all four: offsets, a missing zone or seconds, a space separator, lower case, impossible dates and leap seconds each split them (10 of 14 payloads split the libraries).
 11. **Formats out of the box.** typebox silently rejects every value for an unregistered format; ajv refuses to compile the schema (strict mode) until ajv-formats is added.
 12. **Date handling.** All four Date-capable libraries accept only a valid Date instance and reject strings and numbers; ajv and ours have no Date kind, so a date is a string.
-13. **Does validation clone or mutate.** Three models: zod and valibot always build a deep copy; arktype returns the input itself and copies only when a morph or default applies; typebox (Check), ajv and ours return a boolean and allocate nothing.
+13. **Does validation clone or mutate.** Three models: zod and valibot always build a deep copy; arktype and ours (`parse`) return the input itself and copy only what a default, a stripped key or a coercion changed; typebox (Check), ajv and ours (`check`) return a boolean and allocate nothing.
 14. **Discriminated union on an unknown tag.** All six reject an unknown, missing or wrongly typed tag, but they report it differently: zod, valibot, arktype and ours put one issue at the tag; ajv puts it at the root with keyword `discriminator`; typebox has no discriminated union and reports one "Expected union value" at the root even when the tag is right and only the body is wrong.
 15. **Error collection default: first or all.** ajv stops at the first error by default; zod, valibot and arktype collect all by default. typebox and ours separate the boolean check from the error pass.
-16. **Tuple with extra or missing items, default API.** valibot's `v.tuple` accepts and drops extra items (`strictTuple` rejects), and a bare JSON Schema tuple in ajv accepts both extra and missing items until minItems/additionalItems are added; zod, arktype and typebox are closed tuples.
+16. **Tuple with extra or missing items, default API.** valibot's `v.tuple` accepts and drops extra items (`strictTuple` rejects), and a bare JSON Schema tuple in ajv accepts both extra and missing items until minItems/additionalItems are added; zod, arktype, typebox and ours are closed tuples (parity.md decision 12)..
 17. **String-to-number coercion.** Only plain decimal digit strings coerce the same way in all five: the empty string, whitespace, exponents, hex, "Infinity", null and booleans each split them.
 
 ## 1. Unknown object keys, default mode
@@ -110,12 +110,12 @@ Schema: max length 1 (first four rows), min length 2 (last row).
 | Payload | zod | valibot | arktype | typebox | ajv | ours |
 | :-- | :-- | :-- | :-- | :-- | :-- | :-- |
 | max 1: "a" | accept | accept | accept | accept | accept | accept |
-| max 1: "😀" (1 code point, 2 UTF-16 units) | accept | reject | reject | reject | accept | reject |
+| max 1: "😀" (1 code point, 2 UTF-16 units) | accept | reject | reject | reject | accept | accept |
 | max 1: "e\u0301" (é as 2 code points) | reject | reject | reject | reject | reject | reject |
 | max 1: "👨‍👩‍👧" (1 grapheme, 5 code points, 8 units) | reject | reject | reject | reject | reject | reject |
-| min 2: "😀" | reject | accept | accept | accept | reject | accept |
+| min 2: "😀" | reject | accept | accept | accept | reject | reject |
 
-**zod and ajv count code points; valibot, arktype, typebox and ours count UTF-16 units** (`.length`), so one emoji is length 1 for the first pair and 2 for the other four. Two things here contradict common belief and were re-checked: zod 4.6.7 calls `util.codePointLength` (v4/core/checks.js:273), and typebox, although its schemas are JSON Schema (where maxLength means code points), uses `.length` in both Value.Check and TypeCompiler. Nobody counts graphemes by default (valibot offers maxCodePoints and maxGraphemes as separate actions). Corpus rule: ASCII-only strings wherever a length bound is near.
+**zod, ajv and ours count code points; valibot, arktype and typebox count UTF-16 units** (`.length`), so one emoji is length 1 for the first three and 2 for the other three. (ours counted units until wave 1, 2026-11-13: parity.md decision 4.) Two things here contradict common belief and were re-checked: zod 4.6.7 calls `util.codePointLength` (v4/core/checks.js:273), and typebox, although its schemas are JSON Schema (where maxLength means code points), uses `.length` in both Value.Check and TypeCompiler. Nobody counts graphemes by default (valibot offers maxCodePoints and maxGraphemes as separate actions). Corpus rule: ASCII-only strings wherever a length bound is near.
 
 ## 7. What "email" accepts
 
@@ -248,10 +248,10 @@ Row 1: plain validation of a valid nested object. Row 2: defaults plus stripping
 
 | Payload | zod | valibot | arktype | typebox | ajv | ours |
 | :-- | :-- | :-- | :-- | :-- | :-- | :-- |
-| valid nested object through the main API: what comes back | deep copy | deep copy | same reference | Check: boolean, no output; Parse: deep copy | boolean, no output | boolean, no output |
-| { extra: 1 } with a default for `a` and unknown keys stripped | input untouched: {"extra":1}; output {"a":"d"} | input untouched: {"extra":1}; output {"a":"d"} | input untouched: {"extra":1}; output {"a":"d"} | Value.Default + Value.Clean: INPUT MUTATED to {"a":"d"} (Value.Parse clones first) | useDefaults + removeAdditional: INPUT MUTATED to {"a":"d"} | n/a |
+| valid nested object through the main API: what comes back | deep copy | deep copy | same reference | Check: boolean, no output; Parse: deep copy | boolean, no output | check: boolean, no output; parse: same reference |
+| { extra: 1 } with a default for `a` and unknown keys stripped | input untouched: {"extra":1}; output {"a":"d"} | input untouched: {"extra":1}; output {"a":"d"} | input untouched: {"extra":1}; output {"a":"d"} | Value.Default + Value.Clean: INPUT MUTATED to {"a":"d"} (Value.Parse clones first) | useDefaults + removeAdditional: INPUT MUTATED to {"a":"d"} | input untouched: {"extra":1}; output {"a":"d"} |
 
-Three models: zod and valibot always build a deep copy; arktype returns the input itself and copies only when a morph or default applies; typebox (Check), ajv and ours return a boolean and allocate nothing. When ajv (useDefaults, removeAdditional, coerceTypes) or typebox's Value.Clean/Default/Convert change data, they write into the caller's object. Comparing zod.parse with ajv validate compares "validate and deep-copy" with "validate".
+Three models: zod and valibot always build a deep copy; arktype and ours (`parse`) return the input itself and copy only what a default, a stripped key or a coercion changed; typebox (Check), ajv and ours (`check`) return a boolean and allocate nothing. When ajv (useDefaults, removeAdditional, coerceTypes) or typebox's Value.Clean/Default/Convert change data, they write into the caller's object. Comparing zod.parse with ajv validate compares "validate and deep-copy" with "validate".
 
 ## 14. Discriminated union on an unknown tag
 
@@ -283,27 +283,27 @@ Schema: `[string, number]` written the shortest way in each library (ajv: draft-
 
 | Payload | zod | valibot | arktype | typebox | ajv | ours |
 | :-- | :-- | :-- | :-- | :-- | :-- | :-- |
-| ["a", 1] | accept | accept | accept | accept | accept | n/a |
-| ["a", 1, "extra"] | reject | accept | reject | reject | accept | n/a |
-| ["a"] (too short) | reject | reject | reject | reject | accept | n/a |
+| ["a", 1] | accept | accept | accept | accept | accept | accept |
+| ["a", 1, "extra"] | reject | accept | reject | reject | accept | reject |
+| ["a"] (too short) | reject | reject | reject | reject | accept | reject |
 
-valibot's `v.tuple` accepts and drops extra items (`strictTuple` rejects), and a bare JSON Schema tuple in ajv accepts both extra and missing items until minItems/additionalItems are added; zod, arktype and typebox are closed tuples. ours has no tuple yet.
+valibot's `v.tuple` accepts and drops extra items (`strictTuple` rejects), and a bare JSON Schema tuple in ajv accepts both extra and missing items until minItems/additionalItems are added; zod, arktype, typebox and ours are closed tuples (parity.md decision 12).
 
 ## 17. String-to-number coercion
 
-zod `z.coerce.number()`, valibot `v.toNumber()`, arktype `string.numeric.parse`, typebox `Value.Convert` then `Check`, ajv `coerceTypes: true` on a property. ours has no coercion.
+zod `z.coerce.number()`, valibot `v.toNumber()`, arktype `string.numeric.parse`, typebox `Value.Convert` then `Check`, ajv `coerceTypes: true` on a property, ours `parse(number({ coerce: true }), x)`.
 
 | Input | zod | valibot | arktype | typebox | ajv | ours |
 | :-- | :-- | :-- | :-- | :-- | :-- | :-- |
-| "42" | 42 | 42 | 42 | 42 | 42 | n/a |
-| "" | 0 | 0 | reject | reject | reject | n/a |
-| " 42 " | 42 | 42 | reject | 42 | 42 | n/a |
-| "1e3" | 1000 | 1000 | reject | 1000 | 1000 | n/a |
-| "0x10" | 16 | 16 | reject | 0 | 16 | n/a |
-| "12px" | reject | reject | reject | reject | reject | n/a |
-| "abc" | reject | reject | reject | reject | reject | n/a |
-| "Infinity" | reject | Infinity | reject | reject | Infinity | n/a |
-| null | 0 | 0 | reject | reject | 0 | n/a |
-| true | 1 | 1 | reject | 1 | 1 | n/a |
+| "42" | 42 | 42 | 42 | 42 | 42 | 42 |
+| "" | 0 | 0 | reject | reject | reject | reject |
+| " 42 " | 42 | 42 | reject | 42 | 42 | reject |
+| "1e3" | 1000 | 1000 | reject | 1000 | 1000 | 1000 |
+| "0x10" | 16 | 16 | reject | 0 | 16 | reject |
+| "12px" | reject | reject | reject | reject | reject | reject |
+| "abc" | reject | reject | reject | reject | reject | reject |
+| "Infinity" | reject | Infinity | reject | reject | Infinity | reject |
+| null | 0 | 0 | reject | reject | 0 | reject |
+| true | 1 | 1 | reject | 1 | 1 | reject |
 
-Only plain decimal digit strings coerce the same way in all five: the empty string, whitespace, exponents, hex, "Infinity", null and booleans each split them. zod and valibot follow `Number(x)` (so "" and null are 0); arktype accepts only a well-formed numeric string; typebox turns "0x10" into 0; ajv and valibot let "Infinity" through as Infinity. Leave coercion out of a shared benchmark or restrict the corpus to digit strings.
+Only plain decimal digit strings coerce the same way in all five: the empty string, whitespace, exponents, hex, "Infinity", null and booleans each split them. zod and valibot follow `Number(x)` (so "" and null are 0); arktype accepts only a well-formed numeric string; typebox turns "0x10" into 0; ajv and valibot let "Infinity" through as Infinity. ours reads only a string that is, whole, a JSON number (RFC 8259), which is the one set all five already agree on, plus exponents. Leave coercion out of a shared benchmark or restrict the corpus to digit strings.

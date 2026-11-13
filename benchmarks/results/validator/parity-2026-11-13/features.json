@@ -36,10 +36,10 @@
         "note": "The empty schema. There are no static types, so any and unknown are the same thing."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": "No any/unknown node."
+        "level": "yes",
+        "how": "any()",
+        "evidence": "source schema.ts `any`, check.ts `isAnything`; confirmed by probes/ours.mjs › \"ours prim.any\" on a copy of the source",
+        "note": ""
       }
     }
   },
@@ -432,9 +432,9 @@
         "note": ""
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
+        "level": "yes",
+        "how": "never()",
+        "evidence": "source schema.ts `never`, check.ts `isNothing`; confirmed by probes/ours.mjs › \"ours prim.never\" on a copy of the source",
         "note": ""
       }
     }
@@ -522,8 +522,8 @@
       "ours": {
         "level": "yes",
         "how": "number()",
-        "evidence": "source schema.ts:96, check.ts:18-19; confirmed by probes/ours.mjs › \"ours prim.number\" on a copy of the source",
-        "note": "BUG found by this probe: check(number(), 1n) is correctly false, but issues(number(), 1n) throws \"Do not know how to serialize a BigInt\" (issues.ts:38 calls JSON.stringify on the received value). The same happens for any schema given a bigint."
+        "evidence": "source schema.ts `number`, check.ts `isNumber`; confirmed by probes/ours.mjs › \"ours prim.number\" on a copy of the source",
+        "note": "The bug this probe found on 2026-11-13 (issues() threw on a bigint) is fixed: what arrived is printed safely for every value."
       }
     }
   },
@@ -740,10 +740,10 @@
         "note": "Same as prim.any."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": "No any/unknown node."
+        "level": "yes",
+        "how": "unknown()",
+        "evidence": "source schema.ts `unknown`, check.ts `isAnything`; confirmed by probes/ours.mjs › \"ours prim.unknown\" on a copy of the source",
+        "note": "The same node as any(); only the static type differs."
       }
     }
   },
@@ -1488,10 +1488,10 @@
         "note": "In core; no add-on needed for your own formats."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": "Not in the source today. Planned in spec.md build step 5. (R11: a format is data)"
+        "level": "yes",
+        "how": "string({ format: { name, pattern } | { name, test } })",
+        "evidence": "source schema.ts `Format`, `ruleOf`; check.ts `matches`; confirmed by probes/ours.mjs › \"ours fmt.custom\" on a copy of the source",
+        "note": "A format is data the program keeps (spec R11): there is no registry. One with a test has no source text, so emit() refuses it and emitWith()/jit pass the function in."
       }
     }
   },
@@ -2368,10 +2368,10 @@
         "note": ""
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": "number() has inclusive min and max only."
+        "level": "yes",
+        "how": "number({ gt: 0, lt: 1 })",
+        "evidence": "source schema.ts `number` (gt, lt), check.ts `isNumber`; confirmed by probes/ours.mjs › \"ours num.exclusive\" on a copy of the source",
+        "note": ""
       }
     }
   },
@@ -2588,10 +2588,10 @@
         "note": ""
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": "No such option."
+        "level": "yes",
+        "how": "number({ multipleOf: 2 })",
+        "evidence": "source check.ts `isMultiple`; confirmed by probes/ours.mjs › \"ours num.multiple_of\" on a copy of the source",
+        "note": "For a whole step the remainder must be zero. For a fraction a value within one rounding error of a multiple is one: 0.3 and 0.1 + 0.2 are multiples of 0.1, 0.35 is not."
       }
     }
   },
@@ -2632,10 +2632,10 @@
         "note": ""
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": "Needs an exclusive bound."
+        "level": "yes",
+        "how": "number({ negative: true })",
+        "evidence": "source schema.ts `number` (negative); confirmed by probes/ours.mjs › \"ours num.negative\" on a copy of the source",
+        "note": ""
       }
     }
   },
@@ -2676,10 +2676,10 @@
         "note": ""
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": "Needs an exclusive bound; number({ min: 0 }) accepts 0."
+        "level": "yes",
+        "how": "number({ positive: true })",
+        "evidence": "source schema.ts `number` (positive); confirmed by probes/ours.mjs › \"ours num.positive\" on a copy of the source",
+        "note": ""
       }
     }
   },
@@ -3028,10 +3028,10 @@
         "note": ""
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": "Not in the source today. Planned in spec.md build step 5."
+        "level": "yes",
+        "how": "record(number())",
+        "evidence": "source schema.ts `record`, check.ts `isRecord`; confirmed by probes/ours.mjs › \"ours col.record\" on a copy of the source",
+        "note": ""
       }
     }
   },
@@ -3160,9 +3160,9 @@
         "note": ""
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
+        "level": "yes",
+        "how": "record(number(), { key: string({ pattern: /^x/ }) })",
+        "evidence": "source schema.ts `record` (key); confirmed by probes/ours.mjs › \"ours col.record_key_schema\" on a copy of the source",
         "note": ""
       }
     }
@@ -3248,10 +3248,10 @@
         "note": "Draft-07 form; with Ajv2020 it is prefixItems + items: false. Length must be spelled out: a bare tuple accepts missing and extra items."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": "Not in the source today. Planned in spec.md build step 5."
+        "level": "yes",
+        "how": "tuple([string(), number()])",
+        "evidence": "source schema.ts `tuple`, check.ts `isTuple`; confirmed by probes/ours.mjs › \"ours col.tuple\" on a copy of the source",
+        "note": "Closed (parity.md decision 12): one item more or fewer fails."
       }
     }
   },
@@ -3336,9 +3336,9 @@
         "note": ""
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
+        "level": "yes",
+        "how": "object({...}, { unknown: number() })",
+        "evidence": "source schema.ts `object` (unknown: schema), check.ts `isClosed`; confirmed by probes/ours.mjs › \"ours obj.catchall\" on a copy of the source",
         "note": ""
       }
     }
@@ -3424,10 +3424,10 @@
         "note": "An option, and it writes the default into the object you passed."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": "No defaults; nothing is ever written."
+        "level": "yes",
+        "how": "optional(string(), { default: 'd' })",
+        "evidence": "source schema.ts `optional` (default), parse.ts `fill`; confirmed by probes/ours.mjs › \"ours obj.default\" on a copy of the source",
+        "note": "On the parse path: parse() returns a copy with the default; check() only says the key may be absent. The input is never written to."
       }
     }
   },
@@ -3600,10 +3600,10 @@
         "note": ""
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": "Not in the source today. Planned in spec.md build step 5."
+        "level": "yes",
+        "how": "nullable(string())",
+        "evidence": "source schema.ts `nullable`, check.ts `isNullable`; confirmed by probes/ours.mjs › \"ours obj.nullable\" on a copy of the source",
+        "note": "A wrapper."
       }
     }
   },
@@ -3644,10 +3644,10 @@
         "note": "Only as an object property (absent, undefined or null). JSON Schema has no undefined, so a top-level undefined fails."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": ""
+        "level": "yes",
+        "how": "nullish(string())",
+        "evidence": "source schema.ts `nullish`, check.ts `isNullish`; confirmed by probes/ours.mjs › \"ours obj.nullish\" on a copy of the source",
+        "note": "A wrapper; as an object field the key may also be absent."
       }
     }
   },
@@ -4084,10 +4084,10 @@
         "note": ""
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": "Unknown keys are always allowed (schema.ts:118)."
+        "level": "yes",
+        "how": "object({...}, { unknown: 'strict' })",
+        "evidence": "source schema.ts `object` (unknown), check.ts `isClosed`; confirmed by probes/ours.mjs › \"ours obj.strict\" on a copy of the source",
+        "note": ""
       }
     }
   },
@@ -4128,10 +4128,10 @@
         "note": "An option, and it deletes the keys from the object you passed."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": "Nothing is ever copied, so nothing can be stripped."
+        "level": "yes",
+        "how": "object({...}, { unknown: 'strip' }) with parse()",
+        "evidence": "source schema.ts `object` (unknown), parse.ts `object`; confirmed by probes/ours.mjs › \"ours obj.strip\" on a copy of the source",
+        "note": "Only on the parse path (parity.md decision 1); the default mode keeps unknown keys. check() reads strip as keep."
       }
     }
   },
@@ -4304,10 +4304,10 @@
         "note": ""
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": "Not in the source today. Planned in spec.md build step 5."
+        "level": "yes",
+        "how": "intersection([a, b])",
+        "evidence": "source schema.ts `intersection`, check.ts `isEvery`; confirmed by probes/ours.mjs › \"ours comp.intersection\" on a copy of the source",
+        "note": ""
       }
     }
   },
@@ -4348,9 +4348,9 @@
         "note": ""
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
+        "level": "yes",
+        "how": "lazy(() => B)",
+        "evidence": "source schema.ts `lazy`; confirmed by probes/ours.mjs › \"ours comp.mutual_recursive\" on a copy of the source",
         "note": ""
       }
     }
@@ -4480,10 +4480,10 @@
         "note": ""
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": ""
+        "level": "yes",
+        "how": "lazy(() => Node)",
+        "evidence": "source schema.ts `lazy`, check.ts `isLater`, emit.ts `later`; confirmed by probes/ours.mjs › \"ours comp.recursive\" on a copy of the source",
+        "note": "The emitted code is functions that call each other; the static type is annotated by hand, as in every library."
       }
     }
   },
@@ -4524,10 +4524,10 @@
         "note": ""
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": "Not in the source today. Planned in spec.md build step 5."
+        "level": "yes",
+        "how": "union([string(), number()])",
+        "evidence": "source schema.ts `union`, check.ts `isUnion`; confirmed by probes/ours.mjs › \"ours comp.union\" on a copy of the source",
+        "note": "Members are tried in order. issues() reports one issue for the union, saying where each member first fails."
       }
     }
   },
@@ -4788,10 +4788,10 @@
         "note": "An option, and it rewrites the property on the object you passed. A root-level primitive cannot be coerced because there is nowhere to write it."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": ""
+        "level": "yes",
+        "how": "number({ coerce: true }) with parse()",
+        "evidence": "source schema.ts `number` (coerce), parse.ts `number`; confirmed by probes/ours.mjs › \"ours val.coerce_number\" on a copy of the source",
+        "note": "Only where the schema asks, only on the parse path, and only a string that is, whole, a JSON number (RFC 8259): \"\", \" 1\", \"+1\", \"01\", \"0x10\", \"Infinity\", null and true are not read."
       }
     }
   },
@@ -4876,10 +4876,10 @@
         "note": "A user keyword can be the whole schema, but there is no static type to attach to it."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": ""
+        "level": "yes",
+        "how": "custom<T>('name', (v) => boolean)",
+        "evidence": "source schema.ts `custom`, check.ts `isCustom`; confirmed by probes/ours.mjs › \"ours val.custom_type\" on a copy of the source",
+        "note": "The predicate is a named member of the node (spec R10). The emitted text takes it as a hook."
       }
     }
   },
@@ -5052,10 +5052,10 @@
         "note": "Standard annotation keywords; strict mode rejects unknown ones unless declared."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": ""
+        "level": "yes",
+        "how": "annotate(schema, { title, description, examples })",
+        "evidence": "source schema.ts `annotate`, `Meta`; confirmed by probes/ours.mjs › \"ours val.metadata\" on a copy of the source",
+        "note": "Carried on the node as `meta`; nothing that validates reads it."
       }
     }
   },
@@ -5539,7 +5539,7 @@
         "level": "no",
         "how": "",
         "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": "check() returns a boolean; the input is never copied."
+        "note": "parse() returns the input itself when nothing changed and a copy only when a default, a stripped key or a coercion changed something (parity.md decision 10), so the result is not always a new object."
       }
     }
   },
@@ -5715,7 +5715,7 @@
         "level": "no",
         "how": "",
         "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": "No transforms, so one type."
+        "note": "One type, the input: a default or a coercion does not yet change the static output type."
       }
     }
   },
@@ -6460,10 +6460,10 @@
         "note": "Generated code can still import helpers from ajv/dist/runtime (string length, uniqueItems, formats), so \"standalone\" depends on the keywords used. Observed: the module generated for { type: string, minLength: 1 } imports an ajv runtime helper (ucs2length), so ajv must still be installed."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": "Not in the source today. Planned in spec.md build step 3. (R4: emit(schema)); there is no emit.ts yet."
+        "level": "yes",
+        "how": "emit(schema) from validator/emit",
+        "evidence": "source emit.ts `emit`; confirmed by probes/ours.mjs › \"ours rt.aot\" on a copy of the source",
+        "note": "Source text with no imports and no runtime of ours, run here in a process that never loads the library. In the repository before wave 1; the first matrix was read from a snapshot that lacked it."
       }
     }
   },
@@ -6636,10 +6636,10 @@
         "note": "The only run-time path. Observed 23 Function-constructor call(s) for one schema (the meta-schema is compiled too)."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": "Not in the source today. Planned in spec.md build step 4. (R5: validator/jit); there is no jit.ts yet."
+        "level": "yes",
+        "how": "compile(schema) from validator/jit",
+        "evidence": "source jit.ts `compile`; confirmed by probes/ours.mjs › \"ours rt.jit\" on a copy of the source",
+        "note": "Opt-in, on its own subpath; the default entry never imports it. In the repository before wave 1; the first matrix was read from a snapshot that lacked it."
       }
     }
   },
@@ -6726,8 +6726,8 @@
       "ours": {
         "level": "partial",
         "how": "import { string, object, check } from 'validator'",
-        "evidence": "source schema.ts (one export per builder), check.ts:53-80 (one switch over every kind); confirmed by probes/ours.mjs › \"ours rt.tree_shake\" on a copy of the source",
-        "note": "Builders are separate exports and options are data, but check() and issues() are each one switch that carries every kind. Not bundle-measured here."
+        "evidence": "source schema.ts (one export per builder; each puts its kind's check on the node), check.ts (no switch over kinds); confirmed by probes/ours.mjs › \"ours rt.tree_shake\" on a copy of the source",
+        "note": "check() carries only the kinds a program builds (measured 2026-11-13 with esbuild: 721 B min+gzip for string and check). Still partial: issues() and parse() each read a table of every kind, and package.json has no sideEffects field."
       }
     }
   },

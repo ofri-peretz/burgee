@@ -15,9 +15,9 @@ Probe failures this run: none.
 
 ## What "ours" has today
 
-`prim.boolean`, `prim.enum`, `prim.integer`, `prim.literal`, `prim.null`, `prim.number`, `prim.string`, `str.length`, `str.max`, `str.min`, `str.regex`, `num.finite`, `num.int`, `num.max`, `num.min`, `col.array`, `col.array_max`, `col.array_min`, `obj.object`, `obj.optional`, `obj.passthrough`, `comp.discriminated`, `comp.discriminated_nested` (partial), `beh.abort_early`, `beh.collect_all`, `beh.in_place`, `beh.infer`, `beh.issue_code`, `beh.issue_path`, `beh.path_pointer`, `beh.type_guard`, `rt.csp_safe`, `rt.esm`, `rt.no_eval_default`, `rt.tree_shake` (partial), `rt.zero_deps`.
+`prim.any`, `prim.boolean`, `prim.enum`, `prim.integer`, `prim.literal`, `prim.never`, `prim.null`, `prim.number`, `prim.string`, `prim.unknown`, `str.length`, `str.max`, `str.min`, `str.regex`, `fmt.custom`, `num.exclusive`, `num.finite`, `num.int`, `num.max`, `num.min`, `num.multiple_of`, `num.negative`, `num.positive`, `col.array`, `col.array_max`, `col.array_min`, `col.record`, `col.record_key_schema`, `col.tuple`, `obj.catchall`, `obj.default`, `obj.nullable`, `obj.nullish`, `obj.object`, `obj.optional`, `obj.passthrough`, `obj.strict`, `obj.strip`, `comp.discriminated`, `comp.discriminated_nested` (partial), `comp.intersection`, `comp.mutual_recursive`, `comp.recursive`, `comp.union`, `val.coerce_number`, `val.custom_type`, `val.metadata`, `beh.abort_early`, `beh.collect_all`, `beh.in_place`, `beh.infer`, `beh.issue_code`, `beh.issue_path`, `beh.path_pointer`, `beh.type_guard`, `rt.aot`, `rt.csp_safe`, `rt.esm`, `rt.jit`, `rt.no_eval_default`, `rt.tree_shake` (partial), `rt.zero_deps`.
 
-Features "ours" has that at least one competitor lacks: `num.finite` (missing in arktype); `comp.discriminated` (missing in typebox); `comp.discriminated_nested` (missing in typebox, ajv); `beh.abort_early` (missing in arktype); `beh.infer` (missing in ajv); `beh.path_pointer` (missing in zod, valibot, arktype); `rt.no_eval_default` (missing in zod, arktype, ajv); `rt.tree_shake` (missing in arktype, ajv); `rt.zero_deps` (missing in arktype, ajv).
+Features "ours" has that at least one competitor lacks: `num.finite` (missing in arktype); `comp.discriminated` (missing in typebox); `comp.discriminated_nested` (missing in typebox, ajv); `beh.abort_early` (missing in arktype); `beh.infer` (missing in ajv); `beh.path_pointer` (missing in zod, valibot, arktype); `rt.aot` (missing in zod, valibot, arktype); `rt.jit` (missing in valibot); `rt.no_eval_default` (missing in zod, arktype, ajv); `rt.tree_shake` (missing in arktype, ajv); `rt.zero_deps` (missing in arktype, ajv).
 
 ## (a) Counts per library
 
@@ -28,38 +28,14 @@ Features "ours" has that at least one competitor lacks: `num.finite` (missing in
 | arktype | 99 | 11 | 0 | 44 |
 | typebox | 88 | 7 | 0 | 59 |
 | ajv | 70 | 10 | 12 | 62 |
-| ours | 34 | 2 | 0 | 118 |
+| ours | 60 | 2 | 0 | 92 |
 
-## (b) Features at least one competitor supports and "ours" does not (118)
+## (b) Features at least one competitor supports and "ours" does not (92)
 
 Ordered by the number of competitors (of 5) with yes, partial or addon. This is the build list.
 
 | # of 5 | Feature | id | Who has it |
 | --: | :-- | :-- | :-- |
-| 5 | any | `prim.any` | zod, valibot, arktype, typebox, ajv |
-| 5 | never | `prim.never` | zod, valibot, arktype, typebox, ajv |
-| 5 | unknown | `prim.unknown` | zod, valibot, arktype, typebox, ajv |
-| 5 | user-registered named format | `fmt.custom` | zod, valibot (partial), arktype, typebox, ajv |
-| 5 | exclusive bounds | `num.exclusive` | zod, valibot, arktype, typebox, ajv |
-| 5 | multipleOf | `num.multiple_of` | zod, valibot, arktype, typebox, ajv |
-| 5 | negative | `num.negative` | zod, valibot, arktype, typebox, ajv |
-| 5 | positive | `num.positive` | zod, valibot, arktype, typebox, ajv |
-| 5 | record | `col.record` | zod, valibot, arktype, typebox, ajv |
-| 5 | record with key schema | `col.record_key_schema` | zod, valibot, arktype, typebox, ajv |
-| 5 | tuple | `col.tuple` | zod, valibot, arktype, typebox, ajv |
-| 5 | catchall / additionalProperties schema | `obj.catchall` | zod, valibot, arktype (partial), typebox, ajv |
-| 5 | default value | `obj.default` | zod, valibot, arktype, typebox, ajv |
-| 5 | nullable | `obj.nullable` | zod, valibot, arktype, typebox, ajv |
-| 5 | nullish | `obj.nullish` | zod, valibot, arktype, typebox, ajv (partial) |
-| 5 | strict (no unknown keys) | `obj.strict` | zod, valibot, arktype, typebox, ajv |
-| 5 | strip unknown keys | `obj.strip` | zod, valibot, arktype, typebox, ajv |
-| 5 | intersection | `comp.intersection` | zod, valibot, arktype, typebox, ajv |
-| 5 | mutually recursive schemas | `comp.mutual_recursive` | zod, valibot, arktype, typebox, ajv |
-| 5 | recursive schema | `comp.recursive` | zod, valibot, arktype, typebox, ajv |
-| 5 | union | `comp.union` | zod, valibot, arktype, typebox, ajv |
-| 5 | coerce string to number | `val.coerce_number` | zod, valibot, arktype, typebox, ajv (partial) |
-| 5 | custom type | `val.custom_type` | zod, valibot, arktype, typebox, ajv (partial) |
-| 5 | metadata / description | `val.metadata` | zod, valibot, arktype, typebox, ajv |
 | 4 | bigint | `prim.bigint` | zod, valibot, arktype, typebox |
 | 4 | Date object | `prim.date` | zod, valibot, arktype, typebox |
 | 4 | native TS enum | `prim.native_enum` | zod, valibot, arktype, typebox |
@@ -97,7 +73,6 @@ Ordered by the number of competitors (of 5) with yes, partial or addon. This is 
 | 4 | draft-07 | `io.draft_07` | zod, arktype, typebox, ajv |
 | 4 | JSON Schema export | `io.json_schema_export` | zod, arktype, typebox, ajv |
 | 4 | CommonJS | `rt.cjs` | zod, valibot, typebox, ajv |
-| 4 | runtime code generation (JIT) | `rt.jit` | zod, arktype, typebox, ajv |
 | 3 | NaN | `prim.nan` | zod, valibot, arktype |
 | 3 | void | `prim.void` | zod, valibot, typebox |
 | 3 | toLowerCase transform | `str.lowercase` | zod, valibot, arktype |
@@ -147,7 +122,6 @@ Ordered by the number of competitors (of 5) with yes, partial or addon. This is 
 | 2 | OpenAPI 3.0 `nullable` | `io.openapi_nullable` | zod, ajv |
 | 2 | OpenAPI/JSON Schema `readOnly` | `io.openapi_readonly` | zod, ajv (partial) |
 | 2 | Standard JSON Schema | `io.standard_json_schema` | zod, arktype |
-| 2 | ahead-of-time / standalone code generation | `rt.aot` | typebox (partial), ajv |
 | 1 | cidr block | `fmt.cidr` | zod |
 | 1 | deep partial | `obj.deep_partial` | zod |
 | 1 | conditional (if/then/else) | `comp.if_then_else` | ajv |
@@ -155,24 +129,24 @@ Ordered by the number of competitors (of 5) with yes, partial or addon. This is 
 | 1 | draft 2019-09 | `io.draft_2019_09` | ajv |
 | 1 | OpenAPI `discriminator` (+ mapping) | `io.openapi_discriminator` | ajv (partial) |
 
-"ours" is partial on: `comp.discriminated_nested` (Works for a second discriminator key under a case, because a case can be any node. A nested union on the same key has no use (the outer lookup already chose), and there is no test for nesting in validator.test.ts.); `rt.tree_shake` (Builders are separate exports and options are data, but check() and issues() are each one switch that carries every kind. Not bundle-measured here.).
+"ours" is partial on: `comp.discriminated_nested` (Works for a second discriminator key under a case, because a case can be any node. A nested union on the same key has no use (the outer lookup already chose), and there is no test for nesting in validator.test.ts.); `rt.tree_shake` (check() carries only the kinds a program builds (measured 2026-11-13 with esbuild: 721 B min+gzip for string and check). Still partial: issues() and parse() each read a table of every kind, and package.json has no sideEffects field.).
 
 ## (c) Where "ours" needs a semantic decision because competitors disagree
 
 From `semantics.md`; the verdict in brackets is what the source does today.
 
-1. **Unknown keys** (table 1). [ours: allowed, left alone, no other mode.] zod and valibot strip, arktype/typebox/ajv pass through, and strict is opt-in everywhere. Decide whether strict and strip exist, and whether strip may allocate given R6 ("valid input allocates nothing").
+1. **Unknown keys** (table 1). [ours: allowed and left alone by default; `strict` rejects, `strip` leaves them out of what `parse` returns, and a schema holds them to it.] zod and valibot strip, arktype/typebox/ajv pass through, and strict is opt-in everywhere. Decide whether strict and strip exist, and whether strip may allocate given R6 ("valid input allocates nothing").
 2. **`undefined` for an optional key** (table 4). [ours: undefined is the same as absent, for optional and for required.] arktype rejects `{ a: undefined }` for an optional key; zod, valibot and arktype each ship an exact-optional. Decide whether to add one, and whether JSON Schema export of optional() is lossless either way.
 3. **Inherited keys** (table 4, last row). [ours: reads `value[key]`, so a key on the prototype satisfies a required field; only the discriminator lookup uses Object.hasOwn.] Decide whether own-ness matters.
-4. **String length unit** (table 6). [ours: UTF-16 units, like valibot, arktype and typebox.] zod and ajv count code points, which is what JSON Schema `maxLength` means. Both front doors pull the same way here: the Zod façade (R14, graded by Zod's suite) and JSON Schema (R13, graded by the JSON-Schema-Test-Suite, which has code-point cases) each need code points, and the current `.length` matches neither incumbent the intent names as the bar.
+4. **String length unit** (table 6). [ours: code points since wave 1, like zod and ajv; UTF-16 units before.] zod and ajv count code points, which is what JSON Schema `maxLength` means. Both front doors pull the same way here: the Zod façade (R14, graded by Zod's suite) and JSON Schema (R13, graded by the JSON-Schema-Test-Suite, which has code-point cases) each need code points, and the current `.length` matches neither incumbent the intent names as the bar.
 5. **Safe integers** (table 5). [ours: Number.isInteger, so 2^53 and 1e300 pass.] zod bounds `int` to the safe range; JSON Schema does not. Decide per front door: the Zod façade (R14) and JSON Schema (R13) want different answers.
 6. **Infinity** (table 2). [ours: rejected, cannot be allowed.] Agrees with zod, typebox and ajv; valibot and arktype accept it. Only a decision if a façade must reproduce them.
 7. **Object-ness** (table 3). [ours: any non-null, non-array object, so class instances, Dates and Maps pass an object schema.] Same as zod, typebox and ajv; valibot and arktype also take arrays. Decide whether a Date passing `object({})` is intended once a date kind exists.
 8. **Error collection default** (table 15). [ours: check() is a boolean; issues() collects all, `first` is opt-in.] ajv defaults to first, the rest to all. The split API already answers this; the decision is what the Standard Schema `validate` (R12) returns by default.
 9. **Discriminated union** (table 14). [ours: string tags only, issue at the tag pointer with keyword `tag`; a case schema need not declare the tag itself.] zod and valibot accept literal tags of any primitive type; ajv reports at the root. Decide on non-string tags (numbers, booleans) and on what the OpenAPI `discriminator.mapping` import maps to.
-10. **Clone or in place** (table 13). [ours: never copies.] The moment transform, default, strip or coercion land (spec steps 5 to 7) there must be an output value; decide between arktype's model (copy only when something changes) and zod's (always copy), and never ajv's (write into the caller's object).
+10. **Clone or in place** (table 13). [ours: `check` never copies; `parse` copies only what changed and never writes to the input.] The moment transform, default, strip or coercion land (spec steps 5 to 7) there must be an output value; decide between arktype's model (copy only when something changes) and zod's (always copy), and never ajv's (write into the caller's object).
 11. **Formats** (tables 7 to 11). [ours: none; R11 says a format is user data.] There is no agreed meaning of email, url, uuid or datetime across the four libraries that ship them. If built-ins are added, each needs a stated reference (RFC 3339 for date-time, RFC 9562 for uuid, WHATWG URL or RFC 3986 for url), because "same as zod" and "same as ajv" are different sets.
-12. **Tuple extras and coercion** (tables 16, 17). [ours: neither exists.] When tuples land, decide strict vs open by default; if coercion is ever added, `""`, whitespace, hex and null need written rules because the five libraries give different answers.
+12. **Tuple extras and coercion** (tables 16, 17). [ours: tuples are closed; coercion reads only a string that is, whole, a JSON number.] When tuples land, decide strict vs open by default; if coercion is ever added, `""`, whitespace, hex and null need written rules because the five libraries give different answers.
 13. **A bug, not a decision**: `issues()` throws on a bigint input ("Do not know how to serialize a BigInt", issues.ts:38), found by the prim.number probe. check() is unaffected.
 
 ## (d) Proposed benchmark scenarios
