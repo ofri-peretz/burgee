@@ -1,4 +1,4 @@
-import { measure } from 'linegauge';
+import { measure } from 'linegauge/v8';
 /**
  * `flagstaff/cli-table3` — cli-table3 0.6.5 ported, graded by cli-table3's own suite.
  *

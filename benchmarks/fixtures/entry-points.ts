@@ -243,7 +243,7 @@ export const PAIRS: readonly EntryPair[] = [
     id: 'linegauge',
     ours: { specifier: 'linegauge', symbol: DEFAULT_EXPORT },
     incumbent: { specifier: 'string-width', symbol: DEFAULT_EXPORT },
-    why: 'the width layer against string-width, whose own suite grades it 233 / 233',
+    why: 'the width layer against string-width 9.0.0, whose own suite grades it 466 / 466',
   },
   {
     id: 'linegauge/wrap',

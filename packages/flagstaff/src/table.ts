@@ -1,5 +1,5 @@
-import { width } from 'linegauge';
 import { truncate } from 'linegauge/truncate';
+import { width } from 'linegauge/v8';
 import { wrap } from 'linegauge/wrap';
 /**
  * A table (R7) — cli-table3's job, as a string function, and again with no layout engine.

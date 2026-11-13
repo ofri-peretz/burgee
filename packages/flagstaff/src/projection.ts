@@ -13,7 +13,7 @@
  */
 import { onExit } from 'closeout';
 import { HIDE_CURSOR, SHOW_CURSOR } from 'closeout/cursor';
-import { lineCount } from 'linegauge';
+import { lineCount } from 'linegauge/v8';
 import { muted } from 'roundel/tokens';
 
 import { type Component } from './plugin.js';

@@ -49,8 +49,9 @@ break is closed at the end of the row and reopened on the next, so every row sta
 own — flagstaff's log-update front-end drops leading rows with no ANSI state tracking because
 of it.
 
-The same page grades `linegauge` against string-width (233 / 233), `linegauge/strip` against
-strip-ansi (8 / 8) and `linegauge/slice` against slice-ansi (106 / 106).
+The same page grades `linegauge` against string-width 9.0.0 (466 / 466), `linegauge/v8`
+against string-width 8.3.0 (233 / 233), `linegauge/strip` against strip-ansi (8 / 8) and
+`linegauge/slice` against slice-ansi (129 / 129).
 
 ## What you gain over wrap-ansi
 
@@ -62,8 +63,8 @@ same way on a pipe, under `--json` and in a test.
 - **One style stack, not two.** wrap-ansi and slice-ansi each carry their own copy of
   open/close/reopen, and they disagree at the edges. `linegauge/wrap` and `linegauge/slice`
   share one, so wrapping and slicing the same styled string agree.
-- **Measured by the graded width.** Rows are measured with the same `width` that passes
-  string-width's suite 233 / 233, with cluster boundaries from the platform's own
+- **Measured by the graded width.** Rows are measured by string-width 8.3.0's rules, which
+  wrap-ansi 10 resolves — `linegauge/v8`, graded 233 / 233 by that release's suite — with cluster boundaries from the platform's own
   `Intl.Segmenter`, so a family emoji or a CJK run is never counted differently by the
   wrapper than by the code that lays out the box around it.
 - **The family measures with it.** burgee, caique and flagstaff build on linegauge, so what

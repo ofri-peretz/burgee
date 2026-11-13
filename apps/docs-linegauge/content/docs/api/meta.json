@@ -9,6 +9,7 @@
     "widest",
     "widest-line",
     "strip",
-    "plugin"
+    "plugin",
+    "v8"
   ]
 }

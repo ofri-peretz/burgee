@@ -18,7 +18,8 @@ import { lineCount, measure, width, … } from 'linegauge';
 
 The default export, declared as `width`.
 
-How many terminal columns `input` occupies once its escape sequences are removed.
+How many terminal columns `input` occupies once its escape sequences are removed — string-width
+9's answer, under its option names and defaults (`WidthOptions`). Non-strings measure 0.
 
 ```ts
 function width(input: string, options?: WidthOptions): number;
@@ -33,8 +34,8 @@ function width(input: string, options?: WidthOptions): number;
 
 ### lineCount
 
-Lines a string occupies in a terminal `columns` wide — the measurement the frame loop
-actually asks for. An empty line still occupies one.
+Lines a string occupies in a terminal `columns` wide, each measured by `width`. An empty line
+still occupies one.
 
 ```ts
 function lineCount(text: string, columns: number): number;
@@ -49,9 +50,7 @@ function lineCount(text: string, columns: number): number;
 
 ### measure
 
-Columns a string of *plain* text occupies — no escape scan. The wrapper below has
-already split its input into text runs and complete sequences, so rescanning would only
-give a malformed sequence a second chance to be mistaken for one.
+Columns a string of plain text occupies — no escape scan.
 
 ```ts
 function measure(text: string, ambiguousIsWide?: boolean): number;
@@ -66,7 +65,8 @@ function measure(text: string, ambiguousIsWide?: boolean): number;
 
 ### width
 
-How many terminal columns `input` occupies once its escape sequences are removed.
+How many terminal columns `input` occupies once its escape sequences are removed — string-width
+9's answer, under its option names and defaults (`WidthOptions`). Non-strings measure 0.
 
 ```ts
 function width(input: string, options?: WidthOptions): number;
@@ -79,48 +79,6 @@ function width(input: string, options?: WidthOptions): number;
 
 **Returns** `number`
 
-## Interfaces
-
-### Options
-
-What `width` accepts beyond the string. Graded against `string-width`'s own suite, so the
-names and the defaults are its names and its defaults, not ours.
-
-```ts
-interface WidthOptions {
-    /**
-     * Treat East Asian Ambiguous characters as one column. **Default `true`** — the incumbent's
-     * default, and right for a Latin terminal: `±`, `×`, `÷`, the box-drawing set, Greek and
-     * Cyrillic all occupy one column there.
-     */
-    ambiguousIsNarrow?: boolean;
-    /**
-     * Count escape sequences as the characters they are made of instead of removing them.
-     */
-    countAnsiEscapeCodes?: boolean;
-}
-```
-
-### WidthOptions
-
-What `width` accepts beyond the string. Graded against `string-width`'s own suite, so the
-names and the defaults are its names and its defaults, not ours.
-
-```ts
-interface WidthOptions {
-    /**
-     * Treat East Asian Ambiguous characters as one column. **Default `true`** — the incumbent's
-     * default, and right for a Latin terminal: `±`, `×`, `÷`, the box-drawing set, Greek and
-     * Cyrillic all occupy one column there.
-     */
-    ambiguousIsNarrow?: boolean;
-    /**
-     * Count escape sequences as the characters they are made of instead of removing them.
-     */
-    countAnsiEscapeCodes?: boolean;
-}
-```
-
 ## Re-exported
 
 Documented on the page of the entry point that declares them.
@@ -132,5 +90,7 @@ Documented on the page of the entry point that declares them.
 | `truncate` | function | [`linegauge/truncate`](/docs/api/truncate#truncate) |
 | `widest` | function | [`linegauge/widest`](/docs/api/widest#widest) |
 | `wrap` | function | [`linegauge/wrap`](/docs/api/wrap#wrap) |
+| `Options` | interface | [`linegauge/v8`](/docs/api/v8#options) |
 | `TruncateOptions` | interface | [`linegauge/truncate`](/docs/api/truncate#truncateoptions) |
+| `WidthOptions` | interface | [`linegauge/v8`](/docs/api/v8#widthoptions) |
 | `WrapOptions` | interface | [`linegauge/wrap`](/docs/api/wrap#wrapoptions) |

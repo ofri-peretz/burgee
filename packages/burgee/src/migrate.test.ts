@@ -623,6 +623,22 @@ describe('A12 — every drop-in the oracle grades level, in one run', () => {
     expect(report.offMajor).toEqual([{ from: 'cli-truncate', found: '^5.1.0', graded: '6.2.0', nearest: 6, sites: [], move: null }]);
   });
 
+  // D-20261113-string-width-9: 8 and 9 are both claimed, and they measure differently, so a program
+  // on 8 moves to `linegauge/v8`, one on 9 to the root, and one on 7 stays, naming 9.0.0.
+  it('moves string-width 8 to linegauge/v8 and 9 to linegauge, and leaves 7 alone naming 9.0.0', async () => {
+    const source = "import stringWidth from 'string-width';\n";
+    const on8 = project({ 'package.json': JSON.stringify({ name: 'x', dependencies: { 'string-width': '^8.3.0' } }), 'src/a.ts': source });
+    expect((await migrate({ dir: on8, status: clean })).offMajor).toEqual([]);
+    expect(read(on8, 'src/a.ts')).toBe("import stringWidth from 'linegauge/v8';\n");
+    const on9 = project({ 'package.json': JSON.stringify({ name: 'x', dependencies: { 'string-width': '^9.0.0' } }), 'src/a.ts': source });
+    expect((await migrate({ dir: on9, status: clean })).offMajor).toEqual([]);
+    expect(read(on9, 'src/a.ts')).toBe("import stringWidth from 'linegauge';\n");
+    const on7 = project({ 'package.json': JSON.stringify({ name: 'x', dependencies: { 'string-width': '^7.2.0' } }), 'src/a.ts': source });
+    const left = await migrate({ dir: on7, status: clean });
+    expect(read(on7, 'src/a.ts')).toBe(source);
+    expect(left.offMajor).toEqual([{ from: 'string-width', found: '^7.2.0', graded: '9.0.0', nearest: 8, sites: [], move: null }]);
+  });
+
   // `supports-color-drop-in` criterion 4, end to end: 11 is the one major claimed, so a program on
   // it moves, `require()` included (both sides hand back their namespace), and one on 10 stays.
   it('moves a program on supports-color 11 to roundel/supports-color, and leaves 10 alone naming 11.0.0', async () => {

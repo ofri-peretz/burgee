@@ -163,7 +163,7 @@ const RULES: Record<string, EntryRule> = {
   //
   // 29,300 -> 30,100 on 2026-10-13 with `./loop` below, for the same 795 B of `projection.js`
   // (D-20261013-frames-fit-the-screen-budgets).
-  '.': { allow: ['closeout', 'closeout/cursor', 'linegauge', 'linegauge/truncate', 'linegauge/wrap', 'paratext/link', 'roundel/policy', 'roundel/tokens'], budget: 30_100, measured: 30_065, denied: ['cli.js', 'ora.js', 'log-update.js', 'spinners.json'] },
+  '.': { allow: ['closeout', 'closeout/cursor', 'linegauge/truncate', 'linegauge/v8', 'linegauge/wrap', 'paratext/link', 'roundel/policy', 'roundel/tokens'], budget: 30_100, measured: 30_065, denied: ['cli.js', 'ora.js', 'log-update.js', 'spinners.json'] },
   // The loop and its four projections; never the registry — a program that hoists its own
   // component pays nothing for the plugin host.
   //
@@ -201,7 +201,7 @@ const RULES: Record<string, EntryRule> = {
   // climb above the top row and leave lines it can never erase. +796 B, all `projection.js`,
   // and `roundel/tokens` joins the allow list for the dim. The budget is the measurement
   // rounded up to the next 50.
-  './loop': { allow: ['closeout', 'closeout/cursor', 'linegauge', 'roundel/policy', 'roundel/tokens'], budget: 7_750, measured: 7_706, denied: ['plugin.js', 'builtins.js', 'schema.json', 'spinner.js', 'cli.js', 'index.js'] },
+  './loop': { allow: ['closeout', 'closeout/cursor', 'linegauge/v8', 'roundel/policy', 'roundel/tokens'], budget: 7_750, measured: 7_706, denied: ['plugin.js', 'builtins.js', 'schema.json', 'spinner.js', 'cli.js', 'index.js'] },
   // The registry, the validator, the built-ins and the schema they are checked against.
   // The registry, the validator, the built-ins and the schema they are checked against —
   // which now carries `borders` too, so both this and `./spinner` are larger than before.
@@ -255,7 +255,7 @@ const RULES: Record<string, EntryRule> = {
   // grows on a resize, an unfinished external line pauses rendering until its newline, and a
   // render with no caller to throw to stops the spinner instead. ora's own index.js grew 8,386 B
   // for the same behaviour.
-  './ora': { allow: ['closeout/cursor', 'closeout/restore-cursor', 'linegauge', 'paratext/csi', 'roundel/chalk', 'roundel/terminal'], budget: 44_150, measured: 44_118, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js'] },
+  './ora': { allow: ['closeout/cursor', 'closeout/restore-cursor', 'linegauge', 'linegauge/v8', 'paratext/csi', 'roundel/chalk', 'roundel/terminal'], budget: 44_150, measured: 44_118, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js'] },
   // The log-update façade: the port, the ANSI-aware wrapper and the width function, against
   // log-update's own 113,368 B across sixteen packages (slice-ansi 27,630 · signal-exit 21,983
   // · wrap-ansi 20,004 · the rest) — 2026-09-09 figures, when slice-ansi resolved to 9.0.0; it
@@ -289,7 +289,7 @@ const RULES: Record<string, EntryRule> = {
   // 116,671 B on 2026-11-12, with ansi-regex 6.6.0 (burgee#1500).
   // linegauge is reached whole through its main entry, as it already was for `width`, and is
   // shared with every other façade, so a program on two of them pays for it once.
-  './boxen': { allow: ['linegauge', 'linegauge/wrap', 'roundel/chalk'], budget: 18_000, measured: 17_600, denied: ['ora.js', 'spinners.json', 'loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js', 'log-update.js'] },
+  './boxen': { allow: ['linegauge', 'linegauge/v8', 'linegauge/wrap', 'roundel/chalk'], budget: 18_000, measured: 17_600, denied: ['ora.js', 'spinners.json', 'loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js', 'log-update.js'] },
   // The cli-table3 façade (R10). cli-table3 0.6.5 reaches `string-width` and
   // `@colors/colors`; this reaches `width.js` — already here for the other three façades —
   // and `roundel/chalk` for the two default styles. Measured 32,989 B on 2026-09-09 — 45 B
@@ -299,7 +299,9 @@ const RULES: Record<string, EntryRule> = {
   // — 40%.** It carries its own wrapping rather than sharing `wrap.js`: cli-table3 splits
   // on `/(\s+)/` and counts with its own `strlen`, which a wrap-ansi port does not
   // reproduce, so sharing would be a divergence dressed up as reuse.
-  './cli-table3': { allow: ['linegauge', 'paratext/link', 'roundel/chalk'], budget: 29_300, measured: 29_108, denied: ['ora.js', 'spinners.json', 'boxen.js', 'log-update.js', 'loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js'] },
+  // 29,300 -> 29,350 on 2026-11-13 (D-20261113-string-width-9): `measure` now comes from
+  // `linegauge/v8`, a second entry beside the root; measured 29,303.
+  './cli-table3': { allow: ['linegauge/v8', 'paratext/link', 'roundel/chalk'], budget: 29_350, measured: 29_303, denied: ['ora.js', 'spinners.json', 'boxen.js', 'log-update.js', 'loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'spinner.js', 'cli.js', 'index.js'] },
   // The four remaining built-ins (R4). `progress` is arithmetic and a token — 971 B, and it
   // reaches nothing, not even the registry. `tasks` reads its glyphs and its spinner style
   // from the registry, so it carries the plugin host: 9,773 B. `box` and `table` are string
@@ -337,7 +339,7 @@ const RULES: Record<string, EntryRule> = {
   // That is the price of R11 — a corpus imported with `fromCliBoxes()` is a registered
   // plugin, and `box('…', { border: 'arrow' })` then draws with it without knowing it
   // exists. A caller who wants neither passes a style object and a bundler drops the rest.
-  './box': { allow: ['linegauge', 'linegauge/wrap', 'paratext/link', 'roundel/tokens'], budget: 16_300, measured: 14_561, denied: ['loop.js', 'projection.js', 'table.js', 'ora.js', 'spinners.json', 'cli.js', 'index.js'] },
+  './box': { allow: ['linegauge/v8', 'linegauge/wrap', 'paratext/link', 'roundel/tokens'], budget: 16_300, measured: 14_561, denied: ['loop.js', 'projection.js', 'table.js', 'ora.js', 'spinners.json', 'cli.js', 'index.js'] },
   // **2026-10-12, `table-column-widths` R1-R2.** Per-column `min` and `max` landed with no
   // budget moved and the file smaller: `table.ts` was tightened in the same change (the
   // corners as three strings, one cell-text helper, padding and painting in one step), so `dist/table.js` is 3,321 B against 3,493 before. The room is for R3, which
@@ -349,7 +351,7 @@ const RULES: Record<string, EntryRule> = {
   // Measured 4,483 on 2026-11-04, down from 4,668: `link.js` reads a cell's `href` with one
   // optional chain and `laid` lets paratext's fallback drop an empty url, and the row is laid
   // out from its cells rather than its widths.
-  './table': { allow: ['linegauge', 'linegauge/truncate', 'linegauge/wrap', 'paratext/link', 'roundel/tokens'], budget: 6_000, measured: 4_483, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'box.js', 'ora.js', 'spinners.json', 'cli.js', 'index.js'] },
+  './table': { allow: ['linegauge/truncate', 'linegauge/v8', 'linegauge/wrap', 'paratext/link', 'roundel/tokens'], budget: 6_000, measured: 4_483, denied: ['loop.js', 'projection.js', 'plugin.js', 'builtins.js', 'box.js', 'ora.js', 'spinners.json', 'cli.js', 'index.js'] },
 };
 
 /**

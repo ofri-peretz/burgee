@@ -18,7 +18,8 @@ import { Buffer } from 'node:buffer';
 
 import { HIDE_CURSOR, type InputStream, rawMode, type Registrar, SHOW_CURSOR } from 'closeout/cursor';
 import restoreCursor from 'closeout/restore-cursor';
-import { strip, width } from 'linegauge';
+import { strip } from 'linegauge';
+import { width } from 'linegauge/v8';
 import { beginSynchronizedOutput, endSynchronizedOutput } from 'paratext/csi';
 import chalk from 'roundel/chalk';
 import { unicode } from 'roundel/terminal';
