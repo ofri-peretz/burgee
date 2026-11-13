@@ -431,7 +431,7 @@ const RULES: Record<string, EntryRule> = {
   // full path, under its ancestor's heading). The row rule stays in `usage.js` and is passed in:
   // importing it would have put that whole file on this door. Measured 9,112 (+105), inside.
   "./help": {
-    allow: ["linegauge", "roundel/policy"],
+    allow: ["linegauge", "linegauge/v8", "roundel/policy"],
     // 9,250 on 2026-10-19 for cli-help-renderer S1 (D-20261019-typed-schema-surface-weight): `(minimum: n)` and `(maximum: n)` on a number option's row. Measured 9,087 -> 9,228.
     // 9,650 on 2026-10-20 for default-command R3 (D-20261020-default-command-weight): the level's default
     // is marked `(default)` where it is listed and the usage reads `[command]`, through `run-default.js`,
@@ -843,7 +843,7 @@ const RULES: Record<string, EntryRule> = {
   // share), the `--json` catch on the unseamed path, the one-envelope latch, and 65 B of
   // `host.exitCode`'s setter in `runtime.js`. `json-failure.test.ts` holds each case.
   "./yargs": {
-    allow: ["linegauge"],
+    allow: ["linegauge", "linegauge/v8"],
     // 215,300 on 2026-09-23 for N14, through the engine and the schema. Measured 215,252.
     // 215,250 on 2026-09-23: `export { Yargs as 'module.exports' }`, which yargs' own entry has, so `require('burgee/yargs')` hands a CommonJS caller the factory rather than a namespace. Measured 215,221.
     // 215,500 on 2026-09-23 for D-122, through the engine and the manifest. Measured 215,422.
@@ -903,14 +903,14 @@ const RULES: Record<string, EntryRule> = {
   // 225,800 on 2026-10-29 with `./yargs`' +437 B for the callback form and `--json` on no handler: 225,290 -> 225,727.
   // 226,500 on 2026-10-29 with `./yargs`' +740 B for embedded English: 225,727 -> 226,467.
   // 226,600 on 2026-11-01 with `./yargs`' +55 B for linear parse-command: 226,467 -> 226,522.
-  "./yargs/v17": { allow: ["linegauge"], budget: 226_600, denied: ["testing.js", "testing-helpers.js", "dev.js"] },
+  "./yargs/v17": { allow: ["linegauge", "linegauge/v8"], budget: 226_600, denied: ["testing.js", "testing-helpers.js", "dev.js"] },
   // 17's `yargs/yargs`: `./yargs/v17` and one function carrying three statics. 224,919 measured.
   // 225,100 on 2026-10-27 with `./yargs`' +56 B for parseSync() surfaces: 224,965 -> 225,021.
   // 225,550 on 2026-10-28 with `./yargs`' +493 B for `--mcp` under parseSync(): 225,021 -> 225,514.
   // 226,000 on 2026-10-29 with `./yargs`' +437 B for the callback form and `--json` on no handler: 225,514 -> 225,951.
   // 226,750 on 2026-10-29 with `./yargs`' +740 B for embedded English: 225,951 -> 226,691.
   // 226,800 on 2026-11-01 with `./yargs`' +55 B for linear parse-command: 226,691 -> 226,746.
-  "./yargs/v17/yargs": { allow: ["linegauge"], budget: 226_800, denied: ["testing.js", "testing-helpers.js", "dev.js"] },
+  "./yargs/v17/yargs": { allow: ["linegauge", "linegauge/v8"], budget: 226_800, denied: ["testing.js", "testing-helpers.js", "dev.js"] },
   "./yargs/helpers": {
     allow: [],
     budget: 64_000,

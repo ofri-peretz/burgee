@@ -1,4 +1,4 @@
-import { width } from 'linegauge';
+import { width } from 'linegauge/v8';
 import { wrap } from 'linegauge/wrap';
 /**
  * A box around text (R7) — boxen's job, as a string function.

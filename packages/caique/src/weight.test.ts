@@ -109,7 +109,8 @@ const RULES: Record<string, EntryRule> = {
   // R1's `promptFor` names an option the way it is passed (`<name>`, `--dry-run`), which is a
   // `flag` through `decide` and the binding, and `runtime.ts` gained `promptStreams()`, the
   // stdin-and-stderr pair a prompt is asked on. `promptFor` itself is its own door, below.
-  '.': { allow: [...CLOSEOUT, 'linegauge', 'paratext/csi', 'roundel/terminal'], budget: 20_800, denied: ['clack.js', 'inquirer.js'] },
+  // 20,800 -> 20,850 on 2026-11-13 (D-20261113-string-width-9: measuring comes from `linegauge/v8`, string-width 8's rules, a second entry beside the root; measured 20,802).
+  '.': { allow: [...CLOSEOUT, 'linegauge/v8', 'paratext/csi', 'roundel/terminal'], budget: 20_850, denied: ['clack.js', 'inquirer.js'] },
   // The shape and its validator. The floor every other subpath stands on, and a leaf: a
   // program that only declares prompts pays 739 B and never loads a widget.
   './spec': { allow: [], budget: 1_000, denied: ['ask.js', 'decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js'] },
@@ -156,7 +157,7 @@ const RULES: Record<string, EntryRule> = {
   // from the root: a program that only asks questions does not carry a screen's input line.
   // Measured 12,389 B on 2026-10-05.
   './editor': {
-    allow: [...CLOSEOUT, 'linegauge'],
+    allow: [...CLOSEOUT, 'linegauge/v8'],
     budget: 13_000,
     denied: ['ask.js', 'decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js', 'spec.js', 'plugin.js', 'clack.js', 'clack-core.js', 'inquirer.js'],
   },
@@ -227,7 +228,8 @@ const RULES: Record<string, EntryRule> = {
   // window that holds the cursor, with `↑ N more` and `↓ N more` rows, sized by `maxItems` and
   // the writer's `rows`, so a repaint never climbs above the top row. The measurement rounded
   // up to the next 50.
-  './raw': { allow: [...CLOSEOUT, 'linegauge', 'paratext/csi'], budget: 9_550, denied: ['decide.js', 'binding.js', 'terminal.js', 'index.js'] },
+  // 9,550 -> 9,600 on 2026-11-13 (D-20261113-string-width-9: measuring comes from `linegauge/v8`, string-width 8's rules; measured 9,551).
+  './raw': { allow: [...CLOSEOUT, 'linegauge/v8', 'paratext/csi'], budget: 9_600, denied: ['decide.js', 'binding.js', 'terminal.js', 'index.js'] },
   // Key presses through `node:readline`'s decoder, keymaps as data, and a reader that takes raw
   // mode once through `closeout/cursor` (controlroom R2). A leaf: a screen that reads keys pays
   // for no prompt, and the two closeout subpaths are the raw-mode restore it owes on every exit

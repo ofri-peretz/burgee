@@ -20,7 +20,8 @@
  */
 import { styleText } from 'node:util';
 
-import { width as displayWidth, widest, wrap as fold } from 'linegauge';
+import { widest, wrap as fold } from 'linegauge';
+import { width as displayWidth } from 'linegauge/v8';
 import { colorLevel } from 'roundel/policy';
 
 import type { ArgumentSpec, CommandNode, Example, Manifest, OptionSpec } from './manifest.js';

@@ -7,7 +7,8 @@
  * one usage line and at most `ROWS` rows, with the command that lists the rest when some were
  * left out.
  */
-import { widest, width } from 'linegauge';
+import { widest } from 'linegauge';
+import { width } from 'linegauge/v8';
 
 import { type ArgumentSpec, type CommandNode, type Manifest, type OptionSpec } from './manifest.js';
 import { flagsOf, kebab } from './names.js';

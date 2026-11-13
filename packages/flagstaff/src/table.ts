@@ -1,4 +1,4 @@
-import { width } from 'linegauge';
+import { width } from 'linegauge/v8';
 import { truncate } from 'linegauge/truncate';
 import { wrap } from 'linegauge/wrap';
 /**

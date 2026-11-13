@@ -1,4 +1,5 @@
-import { strip, width, wrap, type WrapOptions } from "linegauge";
+import { strip, wrap, type WrapOptions } from "linegauge";
+import { width } from "linegauge/v8";
 
 import { host } from "../runtime.js";
 
