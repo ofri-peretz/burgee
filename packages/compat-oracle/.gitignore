@@ -61,3 +61,5 @@ vendor/*/packages/prompts/src/
 # sub-package's own directory rather than the vendored root.
 vendor/*/packages/*/vitest.config.mjs
 vendor/*/packages/*/vitest.setup.mjs
+# A test of `run.ts` writes its probe here so that `vitest` resolves from it (run.test.ts).
+.setup-probe-*

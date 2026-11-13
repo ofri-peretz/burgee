@@ -17,6 +17,8 @@ export const ACTIVE_MUTANT_ENV = '__OXMUTATE_ACTIVE_MUTANT__';
 
 export interface Namespace {
   activeMutant?: string | undefined;
+  /** Several static mutants armed for one re-collection (runner.ts, `static.group`): the switch of each is taken. */
+  activeGroup?: Record<string, true> | undefined;
   /** Set during the dry run: hits are attributed to this test. */
   currentTestId?: string | undefined;
   /** While a mutant is active: how often its switch was taken, and the cap that stops a loop. */

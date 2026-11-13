@@ -53,7 +53,7 @@ async function git(cwd: string, args: string[]): Promise<string | undefined> {
 }
 
 /** The guard for `root`, or undefined when `root` is not inside a git work tree (nothing says what is tracked). */
-export async function guardDisk(root: string, maxSnapshotBytes = MAX_SNAPSHOT_BYTES): Promise<DiskGuard | undefined> {
+export async function guardDisk(root: string, maxSnapshotBytes = MAX_SNAPSHOT_BYTES, stillThere: (abs: string) => boolean = existsSync): Promise<DiskGuard | undefined> {
   const listed = await git(root, ['ls-files', '-z', '--cached', '--', '.']);
   if (listed === undefined) return undefined;
   // Stryker disable next-line MethodExpression: an empty name joins to `root` itself, a directory, which the isFile check below skips
@@ -115,7 +115,10 @@ export async function guardDisk(root: string, maxSnapshotBytes = MAX_SNAPSHOT_BY
         for (const name of readdirSync(abs)) if (!before.has(name)) fresh.push(path.join(dir, name));
       }
       const skip = await ignored(fresh);
-      return { changed, added: fresh.filter((rel) => !skip.has(rel)), removed };
+      // An entry already gone again is a running test's scratch, removed by that test: nothing is
+      // left to put back and nothing a later unit can read. Git also cannot say a path that no
+      // longer exists is ignored by a directory rule (`scratch-*/`), so it would read as a write.
+      return { changed, added: fresh.filter((rel) => !skip.has(rel) && stillThere(path.join(root, rel))), removed };
     },
     restore(change: DiskChange): boolean {
       if (!restorable) return false;

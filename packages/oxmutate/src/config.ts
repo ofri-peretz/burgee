@@ -20,6 +20,12 @@ export interface Thresholds {
   break: number | null;
 }
 
+/** `static.group` as a whole number of at least one; anything that is not a number is one. */
+function staticGroupOf(group: unknown): number {
+  const asked = Math.floor(Number(group));
+  return asked >= 2 ? asked : 1;
+}
+
 /** Why a static mutant is Ignored under `ignoreStatic`; the summary counts them by it. */
 export const IGNORE_STATIC_REASON = 'static mutant (ignoreStatic)';
 
@@ -34,6 +40,12 @@ export interface Options {
   excludedMutations: string[];
   /** Score static mutants (Stryker skips them with `ignoreStatic`). */
   ignoreStatic: boolean;
+  /**
+   * How many static mutants are armed together in a test file that is not their first (`static.group`).
+   * 1, the default, arms each alone. A larger group is faster where most of them survive, and is a
+   * heuristic: two mutants can hide each other, so one in twenty group survivors is run again alone.
+   */
+  staticGroup: number;
   strykerCompat: boolean;
   reporters: string[];
   jsonReport: string;
@@ -118,7 +130,7 @@ const DEFAULT_THRESHOLD_HIGH = 80;
 const DEFAULT_THRESHOLD_LOW = 60;
 const DEFAULT_DRY_RUN_MINUTES = 5;
 
-const USED = new Set(['mutate', 'vitest', 'concurrency', 'timeoutMS', 'timeoutFactor', 'thresholds', 'ignoreStatic', 'reporters', 'jsonReporter', 'htmlReporter', 'incremental', 'incrementalFile', '$schema', 'mutator', 'dryRunOnly', 'dryRunTimeoutMinutes', 'buildCommand', 'testRunnerNodeArgs', 'allowEmpty', 'warnings', 'testRunner', 'commandRunner', 'checkers', 'tsconfigFile']);
+const USED = new Set(['mutate', 'vitest', 'concurrency', 'timeoutMS', 'timeoutFactor', 'thresholds', 'ignoreStatic', 'static', 'reporters', 'jsonReporter', 'htmlReporter', 'incremental', 'incrementalFile', '$schema', 'mutator', 'dryRunOnly', 'dryRunTimeoutMinutes', 'buildCommand', 'testRunnerNodeArgs', 'allowEmpty', 'warnings', 'testRunner', 'commandRunner', 'checkers', 'tsconfigFile']);
 
 async function loadFile(file: string): Promise<Record<string, unknown>> {
   if (file.endsWith('.json')) {
@@ -155,6 +167,7 @@ export interface MutateConfig {
   thresholds?: { high?: number; low?: number; break?: number | null };
   mutator?: { excludedMutations?: string[] };
   ignoreStatic?: boolean;
+  static?: { group?: number };
   reporters?: ('clear-text' | 'json' | 'html' | 'sarif' | 'progress' | 'progress-append-only' | 'ci' | 'dots')[];
   jsonReporter?: { fileName?: string };
   htmlReporter?: { fileName?: string };
@@ -241,6 +254,7 @@ export async function loadOptions(root: string, overrides: Partial<Options> = {}
     thresholds: { high: thresholds.high ?? DEFAULT_THRESHOLD_HIGH, low: thresholds.low ?? DEFAULT_THRESHOLD_LOW, break: thresholds.break ?? null },
     excludedMutations: mutator.excludedMutations ?? [],
     ignoreStatic: raw['ignoreStatic'] === true,
+    staticGroup: staticGroupOf((raw['static'] as { group?: unknown } | undefined)?.group),
     strykerCompat: raw['strykerCompat'] === true,
     reporters: (raw['reporters'] as string[] | undefined) ?? ['clear-text', 'json'],
     jsonReport: path.resolve(root, json.fileName ?? 'reports/mutation/mutation.json'),

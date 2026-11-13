@@ -205,6 +205,22 @@ jobs:
             echo "::error::stall.qnt: noDeadlock now holds — no deadlock is ever called, so safety holds vacuously"
             exit 1
           fi
+      # oxmutate's static groups (group.qnt, `static.group`): auditing every group survivor keeps
+      # `safety`, a group never invents a kill, and without the audit a pair that hides each other
+      # is still reported Survived, which is why the option is off by default.
+      - name: oxmutate static groups — audited ones hold, unaudited ones still hide a pair
+        run: |
+          m=.sdlc/intents/oxmutate-fastest/group.qnt
+          $QUINT run "$m" --main=auditAll --invariant=safety --max-steps=10 --max-samples=20000 >/dev/null
+          $QUINT run "$m" --main=auditNone --invariant=noFalseKill --max-steps=10 --max-samples=20000 >/dev/null
+          if $QUINT run "$m" --main=auditNone --invariant=safety --max-steps=10 --max-samples=20000 >/dev/null; then
+            echo "::error::group.qnt: safety holds without the audit — the model no longer shows what the audit is for"
+            exit 1
+          fi
+          if $QUINT run "$m" --main=auditNone --invariant=neverHides --max-steps=10 --max-samples=20000 >/dev/null; then
+            echo "::error::group.qnt: neverHides now holds — no pair hides each other, so safety holds vacuously"
+            exit 1
+          fi
       # oxmutate's grouped static canary (staticwarm.qnt): holding verdicts until their group's
       # canary keeps `safety` (grouped, groupedVisible), and reporting them before it does not.
       - name: oxmutate static canary — grouped verdicts held hold, unheld ones still fail

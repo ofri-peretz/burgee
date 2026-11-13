@@ -32,6 +32,7 @@ const defaults = (root: string): Options => ({
   thresholds: { high: 80, low: 60, break: null },
   excludedMutations: [],
   ignoreStatic: false,
+  staticGroup: 1,
   strykerCompat: false,
   reporters: ['clear-text', 'json'],
   jsonReport: path.join(root, 'reports/mutation/mutation.json'),
@@ -144,6 +145,21 @@ describe('options from a config file', () => {
     });
   });
 
+  it('static.group is a whole number of at least one; anything else arms each static mutant alone', async () => {
+    const group = async (value: unknown): Promise<number> => (await loadOptions(project({ 'oxmutate.config.json': { static: { group: value } } }))).staticGroup;
+    expect(await group(25)).toBe(25);
+    expect(await group(2)).toBe(2);
+    expect(await group(2.9)).toBe(2);
+    expect(await group(1)).toBe(1);
+    expect(await group(0)).toBe(1);
+    expect(await group(-4)).toBe(1);
+    expect(await group('many')).toBe(1);
+    expect((await loadOptions(project({ 'oxmutate.config.json': { static: {} } }))).staticGroup).toBe(1);
+    // `static` is a key oxmutate reads: it is not listed with the ones it ignores.
+    expect((await loadOptions(project({ 'oxmutate.config.json': { static: { group: 4 } } }))).unused).toEqual([]);
+    expect((await loadOptions(project({ 'oxmutate.config.json': { static: { group: 8 } } }), { staticGroup: 3 })).staticGroup).toBe(3);
+  });
+
   it('booleans are on only when literally true, and strings only when strings', async () => {
     const root = project({ 'oxmutate.config.json': { ignoreStatic: 'yes', strykerCompat: 1, incremental: 'true', dryRunOnly: 1, allowEmpty: 'y', buildCommand: ['npm'], typeChecker: 5, checkers: ['eslint'] } });
     expect(await loadOptions(root)).toEqual({ ...defaults(root), configFile: path.join(root, 'oxmutate.config.json') });
@@ -242,7 +258,7 @@ describe('Stryker keys oxmutate does not use', () => {
     expect((await loadOptions(root)).unused).toEqual(Object.entries(reasons).map(([key, why]) => ({ key, why })));
   });
   it('the keys it reads are not reported, and neither is anything in oxmutate.config', async () => {
-    const used = ['mutate', 'vitest', 'concurrency', 'timeoutMS', 'timeoutFactor', 'thresholds', 'ignoreStatic', 'reporters', 'jsonReporter', 'htmlReporter', 'incremental', 'incrementalFile', '$schema', 'mutator', 'dryRunOnly', 'dryRunTimeoutMinutes', 'buildCommand', 'testRunnerNodeArgs', 'allowEmpty', 'warnings', 'testRunner', 'commandRunner', 'checkers', 'tsconfigFile'];
+    const used = ['mutate', 'vitest', 'concurrency', 'timeoutMS', 'timeoutFactor', 'thresholds', 'ignoreStatic', 'static', 'reporters', 'jsonReporter', 'htmlReporter', 'incremental', 'incrementalFile', '$schema', 'mutator', 'dryRunOnly', 'dryRunTimeoutMinutes', 'buildCommand', 'testRunnerNodeArgs', 'allowEmpty', 'warnings', 'testRunner', 'commandRunner', 'checkers', 'tsconfigFile'];
     const root = project({ 'stryker.config.json': Object.fromEntries(used.map((k) => [k, null])), 'oxmutate.config.json': { inPlace: true } });
     expect((await loadOptions(root)).unused).toEqual([]);
   });

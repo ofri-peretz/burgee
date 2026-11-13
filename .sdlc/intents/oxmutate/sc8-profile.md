@@ -301,3 +301,72 @@ test that is no longer a kill (#1547); which one carried how much is not separat
 (Stryker's survivors went from about 740 to 7), so the earlier runs and this one are not the same
 workload. A second pair in the other order (oxmutate, then Stryker) is owed before this number
 goes anywhere public.
+
+## 8. Static groups on `hosts.ts`: 3.0x on the static phase, after one wrong verdict (2026-11-13)
+
+`static.group` arms several static mutants together in a test file that is not their first
+(`oxmutate-fastest` `M1`). Measured on `packages/compat-oracle/src/hosts.ts:699-718`, 31 static
+mutants (25 StringLiteral, 4 ArrayDeclaration, 1 ObjectLiteral, 1 BooleanLiteral), `concurrency: 2`,
+each run alone on that slice, with a Stryker run sharing the machine (load average 22 to 59).
+
+| Run | Static phase | Wall | Group runs / split | Verdicts against ungrouped |
+| :-- | --: | --: | :-- | :-- |
+| ungrouped (`static.group: 1`) | 1,717 s | 1,824 s | — | — |
+| groups of 25, any mutator | 378 s | 424 s | 58 / 5 | **30 of 31: one Killed reported Survived** |
+| groups of 25, value mutants only | 577 s | 620 s | 38 / 9 | 31 of 31 |
+
+- **The wrong verdict was two mutants hiding each other, in real code.** `hosts.ts:701`'s reason
+  string, emptied, is Killed alone by `vendored-suite.test.ts` ("execa's ungraded directories
+  exist, hold tests, and …"). Beside it in the group was `hosts.ts:699`, the list of those
+  directories, emptied. With the list empty the test reads no reason. The audit, one group
+  survivor in twenty, drew none of the 31.
+- **The rule that came out of it:** only mutants that change one value share a group
+  (StringLiteral, NumericLiteral, Regex). One that empties a structure or flips a flag runs
+  alone, because it can switch off the test another mutant fails
+  ([`D-20261113-oxmutate-static-group-disjoint`](../../decisions/D-20261113-oxmutate-static-group-disjoint.md)).
+- **With that rule every verdict is the ungrouped one, and the static phase is 3.0x shorter**
+  (1,717 s to 577 s). The six structure and flag mutants run alone, which is the difference from
+  4.5x.
+
+**What this does not show.** 31 mutants on one file. Two value mutants can still hide each other
+(the `static-mask` fixture is such a pair), so the option stays off by default and audited. The
+ratio is from runs that shared the machine with other work; the verdicts are exact.
+
+## 9. compat-oracle's warm phase ran three units in four twice: a test's scratch read as a write (2026-11-13)
+
+A run of the whole package with `--ignore-static`, 4 workers, was stopped after 2 h 52 min, still
+in the warm phase (mean load 35). Its work directory showed why.
+
+- **35,517 mutant-test pairs had run for 16,865 distinct ones.** 1,253 of 1,682 finished units had
+  every pair run again in a later unit.
+- **Tests were 7,456 s of about 40,000 worker-seconds.** The rest was starting units.
+- **The cause was one test.** `run.test.ts` ("a jest suite sees jest's execArgv") makes
+  `.setup-probe-*` in the package root, which git did not ignore, and removes it a second later.
+  The disk guard looks whenever a unit ends. When it saw the directory, it took it for a mutant's
+  write, dropped the verdicts of every unit in flight and queued them again in halves.
+
+**Measured on a slice** (`src/run.ts:700-900`, 120 mutants, 4 workers, `--ignore-static`, each
+run alone, one after the other):
+
+| Run | Guard re-runs | Units | Warm phase | Wall | Mean load |
+| :-- | --: | --: | --: | --: | --: |
+| before | 21 | 82 | 307 s | 333 s | 15.3 |
+| a directory-only ignore rule (`.setup-probe-*/`) | 17 | 73 | 398 s | 717 s | 26.0 |
+| the guard fix, no ignore rule | 0 | 13 | 74 s | 179 s | 24.6 |
+| the guard fix and `.setup-probe-*` ignored | 0 | 13 | 78 s | 128 s | 20.4 |
+
+- **The warm phase is 4.1x shorter** (307 s to 74 s), at a higher load than the run it is compared
+  with.
+- **The ignore rule alone failed** because git applies a directory rule only to a path that still
+  exists, and the test had already removed it
+  ([`D-20261113-oxmutate-diskguard-vanished`](../../decisions/D-20261113-oxmutate-diskguard-vanished.md)).
+- **Verdicts:** 118 of 120 equal in all four runs. Two mutants on `run.ts:728` changed, one under
+  each build; a single test that starts a real `node --test` with a timeout decides both.
+- **The summary now names the paths** the guard put back, so the next suite that does this shows
+  it in one run.
+
+**What this does not show.** The whole package after the fix: that run is owed, and with it the
+head-to-head against Stryker. Stryker's half is done: 32,835 s at 4 workers on this machine, mean
+load 26.9, 6,298 mutants with `hosts.ts` read to line 801 (4,270 Killed, 1,034 Survived, 846
+Timeout, 146 Ignored). The 2026-11-05 run (63,795 s at 2 workers) had the same guard and the same
+test, so part of its 4,778 s warm phase was this too; how much is not known.

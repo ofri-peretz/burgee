@@ -46,6 +46,8 @@ export interface Unit {
   batch?: { id: string; files: string[]; tests?: string[] | undefined; hitLimit?: number | undefined }[] | undefined;
   /** `static`: the static mutants this one file's run decides in its live worker. */
   staticIds?: string[] | undefined;
+  /** `static`: the same mutants as groups armed together, for a file that is not their first (`static.group`). */
+  staticGroups?: string[][] | undefined;
   /** `static`: each mutant's hit-count limit, past which its run is a runaway. */
   hitLimits?: Record<string, number> | undefined;
 }
@@ -159,6 +161,8 @@ async function runUnit(unit: Unit): Promise<void> {
   if (unit.plan) env['OXMUTATE_PLAN'] = unit.plan;
   if (unit.staticIds) env['OXMUTATE_STATIC'] = JSON.stringify(unit.staticIds);
   else delete env['OXMUTATE_STATIC'];
+  if (unit.staticGroups) env['OXMUTATE_STATIC_GROUPS'] = JSON.stringify(unit.staticGroups);
+  else delete env['OXMUTATE_STATIC_GROUPS'];
   if (unit.hitLimits) env['OXMUTATE_HIT_LIMITS'] = JSON.stringify(unit.hitLimits);
   else delete env['OXMUTATE_HIT_LIMITS'];
   delete env[ACTIVE_MUTANT_ENV];
