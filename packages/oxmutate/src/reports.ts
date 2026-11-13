@@ -143,6 +143,19 @@ function frozenLine(r: RunResult): string[] {
 }
 
 /** The terminal summary: the score, what to look at first, what the run corrected. */
+/**
+ * What the warm and isolated phases were made of, when they ran: how much of the warm servers' time
+ * was inside a test run, and what sent each mutant to an isolated run.
+ */
+function whereItWent(s: RunResult['stats']): string[] {
+  const lines: string[] = [];
+  if (s.warmUnitMs > 0) lines.push(`  warm servers ran ${(s.warmUnitMs / MS_PER_S).toFixed(1)} s, ${(s.warmArmedMs / MS_PER_S).toFixed(1)} s of it inside test runs`);
+  const c = s.isolatedByCause;
+  const causes = [`static ${String(c.static)}`, `stopped ${String(c.stopped)}`, `unfinished ${String(c.unfinished)}`, `re-run ${String(c.rerun)}`, `survivors confirmed ${String(c.confirm)}`, `flaky ${String(c.flaky)}`];
+  if (s.isolatedRuns > 0) lines.push(`  isolated runs: ${causes.join(' · ')}`);
+  return lines;
+}
+
 export function textSummary(r: RunResult, opts: { survivors?: number } = {}): string {
   const count = (s: string): number => r.mutants.filter((m) => m.status === s).length;
   const s = r.stats;
@@ -158,6 +171,7 @@ export function textSummary(r: RunResult, opts: { survivors?: number } = {}): st
   ];
   const corrected = corrections(s);
   if (corrected.length) lines.push(`  corrected: ${corrected.join(' · ')}`);
+  lines.push(...whereItWent(s));
   lines.push(...frozenLine(r));
   lines.push(...specLines(r));
   const survivors = r.mutants.filter((m) => m.status === 'Survived' || m.status === 'NoCoverage');

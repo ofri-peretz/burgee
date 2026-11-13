@@ -204,3 +204,57 @@ the runner counts unhandled errors per mutant run and scores one Killed, and the
 suite that raises one unmutated. On the fix, 61 of 61 mutants on those lines agree with Stryker,
 the two as Killed. Fixtures `test/fixtures/unhandled` and `unhandled-baseline`; both cases fail
 on the previous build.
+
+## 6. compat-oracle's `hosts.ts`: the 1.1.0 kills were false (2026-11-12)
+
+[`oxmutate-fastest`](../oxmutate-fastest/intent.md) criterion `F0`. The 2026-10-31 run (1.1.0)
+left **0** survivors in `packages/compat-oracle/src/hosts.ts`; the 2026-11-05 run (1.5.0) left
+**963**, and the package's score fell from 91.17% to 74.61%. Either 1.1.0 scored false kills or
+the live static path misses real ones. Checked on one line, `hosts.ts:699`
+(`EXECA_UNGRADED`, 10 static mutants), in the full-run worktree at `c44a2ce6d8`, `concurrency: 2`:
+
+| Engine and path | Killed | Survived | Wall |
+| :-- | --: | --: | --: |
+| 1.6.2-dev, live static path | 0 | 10 | 425 s |
+| 1.6.2-dev, fresh worker per mutant (`OXMUTATE_ISOLATE_STATIC=1`) | 0 | 10 | 808 s |
+| published 1.1.0 | 2 | 8 | 991 s |
+
+- **The live path and the fresh-worker path agree**, 10 of 10.
+- **1.1.0's two kills do not reproduce by hand.** They were `'convert'` → `''` and `'io'` → `''`,
+  credited to tests `1573152066_0_8` and `1573152066_0_0`. With `'convert'` → `''` written into
+  the source, `npx vitest run` in the package passes: 917 of 917 tests, exit 0. The mutant
+  survives, as the current engine says.
+- **So the drop is the score becoming true, not a missed kill**, on this line. What 1.1.0 did to
+  fail those two tests is not traced; 1.1.0 is superseded, and the candidates are the defects
+  fixed since (the file-level hooks in #1374, the on-disk pollution in #1453).
+
+**A second sample, the first row of `HOSTS`** (`hosts.ts:708-718`, the commander row, 15 static
+mutants), same worktree, with the machine's load average between 45 and 120 from other work:
+
+| Engine and path | Killed | Survived | Wall |
+| :-- | --: | --: | --: |
+| 1.6.2-dev, live static path | 3 | 12 | 1,765 s |
+| 1.6.2-dev, fresh worker per mutant | 11 | 4 | 2,446 s |
+| published 1.1.0 | — | — | refused: a test failed unmutated in its dry run |
+
+- **The two paths disagree on 8 mutants**, all Survived live and Killed in a fresh worker, all
+  credited to tests in `vendor-run.test.ts` and `vendor.test.ts`. Those tests clone repositories
+  and ask npm for a release.
+- **By hand, the live path is right on the two checked.**
+  - `reexportDefault: false` → `true` (714:72): both files pass, 64 of 64.
+  - `repo` → `''` (709:11), run three times: 64 of 64 once, and twice two tests failed, a
+    different two each time, each by its own timeout after 60 to 139 s.
+- **So the fresh-worker kills were tests timing out under load, not the mutants.** The same
+  cause stopped the 1.1.0 run: one of those tests failed with no mutant active.
+- **What this leaves open.** A test that fails by its own timeout is scored Killed. A watchdog
+  stop is re-run before it is believed; a test timeout is not. That is a false-kill path on a
+  loaded machine, in both the fresh-worker path and the warm one. Filed as
+  [`A-20261112-oxmutate-test-timeout-kill`](../../gaps/A-20261112-oxmutate-test-timeout-kill.md).
+
+**`F0`, as it stands:** 25 static mutants on two samples. The live static path gave no verdict a
+hand run contradicts. Every disagreement found was a false kill by the other path or the older
+engine. The sample is 25, not 30, and all 8 disputed mutants were not each run by hand.
+
+**The cost, as a side reading.** The live path spent 389 s at two workers on these 10 mutants,
+about 78 worker-seconds each: every survivor runs every test file that loads `hosts.ts`. That is
+the cost `M1` (grouped static survivors) is aimed at.

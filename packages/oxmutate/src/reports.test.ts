@@ -23,6 +23,9 @@ const stats = (s: Partial<RunStats> = {}): RunStats => ({
   isolatedMs: 951,
   wallMs: 6789,
   testExecutions: 0,
+  warmUnitMs: 0,
+  warmArmedMs: 0,
+  isolatedByCause: { static: 0, stopped: 0, unfinished: 0, rerun: 0, confirm: 0, flaky: 0 },
   watchdogKills: 0,
   idleStalls: 0,
   crashes: 0,
@@ -231,6 +234,14 @@ describe('the terminal summary', () => {
       '  corrected: 1 runaway(s) stopped · 10 deadlock(s) called by their worker · 11 write(s) outside the sandbox put back, their units re-run · 2 polluted context(s) restarted (in 3 file(s)) · 4 flaky verdict(s) · 5 survivor(s) killed by a whole-file re-run · 6 timeout(s) that finished given 3x the time · 7 survivor(s) that do not type-check, out of the score · 8 verdict(s) reused (12 audited, 1 disagreeing) · 9 worker crash(es)',
     );
     expect(textSummary(await run({ stats: stats({ crashes: 1 }) })).split('\n')[4]).toBe('  corrected: 1 worker crash(es)');
+    // What the phases were made of, printed only for a phase that ran.
+    const made = textSummary(await run({ stats: stats({ warmUnitMs: 19_000, warmArmedMs: 2600, isolatedRuns: 9, isolatedByCause: { static: 2, stopped: 1, unfinished: 0, rerun: 1, confirm: 5, flaky: 0 } }) })).split('\n');
+    expect(made[4]).toBe('  warm servers ran 19.0 s, 2.6 s of it inside test runs');
+    expect(made[5]).toBe('  isolated runs: static 2 · stopped 1 · unfinished 0 · re-run 1 · survivors confirmed 5 · flaky 0');
+    // One millisecond of warm time and one isolated run are both a phase that ran.
+    const least = textSummary(await run({ stats: stats({ warmUnitMs: 1, isolatedRuns: 1, isolatedByCause: { static: 0, stopped: 0, unfinished: 0, rerun: 0, confirm: 0, flaky: 1 } }) })).split('\n');
+    expect(least[4]).toBe('  warm servers ran 0.0 s, 0.0 s of it inside test runs');
+    expect(least[5]).toBe('  isolated runs: static 0 · stopped 0 · unfinished 0 · re-run 0 · survivors confirmed 0 · flaky 1');
     // Verdicts reused with none audited (a cache too small to sample): no audit clause.
     expect(textSummary(await run({ stats: stats({ reused: 3 }) })).split('\n')[4]).toBe('  corrected: 3 verdict(s) reused');
     expect(textSummary(await run())).not.toContain('corrected');

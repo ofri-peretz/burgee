@@ -11,18 +11,27 @@
  * **The fifth named mutation dies here**: a command that reports its refusals and exits `0`
  * passes every in-process case and tells an unattended agent the migration is complete.
  */
-import { execFileSync, type ExecFileSyncOptions } from 'node:child_process';
+import { execFile, execFileSync, type ExecFileSyncOptions } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { ExitCode } from './exit-code.js';
 
 /** The environment without git's own variables: lefthook's pre-push exports `GIT_DIR`, and a scratch `git init` must not inherit it (scripts/git-env-lock.test.ts). */
 const withoutGit = (): NodeJS.ProcessEnv => Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')));
+
+const execFileAsync = promisify(execFile);
+
+/** git in `dir`, awaited on its exit, with an identity and no signing so a scratch commit needs nothing from the machine. */
+const gitIn =
+  (dir: string) =>
+  (...args: string[]) =>
+    execFileAsync('git', ['-C', dir, '-c', 'user.name=burgee', '-c', 'user.email=burgee@example.invalid', '-c', 'commit.gpgsign=false', ...args], { env: withoutGit() });
 
 const scratch = scratchDirs();
 
@@ -214,29 +223,44 @@ describe('U12-3 — --only and --skip, through the binary', () => {
 });
 
 describe('A6 — it refuses a dirty tree through the binary, with the fix on stderr', () => {
+  // The repositories are the setting, not the subject, so they are built here and each case runs
+  // only the binary. Under the pre-push battery one git command took 3–30 s (2026-11-13; `node -e 0`
+  // beside it: 0.3 s), and the R7 case ran three of them before its binary and timed out at 60 s:
+  // each writes new files, and every new file is scanned on this machine. So `--template=` skips the
+  // ~15 sample hooks git copies in, the two repositories are built at once, each command is awaited
+  // on its exit, and the hook's ceiling only bounds a hang.
+  const SOURCE = "import { Command } from 'commander';\n";
+  let staged = '';
+  let committed = '';
+  beforeAll(async () => {
+    staged = project({ 'src/a.ts': SOURCE });
+    committed = project({ 'package.json': DECLARES_COMMANDER, 'src/a.ts': SOURCE });
+    const inStaged = gitIn(staged);
+    const inCommitted = gitIn(committed);
+    await Promise.all([
+      // Staged, so the change is tracked: an untracked-only tree gets the fix the next case holds (R7).
+      inStaged('init', '-q', '--template=').then(() => inStaged('add', '-A')),
+      // R7 (migrate-preflight): @swc/cli's install wrote an untracked node-compile-cache/, and the
+      // refusal said only how many changes there were.
+      inCommitted('init', '-q', '--template=')
+        .then(() => inCommitted('add', '-A'))
+        .then(() => inCommitted('commit', '-q', '-m', 'init')),
+    ]);
+    mkdirSync(join(committed, 'node-compile-cache'));
+    writeFileSync(join(committed, 'node-compile-cache/x'), '');
+  }, 120_000);
+
   it('names the count and exits RUNTIME', () => {
-    const dir = project({ 'src/a.ts': "import { Command } from 'commander';\n" });
-    execFileSync('git', ['-C', dir, 'init', '-q'], { stdio: 'ignore', env: withoutGit() });
-    // Staged, so the change is tracked: an untracked-only tree gets the fix the next case holds (R7).
-    execFileSync('git', ['-C', dir, 'add', '-A'], { stdio: 'ignore', env: withoutGit() });
-    const { code, stderr } = burgee(['migrate', dir]);
+    const { code, stderr } = burgee(['migrate', staged]);
     expect(code).toBe(ExitCode.RUNTIME);
     expect(stderr).toContain('uncommitted change');
     // The fix was on the error and never printed, until 2026-09-30.
     expect(stderr).toContain('fix: commit or stash your changes, or pass --force');
-    expect(readFileSync(join(dir, 'src/a.ts'), 'utf8')).toBe("import { Command } from 'commander';\n");
+    expect(readFileSync(join(staged, 'src/a.ts'), 'utf8')).toBe(SOURCE);
   });
 
   it('names the untracked paths on stderr, and offers .gitignore when nothing tracked changed', () => {
-    // R7 (migrate-preflight): @swc/cli's install wrote an untracked node-compile-cache/, and the
-    // refusal said only how many changes there were.
-    const dir = project({ 'package.json': DECLARES_COMMANDER, 'src/a.ts': "import { Command } from 'commander';\n" });
-    const git = (...args: string[]): void => void execFileSync('git', ['-C', dir, '-c', 'user.name=burgee', '-c', 'user.email=burgee@example.invalid', '-c', 'commit.gpgsign=false', ...args], { stdio: 'ignore', env: withoutGit() });
-    git('init', '-q');
-    git('add', '-A');
-    git('commit', '-q', '-m', 'init');
-    mkdirSync(join(dir, 'node-compile-cache'));
-    writeFileSync(join(dir, 'node-compile-cache/x'), '');
+    const dir = committed;
     const { code, stderr } = burgee(['migrate', dir]);
     expect(code).toBe(ExitCode.RUNTIME);
     expect(stderr).toContain('the git tree has 1 uncommitted change');

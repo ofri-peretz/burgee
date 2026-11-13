@@ -35,3 +35,24 @@ describe('the process seam', () => {
     expect(spy).toHaveBeenCalledWith(3);
   });
 });
+
+// The runner writes a mark and a record for every mutant run. Opening the file for each write cost
+// 6.6 ms a run on a laptop whose endpoint scanner inspects every close, against 0.003 ms on an
+// open descriptor, where the median test took 0.07 ms (burgee/paratext, 2026-11-11).
+describe('the runner writes through open descriptors', () => {
+  const runner = readFileSync(new URL('./runner.ts', import.meta.url), 'utf8');
+  it('calls no fs function that opens and closes a file for one write', () => {
+    expect(runner.match(/\b(?:writeFileSync|appendFileSync)\(/gu) ?? []).toEqual([]);
+  });
+  it('never truncates the mark: each one is padded over the last', () => {
+    expect(runner).not.toMatch(/ftruncateSync/u);
+    expect(runner).toMatch(/padEnd\(markLength\)/u);
+  });
+  it('the watchdog reads the mark in place, without opening it on every poll', () => {
+    const scheduler = readFileSync(new URL('./scheduler.ts', import.meta.url), 'utf8');
+    expect(scheduler).toMatch(/readSync\(progress, mark, 0, PROGRESS_BYTES, 0\)/u);
+  });
+  it('closes what it opened when the run ends, for a pool whose workers are threads', () => {
+    expect(runner).toMatch(/closeFiles\(\);\n\s+return super\.onAfterRunFiles/u);
+  });
+});
