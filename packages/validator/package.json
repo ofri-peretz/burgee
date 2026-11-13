@@ -15,6 +15,16 @@
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
+    "./emit": {
+      "types": "./dist/emit.d.ts",
+      "import": "./dist/emit.js",
+      "default": "./dist/emit.js"
+    },
+    "./jit": {
+      "types": "./dist/jit.d.ts",
+      "import": "./dist/jit.js",
+      "default": "./dist/jit.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

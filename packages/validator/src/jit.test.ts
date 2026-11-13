@@ -1,0 +1,35 @@
+import { readdirSync, readFileSync } from 'node:fs';
+
+import { describe, expect, it } from 'vitest';
+
+import { check } from './check.js';
+import { compile } from './jit.js';
+import { number, object, string } from './schema.js';
+
+describe('compile', () => {
+  it('returns a function that answers what check answers, and narrows', () => {
+    const Point = object({ x: number(), label: string({ min: 1 }) });
+    const isPoint = compile(Point);
+    for (const value of [{ x: 1, label: 'a' }, { x: 1, label: '' }, { x: '1', label: 'a' }, null]) {
+      expect(isPoint(value)).toBe(check(Point, value));
+    }
+    const value: unknown = { x: 1, label: 'a' };
+    expect(isPoint(value) && value.label).toBe('a');
+  });
+});
+
+// spec.md R3 and R5: only `jit.ts` evaluates text, and nothing but its own test imports it.
+describe('the default path', () => {
+  const sources = readdirSync(import.meta.dirname)
+    .filter((file) => file.endsWith('.ts') && !file.endsWith('.test.ts') && file !== 'jit.ts')
+    .map((file) => [file, readFileSync(`${import.meta.dirname}/${file}`, 'utf8')] as const);
+
+  it('has source files to read', () => {
+    expect(sources.map(([file]) => file).toSorted()).toEqual(['check.ts', 'emit.ts', 'index.ts', 'issues.ts', 'schema.ts']);
+  });
+
+  it.each(sources)('%s never evaluates text and never imports the jit door', (_, source) => {
+    expect(source).not.toMatch(/new Function|\beval\(/u);
+    expect(source).not.toContain('./jit.js');
+  });
+});
