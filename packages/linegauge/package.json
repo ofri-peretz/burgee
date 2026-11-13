@@ -1,6 +1,6 @@
 {
   "name": "linegauge",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Measures, wraps, truncates and slices styled terminal text, grapheme-correct over Intl.Segmenter, with the same result on a terminal, a pipe or --json. Zero dependencies. Drop-in paths for string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line.",
   "license": "MIT",
   "author": "Ofri Peretz <ofriperetzdev@gmail.com>",
@@ -56,6 +56,11 @@
       "import": "./dist/plugin.js",
       "default": "./dist/plugin.js"
     },
+    "./v8": {
+      "types": "./dist/v8.d.ts",
+      "import": "./dist/v8.js",
+      "default": "./dist/v8.js"
+    },
     "./package.json": "./package.json",
     "./schema.json": "./dist/schema.json"
   },
@@ -68,7 +73,8 @@
       "widest": ["./dist/widest.d.ts"],
       "widest-line": ["./dist/widest-line.d.ts"],
       "strip": ["./dist/strip.d.ts"],
-      "plugin": ["./dist/plugin.d.ts"]
+      "plugin": ["./dist/plugin.d.ts"],
+      "v8": ["./dist/v8.d.ts"]
     }
   },
   "files": [

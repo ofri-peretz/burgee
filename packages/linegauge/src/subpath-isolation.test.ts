@@ -34,7 +34,9 @@ const manifest = JSON.parse(readFileSync(resolve(pkgRoot, 'package.json'), 'utf8
  * is the whole rule, and `index.js` is the one door that opens onto all of them.
  */
 const ALLOWED: Record<string, string[]> = {
-  'index.js': ['./slice.js', './strip.js', './truncate.js', './widest.js', './width.js', './wrap.js'],
+  'index.js': ['./slice.js', './strip.js', './truncate.js', './widest.js', './width9.js', './wrap.js'],
+  // string-width 8's drop-in: 8.3.0's measurement, re-exported whole (D-20261113-string-width-9).
+  'v8.js': ['./width.js'],
   'wrap.js': ['./style.js', './width.js'],
   'slice.js': ['./style.js', './width.js'],
   // Over `slice`, never over `wrap` — the ellipsis-fits arithmetic needs a cut, not a fold.
@@ -68,6 +70,9 @@ const ALLOWED: Record<string, string[]> = {
 const INTERNAL_ALLOWED: Record<string, string[]> = {
   'style.js': [],
   'width.js': ['./strip.js'],
+  // string-width 9's rules, which the root's `width` is. It shares 8's tables, ASCII shortcut
+  // and plugin seam rather than carrying a second copy of them.
+  'width9.js': ['./strip.js', './width.js'],
 };
 
 const RELATIVE = /(?:from|import)\s*'(\.[^']+)'/g;

@@ -425,6 +425,9 @@ export function setClaim(fn: ((code: number) => number | undefined) | undefined)
   claim = fn;
 }
 
+/** The installed plugin's answer for one code point — the seam `width9.ts` shares with this file. */
+export const claimOf = (code: number): number | undefined => claim?.(code);
+
 /**
  * Whether `text` is one column per code unit: printable ASCII, and no plugin claiming code
  * points — a claim may name ASCII ones. Every fast path in the package asks this one question:

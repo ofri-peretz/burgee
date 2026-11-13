@@ -21,7 +21,7 @@
  */
 import { hideCursor, type OutputStream, rawMode } from 'closeout/cursor';
 import exitHook from 'closeout/exit-hook';
-import { lineCount } from 'linegauge';
+import { lineCount } from 'linegauge/v8';
 import { cursorTo, cursorUp, eraseDown } from 'paratext/csi';
 
 import { type Answer, type Asked, type Io } from './ask.js';

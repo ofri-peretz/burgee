@@ -48,7 +48,7 @@ const loadFromCjs = createRequire(import.meta.url);
  */
 // The two incumbent-named façades carry the incumbent's shape, which is a default export
 // (`graded-override-targets` R5, R6).
-const NAMED: Record<string, string> = { '.': 'width', './plugin': 'validate', './cli-truncate': 'default', './widest-line': 'default' };
+const NAMED: Record<string, string> = { '.': 'width', './plugin': 'validate', './cli-truncate': 'default', './widest-line': 'default', './v8': 'width' };
 
 /**
  * Every published *code* entry, with the named export it must carry, from the manifest rather

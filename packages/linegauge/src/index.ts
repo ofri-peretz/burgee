@@ -38,7 +38,10 @@
 export * from './slice.js';
 // `Options` is string-width's name for `WidthOptions`: the root is string-width's drop-in, so a
 // typed program's `import { type Options } from 'string-width'` migrates by its import alone.
-export { lineCount, measure, width, width as default, type WidthOptions, type WidthOptions as Options } from './width.js';
+// The current major's rules (9); `linegauge/v8` is 8's, which `slice` and `wrap` measure with
+// while slice-ansi and wrap-ansi do (D-20261113-string-width-9).
+export { type WidthOptions, type WidthOptions as Options } from './width.js';
+export { lineCount, measure, width, width as default } from './width9.js';
 export { strip } from './strip.js';
 export * from './truncate.js'; // `truncate` and `type TruncateOptions`; see the note on `slice`
 export { widest } from './widest.js';

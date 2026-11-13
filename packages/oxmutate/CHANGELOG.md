@@ -1,5 +1,11 @@
 # oxmutate
 
+## 2.1.0
+
+### Minor Changes
+
+- [#1561](https://github.com/ofri-peretz/burgee/pull/1561) [`16b5e09`](https://github.com/ofri-peretz/burgee/commit/16b5e0925c7d45104736ecd430814f44fbaf4d0a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `oxmutate run --ignore-static` skips static mutants (module-level code), as the `ignoreStatic` config key already did: the run is faster and the score leaves them out. The summary now says what the static phase cost, or how many mutants `ignoreStatic` left out, and names the flag once that phase is half the run.
+
 ## 2.0.2
 
 ### Patch Changes

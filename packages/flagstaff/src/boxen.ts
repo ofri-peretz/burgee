@@ -1,4 +1,5 @@
-import { slice as sliceAnsi, widest, width as stringWidth } from 'linegauge';
+import { slice as sliceAnsi, widest } from 'linegauge';
+import { width as stringWidth } from 'linegauge/v8';
 import { wrap as wrapAnsi } from 'linegauge/wrap';
 /**
  * `flagstaff/boxen` — boxen 9.0.0 ported function for function, graded by boxen's own suite.

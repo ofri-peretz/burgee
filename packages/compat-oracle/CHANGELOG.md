@@ -1,5 +1,24 @@
 # compat-oracle
 
+## 0.3.21
+
+### Patch Changes
+
+- [#1564](https://github.com/ofri-peretz/burgee/pull/1564) [`593c0b4`](https://github.com/ofri-peretz/burgee/commit/593c0b4d1e26dd4f127df07e4bb1c12e60cd7d7a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - string-width is re-vendored at 9.0.0, whose suite moved from ava to `node --test` and grew from 233 cases to 466. Its control is 9.0.0 itself, installed beside the suite (466 / 466), and the workspace root stays on string-width 8, which slice-ansi, wrap-ansi, cli-truncate, widest-line, boxen and ink still require.
+
+  string-width 8.3.0's suite stays graded as `string-width-8`, against `linegauge/v8` (233 / 233, control 233 / 233).
+
+- Updated dependencies [[`593c0b4`](https://github.com/ofri-peretz/burgee/commit/593c0b4d1e26dd4f127df07e4bb1c12e60cd7d7a), [`593c0b4`](https://github.com/ofri-peretz/burgee/commit/593c0b4d1e26dd4f127df07e4bb1c12e60cd7d7a)]:
+  - flagstaff@2.0.2
+  - burgee@2.1.1
+  - linegauge@2.2.0
+
+## 0.3.20
+
+### Patch Changes
+
+- [#1565](https://github.com/ofri-peretz/burgee/pull/1565) [`8ce7440`](https://github.com/ofri-peretz/burgee/commit/8ce74409fb843bda3147a5c38ab69909246ced55) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The competitor watch no longer opens an issue when a competitor's only change is the weight of its dependency tree and nothing we publish depends on that weight: a `surface` claim with no cited figure. The daily log still names the drift. A new version, tarball, file or export is still filed for every claim. See D-20261113-surface-weight-drift-is-not-news.
+
 ## 0.3.19
 
 ### Patch Changes

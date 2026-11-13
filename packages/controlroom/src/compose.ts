@@ -5,7 +5,8 @@
  * `frameWriter` (R15), so nothing here touches a stream.
  */
 import { type Component } from 'flagstaff/plugin';
-import { truncate, width } from 'linegauge';
+import { truncate } from 'linegauge';
+import { width } from 'linegauge/v8';
 
 import { layout, type Layout, type Part, type Rect } from './layout.js';
 import { type Extent, offset, type ScreenState } from './tabs.js';

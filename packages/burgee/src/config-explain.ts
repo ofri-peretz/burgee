@@ -16,7 +16,8 @@
  *
  * Imported by `execute.ts` only for `config explain` (M2).
  */
-import { widest, width } from 'linegauge';
+import { widest } from 'linegauge';
+import { width } from 'linegauge/v8';
 import { ORDER, type Provenance, type Resolution } from 'seniority/precedence';
 
 import { type Discovery, discoveryOf } from './config-layers.js';

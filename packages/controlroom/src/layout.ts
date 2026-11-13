@@ -6,7 +6,8 @@
  *
  * Nothing here paints (R15). The result is a rectangle per pane; the compositor fills it.
  */
-import { lineCount, widest } from 'linegauge';
+import { widest } from 'linegauge';
+import { lineCount } from 'linegauge/v8';
 
 /**
  * How much of its parent's main axis a part takes.
