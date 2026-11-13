@@ -380,6 +380,30 @@ routes both keys in `burgee check`, and ships `apicontract check <plugin>`. That
 published packages' schema copies and burgee's source, so it carries changesets and its release is
 the owner's to merge.
 
+**Step 4 as built, 2026-11-13.** openapi-typescript 7.13.0 is a host in `compat-oracle`
+(`planned`, not claimed), its suite vendored at the release tag. Control: 61 of 61 gated cases. Our
+drop-in `apicontract/openapi-typescript`: 0 of 61 as a stub, **37 of 61** with the generator behind
+it, so the gate is proven to fail and to move. The generator is plain string emission with no
+compiler; on the 203 expectations extracted from upstream's transform and document tests that need
+neither the compiler, the network nor other files, it matches 196 byte for byte, including upstream's
+committed GitHub, Stripe and Octokit outputs.
+
+What stands between 37 and 61, and what SC1's "100%" has to mean:
+
+| Cases | Why they fail | What closes them |
+| --: | :-- | :-- |
+| 9 | They spawn the incumbent's command-line program | Build step 5: `--compat openapi-typescript` flags on our CLI, and a harness change so a target's entry is executable |
+| 6 | The document `$ref`s other files, which upstream bundles with Redocly | A bundler over `seniority/yaml` and the resolver; not a dependency on Redocly |
+| 7 | `transform`, `postTransform` and `transformProperty` take or return TypeScript compiler nodes | **Cannot pass as written without the compiler.** A data-shaped equivalent is offered instead, and these are published as the excluded share |
+| 1 | `inject` (a string, parsed by the compiler upstream) | Emit the string as given |
+| 1 | An unresolved `$ref` must produce upstream's message | Match the message |
+
+So SC1 is read as: 100% of the cases a compiler-free generator can pass, with the seven compiler
+cases named and counted beside the number, never dropped silently. A further 17 of upstream's 78
+gated cases are excluded from both runs (15 read upstream's 69 MB of examples, which are not
+vendored; 2 fetch from the network); the generator matches the large examples in a scratch run, and
+vendoring them or fetching them at grade time is an open choice recorded here.
+
 Build order, one PR each, each with a check proven to fail first:
 
 1. The model and the `$ref` resolver, with `adapter.qnt` already modelling the walk.
