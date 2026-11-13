@@ -64,8 +64,11 @@ const isString = (schema: Node, value: unknown): boolean =>
  * zero. A fraction such as 0.1 has no exact double, and neither has 0.3, so there a value counts as a
  * multiple when it is within one rounding error of one: `|value| × Number.EPSILON`, which is the
  * most the two doubles can be off by together. So 0.3 and 0.1 + 0.2 are multiples of 0.1, as they are in the
- * decimal text of a JSON document, and 0.35 is not. (zod compares the decimal digits and ajv the bare
- * remainder: ajv refuses 0.3 as a multiple of 0.1.)
+ * decimal text of a JSON document, and 0.35 is not.
+ *
+ * Probed 2026-11-13 on 0.3, 0.1 + 0.2, 0.7, 0.35, 1.1 and 123456789.3 against 0.1: zod 4.6.7 answers as
+ * this does on all six. valibot 1.5.0 and typebox 0.34.52 test the bare remainder and refuse all six;
+ * ajv 8.20.0 refuses 0.3, 0.1 + 0.2 and 0.7 and accepts 1.1; arktype 2.2.9 refuses a divisor that is a fraction.
  */
 const isMultiple = (value: number, step: number): boolean => {
   const rest = Math.abs(value % step);
