@@ -7,7 +7,7 @@
 > ([`D-20261111-layer-bar`](../../decisions/D-20261111-layer-bar.md)). `validator` is a working
 > name; the name is chosen after the capabilities are implemented.
 
-**Status:** approved (2026-11-13, [`D-20261113-apicontract-build-go-ahead`](../../decisions/D-20261113-apicontract-build-go-ahead.md)) · **Opened:** `2026-11-11` · **Owner:** `@ofri-peretz`
+**Status:** draft (the owner's go-ahead is given, [`D-20261113-apicontract-build-go-ahead`](../../decisions/D-20261113-apicontract-build-go-ahead.md); it becomes approved when its `spec.md` is written) · **Opened:** `2026-11-11` · **Owner:** `@ofri-peretz`
 
 **Proposed name, not accepted and not reserved:** `loadline` — the line painted on a ship's hull
 that marks how far it may be loaded; what is over the line does not sail. Read 2026-11-11

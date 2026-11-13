@@ -14,7 +14,8 @@ then designing plan.md-s, and then execute them all."
 
 That is read as the Design→Build accept for [`apicontract`](../intents/apicontract/intent.md) and
 the intent accept for the [`validator`](../intents/validator/intent.md), whose design is still to be
-written. The reading is the agent's; the words are the owner's.
+written: that intent stays `draft` until it has a `spec.md`, which is what the intent-artifacts lock
+requires of an approved intent. The reading is the agent's; the words are the owner's.
 
 Taken with it, each a default the owner can reverse:
 
