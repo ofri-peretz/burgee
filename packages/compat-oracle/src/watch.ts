@@ -124,13 +124,40 @@ function claimsFor(watched: Watched, declarations: Declaration[], root: string):
   return sites;
 }
 
+export interface MovedOptions {
+  /**
+   * Whether anything we publish depends on this competitor's weight — see `weighs`. When
+   * nothing does, a weight that moved on its own is not a release worth an issue.
+   */
+  weighs?: boolean;
+}
+
 /** Whether anything about this release is worth an issue. */
-export function moved(before: Seen | null, after: Fingerprint, surface: IssueInput['surface']): boolean {
+export function moved(before: Seen | null, after: Fingerprint, surface: IssueInput['surface'], options: MovedOptions = {}): boolean {
   if (before === null || before.version === null) return false; // never fingerprinted: record first.
   if (before.version !== after.version) return true;
   if (before.shasum !== undefined && before.shasum !== after.shasum) return true;
-  if (before.weight !== null && before.weight !== after.weight) return true;
+  if (options.weighs !== false && before.weight !== null && before.weight !== after.weight) return true;
   return surface.added.length > 0 || surface.removed.length > 0 || surface.filesChanged.length > 0 || surface.filesAdded.length > 0 || surface.filesRemoved.length > 0;
+}
+
+/**
+ * Whether a move in this competitor's weight can make anything we publish false.
+ *
+ * A `weight` or `compat` claim publishes a byte comparison, and a figure cited in our tree —
+ * a README row, a `weight.test.ts` line, a `seen.cited` entry — goes stale when the bytes
+ * move, whatever the claim is called (flagstaff's string-width-in-ora's-bill is `surface`
+ * and still quoted). A `surface` claim with nothing cited states no byte count at all.
+ *
+ * Without this, a competitor with a wide caret-ranged tree is re-filed whenever any of its
+ * transitive dependencies publishes: @stryker-mutator/core 10.1.1 was opened as #1524, #1539
+ * and #1562 with the same version, tarball and files, its 173-package tree drifting by +104,
+ * +34,759 and +775 B. oxmutate's claim against it is `surface`, so each issue's only
+ * remedy was to re-record a number nothing reads. D-20261113-surface-weight-drift-is-not-news.
+ */
+export function weighs(watched: Pick<Watched, 'strongest' | 'claims'>, sites: IssueInput['claims']): boolean {
+  if (watched.strongest !== 'surface') return true;
+  return watched.claims.some((c) => c.cited.length > 0) || sites.some((s) => s.citations.length > 0);
 }
 
 export interface CompetitorUpdate {
@@ -201,18 +228,23 @@ export async function check(packagesDir: string, root: string, write: Write, cli
       const after = await takeFingerprint(watched, shared);
       const before = watched.seen;
       const surface = compare(before, after);
-      if (!moved(before, after, surface)) {
+      const sites = claimsFor(watched, declarations, root);
+      const weighed = weighs(watched, sites);
+      if (!moved(before, after, surface, { weighs: weighed })) {
         const held = before?.version ?? null;
         if (held === null) {
           unfingerprinted.push(watched.npm);
           write(`  ${label(watched).padEnd(COL)} ${after.version} — no fingerprint held; run --fingerprint --missing\n`);
+        } else if (!weighed && (before as Seen).weight !== after.weight) {
+          // Said out loud, so a held weight going stale is visible in the log rather than silent.
+          write(`  ${label(watched).padEnd(COL)} ${after.version} — up to date; weight ${String((before as Seen).weight)} → ${after.weight} B, weight not claimed\n`);
         } else {
           write(`  ${label(watched).padEnd(COL)} ${after.version} — up to date\n`);
         }
         continue;
       }
       // `moved()` is false with nothing held, so there is a held fingerprint from here on.
-      const input = buildInput(watched, before as Seen, after, claimsFor(watched, declarations, root));
+      const input = buildInput(watched, before as Seen, after, sites);
       write(
         `  ${label(watched).padEnd(COL)} ${String(input.from)} → ${after.version}: +${input.surface.added.length}/-${input.surface.removed.length} exports, ${input.surface.filesChanged.length} changed / +${input.surface.filesAdded.length} / -${input.surface.filesRemoved.length} files, weight ${String(input.weight.before)} → ${after.weight}\n`,
       );
