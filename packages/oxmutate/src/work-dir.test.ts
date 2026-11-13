@@ -2,15 +2,21 @@ import { existsSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 
+import { discard } from './__fixtures__/scratch-dir.js';
 import { removeWorkDir } from './work-dir.js';
+
+// The first case removes its own directory: that is what it tests. This is for a run where it fails.
+const made: string[] = [];
+afterAll(() => discard(...made));
 
 // A run of compat-oracle finished after an hour and reported only "ENOTEMPTY, Directory not empty":
 // removing the work directory threw out of the coordinator's `finally` and replaced the result.
 describe('removing a run’s work directory', () => {
   it('removes it, files and all, and says nothing', () => {
     const dir = mkdtempSync(path.join(tmpdir(), 'oxmutate-work-'));
+    made.push(dir);
     writeFileSync(path.join(dir, 'beat-1'), '1');
     expect(removeWorkDir(dir)).toBeUndefined();
     expect(existsSync(dir)).toBe(false);
