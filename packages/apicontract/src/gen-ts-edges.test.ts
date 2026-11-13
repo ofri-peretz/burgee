@@ -479,6 +479,17 @@ describe('paths as template literal types', () => {
     expect(key('/a/{id}', [])).toBe('    [path: `/a/${string}`]: {');
   });
 
+  // What `/\{[^}]+\}/g` matched, now found by index: read once however many braces a path has.
+  it.each([
+    ['/a/{}/{id}', '    [path: `/a/{}/${string}`]: {'],
+    ['/a/{', '    "/a/{": {'],
+    ['/a/{{{{', '    "/a/{{{{": {'],
+    ['/a/{x}/{', '    [path: `/a/${string}/{`]: {'],
+    ['/a/{x{y}', '    [path: `/a/${string}`]: {'],
+  ])('reads the braces of %s as the pattern upstream uses would', (url, expected) => {
+    expect(key(url, [])).toBe(expected);
+  });
+
   it.each(['/a', '/a/{'])('keeps %s, which names no parameter, as a plain key', (url) => {
     expect(key(url, [])).toBe(`    "${url}": {`);
   });

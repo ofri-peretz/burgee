@@ -119,11 +119,27 @@ const resolved = (value: unknown, ctx: Context): Dict => {
   return dict('$ref' in declared ? ctx.resolve(String(declared.$ref)) : declared);
 };
 
-const PATH_PARAMETER = /\{([^}]+)\}/g;
+/**
+ * The names a path writes in braces, in order: what `/\{([^}]+)\}/g` captures, found by index so
+ * a path of nothing but `{` is read once, not once per brace.
+ */
+const bracedNames = (path: string): string[] => {
+  const names: string[] = [];
+  let open = path.indexOf('{');
+  while (open !== -1) {
+    const close = path.indexOf('}', open + 1);
+    if (close === -1) break;
+    // `{}` names nothing; the next brace may still open a name.
+    const named = close > open + 1;
+    if (named) names.push(path.slice(open + 1, close));
+    open = path.indexOf('{', named ? close + 1 : open + 1);
+  }
+  return names;
+};
 
 /** The parameters a path names in braces that nothing declares, as required strings. */
 const impliedPathParameters = (declared: readonly Parameter[], path: string): Parameter[] => {
-  const names = [...path.matchAll(PATH_PARAMETER)].map((match) => match[1]);
+  const names = bracedNames(path);
   const added: Parameter[] = [];
   for (const name of names) {
     const isDeclared = [...declared, ...added].some((known) => known.resolved.in === 'path' && known.resolved.name === name);
@@ -273,17 +289,15 @@ const pathParameters = (pathItem: Dict, ctx: Context): Map<unknown, Dict> => {
   return found;
 };
 
-const BRACED = /\{[^}]+\}/g;
-
 /** A path as a template literal type: `/users/{id}` becomes `/users/${string}`. */
 const templateType = (url: string, pathItem: Dict, ctx: Context): string | undefined => {
-  const names = url.match(BRACED);
-  if (names === null) return undefined;
+  const names = bracedNames(url);
+  if (names.length === 0) return undefined;
   const parameters = pathParameters(pathItem, ctx);
   let template = `\`${url}\``;
-  for (const braced of names) {
-    const type = TEMPLATE_TYPES.get(dict(parameters.get(braced.slice(1, -1))?.schema).type) ?? 'string';
-    template = template.replace(braced, () => `\${${type}}`);
+  for (const name of names) {
+    const type = TEMPLATE_TYPES.get(dict(parameters.get(name)?.schema).type) ?? 'string';
+    template = template.replace(`{${name}}`, () => `\${${type}}`);
   }
   return template;
 };
