@@ -37,6 +37,22 @@ What it decides:
 0.9 ms against 36.8 ms. It is not yet in `baseline.ts`, which installs each library from npm; it
 joins that script with the emitter (step 3), and until then these are a prototype's readings.
 
+**Steps 3 and 4 as built, 2026-11-13** (same schema, payloads, process and machine; load average 14):
+
+| Path | Valid / s | Invalid / s | Build ×500 | vs ajv, valid | vs Zod, valid |
+| :-- | --: | --: | --: | --: | --: |
+| ajv | 12.45M | 9.05M | 1,246.8 ms | 1× | 9.7× |
+| zod | 1.28M | 0.88M | 34.7 ms | 0.10× | 1× |
+| `check`, interpreted | 4.46M | 4.19M | 0.8 ms | 0.36× | 3.5× |
+| `emit`, run through `./jit` | 20.40M | 17.06M | 6.3 ms | 1.64× | 15.9× |
+
+The emitter's code passes ajv on valid and invalid payloads and is built about 200 times faster,
+because writing text is cheaper than ajv's compile. Type-check cost, read the same day with the
+repository's TypeScript 6.0.3 on 500 copies of the schema and their inferred types: 164,519
+instantiations against Zod's 330,444, check time level at 0.89 s and 0.88 s. Both are still
+readings from throwaway scripts on one compiler; `baseline.ts` under 5.9, 6.0 and 7.0 is owed
+before either is a claim.
+
 ## Requirements
 
 - **R1. A schema is data.** Every builder returns a plain, frozen node: a kind and its constraints.
