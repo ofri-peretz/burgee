@@ -15,9 +15,9 @@ Probe failures this run: none.
 
 ## What "ours" has today
 
-`prim.any`, `prim.boolean`, `prim.enum`, `prim.integer`, `prim.literal`, `prim.never`, `prim.null`, `prim.number`, `prim.string`, `prim.unknown`, `str.length`, `str.max`, `str.min`, `str.regex`, `fmt.custom`, `num.exclusive`, `num.finite`, `num.int`, `num.max`, `num.min`, `num.multiple_of`, `num.negative`, `num.positive`, `col.array`, `col.array_max`, `col.array_min`, `col.record`, `col.record_key_schema`, `col.tuple`, `obj.catchall`, `obj.default`, `obj.nullable`, `obj.nullish`, `obj.object`, `obj.optional`, `obj.passthrough`, `obj.strict`, `obj.strip`, `comp.discriminated`, `comp.discriminated_nested` (partial), `comp.intersection`, `comp.mutual_recursive`, `comp.recursive`, `comp.union`, `val.coerce_number`, `val.custom_type`, `val.metadata`, `beh.abort_early`, `beh.collect_all`, `beh.in_place`, `beh.infer`, `beh.issue_code`, `beh.issue_path`, `beh.path_pointer`, `beh.type_guard`, `rt.aot`, `rt.csp_safe`, `rt.esm`, `rt.jit`, `rt.no_eval_default`, `rt.tree_shake` (partial), `rt.zero_deps`.
+`prim.any`, `prim.bigint`, `prim.boolean`, `prim.date`, `prim.enum`, `prim.integer`, `prim.literal`, `prim.native_enum`, `prim.never`, `prim.null`, `prim.number`, `prim.string`, `prim.symbol`, `prim.undefined`, `prim.unknown`, `str.length`, `str.max`, `str.min`, `str.regex`, `fmt.base64`, `fmt.custom`, `fmt.date`, `fmt.datetime`, `fmt.email`, `fmt.ipv4`, `fmt.ipv6`, `fmt.url`, `fmt.uuid`, `num.bigint_range`, `num.exclusive`, `num.finite`, `num.int`, `num.max`, `num.min`, `num.multiple_of`, `num.negative`, `num.positive`, `col.array`, `col.array_max`, `col.array_min`, `col.record`, `col.record_enum_exhaustive`, `col.record_enum_keys`, `col.record_key_schema`, `col.tuple`, `col.tuple_rest`, `obj.catchall`, `obj.default`, `obj.exact_optional`, `obj.extend`, `obj.keyof`, `obj.nullable`, `obj.nullish`, `obj.object`, `obj.omit`, `obj.optional`, `obj.partial`, `obj.passthrough`, `obj.pick`, `obj.readonly`, `obj.required`, `obj.strict`, `obj.strip`, `comp.discriminated`, `comp.discriminated_nested` (partial), `comp.intersection`, `comp.mutual_recursive`, `comp.recursive`, `comp.union`, `val.coerce_boolean`, `val.coerce_date`, `val.coerce_number`, `val.custom_type`, `val.error_map` (partial), `val.function` (partial), `val.instanceof`, `val.metadata`, `val.promise` (partial), `val.refine`, `val.refine_path`, `val.transform`, `beh.abort_early`, `beh.assert`, `beh.clone`, `beh.collect_all`, `beh.in_place`, `beh.infer`, `beh.io_types`, `beh.issue_code`, `beh.issue_path`, `beh.path_pointer`, `beh.type_guard`, `io.draft_07`, `io.draft_2020_12`, `io.json_schema_export`, `rt.aot`, `rt.csp_safe`, `rt.esm`, `rt.jit`, `rt.no_eval_default`, `rt.tree_shake` (partial), `rt.zero_deps`.
 
-Features "ours" has that at least one competitor lacks: `num.finite` (missing in arktype); `comp.discriminated` (missing in typebox); `comp.discriminated_nested` (missing in typebox, ajv); `beh.abort_early` (missing in arktype); `beh.infer` (missing in ajv); `beh.path_pointer` (missing in zod, valibot, arktype); `rt.aot` (missing in zod, valibot, arktype); `rt.jit` (missing in valibot); `rt.no_eval_default` (missing in zod, arktype, ajv); `rt.tree_shake` (missing in arktype, ajv); `rt.zero_deps` (missing in arktype, ajv).
+Features "ours" has that at least one competitor lacks: `prim.bigint` (missing in ajv); `prim.date` (missing in ajv); `prim.native_enum` (missing in ajv); `prim.symbol` (missing in ajv); `prim.undefined` (missing in ajv); `fmt.base64` (missing in typebox); `fmt.date` (missing in arktype, typebox); `fmt.datetime` (missing in typebox); `fmt.email` (missing in typebox); `fmt.ipv4` (missing in typebox); `fmt.ipv6` (missing in typebox); `fmt.url` (missing in typebox); `fmt.uuid` (missing in typebox); `num.bigint_range` (missing in arktype, ajv); `num.finite` (missing in arktype); `col.record_enum_exhaustive` (missing in arktype); `col.record_enum_keys` (missing in arktype); `col.tuple_rest` (missing in typebox); `obj.exact_optional` (missing in ajv); `obj.extend` (missing in ajv); `obj.keyof` (missing in ajv); `obj.omit` (missing in ajv); `obj.partial` (missing in ajv); `obj.pick` (missing in ajv); `obj.readonly` (missing in ajv); `obj.required` (missing in ajv); `comp.discriminated` (missing in typebox); `comp.discriminated_nested` (missing in typebox, ajv); `val.coerce_boolean` (missing in arktype); `val.coerce_date` (missing in ajv); `val.error_map` (missing in ajv); `val.function` (missing in ajv); `val.instanceof` (missing in typebox, ajv); `val.promise` (missing in ajv); `val.refine` (missing in typebox); `val.refine_path` (missing in typebox); `val.transform` (missing in ajv); `beh.abort_early` (missing in arktype); `beh.assert` (missing in ajv); `beh.clone` (missing in ajv); `beh.infer` (missing in ajv); `beh.io_types` (missing in ajv); `beh.path_pointer` (missing in zod, valibot, arktype); `io.draft_07` (missing in valibot); `io.draft_2020_12` (missing in valibot, typebox); `io.json_schema_export` (missing in valibot); `rt.aot` (missing in zod, valibot, arktype); `rt.jit` (missing in valibot); `rt.no_eval_default` (missing in zod, arktype, ajv); `rt.tree_shake` (missing in arktype, ajv); `rt.zero_deps` (missing in arktype, ajv).
 
 ## (a) Counts per library
 
@@ -28,50 +28,14 @@ Features "ours" has that at least one competitor lacks: `num.finite` (missing in
 | arktype | 99 | 11 | 0 | 44 |
 | typebox | 88 | 7 | 0 | 59 |
 | ajv | 70 | 10 | 12 | 62 |
-| ours | 60 | 2 | 0 | 92 |
+| ours | 97 | 5 | 0 | 52 |
 
-## (b) Features at least one competitor supports and "ours" does not (92)
+## (b) Features at least one competitor supports and "ours" does not (52)
 
 Ordered by the number of competitors (of 5) with yes, partial or addon. This is the build list.
 
 | # of 5 | Feature | id | Who has it |
 | --: | :-- | :-- | :-- |
-| 4 | bigint | `prim.bigint` | zod, valibot, arktype, typebox |
-| 4 | Date object | `prim.date` | zod, valibot, arktype, typebox |
-| 4 | native TS enum | `prim.native_enum` | zod, valibot, arktype, typebox |
-| 4 | symbol | `prim.symbol` | zod, valibot, arktype, typebox |
-| 4 | undefined | `prim.undefined` | zod, valibot, arktype, typebox |
-| 4 | base64 | `fmt.base64` | zod, valibot, arktype, ajv (addon) |
-| 4 | ISO 8601 / RFC 3339 date-time | `fmt.datetime` | zod, valibot, arktype (partial), ajv (addon) |
-| 4 | email | `fmt.email` | zod, valibot, arktype, ajv (addon) |
-| 4 | ipv4 | `fmt.ipv4` | zod, valibot, arktype, ajv (addon) |
-| 4 | ipv6 | `fmt.ipv6` | zod, valibot, arktype, ajv (addon) |
-| 4 | url | `fmt.url` | zod, valibot, arktype, ajv (addon) |
-| 4 | uuid | `fmt.uuid` | zod, valibot, arktype, ajv (addon) |
-| 4 | record with enum keys, exhaustive | `col.record_enum_exhaustive` | zod, valibot, typebox, ajv |
-| 4 | record with enum keys | `col.record_enum_keys` | zod, valibot, typebox, ajv |
-| 4 | tuple with rest | `col.tuple_rest` | zod, valibot, arktype, ajv |
-| 4 | exact optional key | `obj.exact_optional` | zod, valibot, arktype, typebox (partial) |
-| 4 | extend / merge | `obj.extend` | zod, valibot, arktype, typebox |
-| 4 | keyof | `obj.keyof` | zod, valibot, arktype, typebox |
-| 4 | omit | `obj.omit` | zod, valibot, arktype, typebox |
-| 4 | partial | `obj.partial` | zod, valibot, arktype, typebox |
-| 4 | pick | `obj.pick` | zod, valibot, arktype, typebox |
-| 4 | readonly | `obj.readonly` | zod, valibot, arktype, typebox |
-| 4 | required | `obj.required` | zod, valibot, arktype, typebox |
-| 4 | coerce string to boolean | `val.coerce_boolean` | zod, valibot, typebox, ajv (partial) |
-| 4 | coerce string to Date | `val.coerce_date` | zod, valibot, arktype, typebox |
-| 4 | error map / i18n | `val.error_map` | zod, valibot, arktype (partial), typebox |
-| 4 | function | `val.function` | zod, valibot, arktype, typebox (partial) |
-| 4 | promise | `val.promise` | zod (partial), valibot (partial), arktype (partial), typebox (partial) |
-| 4 | refinement | `val.refine` | zod, valibot, arktype, ajv |
-| 4 | cross-field refinement at a field path | `val.refine_path` | zod (partial), valibot, arktype (partial), ajv (partial) |
-| 4 | transform | `val.transform` | zod, valibot, arktype, typebox |
-| 4 | assert API | `beh.assert` | zod (partial), valibot, arktype (partial), typebox |
-| 4 | returns a parsed copy | `beh.clone` | zod, valibot, arktype (partial), typebox |
-| 4 | input vs output types | `beh.io_types` | zod, valibot, arktype, typebox |
-| 4 | draft-07 | `io.draft_07` | zod, arktype, typebox, ajv |
-| 4 | JSON Schema export | `io.json_schema_export` | zod, arktype, typebox, ajv |
 | 4 | CommonJS | `rt.cjs` | zod, valibot, typebox, ajv |
 | 3 | NaN | `prim.nan` | zod, valibot, arktype |
 | 3 | void | `prim.void` | zod, valibot, typebox |
@@ -79,24 +43,20 @@ Ordered by the number of competitors (of 5) with yes, partial or addon. This is 
 | 3 | unicode normalize transform | `str.normalize` | zod, valibot, arktype |
 | 3 | trim transform | `str.trim` | zod, valibot, arktype |
 | 3 | toUpperCase transform | `str.uppercase` | zod, valibot, arktype |
-| 3 | ISO date | `fmt.date` | zod, valibot, ajv (addon) |
 | 3 | hex string | `fmt.hex` | zod, valibot, arktype |
 | 3 | hostname | `fmt.hostname` | zod, valibot, ajv (addon) |
 | 3 | ISO time | `fmt.time` | zod, valibot, ajv (addon) |
-| 3 | bigint bounds | `num.bigint_range` | zod, valibot, typebox |
 | 3 | safe integer | `num.safe_int` | zod, valibot, arktype |
 | 3 | Map | `col.map` | zod, valibot, arktype (partial) |
 | 3 | Set | `col.set` | zod, valibot, arktype (partial) |
 | 3 | min/max properties | `obj.property_count` | valibot, typebox, ajv |
 | 3 | brand | `val.brand` | zod, valibot, arktype |
 | 3 | custom error message | `val.custom_message` | zod, valibot, arktype |
-| 3 | instanceof | `val.instanceof` | zod, valibot, arktype |
 | 3 | pipe | `val.pipe` | zod, valibot, arktype |
 | 3 | preprocess | `val.preprocess` | zod, valibot, arktype |
 | 3 | async refinement | `val.refine_async` | zod, valibot, ajv |
 | 3 | async parse | `beh.async_parse` | zod, valibot, ajv |
 | 3 | path as array | `beh.path_array` | zod, valibot, arktype |
-| 3 | draft 2020-12 | `io.draft_2020_12` | zod, arktype, ajv |
 | 3 | Standard Schema | `io.standard_schema` | zod, valibot, arktype |
 | 2 | template literal string | `prim.template_literal` | zod, typebox |
 | 2 | endsWith | `str.ends_with` | zod, valibot |
@@ -129,7 +89,7 @@ Ordered by the number of competitors (of 5) with yes, partial or addon. This is 
 | 1 | draft 2019-09 | `io.draft_2019_09` | ajv |
 | 1 | OpenAPI `discriminator` (+ mapping) | `io.openapi_discriminator` | ajv (partial) |
 
-"ours" is partial on: `comp.discriminated_nested` (Works for a second discriminator key under a case, because a case can be any node. A nested union on the same key has no use (the outer lookup already chose), and there is no test for nesting in validator.test.ts.); `rt.tree_shake` (check() carries only the kinds a program builds (measured 2026-11-13 with esbuild: 721 B min+gzip for string and check). Still partial: issues() and parse() each read a table of every kind, and package.json has no sideEffects field.).
+"ours" is partial on: `comp.discriminated_nested` (Works for a second discriminator key under a case, because a case can be any node. A nested union on the same key has no use (the outer lookup already chose), and there is no test for nesting in validator.test.ts.); `val.error_map` (One function for every schema, handed to each call: there is no global setter (the package has no global state) and no locale bundles ship. Where the map returns nothing the default message stays, with its fix: line.); `val.function` (Checks only typeof === "function"; arguments and return value are not validated.); `val.promise` (instanceof Promise only; the resolved value is not validated.); `rt.tree_shake` (check() carries only the kinds a program builds (measured 2026-11-13 with esbuild: 721 B min+gzip for string and check). Still partial: issues() and parse() each read a table of every kind, and package.json has no sideEffects field.).
 
 ## (c) Where "ours" needs a semantic decision because competitors disagree
 

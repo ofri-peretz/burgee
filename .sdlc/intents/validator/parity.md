@@ -89,6 +89,76 @@ Known and left for their own wave: discriminator tags are still strings only (de
 default or a coercion does not yet change the static output type (wave 2's input and output types),
 and `issues` prints `NaN` as `number null`.
 
+## Wave 2 as built, 2026-11-13
+
+The features four of the five competitors have. Ours now reads **97 yes, 5 partial, 52 no** (from 60,
+2, 92). 728 tests, 100% coverage, no surviving mutant on the changed lines, and no mutant excluded
+beyond wave 1's 24.
+
+| Group | What landed |
+| :-- | :-- |
+| Kinds | `bigint`, `date`, `nativeEnum`, `symbol`, `undefinedOf`, `instanceOf`; discriminator tags of any literal type through `discriminatedBy` |
+| Schemas from schemas | `pick`, `omit`, `partial`, `required`, `extend`, `keyof`, `readonly`, `exactOptional`; records typed by enum keys, `recordOf` for the exhaustive one; `tuple` with `rest` |
+| Values | `refine`, `transform`, coercion to boolean and Date, `promise`, `func`, a per-call message hook |
+| Types | An input type and an output type (`Infer`, `InferInput`, `InferOutput`), and `assert` |
+| Formats, on `./formats` | `email`, `url`, `httpUrl`, `uuid`, `datetime`, `date`, `ipv4`, `ipv6`, `base64`, each against a stated reference |
+| JSON Schema, on `./json-schema` | `toJsonSchema(schema, { draft })` for 2020-12 and draft-07, returning the document and its findings |
+
+**The rule across fields that always runs.** `refine(schema, test, { path, uses })` runs whenever the
+fields it names are sound, and reports at `path`, even when another field fails. The scenario Zod
+skips (intent, "where Zod is beatable") is a test: a wrong type at `/c` and the rule at `/b` are
+both reported.
+
+**What it cost a schema that uses none of it: nothing measurable.** Same scripts before and after,
+load average 18 to 23:
+
+| | Before wave 2 | After |
+| :-- | --: | --: |
+| Valid orders a second, interpreted | 4.00 to 4.06M | 4.05 to 4.11M |
+| Bundle, `string` and `check` only | 716 B | 716 B |
+| Bundle, the whole order schema | 1,725 B | 1,733 B |
+| Type instantiations per schema (this wave's harness) | 420 | 461 |
+
+What the subpaths cost only those who import them: a string with `email` is 796 B, all nine formats
+1,782 B, a schema with JSON Schema export 4,657 B.
+
+Three costs that did rise, each a thing to fix:
+
+- **Type instantiations rose about 10%**, the price of a second (output) type. It is computed only
+  when something inside a schema fills or maps; computing it always cost 725. The harness differs
+  from the one behind the 328 in the intent, so the bench script's own number has to be re-read.
+- **`parse` and `issues` still carry every kind**: 5,007 B and 3,972 B on the order schema, up from
+  4,133 B and 3,419 B. Only `check` is per kind so far.
+- **Tree-shaking of formats depends on `@__PURE__` marks**, held by a test. The family's other
+  packages strip comments from `dist`; if this one adopts that step, the marks go.
+
+Choices wave 2 made, each reversible:
+
+| Question | Taken | Why |
+| :-- | :-- | :-- |
+| `optional` away from an object key | The schema is what it wraps; `check(optional(x), undefined)` is false and the type agrees | `optional` is a statement about a key |
+| `readonly` | Type only; the same node | `parse` may hand back the caller's own object, and freezing would write to it; valibot, arktype and typebox do the same |
+| A transform | `check`, `issues`, emitted code and the input type describe what goes in; the map runs on a second walk, after the whole value is accepted | One meaning for all three readers |
+| A default | Stands for the missing input, so it is coerced, filled and mapped like one | Wave 1 handed it out untouched; this is what the output type has to mean |
+| String to boolean | Exactly `"true"` and `"false"` | The five agree on nothing else |
+| String to Date | An RFC 3339 date-time or full-date, on a day the calendar has | V8 alone reads 30 February as 1 March |
+| The message hook | A per-call option that returns the whole message; nothing returned keeps the default with its `fix:` line | No global state |
+| `url` | Any scheme the WHATWG parser accepts, `javascript:` included; `httpUrl` is http or https with a host | It is what all four competitors do, and it is why there are two |
+| `email` | The WHATWG HTML pattern, so `a@b` passes | A stated reference, not a taste |
+| Non-JSON kinds in JSON Schema | `{ not: {} }` with a finding | Never dropped silently (Z10) |
+| A pattern format in JSON Schema | Written as `pattern` only | A consumer's `format: email` means something else |
+| CommonJS | **Not built**: ESM only, as every package in this family | The design's R15 says ESM and CJS; this is the owner's call |
+
+Checked outside the repository: for 28 schemas in both drafts, ajv's verdict on the exported
+document equals `check`'s on 4,512 values.
+
+Known and not yet fixed, first in wave 3: `issues`, `emit`, `parse` and the JSON Schema writer look
+a hand-built node's kind up without an own-key check; and the emitter's refusal of a bad bound
+prints it with `String()`, which runs an object's own `toString`.
+
+Partial rows: the message hook is per call, with no locale bundles; `promise` and `func` check that
+a value is one, not what it resolves to or takes.
+
 ## The build list, in waves
 
 A feature's wave is how many of the five competitors have it (yes, partial or add-on). The list is

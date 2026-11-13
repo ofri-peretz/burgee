@@ -80,10 +80,10 @@
         "note": "JSON Schema has no bigint."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": "Not in the source today. Planned in spec.md build step 5."
+        "level": "yes",
+        "how": "bigint()",
+        "evidence": "source schema.ts `bigint`, check.ts `isBigint`; confirmed by probes/ours.mjs › \"ours prim.bigint\" on a copy of the source",
+        "note": ""
       }
     }
   },
@@ -168,10 +168,10 @@
         "note": "No Date-instance schema (a string format instead). Not in ajv or ajv-formats. The separate ajv-keywords package advertises this; it was not installed, so not probed."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": "Not in the source today. Planned in spec.md build step 5."
+        "level": "yes",
+        "how": "date()",
+        "evidence": "source schema.ts `date`, check.ts `isDate`; confirmed by probes/ours.mjs › \"ours prim.date\" on a copy of the source",
+        "note": "Rejects an invalid Date."
       }
     }
   },
@@ -388,10 +388,10 @@
         "note": "Takes a value list only; you would pass Object.values() yourself and filter the reverse mappings."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": ""
+        "level": "yes",
+        "how": "nativeEnum(E)",
+        "evidence": "source schema.ts `nativeEnum`; confirmed by probes/ours.mjs › \"ours prim.native_enum\" on a copy of the source",
+        "note": "An enum node of the values, without the names a numeric enum maps its numbers back to."
       }
     }
   },
@@ -608,9 +608,9 @@
         "note": "JSON Schema has no symbol."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
+        "level": "yes",
+        "how": "symbol()",
+        "evidence": "source schema.ts `symbol`, check.ts `isTypeOf`; confirmed by probes/ours.mjs › \"ours prim.symbol\" on a copy of the source",
         "note": ""
       }
     }
@@ -696,10 +696,10 @@
         "note": "JSON Schema has no undefined."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": ""
+        "level": "yes",
+        "how": "undefinedOf()",
+        "evidence": "source schema.ts `undefinedOf`; confirmed by probes/ours.mjs › \"ours prim.undefined\" on a copy of the source",
+        "note": "The literal with no value; literal(undefined) is the same node."
       }
     }
   },
@@ -787,7 +787,7 @@
         "level": "no",
         "how": "",
         "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": ""
+        "note": "undefinedOf() accepts undefined and rejects null, but there is no builder typed void."
       }
     }
   },
@@ -1312,10 +1312,10 @@
         "note": "Needs ajv-formats: bare ajv throws \"unknown format\" at compile time in strict mode. The format is named 'byte'."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": ""
+        "level": "yes",
+        "how": "string({ format: base64 })",
+        "evidence": "source formats.ts `base64`; confirmed by probes/ours.mjs › \"ours fmt.base64\" on a copy of the source",
+        "note": "Reference: RFC 4648 §4, padded."
       }
     }
   },
@@ -1532,10 +1532,10 @@
         "note": "Needs ajv-formats: bare ajv throws \"unknown format\" at compile time in strict mode."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": ""
+        "level": "yes",
+        "how": "string({ format: date })",
+        "evidence": "source formats.ts `date`; confirmed by probes/ours.mjs › \"ours fmt.date\" on a copy of the source",
+        "note": "Reference: RFC 3339 full-date, on a day the calendar has."
       }
     }
   },
@@ -1576,10 +1576,10 @@
         "note": "Needs ajv-formats: bare ajv throws \"unknown format\" at compile time in strict mode. Also 'iso-date-time'."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": ""
+        "level": "yes",
+        "how": "string({ format: datetime })",
+        "evidence": "source formats.ts `datetime`; confirmed by probes/ours.mjs › \"ours fmt.datetime\" on a copy of the source",
+        "note": "Reference: RFC 3339 §5.6, on a day the calendar has. Offsets and lower-case t/z accepted; a space, a missing zone and +0200 are not."
       }
     }
   },
@@ -1664,10 +1664,10 @@
         "note": "Needs ajv-formats: bare ajv throws \"unknown format\" at compile time in strict mode."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": ""
+        "level": "yes",
+        "how": "string({ format: email }) from validator/formats",
+        "evidence": "source formats.ts `email`; confirmed by probes/ours.mjs › \"ours fmt.email\" on a copy of the source",
+        "note": "Reference: the WHATWG HTML standard, \"valid email address\". So a@b passes and a quoted local part does not."
       }
     }
   },
@@ -1840,10 +1840,10 @@
         "note": "Needs ajv-formats: bare ajv throws \"unknown format\" at compile time in strict mode."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": ""
+        "level": "yes",
+        "how": "string({ format: ipv4 })",
+        "evidence": "source formats.ts `ipv4`; confirmed by probes/ours.mjs › \"ours fmt.ipv4\" on a copy of the source",
+        "note": "Reference: RFC 3986 §3.2.2; no leading zeros."
       }
     }
   },
@@ -1884,10 +1884,10 @@
         "note": "Needs ajv-formats: bare ajv throws \"unknown format\" at compile time in strict mode."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": ""
+        "level": "yes",
+        "how": "string({ format: ipv6 })",
+        "evidence": "source formats.ts `ipv6`; confirmed by probes/ours.mjs › \"ours fmt.ipv6\" on a copy of the source",
+        "note": "Reference: RFC 3986 §3.2.2 / RFC 4291 §2.2; no zone."
       }
     }
   },
@@ -2192,10 +2192,10 @@
         "note": "Needs ajv-formats: bare ajv throws \"unknown format\" at compile time in strict mode. Also 'url', 'uri-reference', 'uri-template'."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": ""
+        "level": "yes",
+        "how": "string({ format: url })",
+        "evidence": "source formats.ts `url`; confirmed by probes/ours.mjs › \"ours fmt.url\" on a copy of the source",
+        "note": "Reference: the WHATWG URL parser with no base (URL.canParse), any scheme; httpUrl is http(s) with a host. A function, so emit() refuses it and emitWith() takes it as a hook."
       }
     }
   },
@@ -2236,10 +2236,10 @@
         "note": "Needs ajv-formats: bare ajv throws \"unknown format\" at compile time in strict mode."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": ""
+        "level": "yes",
+        "how": "string({ format: uuid })",
+        "evidence": "source formats.ts `uuid`; confirmed by probes/ours.mjs › \"ours fmt.uuid\" on a copy of the source",
+        "note": "Reference: RFC 9562. Versions 1 to 8 and the variant it specifies, plus Nil and Max."
       }
     }
   },
@@ -2324,10 +2324,10 @@
         "note": "No bigint."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": ""
+        "level": "yes",
+        "how": "bigint({ min: 1n, max: 5n })",
+        "evidence": "source schema.ts `bigint` (min, max); confirmed by probes/ours.mjs › \"ours num.bigint_range\" on a copy of the source",
+        "note": "The bounds are bigints, kept as given: a double cannot hold them."
       }
     }
   },
@@ -2723,7 +2723,7 @@
         "level": "no",
         "how": "",
         "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": "int is Number.isInteger, so 2**53 passes (check.ts:19)."
+        "note": "int is Number.isInteger, so 2**53 passes."
       }
     }
   },
@@ -3072,10 +3072,10 @@
         "note": "By listing the keys again under `required`."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": ""
+        "level": "yes",
+        "how": "recordOf(['a', 'b'], number())",
+        "evidence": "source schema.ts `recordOf`; confirmed by probes/ours.mjs › \"ours col.record_enum_exhaustive\" on a copy of the source",
+        "note": "A closed object, written once: every key required and no other allowed."
       }
     }
   },
@@ -3116,10 +3116,10 @@
         "note": ""
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": ""
+        "level": "yes",
+        "how": "record(number(), { key: enumOf(['a', 'b']) })",
+        "evidence": "source schema.ts `record` (key); confirmed by probes/ours.mjs › \"ours col.record_enum_keys\" on a copy of the source",
+        "note": "Not exhaustive: a missing enum key passes. recordOf is the exhaustive one."
       }
     }
   },
@@ -3292,9 +3292,9 @@
         "note": "Strict mode logs a warning for an open tuple unless strictTuples is off."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
+        "level": "yes",
+        "how": "tuple([string()], { rest: number() })",
+        "evidence": "source schema.ts `tuple` (rest), check.ts `isTuple`; confirmed by probes/ours.mjs › \"ours col.tuple_rest\" on a copy of the source",
         "note": ""
       }
     }
@@ -3468,10 +3468,10 @@
         "note": "Probe: { a: undefined } passes a schema whose `a` is { type: 'string' }; undefined is always treated as absent."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": "optional() treats undefined as absent (check.ts:40)."
+        "level": "yes",
+        "how": "exactOptional(string())",
+        "evidence": "source schema.ts `exactOptional`, check.ts `isObject`; confirmed by probes/ours.mjs › \"ours obj.exact_optional\" on a copy of the source",
+        "note": ""
       }
     }
   },
@@ -3512,9 +3512,9 @@
         "note": "No schema-derivation helpers (allOf intersects, it does not override)."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
+        "level": "yes",
+        "how": "extend(schema, { c: boolean() })",
+        "evidence": "source derive.ts `extend`; confirmed by probes/ours.mjs › \"ours obj.extend\" on a copy of the source",
         "note": ""
       }
     }
@@ -3556,9 +3556,9 @@
         "note": "No schema-derivation helpers."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
+        "level": "yes",
+        "how": "keyof(schema)",
+        "evidence": "source derive.ts `keyof`; confirmed by probes/ours.mjs › \"ours obj.keyof\" on a copy of the source",
         "note": ""
       }
     }
@@ -3732,9 +3732,9 @@
         "note": "No schema-derivation helpers."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
+        "level": "yes",
+        "how": "omit(schema, ['a'])",
+        "evidence": "source derive.ts `omit`; confirmed by probes/ours.mjs › \"ours obj.omit\" on a copy of the source",
         "note": ""
       }
     }
@@ -3820,9 +3820,9 @@
         "note": "No schema-derivation helpers."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
+        "level": "yes",
+        "how": "partial(schema)",
+        "evidence": "source derive.ts `partial`; confirmed by probes/ours.mjs › \"ours obj.partial\" on a copy of the source",
         "note": ""
       }
     }
@@ -3908,9 +3908,9 @@
         "note": "No schema-derivation helpers; you edit the JSON yourself."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
+        "level": "yes",
+        "how": "pick(schema, ['a'])",
+        "evidence": "source derive.ts `pick`; confirmed by probes/ours.mjs › \"ours obj.pick\" on a copy of the source",
         "note": ""
       }
     }
@@ -3996,10 +3996,10 @@
         "note": "No static types and nothing is frozen; `readOnly` is an annotation (see io.openapi_readonly)."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": ""
+        "level": "yes",
+        "how": "readonly(schema)",
+        "evidence": "source derive.ts `readonly`; confirmed by probes/ours.mjs › \"ours obj.readonly\" on a copy of the source",
+        "note": "Type-only: the output is not frozen, since parse() may hand back the caller's own object. types only: checked by tsc 6.0.3 on types/ours.readonly.ts"
       }
     }
   },
@@ -4040,9 +4040,9 @@
         "note": "No schema-derivation helpers."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
+        "level": "yes",
+        "how": "required(schema)",
+        "evidence": "source derive.ts `required`; confirmed by probes/ours.mjs › \"ours obj.required\" on a copy of the source",
         "note": ""
       }
     }
@@ -4700,10 +4700,10 @@
         "note": "Same limits as val.coerce_number."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": ""
+        "level": "yes",
+        "how": "boolean({ coerce: true }) with parse()",
+        "evidence": "source schema.ts `boolean` (coerce), parse.ts `boolean`; confirmed by probes/ours.mjs › \"ours val.coerce_boolean\" on a copy of the source",
+        "note": "Exactly the strings \"true\" and \"false\" (JSON's two); never by truthiness. Only on the parse path."
       }
     }
   },
@@ -4744,10 +4744,10 @@
         "note": "coerceTypes covers JSON types only."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": ""
+        "level": "yes",
+        "how": "date({ coerce: true }) with parse()",
+        "evidence": "source schema.ts `date` (coerce), parse.ts `date`; confirmed by probes/ours.mjs › \"ours val.coerce_date\" on a copy of the source",
+        "note": "An RFC 3339 date-time or full-date on a day the calendar has; not a locale string, a number or null."
       }
     }
   },
@@ -4835,7 +4835,7 @@
         "level": "no",
         "how": "",
         "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": "Messages are generated (issues.ts:44); no override."
+        "note": "refine() takes a message; the built-in constraints do not. A message map (issues(..., { message })) can replace any of them."
       }
     }
   },
@@ -4920,10 +4920,10 @@
         "note": "Not in ajv. The separate ajv-i18n package was not installed."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": ""
+        "level": "partial",
+        "how": "issues(schema, value, { message }) / parse(schema, value, { message })",
+        "evidence": "source issues.ts `IssueOptions.message`; confirmed by probes/ours.mjs › \"ours val.error_map\" on a copy of the source",
+        "note": "One function for every schema, handed to each call: there is no global setter (the package has no global state) and no locale bundles ship. Where the map returns nothing the default message stays, with its fix: line."
       }
     }
   },
@@ -4964,10 +4964,10 @@
         "note": "JSON only."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": ""
+        "level": "partial",
+        "how": "func()",
+        "evidence": "source schema.ts `func`; confirmed by probes/ours.mjs › \"ours val.function\" on a copy of the source",
+        "note": "Checks only typeof === \"function\"; arguments and return value are not validated."
       }
     }
   },
@@ -5008,10 +5008,10 @@
         "note": "Not in ajv or ajv-formats. The separate ajv-keywords package advertises this; it was not installed, so not probed."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": ""
+        "level": "yes",
+        "how": "instanceOf(Map)",
+        "evidence": "source schema.ts `instanceOf`, check.ts `isInstance`; confirmed by probes/ours.mjs › \"ours val.instanceof\" on a copy of the source",
+        "note": "The emitted text takes the class as a hook."
       }
     }
   },
@@ -5099,7 +5099,7 @@
         "level": "no",
         "how": "",
         "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": ""
+        "note": "A refinement tests the input of a transform, not its output; there is no schema after a transform."
       }
     }
   },
@@ -5184,10 +5184,10 @@
         "note": "JSON only."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": ""
+        "level": "partial",
+        "how": "promise()",
+        "evidence": "source schema.ts `promise`; confirmed by probes/ours.mjs › \"ours val.promise\" on a copy of the source",
+        "note": "instanceof Promise only; the resolved value is not validated."
       }
     }
   },
@@ -5228,10 +5228,10 @@
         "note": "As a user-defined keyword registered on the Ajv instance, then used by name in the schema."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": "Not in the source today. Planned in spec.md build step 5. (R10)"
+        "level": "yes",
+        "how": "refine(number(), (n) => n % 2 === 0)",
+        "evidence": "source schema.ts `refine`, check.ts `isRefined`; confirmed by probes/ours.mjs › \"ours val.refine\" on a copy of the source",
+        "note": "The rule is a named member of the node (spec R10); the emitted text takes it as a hook."
       }
     }
   },
@@ -5316,10 +5316,10 @@
         "note": "Possible, but you build the error object and its instancePath by hand inside a user keyword. Observed with allErrors: true: the rule still runs and reports at /b when c also fails."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": "Not in the source today. Planned in spec.md build step 5. (R10: refine(schema, test, { path }))"
+        "level": "yes",
+        "how": "refine(schema, test, { path: ['b'], uses: ['a', 'b'] })",
+        "evidence": "source schema.ts `refine` (path, uses), issues.ts `refined`; confirmed by probes/ours.mjs › \"ours val.refine_path\" on a copy of the source",
+        "note": "Observed: the rule still runs and reports at /b when an unrelated field (c) fails, and does not run when a field it reads fails."
       }
     }
   },
@@ -5360,10 +5360,10 @@
         "note": "Not in ajv or ajv-formats. The separate ajv-keywords package advertises this; it was not installed, so not probed."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": "Not in the source today. Planned in spec.md build step 5. (R10)"
+        "level": "yes",
+        "how": "transform(string(), (s) => s.length) with parse()",
+        "evidence": "source schema.ts `transform`, parse.ts `mapped`; confirmed by probes/ours.mjs › \"ours val.transform\" on a copy of the source",
+        "note": "check() and the emitted code describe the input; only parse() runs the map, after the whole value is accepted."
       }
     }
   },
@@ -5448,10 +5448,10 @@
         "note": "No assert API; you throw yourself from validate.errors."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": "No assert function."
+        "level": "yes",
+        "how": "assert(schema, value): asserts value is T",
+        "evidence": "source assert.ts `assert`; confirmed by probes/ours.mjs › \"ours beh.assert\" on a copy of the source",
+        "note": "Typed `asserts`; throws a TypeError that carries every issue. types only: checked by tsc 6.0.3 on types/ours.guard.ts"
       }
     }
   },
@@ -5536,10 +5536,10 @@
         "note": "Never copies; options that change data (coerceTypes, useDefaults, removeAdditional) mutate the input."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": "parse() returns the input itself when nothing changed and a copy only when a default, a stripped key or a coercion changed something (parity.md decision 10), so the result is not always a new object."
+        "level": "yes",
+        "how": "parse(schema, value, { copy: true })",
+        "evidence": "source parse.ts `ParseOptions.copy`; confirmed by probes/ours.mjs › \"ours beh.clone\" on a copy of the source",
+        "note": "An option: by default parse() returns the input itself when nothing changed and a copy only of what did (parity.md decision 10)."
       }
     }
   },
@@ -5712,10 +5712,10 @@
         "note": "No transforms and no inference."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": "One type, the input: a default or a coercion does not yet change the static output type."
+        "level": "yes",
+        "how": "InferInput<typeof S> / InferOutput<typeof S>",
+        "evidence": "types only: checked by tsc 6.0.3 on types/ours.io.ts (probes/ours.mjs › \"ours beh.io_types\")",
+        "note": "Infer is the input (what check() narrows to). A default and a transform change the output; coercion changes neither, since check() never coerces."
       }
     }
   },
@@ -6020,10 +6020,10 @@
         "note": ""
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": ""
+        "level": "yes",
+        "how": "toJsonSchema(s, { draft: 'draft-07' })",
+        "evidence": "source json-schema.ts (items, additionalItems); confirmed by probes/ours.mjs › \"ours io.draft_07\" on a copy of the source",
+        "note": "Export only."
       }
     }
   },
@@ -6108,10 +6108,10 @@
         "note": ""
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": "Not in the source today. Planned in spec.md build step 6. (R13)"
+        "level": "yes",
+        "how": "toJsonSchema(s) (default draft '2020-12')",
+        "evidence": "source json-schema.ts (prefixItems); confirmed by probes/ours.mjs › \"ours io.draft_2020_12\" on a copy of the source",
+        "note": "Export only."
       }
     }
   },
@@ -6152,10 +6152,10 @@
         "note": "Trivially: JSON Schema is the authoring format."
       },
       "ours": {
-        "level": "no",
-        "how": "",
-        "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": "Not in the source today. Planned in spec.md build step 6. (R13)"
+        "level": "yes",
+        "how": "toJsonSchema(schema) from validator/json-schema",
+        "evidence": "source json-schema.ts `toJsonSchema`; confirmed by probes/ours.mjs › \"ours io.json_schema_export\" on a copy of the source",
+        "note": "Returns { schema, findings }: everything JSON Schema cannot say is a finding with a pointer, never dropped. Held to ajv on 4,512 verdicts (probes/json-schema-ajv.mjs)."
       }
     }
   },
@@ -6507,7 +6507,7 @@
         "level": "no",
         "how": "",
         "evidence": "source read: no such kind or option in schema.ts, check.ts, issues.ts",
-        "note": "package.json exports only an ESM entry; spec.md R15 asks for CJS too."
+        "note": "Deliberate, for now: every package in this repository publishes ESM only (\"type\": \"module\", no \"require\" condition), and a dual build is a decision for the repository, not for one package. On the supported Node range (^20.19.0 || >=22.13.0) require(esm) works by default; the row asks for it with that turned off. spec.md R15 still asks for CJS."
       }
     }
   },

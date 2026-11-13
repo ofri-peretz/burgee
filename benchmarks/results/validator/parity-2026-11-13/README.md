@@ -1,7 +1,7 @@
 # Validator parity reading, 2026-11-13
 
-Regenerated the same day after wave 1 (ours: 60 yes, 2 partial, 92 no; the first reading was 34, 2,
-118).
+Regenerated the same day after wave 2 (ours: 97 yes, 5 partial, 52 no; 60, 2, 92 after wave 1; the
+first reading was 34, 2, 118).
 
 What is here: `features.json` (154 features, the API and the probe behind every cell),
 `semantics.md` (where the libraries disagree on the same nominal feature) and `summary.md` (the
