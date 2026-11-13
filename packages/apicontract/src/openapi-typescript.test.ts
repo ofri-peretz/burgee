@@ -1,10 +1,7 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
+import { readFileSync } from 'node:fs';
 import { Readable } from 'node:stream';
-import { pathToFileURL } from 'node:url';
 
-import { afterAll, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { generate } from './gen-ts-index.js';
 import openapiTS, { astToString, COMMENT_HEADER, transformSchemaObject } from './openapi-typescript.js';
@@ -13,10 +10,8 @@ const document = { openapi: '3.1.0', components: { schemas: { Id: { type: 'strin
 const yaml = 'openapi: 3.1.0\ncomponents:\n  schemas:\n    Id:\n      type: string\n';
 const want = generate(document);
 
-const dir = mkdtempSync(path.join(tmpdir(), 'apicontract-ots-'));
-afterAll(() => {
-  rmSync(dir, { recursive: true, force: true });
-});
+// A committed fixture, not a scratch file: nothing to clean up.
+const fixture = new URL('__fixtures__/id.openapi.yaml', import.meta.url);
 
 describe('the openapi-typescript drop-in', () => {
   it('carries the header openapi-typescript 7.13.0 writes, byte for byte', () => {
@@ -45,9 +40,8 @@ describe('the openapi-typescript drop-in', () => {
   });
 
   it('reads a file: URL', async () => {
-    const file = path.join(dir, 'api.yaml');
-    writeFileSync(file, yaml);
-    expect(await openapiTS(pathToFileURL(file))).toBe(want);
+    expect(readFileSync(fixture, 'utf8')).toBe(yaml);
+    expect(await openapiTS(fixture)).toBe(want);
   });
 
   it.each([
