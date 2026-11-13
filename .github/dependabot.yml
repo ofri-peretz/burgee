@@ -77,8 +77,11 @@ updates:
       # then shipped a new major (secure-coding 6, react-features 2, …). Taking the majors is a
       # migration of this repo's lint config, not a grouped bump: one PR of its own, with
       # `npm run lint` clean, and these entries go then.
+      # 2026-11-13, #1545: the patches carry the same false positive. #1545 took only patch
+      # releases of the current minors (browser-security 2.2.3, secure-coding 5.5.1, …), and the
+      # Interlace lint job reported 278 errors, "React must be in scope" first among them, on a
+      # tree main lints clean. So the hold covers every update type until that migration lands.
       - dependency-name: "eslint-plugin-*"
-        update-types: ["version-update:semver-major", "version-update:semver-minor"]
       # 2026-11-13, #1512 and #1537: supports-hyperlinks 5.0.0 is a major. paratext's hyperlink
       # detection is graded against 4.5.0 (`paratext/src/hyperlinks.test.ts`, A27) under
       # terminal-link's vendored suite (`suiteDeps` in compat-oracle's hosts.ts), so it moves
