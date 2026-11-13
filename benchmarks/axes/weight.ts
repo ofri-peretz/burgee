@@ -483,7 +483,11 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // loads through `import()` only for a Windows executable that is not node. Measured 56,116, of which 65 B are #1064's `schema.js`.
   // 55,400 on 2026-10-12, **down 750**, commander-front-end-diet R2: the `completion` and `--mcp`
   // routers moved into `commander/surfaces.js`, loaded with the surface they serve. Measured 55,359.
-  'burgee/commander': 55_400,
+  // 55,550 on 2026-11-12 (D-20261112-upstream-issues-2026-11-12): commander 15.1.0's five changes to `lib/` are ported
+  // (burgee#1494) — the inspector-port bump reads `--inspect-wait` and a bracketed IPv6 host, a help
+  // option keeps its group, a global source is taken only from a command that set one. CI read
+  // 55,514 on the pull request; rounded up to the next 50.
+  'burgee/commander': 55_550,
 
   // 108,200 on 2026-09-27 for **847 bytes** (107,339 -> 108,186): `unknown-options-as-args`
   // ran five flag regexes over every `-`-prefixed argument and one was cubic (a 4,000-character
@@ -526,7 +530,10 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // ansi-regex 6.5.0's pattern, which strip-ansi 7.2.0 now resolves and cliui measures through.
   // Main at `b3aaede393` measured 110,225 locally and this reads 110,274 (+49); plus the ~32 B,
   // rounded up to the next 50. Still 1,412 B under yargs' 111,686.
-  'burgee/yargs': 110_350,
+  // 110,400 on 2026-11-12 (D-20261112-upstream-issues-2026-11-12): `linegauge/strip` carries ansi-regex 6.6.0's pattern,
+  // which strip-ansi 7.2.0 resolves since 2026-11-08 and cliui measures through. CI read 110,366 on
+  // the pull request; rounded up to the next 50. Still 1,320 B under yargs' 111,686.
+  'burgee/yargs': 110_400,
   // The foundation layers, first measured 2026-09-16 when they got B4 pairs at all. Each
   // ceiling is the measurement rounded up to the next fifty — a ratchet on what a user's
   // bundle grows by, set where the number actually is, so the next byte is a decision.
@@ -578,13 +585,19 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // `linegauge/strip` 950 → 272, both now lighter than the incumbent. `linegauge/slice` 11,435
   // (was 11,575): the cut walks clusters lazily and stops at `end`. `linegauge/wrap` 11,457 holds
   // under its ceiling. Each keeps the 80 B CI margin, rounded up to the next fifty.
-  linegauge: 5_750,
+  //
+  // **2026-11-12 (D-20261112-upstream-issues-2026-11-12): `linegauge` 5,750 → 5,950 and `linegauge/strip` 400 → 600.**
+  // `strip` carries ansi-regex 6.6.0's grammar (burgee#1501–#1509): an ECMA-48 CSI, DCS/SOS/PM/APC
+  // ended by ST, the digit-final escapes, the Linux palette and a cancelled OSC — five branches
+  // where 6.5.0 had three. CI read 5,925 and 572 on the pull request; each rounded up to the next
+  // 50. Both entries stay lighter than the incumbent (`lighter-than-strip-ansi`, 0.767).
+  linegauge: 5_950,
 
   'linegauge/wrap': 11_560,
 
   'linegauge/slice': 11_550,
 
-  'linegauge/strip': 400,
+  'linegauge/strip': 600,
   //
   // **Down from 11,150 to 6,800, and the reason is the most useful thing this block records.**
   // paratext imported the whole family plugin schema to validate against one definition in it,
