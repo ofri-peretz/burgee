@@ -13,8 +13,10 @@ the order things are built in is the roadmap's, not the order of the sections be
 ### Model
 
 - **R1.** Every adapter maps its spec into one model: a contract is a set of _operations_; each
-  operation has a stable id, a _direction_ (`request`, `response`, `publish`, `subscribe`,
-  `tool-call`, `tool-result`, `argv`), and a JSON Schema for each payload.
+  operation has a stable id and a set of _payloads_; each payload has a _direction_ (`request`,
+  `response`, `publish`, `subscribe`, `tool-call`, `tool-result`, `argv`) and a JSON Schema. The
+  direction sits on the payload, not the operation (changed at build, 2026-11-13): one HTTP
+  operation carries a request and a response, and R3 decides compatibility per direction.
 - **R2.** The core never imports an adapter. An adapter imports only `apicontract/core`.
 - **R3.** `diff` decides compatibility per direction. A change is breaking for the **receiver** of
   a payload when it widens what the sender may emit, and breaking for the **sender** when it narrows
