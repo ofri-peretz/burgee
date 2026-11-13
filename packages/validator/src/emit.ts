@@ -15,6 +15,33 @@ interface Emitter {
   readonly named: Map<Node, string>;
 }
 
+const HEX = 16;
+const UNIT = 4;
+
+/**
+ * A value as JavaScript source. `JSON.stringify` makes it a valid literal; the escapes after it
+ * are for where the text may end up: `<`, `>` and `/` cannot close a `<script>` or open a comment
+ * there, and the two Unicode line separators cannot end a line in an older parser.
+ */
+const literal = (value: unknown): string =>
+  String(JSON.stringify(value)).replaceAll(/[<>/\u2028\u2029]/gu, (unit) => `\\u${unit.charCodeAt(0).toString(HEX).padStart(UNIT, '0')}`);
+
+/** A bound as source. A node is data and may have been built by hand, so what is not a number is refused, not printed. */
+const numeric = (value: unknown): string => {
+  if (typeof value !== 'number') {
+    throw new TypeError(`cannot emit the bound ${literal(String(value))}: it is not a number. fix: build the schema with the builders, or give the node numeric bounds`);
+  }
+  return String(value);
+};
+
+/** A pattern as source: rebuilt from its own source and flags as escaped strings, never pasted in as written. */
+const pattern = (value: unknown): string => {
+  if (!(value instanceof RegExp)) {
+    throw new TypeError('cannot emit a pattern that is not a RegExp. fix: build the schema with `string({ pattern })`');
+  }
+  return `new RegExp(${literal(value.source)}, ${literal(value.flags)})`;
+};
+
 const isObject = (ref: string): string => `typeof ${ref} === "object" && ${ref} !== null && !Array.isArray(${ref})`;
 
 const declare = (emitter: Emitter, prefix: string, source: string): string => {
@@ -25,26 +52,28 @@ const declare = (emitter: Emitter, prefix: string, source: string): string => {
 
 const string = (emitter: Emitter, schema: Node, ref: string): string => {
   const parts = [`typeof ${ref} === "string"`];
-  if (schema.min > 0) parts.push(`${ref}.length >= ${String(schema.min)}`);
-  if (schema.max < Number.MAX_VALUE) parts.push(`${ref}.length <= ${String(schema.max)}`);
-  if (schema.pattern !== null) parts.push(`${declare(emitter, 'r', String(schema.pattern))}.test(${ref})`);
+  const [min, max] = [numeric(schema.min), numeric(schema.max)];
+  if (schema.min > 0) parts.push(`${ref}.length >= ${min}`);
+  if (schema.max < Number.MAX_VALUE) parts.push(`${ref}.length <= ${max}`);
+  if (schema.pattern !== null) parts.push(`${declare(emitter, 'r', pattern(schema.pattern))}.test(${ref})`);
   return parts.join(' && ');
 };
 
 // Both bounds are always written: the default ones are what refuse `NaN` and the infinities.
 const number = (schema: Node, ref: string): string => {
-  const parts = [`typeof ${ref} === "number"`, `${ref} >= ${String(schema.min)}`, `${ref} <= ${String(schema.max)}`];
+  const parts = [`typeof ${ref} === "number"`, `${ref} >= ${numeric(schema.min)}`, `${ref} <= ${numeric(schema.max)}`];
   if (schema.int) parts.push(`Number.isInteger(${ref})`);
   return parts.join(' && ');
 };
 
 const member = (schema: Node, ref: string): string => {
-  const tests = [...(schema.values as ReadonlySet<unknown>)].map((value) => `${ref} === ${JSON.stringify(value)}`);
+  const tests = [...(schema.values as ReadonlySet<unknown>)].map((value) => `${ref} === ${literal(value)}`);
   return tests.length === 0 ? 'false' : `(${tests.join(' || ')})`;
 };
 
 const array = (emitter: Emitter, schema: Node): string => {
-  const bounds = [schema.min > 0 ? ` || v.length < ${String(schema.min)}` : '', schema.max < Number.MAX_VALUE ? ` || v.length > ${String(schema.max)}` : ''];
+  const [min, max] = [numeric(schema.min), numeric(schema.max)];
+  const bounds = [schema.min > 0 ? ` || v.length < ${min}` : '', schema.max < Number.MAX_VALUE ? ` || v.length > ${max}` : ''];
   const item = test(emitter, schema.item as Node, 'v[i]');
   return `(v) => {
   if (!Array.isArray(v)${bounds.join('')}) return false;
@@ -57,7 +86,7 @@ const object = (emitter: Emitter, schema: Node): string => {
   const fields = schema.fields as readonly Node[];
   const tests = (schema.keys as readonly string[]).map((key, index) => {
     const field = fields[index] as Node;
-    const ref = `v[${JSON.stringify(key)}]`;
+    const ref = `v[${literal(key)}]`;
     const inner = test(emitter, field, ref);
     return field.optional ? `(${ref} === undefined || (${inner}))` : `(${inner})`;
   });
@@ -66,11 +95,11 @@ const object = (emitter: Emitter, schema: Node): string => {
 
 const union = (emitter: Emitter, schema: Node): string => {
   const cases = Object.entries(schema.cases as Readonly<Record<string, Node>>).map(
-    ([tag, chosen]) => `    case ${JSON.stringify(tag)}: return ${test(emitter, chosen, 'v')};`,
+    ([tag, chosen]) => `    case ${literal(tag)}: return ${test(emitter, chosen, 'v')};`,
   );
   return `(v) => {
   if (!(${isObject('v')})) return false;
-  switch (v[${JSON.stringify(schema.tag)}]) {
+  switch (v[${literal(schema.tag)}]) {
 ${cases.join('\n')}
     default: return false;
   }
@@ -99,7 +128,7 @@ function test(emitter: Emitter, schema: Node, ref: string): string {
       return `typeof ${ref} === "boolean"`;
     }
     case 'literal': {
-      return `${ref} === ${JSON.stringify(schema.value)}`;
+      return `${ref} === ${literal(schema.value)}`;
     }
     case 'enum': {
       return member(schema, ref);

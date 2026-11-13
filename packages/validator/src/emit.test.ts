@@ -87,7 +87,7 @@ const f0 = (v) => {
   for (let i = 0; i < v.length; i++) if (!(typeof v[i] === "string")) return false;
   return true;
 };
-const r1 = /^a$/;
+const r1 = new RegExp("^a$", "");
 const f2 = (v) => {
   if (!Array.isArray(v)) return false;
   for (let i = 0; i < v.length; i++) if (!(typeof v[i] === "number" && v[i] >= -1.7976931348623157e+308 && v[i] <= 1.7976931348623157e+308)) return false;
@@ -114,6 +114,59 @@ return (v) => f6(v);
 })()`);
     expect(emit(string({ min: 0, max: Number.MAX_VALUE }))).toBe('(() => {\n\nreturn (v) => typeof v === "string";\n})()');
     expect(emit(string({ min: 1, max: 2 }))).toBe('(() => {\n\nreturn (v) => typeof v === "string" && v.length >= 1 && v.length <= 2;\n})()');
+  });
+
+  // A schema is data and its strings may come from a document somebody else wrote. None of them
+  // may become code.
+  describe('what a schema carries cannot become code', () => {
+    const breakout = '"]; globalThis.__emitted = 1; //';
+    const closing = '</script><script>alert(1)//';
+    const separators = 'a\u2028b\u2029c';
+
+    it.each<[string, Schema<unknown>, unknown, unknown]>([
+      ['an object key', object({ [breakout]: string() }), { [breakout]: 'x' }, { [breakout]: 1 }],
+      ['an enum member', enumOf([breakout, closing]), closing, 'other'],
+      ['a literal', literal(closing), closing, 'other'],
+      ['a discriminator and its tags', discriminated(breakout, { [closing]: object({}) }), { [breakout]: closing }, { [breakout]: 'x' }],
+      ['a key with line separators', object({ [separators]: number() }), { [separators]: 1 }, { [separators]: '1' }],
+      ['a pattern', string({ pattern: /^<\/script>\u2028$/u }), '</script>\u2028', '</script>'],
+    ])('%s is written as an escaped literal, and still means what it said', (_, schema, accepted, refused) => {
+      const source = emit(schema);
+      // The code itself has `<=` and `=>`; what must not survive is a tag that closes a script, or a raw line separator.
+      expect(source).not.toMatch(/<\/script|\u2028|\u2029/u);
+      const emitted = load(source);
+      expect(emitted(accepted)).toBe(true);
+      expect(emitted(refused)).toBe(false);
+      expect(check(schema, accepted)).toBe(true);
+      expect('__emitted' in globalThis).toBe(false);
+    });
+
+    it('writes a slash only where it is code, never inside a value', () => {
+      expect(emit(literal('a/b'))).toBe('(() => {\n\nreturn (v) => v === "a\\u002fb";\n})()');
+    });
+
+    it.each<[string, Record<string, unknown>]>([
+      ['a string bound', { ...string(), min: '0 || globalThis.__emitted' }],
+      ['a number bound', { ...number(), max: '1; globalThis.__emitted = 1' }],
+      ['an array bound', { ...array(string()), min: '1) {} globalThis.__emitted = 1; if (' }],
+      ['an upper string bound', { ...string(), max: 'Infinity || globalThis.__emitted' }],
+      ['an upper array bound', { ...array(string()), max: '9 || globalThis.__emitted' }],
+      ['a lower number bound', { ...number(), min: '0 || globalThis.__emitted' }],
+    ])('refuses a hand-built node with %s that is not a number', (_, node) => {
+      expect(() => emit(node as unknown as Schema<unknown>)).toThrow(TypeError);
+      expect(() => emit(node as unknown as Schema<unknown>)).toThrow('it is not a number. fix: build the schema with the builders, or give the node numeric bounds');
+    });
+
+    it('refuses a hand-built node whose pattern is not a RegExp', () => {
+      const node = { ...string(), pattern: { source: 'x', flags: '', test: () => true } } as unknown as Schema<unknown>;
+      expect(() => emit(node)).toThrow('cannot emit a pattern that is not a RegExp. fix: build the schema with `string({ pattern })`');
+    });
+
+    it('keeps a pattern\'s flags', () => {
+      const emitted = load(emit(string({ pattern: /^a$/i })));
+      expect(emitted('A')).toBe(true);
+      expect(emit(string({ pattern: /^a$/i }))).toContain('new RegExp("^a$", "i")');
+    });
   });
 
   it('is the same text on every run', () => {
