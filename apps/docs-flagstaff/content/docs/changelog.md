@@ -3,6 +3,14 @@ title: Changelog
 description: "Every release of flagstaff, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 2.0.2
+
+### Patch Changes
+
+- [#1564](https://github.com/ofri-peretz/burgee/pull/1564) [`593c0b4`](https://github.com/ofri-peretz/burgee/commit/593c0b4d1e26dd4f127df07e4bb1c12e60cd7d7a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Measures with `linegauge/v8`, string-width 8.3.0's rules, which every incumbent these packages replace still resolves. Nothing a box, table, spinner, prompt, ink screen or help page draws changes: `linegauge`'s root moved to string-width 9.0.0, and these stay on the measurement their `wrap` and `slice` cut by.
+- Updated dependencies [[`593c0b4`](https://github.com/ofri-peretz/burgee/commit/593c0b4d1e26dd4f127df07e4bb1c12e60cd7d7a)]:
+  - linegauge@2.2.0
+
 ## 2.0.1
 
 ### Patch Changes
