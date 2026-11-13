@@ -25,6 +25,11 @@
       "import": "./dist/openapi.js",
       "default": "./dist/openapi.js"
     },
+    "./plugin": {
+      "types": "./dist/plugin.d.ts",
+      "import": "./dist/plugin.js",
+      "default": "./dist/plugin.js"
+    },
     "./package.json": "./package.json"
   },
   "bin": {
