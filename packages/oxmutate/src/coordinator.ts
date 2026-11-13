@@ -100,6 +100,8 @@ export interface RunStats {
   pollutionRestarts: number;
   /** Units after which the project on disk had changed (diskguard.ts): put back, and their verdicts and those of the units running beside them re-run. */
   diskWrites: number;
+  /** The first few paths those writes touched, so a suite's own scratch in a tracked folder can be told from a mutant's write. */
+  diskWritePaths: string[];
   /** Survivors of the warm run that a whole-file re-run killed (cross-test effects). */
   survivorsOverturned: number;
   /** Watchdog timeouts that finished when re-run with 3x the budget: the machine was slow, not the mutant. */
@@ -313,7 +315,7 @@ export async function run(options: Options): Promise<RunResult> {
   const work = mkdtempSync(path.join(tmpdir(), 'oxmutate-'));
   const stats: RunStats = {
     files: 0, mutants: 0, instrumentMs: 0, dryRunMs: 0, mutationMs: 0, staticMs: 0, staticRecollections: 0, staticGroupRuns: 0, staticGroupSplits: 0, staticAuditSampled: 0, staticAuditDisagreed: 0, isolatedMs: 0, wallMs: 0, testExecutions: 0, warmUnitMs: 0, warmArmedMs: 0, isolatedByCause: { static: 0, stopped: 0, unfinished: 0, rerun: 0, confirm: 0, flaky: 0 },
-    watchdogKills: 0, idleStalls: 0, deadlocks: 0, crashes: 0, canaryFiles: 0, pollutionRestarts: 0, diskWrites: 0, auditSampled: 0, auditDisagreed: 0, survivorsOverturned: 0, timeoutsOverturned: 0, compileErrors: 0, isolatedRuns: 0, reused: 0, flakyTests: 0, flakyMutants: 0, units: 0, serversSpawned: 0,
+    watchdogKills: 0, idleStalls: 0, deadlocks: 0, crashes: 0, canaryFiles: 0, pollutionRestarts: 0, diskWrites: 0, diskWritePaths: [], auditSampled: 0, auditDisagreed: 0, survivorsOverturned: 0, timeoutsOverturned: 0, compileErrors: 0, isolatedRuns: 0, reused: 0, flakyTests: 0, flakyMutants: 0, units: 0, serversSpawned: 0,
   };
   let unitSeq = 0;
   const fileFor = (kind: string, ext: string): string => path.join(work, `${kind}-${String(unitSeq++)}.${ext}`);
@@ -637,6 +639,7 @@ export async function run(options: Options): Promise<RunResult> {
       const dirty = change !== undefined && !isClean(change);
       if (dirty) {
         stats.diskWrites++;
+        for (const p of [...change.changed, ...change.added, ...change.removed]) if (stats.diskWritePaths.length < 5 && !stats.diskWritePaths.includes(p)) stats.diskWritePaths.push(p);
         if (!disk?.restore(change)) {
           throw new InstrumentFault(`a mutant wrote outside the sandbox and the project could not be put back: ${[...change.changed, ...change.added, ...change.removed].join(', ')}. fix: restore them (git checkout / git clean), and see which test writes into the project`);
         }

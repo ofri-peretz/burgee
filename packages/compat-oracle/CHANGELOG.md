@@ -1,5 +1,11 @@
 # compat-oracle
 
+## 0.3.20
+
+### Patch Changes
+
+- [#1565](https://github.com/ofri-peretz/burgee/pull/1565) [`8ce7440`](https://github.com/ofri-peretz/burgee/commit/8ce74409fb843bda3147a5c38ab69909246ced55) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The competitor watch no longer opens an issue when a competitor's only change is the weight of its dependency tree and nothing we publish depends on that weight: a `surface` claim with no cited figure. The daily log still names the drift. A new version, tarball, file or export is still filed for every claim. See D-20261113-surface-weight-drift-is-not-news.
+
 ## 0.3.19
 
 ### Patch Changes

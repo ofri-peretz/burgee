@@ -46,6 +46,7 @@ const stats = (s: Partial<RunStats> = {}): RunStats => ({
   serversSpawned: 0,
   deadlocks: 0,
   diskWrites: 0,
+  diskWritePaths: [],
   auditSampled: 0,
   auditDisagreed: 0,
   ...s,
@@ -230,6 +231,11 @@ describe('the terminal summary', () => {
         '',
       ].join('\n'),
     );
+  });
+
+  it('names the first paths the disk guard put back, and what to do when the tests write them', async () => {
+    const r = await run({ stats: stats({ diskWrites: 2, diskWritePaths: ['.probe-a', 'src/b.ts'] }) });
+    expect(textSummary(r)).toContain("2 write(s) outside the sandbox put back, their units re-run (.probe-a, src/b.ts; if the tests themselves write there, have git ignore it)");
   });
 
   it('names each correction the run made, in a fixed order', async () => {

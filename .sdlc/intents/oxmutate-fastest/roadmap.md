@@ -16,7 +16,7 @@ what the profile suggests, and each item ships only when its own measurement say
 | :-- | :-- | :-- |
 | paratext | at least **21.5x faster** | _measured_ 2026-11-12, one machine, 4 workers, load about 50: Stryker 380.0 s, oxmutate 17.7 s. oxmutate graded more mutants (1,332 against 1,255), so equal sets can only raise it. One run each. |
 | caique | **3.65x faster** | _measured_ 2026-11-13, equal sets (6,428 mutants matched), one machine, 4 workers: Stryker 3,391 s, oxmutate 928 s, mean loads 19.3 and 13.4. One pair. Before #1532 it was 1.3x to 1.5x (`sc8/RUNS.md`). |
-| compat-oracle | **unknown, probably slower** | No valid head-to-head. The last full run took 1,063 minutes here; Stryker's took 58 on a CI runner while skipping 1,298 mutants. |
+| compat-oracle | **unknown; oxmutate's half is owed** | Stryker: 32,835 s, _measured_ 2026-11-13, 4 workers, mean load 26.9, 6,298 mutants. oxmutate's run waits for the fix below: a test's scratch directory made the disk guard run three warm units in four twice (`sc8-profile.md` §9). On a slice the warm phase went from 307 s to 74 s (_measured_). |
 
 **Where a run's time goes** (_measured_, the 2026-11-04/05 full run, all 12 packages):
 static mutants 68%, isolated runs 19%, warm runs 13%, the oxc core 0%.
@@ -60,6 +60,7 @@ The warm phase and every small run. Judged on paratext.
 | `1.4` | Fewer, larger units | About 136 ms a unit outside its tests; the cap is 400 pairs | 10–20% of warm | Low: after `1.3`, since a restart then redoes more |
 | `1.5` | A worker that outlives its unit | Most of the remaining start-up. Vitest starts a fresh worker for every `start` when `isolate` is on | Large, up to 2x on warm | High: isolation is what several guarantees rest on. Only if `1.2`–`1.4` leave start-up dominant |
 | `1.6` | Start workers from a snapshot | Node can start from a heap snapshot with modules already loaded | Unknown; a spike first | Low if it works; it may not survive Vitest's loader |
+| `1.7` | The disk guard does not re-run units for a test's own scratch | Done (the PR with `static.group`). _Measured_ on `compat-oracle/src/run.ts:700-900`: 21 guard re-runs to 0, 82 units to 13, warm 307 s → 74 s (**4.1x**). The summary names the paths | The whole package is owed | One kind of write is no longer seen: a new entry gone again within its unit (`D-20261113-oxmutate-diskguard-vanished`) |
 
 ## Track 2 — Run fewer tests per mutant
 

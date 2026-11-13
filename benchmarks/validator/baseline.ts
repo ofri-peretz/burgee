@@ -39,7 +39,35 @@ interface Library {
   infer?: (i: string) => string;
 }
 
+/** Our own validator, installed from this checkout's build so it is read by the same code as the rest. */
+const OURS = path.resolve(import.meta.dirname, '../../packages/validator');
+const OURS_IMPORTS = `import { array, boolean, check, discriminated, enumOf, literal, number, object, optional, string } from 'validator';`;
+const oursSchema = (i: string): string => `
+const Item${i} = object({ sku: string({ min: 1, max: 32 }), qty: number({ int: true, min: 1 }), price: number({ min: 0 }) });
+const S${i} = object({
+  id: string({ min: 1 }), email: string({ pattern: ${EMAIL} }), age: optional(number({ int: true, min: 0, max: 150 })),
+  role: enumOf(['admin', 'user', 'guest']), active: boolean(), tags: array(string(), { max: 10 }),
+  address: object({ street: string(), city: string(), zip: string({ pattern: ${ZIP} }) }),
+  items: array(Item${i}, { min: 1 }),
+  payment: discriminated('kind', { card: object({ kind: literal('card'), last4: string({ length: 4 }) }), bank: object({ kind: literal('bank'), iban: string({ min: 15, max: 34 }) }) }),
+});`;
+
 const LIBRARIES: Record<string, Library> = {
+  // Interpreted: no eval, the default path.
+  ours: {
+    pkg: `file:${OURS}`,
+    imports: OURS_IMPORTS,
+    schema: oursSchema,
+    check: (s) => `(d) => check(${s}, d)`,
+    infer: (i) => `import('validator').Infer<typeof S${i}>`,
+  },
+  // The emitter's code, compiled at run time as ajv compiles: what \`apicontract gen validator\` writes ahead of time.
+  oursEmitted: {
+    pkg: `file:${OURS}`,
+    imports: `${OURS_IMPORTS}\nimport { compile } from 'validator/jit';`,
+    schema: oursSchema,
+    check: (s) => `compile(${s})`,
+  },
   zod: {
     pkg: 'zod@4.6.7',
     imports: `import * as z from 'zod';`,
@@ -159,7 +187,8 @@ const bin = (name: string): string => path.join(path.dirname(require.resolve('ty
 const dir = process.argv[2] ?? mkdtempSync(path.join(tmpdir(), 'validator-baseline-'));
 mkdirSync(dir, { recursive: true });
 writeFileSync(path.join(dir, 'package.json'), '{"private":true,"type":"module"}');
-mustRun('npm', ['i', '--silent', '--no-audit', '--no-fund', ...Object.values(LIBRARIES).map((l) => l.pkg)], dir);
+mustRun('npm', ['run', 'build', '--workspace', 'validator'], path.resolve(OURS, '../..'));
+mustRun('npm', ['i', '--silent', '--no-audit', '--no-fund', ...new Set(Object.values(LIBRARIES).map((l) => l.pkg))], dir);
 writeFileSync(path.join(dir, 'run.mjs'), RUNNER);
 
 const TSC = ['--noEmit', '--strict', '--skipLibCheck', '--target', 'es2022', '--module', 'nodenext', '--moduleResolution', 'nodenext', '--extendedDiagnostics'];
@@ -194,7 +223,8 @@ for (const [name, library] of Object.entries(LIBRARIES)) {
       return [version, { instantiations: diagnostic(output, 'Instantiations'), checkSeconds: diagnostic(output, 'Check time'), totalSeconds: diagnostic(output, 'Total time'), memoryK: diagnostic(output, 'Memory used') }];
     }));
   }
-  readings[name] = { package: library.pkg, ...runtime, bundleMinBytes: bundled.length, bundleGzipBytes: gzipSync(bundled).length, types };
+  // A local path says where this checkout is, not what was measured.
+  readings[name] = { package: library.pkg === `file:${OURS}` ? 'file:packages/validator' : library.pkg, ...runtime, bundleMinBytes: bundled.length, bundleGzipBytes: gzipSync(bundled).length, types };
 }
 
 console.log(JSON.stringify({
