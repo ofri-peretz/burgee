@@ -10,7 +10,7 @@
  * what it had to correct, not just what it concluded.
  */
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -32,6 +32,7 @@ import { FILE_KEY, env, stderr } from './runtime.js';
 import { createPool, type UnitOutcome } from './scheduler.js';
 import { summarizeSpec, tracesFor, type SpecSummary } from './spec-oracle.js';
 import { SPEC_TRACES_ENV } from './spec.js';
+import { removeWorkDir } from './work-dir.js';
 
 export type Status = 'Killed' | 'Survived' | 'Timeout' | 'NoCoverage' | 'RuntimeError' | 'CompileError' | 'Ignored';
 
@@ -1124,6 +1125,6 @@ export async function run(options: Options): Promise<RunResult> {
     progress.stop();
     for (const p of pools) p.close();
     if (env['OXMUTATE_KEEP']) stderr.write(`oxmutate: work directory kept at ${work}\n`);
-    else rmSync(work, { recursive: true, force: true });
+    else stderr.write(removeWorkDir(work) ?? '');
   }
 }
