@@ -56,6 +56,11 @@
       "import": "./dist/plugin.js",
       "default": "./dist/plugin.js"
     },
+    "./v8": {
+      "types": "./dist/v8.d.ts",
+      "import": "./dist/v8.js",
+      "default": "./dist/v8.js"
+    },
     "./package.json": "./package.json",
     "./schema.json": "./dist/schema.json"
   },
@@ -68,7 +73,8 @@
       "widest": ["./dist/widest.d.ts"],
       "widest-line": ["./dist/widest-line.d.ts"],
       "strip": ["./dist/strip.d.ts"],
-      "plugin": ["./dist/plugin.d.ts"]
+      "plugin": ["./dist/plugin.d.ts"],
+      "v8": ["./dist/v8.d.ts"]
     }
   },
   "files": [

@@ -11,7 +11,7 @@
           "why": "A code point Unicode 17 made wide, such as U+18D80, measures two columns, so a layout built on the width does not drift on new text.",
           "ours": { "status": "yes", "test": "packages/linegauge/src/width.test.ts", "title": "measures a Unicode 17 wide code point as two columns, as string-width does" },
           "incumbents": {
-            "string-width": { "status": "yes", "source": "node_modules/string-width/index.js", "quote": "import {eastAsianWidth} from 'get-east-asian-width';", "note": "through get-east-asian-width 1.7.0" },
+            "string-width": { "status": "yes", "source": "node_modules/benchmarks/node_modules/string-width/index.js", "quote": "import {eastAsianWidth} from 'get-east-asian-width';", "note": "through get-east-asian-width 1.7.0" },
             "wrap-ansi": { "status": "yes", "source": "node_modules/wrap-ansi/index.js", "quote": "import stringWidth from 'string-width';", "note": "measures through string-width" },
             "strip-ansi": { "status": "n/a", "source": "node_modules/strip-ansi/index.js", "lacks": "eastAsianWidth", "note": "removes escape sequences; measures nothing" },
             "slice-ansi": { "status": "yes", "source": "node_modules/slice-ansi/tokenize-ansi.js", "quote": "import stringWidth from 'string-width';", "note": "through string-width and get-east-asian-width, since slice-ansi 10" }
@@ -22,7 +22,7 @@
           "why": "Text is measured by grapheme cluster over `Intl.Segmenter`, so a family emoji built from four people and three joiners is two columns, not eight.",
           "ours": { "status": "yes", "test": "packages/linegauge/src/width.test.ts", "title": "RGI emoji: a ZWJ sequence is one two-column cluster, not four" },
           "incumbents": {
-            "string-width": { "status": "yes", "source": "node_modules/string-width/index.js", "quote": "const segmenter = new Intl.Segmenter();" },
+            "string-width": { "status": "yes", "source": "node_modules/benchmarks/node_modules/string-width/index.js", "quote": "const segmenter = new Intl.Segmenter();" },
             "wrap-ansi": { "status": "yes", "source": "node_modules/wrap-ansi/index.js", "quote": "const segmenter = new Intl.Segmenter();" },
             "strip-ansi": { "status": "n/a", "source": "node_modules/strip-ansi/index.js", "lacks": "Segmenter", "note": "removes escape sequences; measures nothing" },
             "slice-ansi": { "status": "yes", "source": "node_modules/slice-ansi/tokenize-ansi.js", "quote": "const GRAPHEME_SEGMENTER = new Intl.Segmenter(undefined, {granularity: 'grapheme'});" }
@@ -38,7 +38,7 @@
           "why": "A column range re-emits the styles active at its start and closes them at its end, so the fragment neither loses its colour nor leaks it into what follows.",
           "ours": { "status": "yes", "test": "packages/linegauge/src/slice.test.ts", "title": "closes what it opened, so the fragment is self-contained" },
           "incumbents": {
-            "string-width": { "status": "n/a", "source": "node_modules/string-width/index.js", "quote": "export default function stringWidth(", "note": "measures; its one export is the width, and it does not cut" },
+            "string-width": { "status": "n/a", "source": "node_modules/benchmarks/node_modules/string-width/index.js", "quote": "export default function stringWidth(", "note": "measures; its one export is the width, and it does not cut" },
             "wrap-ansi": { "status": "n/a", "source": "node_modules/wrap-ansi/index.js", "lacks": "sliceAnsi", "note": "folds text into rows; it takes no column range" },
             "strip-ansi": { "status": "n/a", "source": "node_modules/strip-ansi/index.js", "lacks": "slice", "note": "removes escape sequences; it does not cut" },
             "slice-ansi": { "status": "yes", "source": "node_modules/slice-ansi/index.js", "quote": "this.#output.push(...[...this.#styles.keys()].toReversed());" }
@@ -49,7 +49,7 @@
           "why": "`truncate(text, 10)` occupies ten columns or fewer with its ellipsis counted, cutting from the end, the start or the middle, which is what a table column depends on.",
           "ours": { "status": "yes", "test": "packages/linegauge/src/truncate.test.ts", "title": "is never wider than %i columns" },
           "incumbents": {
-            "string-width": { "status": "no", "source": "node_modules/string-width/index.js", "lacks": "ellipsis", "note": "measures only; truncation is cli-truncate, another package" },
+            "string-width": { "status": "no", "source": "node_modules/benchmarks/node_modules/string-width/index.js", "lacks": "ellipsis", "note": "measures only; truncation is cli-truncate, another package" },
             "wrap-ansi": { "status": "no", "source": "node_modules/wrap-ansi/index.js", "lacks": "ellipsis", "note": "folds text into rows; it never shortens it" },
             "strip-ansi": { "status": "n/a", "source": "node_modules/strip-ansi/index.js", "lacks": "ellipsis", "note": "removes escape sequences; it does not cut" },
             "slice-ansi": { "status": "partial", "source": "node_modules/slice-ansi/index.js", "lacks": "ellipsis", "missing": "cuts a column range, but adds no ellipsis and keeps no room for one" }
@@ -60,7 +60,7 @@
           "why": "`widest(lines)` measures an array, a `Set` or a generator in one pass, so the lines never have to be spread into an argument list.",
           "ours": { "status": "yes", "test": "packages/linegauge/src/truncate.test.ts", "title": "takes any iterable, so a generator never has to be spread" },
           "incumbents": {
-            "string-width": { "status": "no", "source": "node_modules/string-width/index.js", "lacks": "widest", "note": "measures one string; the widest of many is widest-line, another package" },
+            "string-width": { "status": "no", "source": "node_modules/benchmarks/node_modules/string-width/index.js", "lacks": "widest", "note": "measures one string; the widest of many is widest-line, another package" },
             "wrap-ansi": { "status": "no", "source": "node_modules/wrap-ansi/index.js", "lacks": "widest", "note": "folds one string" },
             "strip-ansi": { "status": "n/a", "source": "node_modules/strip-ansi/index.js", "lacks": "widest", "note": "removes escape sequences; measures nothing" },
             "slice-ansi": { "status": "no", "source": "node_modules/slice-ansi/index.js", "lacks": "widest", "note": "cuts one string" }
@@ -76,7 +76,7 @@
           "why": "A plugin registers `{ ranges, columns, why }` for a font that draws Private Use icons two columns wide, and a width table without a `why` is refused.",
           "ours": { "status": "yes", "test": "packages/linegauge/src/plugin.test.ts", "title": "counts a Private Use code point narrow until a plugin says otherwise" },
           "incumbents": {
-            "string-width": { "status": "no", "source": "node_modules/string-width/index.js", "lacks": "register", "note": "the Unicode table is fixed; only ambiguous width is an option" },
+            "string-width": { "status": "no", "source": "node_modules/benchmarks/node_modules/string-width/index.js", "lacks": "register", "note": "the Unicode table is fixed; only ambiguous width is an option" },
             "wrap-ansi": { "status": "no", "source": "node_modules/wrap-ansi/index.js", "lacks": "register", "note": "measures through string-width, which takes no overrides" },
             "strip-ansi": { "status": "n/a", "source": "node_modules/strip-ansi/index.js", "lacks": "register", "note": "removes escape sequences; measures nothing" },
             "slice-ansi": { "status": "no", "source": "node_modules/slice-ansi/index.js", "lacks": "register", "note": "the width of each code point is fixed" }
@@ -87,7 +87,7 @@
           "why": "`npx linegauge check ./widths.mjs` validates a plugin against the family schema and exits 1 with a code and a fix when it is refused.",
           "ours": { "status": "yes", "test": "scripts/plugin-check-lock.test.ts", "title": "refuses a malformed plugin with a code and a fix" },
           "incumbents": {
-            "string-width": { "status": "n/a", "source": "node_modules/string-width/package.json", "lacks": "\"bin\"", "note": "takes no plugins, so has nothing to check" },
+            "string-width": { "status": "n/a", "source": "node_modules/benchmarks/node_modules/string-width/package.json", "lacks": "\"bin\"", "note": "takes no plugins, so has nothing to check" },
             "wrap-ansi": { "status": "n/a", "source": "node_modules/wrap-ansi/package.json", "lacks": "\"bin\"", "note": "takes no plugins, so has nothing to check" },
             "strip-ansi": { "status": "n/a", "source": "node_modules/strip-ansi/package.json", "lacks": "\"bin\"", "note": "takes no plugins, so has nothing to check" },
             "slice-ansi": { "status": "n/a", "source": "node_modules/slice-ansi/package.json", "lacks": "\"bin\"", "note": "takes no plugins, so has nothing to check" }
@@ -103,7 +103,7 @@
           "why": "Measuring, wrapping, slicing, stripping and truncating install as one package that depends on nothing.",
           "ours": { "status": "yes", "test": "scripts/package-shape-lock.test.ts", "title": "depends on nothing: it is the floor" },
           "incumbents": {
-            "string-width": { "status": "no", "source": "node_modules/string-width/package.json", "quote": "\"get-east-asian-width\": \"^1.5.0\",", "note": "get-east-asian-width and strip-ansi" },
+            "string-width": { "status": "no", "source": "node_modules/benchmarks/node_modules/string-width/package.json", "quote": "\"get-east-asian-width\": \"^1.7.0\",", "note": "get-east-asian-width and strip-ansi" },
             "wrap-ansi": { "status": "no", "source": "node_modules/wrap-ansi/package.json", "quote": "\"ansi-styles\": \"^6.2.3\",", "note": "ansi-styles and string-width" },
             "strip-ansi": { "status": "no", "source": "node_modules/strip-ansi/package.json", "quote": "\"ansi-regex\": \"^6.2.2\"", "note": "ansi-regex" },
             "slice-ansi": { "status": "no", "source": "node_modules/slice-ansi/package.json", "quote": "\"string-width\": \"^8.3.0\"", "note": "ansi-styles and string-width" }

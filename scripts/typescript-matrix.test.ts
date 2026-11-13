@@ -20,7 +20,7 @@
  */
 import { execFile } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { availableParallelism, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -101,28 +101,51 @@ const CELLS = COMPILERS.flatMap(({ line, dir }) => CONSUMERS.filter(({ only }) =
 const printed = new Map<string, string>();
 const consumers: string[] = [];
 
-// Every cell compiles at once, here: the fourteen compiles one after another were 29 s and up to
-// 4.7 s a case, against a 5 s case budget (D-20261101-tests-under-5s). Each has its own consumer
-// directory, since the setups differ in `package.json` and `tsconfig.json`.
+/**
+ * How many cells compile at a time: one per core. A cell is one `tsc` process, so more than the
+ * cores adds memory and no speed.
+ *
+ * All fourteen at once timed this hook out at 60 s on `Node 24 · macos-latest` (run 43482009402,
+ * 2026-11-13; it took 50.6 s on a macOS run that passed, 32.5 s on Windows and 20.2 s on Ubuntu).
+ * Measured alone (2026-11-13, 14 cores): each 5.9 or 6.0 `tsc` is about 1 s at 425–480 MB
+ * resident and each 7.0 one 0.4 s at 240 MB. All at once, the `tsc` processes' summed resident
+ * memory peaked at 2.8 GB (sampled every 100 ms); three at a time, 1.4 GB. macos-latest has three
+ * cores and 7 GB, shared with the root suite's other files (ink-alias-lock's `npm install`s run
+ * beside this one), so all at once is fourteen compilers time-slicing three cores, with the
+ * memory of the whole matrix held until the slowest finishes.
+ */
+const AT_ONCE = Math.max(1, Math.min(CELLS.length, availableParallelism()));
+
+/** Runs `task` over `items`, `limit` at a time: each worker takes the next item when its last one is done. */
+async function inTurns<T>(items: readonly T[], limit: number, task: (item: T) => Promise<void>): Promise<void> {
+  const queue = [...items];
+  const worker = async (): Promise<void> => {
+    // eslint-disable-next-line reliability/no-await-in-loop -- one cell after another per worker, on purpose; the workers run side by side
+    for (let item = queue.shift(); item !== undefined; item = queue.shift()) await task(item);
+  };
+  await Promise.all(Array.from({ length: limit }, worker));
+}
+
+// Every cell compiles here, before the cases: the fourteen compiles one after another were 29 s and
+// up to 4.7 s a case, against a 5 s case budget (D-20261101-tests-under-5s). Each has its own
+// consumer directory, since the setups differ in `package.json` and `tsconfig.json`.
 beforeAll(async () => {
-  await Promise.all(
-    CELLS.map(async ({ line, dir, name, esm, options }) => {
-      const consumer = mkdtempSync(join(tmpdir(), 'typescript-matrix-'));
-      consumers.push(consumer);
-      mkdirSync(join(consumer, 'node_modules'));
-      for (const { dir: from, pkg } of published) symlinkSync(join(REPO_ROOT, 'packages', from), join(consumer, 'node_modules', pkg.name), 'junction');
-      writeFileSync(join(consumer, 'index.ts'), `${specifiers.map((spec, i) => `import type * as m${String(i)} from '${spec}';`).join('\n')}\nexport type All = [${specifiers.map((_, i) => `typeof m${String(i)}`).join(', ')}];\n`);
-      writeFileSync(join(consumer, 'package.json'), JSON.stringify(esm ? { type: 'module' } : {}));
-      writeFileSync(
-        join(consumer, 'tsconfig.json'),
-        JSON.stringify({
-          compilerOptions: { ...options, target: 'es2023', lib: ['es2023'], noEmit: true, strict: true, skipLibCheck: false, types: ['node'], typeRoots: [join(REPO_ROOT, 'node_modules', '@types')] },
-          files: ['index.ts'],
-        }),
-      );
-      printed.set(`${line} ${name}`, await tsc(dir, ['-p', '.', '--pretty', 'false'], consumer));
-    }),
-  );
+  await inTurns(CELLS, AT_ONCE, async ({ line, dir, name, esm, options }) => {
+    const consumer = mkdtempSync(join(tmpdir(), 'typescript-matrix-'));
+    consumers.push(consumer);
+    mkdirSync(join(consumer, 'node_modules'));
+    for (const { dir: from, pkg } of published) symlinkSync(join(REPO_ROOT, 'packages', from), join(consumer, 'node_modules', pkg.name), 'junction');
+    writeFileSync(join(consumer, 'index.ts'), `${specifiers.map((spec, i) => `import type * as m${String(i)} from '${spec}';`).join('\n')}\nexport type All = [${specifiers.map((_, i) => `typeof m${String(i)}`).join(', ')}];\n`);
+    writeFileSync(join(consumer, 'package.json'), JSON.stringify(esm ? { type: 'module' } : {}));
+    writeFileSync(
+      join(consumer, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: { ...options, target: 'es2023', lib: ['es2023'], noEmit: true, strict: true, skipLibCheck: false, types: ['node'], typeRoots: [join(REPO_ROOT, 'node_modules', '@types')] },
+        files: ['index.ts'],
+      }),
+    );
+    printed.set(`${line} ${name}`, await tsc(dir, ['-p', '.', '--pretty', 'false'], consumer));
+  });
 });
 afterAll(() => discard(...consumers));
 

@@ -1,0 +1,13 @@
+{
+  "name": "@vendored/string-width-8-suite",
+  "private": true,
+  "type": "module",
+  "main": "./shim.js",
+  "version": "8.3.0",
+  "license": "MIT",
+  "description": "Get the visual width of a string - the number of columns required to display it",
+  "repository": "sindresorhus/string-width",
+  "devDependencies": {
+    "string-width": "8.3.0"
+  }
+}

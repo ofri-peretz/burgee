@@ -14,7 +14,7 @@
  */
 import { DISABLE_BRACKETED_PASTE, ENABLE_BRACKETED_PASTE, HIDE_CURSOR, SHOW_CURSOR } from 'closeout/cursor';
 import restoreCursor from 'closeout/restore-cursor';
-import { width as stringWidth } from 'linegauge';
+import { width as stringWidth } from 'linegauge/v8';
 import {
   beginSynchronizedOutput,
   cursorDown,

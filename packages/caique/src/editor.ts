@@ -21,7 +21,7 @@
  */
 import { createInterface } from 'node:readline';
 
-import { width } from 'linegauge';
+import { width } from 'linegauge/v8';
 
 import { type Keymap, type KeyPress, match } from './keys.js';
 import { edit, moveTextCursor } from './line-edit.js';

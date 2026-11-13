@@ -6,7 +6,8 @@
  * one that is `undefined` unsets it. A text node is a flex leaf whose measure function wraps
  * its text.
  */
-import { slice, width as widthOf, widest, wrap } from 'linegauge';
+import { slice, widest, wrap } from 'linegauge';
+import { width as widthOf } from 'linegauge/v8';
 
 import { sanitizeAnsi, serialize, type StyledChar, styledChars } from './ansi.js';
 import { defaults, type FlexNode, type FlexStyle, type Length, type Mode, type Size, UNDEFINED } from './flex.js';

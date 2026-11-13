@@ -51,7 +51,7 @@ export const GRADED: Readonly<Record<string, Row>> = {
   'log-update': { reference: 99, passed: 99, rate: 1, control: 99 },
   boxen: { reference: 213, passed: 213, rate: 1, control: 213 },
   'cli-table3': { reference: 29, passed: 29, rate: 1, control: 29 },
-  'string-width': { reference: 233, passed: 233, rate: 1, control: 233 },
+  'string-width': { reference: 466, passed: 466, rate: 1, control: 466 },
   'strip-ansi': { reference: 8, passed: 8, rate: 1, control: 8 },
   'cross-spawn': { reference: 68, passed: 68, rate: 1, control: 68 },
   which: { reference: 5, passed: 5, rate: 1, control: 5 },
@@ -97,6 +97,7 @@ export const GRADED: Readonly<Record<string, Row>> = {
 export const GRADED_MAJORS: Readonly<Record<string, Row>> = {
   'commander-14': { reference: 1331, passed: 1331, rate: 1, control: 1331 },
   'yargs-17': { reference: 794, passed: 793, rate: 0.9987405541561712, control: 793 },
+  'string-width-8': { reference: 233, passed: 233, rate: 1, control: 233 },
 };
 
 /** One graded path: an incumbent's specifier, and the family specifier that replaces it. */
@@ -201,7 +202,7 @@ export const GRADED_VERSIONS: Readonly<Record<string, string>> = {
   'restore-cursor': '5.1.0',
   'signal-exit': '4.1.0',
   'slice-ansi': '10.0.1',
-  'string-width': '8.3.0',
+  'string-width': '9.0.0',
   'strip-ansi': '7.2.0',
   'supports-color': '11.0.0',
   'term-img': '7.1.0',
@@ -228,6 +229,10 @@ export const GRADED_VERSIONS: Readonly<Record<string, string>> = {
  * commander 14.0.3 itself. That subpath is the front-end with 14's excess-arguments message,
  * which omits the surplus argument 15 names, and `migrate` writes it for a project on 14
  * (`previous-majors` R1, R2, R6).
+ *
+ * string-width 8 is claimed: its suite grades `linegauge/v8` 233 / 233, level with 8.3.0
+ * itself. 9.0.0 rewrote the per-cluster rules and the root follows it (466 / 466); `linegauge/v8`
+ * is 8's measurement, which `migrate` writes for a project on 8 (D-20261113-string-width-9).
  *
  * Yargs 17 is claimed: its suite grades `burgee/yargs/v17` 793 / 794, level with yargs 17.7.3
  * itself, whose one miss is the vendored root's own manifest. That entry is the front-end with
@@ -283,7 +288,7 @@ export const SUPPORTED_MAJORS: Readonly<Record<string, readonly number[]>> = {
   'restore-cursor': [5],
   'signal-exit': [4],
   'slice-ansi': [10],
-  'string-width': [8],
+  'string-width': [8, 9],
   'strip-ansi': [7],
   'supports-color': [11],
   'term-img': [7],
@@ -304,6 +309,8 @@ export const SUPPORTED_MAJORS: Readonly<Record<string, readonly number[]>> = {
  */
 export const PREVIOUS_MAJOR_ENTRIES: Readonly<Record<string, Readonly<Record<number, string>>>> = {
   commander: { 14: 'burgee/commander/v14' },
+  // 8's rules, which slice-ansi 10 and wrap-ansi 10 still measure with; the root follows 9.
+  'string-width': { 8: 'linegauge/v8' },
   yargs: { 17: 'burgee/yargs/v17' },
   // 17's `yargs/yargs` is the factory, never the singleton `require('yargs')` returns in 17.
   'yargs/yargs': { 17: 'burgee/yargs/v17/yargs' },

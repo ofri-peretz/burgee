@@ -1015,7 +1015,17 @@ export const HOSTS: Host[] = [
     testGlob: 'test.js',
     imports: [{ upstream: './index.js', subpath: '', reexportDefault: true }],
     surfaceFiles: ['index.d.ts', 'index.js'],
-    runner: 'ava',
+    // 9.0.0 moved its suite from ava to `node --test`; left at ava, both runs read 0.
+    // Stryker disable next-line StringLiteral: graded in another process: the compat ratchet's run and its `--control` run read this row against `baseline/string-width.json` (466 of 466), and a runner other than `node:test` cannot run the suite at all — both read 0.
+    runner: 'node:test',
+    // The incumbent installed beside the suite, as `slice-ansi-7` does, so the control is 9.0.0
+    // itself. The workspace root stays at `^8.3.0`: slice-ansi 10.0.1, wrap-ansi 10.0.2,
+    // cli-truncate 6.2.0, widest-line, boxen and ink all still depend on `^8`, and a root at 9
+    // nests a copy of 8 under each of them (D-20261113-string-width-9).
+    // Stryker disable next-line StringLiteral: graded in another process: only a re-vendor reads the pin, and the vendored `PROVENANCE` and `.source.json` record the release it produced (9.0.0)
+    pinnedVersion: '9.0.0',
+    // Stryker disable next-line StringLiteral,ArrayDeclaration: graded in another process: the `--control` run installs this beside the suite and reads 466 of 466 only against 9.0.0 itself
+    suiteDeps: ['string-width@9.0.0'],
     target: 'linegauge',
     status: 'active',
     note: "**Moved to 8.3.0 on 2026-09-28: 233 / 233 against a control of 233 / 233.** The four new cases are runs of `U+034F` COMBINING GRAPHEME JOINER (1,000 and 3,000,000) before a spacing mark, an emoji modifier or nothing, and they found a hang: `width()` tested a cluster for zero width with `^(?:DI|Control|Format|Mn|Me|Surrogate)+$`, `U+034F` is in two of those classes, and the regex backtracked exponentially — the suite never reached its summary. A code-point loop replaced it (`leadingInvisible` in `width.ts`). Before that: 229 / 229 control and 229 / 229 target, measured 2026-09-15 — up from 201 / 229, and the 28 that moved were four defects rather than twenty-eight, categorised in `.sdlc/intents/linegauge/spec.md` § R10 before any of them was touched. (A) `Intl.Segmenter` joins a run of conjoining Hangul jamo into one cluster, and measuring that cluster by its first code point answered 2 where a terminal draws 12; modern Hangul composes L + V (+ T) into one two-column syllable and leaves the rest additive — 10 cases. (B) the zero-width class matched `\\p{Mark}`, which is the spacing marks as well as the non-spacing ones, so Devanagari vowel sign AA measured 0 — 3 cases. (C) a prepended concatenation mark is `Format` but not `Default_Ignorable`, so it missed the zero-width class, was then stripped as leading non-printing, and was charged a column for the code point 0 that remained — 3 cases. (D) `\\p{RGI_Emoji}` matches only the fully-qualified spelling, so the same sequence without its `U+FE0F` fell through to the East Asian Width of its base scalar — 12 cases. Every one of the four was linegauge wrong and the incumbent right; none is a judgement call, which is why the row is now exact rather than argued. linegauge exports `width` as its default, which is the shape string-width's own tests import.",
@@ -2431,6 +2441,31 @@ export const PREVIOUS_MAJORS: Host[] = [
     // Stryker disable next-line StringLiteral: an active row's note is its maintainers' log and nothing reads it — `Host.note` is rendered only for a row that is not active (compat-page), so emptying it changes no grade, page or output.
     note: "**2026-10-19: level and claimed — `burgee/yargs/v17` 793 / 794 against a control of 793 / 794 (`previous-majors` R3–R5), so `SUPPORTED_MAJORS.yargs` is `[17, 18]`.** The one miss is the control's own, above. Four things, each found by the suite and none by reading the changelog. **The singleton (R4):** `require('burgee/yargs/v17')` reaches `dist/yargs/v17.cjs`, CommonJS on purpose: every `beforeEach` busts the require cache and requires the entry again to get an instance over the `process.argv` it has just set, and an ES module is evaluated once per process whatever the cache says — an ESM singleton kept the first `process.argv` and the last instance a test built, and read 772. **`yargs/yargs` is not the singleton:** `helpers.cjs` counts the keys of `require('yargs/yargs')` and wants three, so 17's factory-with-statics is its own entry, `burgee/yargs/v17/yargs`, and the second import names it (`HostImport.target`); `yargs-parser` names `burgee/yargs/parser`, which a program on either major is migrated to. **The string table (R3):** 18's constructor sets `en_US` on every instance and 17's leaves the table alone, and 17's table is made per load of its build, so a locale one test updated (`OPTIONS!`) is not the next file's, and the constructor's `en_US` is not 17's `en`; fourteen cases. **`commandDir()` (R3):** 17 walks with `require-directory` — depth first, `include` and `exclude` against the path, `visit` handed the module itself (18's prototype-less copy has no `.should`) — and names a command module that names no command by finding it in `require.cache` (`whichModule`). Plus `YARGS_MIN_NODE_VERSION`, which 17's CommonJS entry reads at load. All of it is in `burgee/yargs/v17`'s own modules (`yargs/v17-factory.ts`, `yargs/v17.cts`); `burgee/yargs` gains one optional `CommandInstance` on its platform shim, and `burgee/yargs` still grades 816 / 816. `targetInternals` serves `../build/index.cjs` from `dist/yargs/v17.js`'s namespace, in CommonJS at that path, so `parser.cjs` reads `Parser` and `usage.cjs` reads `YError` from the entry rather than off an instance; the internals line is 23 / 23 with it. The paragraph below is the row before the entry. **Measured 2026-09-24: 191 / 794, 24.1%, against a control of 793 / 794 — 17 is graded and not claimed** (`SUPPORTED_MAJORS.yargs` is `[18]`). It is one decision of 18's, not 603 gaps: **17's `require('yargs')` is a singleton** — an instance already bound to `process.argv`, with every method on the required object — and 18 removed it, so the façade, which speaks 18, hands a `require()` caller the factory. Every file but three opens with `yargs.getInternalMethods().reset()` or `require('../../').help(…)` on that object, so the `beforeEach` of `Command`, `Completion`, `usage tests` and `validation tests` throws `yargs.getInternalMethods is not a function` and mocha abandons the rest of each block: **274 of the 794 register at all**, and the 520 that never run are counted against the row, not dropped. Of the 83 that register and fail, the named groups are the same cause seen from the inside: the 14 `integration tests` spawn fixtures that call `require('../../').help('help')`; `helpers` wants 17's `yargs/yargs` statics (`applyExtends`, `Parser`, `hideBin`) on the factory, where 18 moved them to `yargs/helpers`; `should expose yargs-parser as Parser` reads `Parser` off 17's build bundle; and the `yargs dsl tests` failures (`$0` from the bin name, electron argv, `locale`, `env`, `terminalWidth`, the minimum-Node check) each drive the singleton or its module-scope state. Three harness fixes were needed before the control read 793 and none moved an assertion: the mocha 9 CLI path (`mochaCli`), a top-level `yargs-parser@21.1.1` in `suiteDeps`, and a CommonJS shim that evicts the incumbent only when the suite busted the shim (`cjsLoad`) with the internal `build/index.cjs` a link to the incumbent's own on a control run (`linksInternal`).",
   },
+  {
+    // string-width 8, kept graded when the current row moved to 9.0.0, because 8 is the major
+    // `SUPPORTED_MAJORS` claimed until then and a claim does not lapse by a bump. 8 is also
+    // what slice-ansi 10, wrap-ansi 10, cli-truncate 6, widest-line 6, boxen 9 and ink 8 still
+    // resolve, and `linegauge/v8` — 8.3.0's rules, the measurement `slice` and `wrap` use — is
+    // the entry graded here. The suite is the one the current row graded until 2026-11-13,
+    // re-vendored at the same tag, and the incumbent is installed beside it so the control is 8.3.0
+    // itself whatever the root resolves (D-20261113-string-width-9).
+    // Stryker disable all: graded in another process: the compat ratchet's `--majors` and `--majors --control` runs read this row against `baseline/majors/string-width-8.json` (233 of 233), and a mutant here moves one of those counts
+    name: 'string-width-8',
+    npmName: 'string-width',
+    majorOf: 'string-width',
+    repo: 'https://github.com/sindresorhus/string-width',
+    testDir: '.',
+    testGlob: 'test.js',
+    imports: [{ upstream: './index.js', subpath: '', reexportDefault: true }],
+    surfaceFiles: ['index.d.ts', 'index.js'],
+    runner: 'ava',
+    pinnedVersion: '8.3.0',
+    suiteDeps: ['string-width@8.3.0'],
+    target: 'linegauge/v8',
+    status: 'active',
+    note: '**Measured 2026-11-13: 233 / 233 against a control of 233 / 233, level and claimed** (`SUPPORTED_MAJORS["string-width"]` is `[8, 9]`). `linegauge/v8` is the measurement the current row graded 233 / 233 until 9.0.0, unchanged; the root moved to 9.0.0\'s rules.',
+  },
+  // Stryker restore all
   {
     // slice-ansi 7, kept graded when the current row moved to 9 (burgee#317), because 7 is
     // the major `SUPPORTED_MAJORS` claimed until then and a claim does not lapse by a bump:
