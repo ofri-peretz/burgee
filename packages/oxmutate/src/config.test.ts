@@ -148,12 +148,15 @@ describe('options from a config file', () => {
   it('static.group is a whole number of at least one; anything else arms each static mutant alone', async () => {
     const group = async (value: unknown): Promise<number> => (await loadOptions(project({ 'oxmutate.config.json': { static: { group: value } } }))).staticGroup;
     expect(await group(25)).toBe(25);
+    expect(await group(2)).toBe(2);
     expect(await group(2.9)).toBe(2);
     expect(await group(1)).toBe(1);
     expect(await group(0)).toBe(1);
     expect(await group(-4)).toBe(1);
     expect(await group('many')).toBe(1);
     expect((await loadOptions(project({ 'oxmutate.config.json': { static: {} } }))).staticGroup).toBe(1);
+    // `static` is a key oxmutate reads: it is not listed with the ones it ignores.
+    expect((await loadOptions(project({ 'oxmutate.config.json': { static: { group: 4 } } }))).unused).toEqual([]);
     expect((await loadOptions(project({ 'oxmutate.config.json': { static: { group: 8 } } }), { staticGroup: 3 })).staticGroup).toBe(3);
   });
 

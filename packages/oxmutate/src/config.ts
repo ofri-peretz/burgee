@@ -20,6 +20,12 @@ export interface Thresholds {
   break: number | null;
 }
 
+/** `static.group` as a whole number of at least one; anything that is not a number is one. */
+function staticGroupOf(group: unknown): number {
+  const asked = Math.floor(Number(group));
+  return asked >= 2 ? asked : 1;
+}
+
 /** Why a static mutant is Ignored under `ignoreStatic`; the summary counts them by it. */
 export const IGNORE_STATIC_REASON = 'static mutant (ignoreStatic)';
 
@@ -248,7 +254,7 @@ export async function loadOptions(root: string, overrides: Partial<Options> = {}
     thresholds: { high: thresholds.high ?? DEFAULT_THRESHOLD_HIGH, low: thresholds.low ?? DEFAULT_THRESHOLD_LOW, break: thresholds.break ?? null },
     excludedMutations: mutator.excludedMutations ?? [],
     ignoreStatic: raw['ignoreStatic'] === true,
-    staticGroup: Math.max(1, Math.floor(Number((raw['static'] as { group?: number } | undefined)?.group ?? 1)) || 1),
+    staticGroup: staticGroupOf((raw['static'] as { group?: unknown } | undefined)?.group),
     strykerCompat: raw['strykerCompat'] === true,
     reporters: (raw['reporters'] as string[] | undefined) ?? ['clear-text', 'json'],
     jsonReport: path.resolve(root, json.fileName ?? 'reports/mutation/mutation.json'),

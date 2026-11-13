@@ -238,6 +238,7 @@ describe('the terminal summary', () => {
       '  corrected: 1 runaway(s) stopped · 10 deadlock(s) called by their worker · 11 write(s) outside the sandbox put back, their units re-run · 2 polluted context(s) restarted (in 3 file(s)) · 4 flaky verdict(s) · 5 survivor(s) killed by a whole-file re-run · 6 timeout(s) that finished given 3x the time · 7 survivor(s) that do not type-check, out of the score · 8 verdict(s) reused (12 audited, 1 disagreeing) · 9 worker crash(es)',
     );
     expect(textSummary(await run({ stats: stats({ crashes: 1 }) })).split('\n')[4]).toBe('  corrected: 1 worker crash(es)');
+    expect(textSummary(await run({ stats: stats({ staticAuditDisagreed: 2 }) })).split('\n')[4]).toBe('  corrected: 2 kill(s) a static group hid, found by the audit');
     // What the phases were made of, printed only for a phase that ran.
     const made = textSummary(await run({ stats: stats({ warmUnitMs: 19_000, warmArmedMs: 2600, isolatedRuns: 9, isolatedByCause: { static: 2, stopped: 1, unfinished: 0, rerun: 1, confirm: 5, flaky: 0 } }) })).split('\n');
     expect(made[4]).toBe('  warm servers ran 19.0 s, 2.6 s of it inside test runs');
