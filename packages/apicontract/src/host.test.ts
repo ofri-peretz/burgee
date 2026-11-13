@@ -1,8 +1,21 @@
 import { describe, expect, it } from 'vitest';
 
 import { type Contract } from './core/model.js';
+import {
+  checkPlugin,
+  CONTRACT,
+  createHost,
+  type GeneratedFile,
+  type Generator,
+  type Plugin,
+  PluginError,
+  register,
+  registered,
+  reset,
+  validate,
+  validateFiles,
+} from './host.js';
 import { openapi } from './openapi.js';
-import { checkPlugin, CONTRACT, createHost, type GeneratedFile, type Generator, type Plugin, PluginError, validate, validateFiles } from './plugin.js';
 
 const document = { openapi: '3.1.0', paths: { '/pets': { get: { operationId: 'listPets' } } } };
 
@@ -206,6 +219,20 @@ describe('a host', () => {
     const host = createHost();
     host.register(plugin({ run: () => [{ path: '../escape.ts', content: '', owner: 'generated' }] }));
     await expect(host.generate('list', document)).rejects.toThrow('generator "list" returned the path "../escape.ts", which leaves the output folder');
+  });
+});
+
+describe("the program's host", () => {
+  it('registers, lists and forgets plugins, and refuses a bad one', () => {
+    reset();
+    const one = plugin();
+    register(one);
+    expect(registered()).toEqual([one]);
+    expect(() => register({ name: '' })).toThrow(PluginError);
+    expect(registered()).toEqual([one]);
+    reset();
+    expect(registered()).toEqual([]);
+    expect(createHost().plugins()).not.toBe(registered());
   });
 });
 

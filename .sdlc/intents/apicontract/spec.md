@@ -372,6 +372,14 @@ the shape.
   (`npm run schema:sync`), adds `apicontract` to the routing table behind `burgee check`
   (plugin-contract R9), and is held by the existing byte-identity and schema-agreement locks.
 
+**Found at build, 2026-11-13.** The family locks find a host by the file `src/plugin.ts`, and a host
+they find must already be in the shared schema, in `burgee check`'s routing table and have a bin
+with a `check` command. So step 3 lands the host as `src/host.ts`, internal, and R-PL8 is the PR
+that renames it to `plugin.ts`, adds `adapters` and `generators` to every host's `schema.json`,
+routes both keys in `burgee check`, and ships `apicontract check <plugin>`. That PR changes nine
+published packages' schema copies and burgee's source, so it carries changesets and its release is
+the owner's to merge.
+
 Build order, one PR each, each with a check proven to fail first:
 
 1. The model and the `$ref` resolver, with `adapter.qnt` already modelling the walk.

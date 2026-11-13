@@ -6,6 +6,10 @@
  * without complaining, which is what lets one object also carry burgee `commands` or a flagstaff
  * component. The shape is declared here, not imported from another layer.
  *
+ * This file is `host.ts`, not the family's `plugin.ts`, until the schema gains `adapters` and
+ * `generators` and `burgee check` routes them here (R-PL8, its own PR): the family locks find a
+ * host by that file name, and a host they find must already be in the schema.
+ *
  * Nothing here touches the file system. A generator returns files and the caller writes them
  * (R-PL3), so a dry run, `--check` and overwrite safety live in one place and not in every plugin.
  */
@@ -155,6 +159,8 @@ export function validate(plugin: unknown): asserts plugin is Plugin {
 export interface Host {
   readonly register: (plugin: unknown) => void;
   readonly plugins: () => readonly Plugin[];
+  /** Forget every registered plugin. */
+  readonly reset: () => void;
   /** Read a parsed document with the adapter that recognises it. */
   readonly read: (document: unknown) => Contract;
   /** The generator registered under `target`. */
@@ -205,6 +211,9 @@ export const createHost = (): Host => {
       order.push(plugin);
     },
     plugins: () => order,
+    reset: () => {
+      order.length = 0;
+    },
     read: (document) => read(document),
     generator,
     generate: async (target, document, options = {}) => {
@@ -273,4 +282,20 @@ export const checkPlugin = async (plugin: unknown): Promise<Finding[]> => {
   };
   const findings = await Promise.all(Object.entries(registered.generators ?? {}).map(async (entry) => checkOne(entry)));
   return findings.flat();
+};
+
+/** The program's own host: what `apicontract gen` reads, and what the family's `register()` fills. */
+const program = createHost();
+
+/** Register a plugin with the program's host. Later wins a name. */
+export const register = (plugin: unknown): void => {
+  program.register(plugin);
+};
+
+/** The plugins registered with the program's host, oldest first. */
+export const registered = (): readonly Plugin[] => program.plugins();
+
+/** Forget every plugin registered with the program's host. For tests, and a program that re-registers. */
+export const reset = (): void => {
+  program.reset();
 };
