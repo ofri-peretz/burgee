@@ -28,6 +28,7 @@ import { availableParallelism, loadavg } from 'node:os';
 import path from 'node:path';
 
 import { BEAT_ENV, markTest, realNow, startHeartbeat } from './heartbeat.js';
+import { markWriter, type MarkWriter } from './progress-file.js';
 import { isDeadlock, takeFloor, trackRpc, trackTimers, watch } from './quiescence.js';
 import { resolveEsm } from './resolve.js';
 import { ACTIVE_MUTANT_ENV, FILE_KEY, NAMESPACE, cwd, env, type Namespace } from './runtime.js';
@@ -306,8 +307,14 @@ const FILE_ERROR_CHARS = 500;
 // 2026-11-11). A write on an open descriptor is in the kernel before the next mutant starts, so a
 // server the watchdog kills has still left its records and its mark.
 let resultsFd: number | undefined;
-let progressFd: number | undefined;
-let markLength = 0;
+let progress: MarkWriter | undefined;
+
+/** Whether a failed test failed by Vitest's own timeout, of the test or of one of its hooks. */
+const OWN_TIMEOUT = /^(?:Test|Hook) timed out in \d+ms/u;
+function ownTimeout(t: AnyTask): boolean {
+  const errors = (t.result as { errors?: { message?: string }[] } | undefined)?.errors ?? [];
+  return errors.length > 0 && errors.every((e) => OWN_TIMEOUT.test(e.message ?? ''));
+}
 
 function emit(record: object): void {
   if (!resultsPath) return;
@@ -315,26 +322,19 @@ function emit(record: object): void {
   writeSync(resultsFd, `${JSON.stringify(record)}\n`);
 }
 
-/**
- * The scheduler's watchdog reads this file: the mutant now running and when it started, or nothing.
- * Each mark is padded to the longest one written, so it replaces the last in one write and the
- * file is never truncated: truncating it for every mutant was 1.8 s of a 53 s run (2026-11-11).
- * The reader trims, so the padding reads as nothing.
- */
+/** The mark the scheduler's watchdog reads (progress-file.ts). */
 function mark(text: string): void {
   if (!progressPath) return;
-  progressFd ??= openSync(progressPath, 'w');
-  const padded = text.trimEnd().padEnd(markLength);
-  markLength = padded.length;
-  if (padded) writeSync(progressFd, padded, 0);
+  progress ??= markWriter(progressPath);
+  progress.write(text);
 }
 
 /** A worker thread's descriptors outlive it in a threads pool, so the end of its run closes them. */
 function closeFiles(): void {
-  for (const fd of [resultsFd, progressFd]) if (fd !== undefined) closeSync(fd);
+  if (resultsFd !== undefined) closeSync(resultsFd);
+  progress?.close();
   resultsFd = undefined;
-  progressFd = undefined;
-  markLength = 0;
+  progress = undefined;
 }
 
 // The suites whose hooks wrap `test`, outermost first. Vitest 5 leaves a top-level `describe`'s
@@ -821,21 +821,30 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
     } else if (mode === 'isolated') {
       const failed: string[] = [];
       let ran = 0;
+      // Failures that were not a test's own timeout. With none, the run failed only because tests were slow.
+      let decisive = 0;
       const visit = (t: AnyTask): void => {
         if (t.type === 'test' && (t.result?.state === 'pass' || t.result?.state === 'fail')) ran++;
-        if (t.type === 'test' && t.result?.state === 'fail') failed.push(t.id);
+        if (t.type === 'test' && t.result?.state === 'fail') {
+          failed.push(t.id);
+          if (!ownTimeout(t)) decisive++;
+        }
         for (const c of t.tasks ?? []) visit(c);
       };
       for (const f of files) {
         visit(f);
         // A file that failed with no failing test (it threw at import, or in a hook) failed under
         // the mutant: a kill, as Stryker scores it. Its id stands in for the test that failed.
-        if (f.result?.state === 'fail' && !failed.length) failed.push(f.id);
+        if (f.result?.state === 'fail' && !failed.length) {
+          failed.push(f.id);
+          decisive++;
+        }
       }
       const [first] = files;
+      if (unhandled > 0) decisive++;
       if (unhandled > 0 && !failed.length && first) failed.push(first.id);
       const timeout = ranAway() || deadlocked;
-      emit({ type: 'isolated', id: env[ACTIVE_MUTANT_ENV] ?? ns.activeMutant, killed: failed.length > 0 && !timeout, failed, ran, ...(timeout && { timeout }), ...(deadlocked && { deadlock: true }) });
+      emit({ type: 'isolated', id: env[ACTIVE_MUTANT_ENV] ?? ns.activeMutant, killed: failed.length > 0 && !timeout, failed, ran, ...(timeout && { timeout }), ...(deadlocked && { deadlock: true }), ...(failed.length > 0 && decisive === 0 && { slow: true }) });
     }
     closeFiles();
     return super.onAfterRunFiles?.(files);
