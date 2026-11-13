@@ -18,8 +18,10 @@ Intent: [`intent.md`](./intent.md). **Status:** accepted 2026-11-11
   up to `static.group` mutants are armed in one re-collection. A passing run scores every mutant
   in the group Survived in that file. A failing run is bisected until each failing mutant is
   found alone (`F2`).
-- `R4` — A group holds only mutants from different top-level statements of their module, and
-  never two mutants whose spans overlap.
+- `R4` — A group never holds two mutants that touch the same source text: neither inside the
+  other, nor overlapping
+  ([`D-20261113-oxmutate-static-group-disjoint`](../../decisions/D-20261113-oxmutate-static-group-disjoint.md),
+  which replaced "different top-level statements": one data table is one statement).
 - `R5` — With grouping on, 5% of group-survived (mutant, file) pairs are re-run alone on every
   run. A pair that fails alone fails the run with exit 1, names both, and turns grouping off for
   that module in the incremental file.
