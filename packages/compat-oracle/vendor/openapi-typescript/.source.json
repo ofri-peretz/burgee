@@ -1,0 +1,242 @@
+{
+  "repo": "https://github.com/openapi-ts/openapi-typescript",
+  "version": "7.13.0",
+  "tag": "openapi-typescript@7.13.0",
+  "commit": "5709d33a5977c4908b9e331f01cd0f9e181b1c37",
+  "vendored": "2026-11-13",
+  "depsBefore": "2026-02-26T14:51:11.099Z",
+  "files": 25,
+  "internalFiles": [
+    "lib/ts.test.ts",
+    "lib/utils.test.ts",
+    "transform/components-object.test.ts",
+    "transform/header-object.test.ts",
+    "transform/operation-object.test.ts",
+    "transform/path-item-object.test.ts",
+    "transform/paths-enum.test.ts",
+    "transform/paths-object.test.ts",
+    "transform/request-body-object.test.ts",
+    "transform/response-object.test.ts",
+    "transform/schema-object/array.test.ts",
+    "transform/schema-object/boolean.test.ts",
+    "transform/schema-object/composition.test.ts",
+    "transform/schema-object/empty.test.ts",
+    "transform/schema-object/enum.test.ts",
+    "transform/schema-object/number.test.ts",
+    "transform/schema-object/object.test.ts",
+    "transform/schema-object/string.test.ts",
+    "transform/webhooks-object.test.ts"
+  ],
+  "internals": [
+    "src/lib/ts.js",
+    "src/lib/utils.js",
+    "src/transform/components-object.js",
+    "src/transform/header-object.js",
+    "src/transform/operation-object.js",
+    "src/transform/path-item-object.js",
+    "src/transform/paths-enum.js",
+    "src/transform/paths-object.js",
+    "src/transform/request-body-object.js",
+    "src/transform/response-object.js",
+    "src/transform/schema-object.js",
+    "src/transform/webhooks-object.js",
+    "src/types.js"
+  ],
+  "hashes": {
+    "packages/openapi-typescript/test/cjs.test.js": "b97670339a2e93bb5590e8fee7d23f012f489a1a06bee96644d39ecd6029c890",
+    "packages/openapi-typescript/test/cli.test.ts": "81abd0a8bd5dcf198e283de482a017a78d2826420186ef5e7ce13cda5a2b70c0",
+    "packages/openapi-typescript/test/discriminators.test.ts": "9f0d91e2fd8e77bdf6366b0c5484f601ee85ab9609463e687fbf4931968d774c",
+    "packages/openapi-typescript/test/index.test.ts": "2e45cb86cd52dec223b1c5072cac3fdada8e291626ed0d5ee19d8ab54d2a4d79",
+    "packages/openapi-typescript/test/invalid.test.ts": "c75a79f86d873e594f869f02a5deecab9f620064363a83ad5abf7d435c69b1de",
+    "packages/openapi-typescript/test/lib/ts.test.ts": "e43b885eb91c279b27a6c15f6d7b82d93cf6090d49ed05f3a8fb3c4376248042",
+    "packages/openapi-typescript/test/lib/utils.test.ts": "62937145af838b57a9d01da1780225a0b3ea8da8b1d8f200521a0b3943adfb2e",
+    "packages/openapi-typescript/test/node-api.test.ts": "7e3a6d6b7c572a95a7c52c880fca17a4db52fceb7b4bcef94bdafd7de853006b",
+    "packages/openapi-typescript/test/test-helpers.ts": "92822ea8478408df061967a305bcae242deb951e18ee8c500bb6e408662870eb",
+    "packages/openapi-typescript/test/transform/components-object.test.ts": "dff2a68a8248f7fef0f849d11217fcdfb0afd9c0df23e8a97f31d0c1f41dac7f",
+    "packages/openapi-typescript/test/transform/header-object.test.ts": "8712457af9d4b3bbaf595660810f06d1847268153e6b3ca0e1d11b0f46f15a72",
+    "packages/openapi-typescript/test/transform/operation-object.test.ts": "38a487dfb063bd9f3a077c9f392549c0148c2cc524f0dad5d50cbad181fb59a8",
+    "packages/openapi-typescript/test/transform/path-item-object.test.ts": "c3de8a71ee4a05d130b1c1e98e539841a14e2be9c5d776b0609187e1ddaa4409",
+    "packages/openapi-typescript/test/transform/paths-enum.test.ts": "1b7fe1211a3e7356a1c95c763e3518d7c4908670716556d0455bead00b49450c",
+    "packages/openapi-typescript/test/transform/paths-object.test.ts": "4d278ce064a4e5f87ab7a9649e8385172aff71b074ab4dbbd1a98913cdb18438",
+    "packages/openapi-typescript/test/transform/request-body-object.test.ts": "d6694a30b1eacd996a557afcddaae92a89e579ff8fb483ee07f4918e0d90e4f1",
+    "packages/openapi-typescript/test/transform/response-object.test.ts": "7a73ff522a9905223cae41341b607345839d996f97c8a3c10fc6b91f392e377e",
+    "packages/openapi-typescript/test/transform/schema-object/array.test.ts": "72d9652db528a17f38face498cc30643c3d811ec390f0faec7376ea0c8194cd9",
+    "packages/openapi-typescript/test/transform/schema-object/boolean.test.ts": "0313093e2ec862151db7c5460b0fd00ee42f924b654ee5f6da731c58c5ad74b7",
+    "packages/openapi-typescript/test/transform/schema-object/composition.test.ts": "64de23183b1edd94931d2d58b9a19f68ecf06396cb0db803f2a7d874d2b71edb",
+    "packages/openapi-typescript/test/transform/schema-object/empty.test.ts": "b5ac240b021245d77354f9657308940765253787344cdbd90b8f4b65352264a8",
+    "packages/openapi-typescript/test/transform/schema-object/enum.test.ts": "37d3fbe6f686e57ee2ca122daaf91b513c5bc3367cda8ecc0cc5542e40447e7d",
+    "packages/openapi-typescript/test/transform/schema-object/number.test.ts": "014501115e0a79128fd27f804fc849ed6eff5c2f90fe76e24cc9ef3be735f043",
+    "packages/openapi-typescript/test/transform/schema-object/object.test.ts": "d48aca793d9fd55106db3819a57accfdfd32533716f4be636671cd2ed05fe488",
+    "packages/openapi-typescript/test/transform/schema-object/string.test.ts": "fcbc0bee3c901c667f40929bf4d75b99119197f83b90d6e76d8fb8f5559c6b64",
+    "packages/openapi-typescript/test/transform/webhooks-object.test.ts": "96216e633c1389da67366616de778d0d253d98ab69cb1718d56b38fb60dcd39f",
+    "packages/openapi-typescript/test/yaml.test.ts": "2baf4f921448dc2ef824305c58d4789bd4c75aecaf085f47e0637a5e04f84c86",
+    "packages/openapi-typescript/src/index.ts": "abf4f24138d5109392f569a163a9af3ac42430aa9c1a6caf107bddcea13b3693"
+  },
+  "tests": {
+    "packages/openapi-typescript/test/cjs.test.js": [
+      "CJS bundle",
+      "basic"
+    ],
+    "packages/openapi-typescript/test/cli.test.ts": [
+      "CLI",
+      "stdin",
+      "flags",
+      "--help",
+      "--version",
+      "--properties-required-by-default",
+      "Redocly config",
+      "--redocly config",
+      "--redocly explicit config path"
+    ],
+    "packages/openapi-typescript/test/discriminators.test.ts": [
+      "3.1 discriminators"
+    ],
+    "packages/openapi-typescript/test/index.test.ts": [
+      "openapiTS",
+      "does not mutate original reference"
+    ],
+    "packages/openapi-typescript/test/invalid.test.ts": [
+      "Invalid schemas",
+      "Swagger 2.0 throws",
+      "OpenAPI < 3 throws",
+      "Other missing required fields",
+      "Unresolved $ref error messages"
+    ],
+    "packages/openapi-typescript/test/lib/ts.test.ts": [
+      "addJSDocComment",
+      "single-line comment",
+      "multi-line comment",
+      "escapes internal comments",
+      "single example",
+      "array of examples",
+      "single example and array of examples",
+      "complex examples",
+      "oapiRef",
+      "single part",
+      "multiple parts",
+      "`properties` of component schema `properties`",
+      "component schema named `properties`",
+      "reference into paths parameters",
+      "tsEnum",
+      "string members",
+      "with setting: export",
+      "name from path",
+      "string members with numeric prefix",
+      "number members",
+      "number members with x-enum-descriptions",
+      "x-enum-varnames",
+      "x-enum-varnames with numeric prefix",
+      "partial x-enum-varnames and x-enum-descriptions",
+      "x-enum-descriptions with x-enum-varnames",
+      "replace special character",
+      "tsArrayLiteralExpression",
+      "string members",
+      "with setting: export",
+      "with setting: readonly",
+      "name from path",
+      "number members",
+      "tsPropertyIndex",
+      "numbers -> number literals",
+      "valid strings -> identifiers",
+      "invalid strings -> string literals",
+      "tsIsPrimitive",
+      "null",
+      "number",
+      "string",
+      "boolean",
+      "array",
+      "object",
+      "tsUnion",
+      "none",
+      "one",
+      "multiple (primitive)",
+      "multiple (const)",
+      "multiple (object types)"
+    ],
+    "packages/openapi-typescript/test/lib/utils.test.ts": [
+      "getEntries",
+      "operates like Object.entries()",
+      "options",
+      "alphabetize: true",
+      "excludeDeprecated: true",
+      "createRef",
+      "basic",
+      "escapes",
+      "handles partial paths"
+    ],
+    "packages/openapi-typescript/test/node-api.test.ts": [
+      "Node.js API"
+    ],
+    "packages/openapi-typescript/test/test-helpers.ts": [],
+    "packages/openapi-typescript/test/transform/components-object.test.ts": [
+      "transformComponentsObject",
+      "isEnumSchema",
+      "returns true for string enum schema",
+      "returns true for number enum schema",
+      "returns true for mixed enum schema without explicit type",
+      "returns false for object schema with properties",
+      "returns false for object schema with enum (object enums not supported)",
+      "returns false for schema with additionalProperties",
+      "returns false for schema without enum",
+      "returns false for null, undefined, or non-object inputs"
+    ],
+    "packages/openapi-typescript/test/transform/header-object.test.ts": [
+      "transformHeaderObject"
+    ],
+    "packages/openapi-typescript/test/transform/operation-object.test.ts": [
+      "transformOperationObject"
+    ],
+    "packages/openapi-typescript/test/transform/path-item-object.test.ts": [
+      "transformPathItemObject"
+    ],
+    "packages/openapi-typescript/test/transform/paths-enum.test.ts": [
+      "transformPathsObjectToEnum"
+    ],
+    "packages/openapi-typescript/test/transform/paths-object.test.ts": [
+      "transformPathsObject"
+    ],
+    "packages/openapi-typescript/test/transform/request-body-object.test.ts": [
+      "transformRequestBodyObject"
+    ],
+    "packages/openapi-typescript/test/transform/response-object.test.ts": [
+      "transformResponseObject"
+    ],
+    "packages/openapi-typescript/test/transform/schema-object/array.test.ts": [
+      "transformSchemaObject > array"
+    ],
+    "packages/openapi-typescript/test/transform/schema-object/boolean.test.ts": [
+      "transformSchemaObject > boolean"
+    ],
+    "packages/openapi-typescript/test/transform/schema-object/composition.test.ts": [
+      "composition"
+    ],
+    "packages/openapi-typescript/test/transform/schema-object/empty.test.ts": [
+      "transformSchemaObject > empty/unknown"
+    ],
+    "packages/openapi-typescript/test/transform/schema-object/enum.test.ts": [
+      "transformComponentsObject"
+    ],
+    "packages/openapi-typescript/test/transform/schema-object/number.test.ts": [
+      "transformSchemaObject > number"
+    ],
+    "packages/openapi-typescript/test/transform/schema-object/object.test.ts": [
+      "transformSchemaObject > object"
+    ],
+    "packages/openapi-typescript/test/transform/schema-object/string.test.ts": [
+      "transformSchemaObject > string"
+    ],
+    "packages/openapi-typescript/test/transform/webhooks-object.test.ts": [
+      "transformWebhooksObject"
+    ],
+    "packages/openapi-typescript/test/yaml.test.ts": [
+      "YAML features",
+      "merge",
+      "not ignore path item components in paths"
+    ]
+  },
+  "surface": {
+    "packages/openapi-typescript/src/index.ts": [
+      "COMMENT_HEADER"
+    ]
+  }
+}

@@ -228,6 +228,22 @@ describe('a control run’s internal shim', () => {
       writeFileSync(join(installed, 'build', 'elsewhere.js'), '');
       expect(internalShimFrom(ink, { target: 'ink', installed, rel: 'lib/elsewhere.js' })).toBe('@clack/prompts');
     });
+
+    // openapi-typescript's tests import `../../src/transform/x.js` and the tarball carries `dist/transform/x.mjs`.
+    it('points at the compiled file under the extension the package publishes, when the host declares one', () => {
+      const unbuilt = { ...ink, publishedInternalExtension: '.mjs' };
+      writeFileSync(join(installed, 'build', 'transform.mjs'), 'export default 1;\n');
+      expect(internalShimFrom(unbuilt, { target: 'ink', installed, rel: 'src/transform.js' })).toBe(join(installed, 'build', 'transform.mjs'));
+      expect(internalShimFrom(ink, { target: 'ink', installed, rel: 'src/transform.js' }), 'undeclared, the `.js` name is the only one looked for').toBe('@clack/prompts');
+    });
+
+    it('changes only a trailing `.js`, so a path that only contains one is left as written', () => {
+      const unbuilt = { ...ink, publishedInternalExtension: '.mjs' };
+      mkdirSync(join(installed, 'build', 'a.js'), { recursive: true });
+      writeFileSync(join(installed, 'build', 'a.js', 'index.json'), '{}');
+      writeFileSync(join(installed, 'build', 'a.mjs'), '');
+      expect(internalShimFrom(unbuilt, { target: 'ink', installed, rel: 'src/a.js/index.json' })).toBe(join(installed, 'build', 'a.js', 'index.json'));
+    });
   });
 });
 
