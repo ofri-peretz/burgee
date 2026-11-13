@@ -127,12 +127,13 @@ const bracedNames = (path: string): string[] => {
   const names: string[] = [];
   let open = path.indexOf('{');
   while (open !== -1) {
-    const close = path.indexOf('}', open + 1);
+    const close = path.indexOf('}', open);
+    // Stryker disable next-line all: the names are the same without it; it is what stops a path of open braces being scanned once per brace
     if (close === -1) break;
     // `{}` names nothing; the next brace may still open a name.
     const named = close > open + 1;
     if (named) names.push(path.slice(open + 1, close));
-    open = path.indexOf('{', named ? close + 1 : open + 1);
+    open = path.indexOf('{', named ? close : open + 1);
   }
   return names;
 };
