@@ -9,7 +9,7 @@
 **Status:** draft · **Opened:** `2026-11-06` · **Owner:** `@ofri-peretz`
 
 Design: [`spec.md`](./spec.md) · Metrics: [`metrics.md`](./metrics.md) · Roadmap:
-[`roadmap.md`](./roadmap.md)
+[`roadmap.md`](./roadmap.md) · Vision (proposal): [`vision.md`](./vision.md)
 
 ---
 
