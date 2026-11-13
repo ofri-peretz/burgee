@@ -94,10 +94,13 @@ const positionName = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth'];
 /**
  * burgee: each usage string `argsert` checks against, parsed once. yargs parses it on every call,
  * and every builder method calls `argsert`: the B5 workload's one `parseSync()` of a 21-option
- * program ran parse-command 70 times, about a tenth of its CPU, to parse the same dozen string
- * literals again (B-20261112-burgee-yargs-b5-runtime-over-ceiling). The parse is frozen because
- * every later call shares it; the cache stops growing at `USAGE_CACHE_MAX`, since `argsert` is
- * exported and a program could hand it strings without end.
+ * program ran parse-command 70 times to parse the same few string literals again. #1407 made each
+ * of those calls dearer in a fresh process (a regex split per word where there had been a
+ * character loop, and a typed array per call), and B5's `burgee/yargs ÷
+ * yargs` stepped from 1.07 to 1.13 on GitHub's x64 runners; parsed once, it reads 0.82
+ * (B-20261112-burgee-yargs-b5-runtime-over-ceiling). The parse is frozen because every later call
+ * shares it; the cache stops growing at `USAGE_CACHE_MAX`, since `argsert` is exported and a
+ * program could hand it strings without end.
  */
 const usages = new Map<string, ParsedCommand>();
 const USAGE_CACHE_MAX = 256;

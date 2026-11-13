@@ -4,16 +4,18 @@
  * Every builder method checks its arguments with `argsert('<string> [object]', …)`, and yargs
  * parses that usage string with parse-command on every call. The B5 workload, one `parseSync()` of
  * a 21-option program (`benchmarks/fixtures/runtime/burgee-yargs.mjs`), ran parse-command 70 times
- * to re-parse a dozen string literals, and B5 read `burgee/yargs ÷ yargs` over its 1.1 ceiling
+ * to re-parse the same few string literals, and B5 read `burgee/yargs ÷ yargs` over its 1.1 ceiling
  * every night from 2026-11-02. A wall-clock bound cannot hold this on a shared runner; a count of
  * the work can.
  *
  * parse-command tokenises with `String.prototype.matchAll` (`splitOutsideBrackets`), once per
- * call, so counting `matchAll` over a parse counts parse-command. Red on the unfixed code: 70.
+ * call, so counting `matchAll` over a parse counts parse-command (the first case proves the
+ * counter sees it). Red on the unfixed code (`f52e164e`): "expected 70 to be +0".
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import yargs from '../yargs.js';
+
 import { argsert, parseCommand, usageOf } from './utils.js';
 
 // The B5 workload's program, as `benchmarks/fixtures/runtime/burgee-yargs.mjs` builds it.
