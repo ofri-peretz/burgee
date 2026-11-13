@@ -1,5 +1,19 @@
 # oxmutate
 
+## 2.2.0
+
+### Minor Changes
+
+- [#1566](https://github.com/ofri-peretz/burgee/pull/1566) [`926bff9`](https://github.com/ofri-peretz/burgee/commit/926bff919fb8df524b2daf3bef6b4582cd1fb2bc) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `oxmutate run --ignore-static` skips static mutants (module-level code), as the `ignoreStatic` config key already did: the run is faster and the score leaves them out. The summary now says what the static phase cost, or how many mutants `ignoreStatic` left out, and names the flag once that phase is half the run.
+
+- [#1566](https://github.com/ofri-peretz/burgee/pull/1566) [`926bff9`](https://github.com/ofri-peretz/burgee/commit/926bff919fb8df524b2daf3bef6b4582cd1fb2bc) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `static.group` (`oxmutate run --static-group <n>`): arm up to `n` static mutants together in a test file that is not their first. A static survivor runs in every test file that loads its module, and most of those runs pass; a group's run that passes decides all of its members for that file at once, and one that fails is halved until each failing mutant is found alone. On a file of import-time data the static phase was 3.0x shorter with every verdict unchanged.
+
+  It is off by default (`1`), because it is a heuristic: two mutants armed together can hide each other. Only mutants that change one value are grouped (strings, numbers, regexes), no two that touch the same source text, and one group survivor in twenty is run again alone on every run. One that fails alone is reported Killed and the run exits 1, naming the cause.
+
+### Patch Changes
+
+- [#1566](https://github.com/ofri-peretz/burgee/pull/1566) [`926bff9`](https://github.com/ofri-peretz/burgee/commit/926bff919fb8df524b2daf3bef6b4582cd1fb2bc) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A run no longer loses its result when its work directory cannot be removed. The directory was removed straight after the servers were told to close, while a worker could still write into it; a removal that met a write threw `ENOTEMPTY` and replaced the finished run with that error, and no report was written (seen at the end of a 60-minute run). The removal now retries, and a directory that still cannot be removed is named in a warning.
+
 ## 2.1.0
 
 ### Minor Changes
