@@ -142,6 +142,38 @@ Limits of this reading: one schema shape; TypeBox and ajv return a boolean where
 ArkType also build an error report, which flatters the first two on the invalid payload; and it is not yet checked whether Zod's own fast path uses `new Function`, which decides
 what a CSP-safe default is compared against.
 
+### The first reading with our validator in it, 2026-11-13
+
+The same script, with the validator installed from this checkout's build as one more library
+(`benchmarks/results/validator/2026-11-13-first-with-ours.json`). Node 24.13.0, Apple M4 Pro, load
+average 13: still a loaded machine, so read the ratios. Instantiations and bundle bytes do not depend
+on load.
+
+| Library | Valid / s | Invalid / s | Build ×500 | Bundle, min+gzip | Instantiations ×500 (5.9 / 6.0 / 7.0) |
+| :-- | --: | --: | --: | --: | --: |
+| **ours, interpreted (no `eval`)** | 4.59M | 4.46M | 1.1 ms | 1,114 B | 163,836 / 163,836 / 163,836 |
+| **ours, emitted code** | 20.99M | 16.50M | 6.3 ms | 1,542 B | same types |
+| zod 4.6.7 | 1.29M | 0.85M | 39.5 ms | 27,454 B | 332,209 / 332,209 / 331,710 |
+| ajv 8.20.0 | 12.27M | 8.92M | 520.5 ms | 38,819 B | — |
+| @sinclair/typebox 0.34.52, compiled | 20.01M | 14.65M | 15.7 ms | 22,880 B | 325,056 / 325,056 / 325,056 |
+| valibot 1.5.0 | 1.02M | 0.92M | 1.4 ms | 2,485 B | 1,537,716 / 1,537,732 / 1,527,451 |
+| arktype 2.2.9 | 11.89M | 0.20M | 94.1 ms | 48,069 B | 5,589,780 / 5,589,780 / 5,466,076 |
+
+Against the two the bar names, on this schema:
+
+| Row | Against Zod | Against ajv |
+| :-- | :-- | :-- |
+| Z3 throughput | Ahead on both paths: 3.6 times interpreted, 16.3 times emitted | Ahead emitted (1.7 times valid, 1.8 times invalid); **behind interpreted** (0.37 times) |
+| Z4 construction | Ahead: 36 times interpreted, 6 times emitted | Ahead: 473 times interpreted, 83 times emitted |
+| Z7 type-check cost | Ahead on 5.9, 6.0 and 7.0: 0.49 times the instantiations | does not apply |
+| Z5 bundle bytes | Ahead: 4% of Zod's bytes | Ahead: 3 to 4% of ajv's |
+
+What this reading is not. It is one schema shape and nine kinds of node; Zod's and ajv's bundles
+carry everything they can do, and ours will grow as kinds are added. The emitted path was run through
+`new Function` here, as ajv runs; written to a file ahead of time it is the same code. And no
+features row (Z1, Z2, Z8, Z10, Z15, Z16) or value row past Z5 is read yet. So the latency rows and Z5
+are ahead on first reading, and nothing is claimed.
+
 ## Affected users and systems
 
 - **Primary:** TypeScript teams validating API input, and coding agents that write schemas and read
