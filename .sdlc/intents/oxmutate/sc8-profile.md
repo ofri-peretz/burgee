@@ -275,8 +275,18 @@ The 1-minute load was sampled every minute.
   another checkout was finishing.
 - **The same mutants.** Stryker reported 6,441 and oxmutate 6,428. All 6,428 matched a Stryker
   mutant; 13 are Stryker's alone.
-- **99.74% agreement** on the matched set: 6,411 of 6,428. The 17 disagreements are not examined
-  yet.
+- **99.74% agreement** on the matched set: 6,411 of 6,428. The 17 disagreements are two causes,
+  and neither is a verdict oxmutate got wrong:
+  - **12 are mutants oxmutate ignores and Stryker grades**, at six places where the source says
+    `// Stryker disable next-line <mutator>: <reason>` above an `else if`, or above a call in the
+    middle of a method chain (`clack-date.ts:223`, `clack-prompts.ts:256` and `:344`,
+    `inquirer-checkbox.ts:129`, `inquirer-keys.ts:44`). Stryker reads a directive only as the
+    leading comment of the next node, and a comment in those two positions leads none, so it
+    grades the mutants the author meant to switch off; five of its seven survivors are these.
+    oxmutate reads the comment where it is written. The same rule hid `hosts.ts`'s `restore`
+    comments (§1).
+  - **5 are Regex mutants in `locale.ts:83` that Stryker reports RuntimeError** ("An error
+    occurred outside of a test run") and oxmutate Killed: the unhandled-error rule from #1477.
 - **Where oxmutate's 926 s went:** warm 537 s, isolated 336 s, static 49 s, dry run 4 s. The warm
   servers ran 1,988 s for 1,448 s inside test runs, so on this package most of the warm phase is
   the tests themselves. 670 watchdog stops, 281 of them deadlocks the worker called itself, and
