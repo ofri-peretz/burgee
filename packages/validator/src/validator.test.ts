@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import {
+  type AnySchema,
   array,
   boolean,
   check,
@@ -179,7 +180,7 @@ describe('check and issues', () => {
       [number({ min: 0 }), 0],
       [string(), ''],
       [array(string()), []],
-    ] as [Schema<unknown>, unknown][]) {
+    ] as [AnySchema, unknown][]) {
       expect(check(schema, value)).toBe(true);
       expect(issues(schema, value)).toEqual([]);
     }

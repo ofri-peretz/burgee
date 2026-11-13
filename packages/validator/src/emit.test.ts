@@ -4,6 +4,7 @@ import { check } from './check.js';
 import { emit, emitWith } from './emit.js';
 import { issues } from './issues.js';
 import {
+  type AnySchema,
   annotate,
   any,
   array,
@@ -236,7 +237,7 @@ return (v) => f1(v);
     const closing = '</script><script>alert(1)//';
     const separators = 'a\u2028b\u2029c';
 
-    it.each<[string, Schema<unknown>, unknown, unknown]>([
+    it.each<[string, AnySchema, unknown, unknown]>([
       ['an object key', object({ [breakout]: string() }), { [breakout]: 'x' }, { [breakout]: 1 }],
       ['an enum member', enumOf([breakout, closing]), closing, 'other'],
       ['a literal', literal(closing), closing, 'other'],
@@ -288,17 +289,17 @@ return (v) => f1(v);
       ['a step', { ...number({ multipleOf: 2 }), step: '2) || globalThis.__emitted || (1' }],
       ['a step where none was asked for', { ...number(), step: '0' }],
     ])('refuses a hand-built node with %s that is not a number', (_, node) => {
-      expect(() => emit(node as unknown as Schema<unknown>)).toThrow(TypeError);
-      expect(() => emit(node as unknown as Schema<unknown>)).toThrow('it is not a number. fix: build the schema with the builders, or give the node numeric bounds');
+      expect(() => emit(node as unknown as AnySchema)).toThrow(TypeError);
+      expect(() => emit(node as unknown as AnySchema)).toThrow('it is not a number. fix: build the schema with the builders, or give the node numeric bounds');
     });
 
     it('refuses a hand-built node whose pattern is not a RegExp', () => {
-      const node = { ...string(), pattern: { source: 'x', flags: '', test: () => true } } as unknown as Schema<unknown>;
+      const node = { ...string(), pattern: { source: 'x', flags: '', test: () => true } } as unknown as AnySchema;
       expect(() => emit(node)).toThrow('cannot emit a pattern that is not a RegExp. fix: build the schema with `string({ pattern })`');
     });
 
     it('refuses a hand-built format whose pattern is not a RegExp', () => {
-      const node = { ...string(), rule: { name: 'x', pattern: { source: 'x', flags: '', test: () => true }, test: null } } as unknown as Schema<unknown>;
+      const node = { ...string(), rule: { name: 'x', pattern: { source: 'x', flags: '', test: () => true }, test: null } } as unknown as AnySchema;
       expect(() => emit(node)).toThrow('cannot emit a pattern that is not a RegExp. fix: build the schema with `string({ pattern })`');
     });
 
@@ -306,14 +307,14 @@ return (v) => f1(v);
       ['custom type', { ...custom('x', isOne), rule: { name: closing, pattern: null, test: 'globalThis.__emitted = 1' } }],
       ['format', { ...string(), rule: { name: closing, pattern: null, test: null } }],
     ])('refuses a hand-built %s whose test is not a function, and escapes its name in saying so', (_, node) => {
-      expect(() => emitWith(node as unknown as Schema<unknown>)).toThrow(TypeError);
-      expect(() => emitWith(node as unknown as Schema<unknown>)).toThrow(
+      expect(() => emitWith(node as unknown as AnySchema)).toThrow(TypeError);
+      expect(() => emitWith(node as unknown as AnySchema)).toThrow(
         `${String.raw`cannot emit the rule "\u003c\u002fscript\u003e\u003cscript\u003ealert(1)\u002f\u002f"`}: it has neither a pattern nor a test. fix: build it with \`string({ format })\` or \`custom\``,
       );
     });
 
     // Wave 2: a bigint's bounds, the name `typeof` gives, and the class of an instance check.
-    it.each<[string, Schema<unknown>, unknown, unknown]>([
+    it.each<[string, AnySchema, unknown, unknown]>([
       ['a bigint literal', literal(-5n), -5n, -5],
       ['a bigint bound', bigint({ min: -(2n ** 64n), max: 2n ** 64n }), 2n ** 64n, 2n ** 64n + 1n],
       ['the literal undefined', undefinedOf(), undefined, null],
@@ -332,7 +333,7 @@ return (v) => f1(v);
 
     it('writes the name a hand-built type node carries as an escaped string, which no value has as its type', () => {
       const name = `symbol" || globalThis.__emitted || "${closing}`;
-      const node = { ...symbol(), value: name } as unknown as Schema<unknown>;
+      const node = { ...symbol(), value: name } as unknown as AnySchema;
       const source = emit(node);
       expect(source).toBe(`(() => {\n\nreturn (v) => typeof v === ${escaped(name)};\n})()`);
       expect(source).not.toContain('</script');
@@ -347,19 +348,19 @@ return (v) => f1(v);
       ['null', null],
     ])('refuses a hand-built bigint node whose bound is %s', (_, bound) => {
       for (const value of [[bound, 1n], [0n, bound]]) {
-        const node = { ...bigint(), value } as unknown as Schema<unknown>;
+        const node = { ...bigint(), value } as unknown as AnySchema;
         expect(() => emit(node)).toThrow(TypeError);
         expect(() => emit(node)).toThrow('it is not a bigint. fix: build the schema with `bigint({ min, max })`');
       }
     });
 
     it('escapes the bound it refuses in saying so', () => {
-      const node = { ...bigint(), value: [closing, 1n] } as unknown as Schema<unknown>;
+      const node = { ...bigint(), value: [closing, 1n] } as unknown as AnySchema;
       expect(() => emit(node)).toThrow(`cannot emit the bound ${escaped(closing)}: it is not a bigint.`);
     });
 
     it('refuses a hand-built instance node whose class is not a function', () => {
-      const node = { ...instanceOf(Date), value: 'Date; globalThis.__emitted = 1' } as unknown as Schema<unknown>;
+      const node = { ...instanceOf(Date), value: 'Date; globalThis.__emitted = 1' } as unknown as AnySchema;
       expect(() => emitWith(node)).toThrow(TypeError);
       expect(() => emitWith(node)).toThrow('cannot emit an instance check whose class is not a function. fix: build it with `instanceOf`');
     });
@@ -393,7 +394,7 @@ return (v) => f1(v);
     expect(refused).toBeGreaterThan(600);
   });
 
-  it.each<[string, Schema<unknown>, unknown[]]>([
+  it.each<[string, AnySchema, unknown[]]>([
     ['a string with no bounds', string(), ['', 'a', 1, null]],
     ['a number with no bounds', number(), [-5, 0, 1.5, Number.NaN, Number.NEGATIVE_INFINITY, '1']],
     ['a boolean', boolean(), [true, false, 0, 'true']],
@@ -427,7 +428,7 @@ interface Right {
 const LeftSchema: Schema<Left> = object({ b: array(lazy(() => RightSchema)) });
 const RightSchema: Schema<Right> = object({ a: optional(LeftSchema) });
 
-const loadWith = (schema: Schema<unknown>): ((value: unknown) => boolean) => {
+const loadWith = (schema: AnySchema): ((value: unknown) => boolean) => {
   const { source, hooks } = emitWith(schema);
   // eslint-disable-next-line secure-coding/no-unsafe-deserialization, node-security/detect-eval-with-expression -- The emitted text is the subject under test
   return (new Function(`return ${source};`)() as (hooks: readonly unknown[]) => (value: unknown) => boolean)(hooks);

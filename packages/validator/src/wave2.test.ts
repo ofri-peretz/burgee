@@ -3,6 +3,7 @@ import { describe, expect, expectTypeOf, it } from 'vitest';
 import { verdict, verdicts } from './__fixtures__/readers.js';
 import { emit, emitWith } from './emit.js';
 import {
+  type AnySchema,
   array,
   bigint,
   boolean,
@@ -86,20 +87,20 @@ return (v) => f2(v);
     });
 
     it('keeps the cases in the order given, and is not reached by a later change to the list', () => {
-      const cases: Schema<unknown>[] = [object({ t: literal('b') }), object({ t: literal('a') })];
+      const cases: AnySchema[] = [object({ t: literal('b') }), object({ t: literal('a') })];
       const schema = discriminatedBy('t', cases);
       cases.push(object({ t: literal('c') }));
       expect([...(schema.cases as ReadonlyMap<unknown, unknown>).keys()]).toEqual(['b', 'a']);
       expect(Object.isFrozen(schema)).toBe(true);
     });
 
-    it.each<[string, Schema<unknown>[], string]>([
+    it.each<[string, AnySchema[], string]>([
       ['is not an object', [object({ t: literal('a') }), string()], 'case 1 of the union on "t" names no tag. fix: make it an object with "t" a literal string, number or boolean'],
       ['is a tuple, which has items and no keys', [tuple([literal('a'), literal('b')])], 'case 0 of the union on "t" names no tag.'],
       ['has no such key', [object({ u: literal('a') })], 'case 0 of the union on "t" names no tag. fix: make it an object with "t" a literal string, number or boolean'],
       ['has no keys at all', [object({})], 'case 0 of the union on "t" names no tag.'],
       ['has no literal there', [object({ t: string() })], 'case 0 of the union on "t" names no tag.'],
-      ['has an enum there, whose members are not its value', [object({ t: { ...enumOf(['a']), value: 'a' } as Schema<unknown> })], 'case 0 of the union on "t" names no tag.'],
+      ['has an enum there, whose members are not its value', [object({ t: { ...enumOf(['a']), value: 'a' } as AnySchema })], 'case 0 of the union on "t" names no tag.'],
       ['has null there', [object({ t: literal(null) })], 'case 0 of the union on "t" names no tag.'],
       ['has NaN there', [object({ t: literal(Number.NaN) })], 'case 0 of the union on "t" names no tag.'],
       ['has an infinity there', [object({ t: literal(Number.POSITIVE_INFINITY) })], 'case 0 of the union on "t" names no tag.'],
@@ -148,7 +149,7 @@ return (v) => f2(v);
 
   // Found while writing wave 2: JSON calls every number that is not finite null, and the emitter wrote a literal through JSON.
   describe('a literal or an enum member that is not a finite number', () => {
-    it.each<[string, Schema<unknown>, string]>([
+    it.each<[string, AnySchema, string]>([
       ['a positive infinity', literal(Number.POSITIVE_INFINITY), 'v === Infinity'],
       ['a negative infinity', literal(Number.NEGATIVE_INFINITY), 'v === -Infinity'],
       ['NaN, which no value is identical to', literal(Number.NaN), 'v === NaN'],
@@ -183,7 +184,7 @@ class Animal {
 }
 class Dog extends Animal {}
 
-const KINDS: [string, Schema<unknown>, unknown[], unknown[]][] = [
+const KINDS: [string, AnySchema, unknown[], unknown[]][] = [
   ['prim.bigint', bigint(), [1n, 0n, -1n, 2n ** 2000n, -(2n ** 2000n)], [1, '1', null, undefined, Number.POSITIVE_INFINITY]],
   ['a bigint between bounds a double cannot hold', bigint({ min: 2n ** 64n, max: 2n ** 64n + 2n }), [2n ** 64n, 2n ** 64n + 1n, 2n ** 64n + 2n], [2n ** 64n - 1n, 2n ** 64n + 3n, 0n, 2 ** 64]],
   ['a bigint with a lower bound only', bigint({ min: 0n }), [0n, 1n, 2n ** 2000n], [-1n]],
@@ -214,7 +215,7 @@ describe('the primitive kinds of wave 2', () => {
       expect(Object.keys(schema)).toEqual(members);
       expect(Object.isFrozen(schema)).toBe(true);
     }
-    expect(([bigint(), date(), symbol(), instanceOf(Map), undefinedOf(), nativeEnum(Level)] as Schema<unknown>[]).map((schema) => schema.kind)).toEqual(['bigint', 'date', 'type', 'instance', 'literal', 'enum']);
+    expect(([bigint(), date(), symbol(), instanceOf(Map), undefinedOf(), nativeEnum(Level)] as AnySchema[]).map((schema) => schema.kind)).toEqual(['bigint', 'date', 'type', 'instance', 'literal', 'enum']);
     expect(bigint().value).toEqual([Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY]);
     expect(Object.isFrozen(bigint().value)).toBe(true);
     expect(bigint({ min: 1n, max: 2n }).value).toEqual([1n, 2n]);
@@ -250,7 +251,7 @@ describe('the primitive kinds of wave 2', () => {
     bigint({ min: 1 });
   });
 
-  it.each<[string, Schema<unknown>, unknown, { path: string; keyword: string; message: string }]>([
+  it.each<[string, AnySchema, unknown, { path: string; keyword: string; message: string }]>([
     ['not a bigint', bigint(), 1, { path: '', keyword: 'type', message: 'expected a bigint, got number 1. fix: send a bigint' }],
     ['a bigint too small', bigint({ min: 5n, max: 9n }), 4n, { path: '', keyword: 'min', message: 'expected a bigint of at least 5n, got bigint 4. fix: send 5n or more' }],
     ['a bigint too large', bigint({ min: 5n, max: 9n }), 10n, { path: '', keyword: 'max', message: 'expected a bigint of at most 9n, got bigint 10. fix: send 9n or less' }],

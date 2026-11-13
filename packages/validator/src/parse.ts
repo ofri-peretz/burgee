@@ -1,5 +1,5 @@
 import { type Issue, type IssueOptions, issues } from './issues.js';
-import { type Kind, type Node, type Schema } from './schema.js';
+import { type Kind, type Node, type Out, type Schema } from './schema.js';
 
 /**
  * The parse path: the value a schema's defaults, stripping and coercion produce, then `check` on
@@ -172,9 +172,9 @@ function fill(schema: Node, value: unknown): unknown {
  * `check` and the inferred type describe the input. A schema that coerces therefore parses a value
  * `check` refuses: `parse(number({ coerce: true }), '42')` is 42, and `check` of '42' is false.
  */
-const parse = <T>(schema: Schema<T>, value: unknown, options: IssueOptions = {}): Parsed<T> => {
+const parse = <T, O>(schema: Schema<T, O>, value: unknown, options: IssueOptions = {}): Parsed<Out<T, O>> => {
   const out = fill(schema, value);
-  return schema.check(schema, out) ? { ok: true, value: out as T } : { ok: false, issues: issues(schema, out, options) };
+  return schema.check(schema, out) ? { ok: true, value: out as Out<T, O> } : { ok: false, issues: issues(schema, out, options) };
 };
 
 export { parse, type Parsed };

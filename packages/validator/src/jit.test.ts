@@ -37,7 +37,7 @@ describe('the default path', () => {
     .map((file) => [file, readFileSync(`${import.meta.dirname}/${file}`, 'utf8')] as const);
 
   it('has source files to read', () => {
-    expect(sources.map(([file]) => file).toSorted()).toEqual(['check.ts', 'derive.ts', 'emit.ts', 'index.ts', 'issues.ts', 'parse.ts', 'schema.ts']);
+    expect(sources.map(([file]) => file).toSorted()).toEqual(['assert.ts', 'check.ts', 'derive.ts', 'emit.ts', 'index.ts', 'issues.ts', 'parse.ts', 'schema.ts']);
   });
 
   it.each(sources)('%s never evaluates text and never imports the jit door', (_, source) => {

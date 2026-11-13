@@ -3,6 +3,7 @@ import { describe, expect, expectTypeOf, it } from 'vitest';
 import { verdicts } from './__fixtures__/readers.js';
 import { emit } from './emit.js';
 import {
+  type AnySchema,
   array,
   boolean,
   enumOf,
@@ -55,7 +56,7 @@ const REFUSALS: [string, (schema: Schema<never>) => unknown, string][] = [
 ];
 
 describe('a schema made from an object schema', () => {
-  it.each<[string, Schema<unknown>, unknown[], unknown[]]>([
+  it.each<[string, AnySchema, unknown[], unknown[]]>([
     ['obj.pick', pick(AB, ['a']), [{ a: 'x' }, { a: 'x', b: 'not checked' }], [{ b: 1 }, {}, null]],
     ['obj.omit', omit(AB, ['a']), [{ b: 1 }, { a: 1, b: 1 }], [{ a: 'x' }, {}]],
     ['obj.partial', partial(AB), [{}, { a: 'x' }, { b: 1 }, { a: undefined, b: undefined }], [{ a: 1 }, { b: 'x' }, null]],
@@ -163,7 +164,6 @@ describe('a schema made from an object schema', () => {
 
   it('is typed as the object type the name says', () => {
     const Wide = object({ a: string(), b: optional(number()), c: boolean() });
-    expectTypeOf<Infer<ReturnType<typeof pick<Infer<typeof Wide>, 'a' | 'b'>>>>().toEqualTypeOf<{ a: string; b?: number | undefined }>();
     expectTypeOf(pick(Wide, ['a', 'b'])).toEqualTypeOf<Schema<Pick<{ a: string; c: boolean; b?: number | undefined }, 'a' | 'b'>>>();
     expectTypeOf<Infer<typeof picked>>().toEqualTypeOf<{ a: string; b?: number | undefined }>();
     expectTypeOf<Infer<typeof omitted>>().toEqualTypeOf<{ c: boolean; b?: number | undefined }>();
@@ -234,7 +234,7 @@ return (v) => f0(v);
     expect(verdicts(exactOptional(string()), ['a', undefined])).toEqual([true, false]);
     expect(exactOptional(string()).optional).toBe('exact');
     expect(Object.isFrozen(exactOptional(string()))).toBe(true);
-    expectTypeOf<Infer<ReturnType<typeof exactOptional<string>>>>().toEqualTypeOf<string>();
+    expectTypeOf<Infer<ReturnType<typeof exactOptional<string, string>>>>().toEqualTypeOf<string>();
   });
 
   // A node is data and may be built by hand: whatever is neither true nor false is read as exact, by every reader.

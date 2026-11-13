@@ -1,6 +1,7 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import {
+  type AnySchema,
   annotate,
   any,
   array,
@@ -59,7 +60,7 @@ interface B {
 const ASchema: Schema<A> = object({ b: array(lazy(() => BSchema)) });
 const BSchema: Schema<B> = object({ a: optional(ASchema) });
 
-const FEATURES: [string, Schema<unknown>, unknown[], unknown[]][] = [
+const FEATURES: [string, AnySchema, unknown[], unknown[]][] = [
   ['prim.any', any(), [1, null, undefined, {}], []],
   ['prim.unknown', unknown(), [1, null, undefined], []],
   ['prim.never', never(), [], [1, undefined, null]],
@@ -94,7 +95,7 @@ const FEATURES: [string, Schema<unknown>, unknown[], unknown[]][] = [
   // A key that is not optional must be there, whatever its schema would say of undefined.
   ['a required key of unknown', object({ a: unknown() }), [{ a: null }, { a: 0 }], [{}, { a: undefined }]],
   ['a required key of a nullable unknown', object({ a: nullable(unknown()) }), [{ a: null }, { a: 0 }], [{}, { a: undefined }]],
-  ['a required key of a nullish made required by hand', object({ a: { ...nullish(string()), optional: false } as Schema<unknown> }), [{ a: null }, { a: 'x' }], [{}, { a: undefined }]],
+  ['a required key of a nullish made required by hand', object({ a: { ...nullish(string()), optional: false } as AnySchema }), [{ a: null }, { a: 'x' }], [{}, { a: undefined }]],
   ['a required key of a union', object({ a: union([unknown()]) }), [{ a: null }], [{}, { a: undefined }]],
   ['a required key of an intersection', object({ a: intersection([]) }), [{ a: null }], [{}, { a: undefined }]],
   ['a required key of a lazy schema', object({ a: lazy(() => unknown()) }), [{ a: null }], [{}, { a: undefined }]],
@@ -164,7 +165,7 @@ describe('the wave 1 features', () => {
 });
 
 // One row per way a value of a new kind can be wrong: every issue, in order.
-const WRONG: [string, Schema<unknown>, unknown, Issue[]][] = [
+const WRONG: [string, AnySchema, unknown, Issue[]][] = [
   ['at an exclusive lower bound', number({ gt: 0 }), 0, [{ path: '', keyword: 'gt', message: 'expected a number above 0, got number 0. fix: send more than 0' }]],
   ['at an exclusive upper bound', number({ lt: 1 }), 1, [{ path: '', keyword: 'lt', message: 'expected a number below 1, got number 1. fix: send less than 1' }]],
   ['under an inclusive bound that is looser', number({ min: -1, gt: 0 }), -1, [{ path: '', keyword: 'gt', message: 'expected a number above 0, got number -1. fix: send more than 0' }]],
@@ -326,7 +327,7 @@ describe('the builders', () => {
   });
 
   it('do not let a later change to the members reach a tuple, a union or an intersection', () => {
-    const members: Schema<unknown>[] = [string()];
+    const members: AnySchema[] = [string()];
     const built = [tuple(members), union(members), intersection(members)];
     members.push(number());
     for (const schema of built) expect(schema.fields).toHaveLength(1);

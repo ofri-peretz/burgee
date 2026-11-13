@@ -214,7 +214,7 @@ const isLater = (schema: Node, value: unknown): boolean => run((schema.get as ()
 const isCustom = (schema: Node, value: unknown): boolean => ((schema.rule as Rule).test as Test)(value) === true;
 
 /** Whether `value` is what the schema describes. A type guard, so a passing check narrows. */
-const check = <T>(schema: Schema<T>, value: unknown): value is T => schema.check(schema, value);
+const check = <T>(schema: Schema<T, unknown>, value: unknown): value is T => schema.check(schema, value);
 
 export {
   check,

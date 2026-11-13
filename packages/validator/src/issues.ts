@@ -315,7 +315,7 @@ function visit(walk: Walk, schema: Node, got: unknown, path: string): void {
  * The second pass (spec.md R6, R7): every reason `value` is not what the schema describes. Empty
  * exactly when `check` says yes.
  */
-export const issues = <T>(schema: Schema<T>, value: unknown, options: IssueOptions = {}): Issue[] => {
+export const issues = <T>(schema: Schema<T, unknown>, value: unknown, options: IssueOptions = {}): Issue[] => {
   const walk: Walk = { found: [], first: options.first === true };
   visit(walk, schema, value, '');
   return walk.found;

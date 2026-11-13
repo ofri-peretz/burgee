@@ -1,6 +1,7 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import {
+  type AnySchema,
   array,
   check,
   discriminated,
@@ -46,11 +47,15 @@ interface Tree {
   v: number;
   kids?: Tree[] | undefined;
 }
-const TreeSchema: Schema<Tree> = object({ v: number({ coerce: true }), kids: optional(array(lazy(() => TreeSchema)), { default: [] }) }, { unknown: 'strip' });
+interface TreeOut {
+  v: number;
+  kids: TreeOut[];
+}
+const TreeSchema: Schema<Tree, TreeOut> = object({ v: number({ coerce: true }), kids: optional(array(lazy(() => TreeSchema)), { default: [] }) }, { unknown: 'strip' });
 
 describe('parse', () => {
   it('returns the input itself when nothing changed, whatever is in it', () => {
-    const inputs: [Schema<unknown>, unknown][] = [
+    const inputs: [AnySchema, unknown][] = [
       [WithDefault, { a: 'x', b: 1, extra: [1] }],
       [Stripped, { a: 'x' }],
       [array(unknown()), [Number.NaN, 0, -0, undefined, null]],
@@ -76,9 +81,9 @@ describe('parse', () => {
 
   it('is typed as the schema, and narrows on ok', () => {
     const result = parse(WithDefault, {});
-    expectTypeOf(result).toEqualTypeOf<Parsed<{ a?: string | undefined; b?: number | undefined }>>();
+    expectTypeOf(result).toEqualTypeOf<Parsed<{ a: string; b?: number | undefined }>>();
     if (!result.ok) throw new Error('the fixture is valid');
-    expectTypeOf(result.value).toEqualTypeOf<{ a?: string | undefined; b?: number | undefined }>();
+    expectTypeOf(result.value).toEqualTypeOf<{ a: string; b?: number | undefined }>();
     expectTypeOf<Extract<Parsed<string>, { ok: false }>['issues']>().toEqualTypeOf<Issue[]>();
   });
 
@@ -102,7 +107,7 @@ describe('parse', () => {
       expect(out).toEqual({ a: 'd', b: 1, extra: { kept: true } });
       expect(out).not.toBe(input);
       expect(input).toEqual({ b: 1, extra: { kept: true } });
-      expect((out as typeof input).extra).toBe(input.extra);
+      expect((out as unknown as typeof input).extra).toBe(input.extra);
       expect(value(parse(WithDefault, frozen({ a: undefined })))).toEqual({ a: 'd' });
       expect(Object.keys(value(parse(WithDefault, frozen({ z: 1, y: 2 }))))).toEqual(['z', 'y', 'a']);
     });

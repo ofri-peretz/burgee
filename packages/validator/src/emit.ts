@@ -315,7 +315,7 @@ const write = (schema: Node): { body: string; hooks: readonly unknown[] } => {
  * A schema that names a function (a custom type, a class to be an instance of, or a format with a
  * test) has no such text: text cannot hold a function. `emitWith` is for those.
  */
-const emit = <T>(schema: Schema<T>): string => {
+const emit = <T>(schema: Schema<T, unknown>): string => {
   const { body, hooks } = write(schema);
   if (hooks.length > 0) {
     throw new TypeError('cannot emit a schema that names a function as text alone: a custom type, a refinement, a class, or a format with a test. fix: give the format a pattern, or use `emitWith` and hand its hooks to the text');
@@ -327,7 +327,7 @@ const emit = <T>(schema: Schema<T>): string => {
  * The same, for any schema: JavaScript for a function that takes the schema's own functions, in
  * `hooks`, and returns the `(value) => boolean`. `./jit` is what calls it.
  */
-const emitWith = <T>(schema: Schema<T>): { source: string; hooks: readonly unknown[] } => {
+const emitWith = <T>(schema: Schema<T, unknown>): { source: string; hooks: readonly unknown[] } => {
   const { body, hooks } = write(schema);
   return { source: `(h) => {\n${body}\n}`, hooks };
 };
