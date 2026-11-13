@@ -20,6 +20,9 @@ export interface Thresholds {
   break: number | null;
 }
 
+/** Why a static mutant is Ignored under `ignoreStatic`; the summary counts them by it. */
+export const IGNORE_STATIC_REASON = 'static mutant (ignoreStatic)';
+
 export interface Options {
   root: string;
   mutate: string[];

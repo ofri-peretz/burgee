@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ACTIVE_MUTANT_ENV, FILE_KEY, NAMESPACE, cwd, exit } from './runtime.js';
+import { compileCache } from './scheduler.js';
 
 // The emitter that writes the other half of the contract.
 const emitter = readFileSync(new URL('../native/src/instrument.rs', import.meta.url), 'utf8');
@@ -52,5 +53,20 @@ describe('the runner writes through open descriptors', () => {
   });
   it('closes what it opened when the run ends, for a pool whose workers are threads', () => {
     expect(runner).toMatch(/closeFiles\(\);\n\s+return super\.onAfterRunFiles/u);
+  });
+});
+
+describe("Node's compile cache, for the servers a run starts", () => {
+  it('names one directory under the temp directory, shared between runs', () => {
+    const { NODE_COMPILE_CACHE: dir, ...rest } = compileCache({});
+    expect(rest).toEqual({});
+    expect(dir).toMatch(/oxmutate-compile-cache$/u);
+    expect(compileCache({ PATH: '/bin' })).toEqual({ NODE_COMPILE_CACHE: dir });
+  });
+  it('leaves a directory the caller chose, and a cache the caller turned off, alone', () => {
+    expect(compileCache({ NODE_COMPILE_CACHE: '/somewhere' })).toEqual({});
+    expect(compileCache({ NODE_COMPILE_CACHE: '' })).toEqual({});
+    expect(compileCache({ NODE_DISABLE_COMPILE_CACHE: '1' })).toEqual({});
+    expect(compileCache({ NODE_DISABLE_COMPILE_CACHE: '' })).toEqual({});
   });
 });

@@ -10,6 +10,7 @@
  */
 import { fork, type ChildProcess } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -25,6 +26,18 @@ const STDERR_TAIL = 4000;
 const WATCHDOG_POLL_MS = 50;
 /** How long a server asked to close gets before it is killed (it gives itself the same). */
 const CLOSE_GRACE_MS = 2000;
+
+/**
+ * Node's on-disk compile cache for every server and the workers it starts, unless the caller chose a
+ * directory or turned it off. A run starts a process per unit, and each one compiled the same
+ * modules again: about 4.5 s of 53 s busy on burgee/paratext, across 152 processes (2026-11-11).
+ * The cache is keyed by each file's content, so it is shared between runs and projects. A Node
+ * without it (before 22.1) ignores the variable.
+ */
+export function compileCache(from: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  if (from['NODE_COMPILE_CACHE'] !== undefined || from['NODE_DISABLE_COMPILE_CACHE'] !== undefined) return {};
+  return { NODE_COMPILE_CACHE: path.join(tmpdir(), 'oxmutate-compile-cache') };
+}
 
 /** The mutant a unit's progress file says is running, if any. */
 function inFlight(progress: string): string | undefined {
@@ -65,7 +78,7 @@ class Server {
   exited = false;
 
   constructor(configFile: string, cwd: string, execArgv: string[], workDir: string) {
-    this.child = fork(childJs, [configFile], { cwd, stdio: ['ignore', 'ignore', 'pipe', 'ipc'], execArgv });
+    this.child = fork(childJs, [configFile], { cwd, stdio: ['ignore', 'ignore', 'pipe', 'ipc'], execArgv, env: { ...env, ...compileCache(env) } });
     this.beat = beatFile(workDir, this.child.pid);
     this.child.stderr?.on('data', (d: Buffer) => (this.stderr = (this.stderr + d.toString()).slice(-STDERR_TAIL)));
     this.ready = new Promise((resolve) => {
