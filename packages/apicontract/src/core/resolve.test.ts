@@ -12,6 +12,7 @@ const doc = {
       list: [{ const: 'zero' }],
     },
   },
+  nothing: null,
 };
 
 describe('pointerGet', () => {
@@ -30,28 +31,32 @@ describe('pointerGet', () => {
   });
 
   it.each([
-    ['other.yaml#/a', 'outside this document'],
-    ['#components', 'starts with `/`'],
-    ['#/components/missing', 'nothing is at `missing`'],
-    ['#/components/schemas/Owner/type/x', 'nothing is at `x`'],
-    ['#/%E0%A4%A', 'not a valid URI fragment'],
-  ])('refuses %s with a fix line', (ref, reason) => {
+    ['other.yaml#/a', 'outside this document', 'fix: bundle the document first, or use a `#/…` reference'],
+    ['#components', 'starts with `/`', 'fix: write `#/components`'],
+    ['#/components/missing', 'nothing is at `missing`', 'fix: point it at a value the document defines'],
+    ['#/components/schemas/Owner/type/x', 'nothing is at `x`', 'fix: point it at a value the document defines'],
+    // A string has its own `length`, and `null` has no members at all: neither is a place to look.
+    ['#/components/schemas/Owner/type/length', 'nothing is at `length`', 'fix: point it at a value the document defines'],
+    ['#/nothing/here', 'nothing is at `here`', 'fix: point it at a value the document defines'],
+    ['#/%E0%A4%A', 'not a valid URI fragment', 'fix: percent-encode the reference correctly'],
+  ])('refuses %s with a fix line', (ref, reason, fix) => {
     const attempt = (): unknown => pointerGet(doc, ref);
     expect(attempt).toThrow(RefError);
     expect(attempt).toThrow(reason);
-    expect(attempt).toThrow('. fix: ');
+    expect(attempt).toThrow(`. ${fix}`);
   });
 
   it('does not read inherited members', () => {
     expect(() => pointerGet({}, '#/toString')).toThrow(RefError);
   });
 
-  it('names the reference on the error', () => {
-    expect.assertions(1);
+  it('names the reference and itself on the error', () => {
+    expect.assertions(2);
     try {
       pointerGet(doc, '#/nope');
     } catch (error) {
       expect((error as RefError).ref).toBe('#/nope');
+      expect((error as RefError).name).toBe('RefError');
     }
   });
 });

@@ -77,11 +77,15 @@ export const inline = (document: unknown, node: unknown): Inlined => {
   const cycles = new Set<string>();
   const external = new Set<string>();
 
-  const walk = (value: unknown, open: readonly string[]): unknown => {
-    if (Array.isArray(value)) return value.map((item) => walk(item, open));
+  // The references open on the current path. A failed lookup throws out of the whole walk, so
+  // nothing has to be undone on that route.
+  const open = new Set<string>();
+
+  const walk = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map((item) => walk(item));
     if (!isObject(value)) return value;
     const walked = (entries: [string, unknown][]): Record<string, unknown> =>
-      Object.fromEntries(entries.map(([key, child]) => [key, walk(child, open)]));
+      Object.fromEntries(entries.map(([key, child]) => [key, walk(child)]));
     const ref = value.$ref;
     // A property that happens to be named `$ref` holds a schema, not a string.
     if (typeof ref !== 'string') return walked(Object.entries(value));
@@ -90,16 +94,18 @@ export const inline = (document: unknown, node: unknown): Inlined => {
       external.add(ref);
       return { ...siblings, $ref: ref };
     }
-    if (open.includes(ref)) {
+    if (open.has(ref)) {
       cycles.add(ref);
       return { ...siblings, $ref: ref };
     }
-    const target = walk(pointerGet(document, ref), [...open, ref]);
+    open.add(ref);
+    const target = walk(pointerGet(document, ref));
+    open.delete(ref);
     if (Object.keys(siblings).length === 0) return target;
     const rest = Array.isArray(siblings.allOf) ? (siblings.allOf as unknown[]) : [];
     return { ...siblings, allOf: [target, ...rest] };
   };
 
-  const value = walk(node, []);
+  const value = walk(node);
   return { value, cycles: [...cycles], external: [...external] };
 };
