@@ -14,8 +14,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import type { ServerConfig, Unit } from './child.js';
-import { markReader } from './progress-file.js';
 import { beatFile, classifyStall, CPU_WINDOW_MS, cpuShare, readBeat, type CpuSample, type Stall } from './heartbeat.js';
+import { markReader } from './progress-file.js';
 import { env, stderr } from './runtime.js';
 
 const childJs = fileURLToPath(new URL('./child.js', import.meta.url));

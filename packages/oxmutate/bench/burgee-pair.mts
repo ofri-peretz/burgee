@@ -103,15 +103,17 @@ try {
 } finally {
   rmSync(wrapperDir, { recursive: true, force: true });
 }
+/** The mutants a report graded (not Ignored), as `file:line:column:mutator`. */
+const graded = (file: string): string[] => {
+  const report = JSON.parse(readFileSync(file, 'utf8')) as { files: Record<string, { mutants: { status: string; mutatorName: string; location: { start: { line: number; column: number } } }[] }> };
+  return Object.entries(report.files).flatMap(([f, x]) => x.mutants.filter((m) => m.status !== 'Ignored').map((m) => `${f.replace(/^.*?(src\/)/u, '$1')}:${String(m.location.start.line)}:${String(m.location.start.column)}:${m.mutatorName}`));
+};
+
 // Which mutants each tool graded, and how many are the same mutant: the comparison is only like for
 // like when `onlyA` and `onlyB` are near zero. Ignored mutants are in both reports and are not graded.
 const strykerReport = path.join(out, 'stryker.json');
 const oxmutateReport = path.join(out, 'oxmutate', 'mutation.json');
 if (existsSync(strykerReport) && existsSync(oxmutateReport)) {
-  const graded = (file: string): string[] => {
-    const report = JSON.parse(readFileSync(file, 'utf8')) as { files: Record<string, { mutants: { status: string; mutatorName: string; location: { start: { line: number; column: number } } }[] }> };
-    return Object.entries(report.files).flatMap(([f, x]) => x.mutants.filter((m) => m.status !== 'Ignored').map((m) => `${f.replace(/^.*?(src\/)/u, '$1')}:${String(m.location.start.line)}:${String(m.location.start.column)}:${m.mutatorName}`));
-  };
   const a = graded(strykerReport);
   const left = new Map<string, number>();
   for (const k of graded(oxmutateReport)) left.set(k, (left.get(k) ?? 0) + 1);

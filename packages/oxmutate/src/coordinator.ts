@@ -236,6 +236,9 @@ function timeoutReason(v: Verdict): string {
   return 'stopped by the watchdog twice, the second time with 3x the budget';
 }
 
+/** A Killed that every failing test reached only by its own timeout: re-run once before it is believed. */
+const slowKill = (v: Verdict | undefined): boolean => v?.status === 'Killed' && v.slow === true;
+
 /** How many times its isolated budget a busy stop gets on its re-run. */
 const RERUN_SLACK = 3;
 
@@ -922,7 +925,6 @@ export async function run(options: Options): Promise<RunResult> {
     // it, not the watchdog. On compat-oracle's `hosts.ts`, with the load average at 45 to 120, 8 of 15
     // static mutants were Killed this way by tests that clone repositories, and survive a quiet run
     // (sc8-profile.md §6, A-20261112-oxmutate-test-timeout-kill). One more run decides it.
-    const slowKill = (v: Verdict | undefined): boolean => v?.status === 'Killed' && v.slow === true;
     const stopped = isolatedQueue.filter((m) => (first.get(m.id)?.status === 'Timeout' && !first.get(m.id)?.idle) || slowKill(first.get(m.id)));
     stats.isolatedByCause.rerun += stopped.length;
     const again = await runIsolated(stopped, RERUN_SLACK);

@@ -93,58 +93,62 @@ function settle(list) {
   return settled;
 }
 
-function main() {
-  const summary = [];
-  let failures = 0;
-  for (const dir of targets) {
-    const name = path.relative(REPO, dir);
-    const runs = { baseline: [], candidate: [] };
-    for (let round = 0; round < rounds; round++) {
-      for (const build of ['baseline', 'candidate']) {
-        const work = path.join(out, name.replaceAll(path.sep, '_'), `${build}-${String(round)}`);
-        mkdirSync(work, { recursive: true });
-        runs[build].push(runOnce(builds[build], dir, work));
-      }
+/** Both builds on one target, `rounds` times each, alternating. */
+function runBoth(dir, name) {
+  const runs = { baseline: [], candidate: [] };
+  for (let round = 0; round < rounds; round++) {
+    for (const build of ['baseline', 'candidate']) {
+      const work = path.join(out, name.replaceAll(path.sep, '_'), `${build}-${String(round)}`);
+      mkdirSync(work, { recursive: true });
+      runs[build].push(runOnce(builds[build], dir, work));
     }
-    const broken = [...runs.baseline, ...runs.candidate].find((r) => r.failed);
-    if (broken) {
-      console.log(`✖ ${name}: ${broken.failed}`);
-      failures++;
-      summary.push({ target: name, error: broken.failed });
-      continue;
-    }
-    const base = settle(runs.baseline);
-    const cand = settle(runs.candidate);
-    const differ = [];
-    const unstable = [];
-    for (const key of new Set([...base.keys(), ...cand.keys()])) {
-      const b = base.get(key) ?? 'missing';
-      const c = cand.get(key) ?? 'missing';
-      if (b === 'unstable' || c === 'unstable') unstable.push(key);
-      else if (b !== c) differ.push(`${key}  baseline ${say(b)} · candidate ${say(c)}`);
-    }
-    const loads = { baseline: median(runs.baseline.map((r) => r.load)), candidate: median(runs.candidate.map((r) => r.load)) };
-    const ratio = Math.max(loads.baseline, loads.candidate) / Math.max(LEAST_LOAD, Math.min(loads.baseline, loads.candidate));
-    const row = {
-      target: name,
-      mutants: base.size,
-      differ: differ.length,
-      unstable: unstable.length,
-      comparable: ratio <= MAX_LOAD_RATIO,
-      loads,
-      ms: Object.fromEntries(['wallMs', 'dryRunMs', 'mutationMs', 'staticMs', 'isolatedMs'].map((f) => [f, { baseline: phase(runs.baseline, f), candidate: phase(runs.candidate, f) }])),
-      servers: { baseline: phase(runs.baseline, 'serversSpawned'), candidate: phase(runs.candidate, 'serversSpawned') },
-      units: { baseline: phase(runs.baseline, 'units'), candidate: phase(runs.candidate, 'units') },
-    };
-    summary.push({ ...row, differing: differ, unstableKeys: unstable });
-    if (differ.length) failures++;
-    const w = row.ms.wallMs;
-    console.log(`${differ.length ? '✖' : '✓'} ${name}: ${String(base.size)} mutants, ${String(differ.length)} differ, ${String(unstable.length)} unstable · wall ${seconds(w.baseline)} s → ${seconds(w.candidate)} s (${(w.baseline / Math.max(1, w.candidate)).toFixed(2)}x)${row.comparable ? '' : ` · loads ${loads.baseline.toFixed(0)} and ${loads.candidate.toFixed(0)}: times not comparable`}`);
-    for (const d of differ.slice(0, DIFFERENCES_SHOWN)) console.log(`    ${d}`);
   }
+  return runs;
+}
+
+/** The mutants the two builds settle differently, and those either build is unstable on. */
+function compare(base, cand) {
+  const differ = [];
+  const unstable = [];
+  for (const key of new Set([...base.keys(), ...cand.keys()])) {
+    const b = base.get(key) ?? 'missing';
+    const c = cand.get(key) ?? 'missing';
+    if (b === 'unstable' || c === 'unstable') unstable.push(key);
+    else if (b !== c) differ.push(`${key}  baseline ${say(b)} · candidate ${say(c)}`);
+  }
+  return { differ, unstable };
+}
+
+const both = (runs, read) => ({ baseline: read(runs.baseline), candidate: read(runs.candidate) });
+
+/** One target's row for the report, printed as it is decided. */
+function runTarget(dir) {
+  const name = path.relative(REPO, dir);
+  const runs = runBoth(dir, name);
+  const broken = [...runs.baseline, ...runs.candidate].find((r) => r.failed);
+  if (broken) {
+    console.log(`✖ ${name}: ${broken.failed}`);
+    return { target: name, error: broken.failed };
+  }
+  const base = settle(runs.baseline);
+  const { differ, unstable } = compare(base, settle(runs.candidate));
+  const loads = both(runs, (list) => median(list.map((r) => r.load)));
+  const comparable = Math.max(loads.baseline, loads.candidate) / Math.max(LEAST_LOAD, Math.min(loads.baseline, loads.candidate)) <= MAX_LOAD_RATIO;
+  const ms = Object.fromEntries(['wallMs', 'dryRunMs', 'mutationMs', 'staticMs', 'isolatedMs'].map((f) => [f, both(runs, (list) => phase(list, f))]));
+  const w = ms.wallMs;
+  const note = comparable ? '' : ` · loads ${loads.baseline.toFixed(0)} and ${loads.candidate.toFixed(0)}: times not comparable`;
+  console.log(`${differ.length ? '✖' : '✓'} ${name}: ${String(base.size)} mutants, ${String(differ.length)} differ, ${String(unstable.length)} unstable · wall ${seconds(w.baseline)} s → ${seconds(w.candidate)} s (${(w.baseline / Math.max(1, w.candidate)).toFixed(2)}x)${note}`);
+  for (const d of differ.slice(0, DIFFERENCES_SHOWN)) console.log(`    ${d}`);
+  return { target: name, mutants: base.size, differ: differ.length, unstable: unstable.length, comparable, loads, ms, servers: both(runs, (list) => phase(list, 'serversSpawned')), units: both(runs, (list) => phase(list, 'units')), differing: differ, unstableKeys: unstable };
+}
+
+function main() {
+  const summary = targets.map(runTarget);
+  const failures = summary.filter((row) => row.error !== undefined || row.differ > 0).length;
   mkdirSync(out, { recursive: true });
-  writeFileSync(path.join(out, 'ab.json'), `${JSON.stringify({ builds, rounds, concurrency, targets: summary }, null, 2)}\n`);
-  console.log(failures ? `\n✖ ${String(failures)} target(s) differ or failed. Report: ${path.join(out, 'ab.json')}` : `\n✓ every mutant has the same verdict on both builds. Report: ${path.join(out, 'ab.json')}`);
+  const report = path.join(out, 'ab.json');
+  writeFileSync(report, `${JSON.stringify({ builds, rounds, concurrency, targets: summary }, null, 2)}\n`);
+  console.log(failures ? `\n✖ ${String(failures)} target(s) differ or failed. Report: ${report}` : `\n✓ every mutant has the same verdict on both builds. Report: ${report}`);
   process.exitCode = failures ? 1 : 0;
 }
 

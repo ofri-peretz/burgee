@@ -157,21 +157,22 @@ const staticRun = (name: string, file: string): { verdicts: string[]; stats: Pha
   return { verdicts, stats: report['x-oxmutate'].stats };
 };
 
+/** The slow-test fixture's verdicts by line, its reasons, and how many kills a second run overturned. */
+const slowRun = (env: Record<string, string>): { verdicts: string[]; reasons: (string | undefined)[]; overturned: number } => {
+  const dir = path.join(pkg, 'test/fixtures/slow-test');
+  const reportDir = mkdtempSync(path.join(tmpdir(), 'oxmutate-slow-test-'));
+  // The fresh-worker path, where Vitest runs the file and its own timeout applies.
+  execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: dir, stdio: 'pipe', env: { ...process.env, OXMUTATE_ISOLATE_STATIC: '1', ...env } });
+  const report = JSON.parse(readFileSync(path.join(reportDir, 'mutation.json'), 'utf8')) as { files: Record<string, { mutants: (ReportMutant & { statusReason?: string })[] }>; 'x-oxmutate': { stats: { timeoutsOverturned: number } } };
+  rmSync(reportDir, { recursive: true, force: true });
+  const mutants = report.files['src/label.ts']?.mutants ?? [];
+  return { verdicts: mutants.map((m) => `${String(m.location.start.line)}:${m.status}`), reasons: mutants.map((m) => m.statusReason), overturned: report['x-oxmutate'].stats.timeoutsOverturned };
+};
+
 // A test that fails by its own timeout is not a kill until a second run says so. On compat-oracle's
 // `hosts.ts`, at a load average of 45 to 120, 8 of 15 static mutants were Killed this way by tests that
 // clone repositories, and survive a quiet run (A-20261112-oxmutate-test-timeout-kill).
 describe.skipIf(!native || !existsSync(bin) || !nightly)('a kill that is only a slow test is run again', () => {
-  const slowRun = (env: Record<string, string>): { verdicts: string[]; reasons: (string | undefined)[]; overturned: number } => {
-    const dir = path.join(pkg, 'test/fixtures/slow-test');
-    const reportDir = mkdtempSync(path.join(tmpdir(), 'oxmutate-slow-test-'));
-    // The fresh-worker path, where Vitest runs the file and its own timeout applies.
-    execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: dir, stdio: 'pipe', env: { ...process.env, OXMUTATE_ISOLATE_STATIC: '1', ...env } });
-    const report = JSON.parse(readFileSync(path.join(reportDir, 'mutation.json'), 'utf8')) as { files: Record<string, { mutants: (ReportMutant & { statusReason?: string })[] }>; 'x-oxmutate': { stats: { timeoutsOverturned: number } } };
-    rmSync(reportDir, { recursive: true, force: true });
-    const mutants = report.files['src/label.ts']?.mutants ?? [];
-    return { verdicts: mutants.map((m) => `${String(m.location.start.line)}:${m.status}`), reasons: mutants.map((m) => m.statusReason), overturned: report['x-oxmutate'].stats.timeoutsOverturned };
-  };
-
   it('slow once: the unread constant survives, and the read one is still killed by its assertion', () => {
     const marker = path.join(mkdtempSync(path.join(tmpdir(), 'oxmutate-slow-once-')), 'ran');
     const { verdicts, overturned } = slowRun({ OXMUTATE_SLOW_ONCE: marker });
