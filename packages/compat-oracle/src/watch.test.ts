@@ -27,7 +27,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { fakeRegistry } from './__fixtures__/fake-registry.js';
 import { discard } from './__fixtures__/scratch-dir.js';
 import { type Seen } from './competitors.js';
-import { type Fingerprint, check, compare, fingerprint, moved, takeFingerprint } from './watch.js';
+import { type Fingerprint, check, compare, fingerprint, moved, takeFingerprint, weighs } from './watch.js';
 
 /** A held fingerprint, with only the fields a case cares about overridden. */
 function held(over: Partial<Seen> = {}): Seen {
@@ -109,12 +109,52 @@ describe('moved — whether a release is worth an issue', () => {
     expect(moved(held(), fresh({ weight: 101 }), NOTHING)).toBe(true);
   });
 
+  it('is false when only the weight moved and no claim on this competitor covers its weight', () => {
+    // @stryker-mutator/core 10.1.1 was filed three times (#1524, #1539, #1562) with the same
+    // version, the same tarball and the same files: only its 173-package tree drifted, by
+    // +104, +34,759 and +775 B. oxmutate's claim against it is `surface`, which never states
+    // a byte count, so there was nothing in our tree for the new figure to make false.
+    expect(moved(held(), fresh({ weight: 101 }), NOTHING, { weighs: false })).toBe(false);
+  });
+
+  it('still reports a new version when the weight is not claimed', () => {
+    expect(moved(held(), fresh({ version: '2.0.0', weight: 101 }), NOTHING, { weighs: false })).toBe(true);
+  });
+
   it('is true on a surface change alone, with version, shasum and weight all steady', () => {
     expect(moved(held(), fresh(), { ...NOTHING, added: ['brandNew'] })).toBe(true);
   });
 
   it('is false when nothing moved at all', () => {
     expect(moved(held(), fresh(), NOTHING)).toBe(false);
+  });
+});
+
+describe('weighs — whether anything we publish depends on a competitor\'s weight', () => {
+  const claim = (over: { claim?: 'surface' | 'weight' | 'compat'; cited?: string[] } = {}) => ({ owner: 'oxmutate', subpath: '.', claim: over.claim ?? 'surface', cited: over.cited ?? [] });
+  const site = (citations: number) => ({
+    owner: 'oxmutate',
+    subpath: '.',
+    claim: 'surface' as const,
+    targets: [],
+    citations: Array.from({ length: citations }, () => ({ file: 'packages/oxmutate/README.md', line: 1, text: 'Stryker 15,770,354 B' })),
+  });
+
+  it('is false for a `surface` claim with nothing cited anywhere', () => {
+    expect(weighs({ strongest: 'surface', claims: [claim()] }, [site(0)])).toBe(false);
+  });
+
+  it('is true when the strongest claim is `weight` or `compat`', () => {
+    expect(weighs({ strongest: 'weight', claims: [claim({ claim: 'weight' })] }, [])).toBe(true);
+    expect(weighs({ strongest: 'compat', claims: [claim({ claim: 'compat' })] }, [])).toBe(true);
+  });
+
+  it('is true for a `surface` claim whose seen block cites the figure', () => {
+    expect(weighs({ strongest: 'surface', claims: [claim(), claim({ cited: ['packages/flagstaff/src/weight.test.ts'] })] }, [])).toBe(true);
+  });
+
+  it('is true for a `surface` claim when the package quotes a figure next to the competitor\'s name', () => {
+    expect(weighs({ strongest: 'surface', claims: [claim()] }, [site(0), site(1)])).toBe(true);
   });
 });
 
@@ -237,6 +277,61 @@ describe('check and fingerprint, over a workspace', () => {
     expect(result.updates).toHaveLength(1);
     expect(result.updates[0]).toMatchObject({ npm: 'chalk', from: '5.0.0', to: '6.0.0' });
     expect(result.updates[0]?.title).toBeTruthy();
+  });
+
+  /** Fingerprint the workspace, then nudge every held weight, as a transitive publish would. */
+  async function driftWeight(packagesDir: string, ...owners: string[]): Promise<void> {
+    await fingerprint(packagesDir, () => {}, REGISTRY);
+    for (const owner of owners) {
+      const file = join(packagesDir, owner, 'competitors.json');
+      const raw = JSON.parse(readFileSync(file, 'utf8')) as Record<string, { seen: Seen }[]>;
+      for (const entries of Object.values(raw)) for (const e of entries) e.seen.weight = (e.seen.weight ?? 0) - 1;
+      writeFileSync(file, JSON.stringify(raw));
+    }
+  }
+
+  it('opens nothing when only the weight of a `surface`-only competitor moved, and says so', async () => {
+    const { root, packagesDir } = workspace({
+      oxmutate: { '.': [{ package: 'chalk', claim: 'surface' }] },
+    });
+    await driftWeight(packagesDir, 'oxmutate');
+    const sink = lines();
+
+    const result = await check(packagesDir, root, sink.write, REGISTRY);
+
+    expect(result.updates).toEqual([]);
+    expect(result.errors).toEqual([]);
+    expect(sink.out).toContain('weight not claimed');
+  });
+
+  it('still opens one when the same weight drift hits a competitor something claims a weight against', async () => {
+    // chalk is `surface` for oxmutate and `weight` for flagstaff: the strongest claim decides.
+    const { root, packagesDir } = workspace({
+      oxmutate: { '.': [{ package: 'chalk', claim: 'surface' }] },
+      flagstaff: { '.': [{ package: 'chalk', claim: 'weight' }] },
+    });
+    await driftWeight(packagesDir, 'flagstaff', 'oxmutate');
+
+    const result = await check(packagesDir, root, () => {}, REGISTRY);
+
+    expect(result.updates).toHaveLength(1);
+  });
+
+  it('still opens one for a `surface` competitor whose figure is written down in our tree', async () => {
+    // flagstaff's string-width-in-ora's-bill is `surface`, yet weight.test.ts quotes its bytes.
+    // A cited figure goes false when the weight moves, whatever the claim is called.
+    const { root, packagesDir } = workspace({
+      flagstaff: { '.': [{ package: 'chalk', claim: 'surface' }] },
+    });
+    await driftWeight(packagesDir, 'flagstaff');
+    const file = join(packagesDir, 'flagstaff', 'competitors.json');
+    const raw = JSON.parse(readFileSync(file, 'utf8')) as Record<string, { seen: Seen }[]>;
+    for (const entries of Object.values(raw)) for (const e of entries) e.seen.cited = ['packages/flagstaff/src/weight.test.ts'];
+    writeFileSync(file, JSON.stringify(raw));
+
+    const result = await check(packagesDir, root, () => {}, REGISTRY);
+
+    expect(result.updates).toHaveLength(1);
   });
 
   it('records a failed competitor and keeps going, rather than losing the whole run to one', async () => {
