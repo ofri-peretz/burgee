@@ -145,7 +145,7 @@ catalogue is not limited by maintainers, and a team's private conventions are se
 2. The roadmap adds capabilities that were not in the 2026-11-12 order: provider dialects for
    JSON Schema, a typed client for MCP tools, a Markdown reference, `bundle` and `convert`, a
    data-layer wave, a Zod codemod. Each is marked **new** there. Accept, cut or reorder.
-3. Two of them, MSW handlers and `gen mcp`, reopen part of a rejection recorded on 2026-11-06
-   (no mocking, no MCP-server generation; stay sponsorable by the SDK companies). The roadmap states
-   both sides. Publishable SDK generation stays rejected.
+3. Decided 2026-11-13: MSW handlers and `gen mcp`, which a 2026-11-06 rejection excluded, are
+   reopened as generators ([`D-20261113-apicontract-mocks-and-mcp-generation`](../../decisions/D-20261113-apicontract-mocks-and-mcp-generation.md)).
+   Publishable SDK generation stays rejected.
 4. Still open from before: accept the design (R-PL), and confirm "beat them both" means Zod and ajv.

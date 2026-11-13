@@ -20,7 +20,7 @@ protocol.
 | **1 · `gen`, the plugin API and TypeScript types (first public release)** | `/core` model and `$ref` resolver (`adapter.qnt`), `/openapi` input; the generator plugin API (R-EX), with our TypeScript types generator as its first plugin, written only against that API; string emitter, `--compat openapi-typescript`, output openapi-fetch keeps working on, a migration codemod; `gen --check` (R-PL3); published with npm provenance. First since 2026-11-11 ([`D-20261111-apicontract-gen-first`](../../decisions/D-20261111-apicontract-gen-first.md)): users are asking, and the fork `openapi-typesafe` is already at `1.0.0-rc.5` | G1 = 100%, G5 ✓, G2–G4 met; X1 and X2 met; Q1 floor set |
 | **2 · Validators from a spec** | `/jsonschema` input; two generator plugins: `gen validator` (our own validator, [`validator/intent.md`](../validator/intent.md), R-SC) and `gen json-schema` (plain JSON Schema for the ajv a team already runs, R-JS). The user picks the target. **New, 2026-11-13:** `--dialect` for model providers' tool-call schemas. **Code → spec starts here:** the extract core (`apicontract-extract`) and the round trip (R-RT), reading our validator's schemas, JSON Schema and existing Zod schemas back into a spec | B1–B3 met on these sources; J1–J3 met; R1–R3 met against Zod and ajv; the validator's own leading rows hold for its contract-first side |
 | **3 · NestJS modules, and the plugin kit** | `/asyncapi` input; the NestJS generator plugin (R-NE): abstract base controllers, WebSocket gateways and microservice handlers, a contract test per operation; and the other way, a spec from existing NestJS code (R-TE2); `apicontract plugin new`, the conformance suite in `apicontract/testing` and `plugin list` (R-EX8, R-EX9), so anyone can ship a generator or an extractor | N1–N4 met; B1–B4 met against @nestjs/swagger; X3 met (an agent given the schema and one example writes a passing plugin in one turn) |
-| **4 · More generators** | Hono, Express and Fastify servers; typed clients for fetch / openapi-fetch, axios, ky and TanStack Query; a spec from Hono, Express, Fastify and tRPC/oRPC code. **New, 2026-11-13, each waiting on a ruling:** MSW handlers and fixtures, and `gen mcp` moved here from Phase 6. Each is a plugin and none changes the core | Each plugin passes the conformance suite and its regeneration test and the round trip; B5 = 5; X4 counted |
+| **4 · More generators** | Hono, Express and Fastify servers; typed clients for fetch / openapi-fetch, axios, ky and TanStack Query; a spec from Hono, Express, Fastify and tRPC/oRPC code. **Added 2026-11-13** ([`D-20261113-apicontract-mocks-and-mcp-generation`](../../decisions/D-20261113-apicontract-mocks-and-mcp-generation.md)): MSW handlers and fixtures, and `gen mcp`, moved here from Phase 6. Each is a plugin and none changes the core | Each plugin passes the conformance suite and its regeneration test and the round trip; B5 = 5; X4 counted |
 | **5 · `explain` + `diff`** | Diff engine with a chosen mode (backward/forward/full) and side (caller/server), oasdiff rule ids, SARIF, `--changeset`, flags accepted from Atlassian `openapi-diff`; `compat.qnt` as oxmutate spec oracle | D1, D2, D7 met; A1–A4 met; A5–A7 beat baseline; launch post leads with what Redocly and oasdiff cannot do (mode choice, MCP/JSON Schema, code-first next) |
 | **6 · MCP, AsyncAPI/WebSocket, and `diff` with no spec file** | The detect side of the technology extensions (R-TE3); `/mcp` (live through bellpull, and snapshot), send/receive-aware payload diff for `/asyncapi`, and `diff` over the specs extracted in phases 2 to 4 (Zod, TypeBox, NestJS, tRPC/oRPC, Hono) so `diff` works across git refs with no spec file; `snapshot.qnt`; match mcpdiff's and mcp-lint's rule sets as the floor | SC10 (D6 ≥ 1); SC7 holds for all three adapters; `diff` on a Zod-defined API across two refs matches the hand-written verdict on the fixture set |
 | **7 · `check`** | `apicontract-check`: oxc compiled into our own native core (as oxmutate ships), scanning HTTP, socket and MCP call sites | C1, C2, C3 met; A5 drops again on the eval |
@@ -75,7 +75,7 @@ a claim about us.
 | Every command as an MCP tool (`--mcp`), `--json`, `--schema` | | | | 1 | none; it comes from burgee | accepted |
 | `explain`: one operation, resolved and size-capped | | | | 5 | reading the raw spec | accepted |
 | Markdown reference per operation (the `explain` output written to files) | ✓ | | | 5 | none read yet | **new** |
-| `gen mcp`: an MCP server from a spec, handlers user-owned | ✓ | | | 4 | none leading; @modelcontextprotocol/sdk 87.5M is the runtime | **new position** (was Phase 6) and **needs a ruling**: see below |
+| `gen mcp`: an MCP server from a spec, handlers user-owned | ✓ | | | 4 | none leading; @modelcontextprotocol/sdk 87.5M is the runtime | accepted 2026-11-13 (was Phase 6, was rejected); see below |
 | MCP `tools/list`, live or snapshot: extract, `diff`, drift | | ✓ | ✓ | 6 | mcpdiff, mcp-lint | accepted |
 | A typed client for an MCP server's tools | ✓ | | ✓ | 6 | none read yet | **new** |
 
@@ -84,7 +84,7 @@ a claim about us.
 | Plugin | G | E | D | Phase | Incumbent (weekly) | Status |
 | :-- | :-: | :-: | :-: | :-: | :-- | :-- |
 | A contract test per generated operation (inside each server plugin) | ✓ | | | 3 | none for NestJS | accepted (R-NE) |
-| MSW handlers and fixtures from the spec's examples and schemas | ✓ | | ✓ | 4 | msw 33.2M is the runtime; orval generates handlers | **new** and **needs a ruling**: see below |
+| MSW handlers and fixtures from the spec's examples and schemas | ✓ | | ✓ | 4 | msw 33.2M is the runtime; orval generates handlers | accepted 2026-11-13 (was rejected); see below |
 | Synthetic checks: `gen checkly`, `gen playwright`, `gen k6`, `probe` | ✓ | | ✓ | 8 | none generates a full, synced suite | accepted (R-SY) |
 
 ### Events, other protocols, data layer, other languages
@@ -113,22 +113,18 @@ fixtures, and a CI run on a real open-source app using that stack that finds eve
 A **new** row gets its metric rows in [`metrics.md`](./metrics.md) when its phase's design is written,
 not before.
 
-### Two rows that contradict a recorded rejection
+### Two rows that reverse a recorded rejection
 
-[`spec.md` § Rejected alternatives](./spec.md#rejected-alternatives) (2026-11-06) rejects "building
-mocking, Pact-style consumer tests, or SDK/MCP-server generation", because mature tools own those
-jobs and staying complementary keeps `apicontract` sponsorable by Speakeasy and Stainless. That was
-written five days before the owner defined the product as a generator. The two rows above reopen it
-in part, and neither is built until the owner rules:
+[`spec.md` § Rejected alternatives](./spec.md#rejected-alternatives) (2026-11-06) rejected "building
+mocking, Pact-style consumer tests, or SDK/MCP-server generation". The owner reopened two parts of it
+on 2026-11-13 ([`D-20261113-apicontract-mocks-and-mcp-generation`](../../decisions/D-20261113-apicontract-mocks-and-mcp-generation.md)):
 
-- **MSW handlers.** Read narrowly, this is the rejection's own alternative: MSW stays the runtime
-  and we feed it a contract. We do not build a mock server.
-- **`gen mcp`.** This is MCP-server generation, which the rejection names. The case for reopening:
-  the owner's definition is "plugins that generate different types of code", the extract and drift
-  halves are already accepted for Phase 6, and a plugin that goes one way only is the exception the
-  roadmap otherwise avoids. The case against is the sponsorship argument, which still holds.
+- **MSW handlers.** MSW stays the runtime and we feed it a contract. We do not build a mock server.
+- **`gen mcp`.** An MCP server from a spec, handlers user-owned. The cost is accepted: this overlaps
+  with what Speakeasy and Stainless sell, so sponsorship from them is less likely.
 
-Publishable SDK generation is not reopened.
+Publishable SDK generation, Pact-style consumer tests and a mock server of our own stay rejected.
+Phase 4 for both is the proposal's placement; the ruling was on whether, not when.
 
 ## The validator's track
 

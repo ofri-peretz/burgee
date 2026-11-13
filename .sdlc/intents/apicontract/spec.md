@@ -439,7 +439,9 @@ output, and `compat-oracle` runs openapi-typescript's own fixtures through both 
 - **Generating with `ts.factory` or a bundled TypeScript.** That is the exact failure in #2841, and it
   triples install size.
 - **A YAML dependency.** `seniority/yaml` is already in the family.
-- **Building mocking, Pact-style consumer tests, or SDK/MCP-server generation.** Mature tools (Prism,
+- **Building a mock server, Pact-style consumer tests, or publishable SDK generation.** (Narrowed
+  2026-11-13: generating MSW handlers and generating MCP servers were in this list and are now
+  generator plugins, [`D-20261113-apicontract-mocks-and-mcp-generation`](../../decisions/D-20261113-apicontract-mocks-and-mcp-generation.md).) Mature tools (Prism,
   MSW, Pact, Stainless, Speakeasy) own those jobs; `apicontract` feeds them a contract instead. SDK
   generation stays out for a second reason: it is what Speakeasy and Stainless sell, and they fund the
   free OpenAPI tooling around it (Speakeasy is a Gold sponsor of openapi-typescript). Staying
