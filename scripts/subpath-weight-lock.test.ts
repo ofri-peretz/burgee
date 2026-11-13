@@ -123,16 +123,19 @@ const DROP_IN_CEILINGS: Readonly<Record<string, { incumbent: string; bytes: numb
  * carries its JSON type and its default as that type, +94 B on every façade row; v14 56,044,
  * `burgee/yargs/v17` 110,354. 110,415 on 2026-10-27 (D-20261027-yargs-parsesync-surface-bytes): `completion`
  * and `--mcp` answer a `parseSync()` program instead of throwing, +61 B on every yargs row.
+ * 55,816 on 2026-11-12 (D-20261112-upstream-issues-2026-11-12): commander 15.1.0's five `lib/` changes are
+ * ported (burgee#1494), +121 B on every commander row; v14 56,165. The incumbent's bytes are still the
+ * 15.0.0 measurement, which the ratchet does not read.
  */
 const OVER_INCUMBENT: Readonly<Record<string, { incumbent: string; bytes: number; ours: number; gap: string }>> = {
-  'burgee/commander': { incumbent: 'commander@15.0.0', bytes: 39_329, ours: 55_695, gap: 'B-20261012-commander-front-end-bundles-heavier' },
+  'burgee/commander': { incumbent: 'commander@15.0.0', bytes: 39_329, ours: 55_816, gap: 'B-20261012-commander-front-end-bundles-heavier' },
   // `extra-typings-drop-in` R5: `export * from '../commander.js'`, so it bundles to `burgee/commander`
   // byte for byte and its ratchet moves with that row.
-  'burgee/commander/extra-typings': { incumbent: '@commander-js/extra-typings@15.0.0 + commander@15.0.0', bytes: 39_329, ours: 55_695, gap: 'B-20261012-extra-typings-bundles-heavier' },
+  'burgee/commander/extra-typings': { incumbent: '@commander-js/extra-typings@15.0.0 + commander@15.0.0', bytes: 39_329, ours: 55_816, gap: 'B-20261012-extra-typings-bundles-heavier' },
   // `previous-majors` R1: `burgee/commander` plus one subclass with commander 14's excess-arguments
   // message, so it bundles `burgee/commander`'s bytes plus 349, and its ratchet moves with that row.
   // commander 14.0.3 measured 2026-10-12 by the same method: 40,970 B (D-20261012-commander-14-budget).
-  'burgee/commander/v14': { incumbent: 'commander@14.0.3', bytes: 40_970, ours: 56_044, gap: 'B-20261012-commander-front-end-bundles-heavier' },
+  'burgee/commander/v14': { incumbent: 'commander@14.0.3', bytes: 40_970, ours: 56_165, gap: 'B-20261012-commander-front-end-bundles-heavier' },
   // `previous-majors` R3: `burgee/yargs` plus 17's string table and `commandDir()` walk. yargs
   // 17.7.3's `index.mjs` bundles to 84,475 B by the same method, measured 2026-10-19, and yargs
   // 18.2.0's to 111,698 B, which `burgee/yargs` is under (D-20261019-yargs-17-budget).
@@ -147,7 +150,9 @@ const OVER_INCUMBENT: Readonly<Record<string, { incumbent: string; bytes: number
   // 111,787 on 2026-11-01 with `linegauge/strip`'s +49 B for ansi-regex 6.5.0's pattern, which
   // strip-ansi 7.2.0 now resolves and cliui measures through (D-20261101-upstream-issues-2026-11-01):
   // 111,738 -> 111,787 on `/docs/weight`, every yargs row by the same 49.
-  'burgee/yargs/v17': { incumbent: 'yargs@17.7.3', bytes: 84_475, ours: 111_787, gap: 'B-20261019-yargs-17-entry-bundles-heavier' },
+  // 111,879 on 2026-11-12 with `linegauge/strip`'s ansi-regex 6.6.0 grammar (burgee#1501–#1509,
+  // D-20261112-upstream-issues-2026-11-12): 111,787 -> 111,879 on `/docs/weight`.
+  'burgee/yargs/v17': { incumbent: 'yargs@17.7.3', bytes: 84_475, ours: 111_879, gap: 'B-20261019-yargs-17-entry-bundles-heavier' },
 };
 
 /** The "Everything" cell of a subpath's row on the page, or `undefined` when it has no row. */

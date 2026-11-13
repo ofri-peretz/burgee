@@ -11,7 +11,7 @@
  * where it is not — measured, and the divergence recorded rather than assumed". Measured, on
  * Node 24 over sixteen sequence shapes: **fifteen agreed with `strip-ansi` and one did not.**
  * Since ansi-regex 6.5.0 a second one differs, the other way round: Node removes an unterminated
- * `ESC[31` whole, and strip-ansi now keeps it, because a CSI's final byte is never a digit.
+ * `ESC[31` whole, and strip-ansi keeps it, because a CSI's final byte is never a digit.
  *
  *   ESC[38:2::255:0:0m   node -> ":2::255:0:0m"     strip-ansi -> ""
  *
@@ -32,28 +32,44 @@
  */
 
 /**
- * `strip-ansi` 7.2.0's own grammar — `ansi-regex` 6.5.0's pattern, which a fresh install of it
- * resolves since 2026-10-29 — in one pass. Until 2026-09-30 this was two: `style.ts`'s scanner and then Node's
+ * `strip-ansi` 7.2.0's own grammar — `ansi-regex` 6.6.0's pattern, which a fresh install of it
+ * resolves since 2026-11-08 — in one pass. Until 2026-09-30 this was two: `style.ts`'s scanner and then Node's
  * `stripVTControlCharacters` over what was left, 3.7× strip-ansi's time (B5), and the scanner's
- * whole style stack in `linegauge/strip`'s bundle. The pattern:
+ * whole style stack in `linegauge/strip`'s bundle. The pattern, tried in this order:
  *
- *   OSC   `ESC ]` or `0x9D`, a payload that stops at the first terminator character — so an
- *         unterminated one cannot rescan the rest of the input — then `BEL`, `ESC \` or `0x9C`;
- *   CSI   `ESC` or `0x9B`, intermediates, `;`/`:` parameters, a final byte. The colon form of an
- *         extended colour (`ESC[38:2::255:0:0m`) is in it, which is the shape Node's stripper
- *         got wrong before v24.21 and the reason this module was written. The final byte is
- *         never a digit: in 6.4.0 it could be, so `ESC[5d` backtracked to take the `5` as its
- *         final and left the `d` behind as text, and an unterminated `ESC[31` was removed whole
- *         where 6.5.0 keeps it;
- *   private  a CSI whose first parameter byte is `<`, `=` or `>` (`ESC[>0;276;0c`, the device
- *         attributes reply), tried before the plain CSI. `= < >` are also final bytes of the
- *         two-byte VT52 escapes, so in 6.4.0 `ESC[>` was the whole match and the rest of the
- *         reply was left as text.
+ *   palette  the Linux console's `ESC ] P` + seven hex digits and `ESC ] R`, which have no
+ *         terminator, with one taken if it is right there — before OSC, so a later `BEL` cannot
+ *         swallow the visible text between them;
+ *   OSC   `ESC ]` or `0x9D`, a payload that stops at the first terminator, cancel (`CAN`, `SUB`)
+ *         or C1 control — so an unterminated one cannot rescan the rest of the input or swallow
+ *         the next sequence — then `BEL`, `ESC \` or `0x9C`;
+ *   control string  DCS, SOS, PM, APC and the screen window title (`ESC P X ^ _ k` or their C1
+ *         bytes), whose opaque payload ends on `ESC \` or `0x9C` only — a `BEL` does not end it;
+ *   CSI   `ESC [` or `0x9B`, ECMA-48's parameter bytes (`0`–`?`), intermediate bytes (space–`/`),
+ *         then any final byte from `@` to `~`. The colon form of an extended colour
+ *         (`ESC[38:2::255:0:0m`) is in it, which is the shape Node's stripper got wrong before
+ *         v24.21 and the reason this module was written. The final byte is never a digit, so an
+ *         unterminated `ESC[31` is kept as text; and since every final is in the class,
+ *         `ESC[5d` is one sequence (6.5.0's narrower class kept it whole as text);
+ *   escape  `ESC`, intermediates, then a final from `0` to `~` (`ESC ( 0`, `ESC # 8`), or one of
+ *         the two-byte escapes — a digit among them, so `ESC 7` and `ESC 8` (save and restore the
+ *         cursor) end at the digit and `ESC 7 l` leaves the `l`.
  *
  * Linear: every quantifier is over a class the next token cannot also match. `strip.test.ts`
  * holds it to `strip-ansi` shape by shape.
  */
-const ANSI = /(?:(?:\u001B\]|\u009D)[^\u0007\u001B\u009C\u009D]*(?:\u0007|\u001B\\|\u009C))|(?:\u001B\[|\u009B)[<=>][0-9;:]*[A-PR-TZcf-nq-uy~]|[\u001B\u009B][[\]()#;?]*(?:\d{1,4}(?:[;:]\d{0,4})*)?[A-PR-TZcf-nq-uy=><~]/g;
+const ST = String.raw`(?:\u001B\u005C|\u009C)`;
+const STRING_CONTROLS = String.raw`\u0018\u001A\u001B\u0080-\u009F`;
+const ANSI = new RegExp(
+  [
+    String.raw`\u001B\](?:P[\dA-Fa-f]{7}|R)(?:\u0007|${ST})?`,
+    String.raw`(?:\u001B\]|\u009D)[^\u0007${STRING_CONTROLS}]*(?:\u0007|${ST})`,
+    String.raw`(?:\u001B[PX^_k]|[\u0090\u0098\u009E\u009F])[^${STRING_CONTROLS}]*${ST}`,
+    String.raw`(?:\u001B\[|\u009B)[\u0030-\u003F]*[\u0020-\u002F]*[\u0040-\u007E]`,
+    String.raw`\u001B(?:[\u0020-\u002F]+[\u0030-\u007E]|[\dA-PR-TZcf-oq-uy=><~|}])`,
+  ].join('|'),
+  'g',
+);
 
 /**
  * Everything a terminal would print, with the escape sequences removed: CSI (SGR and the

@@ -1,10 +1,10 @@
 {
   "repo": "https://github.com/motdotla/dotenv",
-  "version": "18.0.9",
-  "tag": "v18.0.9",
-  "commit": "8d1ab850aa628781929f08bfd0d71ba1d1bf0a23",
-  "vendored": "2026-11-02",
-  "depsBefore": "2026-10-22T19:28:31.107Z",
+  "version": "18.0.10",
+  "tag": "v18.0.10",
+  "commit": "7ed8f363671d3d2027b52cdce4b72b0004d0411a",
+  "vendored": "2026-11-12",
+  "depsBefore": "2026-11-09T01:53:33.379Z",
   "files": 10,
   "internalFiles": [
     "test-config-options.js"
@@ -13,12 +13,12 @@
     "lib/config-options"
   ],
   "hashes": {
-    "tests/test-cli-signals.js": "c8cb0d2b0c13ed72fb1969652e36a7bc707d7a0b50ebabd329bd3475ca7e2c2e",
-    "tests/test-cli.js": "4c4243d5dbea967d2dfafc4520d15bbfc97863e18c87d0b9099367307c403fd0",
-    "tests/test-config-import.js": "e7879965e0e0f0558f0090374b7bf078d0a21b57511c6c69a3a7a2e4d4891bba",
-    "tests/test-config-options.js": "0f9a313d50a923d435b02c71eca792aa32081bfb24b5ad50a5df1b18611669bf",
+    "tests/test-cli-signals.js": "e74c2bbcc351edd9c2cd9708b562f69ac99204d5c483377eca4ff35737dd8918",
+    "tests/test-cli.js": "e56bb15478f570b33b01fcb5f3d44dfeaad25d53f2e1b90700918d6ecb5c7e73",
+    "tests/test-config-import.js": "b73ee3490cc9bd587e0ab20cf83aef954af02459303692a977b71c4a0b26b981",
+    "tests/test-config-options.js": "10c039bafb7bd4d38b3d5cbd757a6719be99e95bab21e9b77420f3ebba13a90e",
     "tests/test-config-quiet.js": "3b047074adc445ae7f4818517abbb14a6c7c1e12b549ea66ff4fdbaf7e90db2a",
-    "tests/test-config.js": "8b7f8d3754ffd7af438d58229e53594161913e81a627499a0d7cec5383b0dac5",
+    "tests/test-config.js": "336f9eeefe392decb9101dba12b22a71685c6c61ca025eebb771189a8faec71b",
     "tests/test-parse-fast.js": "3f5b9ffce8102b22b33e7b35af99f5ce42b8966c8ee3216adae09b5a5a7ae4d7",
     "tests/test-parse-multiline.js": "f6281c83730796680f2362d3d8c123e3342ac210813652aa66937b6aadb1503b",
     "tests/test-parse.js": "62aa22388fb0f766fbe530b919cede7798e46d0117bd61c1ebd49d7ce046841d",
@@ -31,6 +31,7 @@
       "POSIX signal forwarding",
       "forwards ${signal} and waits for graceful shutdown",
       "preserves signal exit status",
+      "exits when the command dies from a signal Node ignores",
       "forwards termination to subprocesses too",
       "terminal group Ctrl-C is not forwarded twice",
       "repeated interrupts can force an unresponsive child to stop"
@@ -74,6 +75,7 @@
       "logs decoded file URL paths in debug mode",
       "preserves file read errors for URL paths",
       "takes option for path along with home directory char ~",
+      "expands home directory paths in the path array",
       "takes option for encoding",
       "takes option for debug",
       "reads path with encoding, parsing output to process.env",

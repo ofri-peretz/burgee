@@ -157,8 +157,8 @@ describe('a host whose repository is a monorepo', () => {
     // Red before: `rootPackage` dropped `suiteDeps`, so the vendored directory declared
     // nothing, the install beside the tests installed nothing, and the control re-exported
     // a package that was not there — 0 passing, printed as an incompatibility.
-    const pkg = rootPackage(clack, { version: '1.8.1', license: 'MIT', type: 'module' });
-    expect(pkg['devDependencies']).toMatchObject({ '@clack/prompts': '1.8.1', '@clack/core': '1.5.1' });
+    const pkg = rootPackage(clack, { version: '1.9.0', license: 'MIT', type: 'module' });
+    expect(pkg['devDependencies']).toMatchObject({ '@clack/prompts': '1.9.0', '@clack/core': '1.6.0' });
   });
 
   it('pins every suite dependency exactly, because the suite is graded against one release', () => {

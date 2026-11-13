@@ -65,7 +65,7 @@ describe('every timed variant names the package whose version decides its number
 describe('the guard fires on a package that is actually being shadowed', () => {
   it('stops the run rather than timing commander 8 against a gate written for commander 15', () => {
     const shadowed = treeWith('commander', '8.3.0');
-    expect(() => resolvePackage('commander', shadowed)).toThrow(/resolved commander@8\.3\.0 .* declares "\^15\.0\.0"/s);
+    expect(() => resolvePackage('commander', shadowed)).toThrow(/resolved commander@8\.3\.0 .* declares "\^15\.1\.0"/s);
   });
 
   // The contrast is the whole point: the walk itself is perfectly happy, which is why B2

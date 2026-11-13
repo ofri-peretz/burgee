@@ -8,7 +8,7 @@
         "registry": "@stryker-mutator/core",
         "version": "10.1.1",
         "shasum": "a383305dd719c7a29456c886149826a323100459",
-        "weight": 15734820,
+        "weight": 15769579,
         "self": 381300,
         "packages": 173,
         "files": {
@@ -668,7 +668,7 @@
           "WorkerMessageKind",
           "createCheckerFactory"
         ],
-        "measured": "2026-11-06"
+        "measured": "2026-11-12"
       }
     }
   ]

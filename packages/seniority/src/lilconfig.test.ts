@@ -13,7 +13,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 
 import { discard } from './__fixtures__/scratch-dir.js';
 // eslint-disable-next-line import-next/no-namespace -- The namespace object *is* the thing under test: the graded case reads `Object.keys()` of the module, so a named-import list would assert what this file typed rather than what the module publishes.
@@ -101,6 +101,26 @@ describe('the walk and its bounds', () => {
 
   it('returns null, not a result, when nothing is found', () => {
     expect(lilconfigSync('absent', { stopDir: root }).search(deep)).toBeNull();
+  });
+
+  // lilconfig 3.1.5 (burgee#1523): `searchFrom` and `stopDir` are resolved against the cwd, so a
+  // relative one walks the same directories as its absolute form, and a trailing slash on
+  // `stopDir` still stops the walk.
+  it('resolves a relative searchFrom and a relative stopDir with a trailing slash against the cwd', async () => {
+    writeFileSync(join(root, 'a', 'rel.config.js'), 'module.exports = { found: "relative" };');
+    // The cwd is stood in for rather than changed: `process.chdir` is not available in a worker,
+    // which is where the mutation lane runs this file. `path.resolve` reads it through `process.cwd()`.
+    const cwd = vi.spyOn(process, 'cwd').mockReturnValue(root);
+    try {
+      const found = { config: { found: 'relative' }, filepath: join(root, 'a', 'rel.config.js') };
+      expect(lilconfigSync('rel', { stopDir: root }).search(join('a', 'b'))).toEqual(found);
+      expect(await lilconfig('rel', { stopDir: root }).search(join('a', 'b'))).toEqual(found);
+      expect(lilconfigSync('absent', { stopDir: 'a/' }).search(join('a', 'b'))).toBeNull();
+      expect(await lilconfig('absent', { stopDir: 'a/' }).search(join('a', 'b'))).toBeNull();
+    } finally {
+      cwd.mockRestore();
+      rmSync(join(root, 'a', 'rel.config.js'));
+    }
   });
 });
 

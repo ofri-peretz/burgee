@@ -674,7 +674,8 @@ Expecting one of '${HOOK_EVENTS.join("', '")}'`);
   getOptionValueSourceWithGlobals(key: string): string | undefined {
     let source: string | undefined;
     for (const cmd of this._getCommandAndAncestors()) {
-      if (cmd.getOptionValueSource(key) !== undefined) source = cmd.getOptionValueSource(key);
+      // commander 15.1.0: a command that set the value with no source still answers for it.
+      if (Object.hasOwn(cmd._optionValueSources, key)) source = cmd.getOptionValueSource(key);
     }
     return source;
   }
@@ -1128,7 +1129,7 @@ Expecting one of '${HOOK_EVENTS.join("', '")}'`);
     const maybeOption = (arg: string): boolean => arg.length > 1 && arg[0] === '-';
 
     const negativeNumberArg = (arg: string): boolean => {
-      if (!/^-(\d+|\d*\.\d+)(e[+-]?\d+)?$/.test(arg)) return false;
+      if (!/^-(\d+|\d*\.\d+)([eE][+-]?\d+)?$/.test(arg)) return false;
       // a negative number is ok unless a digit is used as an option in the command hierarchy
       return !this._getCommandAndAncestors().some((cmd) => cmd.options.some((opt) => /^-\d$/.test(opt.short ?? '')));
     };
@@ -1993,20 +1994,21 @@ Expecting one of '${HELP_POSITIONS.join("', '")}'`);
 
 /** Bump inspector ports so a spawned subcommand does not collide with the parent. */
 function incrementNodeInspectorPort(args: string[]): string[] {
-  //  --inspect[=[host:]port], --inspect-brk[=[host:]port], --inspect-port=[host:]port
+  //  --inspect[=[host:]port], --inspect-brk[=[host:]port], --inspect-wait[=[host:]port], --inspect-port=[host:]port,
+  //  where an IPv6 host is bracketed (commander 15.1.0)
   return args.map((arg: string): string => {
     if (!arg.startsWith('--inspect')) return arg;
     let debugOption: string | undefined;
     let debugHost = '127.0.0.1';
     let debugPort = '9229';
     let match: RegExpMatchArray | null;
-    if ((match = /^(--inspect(-brk)?)$/.exec(arg)) !== null) {
+    if ((match = /^(--inspect(-brk|-wait)?)$/.exec(arg)) !== null) {
       debugOption = match[1];
-    } else if ((match = /^(--inspect(-brk|-port)?)=([^:]+)$/.exec(arg)) !== null) {
+    } else if ((match = /^(--inspect(-brk|-port|-wait)?)=(\[[^\]]+\]|[^:]+)$/.exec(arg)) !== null) {
       debugOption = match[1];
       if (/^\d+$/.test(match[3] ?? '')) debugPort = match[3] ?? debugPort;
       else debugHost = match[3] ?? debugHost;
-    } else if ((match = /^(--inspect(-brk|-port)?)=([^:]+):(\d+)$/.exec(arg)) !== null) {
+    } else if ((match = /^(--inspect(-brk|-port|-wait)?)=(\[[^\]]+\]|[^:]+):(\d+)$/.exec(arg)) !== null) {
       debugOption = match[1];
       debugHost = match[3] ?? debugHost;
       debugPort = match[4] ?? debugPort;

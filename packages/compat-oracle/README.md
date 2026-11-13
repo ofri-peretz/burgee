@@ -12,7 +12,7 @@ two ways:
 
    | Host | Release | Runner | Target | Control | Ours |
    | :-- | :-- | :-- | :-- | --: | --: |
-   | commander | 15.0.0 | node:test | `burgee/commander` | 1360 / 1360 | 1360 / 1360 |
+   | commander | 15.1.0 | node:test | `burgee/commander` | 1418 / 1418 | 1418 / 1418 (2026-11-12) |
    | yargs | 18.2.0 | mocha | `burgee/yargs` | 814 / 816 | 816 / 816 (2026-09-30) |
    | chalk | 6.0.1 | ava | `roundel/chalk` | 59 / 59 | 59 / 59 (2026-09-30) |
 

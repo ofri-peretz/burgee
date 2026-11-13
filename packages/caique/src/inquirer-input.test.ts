@@ -490,12 +490,14 @@ describe('the line prompts, frame by frame', () => {
     expect(getScreen()).toBe(`${TICK} Age:done <42>`);
   });
 
-  it('number: an empty answer skips validate and draws nothing', async () => {
+  // Since @inquirer/number 4.3.0 an optional prompt left empty asks validate, with `undefined`;
+  // 4.2.x skipped it, and this case said so until burgee#1526.
+  it('number: an empty answer asks validate with undefined and draws nothing', async () => {
     const validate = vi.fn(() => true);
     const { answer, events, getScreen } = await render(number, { message: 'Age', validate, theme: seen });
     events.keypress('enter');
     await expect(answer).resolves.toBeUndefined();
-    expect(validate).not.toHaveBeenCalled();
+    expect(validate).toHaveBeenCalledExactlyOnceWith(undefined);
     expect(getScreen()).toBe(`${TICK} Age:done <>`);
   });
 

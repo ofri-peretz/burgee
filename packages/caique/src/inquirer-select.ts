@@ -98,7 +98,8 @@ export const select = createPrompt(<Value>(config: SelectConfig<Value>, done: (v
       // Stryker disable next-line NumericLiteral: readline's `Interface#clearLine()` takes no argument; the 0 is `@inquirer/core`'s call shape
       rl.clearLine(0);
       setActive(moved);
-    } else if (isNumberKey(key) && !Number.isNaN(Number(rl.line))) {
+    } else if (isNumberKey(key) && /^\d+$/u.test(rl.line)) {
+      // @inquirer/select 5.3.0: plain digits only, so `2e1` is not position 20.
       const position = nthChoice(items, Number(rl.line));
       if (isSelectable(items[position])) setActive(position);
       clearSoon();

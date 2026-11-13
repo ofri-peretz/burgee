@@ -8,7 +8,7 @@
         "registry": "ink",
         "version": "8.0.0",
         "shasum": "7023d1e0022c44b54ecab3ac91e306fa00129e9b",
-        "weight": 4521781,
+        "weight": 4512925,
         "self": 250669,
         "packages": 38,
         "files": {
@@ -224,7 +224,7 @@
           "hasAnsiControlCharacters",
           "tokenizeAnsi"
         ],
-        "measured": "2026-11-06"
+        "measured": "2026-11-12"
       }
     },
     {
