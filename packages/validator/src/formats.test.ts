@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { isIPv4, isIPv6 } from 'node:net';
 
 import { describe, expect, it } from 'vitest';
@@ -93,6 +94,14 @@ describe('the built-in formats', () => {
       expect(() => emit(string({ format }))).toThrow('cannot emit a schema that names a function as text alone');
       expect(emitWith(string({ format })).hooks).toEqual([format.test]);
     }
+  });
+
+  // A bundler keeps a call it cannot see through, and freezing is one: unmarked, a schema with one format carries all nine.
+  it('are each marked as free of side effects, so a bundle carries only the ones it imports', () => {
+    const source = readFileSync(`${import.meta.dirname}/formats.ts`, 'utf8');
+    const frozen = source.split('Object.freeze(').length - 1;
+    expect(frozen).toBe(ALL.length);
+    expect(source.split('= /* @__PURE__ */ Object.freeze(').length - 1).toBe(frozen);
   });
 
   it('report under the keyword format, by name', () => {

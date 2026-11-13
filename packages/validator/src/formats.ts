@@ -7,7 +7,9 @@ import { type Format } from './schema.js';
  * formats.test.ts.
  *
  * On a subpath of its own, and each a value of its own: a program carries the formats it imports
- * and no other. All but the two URL formats are patterns, so `emit` can write them as text; the
+ * and no other. That is what the `@__PURE__` marks are for: a bundler keeps a call it cannot see
+ * through, and freezing is a call (measured 2026-11-13 with esbuild: without the marks a schema
+ * with one format carried all nine). All but the two URL formats are patterns, so `emit` can write them as text; the
  * patterns are anchored and bounded, and take time in proportion to the string.
  *
  * `string({ format: email })`.
@@ -17,7 +19,7 @@ import { type Format } from './schema.js';
  * RFC 3339 §5.6 `full-date`, with the restriction of §5.7 that the day is one the month has: the
  * 29th of February only in a leap year of the Gregorian calendar.
  */
-const date = Object.freeze({
+const date = /* @__PURE__ */ Object.freeze({
   name: 'date',
   pattern:
     /^(?:\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|02-(?:0[1-9]|1\d|2[0-8]))|(?:\d\d(?:0[48]|[2468][048]|[13579][26])|(?:[02468][048]|[13579][26])00)-02-29)$/u,
@@ -32,7 +34,7 @@ const date = Object.freeze({
  * `±00:00`. At another offset it would stand at another minute, which a pattern cannot work out, and
  * is refused.
  */
-const datetime = Object.freeze({
+const datetime = /* @__PURE__ */ Object.freeze({
   name: 'date-time',
   pattern:
     /^(?:\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|02-(?:0[1-9]|1\d|2[0-8]))|(?:\d\d(?:0[48]|[2468][048]|[13579][26])|(?:[02468][048]|[13579][26])00)-02-29)[Tt](?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:[Zz]|[+-](?:[01]\d|2[0-3]):[0-5]\d)|23:59:60(?:\.\d+)?(?:[Zz]|[+-]00:00))$/u,
@@ -44,7 +46,7 @@ const datetime = Object.freeze({
  * quoted local part, no comment, no address literal. It asks for no dot in the domain, so `a@b`
  * passes, and it allows a dot anywhere in the local part.
  */
-const email = Object.freeze({
+const email = /* @__PURE__ */ Object.freeze({
   name: 'email',
   pattern: /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/u,
 }) satisfies Format;
@@ -54,13 +56,13 @@ const email = Object.freeze({
  * the variant it specifies (the nibble 8, 9, a or b). Also the Nil and the Max UUID (§5.9, §5.10),
  * which have neither. No braces, no `urn:uuid:` prefix.
  */
-const uuid = Object.freeze({
+const uuid = /* @__PURE__ */ Object.freeze({
   name: 'uuid',
   pattern: /^(?:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|0{8}-0{4}-0{4}-0{4}-0{12}|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$/u,
 }) satisfies Format;
 
 /** RFC 3986 §3.2.2 `IPv4address`: four decimal octets from 0 to 255, with no leading zero. */
-const ipv4 = Object.freeze({
+const ipv4 = /* @__PURE__ */ Object.freeze({
   name: 'ipv4',
   pattern: /^(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/u,
 }) satisfies Format;
@@ -72,7 +74,7 @@ const ipv4 = Object.freeze({
  *
  * The pattern is that grammar's nine alternatives, one after the other.
  */
-const ipv6 = Object.freeze({
+const ipv6 = /* @__PURE__ */ Object.freeze({
   name: 'ipv6',
   pattern:
     /^(?:(?:[0-9a-fA-F]{1,4}:){6}(?:[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}|(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d))|::(?:[0-9a-fA-F]{1,4}:){5}(?:[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}|(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d))|(?:[0-9a-fA-F]{1,4})?::(?:[0-9a-fA-F]{1,4}:){4}(?:[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}|(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d))|(?:(?:[0-9a-fA-F]{1,4}:){0,1}[0-9a-fA-F]{1,4})?::(?:[0-9a-fA-F]{1,4}:){3}(?:[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}|(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d))|(?:(?:[0-9a-fA-F]{1,4}:){0,2}[0-9a-fA-F]{1,4})?::(?:[0-9a-fA-F]{1,4}:){2}(?:[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}|(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d))|(?:(?:[0-9a-fA-F]{1,4}:){0,3}[0-9a-fA-F]{1,4})?::[0-9a-fA-F]{1,4}:(?:[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}|(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d))|(?:(?:[0-9a-fA-F]{1,4}:){0,4}[0-9a-fA-F]{1,4})?::(?:[0-9a-fA-F]{1,4}:[0-9a-fA-F]{1,4}|(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d))|(?:(?:[0-9a-fA-F]{1,4}:){0,5}[0-9a-fA-F]{1,4})?::[0-9a-fA-F]{1,4}|(?:(?:[0-9a-fA-F]{1,4}:){0,6}[0-9a-fA-F]{1,4})?::)$/u,
@@ -83,7 +85,7 @@ const ipv6 = Object.freeze({
  * four, the last padded with `=`. The empty string is the encoding of no bytes. No line breaks (§3.1)
  * and no missing padding (§3.2); the URL-safe alphabet of §5 is another format.
  */
-const base64 = Object.freeze({
+const base64 = /* @__PURE__ */ Object.freeze({
   name: 'base64',
   pattern: /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u,
 }) satisfies Format;
@@ -105,7 +107,7 @@ const isUrl = (text: string): boolean => !CUT.test(text) && URL.canParse(text);
  *
  * A function, not a pattern: `emit` cannot write it as text, and `emitWith` hands it over.
  */
-const url = Object.freeze({ name: 'url', test: isUrl }) satisfies Format;
+const url = /* @__PURE__ */ Object.freeze({ name: 'url', test: isUrl }) satisfies Format;
 
 /** `http://` or `https://` in either case, then the first character of a host. */
 const HTTP = /^https?:\/\/[^\s/?#\\]/iu;
@@ -113,6 +115,6 @@ const HTTP = /^https?:\/\/[^\s/?#\\]/iu;
 const isHttpUrl = (text: string): boolean => HTTP.test(text) && isUrl(text);
 
 /** The same, with the scheme `http` or `https` and a host: what may be offered as a link. */
-const httpUrl = Object.freeze({ name: 'http-url', test: isHttpUrl }) satisfies Format;
+const httpUrl = /* @__PURE__ */ Object.freeze({ name: 'http-url', test: isHttpUrl }) satisfies Format;
 
 export { base64, date, datetime, email, httpUrl, ipv4, ipv6, url, uuid };
