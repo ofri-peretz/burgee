@@ -381,7 +381,8 @@ published packages' schema copies and burgee's source, so it carries changesets 
 the owner's to merge.
 
 **Step 4 as built, 2026-11-13.** openapi-typescript 7.13.0 is a host in `compat-oracle`
-(`planned`, not claimed), its suite vendored at the release tag. Control: 61 of 61 gated cases. Our
+(`planned`, not claimed), its suite vendored at the release tag; the host entry lands in its own
+pull request, after the generator's, because the mutation lane could not finish both together. Control: 61 of 61 gated cases. Our
 drop-in `apicontract/openapi-typescript`: 0 of 61 as a stub, **37 of 61** with the generator behind
 it, so the gate is proven to fail and to move. The generator is plain string emission with no
 compiler; on the 203 expectations extracted from upstream's transform and document tests that need
