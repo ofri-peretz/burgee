@@ -20,6 +20,10 @@ const stats = (s: Partial<RunStats> = {}): RunStats => ({
   mutationMs: 4049,
   staticMs: 500,
   staticRecollections: 0,
+  staticGroupRuns: 0,
+  staticGroupSplits: 0,
+  staticAuditSampled: 0,
+  staticAuditDisagreed: 0,
   isolatedMs: 951,
   wallMs: 6789,
   testExecutions: 0,
@@ -42,6 +46,7 @@ const stats = (s: Partial<RunStats> = {}): RunStats => ({
   serversSpawned: 0,
   deadlocks: 0,
   diskWrites: 0,
+  diskWritePaths: [],
   auditSampled: 0,
   auditDisagreed: 0,
   ...s,
@@ -228,12 +233,18 @@ describe('the terminal summary', () => {
     );
   });
 
+  it('names the first paths the disk guard put back, and what to do when the tests write them', async () => {
+    const r = await run({ stats: stats({ diskWrites: 2, diskWritePaths: ['.probe-a', 'src/b.ts'] }) });
+    expect(textSummary(r)).toContain("2 write(s) outside the sandbox put back, their units re-run (.probe-a, src/b.ts; if the tests themselves write there, have git ignore it)");
+  });
+
   it('names each correction the run made, in a fixed order', async () => {
     const r = await run({ stats: stats({ watchdogKills: 1, deadlocks: 10, diskWrites: 11, pollutionRestarts: 2, canaryFiles: 3, flakyMutants: 4, survivorsOverturned: 5, timeoutsOverturned: 6, compileErrors: 7, reused: 8, auditSampled: 12, auditDisagreed: 1, crashes: 9 }) });
     expect(textSummary(r).split('\n')[4]).toBe(
       '  corrected: 1 runaway(s) stopped · 10 deadlock(s) called by their worker · 11 write(s) outside the sandbox put back, their units re-run · 2 polluted context(s) restarted (in 3 file(s)) · 4 flaky verdict(s) · 5 survivor(s) killed by a whole-file re-run · 6 timeout(s) that finished given 3x the time · 7 survivor(s) that do not type-check, out of the score · 8 verdict(s) reused (12 audited, 1 disagreeing) · 9 worker crash(es)',
     );
     expect(textSummary(await run({ stats: stats({ crashes: 1 }) })).split('\n')[4]).toBe('  corrected: 1 worker crash(es)');
+    expect(textSummary(await run({ stats: stats({ staticAuditDisagreed: 2 }) })).split('\n')[4]).toBe('  corrected: 2 kill(s) a static group hid, found by the audit');
     // What the phases were made of, printed only for a phase that ran.
     const made = textSummary(await run({ stats: stats({ warmUnitMs: 19_000, warmArmedMs: 2600, isolatedRuns: 9, isolatedByCause: { static: 2, stopped: 1, unfinished: 0, rerun: 1, confirm: 5, flaky: 0 } }) })).split('\n');
     expect(made[4]).toBe('  warm servers ran 19.0 s, 2.6 s of it inside test runs');

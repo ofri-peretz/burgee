@@ -10,7 +10,7 @@
  * what it had to correct, not just what it concluded.
  */
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -32,6 +32,7 @@ import { FILE_KEY, env, stderr } from './runtime.js';
 import { createPool, type UnitOutcome } from './scheduler.js';
 import { summarizeSpec, tracesFor, type SpecSummary } from './spec-oracle.js';
 import { SPEC_TRACES_ENV } from './spec.js';
+import { removeWorkDir } from './work-dir.js';
 
 export type Status = 'Killed' | 'Survived' | 'Timeout' | 'NoCoverage' | 'RuntimeError' | 'CompileError' | 'Ignored';
 
@@ -72,6 +73,12 @@ export interface RunStats {
   staticMs: number;
   /** Unarmed re-collections in that phase, the guard each live static verdict waits on (runner.ts). */
   staticRecollections: number;
+  /** Groups of static mutants armed together (`static.group`), and how many had to be split. */
+  staticGroupRuns: number;
+  staticGroupSplits: number;
+  /** Group survivors run again alone, and those that failed alone: kills a group hid, reported Killed. */
+  staticAuditSampled: number;
+  staticAuditDisagreed: number;
   isolatedMs: number;
   wallMs: number;
   testExecutions: number;
@@ -93,6 +100,8 @@ export interface RunStats {
   pollutionRestarts: number;
   /** Units after which the project on disk had changed (diskguard.ts): put back, and their verdicts and those of the units running beside them re-run. */
   diskWrites: number;
+  /** The first few paths those writes touched, so a suite's own scratch in a tracked folder can be told from a mutant's write. */
+  diskWritePaths: string[];
   /** Survivors of the warm run that a whole-file re-run killed (cross-test effects). */
   survivorsOverturned: number;
   /** Watchdog timeouts that finished when re-run with 3x the budget: the machine was slow, not the mutant. */
@@ -144,7 +153,11 @@ interface Verdict {
 }
 
 interface ChildRecord {
-  type: 'dry' | 'mutant' | 'polluted' | 'isolated' | 'static-fallback' | 'recollection';
+  type: 'dry' | 'mutant' | 'polluted' | 'isolated' | 'static-fallback' | 'recollection' | 'static-group' | 'static-audit';
+  /** `static-group`: whether the group's run passed (all survive this file) or was split. */
+  passed?: boolean;
+  /** `static-audit`: a group survivor run again alone failed: the group hid a kill. */
+  disagreed?: boolean;
   id?: string;
   /** `isolated`: the run stopped on the mutant's hit-count limit: a runaway, scored Timeout. */
   timeout?: boolean;
@@ -206,6 +219,7 @@ const verdictOptions = (o: Options): unknown => ({
   timeoutFactor: o.timeoutFactor,
   excludedMutations: [...o.excludedMutations].sort(),
   ignoreStatic: o.ignoreStatic,
+  staticGroup: o.staticGroup,
   strykerCompat: o.strykerCompat,
   testOverrides: o.testOverrides,
   vitestConfig: o.vitestConfig && existsSync(o.vitestConfig) ? sha(readFileSync(o.vitestConfig, 'utf8')) : null,
@@ -239,6 +253,37 @@ function timeoutReason(v: Verdict): string {
 /** A Killed that every failing test reached only by its own timeout: re-run once before it is believed. */
 const slowKill = (v: Verdict | undefined): boolean => v?.status === 'Killed' && v.slow === true;
 
+/** A source position strictly before another. */
+const before = (x: MutantResult['start'], y: MutantResult['start']): boolean => x.line < y.line || (x.line === y.line && x.column < y.column);
+/** Whether two mutants of one file touch the same source text: one inside the other, or overlapping. */
+function overlap(a: MutantResult, b: MutantResult): boolean {
+  return a.file === b.file && before(a.start, b.end) && before(b.start, a.end);
+}
+
+/**
+ * The mutators whose mutants may share a group: each changes one value and removes nothing. A mutant
+ * that empties a structure (`[]`, `{}`, a block, a flipped flag) can switch off the very test another
+ * mutant fails: on compat-oracle's `hosts.ts`, emptying the list of ungraded directories hid the
+ * emptied reason those directories carry, Killed alone and Survived in a group of 25 (2026-11-13,
+ * sc8-profile.md §8). Those run alone.
+ */
+const GROUPABLE: ReadonlySet<string> = new Set(['StringLiteral', 'NumericLiteral', 'Regex']);
+
+/**
+ * Mutants as groups of at most `size`. Only value mutants are grouped (GROUPABLE), and no two in a
+ * group touch the same source text. First fit, in the order given; every other mutant is a group of
+ * one.
+ */
+export function disjointGroups(mutants: readonly MutantResult[], size: number): string[][] {
+  const groups: MutantResult[][] = [];
+  for (const m of mutants) {
+    const home = GROUPABLE.has(m.mutatorName) ? groups.find((g) => g.length < size && GROUPABLE.has(g[0]?.mutatorName ?? '') && !g.some((other) => overlap(m, other))) : undefined;
+    if (home) home.push(m);
+    else groups.push([m]);
+  }
+  return groups.map((g) => g.map((m) => m.id));
+}
+
 /** How many times its isolated budget a busy stop gets on its re-run. */
 const RERUN_SLACK = 3;
 
@@ -269,8 +314,8 @@ export async function run(options: Options): Promise<RunResult> {
   const { root } = options;
   const work = mkdtempSync(path.join(tmpdir(), 'oxmutate-'));
   const stats: RunStats = {
-    files: 0, mutants: 0, instrumentMs: 0, dryRunMs: 0, mutationMs: 0, staticMs: 0, staticRecollections: 0, isolatedMs: 0, wallMs: 0, testExecutions: 0, warmUnitMs: 0, warmArmedMs: 0, isolatedByCause: { static: 0, stopped: 0, unfinished: 0, rerun: 0, confirm: 0, flaky: 0 },
-    watchdogKills: 0, idleStalls: 0, deadlocks: 0, crashes: 0, canaryFiles: 0, pollutionRestarts: 0, diskWrites: 0, auditSampled: 0, auditDisagreed: 0, survivorsOverturned: 0, timeoutsOverturned: 0, compileErrors: 0, isolatedRuns: 0, reused: 0, flakyTests: 0, flakyMutants: 0, units: 0, serversSpawned: 0,
+    files: 0, mutants: 0, instrumentMs: 0, dryRunMs: 0, mutationMs: 0, staticMs: 0, staticRecollections: 0, staticGroupRuns: 0, staticGroupSplits: 0, staticAuditSampled: 0, staticAuditDisagreed: 0, isolatedMs: 0, wallMs: 0, testExecutions: 0, warmUnitMs: 0, warmArmedMs: 0, isolatedByCause: { static: 0, stopped: 0, unfinished: 0, rerun: 0, confirm: 0, flaky: 0 },
+    watchdogKills: 0, idleStalls: 0, deadlocks: 0, crashes: 0, canaryFiles: 0, pollutionRestarts: 0, diskWrites: 0, diskWritePaths: [], auditSampled: 0, auditDisagreed: 0, survivorsOverturned: 0, timeoutsOverturned: 0, compileErrors: 0, isolatedRuns: 0, reused: 0, flakyTests: 0, flakyMutants: 0, units: 0, serversSpawned: 0,
   };
   let unitSeq = 0;
   const fileFor = (kind: string, ext: string): string => path.join(work, `${kind}-${String(unitSeq++)}.${ext}`);
@@ -594,6 +639,7 @@ export async function run(options: Options): Promise<RunResult> {
       const dirty = change !== undefined && !isClean(change);
       if (dirty) {
         stats.diskWrites++;
+        for (const p of [...change.changed, ...change.added, ...change.removed]) if (stats.diskWritePaths.length < 5 && !stats.diskWritePaths.includes(p)) stats.diskWritePaths.push(p);
         if (!disk?.restore(change)) {
           throw new InstrumentFault(`a mutant wrote outside the sandbox and the project could not be put back: ${[...change.changed, ...change.added, ...change.removed].join(', ')}. fix: restore them (git checkout / git clean), and see which test writes into the project`);
         }
@@ -801,14 +847,18 @@ export async function run(options: Options): Promise<RunResult> {
       if (items.length === 0) return [];
       const STATIC_BATCH = 25;
       /** Units of up to STATIC_BATCH mutants per test file, for the files each mutant gets this round. */
-      const unitsFor = (filesOf: (m: MutantResult) => string[]): Unit[] => {
+      const unitsFor = (filesOf: (m: MutantResult) => string[], grouped = false): Unit[] => {
         const byFile = new Map<string, string[]>();
         for (const m of items) for (const f of filesOf(m)) (byFile.get(f) ?? byFile.set(f, []).get(f))?.push(m.id);
         return [...byFile].flatMap(([file, ids]) =>
-          Array.from({ length: Math.ceil(ids.length / STATIC_BATCH) }, (_, i): Unit => ({
-            mode: 'static', files: [file], results: fileFor('static', 'jsonl'), progress: fileFor('static', 'progress'), staticIds: ids.slice(i * STATIC_BATCH, (i + 1) * STATIC_BATCH),
-            hitLimits: Object.fromEntries(ids.slice(i * STATIC_BATCH, (i + 1) * STATIC_BATCH).map((id) => [id, hitLimitOf(id)])),
-          })),
+          Array.from({ length: Math.ceil(ids.length / STATIC_BATCH) }, (_, i): Unit => {
+            const mine = ids.slice(i * STATIC_BATCH, (i + 1) * STATIC_BATCH);
+            return {
+              mode: 'static', files: [file], results: fileFor('static', 'jsonl'), progress: fileFor('static', 'progress'), staticIds: mine,
+              ...(grouped && options.staticGroup > 1 ? { staticGroups: disjointGroups(mine.map((id) => byId.get(id) as MutantResult), options.staticGroup) } : {}),
+              hitLimits: Object.fromEntries(mine.map((id) => [id, hitLimitOf(id)])),
+            };
+          }),
         );
       };
       const killed = new Map<string, { killedBy: string[]; ran: number }>();
@@ -823,6 +873,14 @@ export async function run(options: Options): Promise<RunResult> {
         const decided = new Set<string>();
         for (const r of readRecords(unit.results)) {
           if (r.type === 'recollection') stats.staticRecollections++;
+          if (r.type === 'static-group') {
+            stats.staticGroupRuns++;
+            if (r.passed !== true) stats.staticGroupSplits++;
+          }
+          if (r.type === 'static-audit') {
+            stats.staticAuditSampled++;
+            if (r.disagreed === true) stats.staticAuditDisagreed++;
+          }
           if (r.type === 'static-fallback') for (const id of r.ids ?? []) back.add(id);
           if (r.type !== 'isolated' || !r.id) continue;
           decided.add(r.id);
@@ -837,6 +895,7 @@ export async function run(options: Options): Promise<RunResult> {
       };
       const keepUndecided = (unit: Unit): boolean => {
         unit.staticIds = (unit.staticIds ?? []).filter((id) => !killed.has(id) && !back.has(id));
+        if (unit.staticGroups) unit.staticGroups = unit.staticGroups.map((g) => g.filter((id) => !killed.has(id) && !back.has(id))).filter((g) => g.length > 0);
         return unit.staticIds.length > 0;
       };
       // Two rounds: each mutant first in the file most likely to kill it (filesFor puts the files whose
@@ -846,7 +905,11 @@ export async function run(options: Options): Promise<RunResult> {
       const open = (m: MutantResult): boolean => !killed.has(m.id) && !back.has(m.id);
       const rounds = [(m: MutantResult): string[] => filesFor(m).slice(0, 1), (m: MutantResult): string[] => (open(m) ? filesFor(m).slice(1) : [])];
       // the mutant's run and the unarmed canary after it
-      for (const round of rounds) await staticPool.drain(unitsFor(round), (_, id) => isolatedCapped(id, 2), afterStatic, keepUndecided);
+      // The second round is where a group pays: a survivor of its likeliest file runs in every other
+      // file that loads it, and most of those runs pass (10 static mutants on one line of
+      // compat-oracle's hosts.ts cost 389 s that way, sc8-profile.md §6). The first round stays one
+      // mutant at a time: that is where the kills are, and a kill splits a group.
+      for (const [i, round] of rounds.entries()) await staticPool.drain(unitsFor(round, i > 0), (_, id) => isolatedCapped(id, 2), afterStatic, keepUndecided);
       const undecided: MutantResult[] = [];
       for (const m of items) {
         const k = killed.get(m.id);
@@ -1065,6 +1128,6 @@ export async function run(options: Options): Promise<RunResult> {
     progress.stop();
     for (const p of pools) p.close();
     if (env['OXMUTATE_KEEP']) stderr.write(`oxmutate: work directory kept at ${work}\n`);
-    else rmSync(work, { recursive: true, force: true });
+    else stderr.write(removeWorkDir(work) ?? '');
   }
 }

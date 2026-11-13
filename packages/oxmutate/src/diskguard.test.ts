@@ -60,6 +60,17 @@ describe('guardDisk: a write outside the sandbox is found after the unit, and pu
     expect(existsSync(path.join(root, '.grade-x1'))).toBe(true);
   });
 
+  it('reads an entry that is gone again before it is looked at as clean: a running test made it and removed it', async () => {
+    // The listing names it and the second look does not find it, as when a test removes its scratch between the two.
+    let gone = true;
+    const guard = await guardDisk(root, MAX_SNAPSHOT_BYTES, (abs) => !(gone && abs === path.join(root, 'probe-1')));
+    mkdirSync(path.join(root, 'probe-1'));
+    expect(await guard?.check()).toSatisfy(isClean);
+    // Still there on the next look: a write, named.
+    gone = false;
+    expect((await guard?.check())?.added).toEqual(['probe-1']);
+  });
+
   it('reads an untouched project as clean', async () => {
     expect(await (await guardDisk(root))?.check()).toSatisfy(isClean);
   });
