@@ -24,7 +24,7 @@ const UNIT = 4;
  * there, and the two Unicode line separators cannot end a line in an older parser.
  */
 const literal = (value: unknown): string =>
-  String(JSON.stringify(value)).replaceAll(/[<>/\u2028\u2029]/gu, (unit) => `\\u${unit.charCodeAt(0).toString(HEX).padStart(UNIT, '0')}`);
+  String(JSON.stringify(value)).replaceAll(/[<>/\u2028\u2029]/gu, (unit) => `\\u${(unit.codePointAt(0) as number).toString(HEX).padStart(UNIT, '0')}`);
 
 /** A bound as source. A node is data and may have been built by hand, so what is not a number is refused, not printed. */
 const numeric = (value: unknown): string => {
