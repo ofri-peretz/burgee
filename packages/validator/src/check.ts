@@ -95,6 +95,19 @@ const isMember = (schema: Node, value: unknown): boolean => (schema.values as Re
 
 const isBoolean = (_: Node, value: unknown): boolean => typeof value === 'boolean';
 
+// A bigint and a number compare by value, so a bound may be either: one nobody set is an infinity.
+const isBigint = (schema: Node, value: unknown): boolean => {
+  const [min, max] = schema.value as readonly [bigint | number, bigint | number];
+  return typeof value === 'bigint' && value >= min && value <= max;
+};
+
+/** A `Date` whose time is a number: all four libraries with a date kind refuse `new Date(NaN)`. */
+const isDate = (_: Node, value: unknown): boolean => value instanceof Date && !Number.isNaN(value.getTime());
+
+const isTypeOf = (schema: Node, value: unknown): boolean => typeof value === schema.value;
+
+const isInstance = (schema: Node, value: unknown): boolean => value instanceof (schema.value as abstract new () => unknown);
+
 /**
  * Calls the node's own check. The three commonest are called by name, so the engine can inline
  * them into the loop that asked: measured 2026-11-13 on the order schema, calling `schema.check`
@@ -201,11 +214,14 @@ export {
   check,
   isAnything,
   isArray,
+  isBigint,
   isBoolean,
   isCase,
   isClosed,
   isCustom,
+  isDate,
   isEvery,
+  isInstance,
   isLater,
   isLiteral,
   isMember,
@@ -218,6 +234,7 @@ export {
   isRecord,
   isString,
   isTuple,
+  isTypeOf,
   isUnion,
   matches,
   points,

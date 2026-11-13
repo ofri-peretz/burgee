@@ -25,13 +25,21 @@ const HEX = 16;
 const UNIT = 4;
 
 /**
+ * The values JSON cannot write: it throws on a bigint, and calls a number that is not finite null,
+ * which is another value. Each is its own text, made of digits and letters only.
+ */
+const unquoted = (value: unknown): string | null => {
+  if (typeof value === 'bigint') return `${String(value)}n`;
+  return typeof value === 'number' && !Number.isFinite(value) ? String(value) : null;
+};
+
+/**
  * A value as JavaScript source. `JSON.stringify` makes it a valid literal; the escapes after it
  * are for where the text may end up: `<`, `>` and `/` cannot close a `<script>` or open a comment
  * there, and the two Unicode line separators cannot end a line in an older parser.
  */
 const literal = (value: unknown): string =>
-  // JSON has no text for a number that is not finite and calls it null, which is another value.
-  (typeof value === 'number' && !Number.isFinite(value) ? String(value) : String(JSON.stringify(value))).replaceAll(/[<>/\u2028\u2029]/gu, (unit) => `\\u${(unit.codePointAt(0) as number).toString(HEX).padStart(UNIT, '0')}`);
+  (unquoted(value) ?? String(JSON.stringify(value))).replaceAll(/[<>/\u2028\u2029]/gu, (unit) => `\\u${(unit.codePointAt(0) as number).toString(HEX).padStart(UNIT, '0')}`);
 
 /** A bound as source. A node is data and may have been built by hand, so what is not a number is refused, not printed. */
 const numeric = (value: unknown): string => {
@@ -47,6 +55,14 @@ const pattern = (value: unknown): string => {
     throw new TypeError('cannot emit a pattern that is not a RegExp. fix: build the schema with `string({ pattern })`');
   }
   return `new RegExp(${literal(value.source)}, ${literal(value.flags)})`;
+};
+
+/** A bigint's bound as source; what is not a bigint is refused, as `numeric` refuses what is not a number. */
+const big = (value: unknown): string => {
+  if (typeof value !== 'bigint') {
+    throw new TypeError(`cannot emit the bound ${literal(String(value))}: it is not a bigint. fix: build the schema with \`bigint({ min, max })\``);
+  }
+  return literal(value);
 };
 
 const isObject = (ref: string): string => `typeof ${ref} === "object" && ${ref} !== null && !Array.isArray(${ref})`;
@@ -83,7 +99,7 @@ const string = (emitter: Emitter, schema: Node, ref: string): string => {
   else if (schema.min > 0) parts.push(`${ref}.length >= ${min}`);
   if (schema.max < Number.MAX_VALUE) parts.push(`(${ref}.length <= ${max} || ${points(emitter)}(${ref}) <= ${max})`);
   if (schema.pattern !== null) parts.push(`${declare(emitter, 'r', pattern(schema.pattern))}.test(${ref})`);
-  if (schema.rule !== null) parts.push(schema.rule.pattern === null ? `${hook(emitter, schema.rule)}(${ref}) === true` : `${declare(emitter, 'r', pattern(schema.rule.pattern))}.test(${ref})`);
+  if (schema.rule !== null) parts.push(schema.rule.pattern === null ? `${tested(emitter, schema.rule)}(${ref}) === true` : `${declare(emitter, 'r', pattern(schema.rule.pattern))}.test(${ref})`);
   return parts.join(' && ');
 };
 
@@ -133,6 +149,9 @@ const array = (emitter: Emitter, schema: Node): string => {
  */
 const UNDEFINED_MAY_PASS: ReadonlySet<Kind> = new Set(['unknown', 'nullable', 'nullish', 'union', 'intersection', 'lazy', 'custom']);
 
+/** Whether a field's own test can be true of `undefined`: one of those kinds, or the literal `undefined`. */
+const mayPassUndefined = (field: Node): boolean => UNDEFINED_MAY_PASS.has(field.kind) || (field.kind === 'literal' && field.value === undefined);
+
 /**
  * The loop over the keys an object's shape does not name: each is refused, or its value is held to
  * the schema for them. `for … in`, as `isClosed` reads them.
@@ -153,7 +172,7 @@ const object = (emitter: Emitter, schema: Node): string => {
     const ref = `v[${literal(key)}]`;
     const inner = test(emitter, field, ref);
     if (field.optional) return `(${ref} === undefined || (${inner}))`;
-    return UNDEFINED_MAY_PASS.has(field.kind) ? `(${ref} !== undefined && (${inner}))` : `(${inner})`;
+    return mayPassUndefined(field) ? `(${ref} !== undefined && (${inner}))` : `(${inner})`;
   });
   if (schema.unknown === 'strict' || schema.item !== null) tests.push(`${declare(emitter, 'f', extras(emitter, schema))}(v)`);
   return `(v) => ${[isObject('v'), ...tests].join('\n  && ')}`;
@@ -185,14 +204,27 @@ ${chosen.join('\n')}
 }`;
 };
 
-/** A function the schema names, by where the text will find it. What is not a function is refused, not called. */
-const hook = (emitter: Emitter, rule: Rule): string => {
-  if (typeof rule.test !== 'function') {
-    throw new TypeError(`cannot emit the rule ${literal(String(rule.name))}: it has neither a pattern nor a test. fix: build it with \`string({ format })\` or \`custom\``);
-  }
-  emitter.hooks.push(rule.test);
+/** A function the schema names, by where the text will find it. What is not a function is refused, not called: `what` says what it was to be. */
+const hook = (emitter: Emitter, named: unknown, what: string): string => {
+  if (typeof named !== 'function') throw new TypeError(`cannot emit ${what}`);
+  emitter.hooks.push(named);
   return `h[${String(emitter.hooks.length - 1)}]`;
 };
+
+/** The test of a format or of a custom type, as a hook. */
+const tested = (emitter: Emitter, rule: Rule): string =>
+  hook(emitter, rule.test, `the rule ${literal(String(rule.name))}: it has neither a pattern nor a test. fix: build it with \`string({ format })\` or \`custom\``);
+
+const bigint = (_: Emitter, schema: Node, ref: string): string => {
+  const [min, max] = schema.value as readonly unknown[];
+  const parts = [`typeof ${ref} === "bigint"`];
+  if (min !== Number.NEGATIVE_INFINITY) parts.push(`${ref} >= ${big(min)}`);
+  if (max !== Number.POSITIVE_INFINITY) parts.push(`${ref} <= ${big(max)}`);
+  return parts.join(' && ');
+};
+
+const instance = (emitter: Emitter, schema: Node, ref: string): string =>
+  `${ref} instanceof ${hook(emitter, schema.value, 'an instance check whose class is not a function. fix: build it with `instanceOf`')}`;
 
 /** The function for a node that needs one, written the first time it is asked for. */
 const named = (emitter: Emitter, schema: Node, write: (emitter: Emitter, schema: Node) => string): string => {
@@ -250,7 +282,11 @@ const WRITERS: Readonly<Record<Kind, (emitter: Emitter, schema: Node, ref: strin
   union: (emitter, schema, ref) => joined(members(emitter, schema, ref), ' || ', 'false'),
   intersection: (emitter, schema, ref) => joined(members(emitter, schema, ref), ' && ', 'true'),
   lazy: later,
-  custom: (emitter, schema, ref) => `${hook(emitter, schema.rule as Rule)}(${ref}) === true`,
+  custom: (emitter, schema, ref) => `${tested(emitter, schema.rule as Rule)}(${ref}) === true`,
+  bigint,
+  date: (_, __, ref) => `(${ref} instanceof Date && !Number.isNaN(${ref}.getTime()))`,
+  type: (_, schema, ref) => `typeof ${ref} === ${literal(schema.value)}`,
+  instance,
 };
 
 function test(emitter: Emitter, schema: Node, ref: string): string {
@@ -268,13 +304,13 @@ const write = (schema: Node): { body: string; hooks: readonly unknown[] } => {
  * JavaScript for a function `(value) => boolean` that answers what `check(schema, value)` answers.
  * It is one expression, so `export const isOrder = ${emit(Order)};` is a module.
  *
- * A schema that names a function (a custom type, or a format with a test) has no such text: text
- * cannot hold a function. `emitWith` is for those.
+ * A schema that names a function (a custom type, a class to be an instance of, or a format with a
+ * test) has no such text: text cannot hold a function. `emitWith` is for those.
  */
 const emit = <T>(schema: Schema<T>): string => {
   const { body, hooks } = write(schema);
   if (hooks.length > 0) {
-    throw new TypeError('cannot emit a schema that names a function as text alone: a custom type, or a format with a test. fix: give the format a pattern, or use `emitWith` and hand its hooks to the text');
+    throw new TypeError('cannot emit a schema that names a function as text alone: a custom type, a refinement, a class, or a format with a test. fix: give the format a pattern, or use `emitWith` and hand its hooks to the text');
   }
   return `(() => {\n${body}\n})()`;
 };

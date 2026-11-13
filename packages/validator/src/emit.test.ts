@@ -7,13 +7,17 @@ import {
   annotate,
   any,
   array,
+  bigint,
   boolean,
   custom,
   discriminated,
+  discriminatedBy,
   enumOf,
+  instanceOf,
   intersection,
   lazy,
   literal,
+  nativeEnum,
   never,
   nullable,
   nullish,
@@ -23,14 +27,20 @@ import {
   record,
   type Schema,
   string,
+  symbol,
   tuple,
+  undefinedOf,
   union,
   unknown,
 } from './schema.js';
 
 /** Run emitted code. Only here: the package itself never evaluates text (spec.md R3). */
+const BACKSLASH = String.fromCodePoint(92);
 const isOne = (value: unknown): boolean => value === 1;
 const isE = (text: string): boolean => text === 'e';
+
+/** A string as the emitter must write it: a JSON string, with what could close a script or open a comment as an escape. */
+const escaped = (text: string): string => JSON.stringify(text).replaceAll(/[<>/]/gu, (unit) => `${BACKSLASH}u00${(unit.codePointAt(0) as number).toString(16)}`);
 
 const load = (source: string): ((value: unknown) => boolean) =>
   // eslint-disable-next-line secure-coding/no-unsafe-deserialization, node-security/detect-eval-with-expression -- The emitted text is the subject under test
@@ -302,6 +312,58 @@ return (v) => f1(v);
       );
     });
 
+    // Wave 2: a bigint's bounds, the name `typeof` gives, and the class of an instance check.
+    it.each<[string, Schema<unknown>, unknown, unknown]>([
+      ['a bigint literal', literal(-5n), -5n, -5],
+      ['a bigint bound', bigint({ min: -(2n ** 64n), max: 2n ** 64n }), 2n ** 64n, 2n ** 64n + 1n],
+      ['the literal undefined', undefinedOf(), undefined, null],
+      ['the members of a native enum', nativeEnum({ A: closing, B: breakout }), closing, 'A'],
+      ['a tag that is a number', discriminatedBy(breakout, [object({ [breakout]: literal(1) })]), { [breakout]: 1 }, { [breakout]: '1' }],
+    ])('%s is written as a literal, and still means what it said', (_, schema, accepted, refused) => {
+      const source = emit(schema);
+      expect(source).not.toMatch(/<\/script|\u2028|\u2029/u);
+      const emitted = load(source);
+      expect(emitted(accepted)).toBe(true);
+      expect(emitted(refused)).toBe(false);
+      expect(check(schema, accepted)).toBe(true);
+      expect(check(schema, refused)).toBe(false);
+      expect('__emitted' in globalThis).toBe(false);
+    });
+
+    it('writes the name a hand-built type node carries as an escaped string, which no value has as its type', () => {
+      const name = `symbol" || globalThis.__emitted || "${closing}`;
+      const node = { ...symbol(), value: name } as unknown as Schema<unknown>;
+      const source = emit(node);
+      expect(source).toBe(`(() => {\n\nreturn (v) => typeof v === ${escaped(name)};\n})()`);
+      expect(source).not.toContain('</script');
+      expect(load(source)(Symbol('x'))).toBe(false);
+      expect(check(node, Symbol('x'))).toBe(false);
+      expect('__emitted' in globalThis).toBe(false);
+    });
+
+    it.each<[string, unknown]>([
+      ['a string', '0n || globalThis.__emitted'],
+      ['a number', 5],
+      ['null', null],
+    ])('refuses a hand-built bigint node whose bound is %s', (_, bound) => {
+      for (const value of [[bound, 1n], [0n, bound]]) {
+        const node = { ...bigint(), value } as unknown as Schema<unknown>;
+        expect(() => emit(node)).toThrow(TypeError);
+        expect(() => emit(node)).toThrow('it is not a bigint. fix: build the schema with `bigint({ min, max })`');
+      }
+    });
+
+    it('escapes the bound it refuses in saying so', () => {
+      const node = { ...bigint(), value: [closing, 1n] } as unknown as Schema<unknown>;
+      expect(() => emit(node)).toThrow(`cannot emit the bound ${escaped(closing)}: it is not a bigint.`);
+    });
+
+    it('refuses a hand-built instance node whose class is not a function', () => {
+      const node = { ...instanceOf(Date), value: 'Date; globalThis.__emitted = 1' } as unknown as Schema<unknown>;
+      expect(() => emitWith(node)).toThrow(TypeError);
+      expect(() => emitWith(node)).toThrow('cannot emit an instance check whose class is not a function. fix: build it with `instanceOf`');
+    });
+
     it('keeps a pattern\'s flags', () => {
       const emitted = load(emit(string({ pattern: /^a$/i })));
       expect(emitted('A')).toBe(true);
@@ -530,7 +592,7 @@ return (v) => f2(v);
     for (const schema of [custom('one', isOne), object({ a: string({ format: { name: 'e', test: isE } }) })]) {
       expect(() => emit(schema)).toThrow(TypeError);
       expect(() => emit(schema)).toThrow(
-        'cannot emit a schema that names a function as text alone: a custom type, or a format with a test. fix: give the format a pattern, or use `emitWith` and hand its hooks to the text',
+        'cannot emit a schema that names a function as text alone: a custom type, a refinement, a class, or a format with a test. fix: give the format a pattern, or use `emitWith` and hand its hooks to the text',
       );
     }
     expect(emit(string({ format: { name: 'e', pattern: /^e$/ } }))).toBe('(() => {\nconst r0 = new RegExp("^e$", "");\nreturn (v) => typeof v === "string" && r0.test(v);\n})()');

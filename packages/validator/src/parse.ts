@@ -152,6 +152,10 @@ const FILLERS: Readonly<Record<Kind, (schema: Node, value: unknown) => unknown>>
   intersection: merged,
   lazy: later,
   custom: same,
+  bigint: same,
+  date: same,
+  type: same,
+  instance: same,
 };
 
 /** The default where `undefined` arrived and the schema has one; otherwise what the kind makes of the value. */

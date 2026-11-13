@@ -9,11 +9,14 @@
 import {
   isAnything,
   isArray,
+  isBigint,
   isBoolean,
   isCase,
   isClosed,
   isCustom,
+  isDate,
   isEvery,
+  isInstance,
   isLater,
   isLiteral,
   isMember,
@@ -25,6 +28,7 @@ import {
   isRecord,
   isString,
   isTuple,
+  isTypeOf,
   isUnion,
 } from './check.js';
 
@@ -48,7 +52,11 @@ export type Kind =
   | 'union'
   | 'intersection'
   | 'lazy'
-  | 'custom';
+  | 'custom'
+  | 'bigint'
+  | 'date'
+  | 'type'
+  | 'instance';
 
 /** A predicate a node names (spec.md R10). It is the only kind of function a node may hold, beside `check` and `get`. */
 export type Test = (value: unknown) => boolean;
@@ -88,7 +96,10 @@ export interface Node {
   readonly pattern: RegExp | null;
   /** A string's format, or a custom type's predicate. */
   readonly rule: Rule | null;
-  /** The literal's value. */
+  /**
+   * The literal's value; a bigint's two bounds, lowest first; the name `typeof` gives the values of
+   * a `type` node; the class an `instance` node's values are instances of.
+   */
   readonly value: unknown;
   /** The enum's members; on an object that closes or strips, its keys. */
   readonly values: ReadonlySet<unknown> | null;
@@ -262,11 +273,47 @@ export const number = (options: NumberOptions = {}): Schema<number> => {
 
 export const boolean = (): Schema<boolean> => node('boolean', isBoolean, {});
 
-export const literal = <const T extends string | number | boolean | null>(value: T): Schema<T> =>
+export const literal = <const T extends string | number | bigint | boolean | null | undefined>(value: T): Schema<T> =>
   node('literal', isLiteral, { value });
+
+/** Only `undefined`: the literal with no value. As an object's field it is a key that must be absent or `undefined`, so mark it `optional`. */
+export const undefinedOf = (): Schema<undefined> => node('literal', isLiteral, {});
 
 export const enumOf = <const T extends readonly (string | number)[]>(values: T): Schema<T[number]> =>
   node('enum', isMember, { values: new Set(values) });
+
+type EnumObject = Readonly<Record<string, string | number>>;
+
+/**
+ * The values of a TypeScript `enum`. A numeric enum compiles to an object that also maps each
+ * number back to its name (`{ A: 0, 0: 'A' }`), and those names are not values: `0` is accepted
+ * and `'A'` is not. A key is such a way back when its value is a name whose own value is that key;
+ * to the type, it is a key that is a number.
+ */
+export const nativeEnum = <const T extends EnumObject>(members: T): Schema<T[keyof T & string]> =>
+  node('enum', isMember, {
+    values: new Set(Object.keys(members).filter((key) => members[String(members[key])] !== Number(key)).map((key) => members[key])),
+  });
+
+export interface BigintOptions {
+  readonly min?: bigint;
+  readonly max?: bigint;
+}
+
+/**
+ * A bigint. Its bounds are bigints, which a double cannot hold, so they are kept as given, in
+ * `value`; a bound nobody set is an infinity, which every bigint is inside.
+ */
+export const bigint = (options: BigintOptions = {}): Schema<bigint> =>
+  node('bigint', isBigint, { value: Object.freeze([options.min ?? Number.NEGATIVE_INFINITY, options.max ?? Number.POSITIVE_INFINITY]) });
+
+/** A `Date` that is a time: `new Date(NaN)` fails, and so does a string or a number that could be read as one. */
+export const date = (): Schema<Date> => node('date', isDate, {});
+
+export const symbol = (): Schema<symbol> => node('type', isTypeOf, { value: 'symbol' });
+
+/** A value made by `new` of a class, or of one that extends it. The emitted code takes the class as a hook: text cannot hold it. */
+export const instanceOf = <T>(type: abstract new (...args: never[]) => T): Schema<T> => node('instance', isInstance, { value: type });
 
 /** Accepts every value. `any` is the same node with the type that switches checking off. */
 export const unknown = (): Schema<unknown> => node('unknown', isAnything, {});

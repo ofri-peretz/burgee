@@ -1,24 +1,33 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import { verdict, verdicts } from './__fixtures__/readers.js';
-import { emit } from './emit.js';
+import { emit, emitWith } from './emit.js';
 import {
   array,
+  bigint,
   boolean,
   check,
+  date,
   discriminated,
   discriminatedBy,
   enumOf,
   type Infer,
+  instanceOf,
+  intersection,
   issues,
   literal,
+  nativeEnum,
+  nullable,
   number,
   object,
   optional,
   parse,
   type Schema,
   string,
+  symbol,
   tuple,
+  undefinedOf,
+  union,
 } from './index.js';
 
 /**
@@ -159,5 +168,146 @@ return (v) => f2(v);
       expect(verdict(literal(Number.NaN), Number.NaN)).toBe(false);
       expect(verdicts(enumOf([Number.NaN, Number.POSITIVE_INFINITY]), [Number.NaN, Number.POSITIVE_INFINITY, null])).toEqual([true, true, false]);
     });
+  });
+});
+
+/** What `enum Level { Low, High }` compiles to: each name to its number, and each number back to its name. */
+const Level = { Low: 0, High: 1, 0: 'Low', 1: 'High' } as const;
+/** What `enum Colour { Red = 'red', Green = 'green' }` compiles to. */
+const Colour = { Red: 'red', Green: 'green' } as const;
+/** A mix: `enum Mixed { A = 'B', B = 1, C = '1' }`, where one value is another member's name and another reads as a number. */
+const Mixed = { A: 'B', B: 1, 1: 'B', C: '1' } as const;
+
+class Animal {
+  readonly legs = 4;
+}
+class Dog extends Animal {}
+
+const KINDS: [string, Schema<unknown>, unknown[], unknown[]][] = [
+  ['prim.bigint', bigint(), [1n, 0n, -1n, 2n ** 2000n, -(2n ** 2000n)], [1, '1', null, undefined, Number.POSITIVE_INFINITY]],
+  ['a bigint between bounds a double cannot hold', bigint({ min: 2n ** 64n, max: 2n ** 64n + 2n }), [2n ** 64n, 2n ** 64n + 1n, 2n ** 64n + 2n], [2n ** 64n - 1n, 2n ** 64n + 3n, 0n, 2 ** 64]],
+  ['a bigint with a lower bound only', bigint({ min: 0n }), [0n, 1n, 2n ** 2000n], [-1n]],
+  ['a bigint with an upper bound only', bigint({ max: 0n }), [0n, -1n, -(2n ** 2000n)], [1n]],
+  ['a bigint literal', literal(1n), [1n], [1, 2n, '1']],
+  ['prim.date', date(), [new Date(0), new Date('2020-01-01T00:00:00Z')], ['2020-01-01T00:00:00Z', new Date(Number.NaN), 0, null, undefined, {}, { getTime: Date.now }]],
+  ['prim.native_enum, of numbers', nativeEnum(Level), [0, 1], ['Low', 'High', 5, '0', undefined]],
+  ['prim.native_enum, of strings', nativeEnum(Colour), ['red', 'green'], ['Red', 'Green', 0]],
+  ['a native enum of both', nativeEnum(Mixed), ['B', 1, '1'], ['A', 'C', 0]],
+  ['prim.symbol', symbol(), [Symbol('x'), Symbol.iterator, Symbol.for('y')], ['x', 'symbol', undefined, null]],
+  ['prim.undefined', undefinedOf(), [undefined], [null, 0, '', 'undefined']],
+  ['undefined beside another member', union([string(), undefinedOf()]), ['a', undefined], [null, 1]],
+  ['val.instanceof', instanceOf(Map), [new Map()], [{}, new Set(), null, Map]],
+  ['an instance of a class or of one that extends it', instanceOf(Animal), [new Animal(), new Dog()], [{ legs: 4 }, Animal]],
+  ['the new kinds in an object', object({ id: bigint({ min: 1n }), at: date(), level: nativeEnum(Level), key: optional(symbol()) }), [{ id: 1n, at: new Date(0), level: 1 }, { id: 2n, at: new Date(1), level: 0, key: Symbol('k') }], [{ id: 0n, at: new Date(0), level: 1 }, { id: 1n, at: 0, level: 1 }, { id: 1n, at: new Date(0), level: 'Low' }, { id: 1n, at: new Date(0), level: 1, key: 'k' }]],
+  ['the new kinds in the others', array(nullable(intersection([tuple([bigint(), date()]), tuple([literal(1n), instanceOf(Date)])]))), [[], [null, [1n, new Date(0)]]], [[[2n, new Date(0)]], [[1n, new Date(Number.NaN)]], [[1n]]]],
+];
+
+describe('the primitive kinds of wave 2', () => {
+  it.each(KINDS)('%s: every reader accepts what the probes accept and refuses what they refuse', (_, schema, accepted, refused) => {
+    expect(verdicts(schema, accepted)).toEqual(accepted.map(() => true));
+    expect(verdicts(schema, refused)).toEqual(refused.map(() => false));
+  });
+
+  it('are data like every other node: frozen, with every member, each kind named', () => {
+    const members = Object.keys(string());
+    for (const [, schema] of KINDS) {
+      expect(Object.keys(schema)).toEqual(members);
+      expect(Object.isFrozen(schema)).toBe(true);
+    }
+    expect(([bigint(), date(), symbol(), instanceOf(Map), undefinedOf(), nativeEnum(Level)] as Schema<unknown>[]).map((schema) => schema.kind)).toEqual(['bigint', 'date', 'type', 'instance', 'literal', 'enum']);
+    expect(bigint().value).toEqual([Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY]);
+    expect(Object.isFrozen(bigint().value)).toBe(true);
+    expect(bigint({ min: 1n, max: 2n }).value).toEqual([1n, 2n]);
+    expect([symbol().value, instanceOf(Map).value, undefinedOf().value]).toEqual(['symbol', Map, undefined]);
+    expect([...(nativeEnum(Level).values ?? [])]).toEqual([0, 1]);
+    expect([...(nativeEnum(Mixed).values ?? [])]).toEqual(['B', 1, '1']);
+    expect(undefinedOf().check).toBe(literal(1).check);
+    expect(nativeEnum(Level).check).toBe(enumOf(['a']).check);
+  });
+
+  it('are typed', () => {
+    expectTypeOf(bigint({ min: 0n })).toEqualTypeOf<Schema<bigint>>();
+    expectTypeOf(date()).toEqualTypeOf<Schema<Date>>();
+    expectTypeOf(symbol()).toEqualTypeOf<Schema<symbol>>();
+    expectTypeOf(undefinedOf()).toEqualTypeOf<Schema<undefined>>();
+    expectTypeOf(literal(1n)).toEqualTypeOf<Schema<1n>>();
+    expectTypeOf(literal(undefined)).toEqualTypeOf<Schema<undefined>>();
+    expectTypeOf(instanceOf(Animal)).toEqualTypeOf<Schema<Animal>>();
+    expectTypeOf(instanceOf(Map)).toEqualTypeOf<Schema<Map<unknown, unknown>>>();
+    expectTypeOf<Infer<ReturnType<typeof nativeEnum<typeof Level>>>>().toEqualTypeOf<0 | 1>();
+    expectTypeOf(nativeEnum(Colour)).toEqualTypeOf<Schema<'red' | 'green'>>();
+    expectTypeOf(nativeEnum(Mixed)).toEqualTypeOf<Schema<'B' | 1 | '1'>>();
+    enum Real {
+      Off,
+      On,
+    }
+    const real: Schema<Real> = nativeEnum(Real);
+    // @ts-expect-error the names a numeric enum maps back to are not its values
+    const names: Schema<string> = nativeEnum(Real);
+    expect(names.kind).toBe('enum');
+    expect(verdicts(real, [Real.Off, Real.On, 0, 1, 'Off', 2])).toEqual([true, true, true, true, false, false]);
+    // @ts-expect-error a bigint's bound is a bigint
+    bigint({ min: 1 });
+  });
+
+  it.each<[string, Schema<unknown>, unknown, { path: string; keyword: string; message: string }]>([
+    ['not a bigint', bigint(), 1, { path: '', keyword: 'type', message: 'expected a bigint, got number 1. fix: send a bigint' }],
+    ['a bigint too small', bigint({ min: 5n, max: 9n }), 4n, { path: '', keyword: 'min', message: 'expected a bigint of at least 5n, got bigint 4. fix: send 5n or more' }],
+    ['a bigint too large', bigint({ min: 5n, max: 9n }), 10n, { path: '', keyword: 'max', message: 'expected a bigint of at most 9n, got bigint 10. fix: send 9n or less' }],
+    ['not a bigint literal', literal(1n), 1, { path: '', keyword: 'literal', message: 'expected 1n, got number 1. fix: send 1n' }],
+    ['not a date', date(), '2020-01-01', { path: '', keyword: 'type', message: 'expected a Date, got string "2020-01-01". fix: send a Date' }],
+    ['a date that is no time', date(), new Date(Number.NaN), { path: '', keyword: 'date', message: 'expected a Date that is a time, not `new Date(NaN)`, got an object. fix: send a Date made from a real time' }],
+    ['not a symbol', symbol(), 'x', { path: '', keyword: 'type', message: 'expected a symbol, got string "x". fix: send a symbol' }],
+    ['not undefined', undefinedOf(), null, { path: '', keyword: 'literal', message: 'expected undefined, got null. fix: send undefined' }],
+    ['a name of a native enum', nativeEnum(Level), 'Low', { path: '', keyword: 'enum', message: 'expected one of 0, 1, got string "Low". fix: send one of them' }],
+    ['not an instance', instanceOf(Animal), {}, { path: '', keyword: 'instance', message: 'expected an instance of Animal, got an object. fix: send one made by Animal' }],
+  ])('say what is wrong with %s', (_, schema, value, issue) => {
+    expect(issues(schema, value)).toEqual([issue]);
+  });
+
+  it('are written as their own tests', () => {
+    const every = object({ b: bigint(), lo: bigint({ min: -1n }), hi: bigint({ max: 10n ** 30n }), d: date(), s: symbol(), u: optional(undefinedOf()), must: undefinedOf(), e: nativeEnum(Level), l: literal(7n) });
+    expect(emit(every)).toBe(`(() => {
+const f0 = (v) => typeof v === "object" && v !== null && !Array.isArray(v)
+  && (typeof v["b"] === "bigint")
+  && (typeof v["lo"] === "bigint" && v["lo"] >= -1n)
+  && (typeof v["hi"] === "bigint" && v["hi"] <= 1000000000000000000000000000000n)
+  && ((v["d"] instanceof Date && !Number.isNaN(v["d"].getTime())))
+  && (typeof v["s"] === "symbol")
+  && (v["u"] === undefined || (v["u"] === undefined))
+  && (v["must"] !== undefined && (v["must"] === undefined))
+  && ((v["e"] === 0 || v["e"] === 1))
+  && (v["l"] === 7n);
+return (v) => f0(v);
+})()`);
+  });
+
+  // A required key must be present, and a present key is not `undefined`: no object has one.
+  it('refuse an object whose required key must be undefined, in every reader', () => {
+    const schema = object({ must: undefinedOf() });
+    expect(verdicts(schema, [{}, { must: undefined }, { must: 1 }])).toEqual([false, false, false]);
+    expect(verdicts(object({ may: optional(undefinedOf()) }), [{}, { may: undefined }, { may: null }])).toEqual([true, true, false]);
+  });
+
+  it('take the class of an instance check as a hook, since text cannot hold it', () => {
+    const schema = object({ m: instanceOf(Map), d: instanceOf(Date) });
+    expect(() => emit(schema)).toThrow('cannot emit a schema that names a function as text alone');
+    const { source, hooks } = emitWith(schema);
+    expect(source).toBe(`(h) => {
+const f0 = (v) => typeof v === "object" && v !== null && !Array.isArray(v)
+  && (v["m"] instanceof h[0])
+  && (v["d"] instanceof h[1]);
+return (v) => f0(v);
+}`);
+    expect(hooks).toEqual([Map, Date]);
+  });
+
+  it('leave a value of a new kind as it is when parsing', () => {
+    const at = new Date(0);
+    const key = Symbol('k');
+    const input = Object.freeze({ id: 1n, at, level: 1, key });
+    const schema = object({ id: bigint({ min: 1n }), at: date(), level: nativeEnum(Level), key: optional(symbol()), m: optional(instanceOf(Map)) });
+    const result = parse(schema, input);
+    expect(result.ok && result.value).toBe(input);
   });
 });

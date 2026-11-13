@@ -6,7 +6,8 @@ export interface Issue {
   readonly path: string;
   /**
    * What failed: `type`, `min`, `max`, `gt`, `lt`, `integer`, `multipleOf`, `pattern`, `format`,
-   * `literal`, `enum`, `required`, `unknown`, `key`, `length`, `tag`, `union`, `never`, `custom`.
+   * `literal`, `enum`, `required`, `unknown`, `key`, `length`, `tag`, `union`, `never`, `custom`,
+   * `date`, `instance`.
    */
   readonly keyword: string;
   /** What was expected and what arrived, ending in a `fix:` line. */
@@ -119,8 +120,11 @@ const never = (walk: Walk, _: Node, got: unknown, path: string): void => {
   add(walk, { path, keyword: 'never', expected: 'no value', got, fix: 'remove it' });
 };
 
-/** A value a schema names, for a message: a string in quotes, so that 1 and "1" read differently. */
-const named = (value: unknown): string => (typeof value === 'string' ? JSON.stringify(value) : String(value));
+/** A value a schema names, for a message, as it is written in code: "1", 1 and 1n read differently. */
+const named = (value: unknown): string => {
+  if (typeof value === 'string') return JSON.stringify(value);
+  return typeof value === 'bigint' ? `${String(value)}n` : String(value);
+};
 
 const literal = (walk: Walk, schema: Node, got: unknown, path: string): void => {
   const value = named(schema.value);
@@ -249,6 +253,28 @@ const custom = (walk: Walk, schema: Node, got: unknown, path: string): void => {
   if ((test as Test)(got) !== true) add(walk, { path, keyword: 'custom', expected: name, got, fix: `send a value that is ${name}` });
 };
 
+const bigint = (walk: Walk, schema: Node, got: unknown, path: string): void => {
+  const [min, max] = schema.value as readonly [bigint | number, bigint | number];
+  if (typeof got !== 'bigint') add(walk, { path, keyword: 'type', expected: 'a bigint', got, fix: 'send a bigint' });
+  else if (got < min) add(walk, { path, keyword: 'min', expected: `a bigint of at least ${named(min)}`, got, fix: `send ${named(min)} or more` });
+  else if (got > max) add(walk, { path, keyword: 'max', expected: `a bigint of at most ${named(max)}`, got, fix: `send ${named(max)} or less` });
+};
+
+const date = (walk: Walk, _: Node, got: unknown, path: string): void => {
+  if (!(got instanceof Date)) add(walk, { path, keyword: 'type', expected: 'a Date', got, fix: 'send a Date' });
+  else if (Number.isNaN(got.getTime())) add(walk, { path, keyword: 'date', expected: 'a Date that is a time, not `new Date(NaN)`', got, fix: 'send a Date made from a real time' });
+};
+
+const typed = (walk: Walk, schema: Node, got: unknown, path: string): void => {
+  const name = String(schema.value);
+  if (typeof got !== schema.value) add(walk, { path, keyword: 'type', expected: `a ${name}`, got, fix: `send a ${name}` });
+};
+
+const instance = (walk: Walk, schema: Node, got: unknown, path: string): void => {
+  const type = schema.value as abstract new () => unknown;
+  if (!(got instanceof type)) add(walk, { path, keyword: 'instance', expected: `an instance of ${type.name}`, got, fix: `send one made by ${type.name}` });
+};
+
 /** One reader per kind. A table and not a `switch`: the kinds are data, and only a program that imports `issues` carries it. */
 const READERS: Readonly<Record<Kind, (walk: Walk, schema: Node, got: unknown, path: string) => void>> = {
   string,
@@ -269,6 +295,10 @@ const READERS: Readonly<Record<Kind, (walk: Walk, schema: Node, got: unknown, pa
   intersection: every,
   lazy: later,
   custom,
+  bigint,
+  date,
+  type: typed,
+  instance,
 };
 
 function visit(walk: Walk, schema: Node, got: unknown, path: string): void {
