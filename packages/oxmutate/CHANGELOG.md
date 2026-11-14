@@ -1,5 +1,11 @@
 # oxmutate
 
+## 2.3.0
+
+### Minor Changes
+
+- [#1579](https://github.com/ofri-peretz/burgee/pull/1579) [`a7c33ac`](https://github.com/ofri-peretz/burgee/commit/a7c33ac8b3bc16bf213be0655bb9be1f27506e15) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `static.budgetMs` (`oxmutate run --static-budget <ms>`): the most the static phase may take. Once it is spent no static unit starts; a static mutant still undecided is reported `Ignored`, with the reason `static mutant (static budget spent)`, and left out of the score. A kill found before that stands, and nothing is called Survived on part of its test files. The summary line says how many were left undecided. Unset, there is no limit.
+
 ## 2.2.0
 
 ### Minor Changes
