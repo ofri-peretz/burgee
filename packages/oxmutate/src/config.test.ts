@@ -146,6 +146,14 @@ describe('options from a config file', () => {
     });
   });
 
+  it("static.readers is 'report' only when the config says exactly that; anything else is off", async () => {
+    const values: unknown[] = ['report', 'Report', 'on', true, 1, undefined];
+    const read = await Promise.all(values.map(async (readers) => (await loadOptions(project({ 'oxmutate.config.json': { static: { readers } } }))).staticReaders));
+    expect(read).toEqual(['report', 'off', 'off', 'off', 'off', 'off']);
+    expect((await loadOptions(project({ 'oxmutate.config.json': {} }))).staticReaders).toBe('off');
+    expect((await loadOptions(project({ 'oxmutate.config.json': {} }), { staticReaders: 'report' })).staticReaders).toBe('report');
+  });
+
   it('static.budgetMs is a whole number of milliseconds of at least one; anything else is no budget', async () => {
     const cases: [unknown, number | undefined][] = [[60_000, 60_000], [1, 1], [1.9, 1], [0, undefined], [0.9, undefined], [-5, undefined], ['soon', undefined]];
     const read = await Promise.all(cases.map(async ([value]) => (await loadOptions(project({ 'oxmutate.config.json': { static: { budgetMs: value } } }))).staticBudgetMs));

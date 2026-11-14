@@ -241,6 +241,8 @@ describe('the terminal summary', () => {
   it('reports what static mutants would run where their value is read, against every loader', async () => {
     const r = await run({ stats: stats({ staticReaders: { mutants: 3, loaderTests: 900, readerTests: 300, fellBack: 1, dryRunMs: 2500 } }) });
     expect(textSummary(r)).toContain('  static readers: 3 static mutants would run 300 tests where their value is read, against 900 in every file that loads them, 3.0x fewer; 1 kept every loader (report only, 2.5 s)');
+    // One reader test is enough for a ratio.
+    expect(textSummary(await run({ stats: stats({ staticReaders: { mutants: 1, loaderTests: 4, readerTests: 1, fellBack: 0, dryRunMs: 1 } }) }))).toContain('against 4 in every file that loads them, 4.0x fewer;');
     // No reader at all: no ratio. No static mutant: no line.
     expect(textSummary(await run({ stats: stats({ staticReaders: { mutants: 1, loaderTests: 9, readerTests: 0, fellBack: 0, dryRunMs: 1 } }) }))).toContain('against 9 in every file that loads them; 0 kept');
     expect(textSummary(await run({ stats: stats({ staticReaders: { mutants: 0, loaderTests: 0, readerTests: 0, fellBack: 0, dryRunMs: 1 } }) }))).not.toContain('static readers');
