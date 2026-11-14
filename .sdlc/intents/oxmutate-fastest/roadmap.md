@@ -57,7 +57,7 @@ The warm phase and every small run. Judged on paratext.
 | `1.1` | Keep the progress and results files open | Done, #1532. _Measured_: paratext warm 24.8–25.8 s → 9.3–9.9 s | — | None; same bytes |
 | `1.2` | Node's compile cache for servers and workers | **Tried and dropped, 2026-11-13.** _Measured_ with `bench/ab.mjs`, main against the change, two rounds: every verdict equal, and slower on 9 of 11 targets, paratext 18.4 s → 20.0 s (0.92x), fixtures 0.81x to 1.05x. The cache is more small files to open, which is the cost #1532 removed | — | — |
 | `1.3` | Recover from pollution inside the worker | paratext: 18 restarts, each a new process and a unit split in two; the static path already resets a module registry in 0.5 ms | 20–30% of paratext's warm phase | Medium: touches the canary. Needs a model and a fixture |
-| `1.4` | Fewer, larger units | About 136 ms a unit outside its tests; the cap is 400 pairs | 10–20% of warm | Low: after `1.3`, since a restart then redoes more |
+| `1.4` | Fewer, larger units | **Dropped 2026-11-14.** 1,000 pairs a unit gained nothing over 400 (`coordinator.ts`, 2026-10-30). On compat-oracle the median unit held 23 pairs (§9): a unit never spans two test files, and with `isolate` on each file starts its own worker, so a larger unit cannot remove that start-up. Only `1.5` can | — | — |
 | `1.5` | A worker that outlives its unit | Most of the remaining start-up. Vitest starts a fresh worker for every `start` when `isolate` is on | Large, up to 2x on warm | High: isolation is what several guarantees rest on. Only if `1.2`–`1.4` leave start-up dominant |
 | `1.6` | Start workers from a snapshot | Node can start from a heap snapshot with modules already loaded | Unknown; a spike first | Low if it works; it may not survive Vitest's loader |
 | `1.7` | The disk guard does not re-run units for a test's own scratch | Done (the PR with `static.group`). _Measured_ on `compat-oracle/src/run.ts:700-900`: 21 guard re-runs to 0, 82 units to 13, warm 307 s → 74 s (**4.1x**). The summary names the paths | The whole package is owed | One kind of write is no longer seen: a new entry gone again within its unit (`D-20261113-oxmutate-diskguard-vanished`) |
@@ -113,8 +113,8 @@ workers): static 50%, warm 35% (of which 43% inside test runs, the rest starting
 2. **Now, the static phase:** measure `2.1` (`static.group`) on the whole of compat-oracle with
    every verdict compared against an ungrouped run. If they all agree, the decision to make it a
    default is the owner's (spec `R6`). Then `2.4`, which runs fewer test files per static mutant.
-3. **Then the warm phase's start-up:** `1.3` (pollution handled inside the worker), then `1.4`
-   (fewer, larger units). Each needs a model and a fixture that fails without its guard.
+3. **Then the warm phase's start-up:** `1.3` (pollution handled inside the worker); `1.4` is
+   dropped, and what is left of start-up is `1.5`. Each needs a model and a fixture that fails without its guard.
 4. **Then:** `2.3`, `3.2`, `3.3`, each decided by the counters.
 5. **The governor** (`4.1`–`4.3`), before the long measurements that need a steady machine.
 6. **Last, and only with evidence:** `2.5`, `1.5`, `1.6`, `3.4`, `3.5`, then Jest.
