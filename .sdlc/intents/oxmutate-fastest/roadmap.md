@@ -73,7 +73,7 @@ and caique.
 | `2.2` | A slow test is not a kill | Done on this branch. Fewer false kills, and fewer re-runs they caused | Correctness first | Removes a false-kill path |
 | `2.3` | Drop mutants that compile to the same code | Two mutants whose minified output is identical have one verdict; a mutant identical to the original is equivalent. oxc's minifier makes the comparison cheap | Fewer mutants to run; published results for the technique vary, and nothing is measured here | Low: identical code, identical behaviour. Reported, never silently dropped |
 | `2.4` | Choose a static mutant's tests by what reads it | Today every file that loads the module runs. `oxc_semantic` knows which functions reference the mutated binding | Large where data is read by few tests; none where one table feeds everything | Low if exact; falls back to all files when a binding escapes |
-| `2.5` | Confirm survivors in batches | Each warm survivor gets a fresh process today | Up to 2x on the isolated phase, if the profile says confirmations dominate | Medium: same guards as the static path |
+| `2.5` | Confirm survivors in batches | **Already batched, found 2026-11-14:** an isolated unit arms its mutants one after another in one server (`child.ts` `runIsolated`), packed by cost into at most twice the concurrency. What each costs is a worker start per (mutant, file). _Measured_ on compat-oracle (§10): the whole isolated phase was 1,525 s of 9,967 (15%), 361 of its 647 runs confirmations | At most a few percent; below `2.1` and `1.3`/`1.4` | — |
 | `2.6` | `ignoreStatic` as a flag, and a static budget | Done: `--ignore-static` and the static summary line (#1561); `static.budgetMs` / `--static-budget` (the PR after #1566). Once the budget is spent no static unit starts; a static mutant still undecided is Ignored with a reason and counted in the summary. A kill found before that stands, and nothing is called Survived on part of its files | The user's choice: bounds the static phase | None to what is graded; the score covers less, and says so |
 | `2.7` | Likeliest killer first | A killed mutant stops at its first failing test. History of which test killed which mutant orders them | 10–20% on warm for a mature suite | None: same tests, another order |
 
@@ -105,12 +105,19 @@ here: a process per mutant with no coverage, against a warm worker with per-test
 
 ## Order
 
-1. **Now:** `2.2` and `2.6`'s flag (done), `1.2` (tried, dropped), `3.1`. Small, safe, and each measurable in a day.
-2. **Then the two big ones:** `2.1` for the static phase, `1.3` for the warm phase. Each needs a
-   model and a fixture that fails without its guard.
-3. **Then:** `1.4`, `2.5`, `2.3`, `3.2`, `3.3`, each decided by the counters after step 2.
-4. **Then the governor** (`4.1`–`4.3`), before the long measurements that need a steady machine.
-5. **Last, and only with evidence:** `1.5`, `1.6`, `2.4`, `3.4`, `3.5`, then Jest.
+**Re-ordered 2026-11-14 by compat-oracle's measured split** (`sc8-profile.md` §10, 9,967 s at 4
+workers): static 50%, warm 35% (of which 43% inside test runs, the rest starting units), isolated
+15%. A change is worth what it takes off the largest of those.
+
+1. **Done:** `1.1`, `1.7`, `2.1` (off by default), `2.2`, `2.6`. `1.2` tried and dropped.
+2. **Now, the static phase:** measure `2.1` (`static.group`) on the whole of compat-oracle with
+   every verdict compared against an ungrouped run. If they all agree, the decision to make it a
+   default is the owner's (spec `R6`). Then `2.4`, which runs fewer test files per static mutant.
+3. **Then the warm phase's start-up:** `1.3` (pollution handled inside the worker), then `1.4`
+   (fewer, larger units). Each needs a model and a fixture that fails without its guard.
+4. **Then:** `2.3`, `3.2`, `3.3`, each decided by the counters.
+5. **The governor** (`4.1`–`4.3`), before the long measurements that need a steady machine.
+6. **Last, and only with evidence:** `2.5`, `1.5`, `1.6`, `3.4`, `3.5`, then Jest.
 
 ## What this roadmap does not do
 
