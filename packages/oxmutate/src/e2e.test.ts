@@ -215,6 +215,21 @@ describe.skipIf(!native || !existsSync(bin) || !nightly)('static survivors armed
     expect(grouped.status).toBe(0);
   });
 
+  it('static.budgetMs: once it is spent no static unit starts, and what is undecided is Ignored, not scored', () => {
+    const alone = groupRun('static-group', 'src/table.ts', []);
+    const spent = groupRun('static-group', 'src/table.ts', ['--static-budget', '1']);
+    // A millisecond is gone before the second unit starts. What a unit already running found stands,
+    // and it is what the mutant gets alone; nothing is called Survived on part of its files.
+    expect(spent.verdicts.length).toBe(alone.verdicts.length);
+    expect(spent.verdicts.filter((v, i) => v !== alone.verdicts[i]).every((v) => v.endsWith(':Ignored'))).toBe(true);
+    expect(spent.verdicts.some((v) => v.endsWith(':Ignored'))).toBe(true);
+    expect(spent.verdicts.some((v) => v.endsWith(':Survived'))).toBe(false);
+    expect(spent.stats['isolatedRuns']).toBe(0);
+    expect(spent.status).toBe(0);
+    // A budget the phase fits in changes nothing.
+    expect(groupRun('static-group', 'src/table.ts', ['--static-budget', '600000']).verdicts).toEqual(alone.verdicts);
+  });
+
   it('a pair that hides each other is found by the audit: both Killed, and the run fails', () => {
     const alone = groupRun('static-mask', 'src/pair.ts', []);
     // Lines 3 and 4 are the pair.

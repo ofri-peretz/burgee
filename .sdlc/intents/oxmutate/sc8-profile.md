@@ -370,3 +370,36 @@ head-to-head against Stryker. Stryker's half is done: 32,835 s at 4 workers on t
 load 26.9, 6,298 mutants with `hosts.ts` read to line 801 (4,270 Killed, 1,034 Survived, 846
 Timeout, 146 Ignored). The 2026-11-05 run (63,795 s at 2 workers) had the same guard and the same
 test, so part of its 4,778 s warm phase was this too; how much is not known.
+
+## 10. compat-oracle after the disk-guard fix: 9,967 s, but not yet on Stryker's set (2026-11-13)
+
+oxmutate 2.1.0 with the disk-guard fix (#1566), 4 workers, `--stryker-compat --clip
+src/hosts.ts:1-801`, on the package at `0a8ecee757`, the commit Stryker ran. Started 20:37:55Z,
+alone on the machine, mean load 20.6 (Stryker's run: 26.9; within 1.5x, and it favours oxmutate).
+
+| Phase | Time |
+| :-- | --: |
+| dry run | 20 s |
+| warm (492 units, 0 guard re-runs) | 3,462 s |
+| static (672 mutants) | 4,957 s |
+| isolated (647 runs) | 1,525 s |
+| **wall** | **9,967 s** |
+
+- **The warm phase took 58 minutes.** The run before the fix was still in it after 2 h 52 min,
+  with 1,800 units and counting.
+- **Isolated runs by cause:** survivor confirmation 361, watchdog stops 203, re-runs at 3x 37,
+  unfinished 21, static fallback 25. Confirmation is the largest: roadmap `2.5` has its evidence.
+- **Verdicts:** 3,908 Killed, 14 Timeout, 681 Survived, 1 NoCoverage, 3 Ignored.
+
+**Not an equal set, so not `F7`.** Stryker's run graded `hosts.ts` past line 801 at this commit:
+1,595 of its 6,204 mutants are there, against the assumption (§6) that it skips them. Stryker took
+32,835 s for 6,204 mutants; oxmutate 9,967 s for 4,607. That is 3.3x on wall and 2.4x per mutant,
+and neither is the claim: the extra mutants are mostly static, the costliest kind. The equal-set
+run, oxmutate on the whole of `hosts.ts`, is next.
+
+**Agreement on the 4,515 mutants both graded: 96.26%.** 169 differ, all of them oxmutate
+undetected where Stryker detected: 159 Survived against Stryker's Timeout and 10 against Killed,
+most in `vendor.ts`, `registry.ts`, `run.ts` and `demand.ts`, whose tests spawn processes. Stryker
+reported 846 Timeouts at 5,000 ms on a machine at load 27; oxmutate re-ran its own timeouts at 3x
+and overturned 24. Which side is right on the 159 is not settled here; a sample is to be run alone
+on a quiet machine.

@@ -26,6 +26,15 @@ function staticGroupOf(group: unknown): number {
   return asked >= 2 ? asked : 1;
 }
 
+/** `static.budgetMs` as a whole number of milliseconds; anything that is not a positive number is no budget. */
+function staticBudgetOf(ms: unknown): number | undefined {
+  const asked = Math.floor(Number(ms));
+  return asked >= 1 ? asked : undefined;
+}
+
+/** Why a static mutant is Ignored when `static.budgetMs` ran out before it was decided; the summary counts them by it. */
+export const STATIC_BUDGET_REASON = 'static mutant (static budget spent)';
+
 /** Why a static mutant is Ignored under `ignoreStatic`; the summary counts them by it. */
 export const IGNORE_STATIC_REASON = 'static mutant (ignoreStatic)';
 
@@ -46,6 +55,12 @@ export interface Options {
    * heuristic: two mutants can hide each other, so one in twenty group survivors is run again alone.
    */
   staticGroup: number;
+  /**
+   * The most the static phase may take, in milliseconds (`static.budgetMs`). No new static unit
+   * starts once it is spent; a static mutant still undecided then is Ignored, with a reason, and
+   * left out of the score. A kill found before that stands. Unset: no limit.
+   */
+  staticBudgetMs?: number | undefined;
   strykerCompat: boolean;
   reporters: string[];
   jsonReport: string;
@@ -255,6 +270,7 @@ export async function loadOptions(root: string, overrides: Partial<Options> = {}
     excludedMutations: mutator.excludedMutations ?? [],
     ignoreStatic: raw['ignoreStatic'] === true,
     staticGroup: staticGroupOf((raw['static'] as { group?: unknown } | undefined)?.group),
+    staticBudgetMs: staticBudgetOf((raw['static'] as { budgetMs?: unknown } | undefined)?.budgetMs),
     strykerCompat: raw['strykerCompat'] === true,
     reporters: (raw['reporters'] as string[] | undefined) ?? ['clear-text', 'json'],
     jsonReport: path.resolve(root, json.fileName ?? 'reports/mutation/mutation.json'),

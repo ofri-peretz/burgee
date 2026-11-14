@@ -7,7 +7,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 
-import { IGNORE_STATIC_REASON } from './config.js';
+import { IGNORE_STATIC_REASON, STATIC_BUDGET_REASON } from './config.js';
 import type { MutantResult, RunResult } from './coordinator.js';
 
 /** The package's own version, read from its manifest so `--version` and the reports never drift from it. */
@@ -160,6 +160,8 @@ function staticLine(r: RunResult): string[] {
   const ignored = statics.filter((m) => m.statusReason === IGNORE_STATIC_REASON).length;
   if (ignored > 0) return [`  static mutants: ${String(ignored)} ignored (ignoreStatic), not scored`];
   const share = r.stats.wallMs > 0 ? r.stats.staticMs / r.stats.wallMs : 0;
+  const unspent = statics.filter((m) => m.statusReason === STATIC_BUDGET_REASON).length;
+  if (unspent > 0) return [`  static mutants: ${String(statics.length - unspent)} decided in ${(r.stats.staticMs / MS_PER_S).toFixed(1)} s, ${String(unspent)} left undecided when the static budget ran out, not scored`];
   const hint = share >= STATIC_SHARE_WORTH_SAYING ? '; --ignore-static skips them, and the score then leaves them out' : '';
   return [`  static mutants: ${String(statics.length)} decided in ${(r.stats.staticMs / MS_PER_S).toFixed(1)} s, ${(share * PERCENT).toFixed(0)}% of the run${hint}`];
 }

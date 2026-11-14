@@ -145,6 +145,15 @@ describe('options from a config file', () => {
     });
   });
 
+  it('static.budgetMs is a whole number of milliseconds of at least one; anything else is no budget', async () => {
+    const cases: [unknown, number | undefined][] = [[60_000, 60_000], [1, 1], [1.9, 1], [0, undefined], [0.9, undefined], [-5, undefined], ['soon', undefined]];
+    const read = await Promise.all(cases.map(async ([value]) => (await loadOptions(project({ 'oxmutate.config.json': { static: { budgetMs: value } } }))).staticBudgetMs));
+    expect(read).toEqual(cases.map(([, expected]) => expected));
+    expect((await loadOptions(project({ 'oxmutate.config.json': { static: {} } }))).staticBudgetMs).toBeUndefined();
+    expect((await loadOptions(project({ 'oxmutate.config.json': {} }))).staticBudgetMs).toBeUndefined();
+    expect((await loadOptions(project({ 'oxmutate.config.json': { static: { budgetMs: 9 } } }), { staticBudgetMs: 3 })).staticBudgetMs).toBe(3);
+  });
+
   it('static.group is a whole number of at least one; anything else arms each static mutant alone', async () => {
     const group = async (value: unknown): Promise<number> => (await loadOptions(project({ 'oxmutate.config.json': { static: { group: value } } }))).staticGroup;
     expect(await group(25)).toBe(25);

@@ -16,7 +16,7 @@ what the profile suggests, and each item ships only when its own measurement say
 | :-- | :-- | :-- |
 | paratext | at least **21.5x faster** | _measured_ 2026-11-12, one machine, 4 workers, load about 50: Stryker 380.0 s, oxmutate 17.7 s. oxmutate graded more mutants (1,332 against 1,255), so equal sets can only raise it. One run each. |
 | caique | **3.65x faster** | _measured_ 2026-11-13, equal sets (6,428 mutants matched), one machine, 4 workers: Stryker 3,391 s, oxmutate 928 s, mean loads 19.3 and 13.4. One pair. Before #1532 it was 1.3x to 1.5x (`sc8/RUNS.md`). |
-| compat-oracle | **unknown; oxmutate's half is owed** | Stryker: 32,835 s, _measured_ 2026-11-13, 4 workers, mean load 26.9, 6,298 mutants. oxmutate's run waits for the fix below: a test's scratch directory made the disk guard run three warm units in four twice (`sc8-profile.md` §9). On a slice the warm phase went from 307 s to 74 s (_measured_). |
+| compat-oracle | **at least 2.4x per mutant, equal set owed** | _measured_ 2026-11-13, 4 workers: Stryker 32,835 s for 6,204 mutants (mean load 26.9); oxmutate 9,967 s for 4,607, `hosts.ts` clipped at 801 (mean load 20.6). Not the same set: Stryker graded all of `hosts.ts`. 96.26% agreement on the 4,515 both graded (`sc8-profile.md` §10). |
 
 **Where a run's time goes** (_measured_, the 2026-11-04/05 full run, all 12 packages):
 static mutants 68%, isolated runs 19%, warm runs 13%, the oxc core 0%.
@@ -74,7 +74,7 @@ and caique.
 | `2.3` | Drop mutants that compile to the same code | Two mutants whose minified output is identical have one verdict; a mutant identical to the original is equivalent. oxc's minifier makes the comparison cheap | Fewer mutants to run; published results for the technique vary, and nothing is measured here | Low: identical code, identical behaviour. Reported, never silently dropped |
 | `2.4` | Choose a static mutant's tests by what reads it | Today every file that loads the module runs. `oxc_semantic` knows which functions reference the mutated binding | Large where data is read by few tests; none where one table feeds everything | Low if exact; falls back to all files when a binding escapes |
 | `2.5` | Confirm survivors in batches | Each warm survivor gets a fresh process today | Up to 2x on the isolated phase, if the profile says confirmations dominate | Medium: same guards as the static path |
-| `2.6` | `ignoreStatic` as a flag, and a static budget | The flag `--ignore-static` and a summary line for the static phase are done (the PR after #1547). The budget, `static.budgetMs`, is not | The user's choice: removes the static phase | None to what is graded; the score covers less, and says so |
+| `2.6` | `ignoreStatic` as a flag, and a static budget | Done: `--ignore-static` and the static summary line (#1561); `static.budgetMs` / `--static-budget` (the PR after #1566). Once the budget is spent no static unit starts; a static mutant still undecided is Ignored with a reason and counted in the summary. A kill found before that stands, and nothing is called Survived on part of its files | The user's choice: bounds the static phase | None to what is graded; the score covers less, and says so |
 | `2.7` | Likeliest killer first | A killed mutant stops at its first failing test. History of which test killed which mutant orders them | 10–20% on warm for a mature suite | None: same tests, another order |
 
 ## Track 3 — Never decide the same mutant twice
