@@ -16,7 +16,7 @@ what the profile suggests, and each item ships only when its own measurement say
 | :-- | :-- | :-- |
 | paratext | at least **21.5x faster** | _measured_ 2026-11-12, one machine, 4 workers, load about 50: Stryker 380.0 s, oxmutate 17.7 s. oxmutate graded more mutants (1,332 against 1,255), so equal sets can only raise it. One run each. |
 | caique | **3.65x faster** | _measured_ 2026-11-13, equal sets (6,428 mutants matched), one machine, 4 workers: Stryker 3,391 s, oxmutate 928 s, mean loads 19.3 and 13.4. One pair. Before #1532 it was 1.3x to 1.5x (`sc8/RUNS.md`). |
-| compat-oracle | **unknown; oxmutate's half is owed** | Stryker: 32,835 s, _measured_ 2026-11-13, 4 workers, mean load 26.9, 6,298 mutants. oxmutate's run waits for the fix below: a test's scratch directory made the disk guard run three warm units in four twice (`sc8-profile.md` §9). On a slice the warm phase went from 307 s to 74 s (_measured_). |
+| compat-oracle | **at least 2.4x per mutant, equal set owed** | _measured_ 2026-11-13, 4 workers: Stryker 32,835 s for 6,204 mutants (mean load 26.9); oxmutate 9,967 s for 4,607, `hosts.ts` clipped at 801 (mean load 20.6). Not the same set: Stryker graded all of `hosts.ts`. 96.26% agreement on the 4,515 both graded (`sc8-profile.md` §10). |
 
 **Where a run's time goes** (_measured_, the 2026-11-04/05 full run, all 12 packages):
 static mutants 68%, isolated runs 19%, warm runs 13%, the oxc core 0%.
