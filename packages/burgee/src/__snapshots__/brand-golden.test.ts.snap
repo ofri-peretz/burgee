@@ -1,0 +1,446 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`the bytes of a brand with a sheen alone > alive 1`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100" role="img" aria-label="lit">
+  <style>@keyframes burgee-nhoayo-sweep{from{transform:translateX(0)}to{transform:translateX(190px)}}.burgee-nhoayo-sweep{animation:burgee-nhoayo-sweep 7s ease-in-out infinite}@media (prefers-reduced-motion:reduce){.burgee-nhoayo-sweep{animation:none;transform:translateX(58px)}}</style>
+  <linearGradient id="burgee-nhoayo" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#0a6b47"/><stop offset="0.50" stop-color="#0a0a0a"/><stop offset="1" stop-color="#a84c17"/></linearGradient><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="url(#burgee-nhoayo)"/><clipPath id="burgee-nhoayo-c"><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z"/></clipPath><linearGradient id="burgee-nhoayo-s" gradientUnits="objectBoundingBox" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffffff" stop-opacity="0"/><stop offset="0.50" stop-color="#ffffff" stop-opacity="0.20"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient><g clip-path="url(#burgee-nhoayo-c)"><g transform="skewX(-14)"><rect x="-50" y="-20" width="34" height="140" class="burgee-nhoayo-sweep" fill="url(#burgee-nhoayo-s)"/></g></g><g transform="translate(22 30) scale(0.40)"><g transform="rotate(-30 50 50)"><rect x="15" y="24" width="52" height="24" rx="12" fill="#a84c17"/><rect x="33" y="52" width="52" height="24" rx="12" fill="#0a6b47"/></g></g>
+</svg>"
+`;
+
+exports[`the bytes of a brand with a sheen alone > cover, on both grounds 1`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="420" viewBox="0 0 1000 420" role="img" aria-label="lit">
+<rect width="1000" height="420" fill="#12201b"/>
+<g transform="translate(314.49 120) scale(1.80)"><linearGradient id="burgee-nhoayo" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#0a6b47"/><stop offset="0.50" stop-color="#0a0a0a"/><stop offset="1" stop-color="#a84c17"/></linearGradient><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="url(#burgee-nhoayo)"/><clipPath id="burgee-nhoayo-c"><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z"/></clipPath><linearGradient id="burgee-nhoayo-s" gradientUnits="objectBoundingBox" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffffff" stop-opacity="0"/><stop offset="0.50" stop-color="#ffffff" stop-opacity="0.20"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient><g clip-path="url(#burgee-nhoayo-c)"><g transform="skewX(-14)"><rect x="8" y="-20" width="34" height="140" fill="url(#burgee-nhoayo-s)"/></g></g><g transform="translate(22 30) scale(0.40)"><g transform="rotate(-30 50 50)"><rect x="15" y="24" width="52" height="24" rx="12" fill="#a84c17"/><rect x="33" y="52" width="52" height="24" rx="12" fill="#0a6b47"/></g></g></g>
+<text x="544.89" y="237.22" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="75.60" font-weight="700" letter-spacing="-2.27" fill="#f0f3f6">lit</text>
+</svg>"
+`;
+
+exports[`the bytes of a brand with a sheen alone > cover, on both grounds 2`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="420" viewBox="0 0 1000 420" role="img" aria-label="lit — One declaration, every identity surface:  the flag, the favicon, the social card and the cover, none of them able to drift.">
+<rect width="1000" height="420" fill="#efe9dd"/>
+<g transform="translate(159.93 120) scale(1.80)"><linearGradient id="burgee-nhoayo" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#0a6b47"/><stop offset="0.50" stop-color="#0a0a0a"/><stop offset="1" stop-color="#a84c17"/></linearGradient><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="url(#burgee-nhoayo)"/><clipPath id="burgee-nhoayo-c"><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z"/></clipPath><linearGradient id="burgee-nhoayo-s" gradientUnits="objectBoundingBox" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffffff" stop-opacity="0"/><stop offset="0.50" stop-color="#ffffff" stop-opacity="0.20"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient><g clip-path="url(#burgee-nhoayo-c)"><g transform="skewX(-14)"><rect x="8" y="-20" width="34" height="140" fill="url(#burgee-nhoayo-s)"/></g></g><g transform="translate(22 30) scale(0.40)"><g transform="rotate(-30 50 50)"><rect x="15" y="24" width="52" height="24" rx="12" fill="#a84c17"/><rect x="33" y="52" width="52" height="24" rx="12" fill="#0a6b47"/></g></g></g>
+<text x="390.33" y="179.94" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="75.60" font-weight="700" letter-spacing="-2.27" fill="#0a0a0a">lit</text>
+<text x="390.33" y="217.38" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="23.40" fill="#5c6058">One declaration, every identity</text>
+<text x="390.33" y="250.14" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="23.40" fill="#5c6058">surface: the flag, the favicon,</text>
+<text x="390.33" y="282.90" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="23.40" fill="#5c6058">the social card and the cover,</text>
+<text x="390.33" y="315.66" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="23.40" fill="#5c6058">none of them able to drift.</text>
+</svg>"
+`;
+
+exports[`the bytes of a brand with a sheen alone > favicon 1`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="512" height="512" role="img" aria-label="lit">
+  <linearGradient id="burgee-nhoayo" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#0a6b47"/><stop offset="0.50" stop-color="#0a0a0a"/><stop offset="1" stop-color="#a84c17"/></linearGradient><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="url(#burgee-nhoayo)"/><clipPath id="burgee-nhoayo-c"><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z"/></clipPath><linearGradient id="burgee-nhoayo-s" gradientUnits="objectBoundingBox" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffffff" stop-opacity="0"/><stop offset="0.50" stop-color="#ffffff" stop-opacity="0.20"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient><g clip-path="url(#burgee-nhoayo-c)"><g transform="skewX(-14)"><rect x="8" y="-20" width="34" height="140" fill="url(#burgee-nhoayo-s)"/></g></g><g transform="translate(22 30) scale(0.40)"><g transform="rotate(-30 50 50)"><rect x="15" y="24" width="52" height="24" rx="12" fill="#a84c17"/><rect x="33" y="52" width="52" height="24" rx="12" fill="#0a6b47"/></g></g>
+</svg>"
+`;
+
+exports[`the bytes of a brand with a sheen alone > flag, at its own size and at 32 1`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100" role="img" aria-label="lit">
+  <linearGradient id="burgee-nhoayo" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#0a6b47"/><stop offset="0.50" stop-color="#0a0a0a"/><stop offset="1" stop-color="#a84c17"/></linearGradient><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="url(#burgee-nhoayo)"/><clipPath id="burgee-nhoayo-c"><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z"/></clipPath><linearGradient id="burgee-nhoayo-s" gradientUnits="objectBoundingBox" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffffff" stop-opacity="0"/><stop offset="0.50" stop-color="#ffffff" stop-opacity="0.20"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient><g clip-path="url(#burgee-nhoayo-c)"><g transform="skewX(-14)"><rect x="8" y="-20" width="34" height="140" fill="url(#burgee-nhoayo-s)"/></g></g><g transform="translate(22 30) scale(0.40)"><g transform="rotate(-30 50 50)"><rect x="15" y="24" width="52" height="24" rx="12" fill="#a84c17"/><rect x="33" y="52" width="52" height="24" rx="12" fill="#0a6b47"/></g></g>
+</svg>"
+`;
+
+exports[`the bytes of a brand with a sheen alone > flag, at its own size and at 32 2`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="32" height="32" role="img" aria-label="lit">
+  <linearGradient id="burgee-nhoayo" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#0a6b47"/><stop offset="0.50" stop-color="#0a0a0a"/><stop offset="1" stop-color="#a84c17"/></linearGradient><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="url(#burgee-nhoayo)"/><clipPath id="burgee-nhoayo-c"><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z"/></clipPath><linearGradient id="burgee-nhoayo-s" gradientUnits="objectBoundingBox" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffffff" stop-opacity="0"/><stop offset="0.50" stop-color="#ffffff" stop-opacity="0.20"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient><g clip-path="url(#burgee-nhoayo-c)"><g transform="skewX(-14)"><rect x="8" y="-20" width="34" height="140" fill="url(#burgee-nhoayo-s)"/></g></g><g transform="translate(22 30) scale(0.40)"><g transform="rotate(-30 50 50)"><rect x="15" y="24" width="52" height="24" rx="12" fill="#a84c17"/><rect x="33" y="52" width="52" height="24" rx="12" fill="#0a6b47"/></g></g>
+</svg>"
+`;
+
+exports[`the bytes of a brand with a sheen alone > lockup, on both grounds and on a ground of its own 1`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" width="480" height="120" viewBox="0 0 480 120" role="img" aria-label="lit">
+<rect width="480" height="120" fill="#12201b"/>
+<g transform="translate(153.43 18) scale(0.84)"><linearGradient id="burgee-nhoayo" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#0a6b47"/><stop offset="0.50" stop-color="#0a0a0a"/><stop offset="1" stop-color="#a84c17"/></linearGradient><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="url(#burgee-nhoayo)"/><clipPath id="burgee-nhoayo-c"><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z"/></clipPath><linearGradient id="burgee-nhoayo-s" gradientUnits="objectBoundingBox" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffffff" stop-opacity="0"/><stop offset="0.50" stop-color="#ffffff" stop-opacity="0.20"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient><g clip-path="url(#burgee-nhoayo-c)"><g transform="skewX(-14)"><rect x="8" y="-20" width="34" height="140" fill="url(#burgee-nhoayo-s)"/></g></g><g transform="translate(22 30) scale(0.40)"><g transform="rotate(-30 50 50)"><rect x="15" y="24" width="52" height="24" rx="12" fill="#a84c17"/><rect x="33" y="52" width="52" height="24" rx="12" fill="#0a6b47"/></g></g></g>
+<text x="260.95" y="72.70" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="35.28" font-weight="700" letter-spacing="-1.06" fill="#f0f3f6">lit</text>
+</svg>"
+`;
+
+exports[`the bytes of a brand with a sheen alone > lockup, on both grounds and on a ground of its own 2`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" width="480" height="120" viewBox="0 0 480 120" role="img" aria-label="lit">
+<rect width="480" height="120" fill="#efe9dd"/>
+<g transform="translate(153.43 18) scale(0.84)"><linearGradient id="burgee-nhoayo" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#0a6b47"/><stop offset="0.50" stop-color="#0a0a0a"/><stop offset="1" stop-color="#a84c17"/></linearGradient><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="url(#burgee-nhoayo)"/><clipPath id="burgee-nhoayo-c"><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z"/></clipPath><linearGradient id="burgee-nhoayo-s" gradientUnits="objectBoundingBox" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffffff" stop-opacity="0"/><stop offset="0.50" stop-color="#ffffff" stop-opacity="0.20"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient><g clip-path="url(#burgee-nhoayo-c)"><g transform="skewX(-14)"><rect x="8" y="-20" width="34" height="140" fill="url(#burgee-nhoayo-s)"/></g></g><g transform="translate(22 30) scale(0.40)"><g transform="rotate(-30 50 50)"><rect x="15" y="24" width="52" height="24" rx="12" fill="#a84c17"/><rect x="33" y="52" width="52" height="24" rx="12" fill="#0a6b47"/></g></g></g>
+<text x="260.95" y="72.70" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="35.28" font-weight="700" letter-spacing="-1.06" fill="#0a0a0a">lit</text>
+</svg>"
+`;
+
+exports[`the bytes of a brand with a sheen alone > lockup, on both grounds and on a ground of its own 3`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" width="300" height="90" viewBox="0 0 300 90" role="img" aria-label="lit — cli">
+<rect width="300" height="90" fill="#000000"/>
+<g transform="translate(63.43 3) scale(0.84)"><linearGradient id="burgee-nhoayo" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#0a6b47"/><stop offset="0.50" stop-color="#0a0a0a"/><stop offset="1" stop-color="#a84c17"/></linearGradient><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="url(#burgee-nhoayo)"/><clipPath id="burgee-nhoayo-c"><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z"/></clipPath><linearGradient id="burgee-nhoayo-s" gradientUnits="objectBoundingBox" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffffff" stop-opacity="0"/><stop offset="0.50" stop-color="#ffffff" stop-opacity="0.20"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient><g clip-path="url(#burgee-nhoayo-c)"><g transform="skewX(-14)"><rect x="8" y="-20" width="34" height="140" fill="url(#burgee-nhoayo-s)"/></g></g><g transform="translate(22 30) scale(0.40)"><g transform="rotate(-30 50 50)"><rect x="15" y="24" width="52" height="24" rx="12" fill="#a84c17"/><rect x="33" y="52" width="52" height="24" rx="12" fill="#0a6b47"/></g></g></g>
+<text x="170.95" y="53.90" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="35.28" font-weight="700" letter-spacing="-1.06" fill="#ffffff">lit</text>
+<text x="170.95" y="71.38" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.92" fill="#888888">cli</text>
+</svg>"
+`;
+
+exports[`the bytes of a brand with a sheen alone > og, bare and with a wrapping subtitle 1`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="lit">
+<rect width="1200" height="630" fill="#12201b"/>
+<g transform="translate(332.04 185) scale(2.60)"><linearGradient id="burgee-nhoayo" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#0a6b47"/><stop offset="0.50" stop-color="#0a0a0a"/><stop offset="1" stop-color="#a84c17"/></linearGradient><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="url(#burgee-nhoayo)"/><clipPath id="burgee-nhoayo-c"><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z"/></clipPath><linearGradient id="burgee-nhoayo-s" gradientUnits="objectBoundingBox" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffffff" stop-opacity="0"/><stop offset="0.50" stop-color="#ffffff" stop-opacity="0.20"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient><g clip-path="url(#burgee-nhoayo-c)"><g transform="skewX(-14)"><rect x="8" y="-20" width="34" height="140" fill="url(#burgee-nhoayo-s)"/></g></g><g transform="translate(22 30) scale(0.40)"><g transform="rotate(-30 50 50)"><rect x="15" y="24" width="52" height="24" rx="12" fill="#a84c17"/><rect x="33" y="52" width="52" height="24" rx="12" fill="#0a6b47"/></g></g></g>
+<text x="664.84" y="354.31" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="109.20" font-weight="700" letter-spacing="-3.28" fill="#f0f3f6">lit</text>
+</svg>"
+`;
+
+exports[`the bytes of a brand with a sheen alone > og, bare and with a wrapping subtitle 2`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="burgee/brand — One declaration, every identity surface:  the flag, the favicon, the social card and the cover, none of them able to drift.">
+<rect width="1200" height="630" fill="#12201b"/>
+<g transform="translate(27.38 185) scale(2.60)"><linearGradient id="burgee-nhoayo" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#0a6b47"/><stop offset="0.50" stop-color="#0a0a0a"/><stop offset="1" stop-color="#a84c17"/></linearGradient><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="url(#burgee-nhoayo)"/><clipPath id="burgee-nhoayo-c"><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z"/></clipPath><linearGradient id="burgee-nhoayo-s" gradientUnits="objectBoundingBox" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffffff" stop-opacity="0"/><stop offset="0.50" stop-color="#ffffff" stop-opacity="0.20"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient><g clip-path="url(#burgee-nhoayo-c)"><g transform="skewX(-14)"><rect x="8" y="-20" width="34" height="140" fill="url(#burgee-nhoayo-s)"/></g></g><g transform="translate(22 30) scale(0.40)"><g transform="rotate(-30 50 50)"><rect x="15" y="24" width="52" height="24" rx="12" fill="#a84c17"/><rect x="33" y="52" width="52" height="24" rx="12" fill="#0a6b47"/></g></g></g>
+<text x="360.18" y="224.26" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="109.20" font-weight="700" letter-spacing="-3.28" fill="#f0f3f6">burgee/brand</text>
+<text x="360.18" y="278.34" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="33.80" fill="#9aada5">One declaration, every</text>
+<text x="360.18" y="325.66" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="33.80" fill="#9aada5">identity surface: the</text>
+<text x="360.18" y="372.98" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="33.80" fill="#9aada5">flag, the favicon, the</text>
+<text x="360.18" y="420.30" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="33.80" fill="#9aada5">social card and the cover,</text>
+<text x="360.18" y="467.62" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="33.80" fill="#9aada5">none of them able to</text>
+<text x="360.18" y="514.94" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="33.80" fill="#9aada5">drift.</text>
+</svg>"
+`;
+
+exports[`the bytes of a brand with every optional part > alive 1`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100" role="img" aria-label="o&#39;reilly &amp; &lt;co&gt;">
+  <style>@keyframes burgee-9dwb5r-sweep{from{transform:translateX(0)}to{transform:translateX(190px)}}.burgee-9dwb5r-sweep{animation:burgee-9dwb5r-sweep 7s ease-in-out infinite}@media (prefers-reduced-motion:reduce){.burgee-9dwb5r-sweep{animation:none;transform:translateX(58px)}}</style>
+  <linearGradient id="burgee-9dwb5r" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#0ea5e9"/><stop offset="0.50" stop-color="#0a0a0a"/><stop offset="1" stop-color="#5b21b6"/></linearGradient><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#111111" stroke-width="3.50" stroke-linejoin="round"/><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#efe9dd" stroke-width="1.50" stroke-linejoin="round"/><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="url(#burgee-9dwb5r)"/><clipPath id="burgee-9dwb5r-c"><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z"/></clipPath><g clip-path="url(#burgee-9dwb5r-c)"><circle cx="50" cy="50" r="10" fill="#ffffff"/></g><linearGradient id="burgee-9dwb5r-s" gradientUnits="objectBoundingBox" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffffff" stop-opacity="0"/><stop offset="0.50" stop-color="#ffffff" stop-opacity="0.16"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient><g clip-path="url(#burgee-9dwb5r-c)"><g transform="skewX(-14)"><rect x="-50" y="-20" width="34" height="140" class="burgee-9dwb5r-sweep" fill="url(#burgee-9dwb5r-s)"/></g></g><g clip-path="url(#burgee-9dwb5r-c)"><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#ffffff" stroke-opacity="0.28" stroke-width="1.5" stroke-linejoin="round" transform="translate(-0.55 -0.55)"/><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#000000" stroke-opacity="0.13" stroke-width="1.5" stroke-linejoin="round" transform="translate(0.55 0.55)"/></g><g transform="translate(22 30) scale(0.40)"><g transform="rotate(-30 50 50)"><rect x="15" y="24" width="52" height="24" rx="12" fill="#5b21b6"/><rect x="33" y="52" width="52" height="24" rx="12" fill="#0ea5e9"/></g></g>
+</svg>"
+`;
+
+exports[`the bytes of a brand with every optional part > cover, on both grounds 1`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="420" viewBox="0 0 1000 420" role="img" aria-label="o&#39;reilly &amp; &lt;co&gt;">
+<rect width="1000" height="420" fill="#12201b"/>
+<g transform="translate(33.26 120) scale(1.80)"><linearGradient id="burgee-9dwb5r" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#0ea5e9"/><stop offset="0.50" stop-color="#0a0a0a"/><stop offset="1" stop-color="#5b21b6"/></linearGradient><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#111111" stroke-width="3.50" stroke-linejoin="round"/><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#efe9dd" stroke-width="1.50" stroke-linejoin="round"/><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="url(#burgee-9dwb5r)"/><clipPath id="burgee-9dwb5r-c"><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z"/></clipPath><g clip-path="url(#burgee-9dwb5r-c)"><circle cx="50" cy="50" r="10" fill="#ffffff"/></g><linearGradient id="burgee-9dwb5r-s" gradientUnits="objectBoundingBox" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffffff" stop-opacity="0"/><stop offset="0.50" stop-color="#ffffff" stop-opacity="0.16"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient><g clip-path="url(#burgee-9dwb5r-c)"><g transform="skewX(-14)"><rect x="8" y="-20" width="34" height="140" fill="url(#burgee-9dwb5r-s)"/></g></g><g clip-path="url(#burgee-9dwb5r-c)"><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#ffffff" stroke-opacity="0.28" stroke-width="1.5" stroke-linejoin="round" transform="translate(-0.55 -0.55)"/><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#000000" stroke-opacity="0.13" stroke-width="1.5" stroke-linejoin="round" transform="translate(0.55 0.55)"/></g><g transform="translate(22 30) scale(0.40)"><g transform="rotate(-30 50 50)"><rect x="15" y="24" width="52" height="24" rx="12" fill="#5b21b6"/><rect x="33" y="52" width="52" height="24" rx="12" fill="#0ea5e9"/></g></g></g>
+<text x="263.66" y="237.22" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="75.60" font-weight="700" letter-spacing="-2.27" fill="#f0f3f6">o&#39;reilly &amp; &lt;co&gt;</text>
+</svg>"
+`;
+
+exports[`the bytes of a brand with every optional part > cover, on both grounds 2`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="420" viewBox="0 0 1000 420" role="img" aria-label="o&#39;reilly &amp; &lt;co&gt; — One declaration, every identity surface:  the flag, the favicon, the social card and the cover, none of them able to drift.">
+<rect width="1000" height="420" fill="#efe9dd"/>
+<g transform="translate(33.26 120) scale(1.80)"><linearGradient id="burgee-9dwb5r" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#0ea5e9"/><stop offset="0.50" stop-color="#0a0a0a"/><stop offset="1" stop-color="#5b21b6"/></linearGradient><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#111111" stroke-width="3.50" stroke-linejoin="round"/><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#efe9dd" stroke-width="1.50" stroke-linejoin="round"/><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="url(#burgee-9dwb5r)"/><clipPath id="burgee-9dwb5r-c"><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z"/></clipPath><g clip-path="url(#burgee-9dwb5r-c)"><circle cx="50" cy="50" r="10" fill="#ffffff"/></g><linearGradient id="burgee-9dwb5r-s" gradientUnits="objectBoundingBox" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffffff" stop-opacity="0"/><stop offset="0.50" stop-color="#ffffff" stop-opacity="0.16"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient><g clip-path="url(#burgee-9dwb5r-c)"><g transform="skewX(-14)"><rect x="8" y="-20" width="34" height="140" fill="url(#burgee-9dwb5r-s)"/></g></g><g clip-path="url(#burgee-9dwb5r-c)"><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#ffffff" stroke-opacity="0.28" stroke-width="1.5" stroke-linejoin="round" transform="translate(-0.55 -0.55)"/><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#000000" stroke-opacity="0.13" stroke-width="1.5" stroke-linejoin="round" transform="translate(0.55 0.55)"/></g><g transform="translate(22 30) scale(0.40)"><g transform="rotate(-30 50 50)"><rect x="15" y="24" width="52" height="24" rx="12" fill="#5b21b6"/><rect x="33" y="52" width="52" height="24" rx="12" fill="#0ea5e9"/></g></g></g>
+<text x="263.66" y="179.94" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="75.60" font-weight="700" letter-spacing="-2.27" fill="#0a0a0a">o&#39;reilly &amp; &lt;co&gt;</text>
+<text x="263.66" y="217.38" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="23.40" fill="#5c6058">One declaration, every identity</text>
+<text x="263.66" y="250.14" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="23.40" fill="#5c6058">surface: the flag, the favicon,</text>
+<text x="263.66" y="282.90" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="23.40" fill="#5c6058">the social card and the cover,</text>
+<text x="263.66" y="315.66" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="23.40" fill="#5c6058">none of them able to drift.</text>
+</svg>"
+`;
+
+exports[`the bytes of a brand with every optional part > favicon 1`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="512" height="512" role="img" aria-label="o&#39;reilly &amp; &lt;co&gt;">
+  <linearGradient id="burgee-9dwb5r" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#0ea5e9"/><stop offset="0.50" stop-color="#0a0a0a"/><stop offset="1" stop-color="#5b21b6"/></linearGradient><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#111111" stroke-width="3.50" stroke-linejoin="round"/><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#efe9dd" stroke-width="1.50" stroke-linejoin="round"/><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="url(#burgee-9dwb5r)"/><clipPath id="burgee-9dwb5r-c"><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z"/></clipPath><g clip-path="url(#burgee-9dwb5r-c)"><circle cx="50" cy="50" r="10" fill="#ffffff"/></g><linearGradient id="burgee-9dwb5r-s" gradientUnits="objectBoundingBox" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffffff" stop-opacity="0"/><stop offset="0.50" stop-color="#ffffff" stop-opacity="0.16"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient><g clip-path="url(#burgee-9dwb5r-c)"><g transform="skewX(-14)"><rect x="8" y="-20" width="34" height="140" fill="url(#burgee-9dwb5r-s)"/></g></g><g clip-path="url(#burgee-9dwb5r-c)"><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#ffffff" stroke-opacity="0.28" stroke-width="1.5" stroke-linejoin="round" transform="translate(-0.55 -0.55)"/><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#000000" stroke-opacity="0.13" stroke-width="1.5" stroke-linejoin="round" transform="translate(0.55 0.55)"/></g><g transform="translate(22 30) scale(0.40)"><g transform="rotate(-30 50 50)"><rect x="15" y="24" width="52" height="24" rx="12" fill="#5b21b6"/><rect x="33" y="52" width="52" height="24" rx="12" fill="#0ea5e9"/></g></g>
+</svg>"
+`;
+
+exports[`the bytes of a brand with every optional part > flag, at its own size and at 32 1`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100" role="img" aria-label="o&#39;reilly &amp; &lt;co&gt;">
+  <linearGradient id="burgee-9dwb5r" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#0ea5e9"/><stop offset="0.50" stop-color="#0a0a0a"/><stop offset="1" stop-color="#5b21b6"/></linearGradient><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#111111" stroke-width="3.50" stroke-linejoin="round"/><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#efe9dd" stroke-width="1.50" stroke-linejoin="round"/><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="url(#burgee-9dwb5r)"/><clipPath id="burgee-9dwb5r-c"><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z"/></clipPath><g clip-path="url(#burgee-9dwb5r-c)"><circle cx="50" cy="50" r="10" fill="#ffffff"/></g><linearGradient id="burgee-9dwb5r-s" gradientUnits="objectBoundingBox" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffffff" stop-opacity="0"/><stop offset="0.50" stop-color="#ffffff" stop-opacity="0.16"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient><g clip-path="url(#burgee-9dwb5r-c)"><g transform="skewX(-14)"><rect x="8" y="-20" width="34" height="140" fill="url(#burgee-9dwb5r-s)"/></g></g><g clip-path="url(#burgee-9dwb5r-c)"><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#ffffff" stroke-opacity="0.28" stroke-width="1.5" stroke-linejoin="round" transform="translate(-0.55 -0.55)"/><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#000000" stroke-opacity="0.13" stroke-width="1.5" stroke-linejoin="round" transform="translate(0.55 0.55)"/></g><g transform="translate(22 30) scale(0.40)"><g transform="rotate(-30 50 50)"><rect x="15" y="24" width="52" height="24" rx="12" fill="#5b21b6"/><rect x="33" y="52" width="52" height="24" rx="12" fill="#0ea5e9"/></g></g>
+</svg>"
+`;
+
+exports[`the bytes of a brand with every optional part > flag, at its own size and at 32 2`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="32" height="32" role="img" aria-label="o&#39;reilly &amp; &lt;co&gt;">
+  <linearGradient id="burgee-9dwb5r" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#0ea5e9"/><stop offset="0.50" stop-color="#0a0a0a"/><stop offset="1" stop-color="#5b21b6"/></linearGradient><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#111111" stroke-width="3.50" stroke-linejoin="round"/><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#efe9dd" stroke-width="1.50" stroke-linejoin="round"/><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="url(#burgee-9dwb5r)"/><clipPath id="burgee-9dwb5r-c"><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z"/></clipPath><g clip-path="url(#burgee-9dwb5r-c)"><circle cx="50" cy="50" r="10" fill="#ffffff"/></g><linearGradient id="burgee-9dwb5r-s" gradientUnits="objectBoundingBox" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffffff" stop-opacity="0"/><stop offset="0.50" stop-color="#ffffff" stop-opacity="0.16"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient><g clip-path="url(#burgee-9dwb5r-c)"><g transform="skewX(-14)"><rect x="8" y="-20" width="34" height="140" fill="url(#burgee-9dwb5r-s)"/></g></g><g clip-path="url(#burgee-9dwb5r-c)"><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#ffffff" stroke-opacity="0.28" stroke-width="1.5" stroke-linejoin="round" transform="translate(-0.55 -0.55)"/><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#000000" stroke-opacity="0.13" stroke-width="1.5" stroke-linejoin="round" transform="translate(0.55 0.55)"/></g><g transform="translate(22 30) scale(0.40)"><g transform="rotate(-30 50 50)"><rect x="15" y="24" width="52" height="24" rx="12" fill="#5b21b6"/><rect x="33" y="52" width="52" height="24" rx="12" fill="#0ea5e9"/></g></g>
+</svg>"
+`;
+
+exports[`the bytes of a brand with every optional part > lockup, on both grounds and on a ground of its own 1`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" width="480" height="120" viewBox="0 0 480 120" role="img" aria-label="o&#39;reilly &amp; &lt;co&gt;">
+<rect width="480" height="120" fill="#12201b"/>
+<g transform="translate(22.19 18) scale(0.84)"><linearGradient id="burgee-9dwb5r" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#0ea5e9"/><stop offset="0.50" stop-color="#0a0a0a"/><stop offset="1" stop-color="#5b21b6"/></linearGradient><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#111111" stroke-width="3.50" stroke-linejoin="round"/><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#efe9dd" stroke-width="1.50" stroke-linejoin="round"/><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="url(#burgee-9dwb5r)"/><clipPath id="burgee-9dwb5r-c"><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z"/></clipPath><g clip-path="url(#burgee-9dwb5r-c)"><circle cx="50" cy="50" r="10" fill="#ffffff"/></g><linearGradient id="burgee-9dwb5r-s" gradientUnits="objectBoundingBox" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffffff" stop-opacity="0"/><stop offset="0.50" stop-color="#ffffff" stop-opacity="0.16"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient><g clip-path="url(#burgee-9dwb5r-c)"><g transform="skewX(-14)"><rect x="8" y="-20" width="34" height="140" fill="url(#burgee-9dwb5r-s)"/></g></g><g clip-path="url(#burgee-9dwb5r-c)"><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#ffffff" stroke-opacity="0.28" stroke-width="1.5" stroke-linejoin="round" transform="translate(-0.55 -0.55)"/><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#000000" stroke-opacity="0.13" stroke-width="1.5" stroke-linejoin="round" transform="translate(0.55 0.55)"/></g><g transform="translate(22 30) scale(0.40)"><g transform="rotate(-30 50 50)"><rect x="15" y="24" width="52" height="24" rx="12" fill="#5b21b6"/><rect x="33" y="52" width="52" height="24" rx="12" fill="#0ea5e9"/></g></g></g>
+<text x="129.71" y="72.70" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="35.28" font-weight="700" letter-spacing="-1.06" fill="#f0f3f6">o&#39;reilly &amp; &lt;co&gt;</text>
+</svg>"
+`;
+
+exports[`the bytes of a brand with every optional part > lockup, on both grounds and on a ground of its own 2`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" width="480" height="120" viewBox="0 0 480 120" role="img" aria-label="o&#39;reilly &amp; &lt;co&gt;">
+<rect width="480" height="120" fill="#efe9dd"/>
+<g transform="translate(22.19 18) scale(0.84)"><linearGradient id="burgee-9dwb5r" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#0ea5e9"/><stop offset="0.50" stop-color="#0a0a0a"/><stop offset="1" stop-color="#5b21b6"/></linearGradient><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#111111" stroke-width="3.50" stroke-linejoin="round"/><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#efe9dd" stroke-width="1.50" stroke-linejoin="round"/><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="url(#burgee-9dwb5r)"/><clipPath id="burgee-9dwb5r-c"><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z"/></clipPath><g clip-path="url(#burgee-9dwb5r-c)"><circle cx="50" cy="50" r="10" fill="#ffffff"/></g><linearGradient id="burgee-9dwb5r-s" gradientUnits="objectBoundingBox" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffffff" stop-opacity="0"/><stop offset="0.50" stop-color="#ffffff" stop-opacity="0.16"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient><g clip-path="url(#burgee-9dwb5r-c)"><g transform="skewX(-14)"><rect x="8" y="-20" width="34" height="140" fill="url(#burgee-9dwb5r-s)"/></g></g><g clip-path="url(#burgee-9dwb5r-c)"><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#ffffff" stroke-opacity="0.28" stroke-width="1.5" stroke-linejoin="round" transform="translate(-0.55 -0.55)"/><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#000000" stroke-opacity="0.13" stroke-width="1.5" stroke-linejoin="round" transform="translate(0.55 0.55)"/></g><g transform="translate(22 30) scale(0.40)"><g transform="rotate(-30 50 50)"><rect x="15" y="24" width="52" height="24" rx="12" fill="#5b21b6"/><rect x="33" y="52" width="52" height="24" rx="12" fill="#0ea5e9"/></g></g></g>
+<text x="129.71" y="72.70" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="35.28" font-weight="700" letter-spacing="-1.06" fill="#0a0a0a">o&#39;reilly &amp; &lt;co&gt;</text>
+</svg>"
+`;
+
+exports[`the bytes of a brand with every optional part > lockup, on both grounds and on a ground of its own 3`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" width="300" height="90" viewBox="0 0 300 90" role="img" aria-label="o&#39;reilly &amp; &lt;co&gt; — cli">
+<rect width="300" height="90" fill="#000000"/>
+<g transform="translate(-67.81 3) scale(0.84)"><linearGradient id="burgee-9dwb5r" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#0ea5e9"/><stop offset="0.50" stop-color="#0a0a0a"/><stop offset="1" stop-color="#5b21b6"/></linearGradient><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#111111" stroke-width="3.50" stroke-linejoin="round"/><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#efe9dd" stroke-width="1.50" stroke-linejoin="round"/><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="url(#burgee-9dwb5r)"/><clipPath id="burgee-9dwb5r-c"><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z"/></clipPath><g clip-path="url(#burgee-9dwb5r-c)"><circle cx="50" cy="50" r="10" fill="#ffffff"/></g><linearGradient id="burgee-9dwb5r-s" gradientUnits="objectBoundingBox" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffffff" stop-opacity="0"/><stop offset="0.50" stop-color="#ffffff" stop-opacity="0.16"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient><g clip-path="url(#burgee-9dwb5r-c)"><g transform="skewX(-14)"><rect x="8" y="-20" width="34" height="140" fill="url(#burgee-9dwb5r-s)"/></g></g><g clip-path="url(#burgee-9dwb5r-c)"><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#ffffff" stroke-opacity="0.28" stroke-width="1.5" stroke-linejoin="round" transform="translate(-0.55 -0.55)"/><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#000000" stroke-opacity="0.13" stroke-width="1.5" stroke-linejoin="round" transform="translate(0.55 0.55)"/></g><g transform="translate(22 30) scale(0.40)"><g transform="rotate(-30 50 50)"><rect x="15" y="24" width="52" height="24" rx="12" fill="#5b21b6"/><rect x="33" y="52" width="52" height="24" rx="12" fill="#0ea5e9"/></g></g></g>
+<text x="39.71" y="53.90" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="35.28" font-weight="700" letter-spacing="-1.06" fill="#ffffff">o&#39;reilly &amp; &lt;co&gt;</text>
+<text x="39.71" y="71.38" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.92" fill="#888888">cli</text>
+</svg>"
+`;
+
+exports[`the bytes of a brand with every optional part > og, bare and with a wrapping subtitle 1`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="o&#39;reilly &amp; &lt;co&gt;">
+<rect width="1200" height="630" fill="#12201b"/>
+<g transform="translate(-74.18 185) scale(2.60)"><linearGradient id="burgee-9dwb5r" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#0ea5e9"/><stop offset="0.50" stop-color="#0a0a0a"/><stop offset="1" stop-color="#5b21b6"/></linearGradient><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#111111" stroke-width="3.50" stroke-linejoin="round"/><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#efe9dd" stroke-width="1.50" stroke-linejoin="round"/><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="url(#burgee-9dwb5r)"/><clipPath id="burgee-9dwb5r-c"><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z"/></clipPath><g clip-path="url(#burgee-9dwb5r-c)"><circle cx="50" cy="50" r="10" fill="#ffffff"/></g><linearGradient id="burgee-9dwb5r-s" gradientUnits="objectBoundingBox" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffffff" stop-opacity="0"/><stop offset="0.50" stop-color="#ffffff" stop-opacity="0.16"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient><g clip-path="url(#burgee-9dwb5r-c)"><g transform="skewX(-14)"><rect x="8" y="-20" width="34" height="140" fill="url(#burgee-9dwb5r-s)"/></g></g><g clip-path="url(#burgee-9dwb5r-c)"><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#ffffff" stroke-opacity="0.28" stroke-width="1.5" stroke-linejoin="round" transform="translate(-0.55 -0.55)"/><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#000000" stroke-opacity="0.13" stroke-width="1.5" stroke-linejoin="round" transform="translate(0.55 0.55)"/></g><g transform="translate(22 30) scale(0.40)"><g transform="rotate(-30 50 50)"><rect x="15" y="24" width="52" height="24" rx="12" fill="#5b21b6"/><rect x="33" y="52" width="52" height="24" rx="12" fill="#0ea5e9"/></g></g></g>
+<text x="258.62" y="354.31" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="109.20" font-weight="700" letter-spacing="-3.28" fill="#f0f3f6">o&#39;reilly &amp; &lt;co&gt;</text>
+</svg>"
+`;
+
+exports[`the bytes of a brand with every optional part > og, bare and with a wrapping subtitle 2`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="burgee/brand — One declaration, every identity surface:  the flag, the favicon, the social card and the cover, none of them able to drift.">
+<rect width="1200" height="630" fill="#12201b"/>
+<g transform="translate(27.38 185) scale(2.60)"><linearGradient id="burgee-9dwb5r" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#0ea5e9"/><stop offset="0.50" stop-color="#0a0a0a"/><stop offset="1" stop-color="#5b21b6"/></linearGradient><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#111111" stroke-width="3.50" stroke-linejoin="round"/><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#efe9dd" stroke-width="1.50" stroke-linejoin="round"/><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="url(#burgee-9dwb5r)"/><clipPath id="burgee-9dwb5r-c"><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z"/></clipPath><g clip-path="url(#burgee-9dwb5r-c)"><circle cx="50" cy="50" r="10" fill="#ffffff"/></g><linearGradient id="burgee-9dwb5r-s" gradientUnits="objectBoundingBox" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffffff" stop-opacity="0"/><stop offset="0.50" stop-color="#ffffff" stop-opacity="0.16"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient><g clip-path="url(#burgee-9dwb5r-c)"><g transform="skewX(-14)"><rect x="8" y="-20" width="34" height="140" fill="url(#burgee-9dwb5r-s)"/></g></g><g clip-path="url(#burgee-9dwb5r-c)"><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#ffffff" stroke-opacity="0.28" stroke-width="1.5" stroke-linejoin="round" transform="translate(-0.55 -0.55)"/><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="none" stroke="#000000" stroke-opacity="0.13" stroke-width="1.5" stroke-linejoin="round" transform="translate(0.55 0.55)"/></g><g transform="translate(22 30) scale(0.40)"><g transform="rotate(-30 50 50)"><rect x="15" y="24" width="52" height="24" rx="12" fill="#5b21b6"/><rect x="33" y="52" width="52" height="24" rx="12" fill="#0ea5e9"/></g></g></g>
+<text x="360.18" y="224.26" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="109.20" font-weight="700" letter-spacing="-3.28" fill="#f0f3f6">burgee/brand</text>
+<text x="360.18" y="278.34" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="33.80" fill="#9aada5">One declaration, every</text>
+<text x="360.18" y="325.66" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="33.80" fill="#9aada5">identity surface: the</text>
+<text x="360.18" y="372.98" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="33.80" fill="#9aada5">flag, the favicon, the</text>
+<text x="360.18" y="420.30" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="33.80" fill="#9aada5">social card and the cover,</text>
+<text x="360.18" y="467.62" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="33.80" fill="#9aada5">none of them able to</text>
+<text x="360.18" y="514.94" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="33.80" fill="#9aada5">drift.</text>
+</svg>"
+`;
+
+exports[`the bytes of a brand with its own shape and charge > alive 1`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100" aria-hidden="true">
+  <linearGradient id="burgee-1ow57iz" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#123456"/></linearGradient><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#e8dcc8" stroke-width="3" stroke-linejoin="round"/><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="url(#burgee-1ow57iz)" fill-rule="evenodd"/><g transform="translate(22 30) scale(0.40)"><rect x="40" y="40" width="20" height="20"/></g>
+</svg>"
+`;
+
+exports[`the bytes of a brand with its own shape and charge > cover, on both grounds 1`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="420" viewBox="0 0 1000 420" role="img" aria-label="burgee">
+<rect width="1000" height="420" fill="#12201b"/>
+<g transform="translate(384.80 120) scale(1.80)"><linearGradient id="burgee-1ow57iz" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#123456"/></linearGradient><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#e8dcc8" stroke-width="3" stroke-linejoin="round"/><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="url(#burgee-1ow57iz)" fill-rule="evenodd"/><g transform="translate(22 30) scale(0.40)"><rect x="40" y="40" width="20" height="20"/></g></g>
+</svg>"
+`;
+
+exports[`the bytes of a brand with its own shape and charge > cover, on both grounds 2`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="420" viewBox="0 0 1000 420" role="img" aria-label="One declaration, every identity surface: the flag, the favicon, the social card and the cover, none of them able to drift.">
+<rect width="1000" height="420" fill="#efe9dd"/>
+<g transform="translate(159.93 120) scale(1.80)"><linearGradient id="burgee-1ow57iz" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#123456"/></linearGradient><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#e8dcc8" stroke-width="3" stroke-linejoin="round"/><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="url(#burgee-1ow57iz)" fill-rule="evenodd"/><g transform="translate(22 30) scale(0.40)"><rect x="40" y="40" width="20" height="20"/></g></g>
+<text x="390.33" y="217.38" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="23.40" fill="#5c6058">One declaration, every identity</text>
+<text x="390.33" y="250.14" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="23.40" fill="#5c6058">surface: the flag, the favicon,</text>
+<text x="390.33" y="282.90" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="23.40" fill="#5c6058">the social card and the cover,</text>
+<text x="390.33" y="315.66" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="23.40" fill="#5c6058">none of them able to drift.</text>
+</svg>"
+`;
+
+exports[`the bytes of a brand with its own shape and charge > favicon 1`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="512" height="512" aria-hidden="true">
+  <linearGradient id="burgee-1ow57iz" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#123456"/></linearGradient><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#e8dcc8" stroke-width="3" stroke-linejoin="round"/><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="url(#burgee-1ow57iz)" fill-rule="evenodd"/><g transform="translate(22 30) scale(0.40)"><rect x="40" y="40" width="20" height="20"/></g>
+</svg>"
+`;
+
+exports[`the bytes of a brand with its own shape and charge > flag, at its own size and at 32 1`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100" aria-hidden="true">
+  <linearGradient id="burgee-1ow57iz" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#123456"/></linearGradient><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#e8dcc8" stroke-width="3" stroke-linejoin="round"/><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="url(#burgee-1ow57iz)" fill-rule="evenodd"/><g transform="translate(22 30) scale(0.40)"><rect x="40" y="40" width="20" height="20"/></g>
+</svg>"
+`;
+
+exports[`the bytes of a brand with its own shape and charge > flag, at its own size and at 32 2`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="32" height="32" aria-hidden="true">
+  <linearGradient id="burgee-1ow57iz" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#123456"/></linearGradient><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#e8dcc8" stroke-width="3" stroke-linejoin="round"/><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="url(#burgee-1ow57iz)" fill-rule="evenodd"/><g transform="translate(22 30) scale(0.40)"><rect x="40" y="40" width="20" height="20"/></g>
+</svg>"
+`;
+
+exports[`the bytes of a brand with its own shape and charge > lockup, on both grounds and on a ground of its own 1`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" width="480" height="120" viewBox="0 0 480 120" role="img" aria-label="burgee">
+<rect width="480" height="120" fill="#12201b"/>
+<g transform="translate(186.24 18) scale(0.84)"><linearGradient id="burgee-1ow57iz" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#123456"/></linearGradient><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#e8dcc8" stroke-width="3" stroke-linejoin="round"/><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="url(#burgee-1ow57iz)" fill-rule="evenodd"/><g transform="translate(22 30) scale(0.40)"><rect x="40" y="40" width="20" height="20"/></g></g>
+</svg>"
+`;
+
+exports[`the bytes of a brand with its own shape and charge > lockup, on both grounds and on a ground of its own 2`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" width="480" height="120" viewBox="0 0 480 120" role="img" aria-label="burgee">
+<rect width="480" height="120" fill="#efe9dd"/>
+<g transform="translate(186.24 18) scale(0.84)"><linearGradient id="burgee-1ow57iz" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#123456"/></linearGradient><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#e8dcc8" stroke-width="3" stroke-linejoin="round"/><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="url(#burgee-1ow57iz)" fill-rule="evenodd"/><g transform="translate(22 30) scale(0.40)"><rect x="40" y="40" width="20" height="20"/></g></g>
+</svg>"
+`;
+
+exports[`the bytes of a brand with its own shape and charge > lockup, on both grounds and on a ground of its own 3`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" width="300" height="90" viewBox="0 0 300 90" role="img" aria-label="cli">
+<rect width="300" height="90" fill="#000000"/>
+<g transform="translate(86.08 3) scale(0.84)"><linearGradient id="burgee-1ow57iz" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#123456"/></linearGradient><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#e8dcc8" stroke-width="3" stroke-linejoin="round"/><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="url(#burgee-1ow57iz)" fill-rule="evenodd"/><g transform="translate(22 30) scale(0.40)"><rect x="40" y="40" width="20" height="20"/></g></g>
+<text x="193.60" y="71.38" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.92" fill="#888888">cli</text>
+</svg>"
+`;
+
+exports[`the bytes of a brand with its own shape and charge > og, bare and with a wrapping subtitle 1`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="burgee">
+<rect width="1200" height="630" fill="#12201b"/>
+<g transform="translate(433.60 185) scale(2.60)"><linearGradient id="burgee-1ow57iz" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#123456"/></linearGradient><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#e8dcc8" stroke-width="3" stroke-linejoin="round"/><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="url(#burgee-1ow57iz)" fill-rule="evenodd"/><g transform="translate(22 30) scale(0.40)"><rect x="40" y="40" width="20" height="20"/></g></g>
+</svg>"
+`;
+
+exports[`the bytes of a brand with its own shape and charge > og, bare and with a wrapping subtitle 2`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="burgee/brand — One declaration, every identity surface: the flag, the favicon, the social card and the cover, none of them able to drift.">
+<rect width="1200" height="630" fill="#12201b"/>
+<g transform="translate(27.38 185) scale(2.60)"><linearGradient id="burgee-1ow57iz" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#123456"/></linearGradient><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#e8dcc8" stroke-width="3" stroke-linejoin="round"/><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="url(#burgee-1ow57iz)" fill-rule="evenodd"/><g transform="translate(22 30) scale(0.40)"><rect x="40" y="40" width="20" height="20"/></g></g>
+<text x="360.18" y="224.26" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="109.20" font-weight="700" letter-spacing="-3.28" fill="#f0f3f6">burgee/brand</text>
+<text x="360.18" y="278.34" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="33.80" fill="#9aada5">One declaration, every</text>
+<text x="360.18" y="325.66" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="33.80" fill="#9aada5">identity surface: the</text>
+<text x="360.18" y="372.98" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="33.80" fill="#9aada5">flag, the favicon, the</text>
+<text x="360.18" y="420.30" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="33.80" fill="#9aada5">social card and the cover,</text>
+<text x="360.18" y="467.62" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="33.80" fill="#9aada5">none of them able to</text>
+<text x="360.18" y="514.94" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="33.80" fill="#9aada5">drift.</text>
+</svg>"
+`;
+
+exports[`the bytes of a brand with its own shape, charge and bevel > alive 1`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100" aria-hidden="true">
+  <linearGradient id="burgee-1mf7pu6" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#123456"/></linearGradient><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#e8dcc8" stroke-width="3" stroke-linejoin="round"/><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="url(#burgee-1mf7pu6)" fill-rule="evenodd"/><clipPath id="burgee-1mf7pu6-c"><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z"/></clipPath><g clip-path="url(#burgee-1mf7pu6-c)"><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#ffffff" stroke-opacity="0.30" stroke-width="1.5" stroke-linejoin="round" transform="translate(-0.55 -0.55)"/><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#000000" stroke-opacity="0.14" stroke-width="1.5" stroke-linejoin="round" transform="translate(0.55 0.55)"/></g><g transform="translate(22 30) scale(0.40)"><rect x="40" y="40" width="20" height="20"/></g>
+</svg>"
+`;
+
+exports[`the bytes of a brand with its own shape, charge and bevel > cover, on both grounds 1`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="420" viewBox="0 0 1000 420" role="img" aria-label="burgee">
+<rect width="1000" height="420" fill="#12201b"/>
+<g transform="translate(384.80 120) scale(1.80)"><linearGradient id="burgee-1mf7pu6" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#123456"/></linearGradient><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#e8dcc8" stroke-width="3" stroke-linejoin="round"/><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="url(#burgee-1mf7pu6)" fill-rule="evenodd"/><clipPath id="burgee-1mf7pu6-c"><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z"/></clipPath><g clip-path="url(#burgee-1mf7pu6-c)"><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#ffffff" stroke-opacity="0.30" stroke-width="1.5" stroke-linejoin="round" transform="translate(-0.55 -0.55)"/><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#000000" stroke-opacity="0.14" stroke-width="1.5" stroke-linejoin="round" transform="translate(0.55 0.55)"/></g><g transform="translate(22 30) scale(0.40)"><rect x="40" y="40" width="20" height="20"/></g></g>
+</svg>"
+`;
+
+exports[`the bytes of a brand with its own shape, charge and bevel > cover, on both grounds 2`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="420" viewBox="0 0 1000 420" role="img" aria-label="One declaration, every identity surface:  the flag, the favicon, the social card and the cover, none of them able to drift.">
+<rect width="1000" height="420" fill="#efe9dd"/>
+<g transform="translate(159.93 120) scale(1.80)"><linearGradient id="burgee-1mf7pu6" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#123456"/></linearGradient><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#e8dcc8" stroke-width="3" stroke-linejoin="round"/><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="url(#burgee-1mf7pu6)" fill-rule="evenodd"/><clipPath id="burgee-1mf7pu6-c"><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z"/></clipPath><g clip-path="url(#burgee-1mf7pu6-c)"><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#ffffff" stroke-opacity="0.30" stroke-width="1.5" stroke-linejoin="round" transform="translate(-0.55 -0.55)"/><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#000000" stroke-opacity="0.14" stroke-width="1.5" stroke-linejoin="round" transform="translate(0.55 0.55)"/></g><g transform="translate(22 30) scale(0.40)"><rect x="40" y="40" width="20" height="20"/></g></g>
+<text x="390.33" y="217.38" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="23.40" fill="#5c6058">One declaration, every identity</text>
+<text x="390.33" y="250.14" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="23.40" fill="#5c6058">surface: the flag, the favicon,</text>
+<text x="390.33" y="282.90" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="23.40" fill="#5c6058">the social card and the cover,</text>
+<text x="390.33" y="315.66" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="23.40" fill="#5c6058">none of them able to drift.</text>
+</svg>"
+`;
+
+exports[`the bytes of a brand with its own shape, charge and bevel > favicon 1`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="512" height="512" aria-hidden="true">
+  <linearGradient id="burgee-1mf7pu6" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#123456"/></linearGradient><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#e8dcc8" stroke-width="3" stroke-linejoin="round"/><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="url(#burgee-1mf7pu6)" fill-rule="evenodd"/><clipPath id="burgee-1mf7pu6-c"><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z"/></clipPath><g clip-path="url(#burgee-1mf7pu6-c)"><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#ffffff" stroke-opacity="0.30" stroke-width="1.5" stroke-linejoin="round" transform="translate(-0.55 -0.55)"/><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#000000" stroke-opacity="0.14" stroke-width="1.5" stroke-linejoin="round" transform="translate(0.55 0.55)"/></g><g transform="translate(22 30) scale(0.40)"><rect x="40" y="40" width="20" height="20"/></g>
+</svg>"
+`;
+
+exports[`the bytes of a brand with its own shape, charge and bevel > flag, at its own size and at 32 1`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100" aria-hidden="true">
+  <linearGradient id="burgee-1mf7pu6" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#123456"/></linearGradient><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#e8dcc8" stroke-width="3" stroke-linejoin="round"/><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="url(#burgee-1mf7pu6)" fill-rule="evenodd"/><clipPath id="burgee-1mf7pu6-c"><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z"/></clipPath><g clip-path="url(#burgee-1mf7pu6-c)"><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#ffffff" stroke-opacity="0.30" stroke-width="1.5" stroke-linejoin="round" transform="translate(-0.55 -0.55)"/><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#000000" stroke-opacity="0.14" stroke-width="1.5" stroke-linejoin="round" transform="translate(0.55 0.55)"/></g><g transform="translate(22 30) scale(0.40)"><rect x="40" y="40" width="20" height="20"/></g>
+</svg>"
+`;
+
+exports[`the bytes of a brand with its own shape, charge and bevel > flag, at its own size and at 32 2`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="32" height="32" aria-hidden="true">
+  <linearGradient id="burgee-1mf7pu6" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#123456"/></linearGradient><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#e8dcc8" stroke-width="3" stroke-linejoin="round"/><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="url(#burgee-1mf7pu6)" fill-rule="evenodd"/><clipPath id="burgee-1mf7pu6-c"><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z"/></clipPath><g clip-path="url(#burgee-1mf7pu6-c)"><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#ffffff" stroke-opacity="0.30" stroke-width="1.5" stroke-linejoin="round" transform="translate(-0.55 -0.55)"/><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#000000" stroke-opacity="0.14" stroke-width="1.5" stroke-linejoin="round" transform="translate(0.55 0.55)"/></g><g transform="translate(22 30) scale(0.40)"><rect x="40" y="40" width="20" height="20"/></g>
+</svg>"
+`;
+
+exports[`the bytes of a brand with its own shape, charge and bevel > lockup, on both grounds and on a ground of its own 1`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" width="480" height="120" viewBox="0 0 480 120" role="img" aria-label="burgee">
+<rect width="480" height="120" fill="#12201b"/>
+<g transform="translate(186.24 18) scale(0.84)"><linearGradient id="burgee-1mf7pu6" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#123456"/></linearGradient><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#e8dcc8" stroke-width="3" stroke-linejoin="round"/><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="url(#burgee-1mf7pu6)" fill-rule="evenodd"/><clipPath id="burgee-1mf7pu6-c"><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z"/></clipPath><g clip-path="url(#burgee-1mf7pu6-c)"><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#ffffff" stroke-opacity="0.30" stroke-width="1.5" stroke-linejoin="round" transform="translate(-0.55 -0.55)"/><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#000000" stroke-opacity="0.14" stroke-width="1.5" stroke-linejoin="round" transform="translate(0.55 0.55)"/></g><g transform="translate(22 30) scale(0.40)"><rect x="40" y="40" width="20" height="20"/></g></g>
+</svg>"
+`;
+
+exports[`the bytes of a brand with its own shape, charge and bevel > lockup, on both grounds and on a ground of its own 2`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" width="480" height="120" viewBox="0 0 480 120" role="img" aria-label="burgee">
+<rect width="480" height="120" fill="#efe9dd"/>
+<g transform="translate(186.24 18) scale(0.84)"><linearGradient id="burgee-1mf7pu6" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#123456"/></linearGradient><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#e8dcc8" stroke-width="3" stroke-linejoin="round"/><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="url(#burgee-1mf7pu6)" fill-rule="evenodd"/><clipPath id="burgee-1mf7pu6-c"><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z"/></clipPath><g clip-path="url(#burgee-1mf7pu6-c)"><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#ffffff" stroke-opacity="0.30" stroke-width="1.5" stroke-linejoin="round" transform="translate(-0.55 -0.55)"/><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#000000" stroke-opacity="0.14" stroke-width="1.5" stroke-linejoin="round" transform="translate(0.55 0.55)"/></g><g transform="translate(22 30) scale(0.40)"><rect x="40" y="40" width="20" height="20"/></g></g>
+</svg>"
+`;
+
+exports[`the bytes of a brand with its own shape, charge and bevel > lockup, on both grounds and on a ground of its own 3`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" width="300" height="90" viewBox="0 0 300 90" role="img" aria-label="cli">
+<rect width="300" height="90" fill="#000000"/>
+<g transform="translate(86.08 3) scale(0.84)"><linearGradient id="burgee-1mf7pu6" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#123456"/></linearGradient><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#e8dcc8" stroke-width="3" stroke-linejoin="round"/><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="url(#burgee-1mf7pu6)" fill-rule="evenodd"/><clipPath id="burgee-1mf7pu6-c"><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z"/></clipPath><g clip-path="url(#burgee-1mf7pu6-c)"><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#ffffff" stroke-opacity="0.30" stroke-width="1.5" stroke-linejoin="round" transform="translate(-0.55 -0.55)"/><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#000000" stroke-opacity="0.14" stroke-width="1.5" stroke-linejoin="round" transform="translate(0.55 0.55)"/></g><g transform="translate(22 30) scale(0.40)"><rect x="40" y="40" width="20" height="20"/></g></g>
+<text x="193.60" y="71.38" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.92" fill="#888888">cli</text>
+</svg>"
+`;
+
+exports[`the bytes of a brand with its own shape, charge and bevel > og, bare and with a wrapping subtitle 1`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="burgee">
+<rect width="1200" height="630" fill="#12201b"/>
+<g transform="translate(433.60 185) scale(2.60)"><linearGradient id="burgee-1mf7pu6" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#123456"/></linearGradient><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#e8dcc8" stroke-width="3" stroke-linejoin="round"/><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="url(#burgee-1mf7pu6)" fill-rule="evenodd"/><clipPath id="burgee-1mf7pu6-c"><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z"/></clipPath><g clip-path="url(#burgee-1mf7pu6-c)"><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#ffffff" stroke-opacity="0.30" stroke-width="1.5" stroke-linejoin="round" transform="translate(-0.55 -0.55)"/><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#000000" stroke-opacity="0.14" stroke-width="1.5" stroke-linejoin="round" transform="translate(0.55 0.55)"/></g><g transform="translate(22 30) scale(0.40)"><rect x="40" y="40" width="20" height="20"/></g></g>
+</svg>"
+`;
+
+exports[`the bytes of a brand with its own shape, charge and bevel > og, bare and with a wrapping subtitle 2`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="burgee/brand — One declaration, every identity surface:  the flag, the favicon, the social card and the cover, none of them able to drift.">
+<rect width="1200" height="630" fill="#12201b"/>
+<g transform="translate(27.38 185) scale(2.60)"><linearGradient id="burgee-1mf7pu6" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#123456"/></linearGradient><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#e8dcc8" stroke-width="3" stroke-linejoin="round"/><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="url(#burgee-1mf7pu6)" fill-rule="evenodd"/><clipPath id="burgee-1mf7pu6-c"><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z"/></clipPath><g clip-path="url(#burgee-1mf7pu6-c)"><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#ffffff" stroke-opacity="0.30" stroke-width="1.5" stroke-linejoin="round" transform="translate(-0.55 -0.55)"/><path d="M0 50 A42 42 0 1 1 84 50 A42 42 0 1 1 0 50 Z" fill="none" stroke="#000000" stroke-opacity="0.14" stroke-width="1.5" stroke-linejoin="round" transform="translate(0.55 0.55)"/></g><g transform="translate(22 30) scale(0.40)"><rect x="40" y="40" width="20" height="20"/></g></g>
+<text x="360.18" y="224.26" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="109.20" font-weight="700" letter-spacing="-3.28" fill="#f0f3f6">burgee/brand</text>
+<text x="360.18" y="278.34" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="33.80" fill="#9aada5">One declaration, every</text>
+<text x="360.18" y="325.66" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="33.80" fill="#9aada5">identity surface: the</text>
+<text x="360.18" y="372.98" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="33.80" fill="#9aada5">flag, the favicon, the</text>
+<text x="360.18" y="420.30" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="33.80" fill="#9aada5">social card and the cover,</text>
+<text x="360.18" y="467.62" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="33.80" fill="#9aada5">none of them able to</text>
+<text x="360.18" y="514.94" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="33.80" fill="#9aada5">drift.</text>
+</svg>"
+`;
+
+exports[`the bytes of a brand without options > alive 1`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100" role="img" aria-label="burgee">
+  <linearGradient id="burgee-7009l0" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#0a6b47"/><stop offset="0.50" stop-color="#0a0a0a"/><stop offset="1" stop-color="#a84c17"/></linearGradient><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="url(#burgee-7009l0)"/><g transform="translate(22 30) scale(0.40)"><g transform="rotate(-30 50 50)"><rect x="15" y="24" width="52" height="24" rx="12" fill="#a84c17"/><rect x="33" y="52" width="52" height="24" rx="12" fill="#0a6b47"/></g></g>
+</svg>"
+`;
+
+exports[`the bytes of a brand without options > cover, on both grounds 1`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="420" viewBox="0 0 1000 420" role="img" aria-label="burgee">
+<rect width="1000" height="420" fill="#12201b"/>
+<g transform="translate(244.18 120) scale(1.80)"><linearGradient id="burgee-7009l0" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#0a6b47"/><stop offset="0.50" stop-color="#0a0a0a"/><stop offset="1" stop-color="#a84c17"/></linearGradient><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="url(#burgee-7009l0)"/><g transform="translate(22 30) scale(0.40)"><g transform="rotate(-30 50 50)"><rect x="15" y="24" width="52" height="24" rx="12" fill="#a84c17"/><rect x="33" y="52" width="52" height="24" rx="12" fill="#0a6b47"/></g></g></g>
+<text x="474.58" y="237.22" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="75.60" font-weight="700" letter-spacing="-2.27" fill="#f0f3f6">burgee</text>
+</svg>"
+`;
+
+exports[`the bytes of a brand without options > cover, on both grounds 2`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="420" viewBox="0 0 1000 420" role="img" aria-label="burgee — One declaration, every identity surface:  the flag, the favicon, the social card and the cover, none of them able to drift.">
+<rect width="1000" height="420" fill="#efe9dd"/>
+<g transform="translate(159.93 120) scale(1.80)"><linearGradient id="burgee-7009l0" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#0a6b47"/><stop offset="0.50" stop-color="#0a0a0a"/><stop offset="1" stop-color="#a84c17"/></linearGradient><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="url(#burgee-7009l0)"/><g transform="translate(22 30) scale(0.40)"><g transform="rotate(-30 50 50)"><rect x="15" y="24" width="52" height="24" rx="12" fill="#a84c17"/><rect x="33" y="52" width="52" height="24" rx="12" fill="#0a6b47"/></g></g></g>
+<text x="390.33" y="179.94" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="75.60" font-weight="700" letter-spacing="-2.27" fill="#0a0a0a">burgee</text>
+<text x="390.33" y="217.38" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="23.40" fill="#5c6058">One declaration, every identity</text>
+<text x="390.33" y="250.14" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="23.40" fill="#5c6058">surface: the flag, the favicon,</text>
+<text x="390.33" y="282.90" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="23.40" fill="#5c6058">the social card and the cover,</text>
+<text x="390.33" y="315.66" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="23.40" fill="#5c6058">none of them able to drift.</text>
+</svg>"
+`;
+
+exports[`the bytes of a brand without options > favicon 1`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="512" height="512" role="img" aria-label="burgee">
+  <linearGradient id="burgee-7009l0" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#0a6b47"/><stop offset="0.50" stop-color="#0a0a0a"/><stop offset="1" stop-color="#a84c17"/></linearGradient><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="url(#burgee-7009l0)"/><g transform="translate(22 30) scale(0.40)"><g transform="rotate(-30 50 50)"><rect x="15" y="24" width="52" height="24" rx="12" fill="#a84c17"/><rect x="33" y="52" width="52" height="24" rx="12" fill="#0a6b47"/></g></g>
+</svg>"
+`;
+
+exports[`the bytes of a brand without options > flag, at its own size and at 32 1`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100" role="img" aria-label="burgee">
+  <linearGradient id="burgee-7009l0" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#0a6b47"/><stop offset="0.50" stop-color="#0a0a0a"/><stop offset="1" stop-color="#a84c17"/></linearGradient><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="url(#burgee-7009l0)"/><g transform="translate(22 30) scale(0.40)"><g transform="rotate(-30 50 50)"><rect x="15" y="24" width="52" height="24" rx="12" fill="#a84c17"/><rect x="33" y="52" width="52" height="24" rx="12" fill="#0a6b47"/></g></g>
+</svg>"
+`;
+
+exports[`the bytes of a brand without options > flag, at its own size and at 32 2`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="32" height="32" role="img" aria-label="burgee">
+  <linearGradient id="burgee-7009l0" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#0a6b47"/><stop offset="0.50" stop-color="#0a0a0a"/><stop offset="1" stop-color="#a84c17"/></linearGradient><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="url(#burgee-7009l0)"/><g transform="translate(22 30) scale(0.40)"><g transform="rotate(-30 50 50)"><rect x="15" y="24" width="52" height="24" rx="12" fill="#a84c17"/><rect x="33" y="52" width="52" height="24" rx="12" fill="#0a6b47"/></g></g>
+</svg>"
+`;
+
+exports[`the bytes of a brand without options > lockup, on both grounds and on a ground of its own 1`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" width="480" height="120" viewBox="0 0 480 120" role="img" aria-label="burgee">
+<rect width="480" height="120" fill="#12201b"/>
+<g transform="translate(120.62 18) scale(0.84)"><linearGradient id="burgee-7009l0" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#0a6b47"/><stop offset="0.50" stop-color="#0a0a0a"/><stop offset="1" stop-color="#a84c17"/></linearGradient><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="url(#burgee-7009l0)"/><g transform="translate(22 30) scale(0.40)"><g transform="rotate(-30 50 50)"><rect x="15" y="24" width="52" height="24" rx="12" fill="#a84c17"/><rect x="33" y="52" width="52" height="24" rx="12" fill="#0a6b47"/></g></g></g>
+<text x="228.14" y="72.70" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="35.28" font-weight="700" letter-spacing="-1.06" fill="#f0f3f6">burgee</text>
+</svg>"
+`;
+
+exports[`the bytes of a brand without options > lockup, on both grounds and on a ground of its own 2`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" width="480" height="120" viewBox="0 0 480 120" role="img" aria-label="burgee">
+<rect width="480" height="120" fill="#efe9dd"/>
+<g transform="translate(120.62 18) scale(0.84)"><linearGradient id="burgee-7009l0" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#0a6b47"/><stop offset="0.50" stop-color="#0a0a0a"/><stop offset="1" stop-color="#a84c17"/></linearGradient><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="url(#burgee-7009l0)"/><g transform="translate(22 30) scale(0.40)"><g transform="rotate(-30 50 50)"><rect x="15" y="24" width="52" height="24" rx="12" fill="#a84c17"/><rect x="33" y="52" width="52" height="24" rx="12" fill="#0a6b47"/></g></g></g>
+<text x="228.14" y="72.70" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="35.28" font-weight="700" letter-spacing="-1.06" fill="#0a0a0a">burgee</text>
+</svg>"
+`;
+
+exports[`the bytes of a brand without options > lockup, on both grounds and on a ground of its own 3`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" width="300" height="90" viewBox="0 0 300 90" role="img" aria-label="burgee — cli">
+<rect width="300" height="90" fill="#000000"/>
+<g transform="translate(30.62 3) scale(0.84)"><linearGradient id="burgee-7009l0" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#0a6b47"/><stop offset="0.50" stop-color="#0a0a0a"/><stop offset="1" stop-color="#a84c17"/></linearGradient><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="url(#burgee-7009l0)"/><g transform="translate(22 30) scale(0.40)"><g transform="rotate(-30 50 50)"><rect x="15" y="24" width="52" height="24" rx="12" fill="#a84c17"/><rect x="33" y="52" width="52" height="24" rx="12" fill="#0a6b47"/></g></g></g>
+<text x="138.14" y="53.90" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="35.28" font-weight="700" letter-spacing="-1.06" fill="#ffffff">burgee</text>
+<text x="138.14" y="71.38" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.92" fill="#888888">cli</text>
+</svg>"
+`;
+
+exports[`the bytes of a brand without options > og, bare and with a wrapping subtitle 1`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="burgee">
+<rect width="1200" height="630" fill="#12201b"/>
+<g transform="translate(230.49 185) scale(2.60)"><linearGradient id="burgee-7009l0" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#0a6b47"/><stop offset="0.50" stop-color="#0a0a0a"/><stop offset="1" stop-color="#a84c17"/></linearGradient><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="url(#burgee-7009l0)"/><g transform="translate(22 30) scale(0.40)"><g transform="rotate(-30 50 50)"><rect x="15" y="24" width="52" height="24" rx="12" fill="#a84c17"/><rect x="33" y="52" width="52" height="24" rx="12" fill="#0a6b47"/></g></g></g>
+<text x="563.29" y="354.31" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="109.20" font-weight="700" letter-spacing="-3.28" fill="#f0f3f6">burgee</text>
+</svg>"
+`;
+
+exports[`the bytes of a brand without options > og, bare and with a wrapping subtitle 2`] = `
+"<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="burgee/brand — One declaration, every identity surface:  the flag, the favicon, the social card and the cover, none of them able to drift.">
+<rect width="1200" height="630" fill="#12201b"/>
+<g transform="translate(27.38 185) scale(2.60)"><linearGradient id="burgee-7009l0" gradientUnits="userSpaceOnUse" x1="25" y1="6.7" x2="75" y2="93.3"><stop offset="0" stop-color="#0a6b47"/><stop offset="0.50" stop-color="#0a0a0a"/><stop offset="1" stop-color="#a84c17"/></linearGradient><path d="M10 20 L94 32 L66 50 L94 68 L10 80 Z" fill="url(#burgee-7009l0)"/><g transform="translate(22 30) scale(0.40)"><g transform="rotate(-30 50 50)"><rect x="15" y="24" width="52" height="24" rx="12" fill="#a84c17"/><rect x="33" y="52" width="52" height="24" rx="12" fill="#0a6b47"/></g></g></g>
+<text x="360.18" y="224.26" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="109.20" font-weight="700" letter-spacing="-3.28" fill="#f0f3f6">burgee/brand</text>
+<text x="360.18" y="278.34" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="33.80" fill="#9aada5">One declaration, every</text>
+<text x="360.18" y="325.66" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="33.80" fill="#9aada5">identity surface: the</text>
+<text x="360.18" y="372.98" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="33.80" fill="#9aada5">flag, the favicon, the</text>
+<text x="360.18" y="420.30" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="33.80" fill="#9aada5">social card and the cover,</text>
+<text x="360.18" y="467.62" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="33.80" fill="#9aada5">none of them able to</text>
+<text x="360.18" y="514.94" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="33.80" fill="#9aada5">drift.</text>
+</svg>"
+`;

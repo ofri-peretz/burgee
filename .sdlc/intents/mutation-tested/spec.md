@@ -92,9 +92,14 @@ reason, skipped by the mutation run only:
 - `burgee/src/migrate-bench.test.ts` — A10 times a 1,000-file scan against a CPU yardstick
   (budget 40); instrumented code ran it at 3,644.
 - `burgee/src/messages.test.ts` — scans the text of `src/` for every message the engine
-  writes; instrumented source holds each literal behind a mutant switch.
-- `burgee/src/testing-helpers.test.ts` — compares `JSON.stringify(process.env)` byte for byte;
-  Stryker's runner forces vitest's `threads` pool, where restoring the env reorders its keys.
+  writes; instrumented source holds each literal behind a mutant switch. oxmutate does not
+  instrument the file on disk, so the suite passes there, but it took `messages.ts`'s 101
+  mutants from 13 minutes to 225 (2026-11-14); `messages-catalog.test.ts` holds the part of it
+  that needs no source text.
+- `burgee/src/testing-helpers-env.test.ts` — compares `JSON.stringify(process.env)` byte for
+  byte; Stryker's runner forces vitest's `threads` pool, where restoring the env reorders its
+  keys, and oxmutate's dry run fails it too. Until 2026-11-14 these two cases were in
+  `testing-helpers.test.ts`, and the whole file was skipped for them.
 
 Each was found by a dry run failing (`disableBail` and `dryRunOnly` on burgee list them all at
 once). Skipping a file costs the kills its tests would have made; the four above are a lock on

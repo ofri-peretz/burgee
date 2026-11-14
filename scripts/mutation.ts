@@ -96,9 +96,14 @@ export const SKIPPED_TESTS: Readonly<Record<string, Readonly<Record<string, stri
     'src/sensitivity.test.ts': BUILT_CLI,
   },
   burgee: {
-    'src/migrate-bench.test.ts': 'A10 times a 1,000-file scan against a CPU yardstick (40); instrumented code ran it at 3,644 on 2026-10-18',
-    'src/messages.test.ts': 'scans the source text of src/ for every message the engine writes; instrumented source carries each literal behind a mutant switch',
-    'src/testing-helpers.test.ts': "compares JSON.stringify(process.env) byte for byte; Stryker's runner forces the threads pool, where restoring the env reorders its keys",
+    'src/migrate-bench.test.ts': "A10 times a 1,000-file scan against a CPU yardstick (40); instrumented code ran it at 3,644 on 2026-10-18, and oxmutate's dry run fails its three timings too (2026-11-14)",
+    // Under oxmutate it passes (the source on disk is not instrumented), but it parses every writer
+    // with TypeScript per mutant: unskipped, the 101 mutants of messages.ts took 225 minutes instead
+    // of 13 (2026-11-14). `messages-catalog.test.ts` holds the part that needs no source text.
+    'src/messages.test.ts': 'scans the source text of src/ for every message the engine writes; under Stryker instrumented source carries each literal behind a mutant switch, under oxmutate it multiplies the run (see above)',
+    // Only the byte-for-byte R7 lock: until 2026-11-14 it lived in testing-helpers.test.ts, and
+    // skipping that whole file to lose two cases left 103 of its mutants undetected.
+    'src/testing-helpers-env.test.ts': "compares JSON.stringify(process.env) byte for byte; under a mutation runner restoring the env reorders its keys (Stryker forces the threads pool, and oxmutate's dry run fails it too, 2026-11-14)",
     'src/shape.test.ts': PACKED_ONLY,
   },
 };
