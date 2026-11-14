@@ -50,6 +50,8 @@ export interface Unit {
   staticGroups?: string[][] | undefined;
   /** `static`: each mutant's hit-count limit, past which its run is a runaway. */
   hitLimits?: Record<string, number> | undefined;
+  /** `dry`: report which tests read each tracked static value (`static.readers`, roadmap 2.4). */
+  trackReads?: boolean | undefined;
 }
 
 // The coordinator is gone (finished, crashed or killed): nothing will read this server's results,
@@ -156,6 +158,8 @@ async function runUnit(unit: Unit): Promise<void> {
   // Workers copy the environment when they start, so each run sees the unit's settings
   // (verified across re-runs of one instance, 2026-10-26).
   env['OXMUTATE_MODE'] = unit.mode;
+  if (unit.trackReads) env['__OXMUTATE_TRACK_READS__'] = '1';
+  else delete env['__OXMUTATE_TRACK_READS__'];
   env['OXMUTATE_RESULTS'] = unit.results;
   env['OXMUTATE_PROGRESS'] = unit.progress;
   if (unit.plan) env['OXMUTATE_PLAN'] = unit.plan;

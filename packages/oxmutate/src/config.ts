@@ -61,6 +61,12 @@ export interface Options {
    * left out of the score. A kill found before that stands. Unset: no limit.
    */
   staticBudgetMs?: number | undefined;
+  /**
+   * `static.readers: 'report'`: one more dry run, with every module-level literal reporting which
+   * tests read each of its properties, and a summary line of how many tests the static phase would
+   * run if each static mutant ran only where its value is read (roadmap 2.4). Changes no verdict.
+   */
+  staticReaders: 'off' | 'report';
   strykerCompat: boolean;
   reporters: string[];
   jsonReport: string;
@@ -271,6 +277,7 @@ export async function loadOptions(root: string, overrides: Partial<Options> = {}
     ignoreStatic: raw['ignoreStatic'] === true,
     staticGroup: staticGroupOf((raw['static'] as { group?: unknown } | undefined)?.group),
     staticBudgetMs: staticBudgetOf((raw['static'] as { budgetMs?: unknown } | undefined)?.budgetMs),
+    staticReaders: (raw['static'] as { readers?: unknown } | undefined)?.readers === 'report' ? 'report' : 'off',
     strykerCompat: raw['strykerCompat'] === true,
     reporters: (raw['reporters'] as string[] | undefined) ?? ['clear-text', 'json'],
     jsonReport: path.resolve(root, json.fileName ?? 'reports/mutation/mutation.json'),

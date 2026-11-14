@@ -230,6 +230,19 @@ describe.skipIf(!native || !existsSync(bin) || !nightly)('static survivors armed
     expect(groupRun('static-group', 'src/table.ts', ['--static-budget', '600000']).verdicts).toEqual(alone.verdicts);
   });
 
+  it('static.readers reports the tests where each static value is read, and changes no verdict', () => {
+    const plain = groupRun('static-group', 'src/table.ts', []);
+    // The fixture: alpha.spec reads row 0, copy.spec reads row 1 through a copy made while its file
+    // loads, loads.spec loads the module and reads nothing. One test each.
+    const readers = groupRun('static-readers', 'src/hosts.ts', ['--report-static-readers']);
+    const off = groupRun('static-readers', 'src/hosts.ts', []);
+    expect(readers.stats['staticReaders'] as unknown).toEqual({ mutants: 8, loaderTests: 24, readerTests: 11, fellBack: 2, dryRunMs: expect.any(Number) as number });
+    // A report only: the verdicts are the ones a run without it gives.
+    expect(readers.verdicts).toEqual(off.verdicts);
+    expect(plain.stats['staticReaders']).toBeUndefined();
+    expect(off.stats['staticReaders']).toBeUndefined();
+  });
+
   it('a pair that hides each other is found by the audit: both Killed, and the run fails', () => {
     const alone = groupRun('static-mask', 'src/pair.ts', []);
     // Lines 3 and 4 are the pair.

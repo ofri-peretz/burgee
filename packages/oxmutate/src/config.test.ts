@@ -33,6 +33,7 @@ const defaults = (root: string): Options => ({
   excludedMutations: [],
   ignoreStatic: false,
   staticGroup: 1,
+  staticReaders: 'off',
   strykerCompat: false,
   reporters: ['clear-text', 'json'],
   jsonReport: path.join(root, 'reports/mutation/mutation.json'),

@@ -22,6 +22,8 @@ export interface NativeMutant {
   end: Location;
   /** Set when an ignore rule covers the mutant: reported as Ignored, never placed in the code. */
   ignoredReason?: string;
+  /** Reads of the property holding it are reported by a tracking dry run (`oxmTrack`, roadmap 2.4). */
+  tracked?: boolean;
 }
 export interface InstrumentedFile {
   path: string;

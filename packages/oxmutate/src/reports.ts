@@ -175,6 +175,11 @@ function whereItWent(r: RunResult): string[] {
   const lines: string[] = [];
   if (s.warmUnitMs > 0) lines.push(`  warm servers ran ${(s.warmUnitMs / MS_PER_S).toFixed(1)} s, ${(s.warmArmedMs / MS_PER_S).toFixed(1)} s of it inside test runs`);
   lines.push(...staticLine(r));
+  const sr = s.staticReaders;
+  if (sr && sr.mutants > 0) {
+    const ratio = sr.readerTests > 0 ? `, ${(sr.loaderTests / sr.readerTests).toFixed(1)}x fewer` : '';
+    lines.push(`  static readers: ${String(sr.mutants)} static mutants would run ${String(sr.readerTests)} tests where their value is read, against ${String(sr.loaderTests)} in every file that loads them${ratio}; ${String(sr.fellBack)} kept every loader (report only, ${(sr.dryRunMs / MS_PER_S).toFixed(1)} s)`);
+  }
   const c = s.isolatedByCause;
   const causes = [`static ${String(c.static)}`, `stopped ${String(c.stopped)}`, `unfinished ${String(c.unfinished)}`, `re-run ${String(c.rerun)}`, `survivors confirmed ${String(c.confirm)}`, `flaky ${String(c.flaky)}`];
   if (s.isolatedRuns > 0) lines.push(`  isolated runs: ${causes.join(' · ')}`);

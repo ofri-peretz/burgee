@@ -403,3 +403,27 @@ most in `vendor.ts`, `registry.ts`, `run.ts` and `demand.ts`, whose tests spawn 
 reported 846 Timeouts at 5,000 ms on a machine at load 27; oxmutate re-ran its own timeouts at 3x
 and overturned 24. Which side is right on the 159 is not settled here; a sample is to be run alone
 on a quiet machine.
+
+## 11. Where static values are read: 3.0x fewer tests on `hosts.ts`, reported (2026-11-15)
+
+`static.readers: 'report'` (roadmap `2.4`, [`static-readers.md`](../oxmutate-fastest/static-readers.md)):
+the instrumenter wraps each module-level object or array literal that holds mutants in `oxmTrack`,
+which is the identity unless a second dry run asks it to report which test read which property.
+A read while a file is collecting counts that file; a value no tracked literal holds keeps every
+loader.
+
+Measured on compat-oracle's `src/hosts.ts:699-760`, 4 workers, alone on the machine apart from
+another session's run (load 20 to 28):
+
+| | Tests the static phase would run |
+| :-- | --: |
+| every file that loads `hosts.ts` (today) | 63,674 |
+| only the files that read each mutant's value | **21,291 (3.0x fewer)** |
+
+79 static mutants; 3 kept every loader (untracked values, such as the whole array emptied). The
+tracking dry run took 32 s. The hand spike in `static-readers.md` estimated 3.2x on the whole
+file.
+
+**On the `static-readers` fixture every killing test sat in a reading file,** and the one value
+nobody reads is the one mutant that survived. That is the property step 2 rests on, shown on one
+fixture; the whole of compat-oracle is the next reading.

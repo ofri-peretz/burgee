@@ -43,6 +43,8 @@ pub struct MutantRecord {
     /// Set when an ignore rule covers the mutant (Stryker's `Ignored` status and its
     /// `statusReason`). The mutant has no switch in `code`; its id is the one it has unignored.
     pub ignored_reason: Option<String>,
+    /// Reads of the property holding it are reported by a tracking dry run (`oxmTrack`).
+    pub tracked: bool,
 }
 
 #[napi(object)]
@@ -76,6 +78,7 @@ pub fn instrument_files(files: Vec<SourceFile>, options: Option<InstrumentOption
                         start: Location { line: m.start.line, column: m.start.column },
                         end: Location { line: m.end.line, column: m.end.column },
                         ignored_reason: m.ignored,
+                        tracked: m.tracked,
                     })
                     .collect(),
                 error: None,
