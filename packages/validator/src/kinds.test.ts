@@ -259,7 +259,7 @@ describe('the builders', () => {
     const members = Object.keys(string());
     expect(members).toEqual([
       'kind', 'check', 'min', 'max', 'above', 'below', 'step', 'int', 'coerce', 'pattern', 'rule', 'value', 'values', 'item', 'key',
-      'keys', 'fields', 'optional', 'default', 'unknown', 'tag', 'cases', 'get', 'meta',
+      'keys', 'fields', 'optional', 'default', 'unknown', 'tag', 'cases', 'get', 'meta', 'own',
     ]);
     for (const [, schema] of FEATURES) {
       expect(Object.keys(schema)).toEqual(members);
@@ -275,7 +275,7 @@ describe('the builders', () => {
     expect({ ...boolean(), check: null }).toEqual({
       kind: 'boolean', check: null, min: -Number.MAX_VALUE, max: Number.MAX_VALUE, above: Number.NEGATIVE_INFINITY, below: Number.POSITIVE_INFINITY, step: 0,
       int: false, coerce: false, pattern: null, rule: null, value: undefined, values: null, item: null, key: null,
-      keys: null, fields: null, optional: false, default: undefined, unknown: 'keep', tag: null, cases: null, get: null, meta: null,
+      keys: null, fields: null, optional: false, default: undefined, unknown: 'keep', tag: null, cases: null, get: null, meta: null, own: null,
     });
     expect(literal(null).value).toBeNull();
     expect(number({ coerce: true }).coerce).toBe(true);

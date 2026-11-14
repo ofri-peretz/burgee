@@ -35,6 +35,11 @@
       "import": "./dist/json-schema.js",
       "default": "./dist/json-schema.js"
     },
+    "./standard": {
+      "types": "./dist/standard.d.ts",
+      "import": "./dist/standard.js",
+      "default": "./dist/standard.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

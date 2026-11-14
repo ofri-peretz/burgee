@@ -1,51 +1,6 @@
 import { isMultiple, matches, points } from './check.js';
-import { type Kind, type Node, type Rule, type Schema, type Test } from './schema.js';
-
-export interface Issue {
-  /** JSON Pointer to the value that failed; `''` is the root. */
-  readonly path: string;
-  /**
-   * What failed: `type`, `min`, `max`, `gt`, `lt`, `integer`, `multipleOf`, `pattern`, `format`,
-   * `literal`, `enum`, `required`, `unknown`, `key`, `length`, `tag`, `union`, `never`, `custom`,
-   * `date`, `instance`, `undefined`, `refine`.
-   */
-  readonly keyword: string;
-  /** What was expected and what arrived, ending in a `fix:` line. */
-  readonly message: string;
-}
-
-/** One failed expectation at one place, before it is put into words: what a message is made from. */
-export interface Miss {
-  readonly path: string;
-  readonly keyword: string;
-  /** What was expected, in English: the message reads "expected <expected>, got …". */
-  readonly expected: string;
-  /** The value that arrived. */
-  readonly got: unknown;
-  /** What to do about it, in English: the message ends "fix: <fix>". */
-  readonly fix: string;
-}
-
-export interface IssueOptions {
-  /** Stop at the first issue. */
-  readonly first?: boolean;
-  /**
-   * The message for an issue, in your words or your language. It is asked about every issue of
-   * every schema, and what it returns is the whole message. Where it returns nothing the message
-   * stays as it was, with its `fix:` line: a map can cover the keywords it knows and leave the rest.
-   */
-  readonly message?: (miss: Miss) => string | null | undefined;
-}
-
-/** Where the walk is, and where it writes. */
-interface Walk {
-  readonly found: Issue[];
-  readonly first: boolean;
-  readonly message: IssueOptions['message'];
-}
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
+import { full, isMembers as isRecord, named, noKind, token } from './own.js';
+import { type Issue, type IssueOptions, type Miss, type Node, type Reader, type Schema, type Walk } from './schema.js';
 
 /** The most characters of a received value that a message quotes. */
 const SHOWN = 80;
@@ -66,13 +21,9 @@ const received = (value: unknown): string => {
   return `${typeof value} ${typeof value === 'string' ? JSON.stringify(cut) : cut}${more}`;
 };
 
-const token = (key: string | number): string => `/${String(key).replaceAll('~', '~0').replaceAll('/', '~1')}`;
-
 const add = (walk: Walk, miss: Miss): void => {
   walk.found.push({ path: miss.path, keyword: miss.keyword, message: walk.message?.(miss) ?? `expected ${miss.expected}, got ${received(miss.got)}. fix: ${miss.fix}` });
 };
-
-const full = (walk: Walk): boolean => walk.first && walk.found.length > 0;
 
 /** A length outside the schema's bounds: `count` code points of a string, or items of an array. */
 const size = (walk: Walk, schema: Node, at: { path: string; got: unknown; count: number; unit: string }): void => {
@@ -120,20 +71,6 @@ const number = (walk: Walk, schema: Node, got: unknown, path: string): void => {
 
 const boolean = (walk: Walk, _: Node, got: unknown, path: string): void => {
   if (typeof got !== 'boolean') add(walk, { path, keyword: 'type', expected: 'true or false', got, fix: 'send a boolean' });
-};
-
-const nothing = (): void => {
-  // Every value is what `unknown` describes.
-};
-
-const never = (walk: Walk, _: Node, got: unknown, path: string): void => {
-  add(walk, { path, keyword: 'never', expected: 'no value', got, fix: 'remove it' });
-};
-
-/** A value a schema names, for a message, as it is written in code: "1", 1 and 1n read differently. */
-const named = (value: unknown): string => {
-  if (typeof value === 'string') return JSON.stringify(value);
-  return typeof value === 'bigint' ? `${String(value)}n` : String(value);
 };
 
 const literal = (walk: Walk, schema: Node, got: unknown, path: string): void => {
@@ -186,37 +123,6 @@ const object = (walk: Walk, schema: Node, got: unknown, path: string): void => {
   extras(walk, schema, got, path);
 };
 
-const record = (walk: Walk, schema: Node, got: unknown, path: string): void => {
-  if (!isRecord(got)) {
-    add(walk, { path, keyword: 'type', expected: 'an object', got, fix: 'send an object' });
-    return;
-  }
-  const { key } = schema;
-  for (const name in got) {
-    const at = path + token(name);
-    if (key !== null && !key.check(key, name) && !full(walk)) {
-      add(walk, { path: at, keyword: 'key', expected: 'a key the record allows', got: name, fix: 'rename the key, or remove it' });
-    }
-    visit(walk, schema.item as Node, got[name], at);
-  }
-};
-
-const tuple = (walk: Walk, schema: Node, got: unknown, path: string): void => {
-  if (!Array.isArray(got)) {
-    add(walk, { path, keyword: 'type', expected: 'an array', got, fix: 'send an array' });
-    return;
-  }
-  const fields = schema.fields as readonly Node[];
-  const rest = schema.item;
-  const count = String(fields.length);
-  if (rest === null && got.length !== fields.length) add(walk, { path, keyword: 'length', expected: `exactly ${count} items`, got, fix: `send ${count}` });
-  else if (got.length < fields.length) add(walk, { path, keyword: 'length', expected: `at least ${count} items`, got, fix: `send ${count} or more` });
-  for (const [index, element] of got.entries()) {
-    const field = fields[index] ?? rest;
-    if (field !== null) visit(walk, field, element, path + token(index));
-  }
-};
-
 const pick = (walk: Walk, schema: Node, got: unknown, path: string): void => {
   const cases = schema.cases as ReadonlyMap<unknown, Node>;
   const tag = isRecord(got) ? got[schema.tag as string] : undefined;
@@ -229,135 +135,54 @@ const pick = (walk: Walk, schema: Node, got: unknown, path: string): void => {
   add(walk, { path: path + token(schema.tag as string), keyword: 'tag', expected: `one of ${names}`, got: tag, fix: 'send one of them' });
 };
 
-const nullable = (walk: Walk, schema: Node, got: unknown, path: string): void => {
-  if (got !== null) visit(walk, schema.item as Node, got, path);
-};
-
-const nullish = (walk: Walk, schema: Node, got: unknown, path: string): void => {
-  if (got !== null && got !== undefined) visit(walk, schema.item as Node, got, path);
-};
-
 /**
- * One issue for the whole union, since no single member is the one that was meant. Its `fix:` line
- * says where each member first fails, which is what tells a caller which one it was nearest to.
+ * One reader for each of the eight kinds of the design's first step, the ones nearly every schema
+ * is made of. Every other kind's node carries its own (own.ts), so this table does not grow. A
+ * `Map`, so that a hand-built node of the kind `constructor` finds no reader here, not the one
+ * every object inherits.
  */
-const union = (walk: Walk, schema: Node, got: unknown, path: string): void => {
-  const members = schema.fields as readonly Node[];
-  const misses: string[] = [];
-  for (const [index, member] of members.entries()) {
-    // Stryker disable next-line BooleanLiteral: equivalent, only the member's first issue is read; stopping there saves finding the rest
-    const inner: Walk = { found: [], first: true, message: undefined };
-    visit(inner, member, got, path);
-    const [miss] = inner.found;
-    if (miss === undefined) return;
-    misses.push(`member ${String(index)} fails ${miss.keyword} at "${miss.path}"`);
-  }
-  const count = String(members.length);
-  add(walk, { path, keyword: 'union', expected: `a value one of ${count} members accepts`, got, fix: ['satisfy one of them', ...misses].join('; ') });
-};
-
-const every = (walk: Walk, schema: Node, got: unknown, path: string): void => {
-  for (const member of schema.fields as readonly Node[]) visit(walk, member, got, path);
-};
-
-const later = (walk: Walk, schema: Node, got: unknown, path: string): void => {
-  visit(walk, (schema.get as () => Node)(), got, path);
-};
-
-const custom = (walk: Walk, schema: Node, got: unknown, path: string): void => {
-  const { name, test } = schema.rule as Rule;
-  if ((test as Test)(got) !== true) add(walk, { path, keyword: 'custom', expected: name, got, fix: `send a value that is ${name}` });
-};
-
-const bigint = (walk: Walk, schema: Node, got: unknown, path: string): void => {
-  const [min, max] = schema.value as readonly [bigint | number, bigint | number];
-  if (typeof got !== 'bigint') add(walk, { path, keyword: 'type', expected: 'a bigint', got, fix: 'send a bigint' });
-  else if (got < min) add(walk, { path, keyword: 'min', expected: `a bigint of at least ${named(min)}`, got, fix: `send ${named(min)} or more` });
-  else if (got > max) add(walk, { path, keyword: 'max', expected: `a bigint of at most ${named(max)}`, got, fix: `send ${named(max)} or less` });
-};
-
-const date = (walk: Walk, _: Node, got: unknown, path: string): void => {
-  if (!(got instanceof Date)) add(walk, { path, keyword: 'type', expected: 'a Date', got, fix: 'send a Date' });
-  else if (Number.isNaN(got.getTime())) add(walk, { path, keyword: 'date', expected: 'a Date that is a time, not `new Date(NaN)`', got, fix: 'send a Date made from a real time' });
-};
-
-const typed = (walk: Walk, schema: Node, got: unknown, path: string): void => {
-  const name = String(schema.value);
-  if (typeof got !== schema.value) add(walk, { path, keyword: 'type', expected: `a ${name}`, got, fix: `send a ${name}` });
-};
-
-const instance = (walk: Walk, schema: Node, got: unknown, path: string): void => {
-  const type = schema.value as abstract new () => unknown;
-  if (!(got instanceof type)) add(walk, { path, keyword: 'instance', expected: `an instance of ${type.name}`, got, fix: `send one made by ${type.name}` });
-};
-
-/** Whether an issue found inside a refined value is one that keeps its rule from running: at the value itself, or at or under a key the rule reads. */
-const blocks = (issue: Issue, path: string, uses: ReadonlySet<unknown>): boolean => {
-  const under = issue.path.slice(path.length);
-  // What is left is empty, or starts with the reference token of a key of the value: "/a" in "/a/0/b".
-  const end = under.indexOf('/', 1);
-  const head = end === -1 ? under : under.slice(0, end);
-  return head === '' || new Set([...uses].map((name) => token(name as string))).has(head);
-};
-
-/**
- * The wrapped schema's issues, and then the rule's own. The rule is asked only about what it can
- * rely on: a value with no issue at all, or, when it names the keys it reads, one with no issue at
- * those keys. So a rule across two fields still speaks when a third is wrong.
- */
-const refined = (walk: Walk, schema: Node, got: unknown, path: string): void => {
-  const before = walk.found.length;
-  visit(walk, schema.item as Node, got, path);
-  const inside = walk.found.slice(before);
-  const uses = schema.values;
-  if (full(walk) || (inside.length > 0 && (uses === null || inside.some((issue) => blocks(issue, path, uses))))) return;
-  const { name, test } = schema.rule as Rule;
-  if ((test as Test)(got) === true) return;
-  add(walk, { path: path + (schema.keys as readonly string[]).map(token).join(''), keyword: 'refine', expected: name, got, fix: 'change the value so that the rule holds' });
-};
-
-const mapped = (walk: Walk, schema: Node, got: unknown, path: string): void => {
-  visit(walk, schema.item as Node, got, path);
-};
-
-/** One reader per kind. A table and not a `switch`: the kinds are data, and only a program that imports `issues` carries it. */
-const READERS: Readonly<Record<Kind, (walk: Walk, schema: Node, got: unknown, path: string) => void>> = {
-  string,
-  number,
-  boolean,
-  literal,
-  enum: member,
-  array,
-  object,
-  discriminated: pick,
-  unknown: nothing,
-  never,
-  record,
-  tuple,
-  nullable,
-  nullish,
-  union,
-  intersection: every,
-  lazy: later,
-  custom,
-  bigint,
-  date,
-  type: typed,
-  instance,
-  refine: refined,
-  transform: mapped,
-};
+const READERS: ReadonlyMap<unknown, Reader> = new Map<unknown, Reader>([
+  ['string', string],
+  ['number', number],
+  ['boolean', boolean],
+  ['literal', literal],
+  ['enum', member],
+  ['array', array],
+  ['object', object],
+  ['discriminated', pick],
+]);
 
 function visit(walk: Walk, schema: Node, got: unknown, path: string): void {
-  if (!full(walk)) READERS[schema.kind](walk, schema, got, path);
+  if (full(walk)) return;
+  const read = schema.own?.issues ?? READERS.get(schema.kind);
+  if (read === undefined) throw new TypeError(`issues ${noKind(schema.kind)}`);
+  read(walk, schema, got, path);
 }
+
+/**
+ * The keys a JSON Pointer names (RFC 6901 §4), in order: an issue's `path` as an array. Given the
+ * value the issue is about, a key that is an index into an array is a number, as zod writes a
+ * path; without it, and under a `Map` or a `Set`, every key is a string.
+ */
+export const keysOf = (path: string, value?: unknown): (string | number)[] => {
+  let at = value;
+  return path
+    .split('/')
+    .slice(1)
+    .map((part) => {
+      const key = part.replaceAll('~1', '/').replaceAll('~0', '~');
+      const inArray = Array.isArray(at);
+      at = typeof at === 'object' && at !== null ? (at as Record<string, unknown>)[key] : undefined;
+      return inArray ? Number(key) : key;
+    });
+};
 
 /**
  * The second pass (spec.md R6, R7): every reason `value` is not what the schema describes. Empty
  * exactly when `check` says yes.
  */
 export const issues = <T>(schema: Schema<T, unknown>, value: unknown, options: IssueOptions = {}): Issue[] => {
-  const walk: Walk = { found: [], first: options.first === true, message: options.message };
+  const walk: Walk = { found: [], first: options.first === true, message: options.message, visit, add };
   visit(walk, schema, value, '');
   return walk.found;
 };

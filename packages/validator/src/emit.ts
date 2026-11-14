@@ -41,10 +41,17 @@ const unquoted = (value: unknown): string | null => {
 const literal = (value: unknown): string =>
   (unquoted(value) ?? String(JSON.stringify(value))).replaceAll(/[<>/\u2028\u2029]/gu, (unit) => `\\u${(unit.codePointAt(0) as number).toString(HEX).padStart(UNIT, '0')}`);
 
+/**
+ * A value a hand-built node holds where it should not, for the message that refuses it: a string
+ * as an escaped literal, and anything else by the name of its type. It is never turned into a
+ * string, which would run an object's own `toString`.
+ */
+const shown = (value: unknown): string => (typeof value === 'string' ? literal(value) : `a value of the type ${typeof value}`);
+
 /** A bound as source. A node is data and may have been built by hand, so what is not a number is refused, not printed. */
 const numeric = (value: unknown): string => {
   if (typeof value !== 'number') {
-    throw new TypeError(`cannot emit the bound ${literal(String(value))}: it is not a number. fix: build the schema with the builders, or give the node numeric bounds`);
+    throw new TypeError(`cannot emit the bound ${shown(value)}: it is not a number. fix: build the schema with the builders, or give the node numeric bounds`);
   }
   return String(value);
 };
@@ -60,7 +67,7 @@ const pattern = (value: unknown): string => {
 /** A bigint's bound as source; what is not a bigint is refused, as `numeric` refuses what is not a number. */
 const big = (value: unknown): string => {
   if (typeof value !== 'bigint') {
-    throw new TypeError(`cannot emit the bound ${literal(String(value))}: it is not a bigint. fix: build the schema with \`bigint({ min, max })\``);
+    throw new TypeError(`cannot emit the bound ${shown(value)}: it is not a bigint. fix: build the schema with \`bigint({ min, max })\``);
   }
   return literal(value);
 };
@@ -147,7 +154,7 @@ const array = (emitter: Emitter, schema: Node): string => {
  * whatever its schema would say of `undefined` (`check` asks that first), so for these the text
  * asks it too; for every other kind the kind's test already refuses `undefined`.
  */
-const UNDEFINED_MAY_PASS: ReadonlySet<Kind> = new Set(['unknown', 'nullable', 'nullish', 'union', 'intersection', 'lazy', 'custom', 'refine', 'transform']);
+const UNDEFINED_MAY_PASS: ReadonlySet<Kind> = new Set(['unknown', 'nullable', 'nullish', 'union', 'intersection', 'lazy', 'custom', 'refine', 'transform', 'message', 'pipe', 'preprocess', 'refineAsync', 'transformAsync']);
 
 /** Whether a field's own test can be true of `undefined`: one of those kinds, or the literal `undefined`. */
 const mayPassUndefined = (field: Node): boolean => UNDEFINED_MAY_PASS.has(field.kind) || (field.kind === 'literal' && field.value === undefined);
@@ -211,6 +218,30 @@ ${chosen.join('\n')}
   }
 }`;
 };
+
+const map = (emitter: Emitter, schema: Node): string => `(v) => {
+  if (!(v instanceof Map)) return false;
+  for (const [k, x] of v) if (!(${test(emitter, schema.key as Node, 'k')}) || !(${test(emitter, schema.item as Node, 'x')})) return false;
+  return true;
+}`;
+
+const set = (emitter: Emitter, schema: Node): string => {
+  const [min, max] = [numeric(schema.min), numeric(schema.max)];
+  const bounds = [schema.min > 0 ? ` || v.size < ${min}` : '', schema.max < Number.MAX_VALUE ? ` || v.size > ${max}` : ''];
+  return `(v) => {
+  if (!(v instanceof Set)${bounds.join('')}) return false;
+  for (const x of v) if (!(${test(emitter, schema.item as Node, 'x')})) return false;
+  return true;
+}`;
+};
+
+/** An object the wrapped schema accepts, and the count of its keys: `for … in`, as `isCounted` counts them. */
+const counted = (emitter: Emitter, schema: Node): string => `(v) => {
+  if (!(${isObject('v')}) || !(${test(emitter, schema.item as Node, 'v')})) return false;
+  let n = 0;
+  for (const k in v) n += 1;
+  return n >= ${numeric(schema.min)} && n <= ${numeric(schema.max)};
+}`;
 
 /** A function the schema names, by where the text will find it. What is not a function is refused, not called: `what` says what it was to be. */
 const hook = (emitter: Emitter, named: unknown, what: string): string => {
@@ -298,9 +329,24 @@ const WRITERS: Readonly<Record<Kind, (emitter: Emitter, schema: Node, ref: strin
   refine: (emitter, schema, ref) => `((${test(emitter, schema.item as Node, ref)}) && ${tested(emitter, schema.rule as Rule)}(${ref}) === true)`,
   // A transform describes what goes in, so its test is the test of what it wraps: the map is `parse`'s to run.
   transform: (emitter, schema, ref) => test(emitter, schema.item as Node, ref),
+  nan: (_, __, ref) => `Number.isNaN(${ref})`,
+  map: (emitter, schema, ref) => `${named(emitter, schema, map)}(${ref})`,
+  set: (emitter, schema, ref) => `${named(emitter, schema, set)}(${ref})`,
+  count: (emitter, schema, ref) => `${named(emitter, schema, counted)}(${ref})`,
+  // Words for an issue, a second schema for what `parse` produces, a function `parse` runs first: none is `check`'s to read.
+  message: (emitter, schema, ref) => test(emitter, schema.item as Node, ref),
+  pipe: (emitter, schema, ref) => test(emitter, schema.item as Node, ref),
+  preprocess: (emitter, schema, ref) => test(emitter, schema.item as Node, ref),
+  // A rule or a map that is awaited is `parseAsync`'s to call: the text answers at once, for what goes in.
+  refineAsync: (emitter, schema, ref) => test(emitter, schema.item as Node, ref),
+  transformAsync: (emitter, schema, ref) => test(emitter, schema.item as Node, ref),
 };
 
 function test(emitter: Emitter, schema: Node, ref: string): string {
+  // eslint-disable-next-line conventions/consistent-existence-index-check -- Own kinds only: a node whose kind is "constructor" must not be written by what every object inherits
+  if (typeof schema.kind !== 'string' || !Object.hasOwn(WRITERS, schema.kind)) {
+    throw new TypeError(`cannot emit a node of the kind ${shown(schema.kind)}: there is no such kind. fix: build the schema with the builders`);
+  }
   return WRITERS[schema.kind](emitter, schema, ref);
 }
 

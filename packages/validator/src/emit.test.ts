@@ -24,6 +24,8 @@ import {
   intersection,
   lazy,
   literal,
+  mapOf,
+  message,
   nativeEnum,
   never,
   nullable,
@@ -31,14 +33,20 @@ import {
   number,
   object,
   optional,
+  pipe,
+  preprocess,
   promise,
+  properties,
   record,
   recordOf,
   refine,
+  refineAsync,
   type Schema,
+  setOf,
   string,
   symbol,
   transform,
+  transformAsync,
   tuple,
   undefinedOf,
   union,
@@ -49,6 +57,7 @@ import {
 const BACKSLASH = String.fromCodePoint(92);
 const isOne = (value: unknown): boolean => value === 1;
 const isE = (text: string): boolean => text === 'e';
+const later = (): Promise<boolean> => Promise.resolve(true);
 
 /** A string as the emitter must write it: a JSON string, with what could close a script or open a comment as an escape. */
 const escaped = (text: string): string => JSON.stringify(text).replaceAll(/[<>/]/gu, (unit) => `${BACKSLASH}u00${(unit.codePointAt(0) as number).toString(16)}`);
@@ -385,6 +394,33 @@ return (v) => f1(v);
       const emitted = load(emit(string({ pattern: /^a$/i })));
       expect(emitted('A')).toBe(true);
       expect(emit(string({ pattern: /^a$/i }))).toContain('new RegExp("^a$", "i")');
+    });
+
+    // Wave 3: what a Map, a Set, a count of keys and the schemas that wrap another carry.
+    it.each<[string, AnySchema, unknown, unknown]>([
+      ['the key and the value of a Map', mapOf(literal(closing), enumOf([breakout, separators])), new Map([[closing, breakout]]), new Map([[breakout, closing]])],
+      ['the member of a Set', setOf(literal(breakout), { min: 1, max: 2 }), new Set([breakout]), new Set([closing])],
+      ['a key under a count of keys', properties(object({ [breakout]: string() }, { unknown: 'strict' }), { min: 1, max: 1 }), { [breakout]: 'x' }, {}],
+      ['the words of a message', message(literal(closing), { [breakout]: closing, literal: `${breakout}${separators}` }), closing, breakout],
+      ['the second schema of a pipe', pipe(literal(closing), literal(breakout)), closing, breakout],
+      ['a schema read after a function', preprocess(isOne, enumOf([closing])), closing, breakout],
+      ['the name and the path of a rule that is awaited', refineAsync(literal(breakout), later, { message: closing, path: [closing, breakout] }), breakout, closing],
+      ['a schema under a map that is awaited', transformAsync(object({ [separators]: literal(closing) }), later), { [separators]: closing }, { [separators]: breakout }],
+    ])('%s is written as a literal or not at all, and still means what it said', (_, schema, accepted, refused) => {
+      const source = emit(schema);
+      expect(source).not.toMatch(/<\/script|\u2028|\u2029|MARK/u);
+      const emitted = load(source);
+      expect(emitted(accepted)).toBe(true);
+      expect(emitted(refused)).toBe(false);
+      expect(check(schema, accepted)).toBe(true);
+      expect(check(schema, refused)).toBe(false);
+      expect('__emitted' in globalThis).toBe(false);
+    });
+
+    it('writes none of the words of a message into the text', () => {
+      expect(emit(message(string(), { type: 'MARK-type', min: 'MARK-min' }))).not.toContain('MARK');
+      expect(emit(message(string(), 'MARK-all'))).toBe(emit(string()));
+      expect(emit(refineAsync(string(), later, { message: 'MARK-rule', path: ['MARK-path'] }))).toBe(emit(string()));
     });
   });
 

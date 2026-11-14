@@ -216,8 +216,46 @@ const isCustom = (schema: Node, value: unknown): boolean => ((schema.rule as Rul
 /** What the schema accepts, and of that what its rule allows. The rule is asked only about a value the schema accepted. */
 const isRefined = (schema: Node, value: unknown): boolean => run(schema.item as Node, value) && ((schema.rule as Rule).test as Test)(value) === true;
 
-/** A transform describes what goes in: `check` asks the schema it wraps, and never runs the map. */
+/**
+ * A transform describes what goes in: `check` asks the schema it wraps, and never runs the map.
+ * The same holds of every schema that only adds something for `parse` or for `issues` to what it
+ * wraps: a pipe's second schema, a function run before validation, a message, a rule that is awaited.
+ */
 const isMapped = (schema: Node, value: unknown): boolean => run(schema.item as Node, value);
+
+/** `NaN` and no other number: the one a number schema refuses. `Number.isNaN` asks nothing of a value that is not a number. */
+const isNan = (_: Node, value: unknown): boolean => Number.isNaN(value);
+
+/** A `Map` whose every key is what the schema in `key` describes, and every value what the one in `item` does. */
+const isMap = (schema: Node, value: unknown): boolean => {
+  if (!(value instanceof Map)) return false;
+  const key = schema.key as Node;
+  const item = schema.item as Node;
+  for (const [name, member] of value) if (!run(key, name) || !run(item, member)) return false;
+  return true;
+};
+
+/** A `Set` of a size inside the bounds, whose every member is what the schema in `item` describes. */
+const isSet = (schema: Node, value: unknown): boolean => {
+  if (!(value instanceof Set) || value.size < schema.min || value.size > schema.max) return false;
+  const item = schema.item as Node;
+  for (const member of value) if (!run(item, member)) return false;
+  return true;
+};
+
+/** The number of keys an object has, read as a record's keys are read: `for … in`, which allocates nothing. */
+const keyCount = (value: object): number => {
+  let count = 0;
+  for (const _ in value) count += 1;
+  return count;
+};
+
+/** An object the wrapped schema accepts, with a number of keys inside the bounds. */
+const isCounted = (schema: Node, value: unknown): boolean => {
+  if (!isPlain(value) || !run(schema.item as Node, value)) return false;
+  const count = keyCount(value);
+  return count >= schema.min && count <= schema.max;
+};
 
 /** Whether `value` is what the schema describes. A type guard, so a passing check narrows. */
 const check = <T>(schema: Schema<T, unknown>, value: unknown): value is T => schema.check(schema, value);
@@ -230,15 +268,18 @@ export {
   isBoolean,
   isCase,
   isClosed,
+  isCounted,
   isCustom,
   isDate,
   isEvery,
   isInstance,
   isLater,
   isLiteral,
+  isMap,
   isMapped,
   isMember,
   isMultiple,
+  isNan,
   isNothing,
   isNullable,
   isNullish,
@@ -246,10 +287,12 @@ export {
   isObject,
   isRecord,
   isRefined,
+  isSet,
   isString,
   isTuple,
   isTypeOf,
   isUnion,
+  keyCount,
   matches,
   points,
 };
