@@ -96,7 +96,7 @@ Every run after the first. This is where "extremely fast" is felt day to day.
 | `4.1` | The governor (`M2`) | A run at a load of 55 to 92 was stopped by hand; at 45 to 120, tests timed out and were scored Killed | Fewer false verdicts; steadier times | None: acts between units |
 | `4.2` | Use every free core when the machine is idle | The default is cores − 1, at most 8, whatever the machine | Up to 1.5x on a 14-core machine | None |
 | `4.3` | Memory limits per worker and in total | Jest's known failure is the missing total | No speed; no out-of-memory | None |
-| `4.4` | Warm workers are a setting, and idle ones are released | Done (2026-11-15, the owner's request). `resources.warmWorkers` and `resources.workerIdleTimeout` (spec `R14b`, `R14c`): a server idle 30 s is closed by default, and `false` gives every unit a fresh one. On compat-oracle, oxmutate peaked at 2.46 GB against Stryker's 1.3 GB (§10) | Less memory held at phase tails; the cost of `warmWorkers: false` is to be measured | None: same units, same servers or fresh ones |
+| `4.4` | Warm workers are a setting, and idle ones are released | Done (2026-11-15, the owner's request). `resources.warmWorkers` and `resources.workerIdleTimeout` (spec `R14b`, `R14c`): a server idle 30 s is closed by default, and `false` gives every unit a fresh one. On compat-oracle, oxmutate peaked at 2.46 GB against Stryker's 1.3 GB (§10) | Less memory held at phase tails. _Measured_ on paratext, 2026-11-15: the default (30 s idle) 1.09x against main over 4 rounds, 0 of 1,415 verdicts differ; `warmWorkers: false` 35.4 s against 16.7 s warm (**about 2x slower**, 129 servers started against 7) | None: same units, same servers or fresh ones |
 
 ## Track 5 — Jest
 
