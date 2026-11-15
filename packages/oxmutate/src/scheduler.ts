@@ -227,6 +227,9 @@ export interface Lifecycle {
 
 /** How often idle servers are looked for. */
 const IDLE_CHECK_MS = 1000;
+/** The sweep's shortest interval: a short timeout is looked at about as often as it is long, never more than this often. */
+// Stryker disable next-line NumericLiteral: a floor on the sweep's interval; no release a test can time tells 10 ms from 11
+const MIN_IDLE_CHECK_MS = 10;
 
 /** Where a pool keeps its files and how its servers live. */
 export interface PoolPlace {
@@ -272,7 +275,7 @@ export function createPool(config: ServerConfig, size: number, place: PoolPlace)
           spare = undefined;
           stats.released++;
         }
-      }, IDLE_CHECK_MS)
+      }, Math.max(MIN_IDLE_CHECK_MS, Math.min(IDLE_CHECK_MS, lifecycle.idleTimeoutMs)))
     : undefined;
   sweep?.unref();
   const tally = (outcome: UnitOutcome): void => {
