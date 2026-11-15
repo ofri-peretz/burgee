@@ -1,6 +1,6 @@
 ---
 title: bellpull
-description: "Runs a subprocess, resolves the executable it names, and returns one structured result every caller can read: a line for a person, a --json envelope or an agent event. Zero dependencies. Drop-in paths for cross-spawn and which."
+description: "Child process execution: runs a subprocess, resolves the executable it names, and returns one structured result every caller can read: a line for a person, a --json envelope or an agent event. Zero dependencies. Drop-in alternative to cross-spawn and which."
 ---
 
 **bellpull** runs a subprocess, resolves the executable it names, and returns one structured

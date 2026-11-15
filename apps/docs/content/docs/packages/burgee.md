@@ -1,6 +1,6 @@
 ---
 title: burgee
-description: "A CLI framework built on one declaration: help, --json, --schema, MCP, completions and types are projected from it, with exit codes and fix: lines an agent can act on. No dependency outside the burgee family. Drop-in paths for commander, yargs and meow."
+description: "A CLI framework built on one declaration: help, --json, --schema, MCP, completions and types are projected from it, with exit codes and fix: lines an agent can act on. No dependency outside the burgee family. Drop-in alternative to commander, yargs and meow."
 ---
 
 **burgee** is a CLI framework built on one declaration. A command declares itself once, and

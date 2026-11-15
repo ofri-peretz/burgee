@@ -19,7 +19,7 @@ const HERO_MARK_SIZE = 96;
  * A home page's metadata, for every site in the family — the front door passes its `SUMMARY` as
  * the description. The title says what the package does (`HOME_TITLES`); the incumbents a reader
  * searches for ("chalk alternative") stay in the description's last sentence, the npm
- * description's `Drop-in paths for …` clause (`.sdlc/intents/positioning/` R13). `absolute`
+ * description's `Drop-in alternative to …` clause (`.sdlc/intents/positioning/` R13). `absolute`
  * skips the `%s | <name>` template, which would say the name twice.
  */
 export function homeMetadata(site: Site, description: string = site.description): Metadata {

@@ -1,6 +1,6 @@
 ---
 title: seniority
-description: "Resolves flags, environment variables, config files and defaults in one fixed order, with provenance: every value can say where it came from. Zero dependencies. Drop-in paths for cosmiconfig, lilconfig, dotenv and rc."
+description: "Config loader: resolves flags, environment variables, config files and defaults in one fixed order, with provenance: every value can say where it came from. Zero dependencies. Drop-in alternative to cosmiconfig, lilconfig, dotenv and rc."
 ---
 
 **seniority** resolves flags, environment variables, config files, a `package.json` field and

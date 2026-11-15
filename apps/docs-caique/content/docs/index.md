@@ -1,6 +1,6 @@
 ---
 title: caique
-description: "Prompts that are flags first: an agent passes the answer up front, and a non-TTY caller gets an error naming the flag, never a prompt that waits. No dependency outside the burgee family. Drop-in path for @inquirer/core."
+description: "CLI prompts that are flags first: an agent passes the answer up front, and a non-TTY caller gets an error naming the flag, never a prompt that waits. No dependency outside the burgee family. Drop-in alternative to @inquirer/core."
 ---
 
 **caique** asks a question only when someone can answer it. Every prompt is a flag first, so

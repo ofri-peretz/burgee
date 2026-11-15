@@ -6,7 +6,7 @@
  * Until 2026-10-10 every title read `<name> — replaces X`, read out of the npm description, and
  * burgee's "the CLI framework that replaces commander and yargs": the first thing a reader learned
  * was a rival's name. The incumbents now sit where search still finds them — the meta
- * description's last sentence, which is the npm description's `Drop-in paths for …` clause
+ * description's last sentence, which is the npm description's `Drop-in alternative to …` clause
  * (D-20261009-positioning-home-title, decided 2026-10-10).
  *
  * One phrase per package, written here rather than derived: a description's first sentence is a
