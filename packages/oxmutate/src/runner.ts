@@ -872,7 +872,7 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
         const result = f.result as { state?: string; errors?: { message?: string }[] } | undefined;
         if (result?.state === 'fail' && !f.tasks?.length) fileErrors.push({ file: filepath, error: (result.errors?.[0]?.message ?? 'failed to collect').slice(0, FILE_ERROR_CHARS) });
       }
-      emit({ type: 'dry', tests, coverage: ns.mutantCoverage, fileErrors, runOnce: [...runOnce], modules: Object.fromEntries(dryModules), unhandled });
+      emit({ type: 'dry', tests, coverage: ns.mutantCoverage, reads: ns.readCoverage, fileErrors, runOnce: [...runOnce], modules: Object.fromEntries(dryModules), unhandled });
     } else if (mode === 'isolated') {
       const failed: string[] = [];
       let ran = 0;

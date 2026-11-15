@@ -194,14 +194,29 @@ function runBlock(job: string, file: string, id: string): string {
 }
 
 /** Run a `run:` block under bash at the repo root, with stub binaries first on PATH. */
-function runStep(body: string, env: Record<string, string>, stubs: Record<string, string> = {}): { status: number; output: string; githubOutput: string } {
-  const dir = scratchDir('vercel-apps-lock-');
-  const bin = join(dir, 'bin');
+/**
+ * One stub directory per distinct stub set, reused across calls. An endpoint scanner checks a
+ * file the first time it is executed and caches the verdict, so fresh stubs on every call cost
+ * ~1.5 s each under load and put a four-call case over the 5 s budget (D-20261101-tests-under-5s).
+ */
+const stubBins = new Map<string, string>();
+function stubBin(stubs: Record<string, string>): string {
+  const key = JSON.stringify(stubs);
+  const cached = stubBins.get(key);
+  if (cached !== undefined) return cached;
+  const bin = join(scratchDir('vercel-apps-lock-bin-'), 'bin');
   mkdirSync(bin);
   for (const [name, script] of Object.entries(stubs)) {
     writeFileSync(join(bin, name), `#!/usr/bin/env bash\n${script}\n`);
     chmodSync(join(bin, name), 0o755);
   }
+  stubBins.set(key, bin);
+  return bin;
+}
+
+function runStep(body: string, env: Record<string, string>, stubs: Record<string, string> = {}): { status: number; output: string; githubOutput: string } {
+  const dir = scratchDir('vercel-apps-lock-');
+  const bin = stubBin(stubs);
   const scriptFile = join(dir, 'step.sh');
   writeFileSync(scriptFile, body);
   const outFile = join(dir, 'github_output');
@@ -418,7 +433,8 @@ describe('criterion 5: no workflow names an app', () => {
   // pre-push root suite, under the 5 s case budget's intent. Each assertion is unchanged.
   const affected = (workspaces: string[]): string[] => {
     const json = JSON.stringify({ tasks: workspaces.map((p) => ({ package: p, task: 'build' })) });
-    const r = runStep(runBlock('affected', 'auto-deploy.yml', 'compute'), { BEFORE_SHA: 'a'.repeat(40) }, { npx: `printf '%s' '${json}'`, git: 'exit 0' });
+    // The dry run's JSON comes in through the environment, so every call shares one stub.
+    const r = runStep(runBlock('affected', 'auto-deploy.yml', 'compute'), { BEFORE_SHA: 'a'.repeat(40), TURBO_DRY_RUN: json }, { npx: `printf '%s' "$TURBO_DRY_RUN"`, git: 'exit 0' });
     expect(r.status, r.output).toBe(0);
     return JSON.parse(/^apps=(.*)$/mu.exec(r.githubOutput)?.[1] ?? 'null') as string[];
   };

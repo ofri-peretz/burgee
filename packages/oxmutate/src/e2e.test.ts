@@ -215,6 +215,69 @@ describe.skipIf(!native || !existsSync(bin) || !nightly)('static survivors armed
     expect(grouped.status).toBe(0);
   });
 
+  it('static.budgetMs: once it is spent no static unit starts, and what is undecided is Ignored, not scored', () => {
+    const alone = groupRun('static-group', 'src/table.ts', []);
+    const spent = groupRun('static-group', 'src/table.ts', ['--static-budget', '1']);
+    // A millisecond is gone before the second unit starts. What a unit already running found stands,
+    // and it is what the mutant gets alone; nothing is called Survived on part of its files.
+    expect(spent.verdicts.length).toBe(alone.verdicts.length);
+    expect(spent.verdicts.filter((v, i) => v !== alone.verdicts[i]).every((v) => v.endsWith(':Ignored'))).toBe(true);
+    expect(spent.verdicts.some((v) => v.endsWith(':Ignored'))).toBe(true);
+    expect(spent.verdicts.some((v) => v.endsWith(':Survived'))).toBe(false);
+    expect(spent.stats['isolatedRuns']).toBe(0);
+    expect(spent.status).toBe(0);
+    // A budget the phase fits in changes nothing.
+    expect(groupRun('static-group', 'src/table.ts', ['--static-budget', '600000']).verdicts).toEqual(alone.verdicts);
+  });
+
+  it('static.readers reports the tests where each static value is read, and changes no verdict', () => {
+    const plain = groupRun('static-group', 'src/table.ts', []);
+    // The fixture: alpha.spec reads row 0, copy.spec reads row 1 through a copy made while its file
+    // loads, loads.spec loads the module and reads nothing. One test each.
+    const readers = groupRun('static-readers', 'src/hosts.ts', ['--report-static-readers']);
+    const off = groupRun('static-readers', 'src/hosts.ts', []);
+    expect(readers.stats['staticReaders'] as unknown).toEqual({ mutants: 8, loaderTests: 24, readerTests: 11, fellBack: 2, dryRunMs: expect.any(Number) as number });
+    // A report only: the verdicts are the ones a run without it gives.
+    expect(readers.verdicts).toEqual(off.verdicts);
+    expect(plain.stats['staticReaders']).toBeUndefined();
+    expect(off.stats['staticReaders']).toBeUndefined();
+  });
+
+  it('static.readers in use gives every mutant the verdict it gets in every loader, and the audit agrees', () => {
+    for (const [name, file] of [['static-readers', 'src/hosts.ts'], ['static-group', 'src/table.ts'], ['static-const', 'src/limits.ts']] as const) {
+      const off = groupRun(name, file, []);
+      const on = groupRun(name, file, ['--static-readers'], { OXMUTATE_STATIC_AUDIT: 'all' });
+      expect(off.verdicts.length).toBeGreaterThan(0);
+      expect(on.verdicts).toEqual(off.verdicts);
+      expect(on.status).toBe(0);
+    }
+    const on = groupRun('static-readers', 'src/hosts.ts', ['--static-readers'], { OXMUTATE_STATIC_AUDIT: 'all' });
+    const sr = on.stats['staticReaders'] as unknown as { readerTests: number; loaderTests: number; auditSampled: number; auditDisagreed: number };
+    // It ran fewer tests than every loader holds, and audited the survivors that ran in fewer files.
+    expect(sr.readerTests).toBeLessThan(sr.loaderTests);
+    expect(sr.auditSampled).toBeGreaterThan(0);
+    expect(sr.auditDisagreed).toBe(0);
+  });
+
+  it('cold workers and an idle timeout give every mutant the warm verdict', () => {
+    const warm = groupRun('static-group', 'src/table.ts', ['--worker-idle-timeout', '0']);
+    const cold = groupRun('static-group', 'src/table.ts', ['--cold-workers']);
+    const quick = groupRun('static-group', 'src/table.ts', ['--worker-idle-timeout', '1']);
+    expect(warm.verdicts.length).toBeGreaterThan(0);
+    expect(cold.verdicts).toEqual(warm.verdicts);
+    expect(quick.verdicts).toEqual(warm.verdicts);
+    // A 1 ms idle timeout closes the spare and every server between phases.
+    expect(warm.stats['serversReleased']).toBe(0);
+    expect(quick.stats['serversReleased']).toBeGreaterThan(0);
+  });
+
+  it('cold workers start a server for each unit of ordinary mutants, with the warm verdicts', () => {
+    const warmUnits = groupRun('batch-leftover', 'src/registry.ts', ['--worker-idle-timeout', '0']);
+    const coldUnits = groupRun('batch-leftover', 'src/registry.ts', ['--cold-workers']);
+    expect(coldUnits.verdicts).toEqual(warmUnits.verdicts);
+    expect(coldUnits.stats['serversSpawned']).toBeGreaterThan(warmUnits.stats['serversSpawned'] ?? 0);
+  });
+
   it('a pair that hides each other is found by the audit: both Killed, and the run fails', () => {
     const alone = groupRun('static-mask', 'src/pair.ts', []);
     // Lines 3 and 4 are the pair.

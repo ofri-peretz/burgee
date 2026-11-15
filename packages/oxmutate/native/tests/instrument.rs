@@ -271,3 +271,60 @@ fn a_function_inside_an_ignored_call_is_ignored() {
     let outer = out.mutants.iter().find(|m| m.mutator_name == "BlockStatement" && m.start.column < 40).unwrap();
     assert!(outer.ignored.is_none());
 }
+
+/// Roadmap 2.4 (static-readers.md): a module-level literal holding mutants reports reads of each
+/// property through `oxmTrack`, and each mutant is attributed to the innermost such literal.
+#[test]
+fn module_level_literals_are_tracked_by_the_property_holding_each_mutant() {
+    let src = "export const HOSTS = [{ name: 'a', timeoutMs: 5 }, { name: 'b', timeoutMs: 6 }];";
+    let out = instrument("t.ts", src, &Options::default()).unwrap();
+    let code = out.code.unwrap();
+    // The array and each entry are wrapped; the entries' keys carry their own mutants.
+    assert_eq!(code.matches("oxmTrack(").count() - 1, 3, "{code}"); // minus the header's definition
+    assert!(code.contains("\"name\": ["), "{code}");
+    assert!(code.contains("\"timeoutMs\": ["), "{code}");
+    // Every mutant sits inside a tracked literal except the outermost array's own `[]`.
+    assert!(out.mutants.iter().all(|m| m.tracked == (m.mutator_name != "ArrayDeclaration")), "{:?}", out.mutants);
+    // Entry 0's `'a'` emptied is attributed to entry 0's `name`, and its `{}` to the array's index 0.
+    let at = |line_col: u32| out.mutants.iter().find(|m| m.start.column == line_col).unwrap().id.clone();
+    assert!(code.contains(&format!("\"name\": [\"{}\"]", at(31))), "{code}");
+    assert!(code.contains(&format!("\"0\": [\"{}\"]", at(23))), "{code}");
+}
+
+#[test]
+fn a_literal_inside_a_function_is_not_tracked() {
+    let out = instrument("t.ts", "export function f() { return { name: 'a' }; }", &Options::default()).unwrap();
+    let code = out.code.unwrap();
+    assert_eq!(code.matches("oxmTrack(").count(), 1, "{code}"); // the header only
+    assert!(out.mutants.iter().all(|m| !m.tracked));
+}
+
+#[test]
+fn a_literal_with_a_computed_key_or_a_spread_is_not_tracked() {
+    for src in ["const K = 'k'; export const O = { [K]: 'a' };", "const B = { x: 1 }; export const O = { ...B, y: 'a' };", "export const A = [...[1], 'a'];"] {
+        let out = instrument("t.ts", src, &Options::default()).unwrap();
+        let code = out.code.unwrap();
+        let wrapped_o = code.contains("O = oxmTrack(") || code.contains("A = oxmTrack(");
+        assert!(!wrapped_o, "{src}\n{code}");
+    }
+}
+
+/// The whole literal emptied replaces the tracked literal: the mutant sits on the parent's key.
+#[test]
+fn a_mutant_that_replaces_a_tracked_literal_is_attributed_to_its_parent() {
+    let src = "export const O = { inner: { x: 'a' } };";
+    let out = instrument("t.ts", src, &Options::default()).unwrap();
+    let emptied = out.mutants.iter().find(|m| m.mutator_name == "ObjectLiteral" && m.start.column > 18).unwrap();
+    let code = out.code.unwrap();
+    let outer = code.find("\"inner\": [").expect(&code);
+    assert!(code[outer..].contains(&emptied.id), "{code}");
+}
+
+/// A top-level literal with nothing around it to read it through stays untracked.
+#[test]
+fn the_outermost_literal_itself_is_not_tracked() {
+    let out = instrument("t.ts", "export const O = { x: 'a' };", &Options::default()).unwrap();
+    let whole = out.mutants.iter().find(|m| m.mutator_name == "ObjectLiteral").unwrap();
+    assert!(!whole.tracked);
+    assert!(out.mutants.iter().find(|m| m.mutator_name == "StringLiteral").unwrap().tracked);
+}

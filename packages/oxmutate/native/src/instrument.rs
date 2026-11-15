@@ -23,9 +23,11 @@ pub const NAMESPACE: &str = "__oxmutate__";
 fn header(namespace: &str) -> String {
     format!(
         "// @ts-nocheck\n\
-function oxmNS() {{ var g = globalThis; var ns = g.{namespace} || (g.{namespace} = {{}}); if (ns.activeMutant === undefined && g.process && g.process.env && g.process.env.__OXMUTATE_ACTIVE_MUTANT__) {{ ns.activeMutant = g.process.env.__OXMUTATE_ACTIVE_MUTANT__; }} oxmNS = function () {{ return ns; }}; return ns; }}\n\
+function oxmNS() {{ var g = globalThis; var ns = g.{namespace} || (g.{namespace} = {{}}); if (ns.activeMutant === undefined && g.process && g.process.env && g.process.env.__OXMUTATE_ACTIVE_MUTANT__) {{ ns.activeMutant = g.process.env.__OXMUTATE_ACTIVE_MUTANT__; }} if (ns.trackReads === undefined) {{ ns.trackReads = !!(g.process && g.process.env && g.process.env.__OXMUTATE_TRACK_READS__); }} oxmNS = function () {{ return ns; }}; return ns; }}\n\
 function oxmCov() {{ var ns = oxmNS(); var cov = ns.mutantCoverage || (ns.mutantCoverage = {{ static: {{}}, perTest: {{}} }}); var c = cov.static; if (ns.currentTestId) {{ c = cov.perTest[ns.currentTestId] || (cov.perTest[ns.currentTestId] = {{}}); }} for (var i = 0; i < arguments.length; i++) {{ c[arguments[i]] = (c[arguments[i]] || 0) + 1; }} }}\n\
-function oxmAct(id) {{ var ns = oxmNS(); if (ns.activeMutant === id) {{ if (ns.hitCount !== undefined && ++ns.hitCount > ns.hitLimit) {{ throw new Error('oxmutate: Hit count limit reached (' + ns.hitCount + ')'); }} return true; }} return ns.activeGroup !== undefined && ns.activeGroup[id] === true; }}\n"
+function oxmAct(id) {{ var ns = oxmNS(); if (ns.activeMutant === id) {{ if (ns.hitCount !== undefined && ++ns.hitCount > ns.hitLimit) {{ throw new Error('oxmutate: Hit count limit reached (' + ns.hitCount + ')'); }} return true; }} return ns.activeGroup !== undefined && ns.activeGroup[id] === true; }}\n\
+function oxmRead(ids) {{ var ns = oxmNS(); var r = ns.readCoverage || (ns.readCoverage = {{ static: {{}}, perTest: {{}} }}); var c = r.static; if (ns.currentTestId) {{ c = r.perTest[ns.currentTestId] || (r.perTest[ns.currentTestId] = {{}}); }} for (var i = 0; i < ids.length; i++) {{ c[ids[i]] = 1; }} }}\n\
+function oxmTrack(o, keys) {{ if (!oxmNS().trackReads) {{ return o; }} var own = function (k) {{ return typeof k === 'string' && Object.prototype.hasOwnProperty.call(keys, k); }}; var all = function () {{ for (var k in keys) {{ if (own(k)) {{ oxmRead(keys[k]); }} }} }}; return new Proxy(o, {{ get: function (t, k, r) {{ if (own(k)) {{ oxmRead(keys[k]); }} return Reflect.get(t, k, r); }}, has: function (t, k) {{ if (own(k)) {{ oxmRead(keys[k]); }} return Reflect.has(t, k); }}, getOwnPropertyDescriptor: function (t, k) {{ if (own(k)) {{ oxmRead(keys[k]); }} return Reflect.getOwnPropertyDescriptor(t, k); }}, ownKeys: function (t) {{ all(); return Reflect.ownKeys(t); }} }}); }}\n"
     )
 }
 
@@ -106,6 +108,10 @@ pub struct Mutant {
     /// `statusReason`. An ignored mutant has the id it would have unignored, and no switch in the
     /// instrumented code.
     pub ignored: Option<String>,
+    /// The innermost module-level object or array literal holding this mutant reports reads of
+    /// the property it sits in (`oxmTrack`), so a tracking dry run can say which tests read it.
+    /// `false`: nothing narrows it, and every file that loads the module can see it.
+    pub tracked: bool,
 }
 
 #[derive(Debug)]
@@ -120,6 +126,8 @@ enum Placer {
     Expression,
     Statement,
     SwitchCase,
+    /// Not a mutant host: wraps a module-level literal in `oxmTrack(literal, keys)`.
+    Track,
 }
 
 struct Placement {
@@ -134,6 +142,10 @@ struct Placement {
     /// SwitchCase: byte offset just after the case's `:`.
     case_colon: Option<u32>,
     mutants: Vec<usize>,
+    /// Track: each property's key as JavaScript reads it, and the span of its value.
+    keys: Vec<(String, Span)>,
+    /// Track: per key, the ids of the mutants this literal is the innermost tracker of.
+    tracked: Vec<Vec<String>>,
 }
 
 struct Raw {
@@ -229,6 +241,11 @@ impl<'a> Collector<'a> {
         };
         let text = self.text(callee);
         self.options.ignore.iter().find(|r| r.matches(text)).map(IgnoreRule::reason)
+    }
+
+    /// Inside a function or class: a literal there is built per call, not once when the module loads.
+    fn in_function(&self) -> bool {
+        self.stack.iter().any(|f| matches!(f.kind, AstKind::Function(_) | AstKind::ArrowFunctionExpression(_) | AstKind::Class(_)))
     }
 
     fn parent(&self) -> Option<&AstKind<'a>> {
@@ -785,9 +802,16 @@ impl<'a> Visit<'a> for Collector<'a> {
                 name_for: if placer == Placer::Expression { self.name_for(&kind) } else { None },
                 case_colon,
                 mutants: Vec::new(),
+                keys: Vec::new(),
+                tracked: Vec::new(),
             });
             self.placements.len() - 1
         });
+        if placement.is_some() && !self.in_function() {
+            if let Some(keys) = trackable_keys(&kind) {
+                self.placements.push(Placement { placer: Placer::Track, span, depth: self.stack.len() + 1, block: false, name_for: None, case_colon: None, mutants: Vec::new(), tracked: vec![Vec::new(); keys.len()], keys });
+            }
+        }
         let mutants_before = self.mutants.len();
         if !self.stack.is_empty() {
             let host = placement.or_else(|| self.stack.iter().rev().find_map(|f| f.placement));
@@ -821,6 +845,40 @@ impl<'a> Visit<'a> for Collector<'a> {
         if self.ignored.as_ref().is_some_and(|(id, _)| *id == frame.id) {
             self.ignored = None;
         }
+    }
+}
+
+/// The keys of an object or array literal whose every key is known without running it, with the
+/// span of each value; `None` for anything else (a computed key, a spread, a hole, an accessor).
+fn trackable_keys(kind: &AstKind<'_>) -> Option<Vec<(String, Span)>> {
+    use oxc_ast::ast::{ArrayExpressionElement, ObjectPropertyKind};
+    match kind {
+        AstKind::ObjectExpression(o) => o
+            .properties
+            .iter()
+            .map(|p| match p {
+                ObjectPropertyKind::ObjectProperty(p) if !p.computed && p.kind == PropertyKind::Init => {
+                    let key = match &p.key {
+                        PropertyKey::StaticIdentifier(id) => id.name.to_string(),
+                        PropertyKey::StringLiteral(s) => s.value.as_str()?.to_string(),
+                        PropertyKey::NumericLiteral(n) if n.value.fract() == 0.0 && n.value >= 0.0 && n.value < 9.0e15 => format!("{}", n.value as i64),
+                        _ => return None,
+                    };
+                    Some((key, p.value.span()))
+                }
+                _ => None,
+            })
+            .collect(),
+        AstKind::ArrayExpression(a) => a
+            .elements
+            .iter()
+            .enumerate()
+            .map(|(i, e)| match e {
+                ArrayExpressionElement::SpreadElement(_) | ArrayExpressionElement::Elision(_) => None,
+                e => Some((i.to_string(), e.span())),
+            })
+            .collect(),
+        _ => None,
     }
 }
 
@@ -890,6 +948,13 @@ impl Emitter<'_> {
     /// `head` is the rendered `case <test>:` of a SwitchCase placement (empty otherwise), and
     /// `inner` the rest of the placement's rendered text.
     fn wrap(&self, p: &Placement, head: String, inner: String) -> String {
+        if p.placer == Placer::Track {
+            if p.tracked.iter().all(Vec::is_empty) {
+                return inner;
+            }
+            let keys = p.keys.iter().zip(&p.tracked).filter(|(_, ids)| !ids.is_empty()).map(|((k, _), ids)| format!("{}: [{}]", js_string(k), ids.iter().map(|id| format!("\"{id}\"")).collect::<Vec<_>>().join(", "))).collect::<Vec<_>>().join(", ");
+            return format!("oxmTrack({inner}, {{ {keys} }})");
+        }
         let live: Vec<&(Raw, String)> = p.mutants.iter().map(|&i| &self.mutants[i]).filter(|(m, _)| !m.dropped).collect();
         if live.is_empty() {
             return head + &inner;
@@ -907,6 +972,7 @@ impl Emitter<'_> {
                 }
                 expr
             }
+            Placer::Track => head + &inner, // handled above
             Placer::SwitchCase => {
                 let mut stmt = format!("{{ oxmCov({ids});{inner} }}");
                 for (_, id) in &live {
@@ -972,7 +1038,21 @@ pub fn instrument(path: &str, source: &str, options: &Options) -> Result<Instrum
             id = format!("{}-{n}", &id[..16]);
         }
         if !m.dropped {
-            mutants.push(Mutant { id: id.clone(), mutator_name: m.mutator_name, replacement: m.replacement.clone(), start, end, ignored: m.ignored.clone() });
+            // The innermost tracked literal with a property whose value holds this mutant.
+            let tracker = if m.ignored.is_none() {
+                c.placements
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, p)| p.placer == Placer::Track)
+                    .filter_map(|(pi, p)| p.keys.iter().position(|(_, v)| v.start <= m.node.start && m.node.end <= v.end).map(|ki| (pi, ki, p.span.end - p.span.start)))
+                    .min_by_key(|&(_, _, len)| len)
+            } else {
+                None
+            };
+            if let Some((pi, ki, _)) = tracker {
+                c.placements[pi].tracked[ki].push(id.clone());
+            }
+            mutants.push(Mutant { id: id.clone(), mutator_name: m.mutator_name, replacement: m.replacement.clone(), start, end, ignored: m.ignored.clone(), tracked: tracker.is_some() });
             // An ignored mutant is reported, never placed: its subtree keeps its source text.
             if m.ignored.is_none() {
                 c.placements[m.host].mutants.push(i);

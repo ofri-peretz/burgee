@@ -1,5 +1,35 @@
 # oxmutate
 
+## 2.6.0
+
+### Minor Changes
+
+- [#1591](https://github.com/ofri-peretz/burgee/pull/1591) [`6c3ab9c`](https://github.com/ofri-peretz/burgee/commit/6c3ab9c291f08c67c59e954bcc9d9e38eb6cee6e) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Workers no longer sit idle holding memory until a run ends. `resources.workerIdleTimeout` (ms, default 30,000; `--worker-idle-timeout`) closes a Vitest server that has had no unit for that long, the spare included, and starts a new one if work comes later; `0` keeps every server for the whole run, as before. `resources.warmWorkers: false` (`--cold-workers`) starts a server for each unit and closes it after: slower, and the least memory held. The summary names the servers closed for sitting idle. No server ever outlives its run.
+
+## 2.5.1
+
+### Patch Changes
+
+- [#1588](https://github.com/ofri-peretz/burgee/pull/1588) [`8d16bf1`](https://github.com/ofri-peretz/burgee/commit/8d16bf1235fffb18bac1458bc86a475fb39464c3) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A deadlock is no longer called up to one sample (100 ms) before its confirm window has passed. The window opened at the start of the first quiet sample's span, which could begin before the wait was armed; it now opens no earlier than the wait itself.
+
+## 2.5.0
+
+### Minor Changes
+
+- [#1585](https://github.com/ofri-peretz/burgee/pull/1585) [`a53af14`](https://github.com/ofri-peretz/burgee/commit/a53af1423955163800358a656dea37331c94fe41) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `static.readers: 'on'` (`oxmutate run --static-readers`): each static mutant runs only in the test files that read its value, as the tracking dry run of `static.readers: 'report'` found them. A value it cannot follow keeps every file that loads its module. It is a heuristic, off by default: one survivor in twenty runs again in every loading file, and one that fails there is reported Killed and the run exits 1. On a slice of a data-heavy file it took a run from 4,185 s to 1,169 s with every stable verdict unchanged.
+
+## 2.4.0
+
+### Minor Changes
+
+- [#1582](https://github.com/ofri-peretz/burgee/pull/1582) [`a41d628`](https://github.com/ofri-peretz/burgee/commit/a41d628475a21f46f976aafbd653f72529d95927) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `static.readers: 'report'` (`oxmutate run --report-static-readers`): one more dry run, in which every module-level object or array literal that holds mutants reports which tests read each of its properties, and a summary line of how many tests the static phase would run if each static mutant ran only in the test files that read its value, against every file that loads its module. It is a report: no verdict changes, and runs without it are unchanged. On a slice of a data-heavy file (79 static mutants) it reported 21,291 tests against 63,674, 3.0x fewer.
+
+## 2.3.0
+
+### Minor Changes
+
+- [#1579](https://github.com/ofri-peretz/burgee/pull/1579) [`a7c33ac`](https://github.com/ofri-peretz/burgee/commit/a7c33ac8b3bc16bf213be0655bb9be1f27506e15) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `static.budgetMs` (`oxmutate run --static-budget <ms>`): the most the static phase may take. Once it is spent no static unit starts; a static mutant still undecided is reported `Ignored`, with the reason `static mutant (static budget spent)`, and left out of the score. A kill found before that stands, and nothing is called Survived on part of its test files. The summary line says how many were left undecided. Unset, there is no limit.
+
 ## 2.2.0
 
 ### Minor Changes

@@ -44,6 +44,7 @@ const stats = (s: Partial<RunStats> = {}): RunStats => ({
   flakyMutants: 0,
   units: 0,
   serversSpawned: 0,
+  serversReleased: 0,
   deadlocks: 0,
   diskWrites: 0,
   diskWritePaths: [],
@@ -238,6 +239,25 @@ describe('the terminal summary', () => {
     expect(textSummary(r)).toContain("2 write(s) outside the sandbox put back, their units re-run (.probe-a, src/b.ts; if the tests themselves write there, have git ignore it)");
   });
 
+  it('reports what static mutants would run where their value is read, against every loader', async () => {
+    const r = await run({ stats: stats({ staticReaders: { mutants: 3, loaderTests: 900, readerTests: 300, fellBack: 1, dryRunMs: 2500 } }) });
+    expect(textSummary(r)).toContain('  static readers: 3 static mutants would run 300 tests where their value is read, against 900 in every file that loads them, 3.0x fewer; 1 kept every loader (report only, 2.5 s)');
+    // In use: it ran, and says what the audit found.
+    expect(textSummary(await run({ stats: stats({ staticReaders: { mutants: 3, loaderTests: 900, readerTests: 300, fellBack: 1, dryRunMs: 2500, auditSampled: 2, auditDisagreed: 0 } }) }))).toContain('  static readers: 3 static mutants ran 300 tests where their value is read, against 900 in every file that loads them, 3.0x fewer; 1 kept every loader (in use, 2 survivor(s) audited in every loader, 0 disagreed, 2.5 s)');
+    // A disagreement is counted, and a count that is missing reads as none.
+    expect(textSummary(await run({ stats: stats({ staticReaders: { mutants: 1, loaderTests: 4, readerTests: 2, fellBack: 0, dryRunMs: 1, auditSampled: 3, auditDisagreed: 2 } }) }))).toContain('(in use, 3 survivor(s) audited in every loader, 2 disagreed,');
+    expect(textSummary(await run({ stats: stats({ staticReaders: { mutants: 1, loaderTests: 4, readerTests: 2, fellBack: 0, dryRunMs: 1, auditSampled: 0 } }) }))).toContain('(in use, 0 survivor(s) audited in every loader, 0 disagreed,');
+    // Servers closed for sitting idle are named; none closed, no line.
+    expect(textSummary(await run({ stats: stats({ serversSpawned: 9, serversReleased: 1 }) }))).toContain('  servers: 9 started, 1 closed for sitting idle (resources.workerIdleTimeout)');
+    expect(textSummary(await run({ stats: stats({ serversSpawned: 9, serversReleased: 0 }) }))).not.toContain('closed for sitting idle');
+
+    // One reader test is enough for a ratio.
+    expect(textSummary(await run({ stats: stats({ staticReaders: { mutants: 1, loaderTests: 4, readerTests: 1, fellBack: 0, dryRunMs: 1 } }) }))).toContain('against 4 in every file that loads them, 4.0x fewer;');
+    // No reader at all: no ratio. No static mutant: no line.
+    expect(textSummary(await run({ stats: stats({ staticReaders: { mutants: 1, loaderTests: 9, readerTests: 0, fellBack: 0, dryRunMs: 1 } }) }))).toContain('against 9 in every file that loads them; 0 kept');
+    expect(textSummary(await run({ stats: stats({ staticReaders: { mutants: 0, loaderTests: 0, readerTests: 0, fellBack: 0, dryRunMs: 1 } }) }))).not.toContain('static readers');
+  });
+
   it('names each correction the run made, in a fixed order', async () => {
     const r = await run({ stats: stats({ watchdogKills: 1, deadlocks: 10, diskWrites: 11, pollutionRestarts: 2, canaryFiles: 3, flakyMutants: 4, survivorsOverturned: 5, timeoutsOverturned: 6, compileErrors: 7, reused: 8, auditSampled: 12, auditDisagreed: 1, crashes: 9 }) });
     expect(textSummary(r).split('\n')[4]).toBe(
@@ -264,6 +284,10 @@ describe('the terminal summary', () => {
     expect(unknownWall[4]).toBe('  static mutants: 2 decided in 0.5 s, 0% of the run');
     const skipped = [mutant({ static: true, status: 'Ignored', statusReason: 'static mutant (ignoreStatic)' }), mutant({ static: true, status: 'Ignored', statusReason: 'disabled by a comment' })];
     expect(textSummary(await run({ mutants: skipped })).split('\n')[4]).toBe('  static mutants: 1 ignored (ignoreStatic), not scored');
+    const outOfTime = [mutant({ static: true, status: 'Killed' }), mutant({ static: true, status: 'Ignored', statusReason: 'static mutant (static budget spent)' }), mutant({ static: true, status: 'Ignored', statusReason: 'static mutant (static budget spent)' })];
+    expect(textSummary(await run({ mutants: outOfTime, stats: stats({ staticMs: 2500, wallMs: 5000 }) })).split('\n')[4]).toBe('  static mutants: 1 decided in 2.5 s, 2 left undecided when the static budget ran out, not scored');
+    // One left undecided is enough to say so.
+    expect(textSummary(await run({ mutants: outOfTime.slice(0, 2), stats: stats({ staticMs: 2500, wallMs: 5000 }) })).split('\n')[4]).toBe('  static mutants: 1 decided in 2.5 s, 1 left undecided when the static budget ran out, not scored');
     expect(textSummary(await run({ mutants: [mutant()] })).split('\n')[4]).not.toMatch(/static mutants/u);
     // One millisecond of warm time and one isolated run are both a phase that ran.
     const least = textSummary(await run({ stats: stats({ warmUnitMs: 1, isolatedRuns: 1, isolatedByCause: { static: 0, stopped: 0, unfinished: 0, rerun: 0, confirm: 0, flaky: 1 } }) })).split('\n');

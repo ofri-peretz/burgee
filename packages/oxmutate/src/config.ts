@@ -20,10 +20,34 @@ export interface Thresholds {
   break: number | null;
 }
 
+/** By default a server idle this long is closed: past a phase's tail, short of a phase's gaps. */
+export const DEFAULT_IDLE_TIMEOUT_MS = 30_000;
+
+/** `resources.warmWorkers` is off only when it says `false`; `resources.workerIdleTimeout` is a whole number of ms, at least 0 (spec R14b, R14c). */
+function workersOf(resources: unknown): Options['workers'] {
+  const r = (typeof resources === 'object' && resources !== null ? resources : {}) as { warmWorkers?: unknown; workerIdleTimeout?: unknown };
+  const ms = Math.floor(Number(r.workerIdleTimeout ?? DEFAULT_IDLE_TIMEOUT_MS));
+  return { warm: r.warmWorkers !== false, idleTimeoutMs: ms >= 0 ? ms : DEFAULT_IDLE_TIMEOUT_MS };
+}
+
 /** `static.group` as a whole number of at least one; anything that is not a number is one. */
 function staticGroupOf(group: unknown): number {
   const asked = Math.floor(Number(group));
   return asked >= 2 ? asked : 1;
+}
+
+/** `static.budgetMs` as a whole number of milliseconds; anything that is not a positive number is no budget. */
+function staticBudgetOf(ms: unknown): number | undefined {
+  const asked = Math.floor(Number(ms));
+  return asked >= 1 ? asked : undefined;
+}
+
+/** Why a static mutant is Ignored when `static.budgetMs` ran out before it was decided; the summary counts them by it. */
+export const STATIC_BUDGET_REASON = 'static mutant (static budget spent)';
+
+/** `static.readers`: `'report'` or `'on'` exactly; anything else is off. */
+function staticReadersOf(readers: unknown): Options['staticReaders'] {
+  return readers === 'report' || readers === 'on' ? readers : 'off';
 }
 
 /** Why a static mutant is Ignored under `ignoreStatic`; the summary counts them by it. */
@@ -34,6 +58,13 @@ export interface Options {
   mutate: string[];
   vitestConfig?: string | undefined;
   concurrency: number;
+  /**
+   * How long Vitest servers live. `resources.warmWorkers: true` (default) keeps each one's Vitest
+   * between units; `false` starts one per unit and closes it after: slower, the least memory held.
+   * `resources.workerIdleTimeout` (ms, default 30,000): a server with no unit for this long is
+   * closed, and a new one starts if work comes later; 0 keeps every server until the run ends.
+   */
+  workers: { warm: boolean; idleTimeoutMs: number };
   timeoutMS: number;
   timeoutFactor: number;
   thresholds: Thresholds;
@@ -46,6 +77,21 @@ export interface Options {
    * heuristic: two mutants can hide each other, so one in twenty group survivors is run again alone.
    */
   staticGroup: number;
+  /**
+   * The most the static phase may take, in milliseconds (`static.budgetMs`). No new static unit
+   * starts once it is spent; a static mutant still undecided then is Ignored, with a reason, and
+   * left out of the score. A kill found before that stands. Unset: no limit.
+   */
+  staticBudgetMs?: number | undefined;
+  /**
+   * `static.readers: 'report'`: one more dry run, with every module-level literal reporting which
+   * tests read each of its properties, and a summary line of how many tests the static phase would
+   * run if each static mutant ran only where its value is read (roadmap 2.4). Changes no verdict.
+   * `'on'`: the same dry run, and then each static mutant runs only in the files that read its
+   * value. A heuristic: one survivor in twenty is run again in every file that loads it, and one
+   * that fails there is reported Killed and fails the run.
+   */
+  staticReaders: 'off' | 'report' | 'on';
   strykerCompat: boolean;
   reporters: string[];
   jsonReport: string;
@@ -130,7 +176,7 @@ const DEFAULT_THRESHOLD_HIGH = 80;
 const DEFAULT_THRESHOLD_LOW = 60;
 const DEFAULT_DRY_RUN_MINUTES = 5;
 
-const USED = new Set(['mutate', 'vitest', 'concurrency', 'timeoutMS', 'timeoutFactor', 'thresholds', 'ignoreStatic', 'static', 'reporters', 'jsonReporter', 'htmlReporter', 'incremental', 'incrementalFile', '$schema', 'mutator', 'dryRunOnly', 'dryRunTimeoutMinutes', 'buildCommand', 'testRunnerNodeArgs', 'allowEmpty', 'warnings', 'testRunner', 'commandRunner', 'checkers', 'tsconfigFile']);
+const USED = new Set(['mutate', 'vitest', 'concurrency', 'resources', 'timeoutMS', 'timeoutFactor', 'thresholds', 'ignoreStatic', 'static', 'reporters', 'jsonReporter', 'htmlReporter', 'incremental', 'incrementalFile', '$schema', 'mutator', 'dryRunOnly', 'dryRunTimeoutMinutes', 'buildCommand', 'testRunnerNodeArgs', 'allowEmpty', 'warnings', 'testRunner', 'commandRunner', 'checkers', 'tsconfigFile']);
 
 async function loadFile(file: string): Promise<Record<string, unknown>> {
   if (file.endsWith('.json')) {
@@ -249,12 +295,15 @@ export async function loadOptions(root: string, overrides: Partial<Options> = {}
     mutate,
     vitestConfig: vitest.configFile ? path.resolve(root, vitest.configFile) : undefined,
     concurrency: Number(raw['concurrency'] ?? Math.max(1, Math.min(MAX_DEFAULT_CONCURRENCY, availableParallelism() - 1))),
+    workers: workersOf(raw['resources']),
     timeoutMS: Number(raw['timeoutMS'] ?? DEFAULT_TIMEOUT_MS),
     timeoutFactor: Number(raw['timeoutFactor'] ?? DEFAULT_TIMEOUT_FACTOR),
     thresholds: { high: thresholds.high ?? DEFAULT_THRESHOLD_HIGH, low: thresholds.low ?? DEFAULT_THRESHOLD_LOW, break: thresholds.break ?? null },
     excludedMutations: mutator.excludedMutations ?? [],
     ignoreStatic: raw['ignoreStatic'] === true,
     staticGroup: staticGroupOf((raw['static'] as { group?: unknown } | undefined)?.group),
+    staticBudgetMs: staticBudgetOf((raw['static'] as { budgetMs?: unknown } | undefined)?.budgetMs),
+    staticReaders: staticReadersOf((raw['static'] as { readers?: unknown } | undefined)?.readers),
     strykerCompat: raw['strykerCompat'] === true,
     reporters: (raw['reporters'] as string[] | undefined) ?? ['clear-text', 'json'],
     jsonReport: path.resolve(root, json.fileName ?? 'reports/mutation/mutation.json'),

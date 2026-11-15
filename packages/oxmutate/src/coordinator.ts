@@ -19,7 +19,7 @@ import { ambientRuntime, run as spawn } from 'bellpull';
 import { checkSurvivors } from './checker.js';
 import type { Unit } from './child.js';
 import { runCommandMutants } from './command-runner.js';
-import { IGNORE_STATIC_REASON, disables, type Options } from './config.js';
+import { IGNORE_STATIC_REASON, STATIC_BUDGET_REASON, disables, type Options } from './config.js';
 import { rangeDisables } from './directives.js';
 import { guardDisk, isClean, type DiskChange } from './diskguard.js';
 import { globToRegExp, matchFiles } from './files.js';
@@ -100,6 +100,12 @@ export interface RunStats {
   pollutionRestarts: number;
   /** Units after which the project on disk had changed (diskguard.ts): put back, and their verdicts and those of the units running beside them re-run. */
   diskWrites: number;
+  /**
+   * `static.readers: 'report'` (roadmap 2.4): over the static mutants, the tests of every file that
+   * loads each one's module (what the static phase runs), and the tests of only the files that read
+   * its value. A mutant whose value is untracked, or read while a module loaded, counts its loaders.
+   */
+  staticReaders?: { mutants: number; loaderTests: number; readerTests: number; fellBack: number; dryRunMs: number; auditSampled?: number; auditDisagreed?: number } | undefined;
   /** The first few paths those writes touched, so a suite's own scratch in a tracked folder can be told from a mutant's write. */
   diskWritePaths: string[];
   /** Survivors of the warm run that a whole-file re-run killed (cross-test effects). */
@@ -114,6 +120,8 @@ export interface RunStats {
   flakyMutants: number;
   units: number;
   serversSpawned: number;
+  /** Servers closed for sitting idle past `resources.workerIdleTimeout`: memory given back before the run ended. */
+  serversReleased: number;
   /** Mutants whose Timeout their worker called itself, the wait able to end by nothing (quiescence.ts): no watchdog wait, no respawn. */
   deadlocks: number;
 }
@@ -184,6 +192,8 @@ interface ChildRecord {
   suspects?: string[];
   tests?: (TestInfo & { state: string })[];
   coverage?: { static: Record<string, number>; perTest: Record<string, Record<string, number>> };
+  /** `dry` with `trackReads`: the tracked static values each test (or each file's collection) read. */
+  reads?: { static: Record<string, number>; perTest: Record<string, Record<string, number>> };
   fileErrors?: { file: string; error: string }[];
   /** `dry`: unhandled rejections and uncaught errors the unmutated suite raised (runner.ts). */
   unhandled?: number;
@@ -220,6 +230,7 @@ const verdictOptions = (o: Options): unknown => ({
   excludedMutations: [...o.excludedMutations].sort(),
   ignoreStatic: o.ignoreStatic,
   staticGroup: o.staticGroup,
+  staticBudgetMs: o.staticBudgetMs,
   strykerCompat: o.strykerCompat,
   testOverrides: o.testOverrides,
   vitestConfig: o.vitestConfig && existsSync(o.vitestConfig) ? sha(readFileSync(o.vitestConfig, 'utf8')) : null,
@@ -233,6 +244,10 @@ const verdictOptions = (o: Options): unknown => ({
  * (2026-10-30). Smaller stays better for a pollution restart, which re-runs the rest of a unit.
  */
 const UNIT_PAIRS = 400;
+
+/** `static.readers: 'on'`: the survivors run again in every loading file, one in twenty, as `static.group`'s audit picks (runner.ts). */
+const READERS_AUDIT_EVERY = 20;
+const auditedReader = (id: string): boolean => env['OXMUTATE_STATIC_AUDIT'] === 'all' || [...id].reduce((sum, c) => sum + (c.codePointAt(0) ?? 0), 0) % READERS_AUDIT_EVERY === 0;
 /** Killed and Timeout are both detected: the audit compares what the score counts. */
 const detected = (s: Status | undefined): boolean => s === 'Killed' || s === 'Timeout';
 
@@ -315,11 +330,11 @@ export async function run(options: Options): Promise<RunResult> {
   const work = mkdtempSync(path.join(tmpdir(), 'oxmutate-'));
   const stats: RunStats = {
     files: 0, mutants: 0, instrumentMs: 0, dryRunMs: 0, mutationMs: 0, staticMs: 0, staticRecollections: 0, staticGroupRuns: 0, staticGroupSplits: 0, staticAuditSampled: 0, staticAuditDisagreed: 0, isolatedMs: 0, wallMs: 0, testExecutions: 0, warmUnitMs: 0, warmArmedMs: 0, isolatedByCause: { static: 0, stopped: 0, unfinished: 0, rerun: 0, confirm: 0, flaky: 0 },
-    watchdogKills: 0, idleStalls: 0, deadlocks: 0, crashes: 0, canaryFiles: 0, pollutionRestarts: 0, diskWrites: 0, diskWritePaths: [], auditSampled: 0, auditDisagreed: 0, survivorsOverturned: 0, timeoutsOverturned: 0, compileErrors: 0, isolatedRuns: 0, reused: 0, flakyTests: 0, flakyMutants: 0, units: 0, serversSpawned: 0,
+    watchdogKills: 0, idleStalls: 0, deadlocks: 0, crashes: 0, canaryFiles: 0, pollutionRestarts: 0, diskWrites: 0, diskWritePaths: [], auditSampled: 0, auditDisagreed: 0, survivorsOverturned: 0, timeoutsOverturned: 0, compileErrors: 0, isolatedRuns: 0, reused: 0, flakyTests: 0, flakyMutants: 0, units: 0, serversSpawned: 0, serversReleased: 0,
   };
   let unitSeq = 0;
   const fileFor = (kind: string, ext: string): string => path.join(work, `${kind}-${String(unitSeq++)}.${ext}`);
-  const pools: { close(): void; stats: { spawned: number } }[] = [];
+  const pools: { close(): void; stats: { spawned: number; released: number } }[] = [];
   const progress = startProgress(options.reporters, stderr);
   try {
     progress.phase('instrumenting');
@@ -341,6 +356,7 @@ export async function run(options: Options): Promise<RunResult> {
 
     const changed = options.since ? await changedLines(root, options.since) : undefined;
     const mutants: MutantResult[] = [];
+    const trackedIds = new Set<string>();
     const codeMap: Record<string, string> = {};
     const directiveErrors: string[] = [];
     for (const f of instrumented) {
@@ -356,8 +372,10 @@ export async function run(options: Options): Promise<RunResult> {
         const off = offs.find((d) => d.line === m.start.line && (d.mutators === 'all' || d.mutators.includes(m.mutatorName)));
         const inRange = ranged.reasonFor(m.start.line, m.mutatorName);
         const excluded = options.excludedMutations.includes(m.mutatorName);
+        if (m.tracked) trackedIds.add(m.id);
+        const { tracked: _tracked, ...plain } = m;
         mutants.push({
-          ...m,
+          ...plain,
           file: f.path,
           coveredBy: [],
           status: off || inRange !== undefined || excluded || m.ignoredReason ? 'Ignored' : 'NoCoverage',
@@ -401,10 +419,10 @@ export async function run(options: Options): Promise<RunResult> {
     const traceDirs: Record<string, string> = {};
     for (const oracle of options.specOracles) traceDirs[oracle.name] = await tracesFor(oracle, root, work);
     if (options.specOracles.length) env[SPEC_TRACES_ENV] = JSON.stringify(traceDirs);
-    const dryPool = createPool({ root, vitestConfig: options.vitestConfig, workers: options.concurrency, instrumentedMap: mapFile, nodeArgs: options.testRunnerNodeArgs }, 1, work, 'dry');
+    const dryPool = createPool({ root, vitestConfig: options.vitestConfig, workers: options.concurrency, instrumentedMap: mapFile, nodeArgs: options.testRunnerNodeArgs }, 1, { workDir: work, tag: 'dry', lifecycle: options.workers });
     pools.push(dryPool);
-    const dryRun = async (): Promise<{ tests: (TestInfo & { state: string })[]; perTest: Record<string, Record<string, number>>; static: Record<string, number>; runOnce: string[]; modules: Record<string, string[]> }> => {
-      const unit: Unit = { mode: 'dry', files: [], results: fileFor('dry', 'jsonl'), progress: fileFor('dry', 'progress') };
+    const dryRun = async (trackReads = false): Promise<{ tests: (TestInfo & { state: string })[]; perTest: Record<string, Record<string, number>>; static: Record<string, number>; runOnce: string[]; modules: Record<string, string[]>; reads: { static: Record<string, number>; perTest: Record<string, Record<string, number>> } }> => {
+      const unit: Unit = { mode: 'dry', files: [], results: fileFor('dry', 'jsonl'), progress: fileFor('dry', 'progress'), ...(trackReads && { trackReads: true }) };
       let failure: UnitOutcome | undefined;
       let overBudget = false;
       await dryPool.drain([unit], () => options.dryRunTimeoutMinutes * MS_PER_MINUTE, (_, o) => {
@@ -417,9 +435,12 @@ export async function run(options: Options): Promise<RunResult> {
       if (failure && recs.length === 0) throw new InstrumentFault(`the dry run did not complete: ${failure.stderr.slice(-1500)}`);
       const perTest: Record<string, Record<string, number>> = {};
       const stat: Record<string, number> = {};
+      const reads = { static: {} as Record<string, number>, perTest: {} as Record<string, Record<string, number>> };
       for (const r of recs) {
         Object.assign(perTest, r.coverage?.perTest ?? {});
         for (const [k, v] of Object.entries(r.coverage?.static ?? {})) stat[k] = (stat[k] ?? 0) + v;
+        Object.assign(reads.perTest, r.reads?.perTest ?? {});
+        Object.assign(reads.static, r.reads?.static ?? {});
       }
       const fileErrors = recs.flatMap((r) => r.fileErrors ?? []);
       if (fileErrors.length) {
@@ -428,12 +449,19 @@ export async function run(options: Options): Promise<RunResult> {
       // A mutant that raises one is Killed (runner.ts), so a suite that raises one unmutated would kill every mutant it covers.
       const unhandled = recs.reduce((n, r) => n + (r.unhandled ?? 0), 0);
       if (unhandled > 0) throw new InstrumentFault(`the suite raised ${String(unhandled)} unhandled error(s) with no mutant active, so no verdict can be trusted. fix: make \`vitest run\` pass with no "Unhandled Errors" first`);
-      return { tests: recs.flatMap((r) => r.tests ?? []), perTest, static: stat, runOnce: recs.flatMap((r) => r.runOnce ?? []), modules: Object.assign({}, ...recs.map((r) => r.modules ?? {})) as Record<string, string[]> };
+      return { tests: recs.flatMap((r) => r.tests ?? []), perTest, static: stat, runOnce: recs.flatMap((r) => r.runOnce ?? []), modules: Object.assign({}, ...recs.map((r) => r.modules ?? {})) as Record<string, string[]>, reads };
     };
     progress.phase('dry run');
     const d0 = performance.now();
     const dry = await dryRun();
     stats.dryRunMs = performance.now() - d0;
+    // `static.readers: 'report'`: the same suite once more with reads tracked, before the flaky check
+    // takes the dry pool. Its verdicts are not used; a test that fails only here (a Proxy it did not
+    // expect) makes every static mutant count its loaders.
+    const r0 = performance.now();
+    if (options.staticReaders !== 'off' && trackedIds.size > 0) progress.phase('dry run with reads tracked (static.readers)');
+    const tracking = options.staticReaders !== 'off' && trackedIds.size > 0 ? await dryRun(true) : undefined;
+    const readersDryRunMs = performance.now() - r0;
     const failing = dry.tests.filter((t) => t.state === 'fail');
     if (failing.length) throw new InstrumentFault(`${String(failing.length)} test(s) fail with no mutant active, so no verdict can be trusted: ${failing.slice(0, 5).map((t) => t.name).join('; ')}. fix: make the suite pass first`);
     if (dry.tests.length === 0 && !options.allowEmpty) throw new InstrumentFault('the dry run ran no tests. fix: check the Vitest config the run used, or set allowEmpty');
@@ -672,7 +700,7 @@ export async function run(options: Options): Promise<RunResult> {
     const runaways = new Set<string>();
     const crashedIds = new Set<string>();
     // Dependencies inlined here too, so the static phase (5b) reuses these servers instead of starting its own.
-    const pool = createPool({ root, vitestConfig: options.vitestConfig, workers: 1, instrumentedMap: mapFile, nodeArgs: options.testRunnerNodeArgs, inlineDeps: true }, options.concurrency, work, 'mutant');
+    const pool = createPool({ root, vitestConfig: options.vitestConfig, workers: 1, instrumentedMap: mapFile, nodeArgs: options.testRunnerNodeArgs, inlineDeps: true }, options.concurrency, { workDir: work, tag: 'mutant', lifecycle: options.workers });
     pools.push(pool);
     /** Mutants decided on one verdict track: the tests', or a spec oracle's replay tests'. */
     const killedSoFar = (spec: boolean): Set<string> => new Set([...runaways, ...crashedIds, ...records.filter((r) => r.type === 'mutant' && r.status !== 'Survived' && Boolean(r.spec) === spec).map((r) => r.id ?? '')]);
@@ -816,6 +844,43 @@ export async function run(options: Options): Promise<RunResult> {
       const covering = byCost([...new Set(tests)]);
       return [...covering, ...byAffinity(m.file, [...loaders].filter((f) => !covering.includes(f)))];
     };
+    /**
+     * `static.readers: 'report'`: the tests each static mutant's files hold today (every loader), and
+     * the tests of only the files that read its value in the tracking dry run. A read with no test
+     * file current (a module copying the value while it loaded) or an untracked value keeps every
+     * loader, and so does every mutant when the tracking run failed a test the first run passed.
+     */
+    const readerFiles = new Map<string, Set<string>>();
+    // Known only when the tracking run happened and every test in it passed.
+    const trackingTests = tracking?.tests ?? [];
+    const readsTracked = tracking !== undefined && !trackingTests.some((t) => t.state === 'fail');
+    const trackedReads = tracking?.reads ?? { static: {}, perTest: {} };
+    for (const [key, ids] of Object.entries(trackedReads.perTest)) {
+      const file = key.startsWith(FILE_KEY) ? key.slice(FILE_KEY.length) : testInfo.get(key)?.file;
+      if (!file) continue;
+      for (const id of Object.keys(ids)) (readerFiles.get(id) ?? readerFiles.set(id, new Set()).get(id))?.add(file);
+    }
+    /** The loaders that read this static mutant's value, in `filesFor`'s order; undefined when that cannot be known. */
+    const readersFor = (m: MutantResult): string[] | undefined =>
+      readsTracked && trackedIds.has(m.id) && !(m.id in trackedReads.static) ? filesFor(m).filter((f) => readerFiles.get(m.id)?.has(f)) : undefined;
+    /** `static.readers: 'on'`: a static mutant's files are its readers when they are known. */
+    const staticFilesFor = (m: MutantResult): string[] => (options.staticReaders === 'on' ? readersFor(m) ?? filesFor(m) : filesFor(m));
+    const readersOf = (items: MutantResult[]): { mutants: number; loaderTests: number; readerTests: number; fellBack: number } => {
+      const testsIn = new Map<string, number>();
+      for (const t of dry.tests) testsIn.set(t.file, (testsIn.get(t.file) ?? 0) + 1);
+      const sum = (files: Iterable<string>): number => [...files].reduce((n, f) => n + (testsIn.get(f) ?? 0), 0);
+      let loaderTests = 0;
+      let readerTests = 0;
+      let fellBack = 0;
+      for (const m of items) {
+        const loaders = filesFor(m);
+        const readers = readersFor(m);
+        loaderTests += sum(loaders);
+        if (!readers) fellBack++;
+        readerTests += sum(readers ?? loaders);
+      }
+      return { mutants: items.length, loaderTests, readerTests, fellBack };
+    };
     /** How many tests a mutant's isolated run executes: its covering tests, or every test of its files when static. */
     const testsRun = (id: string): number => {
       const m = byId.get(id);
@@ -843,7 +908,7 @@ export async function run(options: Options): Promise<RunResult> {
      * Static mutants decided in live workers, one unit per (test file, batch of its static mutants),
      * on a pool that inlines dependencies. Returns the mutants this path could not decide.
      */
-    const decideStaticLive = async (items: MutantResult[]): Promise<MutantResult[]> => {
+    const decideStaticLive = async (items: MutantResult[], filesOfMutant: (m: MutantResult) => string[] = staticFilesFor): Promise<MutantResult[]> => {
       if (items.length === 0) return [];
       const STATIC_BATCH = 25;
       /** Units of up to STATIC_BATCH mutants per test file, for the files each mutant gets this round. */
@@ -893,7 +958,12 @@ export async function run(options: Options): Promise<RunResult> {
         if (outcome.killedFor || outcome.crashed) for (const id of unit.staticIds ?? []) if (!decided.has(id)) back.add(id);
         return [];
       };
+      // `static.budgetMs`: no unit starts once it is spent. Units already running finish, so the
+      // phase can end one unit's time past it.
+      const deadline = options.staticBudgetMs === undefined ? Infinity : performance.now() + options.staticBudgetMs;
+      const spent = (): boolean => performance.now() >= deadline;
       const keepUndecided = (unit: Unit): boolean => {
+        if (spent()) return false;
         unit.staticIds = (unit.staticIds ?? []).filter((id) => !killed.has(id) && !back.has(id));
         if (unit.staticGroups) unit.staticGroups = unit.staticGroups.map((g) => g.filter((id) => !killed.has(id) && !back.has(id))).filter((g) => g.length > 0);
         return unit.staticIds.length > 0;
@@ -903,7 +973,7 @@ export async function run(options: Options): Promise<RunResult> {
       // every loading file ran a mutant at once, and a kill in one did not spare the others: 41 tests a
       // static kill on burgee/controlroom against Stryker's 33.6 (2026-10-30).
       const open = (m: MutantResult): boolean => !killed.has(m.id) && !back.has(m.id);
-      const rounds = [(m: MutantResult): string[] => filesFor(m).slice(0, 1), (m: MutantResult): string[] => (open(m) ? filesFor(m).slice(1) : [])];
+      const rounds = [(m: MutantResult): string[] => filesOfMutant(m).slice(0, 1), (m: MutantResult): string[] => (open(m) ? filesOfMutant(m).slice(1) : [])];
       // the mutant's run and the unarmed canary after it
       // The second round is where a group pays: a survivor of its likeliest file runs in every other
       // file that loads it, and most of those runs pass (10 static mutants on one line of
@@ -917,9 +987,14 @@ export async function run(options: Options): Promise<RunResult> {
           m.status = timedOut.has(m.id) && !k.killedBy.length ? 'Timeout' : 'Killed';
           m.killedBy = [...new Set(k.killedBy)];
           m.testsCompleted = ran.get(m.id) ?? 0;
-        } else if (!back.has(m.id) && filesFor(m).every((f) => passed.get(m.id)?.has(f))) {
+        } else if (!back.has(m.id) && filesOfMutant(m).every((f) => passed.get(m.id)?.has(f))) {
           m.status = 'Survived';
           m.testsCompleted = ran.get(m.id) ?? 0;
+        } else if (spent()) {
+          // Out of time: not decided, so not scored. It does not go to a fresh worker either, which
+          // would spend the time the budget was set to save.
+          m.status = 'Ignored';
+          m.statusReason = STATIC_BUDGET_REASON;
         } else undecided.push(m);
       }
       return undecided;
@@ -969,8 +1044,19 @@ export async function run(options: Options): Promise<RunResult> {
     // ms: 29 of 35 s on burgee/paratext (2026-10-30). A live worker re-evaluates the project's modules
     // per mutant instead; whatever it cannot vouch for comes back here for the fresh-worker path.
     // OXMUTATE_ISOLATE_STATIC=1 sends every static mutant down the fresh-worker path, as before.
+    if (tracking) stats.staticReaders = { ...readersOf(staticMutants), dryRunMs: readersDryRunMs };
     const s0 = performance.now();
     const staticBack = env['OXMUTATE_ISOLATE_STATIC'] ? staticMutants : await decideStaticLive(staticMutants);
+    // `static.readers: 'on'`: one survivor in twenty that ran in fewer files than load its module
+    // runs again in all of them. One that fails there is Killed, and the run fails (cli.ts).
+    if (options.staticReaders === 'on' && stats.staticReaders) {
+      const sampled = staticMutants.filter((m) => m.status === 'Survived' && staticFilesFor(m).length < filesFor(m).length && auditedReader(m.id));
+      for (const m of sampled) m.status = 'NoCoverage';
+      await decideStaticLive(sampled, filesFor);
+      stats.staticReaders.auditSampled = sampled.length;
+      stats.staticReaders.auditDisagreed = sampled.filter((m) => m.status === 'Killed' || m.status === 'Timeout').length;
+      for (const m of sampled) if (m.status === 'NoCoverage') m.status = 'Survived';
+    }
     stats.staticMs = performance.now() - s0;
     stats.isolatedByCause.static = staticBack.length;
     isolatedQueue.push(...staticBack);
@@ -1113,6 +1199,7 @@ export async function run(options: Options): Promise<RunResult> {
       return summarizeSpec({ oracle, modelledFiles: new Set(matchFiles(root, oracle.files)), traces, mutants: located, testName: (t) => testInfo.get(t)?.name ?? t, specMs: ms });
     });
     stats.serversSpawned = pools.reduce((s, p) => s + p.stats.spawned, 0);
+    stats.serversReleased = pools.reduce((s, p) => s + p.stats.released, 0);
     stats.wallMs = performance.now() - wall0;
     return {
       root,

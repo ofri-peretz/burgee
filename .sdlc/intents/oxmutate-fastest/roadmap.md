@@ -16,7 +16,7 @@ what the profile suggests, and each item ships only when its own measurement say
 | :-- | :-- | :-- |
 | paratext | at least **21.5x faster** | _measured_ 2026-11-12, one machine, 4 workers, load about 50: Stryker 380.0 s, oxmutate 17.7 s. oxmutate graded more mutants (1,332 against 1,255), so equal sets can only raise it. One run each. |
 | caique | **3.65x faster** | _measured_ 2026-11-13, equal sets (6,428 mutants matched), one machine, 4 workers: Stryker 3,391 s, oxmutate 928 s, mean loads 19.3 and 13.4. One pair. Before #1532 it was 1.3x to 1.5x (`sc8/RUNS.md`). |
-| compat-oracle | **unknown; oxmutate's half is owed** | Stryker: 32,835 s, _measured_ 2026-11-13, 4 workers, mean load 26.9, 6,298 mutants. oxmutate's run waits for the fix below: a test's scratch directory made the disk guard run three warm units in four twice (`sc8-profile.md` §9). On a slice the warm phase went from 307 s to 74 s (_measured_). |
+| compat-oracle | **at least 2.4x per mutant, equal set owed** | _measured_ 2026-11-13, 4 workers: Stryker 32,835 s for 6,204 mutants (mean load 26.9); oxmutate 9,967 s for 4,607, `hosts.ts` clipped at 801 (mean load 20.6). Not the same set: Stryker graded all of `hosts.ts`. 96.26% agreement on the 4,515 both graded (`sc8-profile.md` §10). |
 
 **Where a run's time goes** (_measured_, the 2026-11-04/05 full run, all 12 packages):
 static mutants 68%, isolated runs 19%, warm runs 13%, the oxc core 0%.
@@ -57,7 +57,7 @@ The warm phase and every small run. Judged on paratext.
 | `1.1` | Keep the progress and results files open | Done, #1532. _Measured_: paratext warm 24.8–25.8 s → 9.3–9.9 s | — | None; same bytes |
 | `1.2` | Node's compile cache for servers and workers | **Tried and dropped, 2026-11-13.** _Measured_ with `bench/ab.mjs`, main against the change, two rounds: every verdict equal, and slower on 9 of 11 targets, paratext 18.4 s → 20.0 s (0.92x), fixtures 0.81x to 1.05x. The cache is more small files to open, which is the cost #1532 removed | — | — |
 | `1.3` | Recover from pollution inside the worker | paratext: 18 restarts, each a new process and a unit split in two; the static path already resets a module registry in 0.5 ms | 20–30% of paratext's warm phase | Medium: touches the canary. Needs a model and a fixture |
-| `1.4` | Fewer, larger units | About 136 ms a unit outside its tests; the cap is 400 pairs | 10–20% of warm | Low: after `1.3`, since a restart then redoes more |
+| `1.4` | Fewer, larger units | **Dropped 2026-11-14.** 1,000 pairs a unit gained nothing over 400 (`coordinator.ts`, 2026-10-30). On compat-oracle the median unit held 23 pairs (§9): a unit never spans two test files, and with `isolate` on each file starts its own worker, so a larger unit cannot remove that start-up. Only `1.5` can | — | — |
 | `1.5` | A worker that outlives its unit | Most of the remaining start-up. Vitest starts a fresh worker for every `start` when `isolate` is on | Large, up to 2x on warm | High: isolation is what several guarantees rest on. Only if `1.2`–`1.4` leave start-up dominant |
 | `1.6` | Start workers from a snapshot | Node can start from a heap snapshot with modules already loaded | Unknown; a spike first | Low if it works; it may not survive Vitest's loader |
 | `1.7` | The disk guard does not re-run units for a test's own scratch | Done (the PR with `static.group`). _Measured_ on `compat-oracle/src/run.ts:700-900`: 21 guard re-runs to 0, 82 units to 13, warm 307 s → 74 s (**4.1x**). The summary names the paths | The whole package is owed | One kind of write is no longer seen: a new entry gone again within its unit (`D-20261113-oxmutate-diskguard-vanished`) |
@@ -72,9 +72,9 @@ and caique.
 | `2.1` | Group static survivors (`M1`) | _Measured_ 2026-11-13, `hosts.ts:699-718`, 31 static mutants: static phase 1,717 s → 577 s (**3.0x**), 31 of 31 verdicts equal. A first version that grouped any mutator was 4.5x and got one verdict wrong: an emptied list hid an emptied string | 3x on the static phase where most static mutants are values | Real: two mutants can mask each other. Off by default, value mutants only, 5% audited |
 | `2.2` | A slow test is not a kill | Done on this branch. Fewer false kills, and fewer re-runs they caused | Correctness first | Removes a false-kill path |
 | `2.3` | Drop mutants that compile to the same code | Two mutants whose minified output is identical have one verdict; a mutant identical to the original is equivalent. oxc's minifier makes the comparison cheap | Fewer mutants to run; published results for the technique vary, and nothing is measured here | Low: identical code, identical behaviour. Reported, never silently dropped |
-| `2.4` | Choose a static mutant's tests by what reads it | Today every file that loads the module runs. `oxc_semantic` knows which functions reference the mutated binding | Large where data is read by few tests; none where one table feeds everything | Low if exact; falls back to all files when a binding escapes |
-| `2.5` | Confirm survivors in batches | Each warm survivor gets a fresh process today | Up to 2x on the isolated phase, if the profile says confirmations dominate | Medium: same guards as the static path |
-| `2.6` | `ignoreStatic` as a flag, and a static budget | The flag `--ignore-static` and a summary line for the static phase are done (the PR after #1547). The budget, `static.budgetMs`, is not | The user's choice: removes the static phase | None to what is graded; the score covers less, and says so |
+| `2.4` | Run a static mutant only where its value is read | Today every file that loads the module runs. On compat-oracle, `hosts.ts`'s 119 static mutants ran a median of 788 tests each, 71,740 executions of 159,506 for all static mutants (§10). **Spike, 2026-11-14:** with reads tracked per entry and property, a value is read in a median of 1 test file, 247 tests on average against 788, and no source module copied a value while loading ([`static-readers.md`](./static-readers.md)) | About 3x fewer tests per `hosts.ts` static mutant: spike 3.2x, and `static.readers: 'report'` _measured_ 3.0x on a slice (§11). Step 2, `static.readers: 'on'`: _measured_ 4,185 s → 1,169 s (**3.6x**) on the slice, off by default and audited | Real: a missed reader is a false Survived. Module-load reads fall back, and the `static.group` audit applies |
+| `2.5` | Confirm survivors in batches | **Already batched, found 2026-11-14:** an isolated unit arms its mutants one after another in one server (`child.ts` `runIsolated`), packed by cost into at most twice the concurrency. What each costs is a worker start per (mutant, file). _Measured_ on compat-oracle (§10): the whole isolated phase was 1,525 s of 9,967 (15%), 361 of its 647 runs confirmations | At most a few percent; below `2.1` and `1.3`/`1.4` | — |
+| `2.6` | `ignoreStatic` as a flag, and a static budget | Done: `--ignore-static` and the static summary line (#1561); `static.budgetMs` / `--static-budget` (the PR after #1566). Once the budget is spent no static unit starts; a static mutant still undecided is Ignored with a reason and counted in the summary. A kill found before that stands, and nothing is called Survived on part of its files | The user's choice: bounds the static phase | None to what is graded; the score covers less, and says so |
 | `2.7` | Likeliest killer first | A killed mutant stops at its first failing test. History of which test killed which mutant orders them | 10–20% on warm for a mature suite | None: same tests, another order |
 
 ## Track 3 — Never decide the same mutant twice
@@ -96,6 +96,7 @@ Every run after the first. This is where "extremely fast" is felt day to day.
 | `4.1` | The governor (`M2`) | A run at a load of 55 to 92 was stopped by hand; at 45 to 120, tests timed out and were scored Killed | Fewer false verdicts; steadier times | None: acts between units |
 | `4.2` | Use every free core when the machine is idle | The default is cores − 1, at most 8, whatever the machine | Up to 1.5x on a 14-core machine | None |
 | `4.3` | Memory limits per worker and in total | Jest's known failure is the missing total | No speed; no out-of-memory | None |
+| `4.4` | Warm workers are a setting, and idle ones are released | Done (2026-11-15, the owner's request). `resources.warmWorkers` and `resources.workerIdleTimeout` (spec `R14b`, `R14c`): a server idle 30 s is closed by default, and `false` gives every unit a fresh one. On compat-oracle, oxmutate peaked at 2.46 GB against Stryker's 1.3 GB (§10) | Less memory held at phase tails. _Measured_ on paratext, 2026-11-15: the default (30 s idle) 1.09x against main over 4 rounds, 0 of 1,415 verdicts differ; `warmWorkers: false` 35.4 s against 16.7 s warm (**about 2x slower**, 129 servers started against 7) | None: same units, same servers or fresh ones |
 
 ## Track 5 — Jest
 
@@ -105,12 +106,19 @@ here: a process per mutant with no coverage, against a warm worker with per-test
 
 ## Order
 
-1. **Now:** `2.2` and `2.6`'s flag (done), `1.2` (tried, dropped), `3.1`. Small, safe, and each measurable in a day.
-2. **Then the two big ones:** `2.1` for the static phase, `1.3` for the warm phase. Each needs a
-   model and a fixture that fails without its guard.
-3. **Then:** `1.4`, `2.5`, `2.3`, `3.2`, `3.3`, each decided by the counters after step 2.
-4. **Then the governor** (`4.1`–`4.3`), before the long measurements that need a steady machine.
-5. **Last, and only with evidence:** `1.5`, `1.6`, `2.4`, `3.4`, `3.5`, then Jest.
+**Re-ordered 2026-11-14 by compat-oracle's measured split** (`sc8-profile.md` §10, 9,967 s at 4
+workers): static 50%, warm 35% (of which 43% inside test runs, the rest starting units), isolated
+15%. A change is worth what it takes off the largest of those.
+
+1. **Done:** `1.1`, `1.7`, `2.1` (off by default), `2.2`, `2.6`. `1.2` tried and dropped.
+2. **Now, the static phase:** measure `2.1` (`static.group`) on the whole of compat-oracle with
+   every verdict compared against an ungrouped run. If they all agree, the decision to make it a
+   default is the owner's (spec `R6`). Then `2.4`, which runs fewer test files per static mutant.
+3. **Then the warm phase's start-up:** `1.3` (pollution handled inside the worker); `1.4` is
+   dropped, and what is left of start-up is `1.5`. Each needs a model and a fixture that fails without its guard.
+4. **Then:** `2.3`, `3.2`, `3.3`, each decided by the counters.
+5. **The governor** (`4.1`–`4.3`), before the long measurements that need a steady machine.
+6. **Last, and only with evidence:** `2.5`, `1.5`, `1.6`, `3.4`, `3.5`, then Jest.
 
 ## What this roadmap does not do
 

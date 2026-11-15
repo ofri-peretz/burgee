@@ -25,6 +25,10 @@ export interface Namespace {
   hitCount?: number | undefined;
   hitLimit?: number | undefined;
   mutantCoverage?: { static: Record<string, number>; perTest: Record<string, Record<string, number>> };
+  /** `trackReads`: the tracked static values read with no test current (`static`) and per test or file collection (`oxmRead`). */
+  readCoverage?: { static: Record<string, number>; perTest: Record<string, Record<string, number>> };
+  /** Set from `__OXMUTATE_TRACK_READS__` when the module first loads: `oxmTrack` returns a reporting Proxy. */
+  trackReads?: boolean;
 }
 
 // ── The process seam ────────────────────────────────────────────────────────────────────────────

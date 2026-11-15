@@ -33,6 +33,8 @@ const defaults = (root: string): Options => ({
   excludedMutations: [],
   ignoreStatic: false,
   staticGroup: 1,
+  staticReaders: 'off',
+  workers: { warm: true, idleTimeoutMs: 30_000 },
   strykerCompat: false,
   reporters: ['clear-text', 'json'],
   jsonReport: path.join(root, 'reports/mutation/mutation.json'),
@@ -143,6 +145,45 @@ describe('options from a config file', () => {
       typeChecker: 'npx tsgo',
       commandRunner: 'npm run unit',
     });
+  });
+
+  it("static.readers is 'report' or 'on' only when the config says exactly that; anything else is off", async () => {
+    const values: unknown[] = ['report', 'on', 'Report', 'yes', true, 1, undefined];
+    const read = await Promise.all(values.map(async (readers) => (await loadOptions(project({ 'oxmutate.config.json': { static: { readers } } }))).staticReaders));
+    expect(read).toEqual(['report', 'on', 'off', 'off', 'off', 'off', 'off']);
+    expect((await loadOptions(project({ 'oxmutate.config.json': {} }))).staticReaders).toBe('off');
+    expect((await loadOptions(project({ 'oxmutate.config.json': {} }), { staticReaders: 'report' })).staticReaders).toBe('report');
+  });
+
+  it('resources: warm workers unless it says false, and an idle timeout of whole milliseconds, 30 s by default', async () => {
+    const values: unknown[] = [undefined, {}, { warmWorkers: false }, { warmWorkers: 'no' }, { workerIdleTimeout: 0 }, { workerIdleTimeout: 1500.7 }, { workerIdleTimeout: -1 }, { workerIdleTimeout: 'soon' }, 'cold'];
+    const read = await Promise.all(values.map(async (resources) => (await loadOptions(project({ 'oxmutate.config.json': resources === undefined ? {} : { resources } }))).workers));
+    expect(read).toEqual([
+      { warm: true, idleTimeoutMs: 30_000 },
+      { warm: true, idleTimeoutMs: 30_000 },
+      { warm: false, idleTimeoutMs: 30_000 },
+      { warm: true, idleTimeoutMs: 30_000 },
+      { warm: true, idleTimeoutMs: 0 },
+      { warm: true, idleTimeoutMs: 1500 },
+      { warm: true, idleTimeoutMs: 30_000 },
+      { warm: true, idleTimeoutMs: 30_000 },
+      { warm: true, idleTimeoutMs: 30_000 },
+    ]);
+    expect((await loadOptions(project({ 'oxmutate.config.json': { resources: { warmWorkers: false } } }))).unused).toEqual([]);
+    // A Stryker config that carries it is read, not reported as an option oxmutate does not know.
+    const fromStryker = await loadOptions(project({ 'stryker.config.json': { resources: { warmWorkers: false } } }));
+    expect(fromStryker.unused).toEqual([]);
+    expect(fromStryker.workers.warm).toBe(false);
+    expect((await loadOptions(project({ 'oxmutate.config.json': { resources: null } }))).workers).toEqual({ warm: true, idleTimeoutMs: 30_000 });
+  });
+
+  it('static.budgetMs is a whole number of milliseconds of at least one; anything else is no budget', async () => {
+    const cases: [unknown, number | undefined][] = [[60_000, 60_000], [1, 1], [1.9, 1], [0, undefined], [0.9, undefined], [-5, undefined], ['soon', undefined]];
+    const read = await Promise.all(cases.map(async ([value]) => (await loadOptions(project({ 'oxmutate.config.json': { static: { budgetMs: value } } }))).staticBudgetMs));
+    expect(read).toEqual(cases.map(([, expected]) => expected));
+    expect((await loadOptions(project({ 'oxmutate.config.json': { static: {} } }))).staticBudgetMs).toBeUndefined();
+    expect((await loadOptions(project({ 'oxmutate.config.json': {} }))).staticBudgetMs).toBeUndefined();
+    expect((await loadOptions(project({ 'oxmutate.config.json': { static: { budgetMs: 9 } } }), { staticBudgetMs: 3 })).staticBudgetMs).toBe(3);
   });
 
   it('static.group is a whole number of at least one; anything else arms each static mutant alone', async () => {

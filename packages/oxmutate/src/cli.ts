@@ -9,7 +9,7 @@ import path from 'node:path';
 
 import { defineCommand, defineProgram, ExitCode } from 'burgee';
 
-import { loadOptions, type Options } from './config.js';
+import { DEFAULT_IDLE_TIMEOUT_MS, loadOptions, type Options } from './config.js';
 import { InstrumentFault, run, type MutantResult, type RunResult } from './coordinator.js';
 import { frozenOracle } from './frozen.js';
 import { parseShard } from './lanes.js';
@@ -61,8 +61,26 @@ function summaryData(r: RunResult, written: string[]): Record<string | symbol, u
 /** How many weakened mutants the error line names; the JSON report has them all. */
 const WEAKENED_SHOWN = 3;
 
-function overridesFrom(o: Record<string, unknown>, root: string): Partial<Options> {
+/** The static phase's flags: `--static-group`, `--static-budget`, `--report-static-readers`, `--static-readers`. */
+function staticOverridesFrom(o: Record<string, unknown>): Partial<Options> {
   const overrides: Partial<Options> = {};
+  if (typeof o['staticGroup'] === 'number') overrides.staticGroup = Math.max(1, Math.floor(o['staticGroup']));
+  if (typeof o['staticBudget'] === 'number' && o['staticBudget'] >= 1) overrides.staticBudgetMs = Math.floor(o['staticBudget']);
+  if (o['reportStaticReaders'] === true) overrides.staticReaders = 'report';
+  if (o['staticReaders'] === true) overrides.staticReaders = 'on';
+  return overrides;
+}
+
+/** `--cold-workers` and `--worker-idle-timeout <ms>`: how long Vitest servers live (`resources.warmWorkers`, `resources.workerIdleTimeout`). */
+function workerOverridesFrom(o: Record<string, unknown>): Partial<Options> {
+  const warm = o['coldWorkers'] !== true;
+  const idle = typeof o['workerIdleTimeout'] === 'number' && o['workerIdleTimeout'] >= 0 ? Math.floor(o['workerIdleTimeout']) : undefined;
+  if (warm && idle === undefined) return {};
+  return { workers: { warm, idleTimeoutMs: idle ?? DEFAULT_IDLE_TIMEOUT_MS } };
+}
+
+function overridesFrom(o: Record<string, unknown>, root: string): Partial<Options> {
+  const overrides: Partial<Options> = { ...staticOverridesFrom(o), ...workerOverridesFrom(o) };
   if (typeof o['since'] === 'string') overrides.since = o['since'];
   if (typeof o['frozenOracle'] === 'string') overrides.frozenOracle = o['frozenOracle'];
   if (typeof o['shard'] === 'string') overrides.shard = parseShard(o['shard']);
@@ -70,7 +88,6 @@ function overridesFrom(o: Record<string, unknown>, root: string): Partial<Option
   if (typeof o['mutantTimeout'] === 'number') overrides.timeoutMS = o['mutantTimeout'];
   if (o['strykerCompat'] === true) overrides.strykerCompat = true;
   if (o['ignoreStatic'] === true) overrides.ignoreStatic = true;
-  if (typeof o['staticGroup'] === 'number') overrides.staticGroup = Math.max(1, Math.floor(o['staticGroup']));
   if (o['incremental'] === true) overrides.incremental = true;
   if (typeof o['flakyReruns'] === 'number') overrides.flakyReruns = o['flakyReruns'];
   if (typeof o['reporter'] === 'string') overrides.reporters = o['reporter'].split(',').map((s) => s.trim());
@@ -100,6 +117,11 @@ const runCommand = defineCommand({
     strykerCompat: { type: 'boolean', description: 'reproduce Stryker 10.0.0 skips (no mutants inside `as` casts or enums)' },
     ignoreStatic: { type: 'boolean', description: 'skip static mutants (module-level code): faster, and the score leaves them out' },
     staticGroup: { type: 'number', description: 'arm this many static mutants together in a file that is not their first (default 1; a heuristic, audited)' },
+    staticBudget: { type: 'number', description: 'the most the static phase may take, ms; static mutants still undecided then are left out of the score' },
+    coldWorkers: { type: 'boolean', description: 'a fresh Vitest server per unit, closed after it: slower, the least memory held' },
+    workerIdleTimeout: { type: 'number', description: 'close a server idle this long, ms (default 30000; 0 keeps them all until the run ends)' },
+    staticReaders: { type: 'boolean', description: 'run each static mutant only in the test files that read its value (a heuristic, audited)' },
+    reportStaticReaders: { type: 'boolean', description: 'one more dry run that reports how many tests static mutants would need if each ran only where its value is read; changes no verdict' },
     incremental: { type: 'boolean', description: 'reuse verdicts whose source and covering tests did not change' },
     flakyReruns: { type: 'number', description: 're-runs for verdicts with nondeterministic tests (default 2; 0 disables)' },
     reporter: { type: 'string', description: 'comma-separated: clear-text, json, sarif, html (default clear-text,json)' },
@@ -128,6 +150,10 @@ const runCommand = defineCommand({
     const weakened = result.frozen?.weakened ?? [];
     if (weakened.length) {
       stderr.write(`oxmutate: the change weakened its tests: ${String(weakened.length)} mutant(s) the tests at ${result.frozen?.base ?? ''} detect now survive (${weakened.slice(0, WEAKENED_SHOWN).map((w) => `${w.file}:${String(w.line)} ${w.mutatorName}`).join('; ')}). fix: restore the assertions the change removed, or replace them with ones that kill these mutants\n`);
+      data['exitCode'] = ExitCode.RUNTIME;
+    }
+    if ((result.stats.staticReaders?.auditDisagreed ?? 0) > 0) {
+      stderr.write(`oxmutate: ${String(result.stats.staticReaders?.auditDisagreed ?? 0)} static mutant(s) that survived the files reading their value were killed in a file that loads it; they are reported Killed. fix: run without --static-readers; a test reads the value through a path the tracking does not see\n`);
       data['exitCode'] = ExitCode.RUNTIME;
     }
     if (result.stats.staticAuditDisagreed > 0) {
