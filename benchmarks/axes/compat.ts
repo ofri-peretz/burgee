@@ -43,7 +43,7 @@ export interface Results {
   grades: Grade[];
 }
 
-export type Baseline = Record<string, { reference: number; passed: number; rate: number; planned?: boolean }>;
+export type Baseline = Record<string, { reference: number; passed: number; rate: number; planned?: boolean; ceiling?: boolean }>;
 
 /** One file per host — see `compat-oracle/src/run.ts` for why it is a directory. */
 export const readBaseline = (): Baseline =>
@@ -75,6 +75,11 @@ export function hostRecords(grade: Grade, baseline: Baseline): BenchRecord[] {
   // the host's own TAP summary says; it is a pass for no one and a failure for no one.
   // Stated here rather than smoothed, so the reader can see what the 100% is over.
   const skipNote = grade.skipped > 0 ? ` ${String(grade.skipped)} case(s) skipped on this OS are inside that count, as the host's own summary reports them` : '';
+  // A row `hosts.ts` declares `ceiling` publishes a distance, not a drop-in: execa's 0 / 1360
+  // is measured and meant (bellpull spec R7, D-160). Without this the record was a bare 0
+  // beside rows reading N / N, and it read as a measurement hole.
+  const ceiling = was?.ceiling === true;
+  const ceilingNote = ceiling ? ' A ceiling by design, not a hole: `hosts.ts` declares `ceiling` on this row with the reason.' : '';
   return [
     {
       axis: 'compat',
@@ -85,8 +90,8 @@ export function hostRecords(grade: Grade, baseline: Baseline): BenchRecord[] {
       median: grade.rate,
       p95: grade.rate,
       ...(was === undefined ? {} : { gate: { min: was.rate, why: `the recorded baseline in compat-oracle/baseline/; C5 says this number only goes up` } }),
-      note: `${grade.host}'s own suite against \`${grade.target}\`, as graded by compat-oracle.${skipNote}`,
-      detail: { target: grade.target, passed: grade.passed, tests: grade.tests, skipped: grade.skipped, reference: grade.reference, denominator },
+      note: `${grade.host}'s own suite against \`${grade.target}\`, as graded by compat-oracle.${skipNote}${ceilingNote}`,
+      detail: { target: grade.target, passed: grade.passed, tests: grade.tests, skipped: grade.skipped, reference: grade.reference, denominator, ...(ceiling ? { ceiling } : {}) },
     },
     {
       axis: 'compat',

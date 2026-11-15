@@ -17,7 +17,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest';
 
-import { type Baseline, type Grade, gradeRecords, hostRecords } from './axes/compat.js';
+import { type Baseline, type Grade, gradeRecords, hostRecords, readBaseline } from './axes/compat.js';
 import { DELTA_CEILING_MS, deltaRecord, ratioRecord, RATIO_CEILING as PERF_CEILING, type Variant, VARIANTS } from './axes/perf.js';
 import { BUNDLED_CEILING, type Measured, pairRecords, RATIO_CEILING as WEIGHT_CEILING } from './axes/weight.js';
 import { claimRatchet } from './claim-ratchets.js';
@@ -367,5 +367,32 @@ describe('B3 compat — a planned host is a declared gap, not a hole', () => {
   it('still refuses to publish when an undeclared host is missing', () => {
     const out = gradeRecords({ measured: '', planned: [], grades: [graded] }, ['chalk', 'cosmiconfig'], {});
     expect(out).toEqual({ reason: 'compat-oracle produced no usable grade for cosmiconfig' });
+  });
+});
+
+/**
+ * A zero must say why. execa's row reads 0 / 1360 on every run, by design: `bellpull` ships no
+ * execa API (spec R7, D-160), every graded file fails at link time, and `hosts.ts` declares
+ * that as `ceiling`. The baseline fragment carries the flag, but until this lock the compat
+ * axis dropped it, so the published record was a bare 0 that read as a measurement hole.
+ */
+describe('B3 compat — a declared ceiling is published as one', () => {
+  const zero: Grade = { host: 'execa', target: 'bellpull', tests: 30, passed: 0, failed: 30, skipped: 0, reference: 1360, rate: 0 };
+
+  it('carries the ceiling into the record, so a 0 is not read as a hole', () => {
+    const [rate] = hostRecords(zero, { execa: { reference: 1360, passed: 0, rate: 0, ceiling: true } });
+    expect(rate?.detail).toMatchObject({ ceiling: true });
+    expect(rate?.note).toContain('ceiling by design');
+  });
+
+  it('says nothing of a ceiling on a row that has none', () => {
+    const [rate] = hostRecords(grade(1360, 1), { commander: { reference: 1360, passed: 1360, rate: 1 } });
+    expect(rate?.detail).not.toHaveProperty('ceiling');
+    expect(rate?.note).not.toContain('ceiling');
+  });
+
+  it('every recorded baseline at zero passing is a declared ceiling or a planned host', () => {
+    const unexplained = Object.entries(readBaseline()).filter(([, b]) => b.passed === 0 && b.ceiling !== true && b.planned !== true);
+    expect(unexplained.map(([h]) => h)).toEqual([]);
   });
 });
