@@ -178,7 +178,9 @@ function whereItWent(r: RunResult): string[] {
   const sr = s.staticReaders;
   if (sr && sr.mutants > 0) {
     const ratio = sr.readerTests > 0 ? `, ${(sr.loaderTests / sr.readerTests).toFixed(1)}x fewer` : '';
-    lines.push(`  static readers: ${String(sr.mutants)} static mutants would run ${String(sr.readerTests)} tests where their value is read, against ${String(sr.loaderTests)} in every file that loads them${ratio}; ${String(sr.fellBack)} kept every loader (report only, ${(sr.dryRunMs / MS_PER_S).toFixed(1)} s)`);
+    const inUse = sr.auditSampled !== undefined;
+    const how = inUse ? `in use, ${String(sr.auditSampled)} survivor(s) audited in every loader, ${String(sr.auditDisagreed ?? 0)} disagreed` : 'report only';
+    lines.push(`  static readers: ${String(sr.mutants)} static mutants ${inUse ? 'ran' : 'would run'} ${String(sr.readerTests)} tests where their value is read, against ${String(sr.loaderTests)} in every file that loads them${ratio}; ${String(sr.fellBack)} kept every loader (${how}, ${(sr.dryRunMs / MS_PER_S).toFixed(1)} s)`);
   }
   const c = s.isolatedByCause;
   const causes = [`static ${String(c.static)}`, `stopped ${String(c.stopped)}`, `unfinished ${String(c.unfinished)}`, `re-run ${String(c.rerun)}`, `survivors confirmed ${String(c.confirm)}`, `flaky ${String(c.flaky)}`];

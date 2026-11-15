@@ -427,3 +427,8 @@ file.
 **On the `static-readers` fixture every killing test sat in a reading file,** and the one value
 nobody reads is the one mutant that survived. That is the property step 2 rests on, shown on one
 fixture; the whole of compat-oracle is the next reading.
+
+**Step 2, in use (2026-11-15).** `static.readers: 'on'` on the same slice, against a run with it off,
+each alone: wall 4,185 s to **1,169 s (3.6x)**; 80 of 81 verdicts equal, and the one that differs is
+a load-induced kill in the baseline that a second baseline run does not repeat
+([`D-20261115-oxmutate-static-readers-on`](../../decisions/D-20261115-oxmutate-static-readers-on.md)).
