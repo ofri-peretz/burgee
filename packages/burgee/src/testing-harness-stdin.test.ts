@@ -14,6 +14,9 @@ import { describe, expect, it } from 'vitest';
 import { defineCommand, defineProgram } from './index.js';
 import { runBurgee } from './testing.js';
 
+/** An empty stdin that says it is a terminal, the way a caller's own stream can. */
+const terminal = (): Readable => Object.assign(Readable.from([]), { isTTY: true });
+
 describe('the harness and a stdin stream the caller passed', () => {
   it('keeps its own isTTY when `tty` is not given, and takes `tty` when it is', async () => {
     const seen: boolean[] = [];
@@ -31,8 +34,6 @@ describe('the harness and a stdin stream the caller passed', () => {
         }),
       ],
     });
-    const terminal = (): Readable => Object.assign(Readable.from([]), { isTTY: true });
-
     await runBurgee(program, { argv: ['look'], stdin: terminal() });
     await runBurgee(program, { argv: ['look'], stdin: terminal(), tty: false });
     expect(seen, 'a stream the caller passed lost its own isTTY, so a terminal on stdin read as a pipe').toEqual([true, false]);
