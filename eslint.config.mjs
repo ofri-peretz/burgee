@@ -1271,11 +1271,9 @@ export default [
   {
     // Each of these specs *is* its misbehaviour: `spin` loops for ever so a server is mid-runaway
     // when its coordinator is killed, and `slow` stalls 4 s, past the warm watchdog and the first
-    // isolated budget but inside 3x that; `spawn-child` starts a child and then loops, so a server
-    // dies with a child of its test still running.
+    // isolated budget but inside 3x that.
     files: [
       "packages/oxmutate/test/fixtures/spin/src/spin.spec.ts",
-      "packages/oxmutate/test/fixtures/spawn-child/src/spawn.spec.ts",
       "packages/oxmutate/test/fixtures/slow/src/one.spec.ts",
       "packages/oxmutate/test/fixtures/slow-survivor/src/one.spec.ts",
     ],

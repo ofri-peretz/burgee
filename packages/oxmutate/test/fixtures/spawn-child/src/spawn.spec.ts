@@ -14,6 +14,7 @@ it('starts a child, then spins under oxmutate', () => {
     const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });
     const marker = process.env['OXMUTATE_E2E_MARKER'];
     if (marker) writeFileSync(`${marker}.child-${String(child.pid)}`, '');
+    // eslint-disable-next-line secure-coding/no-unchecked-loop-condition -- the misbehaviour this fixture exists for
     for (;;);
   }
   expect(one()).toBe(1);
