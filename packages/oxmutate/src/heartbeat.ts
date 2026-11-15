@@ -37,6 +37,13 @@ export const CPU_WINDOW_MS = 1000;
 export const MIN_CPU_SPAN_MS = 500;
 /** Under this share of one core, with a fresh beat, a stopped run is idle. Measured: idle 0–2%, a loop 72–108%. */
 export const IDLE_CPU = 0.25;
+/**
+ * Under this share of one core a stopped run is not a loop, though it may not be idle either: a
+ * worker blocked in a synchronous call, or one whose CPU window still holds the previous mutant's
+ * work (32% read on a fixture, 2026-11-15). A loop read 72–108%. The watchdog's grace (scheduler.ts)
+ * goes only to runs under it.
+ */
+export const LOOP_CPU = 0.5;
 
 /** The environment variable that hands a server's beat file to its test workers. */
 export const BEAT_ENV = 'OXMUTATE_BEAT';

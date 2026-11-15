@@ -394,6 +394,16 @@ it.skipIf(!native || !existsSync(bin))('leaves no server running when the coordi
   expect(left).toEqual([]);
 }, T6_CASE_MS);
 
+// A warm run blocked in a synchronous child, past its budget at almost no CPU, is given its 3x in
+// place: on compat-oracle every such stop killed a server and re-ran the mutant (2026-11-15).
+it.skipIf(!native || !existsSync(bin) || process.platform === 'win32')('gives a blocked warm run its 3x in place, with no server restart and the same verdicts', () => {
+  const run = groupRun('blocked-grace', 'src/size.ts', []);
+  expect(run.verdicts.length).toBeGreaterThan(0);
+  expect(run.verdicts.every((v) => v.endsWith(':Killed'))).toBe(true);
+  expect(run.stats['watchdogGraced']).toBeGreaterThan(0);
+  expect(run.stats['watchdogKills']).toBe(0);
+}, 120_000);
+
 /** The pids of the children the spawn-child fixture's tests started, from their markers. */
 const childPids = (marks: string): number[] => markers(marks, 'child').map((f) => Number(f.slice('m.child-'.length)));
 

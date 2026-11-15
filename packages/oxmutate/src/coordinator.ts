@@ -122,6 +122,8 @@ export interface RunStats {
   serversSpawned: number;
   /** Servers closed for sitting idle past `resources.workerIdleTimeout`: memory given back before the run ended. */
   serversReleased: number;
+  /** Warm runs past their budget, blocked rather than looping, given their 3x in place instead of a kill. */
+  watchdogGraced: number;
   /** Mutants whose Timeout their worker called itself, the wait able to end by nothing (quiescence.ts): no watchdog wait, no respawn. */
   deadlocks: number;
 }
@@ -333,7 +335,7 @@ export async function run(options: Options): Promise<RunResult> {
   const work = mkdtempSync(path.join(tmpdir(), 'oxmutate-'));
   const stats: RunStats = {
     files: 0, mutants: 0, instrumentMs: 0, dryRunMs: 0, mutationMs: 0, staticMs: 0, staticRecollections: 0, staticGroupRuns: 0, staticGroupSplits: 0, staticAuditSampled: 0, staticAuditDisagreed: 0, isolatedMs: 0, wallMs: 0, testExecutions: 0, warmUnitMs: 0, warmArmedMs: 0, isolatedByCause: { static: 0, stopped: 0, unfinished: 0, rerun: 0, confirm: 0, flaky: 0 },
-    watchdogKills: 0, idleStalls: 0, deadlocks: 0, crashes: 0, canaryFiles: 0, pollutionRestarts: 0, diskWrites: 0, diskWritePaths: [], auditSampled: 0, auditDisagreed: 0, survivorsOverturned: 0, timeoutsOverturned: 0, compileErrors: 0, isolatedRuns: 0, reused: 0, flakyTests: 0, flakyMutants: 0, units: 0, serversSpawned: 0, serversReleased: 0,
+    watchdogKills: 0, idleStalls: 0, deadlocks: 0, crashes: 0, canaryFiles: 0, pollutionRestarts: 0, diskWrites: 0, diskWritePaths: [], auditSampled: 0, auditDisagreed: 0, survivorsOverturned: 0, timeoutsOverturned: 0, compileErrors: 0, isolatedRuns: 0, reused: 0, flakyTests: 0, flakyMutants: 0, units: 0, serversSpawned: 0, serversReleased: 0, watchdogGraced: 0,
   };
   let unitSeq = 0;
   const fileFor = (kind: string, ext: string): string => path.join(work, `${kind}-${String(unitSeq++)}.${ext}`);
@@ -609,6 +611,15 @@ export async function run(options: Options): Promise<RunResult> {
     // not one. 3x the covering test's dry-run time, not Stryker's 1.5x: at 1.5x, subprocess-heavy
     // burgee/paratext tests were stopped as false timeouts (2026-10-27).
     const warmBudget = (id: string): number => Math.min(MAX_TEST_MS, options.timeoutMS + Math.max(options.timeoutFactor, 3) * maxTestMs(id) + 250);
+    /**
+     * A blocked, not looping, warm run gets the 3x its re-run would get, in place: a kill there cost
+     * a server start and that re-run (compat-oracle, 2026-11-15: 25 stops in 12 minutes, every one
+     * busy at 0–6% CPU, its worker in `spawnSync`). Still within MAX_TEST_MS per test it runs.
+     */
+    const warmGrace = (id: string): number => {
+      const m = byId.get(id);
+      return Math.min(RERUN_SLACK * warmBudget(id), MAX_TEST_MS * Math.max(1, m ? allCovering(m).length : 1));
+    };
 
     // Files a mutant's covering tests live in, cheapest first (by the covering tests' time there).
     const fileOrder = new Map<string, string[]>();
@@ -783,7 +794,7 @@ export async function run(options: Options): Promise<RunResult> {
       writeFileSync(unit.plan as string, JSON.stringify({ tests: left, hitLimits, skip: [], specTests: [...specOf.keys()], runOnce: dry.runOnce, testMs: testMsOf(left) }));
       return true;
     };
-    await pool.drain(unitsForRound(toRun, (m) => fileOrder.get(m.id) ?? []), (_, id) => warmBudget(id), afterUnit, beforeUnit);
+    await pool.drain(unitsForRound(toRun, (m) => fileOrder.get(m.id) ?? []), (_, id) => warmBudget(id), afterUnit, { prepare: beforeUnit, grace: (_, id) => warmGrace(id) });
     stats.mutationMs = performance.now() - m0;
 
     // ── 5. Verdicts from the warm run ─────────────────────────────────────────────────────────
@@ -990,7 +1001,7 @@ export async function run(options: Options): Promise<RunResult> {
       // file that loads it, and most of those runs pass (10 static mutants on one line of
       // compat-oracle's hosts.ts cost 389 s that way, sc8-profile.md §6). The first round stays one
       // mutant at a time: that is where the kills are, and a kill splits a group.
-      for (const [i, round] of rounds.entries()) await staticPool.drain(unitsFor(round, i > 0), (_, id) => isolatedCapped(id, 2), afterStatic, keepUndecided);
+      for (const [i, round] of rounds.entries()) await staticPool.drain(unitsFor(round, i > 0), (_, id) => isolatedCapped(id, 2), afterStatic, { prepare: keepUndecided });
       const undecided: MutantResult[] = [];
       for (const m of items) {
         const k = killed.get(m.id);
@@ -1180,6 +1191,7 @@ export async function run(options: Options): Promise<RunResult> {
     }
     stats.isolatedMs = performance.now() - i0;
     stats.watchdogKills = pool.stats.killed;
+    stats.watchdogGraced = pool.stats.graced;
     stats.idleStalls = pool.stats.idle;
     for (const [id, paths] of writers) {
       const m = byId.get(id);

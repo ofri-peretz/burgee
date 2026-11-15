@@ -177,6 +177,7 @@ function whereItWent(r: RunResult): string[] {
   const lines: string[] = [];
   if (s.warmUnitMs > 0) lines.push(`  warm servers ran ${(s.warmUnitMs / MS_PER_S).toFixed(1)} s, ${(s.warmArmedMs / MS_PER_S).toFixed(1)} s of it inside test runs`);
   lines.push(...staticLine(r));
+  if (s.watchdogGraced > 0) lines.push(`  watchdog: ${String(s.watchdogGraced)} blocked run(s) given 3x their budget in place, not a server restart`);
   if (s.serversReleased > 0) lines.push(`  servers: ${String(s.serversSpawned)} started, ${String(s.serversReleased)} closed for sitting idle (resources.workerIdleTimeout)`);
   const sr = s.staticReaders;
   if (sr && sr.mutants > 0) {
