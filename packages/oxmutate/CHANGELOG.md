@@ -1,5 +1,11 @@
 # oxmutate
 
+## 2.5.1
+
+### Patch Changes
+
+- [#1588](https://github.com/ofri-peretz/burgee/pull/1588) [`8d16bf1`](https://github.com/ofri-peretz/burgee/commit/8d16bf1235fffb18bac1458bc86a475fb39464c3) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A deadlock is no longer called up to one sample (100 ms) before its confirm window has passed. The window opened at the start of the first quiet sample's span, which could begin before the wait was armed; it now opens no earlier than the wait itself.
+
 ## 2.5.0
 
 ### Minor Changes
