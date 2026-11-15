@@ -309,6 +309,11 @@ describe('a changed range with no mutant in it', () => {
     });
   });
 
+  it('keeps verdicts between runs under oxmutate when given a file for them (roadmap 3.2)', () => {
+    expect(oxmutateConfig({ ...o, incrementalFile: '.mutation/i.json' })).toMatchObject({ incremental: true, incrementalFile: '.mutation/i.json' });
+    expect(oxmutateConfig(o)).not.toHaveProperty('incremental');
+  });
+
   it('passes the lane with no score', () => {
     expect(summarise({ files: { 'src/types.ts': { mutants: [] } } })).toMatchObject({ score: null, undetected: [], silentSurvivors: [] });
   });
