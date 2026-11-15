@@ -1,5 +1,11 @@
 # oxmutate
 
+## 2.5.0
+
+### Minor Changes
+
+- [#1585](https://github.com/ofri-peretz/burgee/pull/1585) [`a53af14`](https://github.com/ofri-peretz/burgee/commit/a53af1423955163800358a656dea37331c94fe41) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `static.readers: 'on'` (`oxmutate run --static-readers`): each static mutant runs only in the test files that read its value, as the tracking dry run of `static.readers: 'report'` found them. A value it cannot follow keeps every file that loads its module. It is a heuristic, off by default: one survivor in twenty runs again in every loading file, and one that fails there is reported Killed and the run exits 1. On a slice of a data-heavy file it took a run from 4,185 s to 1,169 s with every stable verdict unchanged.
+
 ## 2.4.0
 
 ### Minor Changes
