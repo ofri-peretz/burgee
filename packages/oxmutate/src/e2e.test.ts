@@ -243,6 +243,22 @@ describe.skipIf(!native || !existsSync(bin) || !nightly)('static survivors armed
     expect(off.stats['staticReaders']).toBeUndefined();
   });
 
+  it('static.readers in use gives every mutant the verdict it gets in every loader, and the audit agrees', () => {
+    for (const [name, file] of [['static-readers', 'src/hosts.ts'], ['static-group', 'src/table.ts'], ['static-const', 'src/limits.ts']] as const) {
+      const off = groupRun(name, file, []);
+      const on = groupRun(name, file, ['--static-readers'], { OXMUTATE_STATIC_AUDIT: 'all' });
+      expect(off.verdicts.length).toBeGreaterThan(0);
+      expect(on.verdicts).toEqual(off.verdicts);
+      expect(on.status).toBe(0);
+    }
+    const on = groupRun('static-readers', 'src/hosts.ts', ['--static-readers'], { OXMUTATE_STATIC_AUDIT: 'all' });
+    const sr = on.stats['staticReaders'] as unknown as { readerTests: number; loaderTests: number; auditSampled: number; auditDisagreed: number };
+    // It ran fewer tests than every loader holds, and audited the survivors that ran in fewer files.
+    expect(sr.readerTests).toBeLessThan(sr.loaderTests);
+    expect(sr.auditSampled).toBeGreaterThan(0);
+    expect(sr.auditDisagreed).toBe(0);
+  });
+
   it('a pair that hides each other is found by the audit: both Killed, and the run fails', () => {
     const alone = groupRun('static-mask', 'src/pair.ts', []);
     // Lines 3 and 4 are the pair.

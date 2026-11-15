@@ -35,6 +35,11 @@ function staticBudgetOf(ms: unknown): number | undefined {
 /** Why a static mutant is Ignored when `static.budgetMs` ran out before it was decided; the summary counts them by it. */
 export const STATIC_BUDGET_REASON = 'static mutant (static budget spent)';
 
+/** `static.readers`: `'report'` or `'on'` exactly; anything else is off. */
+function staticReadersOf(readers: unknown): Options['staticReaders'] {
+  return readers === 'report' || readers === 'on' ? readers : 'off';
+}
+
 /** Why a static mutant is Ignored under `ignoreStatic`; the summary counts them by it. */
 export const IGNORE_STATIC_REASON = 'static mutant (ignoreStatic)';
 
@@ -65,8 +70,11 @@ export interface Options {
    * `static.readers: 'report'`: one more dry run, with every module-level literal reporting which
    * tests read each of its properties, and a summary line of how many tests the static phase would
    * run if each static mutant ran only where its value is read (roadmap 2.4). Changes no verdict.
+   * `'on'`: the same dry run, and then each static mutant runs only in the files that read its
+   * value. A heuristic: one survivor in twenty is run again in every file that loads it, and one
+   * that fails there is reported Killed and fails the run.
    */
-  staticReaders: 'off' | 'report';
+  staticReaders: 'off' | 'report' | 'on';
   strykerCompat: boolean;
   reporters: string[];
   jsonReport: string;
@@ -277,7 +285,7 @@ export async function loadOptions(root: string, overrides: Partial<Options> = {}
     ignoreStatic: raw['ignoreStatic'] === true,
     staticGroup: staticGroupOf((raw['static'] as { group?: unknown } | undefined)?.group),
     staticBudgetMs: staticBudgetOf((raw['static'] as { budgetMs?: unknown } | undefined)?.budgetMs),
-    staticReaders: (raw['static'] as { readers?: unknown } | undefined)?.readers === 'report' ? 'report' : 'off',
+    staticReaders: staticReadersOf((raw['static'] as { readers?: unknown } | undefined)?.readers),
     strykerCompat: raw['strykerCompat'] === true,
     reporters: (raw['reporters'] as string[] | undefined) ?? ['clear-text', 'json'],
     jsonReport: path.resolve(root, json.fileName ?? 'reports/mutation/mutation.json'),

@@ -73,6 +73,7 @@ function overridesFrom(o: Record<string, unknown>, root: string): Partial<Option
   if (typeof o['staticGroup'] === 'number') overrides.staticGroup = Math.max(1, Math.floor(o['staticGroup']));
   if (typeof o['staticBudget'] === 'number' && o['staticBudget'] >= 1) overrides.staticBudgetMs = Math.floor(o['staticBudget']);
   if (o['reportStaticReaders'] === true) overrides.staticReaders = 'report';
+  if (o['staticReaders'] === true) overrides.staticReaders = 'on';
   if (o['incremental'] === true) overrides.incremental = true;
   if (typeof o['flakyReruns'] === 'number') overrides.flakyReruns = o['flakyReruns'];
   if (typeof o['reporter'] === 'string') overrides.reporters = o['reporter'].split(',').map((s) => s.trim());
@@ -103,6 +104,7 @@ const runCommand = defineCommand({
     ignoreStatic: { type: 'boolean', description: 'skip static mutants (module-level code): faster, and the score leaves them out' },
     staticGroup: { type: 'number', description: 'arm this many static mutants together in a file that is not their first (default 1; a heuristic, audited)' },
     staticBudget: { type: 'number', description: 'the most the static phase may take, ms; static mutants still undecided then are left out of the score' },
+    staticReaders: { type: 'boolean', description: 'run each static mutant only in the test files that read its value (a heuristic, audited)' },
     reportStaticReaders: { type: 'boolean', description: 'one more dry run that reports how many tests static mutants would need if each ran only where its value is read; changes no verdict' },
     incremental: { type: 'boolean', description: 'reuse verdicts whose source and covering tests did not change' },
     flakyReruns: { type: 'number', description: 're-runs for verdicts with nondeterministic tests (default 2; 0 disables)' },
@@ -132,6 +134,10 @@ const runCommand = defineCommand({
     const weakened = result.frozen?.weakened ?? [];
     if (weakened.length) {
       stderr.write(`oxmutate: the change weakened its tests: ${String(weakened.length)} mutant(s) the tests at ${result.frozen?.base ?? ''} detect now survive (${weakened.slice(0, WEAKENED_SHOWN).map((w) => `${w.file}:${String(w.line)} ${w.mutatorName}`).join('; ')}). fix: restore the assertions the change removed, or replace them with ones that kill these mutants\n`);
+      data['exitCode'] = ExitCode.RUNTIME;
+    }
+    if ((result.stats.staticReaders?.auditDisagreed ?? 0) > 0) {
+      stderr.write(`oxmutate: ${String(result.stats.staticReaders?.auditDisagreed ?? 0)} static mutant(s) that survived the files reading their value were killed in a file that loads it; they are reported Killed. fix: run without --static-readers; a test reads the value through a path the tracking does not see\n`);
       data['exitCode'] = ExitCode.RUNTIME;
     }
     if (result.stats.staticAuditDisagreed > 0) {

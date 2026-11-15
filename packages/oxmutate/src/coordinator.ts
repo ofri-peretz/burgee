@@ -105,7 +105,7 @@ export interface RunStats {
    * loads each one's module (what the static phase runs), and the tests of only the files that read
    * its value. A mutant whose value is untracked, or read while a module loaded, counts its loaders.
    */
-  staticReaders?: { mutants: number; loaderTests: number; readerTests: number; fellBack: number; dryRunMs: number } | undefined;
+  staticReaders?: { mutants: number; loaderTests: number; readerTests: number; fellBack: number; dryRunMs: number; auditSampled?: number; auditDisagreed?: number } | undefined;
   /** The first few paths those writes touched, so a suite's own scratch in a tracked folder can be told from a mutant's write. */
   diskWritePaths: string[];
   /** Survivors of the warm run that a whole-file re-run killed (cross-test effects). */
@@ -242,6 +242,10 @@ const verdictOptions = (o: Options): unknown => ({
  * (2026-10-30). Smaller stays better for a pollution restart, which re-runs the rest of a unit.
  */
 const UNIT_PAIRS = 400;
+
+/** `static.readers: 'on'`: the survivors run again in every loading file, one in twenty, as `static.group`'s audit picks (runner.ts). */
+const READERS_AUDIT_EVERY = 20;
+const auditedReader = (id: string): boolean => env['OXMUTATE_STATIC_AUDIT'] === 'all' || [...id].reduce((sum, c) => sum + (c.codePointAt(0) ?? 0), 0) % READERS_AUDIT_EVERY === 0;
 /** Killed and Timeout are both detected: the audit compares what the score counts. */
 const detected = (s: Status | undefined): boolean => s === 'Killed' || s === 'Timeout';
 
@@ -453,8 +457,8 @@ export async function run(options: Options): Promise<RunResult> {
     // takes the dry pool. Its verdicts are not used; a test that fails only here (a Proxy it did not
     // expect) makes every static mutant count its loaders.
     const r0 = performance.now();
-    if (options.staticReaders === 'report' && trackedIds.size > 0) progress.phase('dry run with reads tracked (static.readers)');
-    const tracking = options.staticReaders === 'report' && trackedIds.size > 0 ? await dryRun(true) : undefined;
+    if (options.staticReaders !== 'off' && trackedIds.size > 0) progress.phase('dry run with reads tracked (static.readers)');
+    const tracking = options.staticReaders !== 'off' && trackedIds.size > 0 ? await dryRun(true) : undefined;
     const readersDryRunMs = performance.now() - r0;
     const failing = dry.tests.filter((t) => t.state === 'fail');
     if (failing.length) throw new InstrumentFault(`${String(failing.length)} test(s) fail with no mutant active, so no verdict can be trusted: ${failing.slice(0, 5).map((t) => t.name).join('; ')}. fix: make the suite pass first`);
@@ -844,28 +848,31 @@ export async function run(options: Options): Promise<RunResult> {
      * file current (a module copying the value while it loaded) or an untracked value keeps every
      * loader, and so does every mutant when the tracking run failed a test the first run passed.
      */
+    const readerFiles = new Map<string, Set<string>>();
+    const readsTracked = tracking !== undefined && !tracking.tests.some((t) => t.state === 'fail');
+    for (const [key, ids] of Object.entries(tracking?.reads.perTest ?? {})) {
+      const file = key.startsWith(FILE_KEY) ? key.slice(FILE_KEY.length) : testInfo.get(key)?.file;
+      if (!file) continue;
+      for (const id of Object.keys(ids)) (readerFiles.get(id) ?? readerFiles.set(id, new Set()).get(id))?.add(file);
+    }
+    /** The loaders that read this static mutant's value, in `filesFor`'s order; undefined when that cannot be known. */
+    const readersFor = (m: MutantResult): string[] | undefined =>
+      readsTracked && trackedIds.has(m.id) && !(m.id in (tracking?.reads.static ?? {})) ? filesFor(m).filter((f) => readerFiles.get(m.id)?.has(f)) : undefined;
+    /** `static.readers: 'on'`: a static mutant's files are its readers when they are known. */
+    const staticFilesFor = (m: MutantResult): string[] => (options.staticReaders === 'on' ? readersFor(m) ?? filesFor(m) : filesFor(m));
     const readersOf = (items: MutantResult[]): { mutants: number; loaderTests: number; readerTests: number; fellBack: number } => {
       const testsIn = new Map<string, number>();
       for (const t of dry.tests) testsIn.set(t.file, (testsIn.get(t.file) ?? 0) + 1);
       const sum = (files: Iterable<string>): number => [...files].reduce((n, f) => n + (testsIn.get(f) ?? 0), 0);
-      const reads = tracking?.reads ?? { static: {}, perTest: {} };
-      const broken = tracking?.tests.some((t) => t.state === 'fail') ?? true;
-      const readerFiles = new Map<string, Set<string>>();
-      for (const [key, ids] of Object.entries(reads.perTest)) {
-        const file = key.startsWith(FILE_KEY) ? key.slice(FILE_KEY.length) : testInfo.get(key)?.file;
-        if (!file) continue;
-        for (const id of Object.keys(ids)) (readerFiles.get(id) ?? readerFiles.set(id, new Set()).get(id))?.add(file);
-      }
       let loaderTests = 0;
       let readerTests = 0;
       let fellBack = 0;
       for (const m of items) {
         const loaders = filesFor(m);
+        const readers = readersFor(m);
         loaderTests += sum(loaders);
-        if (broken || !trackedIds.has(m.id) || m.id in reads.static) {
-          fellBack++;
-          readerTests += sum(loaders);
-        } else readerTests += sum(loaders.filter((f) => readerFiles.get(m.id)?.has(f)));
+        if (!readers) fellBack++;
+        readerTests += sum(readers ?? loaders);
       }
       return { mutants: items.length, loaderTests, readerTests, fellBack };
     };
@@ -896,7 +903,7 @@ export async function run(options: Options): Promise<RunResult> {
      * Static mutants decided in live workers, one unit per (test file, batch of its static mutants),
      * on a pool that inlines dependencies. Returns the mutants this path could not decide.
      */
-    const decideStaticLive = async (items: MutantResult[]): Promise<MutantResult[]> => {
+    const decideStaticLive = async (items: MutantResult[], filesOfMutant: (m: MutantResult) => string[] = staticFilesFor): Promise<MutantResult[]> => {
       if (items.length === 0) return [];
       const STATIC_BATCH = 25;
       /** Units of up to STATIC_BATCH mutants per test file, for the files each mutant gets this round. */
@@ -961,7 +968,7 @@ export async function run(options: Options): Promise<RunResult> {
       // every loading file ran a mutant at once, and a kill in one did not spare the others: 41 tests a
       // static kill on burgee/controlroom against Stryker's 33.6 (2026-10-30).
       const open = (m: MutantResult): boolean => !killed.has(m.id) && !back.has(m.id);
-      const rounds = [(m: MutantResult): string[] => filesFor(m).slice(0, 1), (m: MutantResult): string[] => (open(m) ? filesFor(m).slice(1) : [])];
+      const rounds = [(m: MutantResult): string[] => filesOfMutant(m).slice(0, 1), (m: MutantResult): string[] => (open(m) ? filesOfMutant(m).slice(1) : [])];
       // the mutant's run and the unarmed canary after it
       // The second round is where a group pays: a survivor of its likeliest file runs in every other
       // file that loads it, and most of those runs pass (10 static mutants on one line of
@@ -975,7 +982,7 @@ export async function run(options: Options): Promise<RunResult> {
           m.status = timedOut.has(m.id) && !k.killedBy.length ? 'Timeout' : 'Killed';
           m.killedBy = [...new Set(k.killedBy)];
           m.testsCompleted = ran.get(m.id) ?? 0;
-        } else if (!back.has(m.id) && filesFor(m).every((f) => passed.get(m.id)?.has(f))) {
+        } else if (!back.has(m.id) && filesOfMutant(m).every((f) => passed.get(m.id)?.has(f))) {
           m.status = 'Survived';
           m.testsCompleted = ran.get(m.id) ?? 0;
         } else if (spent()) {
@@ -1035,6 +1042,16 @@ export async function run(options: Options): Promise<RunResult> {
     if (tracking) stats.staticReaders = { ...readersOf(staticMutants), dryRunMs: readersDryRunMs };
     const s0 = performance.now();
     const staticBack = env['OXMUTATE_ISOLATE_STATIC'] ? staticMutants : await decideStaticLive(staticMutants);
+    // `static.readers: 'on'`: one survivor in twenty that ran in fewer files than load its module
+    // runs again in all of them. One that fails there is Killed, and the run fails (cli.ts).
+    if (options.staticReaders === 'on' && stats.staticReaders) {
+      const sampled = staticMutants.filter((m) => m.status === 'Survived' && staticFilesFor(m).length < filesFor(m).length && auditedReader(m.id));
+      for (const m of sampled) m.status = 'NoCoverage';
+      await decideStaticLive(sampled, filesFor);
+      stats.staticReaders.auditSampled = sampled.length;
+      stats.staticReaders.auditDisagreed = sampled.filter((m) => m.status === 'Killed' || m.status === 'Timeout').length;
+      for (const m of sampled) if (m.status === 'NoCoverage') m.status = 'Survived';
+    }
     stats.staticMs = performance.now() - s0;
     stats.isolatedByCause.static = staticBack.length;
     isolatedQueue.push(...staticBack);

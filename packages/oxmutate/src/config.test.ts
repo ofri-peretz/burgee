@@ -146,10 +146,10 @@ describe('options from a config file', () => {
     });
   });
 
-  it("static.readers is 'report' only when the config says exactly that; anything else is off", async () => {
-    const values: unknown[] = ['report', 'Report', 'on', true, 1, undefined];
+  it("static.readers is 'report' or 'on' only when the config says exactly that; anything else is off", async () => {
+    const values: unknown[] = ['report', 'on', 'Report', 'yes', true, 1, undefined];
     const read = await Promise.all(values.map(async (readers) => (await loadOptions(project({ 'oxmutate.config.json': { static: { readers } } }))).staticReaders));
-    expect(read).toEqual(['report', 'off', 'off', 'off', 'off', 'off']);
+    expect(read).toEqual(['report', 'on', 'off', 'off', 'off', 'off', 'off']);
     expect((await loadOptions(project({ 'oxmutate.config.json': {} }))).staticReaders).toBe('off');
     expect((await loadOptions(project({ 'oxmutate.config.json': {} }), { staticReaders: 'report' })).staticReaders).toBe('report');
   });
