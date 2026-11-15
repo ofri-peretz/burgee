@@ -166,6 +166,14 @@ describe('confirmStep: a deadlock is called once the wait has been quiet for the
     expect(confirmStep({ quietSince: undefined, quiet: true, now: 1000, span: 100, confirmMs: 500 })).toEqual({ quietSince: 900 });
     expect(confirmStep({ quietSince: 900, quiet: true, now: 1399, span: 100, confirmMs: 500 })).toEqual({ quietSince: 900 });
   });
+  it('never opens the window before the wait was armed: a span that began earlier belongs to no wait', () => {
+    // Armed at 950, first sample at 1000 over a span from 900: the window opens at 950, not 900.
+    expect(confirmStep({ quietSince: undefined, quiet: true, now: 1000, span: 100, confirmMs: 500, start: 950 })).toEqual({ quietSince: 950 });
+    expect(confirmStep({ quietSince: 950, quiet: true, now: 1449, span: 100, confirmMs: 500, start: 950 })).toEqual({ quietSince: 950 });
+    expect(confirmStep({ quietSince: 950, quiet: true, now: 1450, span: 100, confirmMs: 500, start: 950 })).toEqual({ quietSince: 950, deadlockMs: 500 });
+    // Armed before the span began: the span's own start stands.
+    expect(confirmStep({ quietSince: undefined, quiet: true, now: 1000, span: 100, confirmMs: 500, start: 850 })).toEqual({ quietSince: 900 });
+  });
   it('calls a deadlock the moment the window is full, with the age of the wait', () => {
     expect(confirmStep({ quietSince: 900, quiet: true, now: 1400, span: 100, confirmMs: 500 })).toEqual({ quietSince: 900, deadlockMs: 500 });
   });

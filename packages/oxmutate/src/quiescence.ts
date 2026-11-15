@@ -238,12 +238,14 @@ export function takeFloor(): void {
 
 /**
  * One sample's step through the confirm window. A loud sample restarts it; a quiet one opens it at
- * the start of its own span (the wait was already quiet then), and once it has been open
- * `confirmMs`, the wait is a deadlock of that age.
+ * the start of its own span (the wait was already quiet then), but never before `start`, when the
+ * wait was armed: a span that began before it belongs to no wait. Once open `confirmMs`, the wait
+ * is a deadlock of that age. Without the bound, a call came up to one sample early: 999.6 ms into
+ * a 1,000 ms window on CI (run 43675876743, 2026-11-15).
  */
-export function confirmStep(o: { quietSince: number | undefined; quiet: boolean; now: number; span: number; confirmMs: number }): { quietSince: number | undefined; deadlockMs?: number } {
+export function confirmStep(o: { quietSince: number | undefined; quiet: boolean; now: number; span: number; confirmMs: number; start?: number }): { quietSince: number | undefined; deadlockMs?: number } {
   if (!o.quiet) return { quietSince: undefined };
-  const since = o.quietSince ?? o.now - o.span;
+  const since = o.quietSince ?? Math.max(o.now - o.span, o.start ?? -Infinity);
   const open = o.now - since;
   return open >= o.confirmMs ? { quietSince: since, deadlockMs: open } : { quietSince: since };
 }
@@ -253,7 +255,7 @@ export function confirmStep(o: { quietSince: number | undefined; quiet: boolean;
  * deadlock and every wait stays with the wall-clock watchdog, as before this module.
  */
 export function watch(): Watch {
-  let armed: { reject: (e: unknown) => void; confirmMs: number } | undefined;
+  let armed: { reject: (e: unknown) => void; confirmMs: number; start: number } | undefined;
   let quietSince: number | undefined;
   let self = threadCpuUsage?.();
   let all = process.cpuUsage();
@@ -277,7 +279,7 @@ export function watch(): Watch {
     };
     // Stryker disable next-line all: diagnostics behind OXMUTATE_DEBUG_QUIET; no verdict reads them
     if (env['OXMUTATE_DEBUG_QUIET']) stderr.write(`quiet? ${JSON.stringify(reading)} res=${JSON.stringify([...resources()])} floor=${JSON.stringify([...floor])}\n`);
-    const next = confirmStep({ quietSince, quiet: quiet(reading), now, span, confirmMs: armed.confirmMs });
+    const next = confirmStep({ quietSince, quiet: quiet(reading), now, span, confirmMs: armed.confirmMs, start: armed.start });
     quietSince = next.quietSince;
     if (next.deadlockMs !== undefined) {
       const { reject } = armed;
@@ -292,7 +294,7 @@ export function watch(): Watch {
       if (!threadCpuUsage) return pending;
       const deadlock = new Promise<never>((_, reject) => {
         quietSince = undefined;
-        armed = { reject, confirmMs: Math.max(MIN_CONFIRM_MS, confirmMs) };
+        armed = { reject, confirmMs: Math.max(MIN_CONFIRM_MS, confirmMs), start: realNow() };
       });
       try {
         return await Promise.race([pending, deadlock]);
