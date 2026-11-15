@@ -24,10 +24,10 @@ through `runBurgee` from `burgee/testing`.
 | R4 | `runYargs(build, RunOptions)` takes a builder | `compat-oracle/drivers/yargs` `runYargs(build, opts, factory = yargs)` | `packages/compat-oracle/src/drivers/yargs.test.ts` › "renders --help itself, without parsing", › "is USAGE with nothing printed when yargs fails without a message" | restated |
 | R5 | the host never exits the process or writes to the real streams | yes, both drivers and `fakeRuntime` | `packages/compat-oracle/src/drivers/commander.test.ts` › "never lets commander reach the real process: output and exit are captured"; `packages/compat-oracle/src/drivers/yargs.test.ts` › "never lets yargs reach the real process: output, failures and exit are captured"; `packages/burgee/src/testing-helpers.test.ts` › "exit unwinds with the code instead of ending the process" | held |
 | R6 | conformance suite over both demos, run by root `npm test` | `examples/conformance/src/*.test.ts` over five hosts; the package's `test` script runs under `turbo run test` | `examples/conformance/src/harness.test.ts` › "runs a command and captures stdout with exit OK" (`describe.each` over `HOSTS`) | restated |
-| R7 | `process.env` restored in `finally`, locked including a throwing run | yes | `packages/burgee/src/testing-helpers.test.ts` › "leaves process.env byte-identical after a run, even one that throws" | held |
+| R7 | `process.env` restored in `finally`, locked including a throwing run | yes | `packages/burgee/src/testing-helpers-env.test.ts` › "leaves process.env byte-identical after a run, even one that throws" | held |
 
 - **Verification section.** `packages/cli-core/src/runtime.lock.test.ts` was never created. Its two
-  assertions live in `packages/burgee/src/testing-helpers.test.ts` (the env swap) and
+  assertions live in `packages/burgee/src/testing-helpers-env.test.ts` (the env swap) and
   `packages/burgee/src/process-reference-lock.test.ts` (the grep lock, now one `runtime.ts`
   per package rather than one file overall). The perf lock "p95 under 20 ms over 50 runs" is
   restated to the relative bound held by `examples/conformance/src/harness.test.ts` › "is fast:

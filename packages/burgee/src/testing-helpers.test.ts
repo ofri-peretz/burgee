@@ -1,3 +1,5 @@
+import { Readable } from 'node:stream';
+
 import { describe, expect, it } from 'vitest';
 
 import { ExitCode } from './exit-code.js';
@@ -31,26 +33,40 @@ describe('fakeRuntime', () => {
   });
 });
 
-describe('swapEnv (R7 lock)', () => {
-  it('leaves process.env byte-identical after a run, even one that throws', () => {
-    const before = JSON.stringify(process.env);
-    const restore = swapEnv({ ONLY: 'this' });
+// The byte-for-byte R7 lock is `testing-helpers-env.test.ts`, which a mutation run skips
+// (`scripts/mutation.ts` says why). These hold what it does without depending on key order.
+describe('swapEnv, by value', () => {
+  it('swaps the real env in place for the injected one, and puts back every key and value', () => {
+    // A key of its own, so a restore that puts nothing back fails here even when the env this
+    // test inherited was already empty.
+    process.env.SWAP_ENV_KEPT = 'from before the swap';
     try {
-      expect(process.env.ONLY).toBe('this');
-      expect(process.env.PATH).toBeUndefined();
-      throw new Error('the run failed');
-    } catch {
-      // the harness restores in finally; so does this test
-    } finally {
+      const env = process.env;
+      const before = { ...process.env };
+      const restore = swapEnv({ ONLY: 'this' });
+      expect(process.env).toBe(env);
+      expect({ ...process.env }).toEqual({ ONLY: 'this' });
       restore();
+      expect(process.env).toBe(env);
+      expect({ ...process.env }).toEqual(before);
+      expect(process.env.SWAP_ENV_KEPT).toBe('from before the swap');
+      expect(process.env.ONLY).toBeUndefined();
+    } finally {
+      delete process.env.SWAP_ENV_KEPT;
     }
-    expect(JSON.stringify(process.env)).toBe(before);
   });
 
-  it('is a no-op without an env to inject', () => {
-    const before = JSON.stringify(process.env);
-    swapEnv(undefined)();
-    expect(JSON.stringify(process.env)).toBe(before);
+  it('without an env to inject, touches nothing and restores nothing', () => {
+    const before = { ...process.env };
+    const restore = swapEnv(undefined);
+    expect({ ...process.env }).toEqual(before);
+    process.env.SWAP_ENV_PROBE = 'set after the swap';
+    try {
+      restore();
+      expect(process.env.SWAP_ENV_PROBE).toBe('set after the swap');
+    } finally {
+      delete process.env.SWAP_ENV_PROBE;
+    }
   });
 });
 
@@ -188,5 +204,91 @@ describe('codeOf and stripAnsi', () => {
     ['an OSC 8 hyperlink', '\u001B]8;;https://example.com\u0007docs\u001B]8;;\u0007', 'docs'],
   ])('strips %s', (_what, input, expected) => {
     expect(stripAnsi(input)).toBe(expected);
+  });
+});
+
+/**
+ * The parts of the harness the cases above reach only on their happy path: the defaults a
+ * runtime starts from, every console method, a clock handed its callbacks out of order, and a
+ * failed run's envelope behind a blank stdout.
+ */
+describe('the harness, past its happy path', () => {
+  it('names the exit it unwinds with', () => {
+    const e = new RuntimeExit(ExitCode.CONFIG);
+    expect(e.name).toBe('RuntimeExit');
+    expect(e.message).toBe(`runtime.exit(${String(ExitCode.CONFIG)})`);
+  });
+
+  it('starts at the root, with an empty stdin that is a stream, and with no TTY unless asked', async () => {
+    const rt = fakeRuntime({ argv: [] });
+    expect(rt.cwd).toBe('/');
+    expect(rt.stdin).toBeInstanceOf(Readable);
+    let text = '';
+    for await (const chunk of rt.stdin) text += String(chunk);
+    expect(text).toBe('');
+    expect(rt.isTTY).toEqual({ stdin: false, stdout: false, stderr: false });
+    expect(fakeRuntime({ argv: [], stdin: 'x' }).stdin).toBeInstanceOf(Readable);
+  });
+
+  it('reads tty as all, none, or each stream it names', () => {
+    expect(fakeRuntime({ argv: [], tty: true }).isTTY).toEqual({ stdin: true, stdout: true, stderr: true });
+    expect(fakeRuntime({ argv: [], tty: false }).isTTY).toEqual({ stdin: false, stdout: false, stderr: false });
+    expect(fakeRuntime({ argv: [], tty: { stderr: true } }).isTTY).toEqual({ stdin: false, stdout: false, stderr: true });
+  });
+
+  it('routes every console method and puts every one back', () => {
+    const originals = { log: console.log, info: console.info, debug: console.debug, warn: console.warn, error: console.error };
+    const rt = fakeRuntime({ argv: [] });
+    const restore = captureConsole(rt);
+    try {
+      console.info('i');
+      console.debug('d');
+      console.warn('w');
+    } finally {
+      restore();
+    }
+    expect(rt.out).toEqual(['i\n', 'd\n']);
+    expect(rt.err).toEqual(['w\n']);
+    for (const m of ['log', 'info', 'debug', 'warn', 'error'] as const) expect(console[m]).toBe(originals[m]);
+  });
+
+  it('runs what falls due earliest first, whatever order it was scheduled in, and ties in that order', () => {
+    const clock = fakeClock();
+    const ran: string[] = [];
+    clock.schedule(() => ran.push('late'), 20);
+    clock.schedule(() => ran.push('early'), 10);
+    clock.schedule(() => ran.push('tie 1'), 15);
+    clock.schedule(() => ran.push('tie 2'), 15);
+    clock.schedule(() => ran.push('tie 3'), 15);
+    clock.tick(30);
+    expect(ran).toEqual(['early', 'tie 1', 'tie 2', 'tie 3', 'late']);
+  });
+
+  it('cancelling a callback that already ran leaves the others scheduled', () => {
+    const clock = fakeClock();
+    const cancel = clock.schedule(() => undefined, 1);
+    clock.schedule(() => undefined, 50);
+    clock.tick(1);
+    cancel();
+    expect(clock.pending()).toBe(1);
+  });
+
+  it('times the run from the moment it was handed', () => {
+    const r = finish(fakeRuntime({ argv: [] }), ExitCode.OK, performance.now());
+    expect(r.durationMs).toBeGreaterThanOrEqual(0);
+    expect(r.durationMs).toBeLessThan(60_000);
+  });
+
+  it('under --json, takes a failed run’s envelope from stderr when stdout is only whitespace', () => {
+    const rt = fakeRuntime({ argv: ['--json'] });
+    rt.out.push('\n');
+    rt.err.push('{"error":"x"}\nmore\n');
+    const r = finish(rt, ExitCode.USAGE, performance.now());
+    expect(r.json).toEqual({ error: 'x' });
+    expect(r.code).toBe(ExitCode.USAGE);
+  });
+
+  it('reads no exit code off null', () => {
+    expect(codeOf(null)).toBe(ExitCode.RUNTIME);
   });
 });
