@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 import type { ServerConfig, Unit } from './child.js';
 import { beatFile, classifyStall, CPU_WINDOW_MS, cpuShare, readBeat, type CpuSample, type Stall } from './heartbeat.js';
 import { markReader } from './progress-file.js';
-import { env, stderr } from './runtime.js';
+import { env, killGroup, serverGroups, stderr } from './runtime.js';
 
 const childJs = fileURLToPath(new URL('./child.js', import.meta.url));
 /** The tail of a server's stderr kept for an error message. */
@@ -65,7 +65,7 @@ class Server {
   exited = false;
 
   constructor(configFile: string, cwd: string, execArgv: string[], workDir: string) {
-    this.child = fork(childJs, [configFile], { cwd, stdio: ['ignore', 'ignore', 'pipe', 'ipc'], execArgv });
+    this.child = fork(childJs, [configFile], { cwd, stdio: ['ignore', 'ignore', 'pipe', 'ipc'], execArgv, detached: serverGroups });
     this.beat = beatFile(workDir, this.child.pid);
     this.child.stderr?.on('data', (d: Buffer) => (this.stderr = (this.stderr + d.toString()).slice(-STDERR_TAIL)));
     this.ready = new Promise((resolve) => {
@@ -121,7 +121,7 @@ class Server {
             const cpu = share === undefined ? '?' : `${String(Math.round(share * PERCENT))}%`;
             stderr.write(`oxmutate watchdog: stop ${id} after ${String(now - Number(since))} ms; ${stall}; beat ${Number.isFinite(beat.age) ? `${String(beat.age)} ms ago` : 'never'}${beat.inTest ? ' in a test' : ''}; cpu ${cpu} over ${String(CPU_WINDOW_MS)} ms\n`);
           }
-          this.child.kill('SIGKILL');
+          this.kill();
           finish({ killedFor: id, stall, stderr: this.stderr });
         }
       }, WATCHDOG_POLL_MS);
@@ -137,7 +137,12 @@ class Server {
   close(): void {
     if (this.exited) return;
     this.child.send({ type: 'close' });
-    setTimeout(() => this.child.kill('SIGKILL'), CLOSE_GRACE_MS).unref();
+    setTimeout(() => this.kill(), CLOSE_GRACE_MS).unref();
+  }
+
+  /** Kill the server and, where it leads a process group, every process its tests started. */
+  kill(): void {
+    if (!(serverGroups && this.child.pid !== undefined && killGroup(this.child.pid))) this.child.kill('SIGKILL');
   }
 }
 

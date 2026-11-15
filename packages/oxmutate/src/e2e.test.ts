@@ -382,6 +382,42 @@ it.skipIf(!native || !existsSync(bin))('leaves no server running when the coordi
   expect(left).toEqual([]);
 }, T6_CASE_MS);
 
+/** The pids of the children the spawn-child fixture's tests started, from their markers. */
+const childPids = (marks: string): number[] => markers(marks, 'child').map((f) => Number(f.slice('m.child-'.length)));
+
+// A SIGKILLed server's children were re-parented and lived on: compat-oracle's uvu runners, 8 in one
+// 12-minute warm phase (2026-11-15). A server leads its own process group, and a kill takes the group.
+it.skipIf(!native || !existsSync(bin) || process.platform === 'win32')('takes the processes a test started with a server the watchdog kills', async () => {
+  const dir = path.join(pkg, 'test/fixtures/spawn-child');
+  const marks = mkdtempSync(path.join(tmpdir(), 'oxmutate-children-'));
+  const r = spawnSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', path.join(dir, 'reports'), '--reporter', 'json'], {
+    cwd: dir,
+    stdio: 'ignore',
+    env: { ...process.env, OXMUTATE_E2E_MARKER: path.join(marks, 'm') },
+  });
+  const children = childPids(marks);
+  await until(() => !children.some(alive), GONE_MS);
+  const left = children.filter(alive);
+  for (const p of left) process.kill(p, 'SIGKILL');
+  discard(marks);
+  discard(path.join(dir, 'reports'));
+  expect(r.status).not.toBeNull();
+  expect(children.length, 'the mutant run started a child').toBeGreaterThan(0);
+  expect(left).toEqual([]);
+}, T6_CASE_MS);
+
+it.skipIf(!native || !existsSync(bin) || process.platform === 'win32')('takes the processes a test started with a server whose coordinator dies (T6)', async () => {
+  const { started, left, marks } = await t6Run('spawn-child', (m) => markers(m, 'child').length > 0);
+  const children = childPids(marks);
+  await until(() => !children.some(alive), GONE_MS);
+  const orphans = children.filter(alive);
+  for (const p of orphans) process.kill(p, 'SIGKILL');
+  discard(marks);
+  expect(started, 'a test started its child').toBe(true);
+  expect(left).toEqual([]);
+  expect(orphans).toEqual([]);
+}, T6_CASE_MS);
+
 it.skipIf(!native || !existsSync(bin) || !nightly)('confirms a watchdog stop with 3x the budget before reporting a timeout', () => {
   const slow = path.join(pkg, 'test/fixtures/slow');
   const reportDir = path.join(slow, 'reports');
