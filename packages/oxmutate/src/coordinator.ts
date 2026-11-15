@@ -120,6 +120,8 @@ export interface RunStats {
   flakyMutants: number;
   units: number;
   serversSpawned: number;
+  /** Servers closed for sitting idle past `resources.workerIdleTimeout`: memory given back before the run ended. */
+  serversReleased: number;
   /** Mutants whose Timeout their worker called itself, the wait able to end by nothing (quiescence.ts): no watchdog wait, no respawn. */
   deadlocks: number;
 }
@@ -328,11 +330,11 @@ export async function run(options: Options): Promise<RunResult> {
   const work = mkdtempSync(path.join(tmpdir(), 'oxmutate-'));
   const stats: RunStats = {
     files: 0, mutants: 0, instrumentMs: 0, dryRunMs: 0, mutationMs: 0, staticMs: 0, staticRecollections: 0, staticGroupRuns: 0, staticGroupSplits: 0, staticAuditSampled: 0, staticAuditDisagreed: 0, isolatedMs: 0, wallMs: 0, testExecutions: 0, warmUnitMs: 0, warmArmedMs: 0, isolatedByCause: { static: 0, stopped: 0, unfinished: 0, rerun: 0, confirm: 0, flaky: 0 },
-    watchdogKills: 0, idleStalls: 0, deadlocks: 0, crashes: 0, canaryFiles: 0, pollutionRestarts: 0, diskWrites: 0, diskWritePaths: [], auditSampled: 0, auditDisagreed: 0, survivorsOverturned: 0, timeoutsOverturned: 0, compileErrors: 0, isolatedRuns: 0, reused: 0, flakyTests: 0, flakyMutants: 0, units: 0, serversSpawned: 0,
+    watchdogKills: 0, idleStalls: 0, deadlocks: 0, crashes: 0, canaryFiles: 0, pollutionRestarts: 0, diskWrites: 0, diskWritePaths: [], auditSampled: 0, auditDisagreed: 0, survivorsOverturned: 0, timeoutsOverturned: 0, compileErrors: 0, isolatedRuns: 0, reused: 0, flakyTests: 0, flakyMutants: 0, units: 0, serversSpawned: 0, serversReleased: 0,
   };
   let unitSeq = 0;
   const fileFor = (kind: string, ext: string): string => path.join(work, `${kind}-${String(unitSeq++)}.${ext}`);
-  const pools: { close(): void; stats: { spawned: number } }[] = [];
+  const pools: { close(): void; stats: { spawned: number; released: number } }[] = [];
   const progress = startProgress(options.reporters, stderr);
   try {
     progress.phase('instrumenting');
@@ -417,7 +419,7 @@ export async function run(options: Options): Promise<RunResult> {
     const traceDirs: Record<string, string> = {};
     for (const oracle of options.specOracles) traceDirs[oracle.name] = await tracesFor(oracle, root, work);
     if (options.specOracles.length) env[SPEC_TRACES_ENV] = JSON.stringify(traceDirs);
-    const dryPool = createPool({ root, vitestConfig: options.vitestConfig, workers: options.concurrency, instrumentedMap: mapFile, nodeArgs: options.testRunnerNodeArgs }, 1, work, 'dry');
+    const dryPool = createPool({ root, vitestConfig: options.vitestConfig, workers: options.concurrency, instrumentedMap: mapFile, nodeArgs: options.testRunnerNodeArgs }, 1, { workDir: work, tag: 'dry', lifecycle: options.workers });
     pools.push(dryPool);
     const dryRun = async (trackReads = false): Promise<{ tests: (TestInfo & { state: string })[]; perTest: Record<string, Record<string, number>>; static: Record<string, number>; runOnce: string[]; modules: Record<string, string[]>; reads: { static: Record<string, number>; perTest: Record<string, Record<string, number>> } }> => {
       const unit: Unit = { mode: 'dry', files: [], results: fileFor('dry', 'jsonl'), progress: fileFor('dry', 'progress'), ...(trackReads && { trackReads: true }) };
@@ -698,7 +700,7 @@ export async function run(options: Options): Promise<RunResult> {
     const runaways = new Set<string>();
     const crashedIds = new Set<string>();
     // Dependencies inlined here too, so the static phase (5b) reuses these servers instead of starting its own.
-    const pool = createPool({ root, vitestConfig: options.vitestConfig, workers: 1, instrumentedMap: mapFile, nodeArgs: options.testRunnerNodeArgs, inlineDeps: true }, options.concurrency, work, 'mutant');
+    const pool = createPool({ root, vitestConfig: options.vitestConfig, workers: 1, instrumentedMap: mapFile, nodeArgs: options.testRunnerNodeArgs, inlineDeps: true }, options.concurrency, { workDir: work, tag: 'mutant', lifecycle: options.workers });
     pools.push(pool);
     /** Mutants decided on one verdict track: the tests', or a spec oracle's replay tests'. */
     const killedSoFar = (spec: boolean): Set<string> => new Set([...runaways, ...crashedIds, ...records.filter((r) => r.type === 'mutant' && r.status !== 'Survived' && Boolean(r.spec) === spec).map((r) => r.id ?? '')]);
@@ -1197,6 +1199,7 @@ export async function run(options: Options): Promise<RunResult> {
       return summarizeSpec({ oracle, modelledFiles: new Set(matchFiles(root, oracle.files)), traces, mutants: located, testName: (t) => testInfo.get(t)?.name ?? t, specMs: ms });
     });
     stats.serversSpawned = pools.reduce((s, p) => s + p.stats.spawned, 0);
+    stats.serversReleased = pools.reduce((s, p) => s + p.stats.released, 0);
     stats.wallMs = performance.now() - wall0;
     return {
       root,

@@ -153,20 +153,65 @@ export interface Pool {
     prepare?: (unit: Unit) => boolean,
   ): Promise<void>;
   close(): void;
-  /** `idle`: stops whose worker was idle (heartbeat.ts), of `killed`. */
-  stats: { spawned: number; killed: number; idle: number; crashed: number };
+  /** `idle`: stops whose worker was idle (heartbeat.ts), of `killed`. `released`: servers closed for sitting idle (`resources.workerIdleTimeout`). */
+  stats: { spawned: number; killed: number; idle: number; crashed: number; released: number };
 }
 
-export function createPool(config: ServerConfig, size: number, workDir: string, tag: string): Pool {
+/**
+ * How long servers live (`resources.warmWorkers` and `resources.workerIdleTimeout`). `warm`: a server keeps its Vitest between units,
+ * which is most of oxmutate's speed; `false` starts a fresh one per unit and closes it after, the
+ * least memory held. `idleTimeoutMs`: a server with no unit for this long is closed, and a new one
+ * starts if work comes later; 0 keeps every server until the run ends.
+ */
+export interface Lifecycle {
+  warm: boolean;
+  idleTimeoutMs: number;
+}
+
+/** How often idle servers are looked for. */
+const IDLE_CHECK_MS = 1000;
+
+/** Where a pool keeps its files and how its servers live. */
+export interface PoolPlace {
+  workDir: string;
+  tag: string;
+  lifecycle?: Lifecycle | undefined;
+}
+
+export function createPool(config: ServerConfig, size: number, place: PoolPlace): Pool {
+  const { workDir, tag } = place;
+  const lifecycle = place.lifecycle ?? { warm: true, idleTimeoutMs: 0 };
   const configFile = path.join(workDir, `server-${tag}.json`);
   writeFileSync(configFile, JSON.stringify(config));
-  const stats = { spawned: 0, killed: 0, idle: 0, crashed: 0 };
+  const stats = { spawned: 0, killed: 0, idle: 0, crashed: 0, released: 0 };
   const spawn = (): Server => {
     stats.spawned++;
     return new Server(configFile, config.root, config.nodeArgs ?? [], workDir);
   };
-  const servers: Server[] = Array.from({ length: size }, spawn);
-  let spare: Server | undefined = spawn();
+  // Cold: nothing waits; each unit starts its own server. Warm: the slots and a spare start now.
+  const servers: (Server | undefined)[] = Array.from({ length: size }, () => (lifecycle.warm ? spawn() : undefined));
+  let spare: Server | undefined = lifecycle.warm ? spawn() : undefined;
+  const idleSince: (number | undefined)[] = servers.map(() => performance.now());
+  let spareSince = performance.now();
+  const sweep = lifecycle.idleTimeoutMs > 0
+    ? setInterval(() => {
+        const now = performance.now();
+        for (const [slot, server] of servers.entries()) {
+          const since = idleSince[slot];
+          if (server && since !== undefined && now - since >= lifecycle.idleTimeoutMs) {
+            server.close();
+            servers.fill(undefined, slot, slot + 1);
+            stats.released++;
+          }
+        }
+        if (spare && now - spareSince >= lifecycle.idleTimeoutMs) {
+          spare.close();
+          spare = undefined;
+          stats.released++;
+        }
+      }, IDLE_CHECK_MS)
+    : undefined;
+  sweep?.unref();
   const tally = (outcome: UnitOutcome): void => {
     if (outcome.killedFor) stats.killed++;
     if (outcome.stall === 'idle') stats.idle++;
@@ -174,8 +219,29 @@ export function createPool(config: ServerConfig, size: number, workDir: string, 
   };
   const replacement = (): Server => {
     const next = spare ?? spawn();
-    spare = spawn();
+    spare = lifecycle.warm ? spawn() : undefined;
+    spareSince = performance.now();
     return next;
+  };
+  /** The slot's server, started if the slot has none (cold, or released while idle), and replaced if it never became ready. */
+  const serverFor = async (slot: number): Promise<Server> => {
+    idleSince.fill(undefined, slot, slot + 1);
+    let server = servers[slot] ?? spawn();
+    if (!(await server.ready)) {
+      server = replacement();
+      await server.ready;
+    }
+    servers.fill(server, slot, slot + 1);
+    return server;
+  };
+  /** After a unit: cold, its server goes with it; warm, a killed or crashed one is replaced. */
+  const settle = (slot: number, server: Server, outcome: UnitOutcome): void => {
+    const lost = Boolean(outcome.killedFor ?? outcome.crashed);
+    if (!lifecycle.warm) {
+      if (!lost) server.close();
+      servers.fill(undefined, slot, slot + 1);
+    } else if (lost) servers.fill(replacement(), slot, slot + 1);
+    idleSince.fill(performance.now(), slot, slot + 1);
   };
 
   return {
@@ -205,17 +271,10 @@ export function createPool(config: ServerConfig, size: number, workDir: string, 
               continue;
             }
             busy++;
-            let server = servers[slot] as Server;
-            if (!(await server.ready)) {
-              server = replacement();
-              servers[slot] = server;
-              await server.ready;
-            }
+            const server = await serverFor(slot);
             const outcome = await server.run(unit, (id) => budget(unit, id));
             tally(outcome);
-            if (outcome.killedFor || outcome.crashed) {
-              servers[slot] = replacement();
-            }
+            settle(slot, server, outcome);
             const more = await after(unit, outcome);
             queue.unshift(...more);
             busy--;
@@ -225,7 +284,8 @@ export function createPool(config: ServerConfig, size: number, workDir: string, 
       );
     },
     close() {
-      for (const s of servers) s.close();
+      if (sweep) clearInterval(sweep);
+      for (const s of servers) s?.close();
       spare?.close();
       spare = undefined;
     },
