@@ -191,7 +191,7 @@
     },
     "compat-oracle": {
       "status": "measured",
-      "floor": 91.1,
+      "floor": 86.2,
       "history": [
         {
           "floor": 91.4,
@@ -208,6 +208,12 @@
           "setOn": "2026-11-01",
           "why": "oxmutate 1.1.0 added NumericLiteral; the 2026-10-31 run at bd98f43aae measured 91.17% with it, below the 92% floor set without it. Restated to that run, rounded down to one decimal.",
           "decision": "D-20261101-mutation-floors-numericliteral-restate"
+        },
+        {
+          "floor": 86.2,
+          "setOn": "2026-11-15",
+          "why": "91.1 was set from oxmutate 1.1.0's run, whose hosts.ts kills were false (sc8-profile §6), on a different mutant set. After #1596 killed hosts.ts's real gaps, oxmutate 2.6.0 at eb995279a8 measured 86.22%, rounded down to one decimal.",
+          "decision": "D-20261115-compat-oracle-floor-restate"
         }
       ],
       "observations": [
@@ -250,6 +256,16 @@
           "survived": 1662,
           "noCoverage": 1,
           "minutes": 1063.3
+        },
+        {
+          "date": "2026-11-15",
+          "commit": "eb995279a8",
+          "score": 86.22,
+          "killed": 5611,
+          "timeout": 14,
+          "survived": 898,
+          "noCoverage": 1,
+          "minutes": 322.14
         }
       ]
     },
