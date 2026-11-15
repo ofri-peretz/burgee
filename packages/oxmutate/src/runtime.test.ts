@@ -67,11 +67,12 @@ const alive = (p: number): boolean => {
 describe.skipIf(!serverGroups)('killGroup', () => {
   it('kills a group leader and the children it started', async () => {
     // A leader that starts a child of its own and reports it: the child is the one a plain kill left behind.
-    const leader = spawn(process.execPath, ['-e', "const c = require('node:child_process').spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' }); console.log(c.pid); setInterval(() => {}, 1000);"], { detached: true, stdio: ['ignore', 'pipe', 'ignore'] });
+    // Both ignore SIGTERM, as a hung test's processes may: only SIGKILL ends them.
+    const stay = "process.on('SIGTERM', () => {}); setInterval(() => {}, 1000);";
+    const leader = spawn(process.execPath, ['-e', `const c = require('node:child_process').spawn(process.execPath, ['-e', ${JSON.stringify(stay)}], { stdio: 'ignore' }); console.log(c.pid); ${stay}`], { detached: true, stdio: ['ignore', 'pipe', 'ignore'] });
     const child = Number(await new Promise<string>((resolve) => leader.stdout.once('data', (d: Buffer) => resolve(String(d)))));
-    const gone = new Promise((resolve) => leader.once('exit', resolve));
     expect(killGroup(leader.pid ?? 0)).toBe(true);
-    await gone;
+    await vi.waitFor(() => expect(leader.exitCode !== null || leader.signalCode !== null).toBe(true), { timeout: 5000 });
     await vi.waitFor(() => expect(alive(child)).toBe(false), { timeout: 5000 });
   });
   it('answers false for a group that is not there', () => {
