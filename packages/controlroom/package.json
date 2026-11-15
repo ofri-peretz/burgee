@@ -1,6 +1,6 @@
 {
   "name": "controlroom",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Terminal UI (TUI) framework: keyboard-driven terminal screens, inline or full-screen, with a static projection for pipes, CI and --json. No dependency outside the burgee family; react and react-reconciler are optional peers, loaded only by controlroom/ink. Drop-in alternative to ink.",
   "license": "MIT",
   "author": "Ofri Peretz <ofriperetzdev@gmail.com>",
@@ -80,12 +80,12 @@
     "provenance": true
   },
   "dependencies": {
-    "caique": "^2.1.1",
-    "closeout": "^2.0.0",
-    "flagstaff": "^2.0.2",
-    "linegauge": "^2.2.0",
-    "paratext": "^2.0.0",
-    "roundel": "^2.0.0"
+    "caique": "^2.1.2",
+    "closeout": "^2.0.1",
+    "flagstaff": "^2.0.3",
+    "linegauge": "^2.2.1",
+    "paratext": "^2.0.1",
+    "roundel": "^2.0.1"
   },
   "peerDependencies": {
     "react": ">=18.0.0",

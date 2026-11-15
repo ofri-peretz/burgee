@@ -1,5 +1,14 @@
 # oxmutate
 
+## 2.6.1
+
+### Patch Changes
+
+- [#1593](https://github.com/ofri-peretz/burgee/pull/1593) [`effc01d`](https://github.com/ofri-peretz/burgee/commit/effc01dd3df903a7ab308e3de52a02571957daac) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The npm description opens with the words people search for (for example "Terminal colors", "Exit hook", "Config loader"), and the migration clause now reads "Drop-in alternative to …".
+- Updated dependencies [[`effc01d`](https://github.com/ofri-peretz/burgee/commit/effc01dd3df903a7ab308e3de52a02571957daac)]:
+  - bellpull@2.0.1
+  - burgee@2.1.3
+
 ## 2.6.0
 
 ### Minor Changes
