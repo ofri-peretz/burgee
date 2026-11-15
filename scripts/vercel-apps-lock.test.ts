@@ -414,21 +414,29 @@ describe('criterion 5: no workflow names an app', () => {
     }
   });
 
-  executes('maps the affected workspaces onto exactly their rows', () => {
-    const body = runBlock('affected', 'auto-deploy.yml', 'compute');
-    const affected = (workspaces: string[]): string[] => {
-      const json = JSON.stringify({ tasks: workspaces.map((p) => ({ package: p, task: 'build' })) });
-      const r = runStep(body, { BEFORE_SHA: 'a'.repeat(40) }, { npx: `printf '%s' '${json}'`, git: 'exit 0' });
-      expect(r.status, r.output).toBe(0);
-      return JSON.parse(/^apps=(.*)$/mu.exec(r.githubOutput)?.[1] ?? 'null') as string[];
-    };
-    const family = ROWS.find(([, row]) => row.familyPages)!;
-    const sibling = ROWS.find(([, row]) => !row.familyPages)!;
-    // The front door's workspace is a prefix of every other app's; a substring match would
-    // deploy all of them for a change to one.
+  // One step run per case: four bash runs in one case took 7.4 s alone and passed 30 s in the
+  // pre-push root suite, under the 5 s case budget's intent. Each assertion is unchanged.
+  const affected = (workspaces: string[]): string[] => {
+    const json = JSON.stringify({ tasks: workspaces.map((p) => ({ package: p, task: 'build' })) });
+    const r = runStep(runBlock('affected', 'auto-deploy.yml', 'compute'), { BEFORE_SHA: 'a'.repeat(40) }, { npx: `printf '%s' '${json}'`, git: 'exit 0' });
+    expect(r.status, r.output).toBe(0);
+    return JSON.parse(/^apps=(.*)$/mu.exec(r.githubOutput)?.[1] ?? 'null') as string[];
+  };
+  const family = ROWS.find(([, row]) => row.familyPages)!;
+  const sibling = ROWS.find(([, row]) => !row.familyPages)!;
+
+  // The front door's workspace is a prefix of every other app's; a substring match would
+  // deploy all of them for a change to one.
+  executes('maps the affected workspaces onto exactly their rows: the front door alone', () => {
     expect(affected([family[1].workspace])).toEqual([family[0]]);
+  });
+  executes('maps the affected workspaces onto exactly their rows: one sibling and its package', () => {
     expect(affected([sibling[1].workspace, sibling[1].package, 'compat-oracle'])).toEqual([sibling[0]]);
+  });
+  executes('maps the affected workspaces onto exactly their rows: no app', () => {
     expect(affected(['compat-oracle'])).toEqual([]);
+  });
+  executes('maps the affected workspaces onto exactly their rows: every app', () => {
     expect(affected(ROWS.map(([, row]) => row.workspace)).toSorted()).toEqual(ROWS.map(([key]) => key).toSorted());
   });
 });
