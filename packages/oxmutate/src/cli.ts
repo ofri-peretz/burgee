@@ -61,8 +61,18 @@ function summaryData(r: RunResult, written: string[]): Record<string | symbol, u
 /** How many weakened mutants the error line names; the JSON report has them all. */
 const WEAKENED_SHOWN = 3;
 
-function overridesFrom(o: Record<string, unknown>, root: string): Partial<Options> {
+/** The static phase's flags: `--static-group`, `--static-budget`, `--report-static-readers`, `--static-readers`. */
+function staticOverridesFrom(o: Record<string, unknown>): Partial<Options> {
   const overrides: Partial<Options> = {};
+  if (typeof o['staticGroup'] === 'number') overrides.staticGroup = Math.max(1, Math.floor(o['staticGroup']));
+  if (typeof o['staticBudget'] === 'number' && o['staticBudget'] >= 1) overrides.staticBudgetMs = Math.floor(o['staticBudget']);
+  if (o['reportStaticReaders'] === true) overrides.staticReaders = 'report';
+  if (o['staticReaders'] === true) overrides.staticReaders = 'on';
+  return overrides;
+}
+
+function overridesFrom(o: Record<string, unknown>, root: string): Partial<Options> {
+  const overrides: Partial<Options> = { ...staticOverridesFrom(o) };
   if (typeof o['since'] === 'string') overrides.since = o['since'];
   if (typeof o['frozenOracle'] === 'string') overrides.frozenOracle = o['frozenOracle'];
   if (typeof o['shard'] === 'string') overrides.shard = parseShard(o['shard']);
@@ -70,10 +80,6 @@ function overridesFrom(o: Record<string, unknown>, root: string): Partial<Option
   if (typeof o['mutantTimeout'] === 'number') overrides.timeoutMS = o['mutantTimeout'];
   if (o['strykerCompat'] === true) overrides.strykerCompat = true;
   if (o['ignoreStatic'] === true) overrides.ignoreStatic = true;
-  if (typeof o['staticGroup'] === 'number') overrides.staticGroup = Math.max(1, Math.floor(o['staticGroup']));
-  if (typeof o['staticBudget'] === 'number' && o['staticBudget'] >= 1) overrides.staticBudgetMs = Math.floor(o['staticBudget']);
-  if (o['reportStaticReaders'] === true) overrides.staticReaders = 'report';
-  if (o['staticReaders'] === true) overrides.staticReaders = 'on';
   if (o['incremental'] === true) overrides.incremental = true;
   if (typeof o['flakyReruns'] === 'number') overrides.flakyReruns = o['flakyReruns'];
   if (typeof o['reporter'] === 'string') overrides.reporters = o['reporter'].split(',').map((s) => s.trim());

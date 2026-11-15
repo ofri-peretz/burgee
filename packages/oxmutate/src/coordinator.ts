@@ -849,15 +849,18 @@ export async function run(options: Options): Promise<RunResult> {
      * loader, and so does every mutant when the tracking run failed a test the first run passed.
      */
     const readerFiles = new Map<string, Set<string>>();
-    const readsTracked = tracking !== undefined && !tracking.tests.some((t) => t.state === 'fail');
-    for (const [key, ids] of Object.entries(tracking?.reads.perTest ?? {})) {
+    // Known only when the tracking run happened and every test in it passed.
+    const trackingTests = tracking?.tests ?? [];
+    const readsTracked = tracking !== undefined && !trackingTests.some((t) => t.state === 'fail');
+    const trackedReads = tracking?.reads ?? { static: {}, perTest: {} };
+    for (const [key, ids] of Object.entries(trackedReads.perTest)) {
       const file = key.startsWith(FILE_KEY) ? key.slice(FILE_KEY.length) : testInfo.get(key)?.file;
       if (!file) continue;
       for (const id of Object.keys(ids)) (readerFiles.get(id) ?? readerFiles.set(id, new Set()).get(id))?.add(file);
     }
     /** The loaders that read this static mutant's value, in `filesFor`'s order; undefined when that cannot be known. */
     const readersFor = (m: MutantResult): string[] | undefined =>
-      readsTracked && trackedIds.has(m.id) && !(m.id in (tracking?.reads.static ?? {})) ? filesFor(m).filter((f) => readerFiles.get(m.id)?.has(f)) : undefined;
+      readsTracked && trackedIds.has(m.id) && !(m.id in trackedReads.static) ? filesFor(m).filter((f) => readerFiles.get(m.id)?.has(f)) : undefined;
     /** `static.readers: 'on'`: a static mutant's files are its readers when they are known. */
     const staticFilesFor = (m: MutantResult): string[] => (options.staticReaders === 'on' ? readersFor(m) ?? filesFor(m) : filesFor(m));
     const readersOf = (items: MutantResult[]): { mutants: number; loaderTests: number; readerTests: number; fellBack: number } => {
