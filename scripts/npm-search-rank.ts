@@ -71,21 +71,26 @@ interface Hit {
 }
 
 const SIZE = 250;
+const TOP = 10;
+const TRIES = 5;
 const PAUSE_MS = 800;
+const TIMEOUT_MS = 30_000;
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
-/** One search, retried when the API answers a burst with HTML instead of JSON. */
-async function search(text: string): Promise<Hit[]> {
-  const url = `https://registry.npmjs.org/-/v1/search?size=${SIZE}&text=${encodeURIComponent(text)}`;
-  for (let attempt = 1; ; attempt++) {
-    const res = await fetch(url);
-    const body = await res.text();
-    try {
-      return (JSON.parse(body) as { objects: Hit[] }).objects;
-    } catch {
-      if (attempt === 5) throw new Error(`npm search for "${text}" answered ${res.status} with no JSON after ${attempt} tries`);
-      await sleep(PAUSE_MS * 2 ** attempt);
-    }
+/**
+ * One search, retried with a growing pause when the API answers a burst with HTML instead of
+ * JSON. The searches run one after another, never side by side, because a burst is what trips it.
+ */
+async function search(text: string, attempt = 1): Promise<Hit[]> {
+  const url = `https://registry.npmjs.org/-/v1/search?size=${String(SIZE)}&text=${encodeURIComponent(text)}`;
+  const res = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+  const body = await res.text();
+  try {
+    return (JSON.parse(body) as { objects: Hit[] }).objects;
+  } catch {
+    if (attempt >= TRIES) throw new Error(`npm search for "${text}" answered ${String(res.status)} with no JSON after ${String(attempt)} tries`);
+    await sleep(PAUSE_MS * 2 ** attempt);
+    return search(text, attempt + 1);
   }
 }
 
@@ -97,25 +102,33 @@ interface Row {
   stale: boolean;
 }
 
+/** A stale row measures the old wording, so it says so instead of giving a rank. */
+function cell(r: Row): string {
+  if (r.stale) return 'stale';
+  return r.rank === undefined ? `>${String(SIZE)}` : `#${String(r.rank)}`;
+}
+
+async function measure(pkg: string, kind: Row['kind'], phrase: string, local: Map<string, string>): Promise<Row> {
+  const hits = await search(phrase);
+  const at = hits.findIndex((h) => h.package.name === pkg);
+  await sleep(PAUSE_MS);
+  return { pkg, kind, phrase, rank: at === -1 ? undefined : at + 1, stale: at !== -1 && hits[at]?.package.description !== local.get(pkg) };
+}
+
 async function main(): Promise<void> {
   const check = process.argv.includes('--check');
   const local = publishedDescriptions();
-  const rows: Row[] = [];
-  for (const [pkg, { primary, incumbent }] of Object.entries(PHRASES)) {
-    for (const [kind, phrase] of [['primary', primary], ['incumbent', incumbent]] as const) {
-      const hits = await search(phrase);
-      const at = hits.findIndex((h) => h.package.name === pkg);
-      const stale = at !== -1 && hits[at]?.package.description !== local.get(pkg);
-      rows.push({ pkg, kind, phrase, rank: at === -1 ? undefined : at + 1, stale });
-      await sleep(PAUSE_MS);
-    }
-  }
+  const queries = Object.entries(PHRASES).flatMap(([pkg, { primary, incumbent }]) => [
+    { pkg, kind: 'primary' as const, phrase: primary },
+    { pkg, kind: 'incumbent' as const, phrase: incumbent },
+  ]);
+  const rows = await queries.reduce<Promise<Row[]>>(async (done, q) => [...(await done), await measure(q.pkg, q.kind, q.phrase, local)], Promise.resolve([]));
   console.log('| Package | Kind | Phrase | Rank |\n| --- | --- | --- | --- |');
-  for (const r of rows) console.log(`| ${r.pkg} | ${r.kind} | ${r.phrase} | ${r.stale ? 'stale' : r.rank === undefined ? `>${SIZE}` : `#${r.rank}`} |`);
+  for (const r of rows) console.log(`| ${r.pkg} | ${r.kind} | ${r.phrase} | ${cell(r)} |`);
   if (!check) return;
-  const missed = rows.filter((r) => r.kind === 'primary' && (r.stale || r.rank === undefined || r.rank > 10));
+  const missed = rows.filter((r) => r.kind === 'primary' && (r.stale || r.rank === undefined || r.rank > TOP));
   if (missed.length > 0) {
-    console.error(`\n${missed.length} primary phrase(s) stale or outside the top 10: ${missed.map((r) => `${r.pkg} "${r.phrase}"`).join(', ')}`);
+    console.error(`\n${String(missed.length)} primary phrase(s) stale or outside the top ${String(TOP)}: ${missed.map((r) => `${r.pkg} "${r.phrase}"`).join(', ')}`);
     process.exitCode = 1;
   }
 }
