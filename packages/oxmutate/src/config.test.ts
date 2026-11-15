@@ -34,6 +34,7 @@ const defaults = (root: string): Options => ({
   ignoreStatic: false,
   staticGroup: 1,
   staticReaders: 'off',
+  workers: { warm: true, idleTimeoutMs: 30_000 },
   strykerCompat: false,
   reporters: ['clear-text', 'json'],
   jsonReport: path.join(root, 'reports/mutation/mutation.json'),
@@ -152,6 +153,23 @@ describe('options from a config file', () => {
     expect(read).toEqual(['report', 'on', 'off', 'off', 'off', 'off', 'off']);
     expect((await loadOptions(project({ 'oxmutate.config.json': {} }))).staticReaders).toBe('off');
     expect((await loadOptions(project({ 'oxmutate.config.json': {} }), { staticReaders: 'report' })).staticReaders).toBe('report');
+  });
+
+  it('resources: warm workers unless it says false, and an idle timeout of whole milliseconds, 30 s by default', async () => {
+    const values: unknown[] = [undefined, {}, { warmWorkers: false }, { warmWorkers: 'no' }, { workerIdleTimeout: 0 }, { workerIdleTimeout: 1500.7 }, { workerIdleTimeout: -1 }, { workerIdleTimeout: 'soon' }, 'cold'];
+    const read = await Promise.all(values.map(async (resources) => (await loadOptions(project({ 'oxmutate.config.json': resources === undefined ? {} : { resources } }))).workers));
+    expect(read).toEqual([
+      { warm: true, idleTimeoutMs: 30_000 },
+      { warm: true, idleTimeoutMs: 30_000 },
+      { warm: false, idleTimeoutMs: 30_000 },
+      { warm: true, idleTimeoutMs: 30_000 },
+      { warm: true, idleTimeoutMs: 0 },
+      { warm: true, idleTimeoutMs: 1500 },
+      { warm: true, idleTimeoutMs: 30_000 },
+      { warm: true, idleTimeoutMs: 30_000 },
+      { warm: true, idleTimeoutMs: 30_000 },
+    ]);
+    expect((await loadOptions(project({ 'oxmutate.config.json': { resources: { warmWorkers: false } } }))).unused).toEqual([]);
   });
 
   it('static.budgetMs is a whole number of milliseconds of at least one; anything else is no budget', async () => {

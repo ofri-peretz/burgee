@@ -175,6 +175,7 @@ function whereItWent(r: RunResult): string[] {
   const lines: string[] = [];
   if (s.warmUnitMs > 0) lines.push(`  warm servers ran ${(s.warmUnitMs / MS_PER_S).toFixed(1)} s, ${(s.warmArmedMs / MS_PER_S).toFixed(1)} s of it inside test runs`);
   lines.push(...staticLine(r));
+  if (s.serversReleased > 0) lines.push(`  servers: ${String(s.serversSpawned)} started, ${String(s.serversReleased)} closed for sitting idle (resources.workerIdleTimeout)`);
   const sr = s.staticReaders;
   if (sr && sr.mutants > 0) {
     const ratio = sr.readerTests > 0 ? `, ${(sr.loaderTests / sr.readerTests).toFixed(1)}x fewer` : '';

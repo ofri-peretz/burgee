@@ -259,6 +259,25 @@ describe.skipIf(!native || !existsSync(bin) || !nightly)('static survivors armed
     expect(sr.auditDisagreed).toBe(0);
   });
 
+  it('cold workers and an idle timeout give every mutant the warm verdict', () => {
+    const warm = groupRun('static-group', 'src/table.ts', ['--worker-idle-timeout', '0']);
+    const cold = groupRun('static-group', 'src/table.ts', ['--cold-workers']);
+    const quick = groupRun('static-group', 'src/table.ts', ['--worker-idle-timeout', '1']);
+    expect(warm.verdicts.length).toBeGreaterThan(0);
+    expect(cold.verdicts).toEqual(warm.verdicts);
+    expect(quick.verdicts).toEqual(warm.verdicts);
+    // A 1 ms idle timeout closes the spare and every server between phases.
+    expect(warm.stats['serversReleased']).toBe(0);
+    expect(quick.stats['serversReleased']).toBeGreaterThan(0);
+  });
+
+  it('cold workers start a server for each unit of ordinary mutants, with the warm verdicts', () => {
+    const warmUnits = groupRun('batch-leftover', 'src/registry.ts', ['--worker-idle-timeout', '0']);
+    const coldUnits = groupRun('batch-leftover', 'src/registry.ts', ['--cold-workers']);
+    expect(coldUnits.verdicts).toEqual(warmUnits.verdicts);
+    expect(coldUnits.stats['serversSpawned']).toBeGreaterThan(warmUnits.stats['serversSpawned'] ?? 0);
+  });
+
   it('a pair that hides each other is found by the audit: both Killed, and the run fails', () => {
     const alone = groupRun('static-mask', 'src/pair.ts', []);
     // Lines 3 and 4 are the pair.

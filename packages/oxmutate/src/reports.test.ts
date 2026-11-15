@@ -44,6 +44,7 @@ const stats = (s: Partial<RunStats> = {}): RunStats => ({
   flakyMutants: 0,
   units: 0,
   serversSpawned: 0,
+  serversReleased: 0,
   deadlocks: 0,
   diskWrites: 0,
   diskWritePaths: [],
@@ -246,6 +247,10 @@ describe('the terminal summary', () => {
     // A disagreement is counted, and a count that is missing reads as none.
     expect(textSummary(await run({ stats: stats({ staticReaders: { mutants: 1, loaderTests: 4, readerTests: 2, fellBack: 0, dryRunMs: 1, auditSampled: 3, auditDisagreed: 2 } }) }))).toContain('(in use, 3 survivor(s) audited in every loader, 2 disagreed,');
     expect(textSummary(await run({ stats: stats({ staticReaders: { mutants: 1, loaderTests: 4, readerTests: 2, fellBack: 0, dryRunMs: 1, auditSampled: 0 } }) }))).toContain('(in use, 0 survivor(s) audited in every loader, 0 disagreed,');
+    // Servers closed for sitting idle are named; none closed, no line.
+    expect(textSummary(await run({ stats: stats({ serversSpawned: 9, serversReleased: 1 }) }))).toContain('  servers: 9 started, 1 closed for sitting idle (resources.workerIdleTimeout)');
+    expect(textSummary(await run({ stats: stats({ serversSpawned: 9, serversReleased: 0 }) }))).not.toContain('closed for sitting idle');
+
     // One reader test is enough for a ratio.
     expect(textSummary(await run({ stats: stats({ staticReaders: { mutants: 1, loaderTests: 4, readerTests: 1, fellBack: 0, dryRunMs: 1 } }) }))).toContain('against 4 in every file that loads them, 4.0x fewer;');
     // No reader at all: no ratio. No static mutant: no line.
