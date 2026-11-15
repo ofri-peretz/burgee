@@ -18,14 +18,14 @@ day).
 Weekly runs on GitHub's `ubuntu-latest` (4 vCPU), `concurrency: 4` for both engines, `timeoutMS:
 10000` (`scripts/mutation.ts`, `PR_BUDGET`). Logs pulled with `gh run view --log`.
 
-| Package | Run | Engine | Commit | Mutants (graded / ignored) | Minutes | Phases (s) |
-| :-- | :-- | :-- | :-- | :-- | --: | :-- |
-| compat-oracle | 40074196603 (10-24) | Stryker 10.1.1 | `80c8eaa52b` | 4,620 / **1,298** | 57.7 | dry run 25 s; 952 static (21%, "85% of the time") |
-| compat-oracle | 40818077916 (10-29) | oxmutate 1.0.2 | `bd98…`-ish | 6,314 / 25 | 203.4 | dry 32.6 · warm 4,314.8 · isolated 7,855.6 |
-| compat-oracle | 41185206028 (10-31) | oxmutate 1.1.0 | `bd98f43aae` | 6,668 / 25 | 186.6 | dry 34.6 · warm 1,532.9 · isolated 2,913.0 · **unrecorded 6,713** |
-| caique | 40074196603 (10-24) | Stryker 10.1.1 | `80c8eaa52b` | 6,222 / 5 | 80.2 | 417 Timeout; 537 static (9%) |
-| caique | 40818077916 (10-29) | oxmutate 1.0.2 | — | 6,506 / 8 | 135.4 | dry 7.0 · warm 2,553.0 · isolated 5,561.6; 1,142 runaways |
-| caique | 41185206028 (10-31) | oxmutate 1.1.0 | `bd98f43aae` | 6,870 / 8 | 107.5 | dry 4.5 · warm 1,474.5 · isolated 4,781.3 · unrecorded 191; 825 runaways, 375 overturned at 3x |
+| Package       | Run                 | Engine         | Commit       | Mutants (graded / ignored) | Minutes | Phases (s)                                                                                     |
+| :------------ | :------------------ | :------------- | :----------- | :------------------------- | ------: | :--------------------------------------------------------------------------------------------- |
+| compat-oracle | 40074196603 (10-24) | Stryker 10.1.1 | `80c8eaa52b` | 4,620 / **1,298**          |    57.7 | dry run 25 s; 952 static (21%, "85% of the time")                                              |
+| compat-oracle | 40818077916 (10-29) | oxmutate 1.0.2 | `bd98…`-ish  | 6,314 / 25                 |   203.4 | dry 32.6 · warm 4,314.8 · isolated 7,855.6                                                     |
+| compat-oracle | 41185206028 (10-31) | oxmutate 1.1.0 | `bd98f43aae` | 6,668 / 25                 |   186.6 | dry 34.6 · warm 1,532.9 · isolated 2,913.0 · **unrecorded 6,713**                              |
+| caique        | 40074196603 (10-24) | Stryker 10.1.1 | `80c8eaa52b` | 6,222 / 5                  |    80.2 | 417 Timeout; 537 static (9%)                                                                   |
+| caique        | 40818077916 (10-29) | oxmutate 1.0.2 | —            | 6,506 / 8                  |   135.4 | dry 7.0 · warm 2,553.0 · isolated 5,561.6; 1,142 runaways                                      |
+| caique        | 41185206028 (10-31) | oxmutate 1.1.0 | `bd98f43aae` | 6,870 / 8                  |   107.5 | dry 4.5 · warm 1,474.5 · isolated 4,781.3 · unrecorded 191; 825 runaways, 375 overturned at 3x |
 
 Pollution restarts: 1,306 in 7 files on 10-29 (1.0.2) came from the file-level hook defect fixed
 in #1374. On 1.1.0 (10-31) they are 80 in 4 files on compat-oracle and 28 in 3 files on caique, a
@@ -41,7 +41,7 @@ Findings from the logs alone:
 2. **The 10-24 Stryker run graded a different, smaller mutant set on compat-oracle.** Stryker
    ignored 1,298 mutants and its report never named them. All of them are in `hosts.ts`. Four
    `// Stryker restore all` comments sat on the line above a row's closing `},`. Stryker reads a
-   directive only as the *leading comment of the next AST node* (`directive-bookkeeper.js`), and a
+   directive only as the _leading comment of the next AST node_ (`directive-bookkeeper.js`), and a
    comment above a `}` leads nothing. So each `// Stryker disable all` before it ran to the end of
    the file. Replaying that rule over oxmutate's mutants predicts 1,294 of them at `80c8eaa52b`
    (Stryker reported 1,298), and 1,374 at `bd98f43aae`. Those are static data rows, the most
@@ -79,13 +79,13 @@ The old path re-ran the hangs at 3x the isolated budget (about 34.5 s), where Vi
 `A` is the 1.1.0 build (`main`). Wall times on a laptop whose load average sat at 10–37
 (recorded per run), so they are indicative; verdicts are exact.
 
-| Run | Change | Wall (s) | Warm | Static | Isolated | Stops | Verdicts against A |
-| :-- | :-- | --: | --: | --: | --: | --: | :-- |
-| A | baseline 1.1.0 | 179.7 | 42.7 | 41.2 (unrecorded) | 87.8 | 13, 5 overturned | — |
-| C | wait in place past the budget while the worker is idle, warm *and* isolated, up to 3x | 375.1 | 251.5 | 41.2 | 63.1 | 6 | identical |
-| D | the same wait, isolated runs only | 169.3 | 46.8 | 40.7 | 76.8 | 9, 1 overturned | identical |
-| G | idle stop = Timeout at its budget, no 3x re-run | 139.9 | 49.4 | 42.4 | 35.7 | 13, 13 idle, 0 overturned | identical except **5 Killed → Timeout**, exactly the idle-stall set |
-| H | **G, idle only inside a test body, + grouped static re-collections (shipped)** | **119.3** | 48.4 | 36.4 | 29.0 | 13, 5 idle, 0 overturned | identical except the same **5 Killed → Timeout** |
+| Run | Change                                                                                |  Wall (s) |  Warm |            Static | Isolated |                     Stops | Verdicts against A                                                  |
+| :-- | :------------------------------------------------------------------------------------ | --------: | ----: | ----------------: | -------: | ------------------------: | :------------------------------------------------------------------ |
+| A   | baseline 1.1.0                                                                        |     179.7 |  42.7 | 41.2 (unrecorded) |     87.8 |          13, 5 overturned | —                                                                   |
+| C   | wait in place past the budget while the worker is idle, warm _and_ isolated, up to 3x |     375.1 | 251.5 |              41.2 |     63.1 |                         6 | identical                                                           |
+| D   | the same wait, isolated runs only                                                     |     169.3 |  46.8 |              40.7 |     76.8 |           9, 1 overturned | identical                                                           |
+| G   | idle stop = Timeout at its budget, no 3x re-run                                       |     139.9 |  49.4 |              42.4 |     35.7 | 13, 13 idle, 0 overturned | identical except **5 Killed → Timeout**, exactly the idle-stall set |
+| H   | **G, idle only inside a test body, + grouped static re-collections (shipped)**        | **119.3** |  48.4 |              36.4 |     29.0 |  13, 5 idle, 0 overturned | identical except the same **5 Killed → Timeout**                    |
 
 - **C was rejected: 2.1x slower, same verdicts.** Waiting out a 30 s test timeout in the warm run
   costs more than a stop. After a warm stop, the isolated run usually kills the mutant within
@@ -125,10 +125,10 @@ build is frozen at `2527452150` (#1427's head).
 
 ### caique, round 1 (stopped after two runs; not a result)
 
-| Run | Engine | Wall | Load: mean / median / max | Verdicts |
-| :-- | :-- | --: | :-- | :-- |
-| S1 | Stryker | 4,153 s (69.2 min) | 26.9 / 24.5 / 71.3 | killed 5,187 · timeout 457 · survived 744 · no coverage 2 |
-| O1 | oxmutate | 8,084 s (134.7 min) | 24.6 / 20.5 / 85.3 | killed 5,271 · timeout 366 · survived 747 · no coverage 2 · ignored 8 |
+| Run | Engine   |                Wall | Load: mean / median / max | Verdicts                                                              |
+| :-- | :------- | ------------------: | :------------------------ | :-------------------------------------------------------------------- |
+| S1  | Stryker  |  4,153 s (69.2 min) | 26.9 / 24.5 / 71.3        | killed 5,187 · timeout 457 · survived 744 · no coverage 2             |
+| O1  | oxmutate | 8,084 s (134.7 min) | 24.6 / 20.5 / 85.3        | killed 5,271 · timeout 366 · survived 747 · no coverage 2 · ignored 8 |
 
 Mean loads were within 1.1x of each other, so the pair is comparable. **oxmutate lost, 1.95x
 slower.** The verdicts agree: Timeout is now 366 against Stryker's 457, where 1.1.0 reported 15.
@@ -149,12 +149,12 @@ Same method as round 1, on the build with every fix: the real clock (#1436), com
 the server-start fix (#1444). Each run started below a 1-min load of 30; the load was sampled every
 minute.
 
-| Run | Engine | Wall | Load: mean / median / max | Verdicts |
-| :-- | :-- | --: | :-- | :-- |
-| S1 | Stryker | 4,835 s (80.6 min) | 29.4 / 29.9 / 48.4 | killed 5,210 · timeout 490 · survived 688 · no coverage 2 |
-| O1 | oxmutate | 3,147 s (52.5 min) | 24.1 / 17.6 / 69.6 | killed 5,267 · timeout 370 · survived 747 · no coverage 2 · ignored 8 |
-| O2 | oxmutate | 3,143 s (52.4 min) | 35.7 / 38.7 / 71.1 | — |
-| S2 | Stryker | not run | — | stopped by the owner at about 35 min, before it finished |
+| Run | Engine   |               Wall | Load: mean / median / max | Verdicts                                                              |
+| :-- | :------- | -----------------: | :------------------------ | :-------------------------------------------------------------------- |
+| S1  | Stryker  | 4,835 s (80.6 min) | 29.4 / 29.9 / 48.4        | killed 5,210 · timeout 490 · survived 688 · no coverage 2             |
+| O1  | oxmutate | 3,147 s (52.5 min) | 24.1 / 17.6 / 69.6        | killed 5,267 · timeout 370 · survived 747 · no coverage 2 · ignored 8 |
+| O2  | oxmutate | 3,143 s (52.4 min) | 35.7 / 38.7 / 71.1        | —                                                                     |
+| S2  | Stryker  |            not run | —                         | stopped by the owner at about 35 min, before it finished              |
 
 - **S1 against O1:** mean loads within 1.22x, so the pair is comparable. **oxmutate 1.54x faster**
   (3,147 s against 4,835 s).
@@ -213,11 +213,11 @@ left **0** survivors in `packages/compat-oracle/src/hosts.ts`; the 2026-11-05 ru
 the live static path misses real ones. Checked on one line, `hosts.ts:699`
 (`EXECA_UNGRADED`, 10 static mutants), in the full-run worktree at `c44a2ce6d8`, `concurrency: 2`:
 
-| Engine and path | Killed | Survived | Wall |
-| :-- | --: | --: | --: |
-| 1.6.2-dev, live static path | 0 | 10 | 425 s |
-| 1.6.2-dev, fresh worker per mutant (`OXMUTATE_ISOLATE_STATIC=1`) | 0 | 10 | 808 s |
-| published 1.1.0 | 2 | 8 | 991 s |
+| Engine and path                                                  | Killed | Survived |  Wall |
+| :--------------------------------------------------------------- | -----: | -------: | ----: |
+| 1.6.2-dev, live static path                                      |      0 |       10 | 425 s |
+| 1.6.2-dev, fresh worker per mutant (`OXMUTATE_ISOLATE_STATIC=1`) |      0 |       10 | 808 s |
+| published 1.1.0                                                  |      2 |        8 | 991 s |
 
 - **The live path and the fresh-worker path agree**, 10 of 10.
 - **1.1.0's two kills do not reproduce by hand.** They were `'convert'` → `''` and `'io'` → `''`,
@@ -231,11 +231,11 @@ the live static path misses real ones. Checked on one line, `hosts.ts:699`
 **A second sample, the first row of `HOSTS`** (`hosts.ts:708-718`, the commander row, 15 static
 mutants), same worktree, with the machine's load average between 45 and 120 from other work:
 
-| Engine and path | Killed | Survived | Wall |
-| :-- | --: | --: | --: |
-| 1.6.2-dev, live static path | 3 | 12 | 1,765 s |
-| 1.6.2-dev, fresh worker per mutant | 11 | 4 | 2,446 s |
-| published 1.1.0 | — | — | refused: a test failed unmutated in its dry run |
+| Engine and path                    | Killed | Survived |                                            Wall |
+| :--------------------------------- | -----: | -------: | ----------------------------------------------: |
+| 1.6.2-dev, live static path        |      3 |       12 |                                         1,765 s |
+| 1.6.2-dev, fresh worker per mutant |     11 |        4 |                                         2,446 s |
+| published 1.1.0                    |      — |        — | refused: a test failed unmutated in its dry run |
 
 - **The two paths disagree on 8 mutants**, all Survived live and Killed in a fresh worker, all
   credited to tests in `vendor-run.test.ts` and `vendor.test.ts`. Those tests clone repositories
@@ -265,10 +265,10 @@ One pair, in a checkout nothing else touched (`burgee-mutation-weekly` at `0a8ec
 Pro, `concurrency: 4`, `bench/burgee-pair.mts --package caique --stryker-compat`, Stryker first.
 The 1-minute load was sampled every minute.
 
-| Run | Engine | Wall | CPU | Peak memory | Load: mean / max | Killed · Timeout · Survived |
-| :-- | :-- | --: | --: | --: | :-- | :-- |
-| S1 | Stryker 10.1.1 | 3,391 s | 2,343 s | 597 MB | 19.3 / 52.6 | 5,743 · 468 · 7 (5 runtime errors) |
-| O1 | oxmutate at `0a8ecee757` | 928 s | 1,108 s | 688 MB | 13.4 / 26.6 | 5,635 · 562 · 1 |
+| Run | Engine                   |    Wall |     CPU | Peak memory | Load: mean / max | Killed · Timeout · Survived        |
+| :-- | :----------------------- | ------: | ------: | ----------: | :--------------- | :--------------------------------- |
+| S1  | Stryker 10.1.1           | 3,391 s | 2,343 s |      597 MB | 19.3 / 52.6      | 5,743 · 468 · 7 (5 runtime errors) |
+| O1  | oxmutate at `0a8ecee757` |   928 s | 1,108 s |      688 MB | 13.4 / 26.6      | 5,635 · 562 · 1                    |
 
 - **3.65x faster** (3,391 s against 928 s). The mean loads are 1.44x apart, inside the 1.5x a
   pair needs to count. Stryker's maximum, 52.6, was in its first minutes, while a push from
@@ -309,11 +309,11 @@ goes anywhere public.
 mutants (25 StringLiteral, 4 ArrayDeclaration, 1 ObjectLiteral, 1 BooleanLiteral), `concurrency: 2`,
 each run alone on that slice, with a Stryker run sharing the machine (load average 22 to 59).
 
-| Run | Static phase | Wall | Group runs / split | Verdicts against ungrouped |
-| :-- | --: | --: | :-- | :-- |
-| ungrouped (`static.group: 1`) | 1,717 s | 1,824 s | — | — |
-| groups of 25, any mutator | 378 s | 424 s | 58 / 5 | **30 of 31: one Killed reported Survived** |
-| groups of 25, value mutants only | 577 s | 620 s | 38 / 9 | 31 of 31 |
+| Run                              | Static phase |    Wall | Group runs / split | Verdicts against ungrouped                 |
+| :------------------------------- | -----------: | ------: | :----------------- | :----------------------------------------- |
+| ungrouped (`static.group: 1`)    |      1,717 s | 1,824 s | —                  | —                                          |
+| groups of 25, any mutator        |        378 s |   424 s | 58 / 5             | **30 of 31: one Killed reported Survived** |
+| groups of 25, value mutants only |        577 s |   620 s | 38 / 9             | 31 of 31                                   |
 
 - **The wrong verdict was two mutants hiding each other, in real code.** `hosts.ts:701`'s reason
   string, emptied, is Killed alone by `vendored-suite.test.ts` ("execa's ungraded directories
@@ -348,12 +348,12 @@ in the warm phase (mean load 35). Its work directory showed why.
 **Measured on a slice** (`src/run.ts:700-900`, 120 mutants, 4 workers, `--ignore-static`, each
 run alone, one after the other):
 
-| Run | Guard re-runs | Units | Warm phase | Wall | Mean load |
-| :-- | --: | --: | --: | --: | --: |
-| before | 21 | 82 | 307 s | 333 s | 15.3 |
-| a directory-only ignore rule (`.setup-probe-*/`) | 17 | 73 | 398 s | 717 s | 26.0 |
-| the guard fix, no ignore rule | 0 | 13 | 74 s | 179 s | 24.6 |
-| the guard fix and `.setup-probe-*` ignored | 0 | 13 | 78 s | 128 s | 20.4 |
+| Run                                              | Guard re-runs | Units | Warm phase |  Wall | Mean load |
+| :----------------------------------------------- | ------------: | ----: | ---------: | ----: | --------: |
+| before                                           |            21 |    82 |      307 s | 333 s |      15.3 |
+| a directory-only ignore rule (`.setup-probe-*/`) |            17 |    73 |      398 s | 717 s |      26.0 |
+| the guard fix, no ignore rule                    |             0 |    13 |       74 s | 179 s |      24.6 |
+| the guard fix and `.setup-probe-*` ignored       |             0 |    13 |       78 s | 128 s |      20.4 |
 
 - **The warm phase is 4.1x shorter** (307 s to 74 s), at a higher load than the run it is compared
   with.
@@ -377,13 +377,13 @@ oxmutate 2.1.0 with the disk-guard fix (#1566), 4 workers, `--stryker-compat --c
 src/hosts.ts:1-801`, on the package at `0a8ecee757`, the commit Stryker ran. Started 20:37:55Z,
 alone on the machine, mean load 20.6 (Stryker's run: 26.9; within 1.5x, and it favours oxmutate).
 
-| Phase | Time |
-| :-- | --: |
-| dry run | 20 s |
-| warm (492 units, 0 guard re-runs) | 3,462 s |
-| static (672 mutants) | 4,957 s |
-| isolated (647 runs) | 1,525 s |
-| **wall** | **9,967 s** |
+| Phase                             |        Time |
+| :-------------------------------- | ----------: |
+| dry run                           |        20 s |
+| warm (492 units, 0 guard re-runs) |     3,462 s |
+| static (672 mutants)              |     4,957 s |
+| isolated (647 runs)               |     1,525 s |
+| **wall**                          | **9,967 s** |
 
 - **The warm phase took 58 minutes.** The run before the fix was still in it after 2 h 52 min,
   with 1,800 units and counting.
@@ -415,10 +415,10 @@ loader.
 Measured on compat-oracle's `src/hosts.ts:699-760`, 4 workers, alone on the machine apart from
 another session's run (load 20 to 28):
 
-| | Tests the static phase would run |
-| :-- | --: |
-| every file that loads `hosts.ts` (today) | 63,674 |
-| only the files that read each mutant's value | **21,291 (3.0x fewer)** |
+|                                              | Tests the static phase would run |
+| :------------------------------------------- | -------------------------------: |
+| every file that loads `hosts.ts` (today)     |                           63,674 |
+| only the files that read each mutant's value |          **21,291 (3.0x fewer)** |
 
 79 static mutants; 3 kept every loader (untracked values, such as the whole array emptied). The
 tracking dry run took 32 s. The hand spike in `static-readers.md` estimated 3.2x on the whole
@@ -432,3 +432,23 @@ fixture; the whole of compat-oracle is the next reading.
 each alone: wall 4,185 s to **1,169 s (3.6x)**; 80 of 81 verdicts equal, and the one that differs is
 a load-induced kill in the baseline that a second baseline run does not repeat
 ([`D-20261115-oxmutate-static-readers-on`](../../decisions/D-20261115-oxmutate-static-readers-on.md)).
+
+## 12. compat-oracle on Stryker's set (O2): stopped at 12 h 18 m, F7 not met (2026-11-15)
+
+Defaults, the 6,204 mutants Stryker graded in S1 (32,835 s), concurrency 4, started 04:45:55Z.
+F7 needed under 21,890 s (6 h 5 m). Mean load 29.8 over 360 one-minute samples, against S1's 26.9
+(within the 1.5x rule).
+
+| Phase    |                    Wall | Note                                                                   |
+| :------- | ----------------------: | :--------------------------------------------------------------------- |
+| warm     | 4 h 45 m (58 min in O1) | 0 re-runs, 2,308 s of test time; gaps of up to 27 min with no unit end |
+| static   |                5 h 25 m |                                                                        |
+| isolated |     2 h 8 m, unfinished | stopped at 17:04Z to free the machine for another session's pushes     |
+
+**F7 was missed in the warm phase alone, and not by test work:** 2,308 s of tests in 17,100 s of
+wall. The cause is **not known**. It is not other programs' CPU: the deadlock detector's
+`otherShare` counts only the server process's own other threads, and mutant servers run one worker
+thread. The working directory was removed before the stalled units were read, so the next step is a
+warm-phase-only run with `OXMUTATE_DEBUG_QUIET` on the units that stall, to see which deadlock
+condition fails to hold. O3 (`static.readers` on the same set) was not started; O2 and O3 re-run
+once the stall is understood.
