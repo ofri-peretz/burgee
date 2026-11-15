@@ -9,7 +9,7 @@
  * shard set the whole mutation phase at 42.9 s while the other shards finished in 8 s).
  */
 import { fork, type ChildProcess } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -62,12 +62,15 @@ const debugStop = (o: { id: string; ran: number; stall: Stall; beat: { age: numb
 // Stryker restore all
 
 /** A busy run under LOOP_CPU, not graced yet and inside its limit, gets that limit once; says whether it did. */
-function graceOnce(graced: Map<string, number>, o: { id: string; ran: number; stall: Stall; share: number | undefined; limit: number | undefined }): boolean {
+export function graceOnce(graced: Map<string, number>, o: { id: string; ran: number; stall: Stall; share: number | undefined; limit: number | undefined }): boolean {
   const notLooping = o.stall === 'busy' && o.share !== undefined && o.share < LOOP_CPU;
   if (!notLooping || graced.has(o.id) || o.limit === undefined || o.limit <= o.ran) return false;
   graced.set(o.id, o.limit);
   return true;
 }
+
+/** Servers started by this process, for each one's temporary directory. */
+let serversStarted = 0;
 
 class Server {
   readonly child: ChildProcess;
@@ -82,7 +85,12 @@ class Server {
   exited = false;
 
   constructor(configFile: string, cwd: string, execArgv: string[], workDir: string) {
-    this.child = fork(childJs, [configFile], { cwd, stdio: ['ignore', 'ignore', 'pipe', 'ipc'], execArgv, detached: serverGroups });
+    // Its tests' temporary files go in the run's work directory and are removed with it: a killed
+    // test never runs its cleanup, and runs had left 27,562 entries in the system's (2026-11-15).
+    const tmp = path.join(workDir, `tmp-${String(++serversStarted)}`);
+    mkdirSync(tmp, { recursive: true });
+    const childEnv = { ...process.env, TMPDIR: tmp, TMP: tmp, TEMP: tmp };
+    this.child = fork(childJs, [configFile], { cwd, stdio: ['ignore', 'ignore', 'pipe', 'ipc'], execArgv, detached: serverGroups, env: childEnv });
     this.beat = beatFile(workDir, this.child.pid);
     this.child.stderr?.on('data', (d: Buffer) => (this.stderr = (this.stderr + d.toString()).slice(-STDERR_TAIL)));
     this.ready = new Promise((resolve) => {

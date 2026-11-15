@@ -404,6 +404,25 @@ it.skipIf(!native || !existsSync(bin) || process.platform === 'win32')('gives a 
   expect(run.stats['watchdogKills']).toBe(0);
 }, 120_000);
 
+// A test's temporary files go in the run's work directory and are removed with it: killed tests
+// never clean up, and runs had left 27,562 entries in the system's temporary directory (2026-11-15).
+it.skipIf(!native || !existsSync(bin))('removes what tests left in the temporary directory when the run ends', () => {
+  const dir = path.join(pkg, 'test/fixtures/tmp-leak');
+  const marks = mkdtempSync(path.join(tmpdir(), 'oxmutate-leaks-'));
+  spawnSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', path.join(dir, 'reports'), '--reporter', 'json'], {
+    cwd: dir,
+    stdio: 'ignore',
+    env: { ...process.env, OXMUTATE_E2E_MARKER: path.join(marks, 'm') },
+  });
+  const left = markers(marks, 'leak').map((f) => readFileSync(path.join(marks, f), 'utf8'));
+  const stayed = left.filter((p) => existsSync(p));
+  for (const p of stayed) rmSync(p, { recursive: true, force: true });
+  discard(marks);
+  discard(path.join(dir, 'reports'));
+  expect(left.length, 'a mutant run left scratch').toBeGreaterThan(0);
+  expect(stayed).toEqual([]);
+}, 120_000);
+
 /** The pids of the children the spawn-child fixture's tests started, from their markers. */
 const childPids = (marks: string): number[] => markers(marks, 'child').map((f) => Number(f.slice('m.child-'.length)));
 
