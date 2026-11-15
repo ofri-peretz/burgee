@@ -243,6 +243,9 @@ describe('the terminal summary', () => {
     expect(textSummary(r)).toContain('  static readers: 3 static mutants would run 300 tests where their value is read, against 900 in every file that loads them, 3.0x fewer; 1 kept every loader (report only, 2.5 s)');
     // In use: it ran, and says what the audit found.
     expect(textSummary(await run({ stats: stats({ staticReaders: { mutants: 3, loaderTests: 900, readerTests: 300, fellBack: 1, dryRunMs: 2500, auditSampled: 2, auditDisagreed: 0 } }) }))).toContain('  static readers: 3 static mutants ran 300 tests where their value is read, against 900 in every file that loads them, 3.0x fewer; 1 kept every loader (in use, 2 survivor(s) audited in every loader, 0 disagreed, 2.5 s)');
+    // A disagreement is counted, and a count that is missing reads as none.
+    expect(textSummary(await run({ stats: stats({ staticReaders: { mutants: 1, loaderTests: 4, readerTests: 2, fellBack: 0, dryRunMs: 1, auditSampled: 3, auditDisagreed: 2 } }) }))).toContain('(in use, 3 survivor(s) audited in every loader, 2 disagreed,');
+    expect(textSummary(await run({ stats: stats({ staticReaders: { mutants: 1, loaderTests: 4, readerTests: 2, fellBack: 0, dryRunMs: 1, auditSampled: 0 } }) }))).toContain('(in use, 0 survivor(s) audited in every loader, 0 disagreed,');
     // One reader test is enough for a ratio.
     expect(textSummary(await run({ stats: stats({ staticReaders: { mutants: 1, loaderTests: 4, readerTests: 1, fellBack: 0, dryRunMs: 1 } }) }))).toContain('against 4 in every file that loads them, 4.0x fewer;');
     // No reader at all: no ratio. No static mutant: no line.
