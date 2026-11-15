@@ -387,6 +387,16 @@ describe('criterion 4: each app resolves its own row’s host', () => {
 
 // ─── Criterion 5 ──────────────────────────────────────────────────────────────────────
 
+// One step run per case: four bash runs in one case took 7.4 s alone and passed 30 s in the
+// pre-push root suite, under the 5 s case budget's intent. Each assertion is unchanged.
+const affected = (workspaces: string[]): string[] => {
+  const json = JSON.stringify({ tasks: workspaces.map((p) => ({ package: p, task: 'build' })) });
+  // The dry run's JSON comes in through the environment, so every call shares one stub.
+  const r = runStep(runBlock('affected', 'auto-deploy.yml', 'compute'), { BEFORE_SHA: 'a'.repeat(40), TURBO_DRY_RUN: json }, { npx: `printf '%s' "$TURBO_DRY_RUN"`, git: 'exit 0' });
+  expect(r.status, r.output).toBe(0);
+  return JSON.parse(/^apps=(.*)$/mu.exec(r.githubOutput)?.[1] ?? 'null') as string[];
+};
+
 describe('criterion 5: no workflow names an app', () => {
   const GITHUB = join(REPO_ROOT, '.github');
   const files = walk(GITHUB).filter((f) => f !== TABLE_PATH && /\.(?:ya?ml|md|json)$/u.test(f));
@@ -429,15 +439,6 @@ describe('criterion 5: no workflow names an app', () => {
     }
   });
 
-  // One step run per case: four bash runs in one case took 7.4 s alone and passed 30 s in the
-  // pre-push root suite, under the 5 s case budget's intent. Each assertion is unchanged.
-  const affected = (workspaces: string[]): string[] => {
-    const json = JSON.stringify({ tasks: workspaces.map((p) => ({ package: p, task: 'build' })) });
-    // The dry run's JSON comes in through the environment, so every call shares one stub.
-    const r = runStep(runBlock('affected', 'auto-deploy.yml', 'compute'), { BEFORE_SHA: 'a'.repeat(40), TURBO_DRY_RUN: json }, { npx: `printf '%s' "$TURBO_DRY_RUN"`, git: 'exit 0' });
-    expect(r.status, r.output).toBe(0);
-    return JSON.parse(/^apps=(.*)$/mu.exec(r.githubOutput)?.[1] ?? 'null') as string[];
-  };
   const family = ROWS.find(([, row]) => row.familyPages)!;
   const sibling = ROWS.find(([, row]) => !row.familyPages)!;
 
