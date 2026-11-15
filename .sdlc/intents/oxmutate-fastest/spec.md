@@ -63,6 +63,17 @@ Intent: [`intent.md`](./intent.md). **Status:** accepted 2026-11-11
   `--max-old-space-size`, so a mutant that allocates without end stops in its own process. A
   worker that dies this way is replaced, and its mutant is reported with the reason "out of
   memory", not silently re-run.
+- `R14b` — `resources.warmWorkers` (default `true`): a Vitest server keeps its warm worker
+  between units, which is most of oxmutate's speed. `false` starts a server for each unit and
+  closes it when the unit ends, and keeps no spare: slower, and the least memory held at any
+  moment. Flag `--cold-workers`. Added 2026-11-15 at the owner's request ("disabling or enabling
+  keepalive or warmed workers should be a configuration").
+- `R14c` — `resources.workerIdleTimeout` (ms, default 30,000): a server, the spare included,
+  that has had no unit for this long is closed, and a new one starts if work comes later. So the
+  servers that wait at a phase's tail give their memory back before the run ends. `0` keeps every
+  server until the run ends. Flag `--worker-idle-timeout <ms>`. `stats.serversReleased` counts
+  them, and the summary names them. No server outlives its run whatever this says: each exits
+  when its coordinator goes.
 - `R15` — `resources.priority`: `'low'` (default) or `'normal'`. `'low'` starts each server at
   a lowered OS priority.
 - `R16` — The governor acts only between units. It never stops, re-orders or re-runs a unit that
