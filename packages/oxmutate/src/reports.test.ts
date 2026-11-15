@@ -255,6 +255,7 @@ describe('the terminal summary', () => {
     expect(textSummary(await run({ stats: stats({ watchdogGraced: 1 }) }))).toContain('  watchdog: 1 blocked run(s) given 3x their budget in place, not a server restart');
     expect(textSummary(await run({ stats: stats({ watchdogGraced: 0 }) }))).not.toContain('blocked run(s)');
     expect(textSummary(await run({ stats: stats({ heldByLoadMs: 1600 }) }))).toContain('  governor: unit starts held 2 s while the machine was past resources.maxLoad');
+    expect(textSummary(await run({ stats: stats({ heldByLoadMs: 1 }) }))).toContain('governor:');
     expect(textSummary(await run({ stats: stats({ heldByLoadMs: 0 }) }))).not.toContain('governor:');
 
     // One reader test is enough for a ratio.

@@ -24,7 +24,7 @@ export function holds(o: { load: number; own: number; maxLoad: number; holding: 
 }
 
 type Times = { idle: number; total: number };
-const cpuTimes = (): Times =>
+export const cpuTimes = (): Times =>
   os.cpus().reduce((t, c) => ({ idle: t.idle + c.times.idle, total: t.total + c.times.user + c.times.nice + c.times.sys + c.times.idle + c.times.irq }), { idle: 0, total: 0 });
 
 /**

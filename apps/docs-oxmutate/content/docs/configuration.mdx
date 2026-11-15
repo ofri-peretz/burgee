@@ -81,6 +81,13 @@ because a mutant switched off without one cannot be reviewed.
 | `flakyReruns` | 2 | Re-runs for a verdict whose covering tests behaved differently across two dry runs; 0 disables |
 | `sarifReport` | `reports/mutation/mutation.sarif` | Where the SARIF report goes |
 | `typeChecker` | the project's `tsgo`, else `npx tsc` | The compiler command the type check runs |
+| `static.readers` | `'on'` | Run a static mutant only in the test files that read its value, auditing one survivor in twenty in every loading file; `'off'` (`--no-static-readers`) runs every loading file, `'report'` only counts |
+| `static.group` | 1 | Arm static value mutants in groups of this size after their first file, audited (`--static-group`) |
+| `static.budgetMs` | none | Stop starting static units after this long; what is undecided is Ignored with a reason (`--static-budget`) |
+| `resources.warmWorkers` | `true` | Keep each Vitest server warm between units; `false` starts one per unit (`--cold-workers`) |
+| `resources.workerIdleTimeout` | 30000 | Close a server idle this many ms; 0 keeps them all until the run ends (`--worker-idle-timeout`) |
+| `resources.maxLoad` | 1.5 × cores | Start no unit while the load average, less oxmutate's own busy servers, is past this; one server always runs (`--max-load`) |
+| `resources.priority` | `'low'` | Start servers at a lowered OS priority; `'normal'` does not (`--priority`) |
 
 `--report-dir <dir>` writes `mutation.json`, `mutation.sarif` and `mutation.html` into one
 directory, whatever the config says.

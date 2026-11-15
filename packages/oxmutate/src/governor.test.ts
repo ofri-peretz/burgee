@@ -1,6 +1,8 @@
+import os from 'node:os';
+
 import { describe, expect, it } from 'vitest';
 
-import { createGovernor, holds, loadReader, MAX_LOAD_PER_CORE, RESUME_SHARE } from './governor.js';
+import { cpuTimes, createGovernor, holds, loadReader, MAX_LOAD_PER_CORE, RESUME_SHARE } from './governor.js';
 
 describe('holds', () => {
   it('begins a hold only past maxLoad, counting only load oxmutate does not account for', () => {
@@ -19,7 +21,35 @@ describe('holds', () => {
   });
 });
 
+const sum = (cpus: os.CpuInfo[], f: (c: os.CpuInfo['times']) => number): number => cpus.reduce((n, c) => n + f(c.times), 0);
+const all = (c: os.CpuInfo['times']): number => c.user + c.nice + c.sys + c.idle + c.irq;
+
+describe('cpuTimes', () => {
+  it('sums idle time, and every kind of time, over all cores', () => {
+    const before = os.cpus();
+    const t = cpuTimes();
+    const after = os.cpus();
+    expect(t.idle).toBeGreaterThanOrEqual(sum(before, (c) => c.idle));
+    expect(t.idle).toBeLessThanOrEqual(sum(after, (c) => c.idle));
+    expect(t.total).toBeGreaterThanOrEqual(sum(before, all));
+    expect(t.total).toBeLessThanOrEqual(sum(after, all));
+  });
+});
+
 describe('loadReader', () => {
+  it('reads a load average under 1 as it is, and an empty reading as none', () => {
+    expect(loadReader(() => [0.5], () => ({ idle: 0, total: 0 }), 8)()).toBe(0.5);
+    let i = 0;
+    const samples = [{ idle: 0, total: 0 }, { idle: 0, total: 1 }];
+    // One unit of time passed, none of it idle: every core busy.
+    expect(loadReader(() => [], () => samples[Math.min(i++, 1)] ?? { idle: 0, total: 0 }, 8)()).toBe(8);
+  });
+  it('reads the CPU of this machine by default', () => {
+    const read = loadReader(() => [0, 0, 0]);
+    const load = read();
+    expect(load).toBeGreaterThanOrEqual(0);
+    expect(load).toBeLessThanOrEqual(os.availableParallelism());
+  });
   it('reads the 1-minute load average where the OS has one', () => {
     expect(loadReader(() => [7.5, 1, 1], () => ({ idle: 0, total: 0 }), 8)()).toBe(7.5);
   });
@@ -57,6 +87,28 @@ describe('createGovernor', () => {
     busy = 0;
     await held;
     expect(g.heldMs).toBeGreaterThan(0);
+  });
+  it('begins a hold only past maxLoad, and keeps it while past RESUME_SHARE of it', async () => {
+    let reads = 0;
+    // 9 is under maxLoad 10: no hold begins.
+    const g = createGovernor(10, () => (reads++, 9), 1);
+    await g.hold(() => 1);
+    expect(reads).toBe(1);
+    expect(g.heldMs).toBe(0);
+    // Once held, 10 less its one busy server is 9, still past 8 (RESUME_SHARE of 10): the hold goes on until 7.
+    const loads = [50, 10, 7];
+    let n = 0;
+    const h = createGovernor(10, () => loads[Math.min(n++, 2)] ?? 0, 1);
+    await h.hold(() => 1);
+    expect(n).toBe(3);
+  });
+  it('waits a sample between readings, and counts the time held', async () => {
+    const loads = [50, 50, 0];
+    let n = 0;
+    const g = createGovernor(10, () => loads[Math.min(n++, 2)] ?? 0, 20);
+    await g.hold(() => 1);
+    expect(g.heldMs).toBeGreaterThanOrEqual(30);
+    expect(g.heldMs).toBeLessThan(10_000);
   });
   it('does not hold below maxLoad', async () => {
     const g = createGovernor(10, () => 5, 1);
