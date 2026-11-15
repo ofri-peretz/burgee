@@ -24,8 +24,8 @@ export function holds(o: { load: number; own: number; maxLoad: number; holding: 
 }
 
 type Times = { idle: number; total: number };
-export const cpuTimes = (): Times =>
-  os.cpus().reduce((t, c) => ({ idle: t.idle + c.times.idle, total: t.total + c.times.user + c.times.nice + c.times.sys + c.times.idle + c.times.irq }), { idle: 0, total: 0 });
+export const cpuTimes = (cpus: os.CpuInfo[] = os.cpus()): Times =>
+  cpus.reduce((t, c) => ({ idle: t.idle + c.times.idle, total: t.total + c.times.user + c.times.nice + c.times.sys + c.times.idle + c.times.irq }), { idle: 0, total: 0 });
 
 /**
  * The 1-minute load average, or where the OS reports none (Windows reads 0, `R17`) the cores busy

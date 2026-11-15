@@ -2,7 +2,7 @@ import os from 'node:os';
 
 import { describe, expect, it } from 'vitest';
 
-import { cpuTimes, createGovernor, holds, loadReader, MAX_LOAD_PER_CORE, RESUME_SHARE } from './governor.js';
+import { cpuTimes, createGovernor, GOVERNOR_SAMPLE_MS, holds, loadReader, MAX_LOAD_PER_CORE, RESUME_SHARE } from './governor.js';
 
 describe('holds', () => {
   it('begins a hold only past maxLoad, counting only load oxmutate does not account for', () => {
@@ -14,6 +14,7 @@ describe('holds', () => {
   });
   it('keeps a hold until the load is under RESUME_SHARE of maxLoad, so the pool does not flap', () => {
     expect(RESUME_SHARE).toBe(0.8);
+    expect(GOVERNOR_SAMPLE_MS).toBe(2000);
     expect(MAX_LOAD_PER_CORE).toBe(1.5);
     expect(holds({ load: 9, own: 0, maxLoad: 10, holding: true })).toBe(true);
     expect(holds({ load: 8, own: 0, maxLoad: 10, holding: true })).toBe(false);
@@ -24,7 +25,12 @@ describe('holds', () => {
 const sum = (cpus: os.CpuInfo[], f: (c: os.CpuInfo['times']) => number): number => cpus.reduce((n, c) => n + f(c.times), 0);
 const all = (c: os.CpuInfo['times']): number => c.user + c.nice + c.sys + c.idle + c.irq;
 
+const cpu = (times: os.CpuInfo['times']): os.CpuInfo => ({ model: 'm', speed: 1, times });
+
 describe('cpuTimes', () => {
+  it('adds every kind of time to the total, and only idle time to idle', () => {
+    expect(cpuTimes([cpu({ user: 1, nice: 2, sys: 4, idle: 8, irq: 16 }), cpu({ user: 32, nice: 0, sys: 0, idle: 64, irq: 0 })])).toEqual({ idle: 72, total: 127 });
+  });
   it('sums idle time, and every kind of time, over all cores', () => {
     const before = os.cpus();
     const t = cpuTimes();
@@ -90,8 +96,8 @@ describe('createGovernor', () => {
   });
   it('begins a hold only past maxLoad, and keeps it while past RESUME_SHARE of it', async () => {
     let reads = 0;
-    // 9 is under maxLoad 10: no hold begins.
-    const g = createGovernor(10, () => (reads++, 9), 1);
+    // 9.5 less its one busy server is 8.5: under maxLoad 10, though past RESUME_SHARE of it.
+    const g = createGovernor(10, () => (reads++, 9.5), 1);
     await g.hold(() => 1);
     expect(reads).toBe(1);
     expect(g.heldMs).toBe(0);
