@@ -61,13 +61,15 @@ function summaryData(r: RunResult, written: string[]): Record<string | symbol, u
 /** How many weakened mutants the error line names; the JSON report has them all. */
 const WEAKENED_SHOWN = 3;
 
-/** The static phase's flags: `--static-group`, `--static-budget`, `--report-static-readers`, `--static-readers`. */
+/** The static phase's flags: `--static-group`, `--static-budget`, `--report-static-readers`, `--static-readers`, `--no-static-readers`. */
 function staticOverridesFrom(o: Record<string, unknown>): Partial<Options> {
   const overrides: Partial<Options> = {};
   if (typeof o['staticGroup'] === 'number') overrides.staticGroup = Math.max(1, Math.floor(o['staticGroup']));
   if (typeof o['staticBudget'] === 'number' && o['staticBudget'] >= 1) overrides.staticBudgetMs = Math.floor(o['staticBudget']);
   if (o['reportStaticReaders'] === true) overrides.staticReaders = 'report';
   if (o['staticReaders'] === true) overrides.staticReaders = 'on';
+  // The parser reads `--no-static-readers` as `staticReaders: false`.
+  if (o['staticReaders'] === false || o['noStaticReaders'] === true) overrides.staticReaders = 'off';
   return overrides;
 }
 
@@ -120,7 +122,8 @@ const runCommand = defineCommand({
     staticBudget: { type: 'number', description: 'the most the static phase may take, ms; static mutants still undecided then are left out of the score' },
     coldWorkers: { type: 'boolean', description: 'a fresh Vitest server per unit, closed after it: slower, the least memory held' },
     workerIdleTimeout: { type: 'number', description: 'close a server idle this long, ms (default 30000; 0 keeps them all until the run ends)' },
-    staticReaders: { type: 'boolean', description: 'run each static mutant only in the test files that read its value (a heuristic, audited)' },
+    staticReaders: { type: 'boolean', description: 'run each static mutant only in the test files that read its value (the default; a heuristic, audited)' },
+    noStaticReaders: { type: 'boolean', description: 'run each static mutant in every test file that loads its module (static.readers: off)' },
     reportStaticReaders: { type: 'boolean', description: 'one more dry run that reports how many tests static mutants would need if each ran only where its value is read; changes no verdict' },
     incremental: { type: 'boolean', description: 'reuse verdicts whose source and covering tests did not change' },
     flakyReruns: { type: 'number', description: 're-runs for verdicts with nondeterministic tests (default 2; 0 disables)' },
@@ -153,7 +156,7 @@ const runCommand = defineCommand({
       data['exitCode'] = ExitCode.RUNTIME;
     }
     if ((result.stats.staticReaders?.auditDisagreed ?? 0) > 0) {
-      stderr.write(`oxmutate: ${String(result.stats.staticReaders?.auditDisagreed ?? 0)} static mutant(s) that survived the files reading their value were killed in a file that loads it; they are reported Killed. fix: run without --static-readers; a test reads the value through a path the tracking does not see\n`);
+      stderr.write(`oxmutate: ${String(result.stats.staticReaders?.auditDisagreed ?? 0)} static mutant(s) that survived the files reading their value were killed in a file that loads it; they are reported Killed. fix: run with --no-static-readers; a test reads the value through a path the tracking does not see\n`);
       data['exitCode'] = ExitCode.RUNTIME;
     }
     if (result.stats.staticAuditDisagreed > 0) {

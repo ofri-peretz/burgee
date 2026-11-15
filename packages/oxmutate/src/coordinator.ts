@@ -360,6 +360,8 @@ export async function run(options: Options): Promise<RunResult> {
     const changed = options.since ? await changedLines(root, options.since) : undefined;
     const mutants: MutantResult[] = [];
     const trackedIds = new Set<string>();
+    /** Source files holding a tracked static mutant (`static.readers`). */
+    const trackedSources = new Set<string>();
     const codeMap: Record<string, string> = {};
     const directiveErrors: string[] = [];
     for (const f of instrumented) {
@@ -375,7 +377,10 @@ export async function run(options: Options): Promise<RunResult> {
         const off = offs.find((d) => d.line === m.start.line && (d.mutators === 'all' || d.mutators.includes(m.mutatorName)));
         const inRange = ranged.reasonFor(m.start.line, m.mutatorName);
         const excluded = options.excludedMutations.includes(m.mutatorName);
-        if (m.tracked) trackedIds.add(m.id);
+        if (m.tracked) {
+          trackedIds.add(m.id);
+          trackedSources.add(path.join(root, f.path));
+        }
         const { tracked: _tracked, ...plain } = m;
         mutants.push({
           ...plain,
@@ -461,9 +466,13 @@ export async function run(options: Options): Promise<RunResult> {
     // `static.readers: 'report'`: the same suite once more with reads tracked, before the flaky check
     // takes the dry pool. Its verdicts are not used; a test that fails only here (a Proxy it did not
     // expect) makes every static mutant count its loaders.
+    // Only when a source holding tracked mutants is loaded by more than one test file: with one
+    // loader there is no file to leave out, and the second dry run would be pure cost.
+    const loaders = (source: string): number => Object.values(dry.modules).filter((mods) => mods.includes(source)).length;
+    const trackReads = options.staticReaders !== 'off' && [...trackedSources].some((source) => loaders(source) > 1);
     const r0 = performance.now();
-    if (options.staticReaders !== 'off' && trackedIds.size > 0) progress.phase('dry run with reads tracked (static.readers)');
-    const tracking = options.staticReaders !== 'off' && trackedIds.size > 0 ? await dryRun(true) : undefined;
+    if (trackReads) progress.phase('dry run with reads tracked (static.readers)');
+    const tracking = trackReads ? await dryRun(true) : undefined;
     const readersDryRunMs = performance.now() - r0;
     const failing = dry.tests.filter((t) => t.state === 'fail');
     if (failing.length) throw new InstrumentFault(`${String(failing.length)} test(s) fail with no mutant active, so no verdict can be trusted: ${failing.slice(0, 5).map((t) => t.name).join('; ')}. fix: make the suite pass first`);

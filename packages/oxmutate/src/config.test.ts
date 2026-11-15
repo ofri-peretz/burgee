@@ -33,7 +33,7 @@ const defaults = (root: string): Options => ({
   excludedMutations: [],
   ignoreStatic: false,
   staticGroup: 1,
-  staticReaders: 'off',
+  staticReaders: 'on',
   workers: { warm: true, idleTimeoutMs: 30_000 },
   strykerCompat: false,
   reporters: ['clear-text', 'json'],
@@ -149,11 +149,11 @@ describe('options from a config file', () => {
     });
   });
 
-  it("static.readers is 'report' or 'on' only when the config says exactly that; anything else is off", async () => {
-    const values: unknown[] = ['report', 'on', 'Report', 'yes', true, 1, undefined];
+  it("static.readers is 'report' or 'off' only when the config says exactly that; anything else is on", async () => {
+    const values: unknown[] = ['report', 'off', 'Report', 'no', false, 0, undefined];
     const read = await Promise.all(values.map(async (readers) => (await loadOptions(project({ 'oxmutate.config.json': { static: { readers } } }))).staticReaders));
-    expect(read).toEqual(['report', 'on', 'off', 'off', 'off', 'off', 'off']);
-    expect((await loadOptions(project({ 'oxmutate.config.json': {} }))).staticReaders).toBe('off');
+    expect(read).toEqual(['report', 'off', 'on', 'on', 'on', 'on', 'on']);
+    expect((await loadOptions(project({ 'oxmutate.config.json': {} }))).staticReaders).toBe('on');
     expect((await loadOptions(project({ 'oxmutate.config.json': {} }), { staticReaders: 'report' })).staticReaders).toBe('report');
   });
 

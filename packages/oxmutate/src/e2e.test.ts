@@ -204,9 +204,12 @@ const groupRun = (name: string, file: string, args: string[], env: Record<string
 // `static.group` arms several static mutants in one re-collection of a file that is not their
 // first (oxmutate-fastest R3–R6, D-20261113-oxmutate-static-group-disjoint).
 describe.skipIf(!native || !existsSync(bin) || !nightly)('static survivors armed in groups', () => {
+  // Groups and the budget act on a static mutant's later files. With static.readers (the default) a
+  // fixture value is read in one file, so there are none: these cases run every loading file.
+  const LOADERS = '--no-static-readers';
   it('gives every mutant the verdict it gets alone, in fewer runs', () => {
-    const alone = groupRun('static-group', 'src/table.ts', []);
-    const grouped = groupRun('static-group', 'src/table.ts', ['--static-group', '4']);
+    const alone = groupRun('static-group', 'src/table.ts', [LOADERS]);
+    const grouped = groupRun('static-group', 'src/table.ts', [LOADERS, '--static-group', '4']);
     expect(grouped.verdicts).toEqual(alone.verdicts);
     expect(alone.verdicts.some((v) => v.endsWith(':Survived'))).toBe(true);
     expect(alone.verdicts.some((v) => v.endsWith(':Killed'))).toBe(true);
@@ -216,8 +219,8 @@ describe.skipIf(!native || !existsSync(bin) || !nightly)('static survivors armed
   });
 
   it('static.budgetMs: once it is spent no static unit starts, and what is undecided is Ignored, not scored', () => {
-    const alone = groupRun('static-group', 'src/table.ts', []);
-    const spent = groupRun('static-group', 'src/table.ts', ['--static-budget', '1']);
+    const alone = groupRun('static-group', 'src/table.ts', [LOADERS]);
+    const spent = groupRun('static-group', 'src/table.ts', [LOADERS, '--static-budget', '1']);
     // A millisecond is gone before the second unit starts. What a unit already running found stands,
     // and it is what the mutant gets alone; nothing is called Survived on part of its files.
     expect(spent.verdicts.length).toBe(alone.verdicts.length);
@@ -227,15 +230,15 @@ describe.skipIf(!native || !existsSync(bin) || !nightly)('static survivors armed
     expect(spent.stats['isolatedRuns']).toBe(0);
     expect(spent.status).toBe(0);
     // A budget the phase fits in changes nothing.
-    expect(groupRun('static-group', 'src/table.ts', ['--static-budget', '600000']).verdicts).toEqual(alone.verdicts);
+    expect(groupRun('static-group', 'src/table.ts', [LOADERS, '--static-budget', '600000']).verdicts).toEqual(alone.verdicts);
   });
 
   it('static.readers reports the tests where each static value is read, and changes no verdict', () => {
-    const plain = groupRun('static-group', 'src/table.ts', []);
+    const plain = groupRun('static-group', 'src/table.ts', ['--no-static-readers']);
     // The fixture: alpha.spec reads row 0, copy.spec reads row 1 through a copy made while its file
     // loads, loads.spec loads the module and reads nothing. One test each.
     const readers = groupRun('static-readers', 'src/hosts.ts', ['--report-static-readers']);
-    const off = groupRun('static-readers', 'src/hosts.ts', []);
+    const off = groupRun('static-readers', 'src/hosts.ts', ['--no-static-readers']);
     expect(readers.stats['staticReaders'] as unknown).toEqual({ mutants: 8, loaderTests: 24, readerTests: 11, fellBack: 2, dryRunMs: expect.any(Number) as number });
     // A report only: the verdicts are the ones a run without it gives.
     expect(readers.verdicts).toEqual(off.verdicts);
@@ -243,9 +246,18 @@ describe.skipIf(!native || !existsSync(bin) || !nightly)('static survivors armed
     expect(off.stats['staticReaders']).toBeUndefined();
   });
 
+  it('static.readers skips its second dry run when every tracked module has one loading file', () => {
+    const on = groupRun('static-one-loader', 'src/rows.ts', []);
+    const off = groupRun('static-one-loader', 'src/rows.ts', ['--no-static-readers']);
+    expect(on.verdicts.length).toBeGreaterThan(0);
+    expect(on.verdicts).toEqual(off.verdicts);
+    // No tracking run took place: there was no file to leave out.
+    expect(on.stats['staticReaders']).toBeUndefined();
+  });
+
   it('static.readers in use gives every mutant the verdict it gets in every loader, and the audit agrees', () => {
     for (const [name, file] of [['static-readers', 'src/hosts.ts'], ['static-group', 'src/table.ts'], ['static-const', 'src/limits.ts']] as const) {
-      const off = groupRun(name, file, []);
+      const off = groupRun(name, file, ['--no-static-readers']);
       const on = groupRun(name, file, ['--static-readers'], { OXMUTATE_STATIC_AUDIT: 'all' });
       expect(off.verdicts.length).toBeGreaterThan(0);
       expect(on.verdicts).toEqual(off.verdicts);

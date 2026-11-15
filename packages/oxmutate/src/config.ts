@@ -47,7 +47,7 @@ export const STATIC_BUDGET_REASON = 'static mutant (static budget spent)';
 
 /** `static.readers`: `'report'` or `'on'` exactly; anything else is off. */
 function staticReadersOf(readers: unknown): Options['staticReaders'] {
-  return readers === 'report' || readers === 'on' ? readers : 'off';
+  return readers === 'report' || readers === 'off' ? readers : 'on';
 }
 
 /** Why a static mutant is Ignored under `ignoreStatic`; the summary counts them by it. */
