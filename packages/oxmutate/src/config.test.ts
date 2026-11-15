@@ -33,6 +33,7 @@ const defaults = (root: string): Options => ({
   excludedMutations: [],
   ignoreStatic: false,
   staticGroup: 1,
+  staticReaders: 'off',
   strykerCompat: false,
   reporters: ['clear-text', 'json'],
   jsonReport: path.join(root, 'reports/mutation/mutation.json'),
@@ -143,6 +144,14 @@ describe('options from a config file', () => {
       typeChecker: 'npx tsgo',
       commandRunner: 'npm run unit',
     });
+  });
+
+  it("static.readers is 'report' only when the config says exactly that; anything else is off", async () => {
+    const values: unknown[] = ['report', 'Report', 'on', true, 1, undefined];
+    const read = await Promise.all(values.map(async (readers) => (await loadOptions(project({ 'oxmutate.config.json': { static: { readers } } }))).staticReaders));
+    expect(read).toEqual(['report', 'off', 'off', 'off', 'off', 'off']);
+    expect((await loadOptions(project({ 'oxmutate.config.json': {} }))).staticReaders).toBe('off');
+    expect((await loadOptions(project({ 'oxmutate.config.json': {} }), { staticReaders: 'report' })).staticReaders).toBe('report');
   });
 
   it('static.budgetMs is a whole number of milliseconds of at least one; anything else is no budget', async () => {
