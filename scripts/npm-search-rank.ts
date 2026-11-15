@@ -75,6 +75,8 @@ const TOP = 10;
 const TRIES = 5;
 const PAUSE_MS = 800;
 const TIMEOUT_MS = 30_000;
+/** How much of an unexpected response body an error quotes. */
+const QUOTE_CHARS = 200;
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
 /**
@@ -86,7 +88,9 @@ async function search(text: string, attempt = 1): Promise<Hit[]> {
   const res = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
   const body = await res.text();
   try {
-    return (JSON.parse(body) as { objects: Hit[] }).objects;
+    const parsed = JSON.parse(body) as { objects?: unknown };
+    if (!Array.isArray(parsed.objects)) throw new TypeError(`no "objects" array in: ${body.slice(0, QUOTE_CHARS)}`);
+    return parsed.objects as Hit[];
   } catch {
     if (attempt >= TRIES) throw new Error(`npm search for "${text}" answered ${String(res.status)} with no JSON after ${String(attempt)} tries`);
     await sleep(PAUSE_MS * 2 ** attempt);
