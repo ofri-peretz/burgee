@@ -1,6 +1,6 @@
 # Intent — Findable in npm search: each description carries the words people type
 
-**Status:** draft · **Opened:** 2026-11-15 · **Owner:** @ofri-peretz
+**Status:** approved · **Opened:** 2026-11-15 · **Owner:** @ofri-peretz
 
 ---
 
@@ -108,13 +108,13 @@ Today's descriptions open with what the package does in our own words ("Runs a s
 
 ## Open questions
 
-1. **Spec R5 amends positioning R7's wording**, which the owner decided on 2026-10-09. It
+1. Decided 2026-11-15 ([D-20261115-npm-search-design-accepted](../../decisions/D-20261115-npm-search-design-accepted.md)): R5 accepted. **Spec R5 amends positioning R7's wording**, which the owner decided on 2026-10-09. It
    changes the migration clause from "Drop-in paths for X" to "Drop-in alternative to X", so
    that the "X alternative" searches have a word to match. Accepting the spec accepts R5.
    Striking R5 at acceptance leaves the incumbent phrases tracked but not targeted.
-2. **No query volume.** npm publishes none, so the phrases come from reading the incumbents'
+2. Decided 2026-11-15 ([D-20261115-npm-search-design-accepted](../../decisions/D-20261115-npm-search-design-accepted.md)): the phrases stand. **No query volume.** npm publishes none, so the phrases come from reading the incumbents'
    own descriptions — the words their users found them with — not from a count of searches.
-3. **Narrower phrases for the four predicted misses.** `process execution` (#33 predicted),
+3. Decided 2026-11-15 ([D-20261115-npm-search-design-accepted](../../decisions/D-20261115-npm-search-design-accepted.md)): the top-10 target stays. **Narrower phrases for the four predicted misses.** `process execution` (#33 predicted),
    `cli toolkit` (#18), `mutation testing tool` (#9) and `config resolution` (#15) are
    reachable. The spec keeps the broader category phrase as primary for those four because it
    is what people type. Swapping in the narrower phrase is a one-line change to the phrase

@@ -1,7 +1,7 @@
 # Design — Findable in npm search: each description carries the words people type
 
-Intent: [`intent.md`](./intent.md). **Status:** draft. Waiting for the owner's acceptance at the
-Design→Build gate. Nothing below is built.
+Intent: [`intent.md`](./intent.md). **Status:** approved 2026-11-15
+([D-20261115-npm-search-design-accepted](../../decisions/D-20261115-npm-search-design-accepted.md)).
 
 ---
 
