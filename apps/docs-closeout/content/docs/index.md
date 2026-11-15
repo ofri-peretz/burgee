@@ -1,6 +1,6 @@
 ---
 title: closeout
-description: "Runs every exit handler exactly once on every path out of the process, restores the terminal, and holds shutdown to a deadline so it cannot hang. Zero dependencies. Drop-in paths for signal-exit, exit-hook, restore-cursor, cli-cursor and onetime."
+description: "Exit hook: runs every exit handler exactly once on every path out of the process, restores the terminal, and holds shutdown to a deadline so it cannot hang. Zero dependencies. Drop-in alternative to signal-exit, exit-hook, restore-cursor, cli-cursor and onetime."
 ---
 
 **closeout** runs every exit handler exactly once, on every path out of the process, restores
@@ -346,7 +346,7 @@ Graded by the incumbent's own test suite:
 | `restore-cursor` | 6 / 6 |
 | `signal-exit` | 134 / 135 |
 
-Weight, installed and tree-inclusive: **111,002 bytes** against **183,804** for the incumbents it replaces — a ratio of **0.6039** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
+Weight, installed and tree-inclusive: **111,018 bytes** against **183,804** for the incumbents it replaces — a ratio of **0.6040** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## For agents
 

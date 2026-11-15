@@ -1,6 +1,6 @@
 ---
 title: caique
-description: "Prompts that are flags first: an agent passes the answer up front, and a non-TTY caller gets an error naming the flag, never a prompt that waits. No dependency outside the burgee family. Drop-in path for @inquirer/core."
+description: "CLI prompts that are flags first: an agent passes the answer up front, and a non-TTY caller gets an error naming the flag, never a prompt that waits. No dependency outside the burgee family. Drop-in alternative to @inquirer/core."
 ---
 
 **caique** asks a question only when someone can answer it. Every prompt is a flag first, so
@@ -328,7 +328,7 @@ Graded by the incumbent's own test suite:
 | `inquirer-core` | 47 / 47 |
 | `inquirer-prompts` | 228 / 228 |
 
-Weight, installed and tree-inclusive: **303,271 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.7795** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
+Weight, installed and tree-inclusive: **303,281 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.7795** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## For agents
 

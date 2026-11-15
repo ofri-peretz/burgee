@@ -1,6 +1,6 @@
 ---
 title: linegauge
-description: "Measures, wraps, truncates and slices styled terminal text, grapheme-correct over Intl.Segmenter, with the same result on a terminal, a pipe or --json. Zero dependencies. Drop-in paths for string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line."
+description: "String width: measures, wraps, truncates and slices styled terminal text, grapheme-correct over Intl.Segmenter, with the same result on a terminal, a pipe or --json. Zero dependencies. Drop-in alternative to string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line."
 ---
 
 **linegauge** measures, wraps, truncates and slices styled terminal text without the edge
@@ -214,7 +214,7 @@ Graded by the incumbent's own test suite:
 | `widest-line` | 1 / 1 |
 | `wrap-ansi` | 85 / 85 |
 
-Weight, installed and tree-inclusive: **116,780 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.6009** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
+Weight, installed and tree-inclusive: **116,799 bytes** against **194,329** for the incumbents it replaces — a ratio of **0.6010** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## For agents
 

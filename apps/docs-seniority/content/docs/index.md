@@ -1,6 +1,6 @@
 ---
 title: seniority
-description: "Resolves flags, environment variables, config files and defaults in one fixed order, with provenance: every value can say where it came from. Zero dependencies. Drop-in paths for cosmiconfig, lilconfig, dotenv and rc."
+description: "Config loader: resolves flags, environment variables, config files and defaults in one fixed order, with provenance: every value can say where it came from. Zero dependencies. Drop-in alternative to cosmiconfig, lilconfig, dotenv and rc."
 ---
 
 **seniority** resolves flags, environment variables, config files, a `package.json` field and
@@ -412,7 +412,7 @@ Graded by the incumbent's own test suite:
 | `lilconfig` | 81 / 81 |
 | `rc` | 1 / 1 |
 
-Weight, installed and tree-inclusive: **223,913 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.1135** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
+Weight, installed and tree-inclusive: **223,933 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.1135** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## For agents
 

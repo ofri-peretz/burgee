@@ -1,6 +1,6 @@
 ---
 title: oxmutate
-description: "Mutation testing for JavaScript and TypeScript on the oxc engine, run warm inside the project's own Vitest, with CI lanes, SARIF and an agent surface. No dependency outside the burgee family. A Stryker migration path."
+description: "Mutation testing tool for JavaScript and TypeScript on the oxc engine, run warm inside the project's own Vitest, with CI lanes, SARIF and an agent surface. No dependency outside the burgee family. A Stryker migration path."
 ---
 
 **oxmutate** is mutation testing for JavaScript and TypeScript, on the [oxc](https://oxc.rs)

@@ -1,6 +1,6 @@
 ---
 title: paratext
-description: "Hyperlinks, inline images, the window title, the clipboard, notifications and the bell, each with a static fallback for a terminal, pipe or agent that cannot show it. Zero dependencies. Drop-in paths for ansi-escapes, terminal-link and term-img."
+description: "Terminal hyperlinks, inline images, the window title, the clipboard, notifications and the bell, each with a static fallback for a terminal, pipe or agent that cannot show it. Zero dependencies. Drop-in alternative to ansi-escapes, terminal-link and term-img."
 ---
 
 **paratext** owns everything around terminal output that is not the output: hyperlinks,
@@ -198,7 +198,7 @@ Graded by the incumbent's own test suite:
 | `term-img` | 18 / 18 |
 | `terminal-link` | 8 / 8 |
 
-Weight, installed and tree-inclusive: **104,343 bytes** against **2,235,987** for the incumbents it replaces — a ratio of **0.0467** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
+Weight, installed and tree-inclusive: **104,357 bytes** against **2,235,987** for the incumbents it replaces — a ratio of **0.0467** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## For agents
 

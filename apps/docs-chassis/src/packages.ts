@@ -96,10 +96,10 @@ export function guidesOf(name: string, packagesDir: string = PACKAGES_DIR): Guid
 
 /**
  * The three ways a description names its incumbents, most common first:
- * "Drop-in paths for execa, cross-spawn and which.", "drop-in compatible with commander and
+ * "Drop-in alternative to cross-spawn and which.", "drop-in compatible with commander and
  * yargs.", "a chalk migration path", and paratext's "Covers the OSC half of ansi-escapes, …".
  */
-const REPLACES = [/drop-in (?:paths? for|compatible with) ([^.;]+)/i, /\ban? ([\w-]+) migration path\b/i, /\bcovers (?:the [\w-]+ half of )?([^.;]+)/i] as const;
+const REPLACES = [/drop-in (?:alternative to|compatible with) ([^.;]+)/i, /\ban? ([\w-]+) migration path\b/i, /\bcovers (?:the [\w-]+ half of )?([^.;]+)/i] as const;
 
 /** The incumbents a description names, or a build failure that says which package is silent. */
 export function replacesOf(name: string, description: string): string {
@@ -107,7 +107,7 @@ export function replacesOf(name: string, description: string): string {
     const found = pattern.exec(description)?.[1]?.trim();
     if (found !== undefined && found !== '') return found;
   }
-  throw new Error(`packages/${name}/package.json: the description names no incumbent ("Drop-in paths for …"), so the llms.txt package map cannot say what ${name} replaces.`);
+  throw new Error(`packages/${name}/package.json: the description names no incumbent ("Drop-in alternative to …"), so the llms.txt package map cannot say what ${name} replaces.`);
 }
 
 /** Every released workspace package ({@link released}), burgee first — it is the framework; the rest are what it is built from. */

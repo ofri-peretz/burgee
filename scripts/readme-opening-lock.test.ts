@@ -17,7 +17,7 @@
  * What this asserts is narrow on purpose:
  *
  *   - **the incumbents come from the manifest.** Each package's `description` already lists
- *     them — "Drop-in paths for ora, log-update, boxen and cli-table3", "Covers the OSC half
+ *     them — "Drop-in alternative to ora, log-update, boxen and cli-table3", "Covers the OSC half
  *     of ansi-escapes, …". The README's opening must name at least one of that list, so a
  *     description and a README cannot drift onto different incumbents.
  *   - **the opening is the first 25 lines after the header block** — the centred `<p>` lockup,
@@ -61,7 +61,7 @@ const published = (): string[] =>
  * sentence's end; the list is then split and each item reduced to its last word, so "the OSC
  * half of ansi-escapes" reads as `ansi-escapes`.
  */
-const LISTS = [/drop-in paths? for ([^.;]+)[.;]/giu, /\bcovers ([^.;]+)[.;]/giu, /drop-in compatible with ([^.;]+)[.;]/giu, /\ban? ([\w@/-]+) migration path\b/giu];
+const LISTS = [/drop-in alternative to ([^.;]+)[.;]/giu, /\bcovers ([^.;]+)[.;]/giu, /drop-in compatible with ([^.;]+)[.;]/giu, /\ban? ([\w@/-]+) migration path\b/giu];
 
 /** The incumbents a package's `description` names, in the order it names them. */
 export function incumbents(description: string): string[] {
@@ -104,7 +104,7 @@ export function problems(name: string, readme: string, description: string): str
   const names = incumbents(description);
   const head = opening(readme);
   const out: string[] = [];
-  if (names.length === 0) out.push(`${name}'s package.json description names no incumbent in a form this lock reads ("Drop-in paths for …", "Covers …") — say what it replaces there first`);
+  if (names.length === 0) out.push(`${name}'s package.json description names no incumbent in a form this lock reads ("Drop-in alternative to …", "Covers …") — say what it replaces there first`);
   else if (!names.some((incumbent) => mentions(head, incumbent))) out.push(`${name}'s README does not name what it replaces in the ${String(OPENING_LINES)} lines after its header — its description lists ${names.join(', ')}; name at least one there`);
   if (!AGENT_SURFACE.test(head)) out.push(`${name}'s README does not state its agent surface in the ${String(OPENING_LINES)} lines after its header — say what --json, a pipe or an agent gets`);
   if (name !== FRAMEWORK && mentions(firstParagraph(readme), FRAMEWORK)) out.push(`${name}'s README names burgee in its first paragraph — a layer leads with its own problem and its own incumbents (cli-output-stack R12); name burgee further down`);
@@ -127,8 +127,9 @@ describe('every published README opens with the incumbent it replaces, then its 
 
 describe('the lock can fail', () => {
   it('reads the incumbents out of every phrasing the manifests use', () => {
-    expect(incumbents('Drop-in paths for ora, log-update, boxen and cli-table3. No dependency.')).toEqual(['ora', 'log-update', 'boxen', 'cli-table3']);
-    expect(incumbents('Drop-in path for inquirer and clack.')).toEqual(['inquirer', 'clack']);
+    expect(incumbents('Drop-in alternative to ora, log-update, boxen and cli-table3. No dependency.')).toEqual(['ora', 'log-update', 'boxen', 'cli-table3']);
+    expect(incumbents('Drop-in alternative to inquirer and clack.')).toEqual(['inquirer', 'clack']);
+    expect(incumbents('Drop-in paths for inquirer and clack.')).toEqual([]);
     expect(incumbents('Covers the OSC half of ansi-escapes, terminal-link and term-img; a drop-in path is not claimed.')).toEqual(['ansi-escapes', 'terminal-link', 'term-img']);
     expect(incumbents('An agent-native CLI framework, drop-in compatible with commander and yargs. One declaration.')).toEqual(['commander', 'yargs']);
     expect(incumbents('Semantic tokens, and a chalk migration path lighter than chalk.')).toEqual(['chalk']);

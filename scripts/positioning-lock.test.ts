@@ -238,7 +238,7 @@ export const NO_DEPENDENCIES = 'Zero dependencies.';
 export const IN_FAMILY_ONLY = /^No dependency outside the burgee family[.;]/u;
 
 /** The migration clause, last, in the form `readme-opening-lock` and the docs' package map read. */
-const MIGRATION = /^Drop-in paths? for (.+)\.$/u;
+const MIGRATION = /^Drop-in alternative to (.+)\.$/u;
 
 /** Self-ranking words, which no measurement on a front page or in a description backs as written. */
 const COMPARATIVE = /\b(?:a better|better than|lighter than|faster than|smaller than|superior|best-in-class|the alternatives do not)\b/iu;
@@ -281,7 +281,7 @@ function migrationProblems(name: string, migration: string, dropIns: readonly st
   // `positioning-audit.ts` reads that name as an incumbent, so it is held like a drop-in's.
   if (dropIns.length === 0 && COMMAND_MIGRATION.test(migration)) return [];
   const listed = MIGRATION.exec(migration)?.[1];
-  if (listed === undefined) return [`${name}: the description should end with "Drop-in paths for X, Y and Z." — it ends "${migration}"`];
+  if (listed === undefined) return [`${name}: the description should end with "Drop-in alternative to X, Y and Z." — it ends "${migration}"`];
   const unknown = listed.split(/,\s*|\s+and\s+/u).filter((item) => !dropIns.includes(item));
   return unknown.length === 0 ? [] : [`${name}: the description lists ${unknown.join(', ')} as drop-in paths, and compat.ts's DROP_INS has none for ${name}`];
 }
@@ -397,14 +397,16 @@ describe('the voice lock can fail', () => {
   });
 
   it('passes the shape it asks for, and refuses a drop-in compat.ts does not hold', () => {
-    expect(descriptionProblems(pkg('Colour for a CLI, decided once. Zero dependencies. Drop-in path for chalk.'), ['chalk'])).toEqual([]);
-    expect(descriptionProblems(pkg('Colour for a CLI, decided once. Zero dependencies. Drop-in paths for chalk and kleur.'), ['chalk'])).toEqual([expect.stringMatching(/lists kleur/u)]);
-    expect(descriptionProblems(pkg('Colour for a CLI, decided once. Zero dependencies. Drop-in path for chalk.', ['linegauge']), ['chalk'])).toEqual([expect.stringMatching(/No dependency outside the burgee family/u)]);
-    expect(descriptionProblems(pkg('Colour for a CLI, decided once. No dependency outside the burgee family. Drop-in path for chalk.', ['linegauge']), ['chalk'])).toEqual([]);
+    expect(descriptionProblems(pkg('Colour for a CLI, decided once. Zero dependencies. Drop-in alternative to chalk.'), ['chalk'])).toEqual([]);
+    expect(descriptionProblems(pkg('Colour for a CLI, decided once. Zero dependencies. Drop-in alternative to chalk and kleur.'), ['chalk'])).toEqual([expect.stringMatching(/lists kleur/u)]);
+    expect(descriptionProblems(pkg('Colour for a CLI, decided once. Zero dependencies. Drop-in alternative to chalk.', ['linegauge']), ['chalk'])).toEqual([expect.stringMatching(/No dependency outside the burgee family/u)]);
+    expect(descriptionProblems(pkg('Colour for a CLI, decided once. No dependency outside the burgee family. Drop-in alternative to chalk.', ['linegauge']), ['chalk'])).toEqual([]);
+    // npm-search R5: only the wording "X alternative" searches can match is accepted.
+    expect(descriptionProblems(pkg('Colour for a CLI, decided once. Zero dependencies. Drop-in path for chalk.'), ['chalk'])).toEqual([expect.stringMatching(/Drop-in alternative to X/u)]);
   });
 
   it('reads a full stop inside a word as part of it', () => {
-    expect(sentences('Tokens over util.styleText, grapheme-correct over Intl.Segmenter. Zero dependencies. Drop-in path for chalk.')).toHaveLength(3);
+    expect(sentences('Tokens over util.styleText, grapheme-correct over Intl.Segmenter. Zero dependencies. Drop-in alternative to chalk.')).toHaveLength(3);
   });
 
   it('fails the heading and the table column it was written against', () => {
@@ -563,18 +565,18 @@ describe('the title lock can fail', () => {
   });
 
   it('fails a description that names an incumbent early, or none at all', () => {
-    expect(placementProblems('roundel', 'A palette, unlike chalk. Zero dependencies. Drop-in path for chalk.')).toEqual([expect.stringMatching(/names chalk before/u)]);
+    expect(placementProblems('roundel', 'A palette, unlike chalk. Zero dependencies. Drop-in alternative to chalk.')).toEqual([expect.stringMatching(/names chalk before/u)]);
     expect(placementProblems('roundel', 'Colour for a CLI. Zero dependencies.')).toEqual([expect.stringMatching(/names no incumbent/u)]);
-    expect(placementProblems('roundel', 'Colour for a CLI. Zero dependencies. Drop-in path for chalk.')).toEqual([]);
+    expect(placementProblems('roundel', 'Colour for a CLI. Zero dependencies. Drop-in alternative to chalk.')).toEqual([]);
   });
 
   it("reads a family subpath as the family's, not as the incumbent it shares a word with", () => {
-    expect(placementProblems('controlroom', 'Terminal screens. Optional peers, loaded only by controlroom/ink. Drop-in path for ink.', ['controlroom'])).toEqual([]);
-    expect(placementProblems('controlroom', 'Terminal screens, like ink. Drop-in path for ink.', ['controlroom'])).toEqual([expect.stringMatching(/names ink before/u)]);
+    expect(placementProblems('controlroom', 'Terminal screens. Optional peers, loaded only by controlroom/ink. Drop-in alternative to ink.', ['controlroom'])).toEqual([]);
+    expect(placementProblems('controlroom', 'Terminal screens, like ink. Drop-in alternative to ink.', ['controlroom'])).toEqual([expect.stringMatching(/names ink before/u)]);
   });
 
   it('fails the llms.txt row it was written against', () => {
-    const bellpull: PublicPackage = { name: 'bellpull', url: 'https://bellpull.interlace.tools/docs', description: 'Runs a subprocess. Zero dependencies. Drop-in paths for cross-spawn and which.', replaces: 'cross-spawn and which', guides: [] };
+    const bellpull: PublicPackage = { name: 'bellpull', url: 'https://bellpull.interlace.tools/docs', description: 'Runs a subprocess. Zero dependencies. Drop-in alternative to cross-spawn and which.', replaces: 'cross-spawn and which', guides: [] };
     expect(llmsRowProblems(`- [bellpull](${bellpull.url}) — replaces cross-spawn and which. ${bellpull.description}`, [bellpull]).join('\n')).toMatch(/names cross-spawn[\s\S]*opens/u);
     expect(llmsRowProblems(`- [bellpull](${bellpull.url}): ${bellpull.description}`, [bellpull])).toEqual([]);
     expect(llmsRowProblems(`- [bellpull](${bellpull.url}): Runs a subprocess.`, [bellpull])).toEqual([expect.stringMatching(/whole/u)]);
