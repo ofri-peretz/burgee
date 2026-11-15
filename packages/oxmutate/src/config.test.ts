@@ -170,6 +170,11 @@ describe('options from a config file', () => {
       { warm: true, idleTimeoutMs: 30_000 },
     ]);
     expect((await loadOptions(project({ 'oxmutate.config.json': { resources: { warmWorkers: false } } }))).unused).toEqual([]);
+    // A Stryker config that carries it is read, not reported as an option oxmutate does not know.
+    const fromStryker = await loadOptions(project({ 'stryker.config.json': { resources: { warmWorkers: false } } }));
+    expect(fromStryker.unused).toEqual([]);
+    expect(fromStryker.workers.warm).toBe(false);
+    expect((await loadOptions(project({ 'oxmutate.config.json': { resources: null } }))).workers).toEqual({ warm: true, idleTimeoutMs: 30_000 });
   });
 
   it('static.budgetMs is a whole number of milliseconds of at least one; anything else is no budget', async () => {
