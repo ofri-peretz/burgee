@@ -46,6 +46,7 @@ const stats = (s: Partial<RunStats> = {}): RunStats => ({
   serversSpawned: 0,
   serversReleased: 0,
   watchdogGraced: 0,
+  heldByLoadMs: 0,
   deadlocks: 0,
   diskWrites: 0,
   diskWritePaths: [],
@@ -253,6 +254,8 @@ describe('the terminal summary', () => {
     expect(textSummary(await run({ stats: stats({ serversSpawned: 9, serversReleased: 0 }) }))).not.toContain('closed for sitting idle');
     expect(textSummary(await run({ stats: stats({ watchdogGraced: 1 }) }))).toContain('  watchdog: 1 blocked run(s) given 3x their budget in place, not a server restart');
     expect(textSummary(await run({ stats: stats({ watchdogGraced: 0 }) }))).not.toContain('blocked run(s)');
+    expect(textSummary(await run({ stats: stats({ heldByLoadMs: 1600 }) }))).toContain('  governor: unit starts held 2 s while the machine was past resources.maxLoad');
+    expect(textSummary(await run({ stats: stats({ heldByLoadMs: 0 }) }))).not.toContain('governor:');
 
     // One reader test is enough for a ratio.
     expect(textSummary(await run({ stats: stats({ staticReaders: { mutants: 1, loaderTests: 4, readerTests: 1, fellBack: 0, dryRunMs: 1 } }) }))).toContain('against 4 in every file that loads them, 4.0x fewer;');

@@ -10,10 +10,12 @@
  */
 import { fork, type ChildProcess } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import type { ServerConfig, Unit } from './child.js';
+import type { Governor } from './governor.js';
 import { beatFile, classifyStall, CPU_WINDOW_MS, cpuShare, LOOP_CPU, readBeat, type CpuSample, type Stall } from './heartbeat.js';
 import { markReader } from './progress-file.js';
 import { env, killGroup, serverGroups, stderr } from './runtime.js';
@@ -68,6 +70,19 @@ export function graceOnce(graced: Map<string, number>, o: { id: string; ran: num
   graced.set(o.id, o.limit);
   return true;
 }
+
+/** Lowers a server's OS priority (`R15`); a failure is a warning, once. */
+let priorityWarned = false;
+function lowerPriority(pid: number): void {
+  try {
+    os.setPriority(pid, LOW_PRIORITY);
+  } catch (error) {
+    if (!priorityWarned) stderr.write(`oxmutate: could not lower the servers' priority (${error instanceof Error ? error.message : String(error)}); they run at the normal one\n`);
+    priorityWarned = true;
+  }
+}
+/** The niceness `resources.priority: 'low'` gives a server. */
+const LOW_PRIORITY = 10;
 
 /** Servers started by this process, for each one's temporary directory. */
 let serversStarted = 0;
@@ -218,6 +233,10 @@ export interface PoolPlace {
   workDir: string;
   tag: string;
   lifecycle?: Lifecycle | undefined;
+  /** Holds a unit's start while the machine is past `resources.maxLoad` (governor.ts). */
+  governor?: Governor | undefined;
+  /** Start servers at a lowered OS priority (`resources.priority: 'low'`, `R15`). */
+  lowPriority?: boolean | undefined;
 }
 
 export function createPool(config: ServerConfig, size: number, place: PoolPlace): Pool {
@@ -228,7 +247,9 @@ export function createPool(config: ServerConfig, size: number, place: PoolPlace)
   const stats = { spawned: 0, killed: 0, idle: 0, crashed: 0, released: 0, graced: 0 };
   const spawn = (): Server => {
     stats.spawned++;
-    return new Server(configFile, config.root, config.nodeArgs ?? [], workDir);
+    const server = new Server(configFile, config.root, config.nodeArgs ?? [], workDir);
+    if (place.lowPriority && server.child.pid !== undefined) lowerPriority(server.child.pid);
+    return server;
   };
   // Cold: nothing waits; each unit starts its own server. Warm: the slots and a spare start now.
   const servers: (Server | undefined)[] = Array.from({ length: size }, () => (lifecycle.warm ? spawn() : undefined));
@@ -314,6 +335,7 @@ export function createPool(config: ServerConfig, size: number, place: PoolPlace)
               await new Promise<void>((r) => waiters.push(r));
               continue;
             }
+            await place.governor?.hold(() => busy);
             busy++;
             const server = await serverFor(slot);
             const outcome = await server.run(unit, (id) => budget(unit, id), grace && ((id) => grace(unit, id)));

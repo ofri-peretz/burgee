@@ -35,6 +35,8 @@ const defaults = (root: string): Options => ({
   staticGroup: 1,
   staticReaders: 'on',
   workers: { warm: true, idleTimeoutMs: 30_000 },
+  maxLoad: 1.5 * cores.n,
+  lowPriority: true,
   strykerCompat: false,
   reporters: ['clear-text', 'json'],
   jsonReport: path.join(root, 'reports/mutation/mutation.json'),
@@ -155,6 +157,20 @@ describe('options from a config file', () => {
     expect(read).toEqual(['report', 'off', 'on', 'on', 'on', 'on', 'on']);
     expect((await loadOptions(project({ 'oxmutate.config.json': {} }))).staticReaders).toBe('on');
     expect((await loadOptions(project({ 'oxmutate.config.json': {} }), { staticReaders: 'report' })).staticReaders).toBe('report');
+  });
+
+  it("resources: maxLoad a positive number, else 1.5 x cores; priority low unless it says 'normal'", async () => {
+    const values: unknown[] = [undefined, { maxLoad: 12 }, { maxLoad: 0 }, { maxLoad: 'high' }, { priority: 'normal' }, { priority: 'Normal' }];
+    const read = await Promise.all(values.map(async (resources) => await loadOptions(project({ 'oxmutate.config.json': resources === undefined ? {} : { resources } })))).then((all) => all.map((o) => ({ maxLoad: o.maxLoad, lowPriority: o.lowPriority })));
+    const load = 1.5 * cores.n;
+    expect(read).toEqual([
+      { maxLoad: load, lowPriority: true },
+      { maxLoad: 12, lowPriority: true },
+      { maxLoad: load, lowPriority: true },
+      { maxLoad: load, lowPriority: true },
+      { maxLoad: load, lowPriority: false },
+      { maxLoad: load, lowPriority: true },
+    ]);
   });
 
   it('resources: warm workers unless it says false, and an idle timeout of whole milliseconds, 30 s by default', async () => {
