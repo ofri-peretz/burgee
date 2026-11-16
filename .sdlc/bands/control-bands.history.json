@@ -39,6 +39,10 @@
     {
       "date": "2026-11-09",
       "value": 115730
+    },
+    {
+      "date": "2026-11-16",
+      "value": 88108
     }
   ],
   "lint-rules-on": [
@@ -93,6 +97,10 @@
     {
       "date": "2026-11-09",
       "value": 482
+    },
+    {
+      "date": "2026-11-16",
+      "value": 482
     }
   ],
   "lint-documented-false-positives": [
@@ -146,6 +154,10 @@
     },
     {
       "date": "2026-11-09",
+      "value": 0
+    },
+    {
+      "date": "2026-11-16",
       "value": 0
     }
   ],
@@ -2638,6 +2650,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1.074,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1.063,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1.092,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1.06,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-commander-pass-rate": [
@@ -5095,6 +5122,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-yargs-pass-rate": [
@@ -7552,6 +7594,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-chalk-pass-rate": [
@@ -10009,6 +10066,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-ora-pass-rate": [
@@ -12466,6 +12538,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-log-update-pass-rate": [
@@ -14923,6 +15010,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-boxen-pass-rate": [
@@ -17380,6 +17482,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "core-bundled-bytes": [
@@ -19872,6 +19989,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 24460,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 24528,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 24528,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 24528,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "commander-front-end-bundled-bytes": [
@@ -22364,6 +22496,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 55393,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 55514,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 55514,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 55514,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "yargs-front-end-bundled-bytes": [
@@ -24856,6 +25003,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 110156,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 110446,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 110446,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 110446,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "agent-exit-code-accuracy": [
@@ -27288,6 +27450,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "agent-structured-output-rate": [
@@ -29720,6 +29897,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "agent-hangs-per-100": [
@@ -32152,6 +32344,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 0,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 0,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 0,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 0,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "agent-schema-bytes": [
@@ -34479,6 +34686,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 4656,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 4656,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 4656,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 4656,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-cli-table3-pass-rate": [
@@ -36461,6 +36683,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-string-width-pass-rate": [
@@ -38443,6 +38680,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-ansi-escapes-pass-rate": [
@@ -40410,6 +40662,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-clack-pass-rate": [
@@ -42377,6 +42644,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-cosmiconfig-pass-rate": [
@@ -44344,6 +44626,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 0.9958847736625515,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 0.9958847736625515,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 0.9958847736625515,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 0.9958847736625515,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-cross-spawn-pass-rate": [
@@ -46311,6 +46608,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-dotenv-pass-rate": [
@@ -48278,6 +48590,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-exit-hook-pass-rate": [
@@ -50245,6 +50572,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-inquirer-core-pass-rate": [
@@ -52212,6 +52554,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-lilconfig-pass-rate": [
@@ -54179,6 +54536,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-meow-pass-rate": [
@@ -56146,6 +56518,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 0.9864864864864865,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 0.9864864864864865,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 0.9864864864864865,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 0.9864864864864865,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-rc-pass-rate": [
@@ -58113,6 +58500,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-restore-cursor-pass-rate": [
@@ -60080,6 +60482,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-signal-exit-pass-rate": [
@@ -61922,6 +62339,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 0.9925925925925926,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 0.9925925925925926,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 0.9925925925925926,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 0.9925925925925926,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-slice-ansi-pass-rate": [
@@ -63889,6 +64321,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-strip-ansi-pass-rate": [
@@ -65856,6 +66303,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-term-img-pass-rate": [
@@ -67823,6 +68285,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-terminal-link-pass-rate": [
@@ -69790,6 +70267,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-which-pass-rate": [
@@ -71507,6 +71999,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-wrap-ansi-pass-rate": [
@@ -73474,6 +73981,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-execa-pass-rate": [
@@ -74926,6 +75448,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 0,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 0,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 0,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 0,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "agent-tokens-per-task": [
@@ -75313,6 +75850,11 @@
       "date": "2026-11-03-29fc969-weekly-ci",
       "value": 63490,
       "measured": "2026-11-03T13:20:38.004Z"
+    },
+    {
+      "date": "2026-11-10-1350444-weekly-ci",
+      "value": 32388,
+      "measured": "2026-11-10T14:03:00.954Z"
     }
   ],
   "agent-turns-per-task": [
@@ -75700,6 +76242,11 @@
       "date": "2026-11-03-29fc969-weekly-ci",
       "value": 3,
       "measured": "2026-11-03T13:20:38.004Z"
+    },
+    {
+      "date": "2026-11-10-1350444-weekly-ci",
+      "value": 3,
+      "measured": "2026-11-10T14:03:00.954Z"
     }
   ],
   "agent-skill-bytes": [
@@ -76622,6 +77169,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1773,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1773,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1773,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1773,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-cli-cursor-pass-rate": [
@@ -77624,6 +78186,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-cli-truncate-pass-rate": [
@@ -78571,6 +79148,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-find-up-pass-rate": [
@@ -79573,6 +80165,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-ink-pass-rate": [
@@ -80875,6 +81482,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-inkjs-ui-pass-rate": [
@@ -82177,6 +82799,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-inquirer-prompts-pass-rate": [
@@ -83159,6 +83796,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-onetime-pass-rate": [
@@ -84161,6 +84813,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-picocolors-pass-rate": [
@@ -85103,6 +85770,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-widest-line-pass-rate": [
@@ -86050,6 +86732,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-colorette-pass-rate": [
@@ -86482,6 +87179,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-extra-typings-pass-rate": [
@@ -87354,6 +88066,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-kleur-pass-rate": [
@@ -87756,6 +88483,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-supports-color-pass-rate": [
@@ -88353,6 +89095,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ],
   "compat-yoctocolors-pass-rate": [
@@ -88845,6 +89602,21 @@
       "date": "2026-11-01-7d69edd-ci",
       "value": 1,
       "measured": "2026-11-01T10:40:05.755Z"
+    },
+    {
+      "date": "2026-11-14-6eab290-ci",
+      "value": 1,
+      "measured": "2026-11-14T09:54:26.931Z"
+    },
+    {
+      "date": "2026-11-15-d0fc5cb-ci",
+      "value": 1,
+      "measured": "2026-11-15T10:34:04.699Z"
+    },
+    {
+      "date": "2026-11-16-efba9ad-ci",
+      "value": 1,
+      "measured": "2026-11-16T10:41:50.656Z"
     }
   ]
 }
