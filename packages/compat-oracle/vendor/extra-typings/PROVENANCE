@@ -3,7 +3,7 @@ repo:     https://github.com/commander-js/extra-typings
 version:  15.1.0
 tag:      v15.1.0
 commit:   b7dcd6967f23312aea4f4bae1d6ed68dbc21e789
-vendored: 2026-11-12
+vendored: 2026-11-16
 files:    13
 tool:     scripts/vendor-suite.ts
 
