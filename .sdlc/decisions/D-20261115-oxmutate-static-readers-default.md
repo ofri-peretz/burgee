@@ -1,7 +1,10 @@
-# D-20261115 — `static.readers` is on by default
-
-**Decided:** 2026-11-15, by the owner ("close everything that is currently open … including the
-implementation of all potential improvements", after the default was named as the owner's call).
+---
+id: D-20261115-oxmutate-static-readers-default
+subject: "oxmutate-fastest 2.4: is static.readers on by default?"
+taken: 'Taken — by the owner, 2026-11-15 ("close everything that is currently open … including the implementation of all potential improvements"), after the default was named as the owner''s call'
+date: "2026-11-15"
+superseded_by: —
+---
 
 **Yes: `static.readers: 'on'` is the default.** `static.readers: 'off'` or `--no-static-readers`
 restores every loading file; `'report'` is unchanged.
