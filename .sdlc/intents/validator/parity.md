@@ -214,7 +214,78 @@ Choices wave 3 made, each reversible:
 | The Standard Schema vendor | One constant, `validator`, until the name is chosen | — |
 | `time` | Two formats: `time` needs an offset (RFC 3339 full-time), `localTime` has none | zod and valibot refuse any offset and ajv requires one, so no single value passes all three |
 
-Not started: waves 4 and 5, so there is no JSON Schema import yet.
+## Wave 4 as built, 2026-11-17
+
+The features two of the five competitors have, all 24 rows. Ours now reads **143 yes, 4 partial,
+7 no**. 1,109 tests, 100% coverage; the three readers and `parse` agree on 558 probed values of a
+schema with every new kind (spec R2). No surviving mutant in the package's source (oxmutate 2.6.1,
+5,453 mutants); 46 are excluded, each with its reason in the source, 22 more than after wave 3, and
+all of them in wave 4's fast paths and in pieces no buildable schema can tell apart. The 12
+survivors oxmutate reports in `src/__fixtures__/readers.ts` are in test scaffolding wave 4 did not
+touch.
+
+| Group | What landed |
+| :-- | :-- |
+| Strings | `template`, typed as the template literal type it describes; `startsWith`, `endsWith`, `includes` |
+| Formats, on `./formats` | `base64url`, `cuid`, `cuid2`, `duration`, `emoji`, `json`, `jwt`, `nanoid`, `regex`, `ulid`, `uuidVersion(n)` |
+| Arrays | `contains` with `min` and `max` (JSON Schema's `minContains`, `maxContains`), `unique` |
+| Combinations | `not`, `oneOf` |
+| Values | `catchOf`, `codec` with `encode` |
+| JSON Schema, on `./json-schema` | `fromJsonSchema` for 2020-12, draft-07 and the OpenAPI 3.0 Schema Object; `standardJson` (Standard JSON Schema); `readonly` written as `readOnly` |
+
+**JSON Schema import is graded by ajv, outside the repository.** 53 documents over 45 JSON values,
+2,385 pairs: ajv 8.20.0's verdict, `check`'s, the emitted code's, and ajv's on the document
+`toJsonSchema` writes back all agree. Two places where ajv is not the grader, both on purpose:
+
+- **Draft-07 ignores what stands beside a `$ref`**, as the draft says ("MUST be ignored") and the
+  JSON-Schema-Test-Suite tests; ajv 8 applies the siblings.
+- **`multipleOf` on a large number**: ajv accepts `1e21` as a multiple of 3 by dividing in doubles;
+  10^21 mod 3 is 1.
+
+What it does not read is a finding, and the schema accepts more there, never less:
+`patternProperties` (and the `additionalProperties` beside it), `unevaluatedProperties`,
+`unevaluatedItems`, `$dynamicRef`, a `$ref` outside the document, a format it has no reading of.
+`if`/`then`/`else`, `dependentRequired`, `dependentSchemas` and draft-07 `dependencies` are read.
+
+**What it cost a schema that uses none of it: nothing.** esbuild, minified and gzipped, the same
+entries against `origin/main`:
+
+| Bundle | Before wave 4 | After |
+| :-- | --: | --: |
+| `string` and `check` only | 702 B | 702 B |
+| The order schema, `check` | 1,706 B | 1,704 B |
+| The order schema, `check` and `issues` | 3,153 B | 3,150 B |
+| The order schema, `parse` | 3,875 B | 3,871 B |
+| The order schema, `toJsonSchema` | 4,832 B | 5,265 B |
+
+What the new things cost those who import them: a template 2,214 B with `check`, `oneOf` 1,418 B,
+`unique` 1,474 B, `standardJson` on the order schema 5,581 B, and `fromJsonSchema` 10,608 B, which
+carries the builders of every kind a document can name and the formats it reads. Valid orders a
+second with `check`: 0.97 to 0.99 of `origin/main` over three runs at load average 82, with the
+source of every function on that path unchanged, so within noise; it is to be re-read on a quiet
+machine.
+
+The first reading of the bundle found 881 B for `string` alone: the template grammar is built by
+calls when its module loads, and a bundler keeps a call it cannot see through. Each is now marked
+free of side effects, and a test holds the marks.
+
+Choices wave 4 made, each reversible:
+
+| Question | Taken | Why |
+| :-- | :-- | :-- |
+| What a template's hole may hold | A string, number, bigint, boolean, literal, enum, union, nullable or template, with no bounds | It is what TypeScript's template literal types read; a bound on a hole has no text to match |
+| How a template is read | A Thompson machine over UTF-16 units, never a regular expression | Two open holes side by side make a regular expression backtrack; the export still writes one pattern, made from the same tree |
+| A number in a template | JSON's grammar, which is what `String` writes for every finite double | `1e+21` matches, `0x10` and `.5` do not |
+| `startsWith` and its two kin | Wrappers, not options of `string` | `string` pays nothing for them |
+| A fallback (`catchOf`) | Stands for an input, as a default does: held to the schema and mapped by its transforms | One meaning for "a value `parse` supplies"; zod and valibot hand theirs out unchecked |
+| A codec's `check` | Describes the input, as a pipe's does | `check` never runs a user's function |
+| `unique` on a value that holds itself | The same as nothing but itself where it is met again | It ends; JSON has no such value |
+| `duration` | RFC 3339 Appendix A, strict about order and gaps: `P1Y1D` and `PT1H1S` refused | It is what JSON Schema names; ajv-formats accepts both |
+| `emoji` | UTS #51 `RGI_Emoji`, with the `v` flag | A test of single code points lets `"123"` through |
+| Formats on import | Asserted, as ajv asserts them by default | The specification makes them annotations unless a validator opts in |
+| Standard JSON Schema `output` | Refused for a transform, pipe, codec or fallback | No document of what goes in describes what comes out |
+
+Not started: wave 5, the six features one competitor has.
 
 ## The build list, in waves
 

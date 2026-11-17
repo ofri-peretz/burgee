@@ -257,6 +257,164 @@ const isCounted = (schema: Node, value: unknown): boolean => {
   return count >= schema.min && count <= schema.max;
 };
 
+/** One step of a template's reading: a UTF-16 unit from `low` to `high`, or, when `kind` is 1, a way on to two other steps, each so many steps from this one. */
+type Step = readonly [kind: number, low: number, high: number];
+
+/**
+ * The places a reading can stand at once every place in `from` is followed through its splits:
+ * each once, `seen` holding the round a place was last reached in. A list and no recursion, so a
+ * template of ten thousand alternatives is read on the same stack as one of two.
+ */
+const spread = (steps: readonly Step[], from: number[], seen: number[], round: number): number[] => {
+  // Stryker disable next-line ArrayDeclaration: equivalent, a place that is no number names no step, and is never the end
+  const out: number[] = [];
+  while (from.length > 0) {
+    const place = from.pop() as number;
+    if (seen[place] === round) continue;
+    // eslint-disable-next-line secure-coding/detect-object-injection -- `place` is a number the steps made, an index into an array of numbers
+    seen[place] = round;
+    const step = steps[place];
+    if (step?.[0] === 1) from.push(place + step[1], place + step[2]);
+    else out.push(place);
+  }
+  return out;
+};
+
+/**
+ * A string a template describes. The template is read as a machine with no memory but the set of
+ * places it may stand at (Thompson's construction, 1968), one UTF-16 unit of the string at a time:
+ * the time is the length of the string times the size of the template, whatever the string. A
+ * regular expression made from the same template backtracks where two holes of open length follow
+ * each other, and this never does.
+ */
+const isTemplate = (schema: Node, value: unknown): boolean => {
+  if (typeof value !== 'string') return false;
+  const { steps } = schema.value as { readonly steps: readonly Step[] };
+  // Stryker disable next-line ArrayDeclaration: equivalent, a member that is no round is never the round a place was reached in
+  const seen: number[] = [];
+  let now = spread(steps, [0], seen, 0);
+  for (let index = 0; index < value.length; index++) {
+    // eslint-disable-next-line conventions/prefer-code-point -- a unit, not a code point: the steps are UTF-16 units, so a pair is read as two
+    const unit = value.charCodeAt(index);
+    // Stryker disable next-line ArrayDeclaration: equivalent, a place that is no number names no step, and is never the end
+    const next: number[] = [];
+    for (const place of now) {
+      const step = steps[place];
+      if (step !== undefined && unit >= step[1] && unit <= step[2]) next.push(place + 1);
+    }
+    // Stryker disable next-line ArithmeticOperator: equivalent, the rounds would meet only at the second unit, and a template comes back to its start only through a string hole, which takes the first unit and so reaches every place of the start again in between
+    now = spread(steps, next, seen, index + 1);
+  }
+  // The place past the last step is the end of the template.
+  return now.includes(steps.length);
+};
+
+/** A string the wrapped schema accepts that starts with the text in `value`, ends with it, or has it somewhere inside. */
+const isStarting = (schema: Node, value: unknown): boolean => typeof value === 'string' && value.startsWith(schema.value as string) && run(schema.item as Node, value);
+
+const isEnding = (schema: Node, value: unknown): boolean => typeof value === 'string' && value.endsWith(schema.value as string) && run(schema.item as Node, value);
+
+const isHolding = (schema: Node, value: unknown): boolean => typeof value === 'string' && value.includes(schema.value as string) && run(schema.item as Node, value);
+
+/** How many of the items a schema accepts. */
+const matching = (schema: Node, items: readonly unknown[]): number => {
+  let count = 0;
+  for (let index = 0; index < items.length; index++) if (run(schema, items[index])) count += 1;
+  return count;
+};
+
+/** An array the wrapped schema accepts, of whose items the schema in `key` accepts a number inside the bounds: JSON Schema's `contains`, `minContains` and `maxContains`. */
+const isContaining = (schema: Node, value: unknown): boolean => {
+  if (!Array.isArray(value) || !run(schema.item as Node, value)) return false;
+  const count = matching(schema.key as Node, value);
+  return count >= schema.min && count <= schema.max;
+};
+
+/** Whether two arrays have the same items in the same order. */
+const sameItems = (left: readonly unknown[], right: readonly unknown[], inside: readonly unknown[]): boolean =>
+  left.length === right.length && left.every((item, index) => sameValue(item, right[index], inside));
+
+/** A record of keys: an object made by `{}` or with no prototype. Any other object is one thing, and is only itself. */
+const isBare = (value: object): value is Record<string, unknown> => {
+  const proto: unknown = Object.getPrototypeOf(value);
+  return proto === null || proto === Object.prototype;
+};
+
+/** Whether two records have the same own keys, in any order, with the same values. */
+const sameMembers = (left: Record<string, unknown>, right: Record<string, unknown>, inside: readonly unknown[]): boolean => {
+  const keys = Object.keys(left);
+  // eslint-disable-next-line conventions/consistent-existence-index-check -- own keys only, as `uniqueItems` compares JSON objects: an inherited key is no member
+  return keys.length === Object.keys(right).length && keys.every((key) => Object.hasOwn(right, key) && sameValue(left[key], right[key], inside));
+};
+
+/** Whether two objects that are not one object are the same value: two arrays, two dates or two records. */
+const sameObject = (left: object, right: object, inside: readonly unknown[]): boolean => {
+  // A value that holds itself is met again on the way down: it is the same as nothing but itself, which was asked first.
+  if (inside.includes(left)) return false;
+  if (Array.isArray(left)) return Array.isArray(right) && sameItems(left, right, [...inside, left]);
+  if (left instanceof Date) return right instanceof Date && Object.is(left.getTime(), right.getTime());
+  return isBare(left) && !Array.isArray(right) && isBare(right) && sameMembers(left, right, [...inside, left]);
+};
+
+/**
+ * Whether two values are the same value, as JSON Schema's `uniqueItems` asks it (draft 2020-12
+ * §4.2.2): numbers by their mathematical value, arrays item by item, objects key by key in any
+ * order. Outside JSON: `NaN` is the same as `NaN` and `-0` as `0`, as a `Set` has them; two dates
+ * are the same when they are the same time; a `Map`, a `Set`, a function, a symbol or an instance
+ * of a class is the same as itself alone; and `1n` is not `1`.
+ */
+/** Whether a value is an object of any kind: what `sameObject` can be asked about. */
+const isAnObject = (value: unknown): value is object => typeof value === 'object' && value !== null;
+
+function sameValue(left: unknown, right: unknown, inside: readonly unknown[]): boolean {
+  if (left === right || Object.is(left, right)) return true;
+  return isAnObject(left) && isAnObject(right) && sameObject(left, right, inside);
+}
+
+/**
+ * The index of the first item that is the same value as an earlier one, or -1. A value that is no
+ * object is looked up in a set, so an array of strings and numbers is read in time proportional to
+ * its length. An object is compared with every object before it: for an array of `k` objects that
+ * is `k × (k - 1) / 2` comparisons at worst, each as deep as the objects are alike.
+ */
+const repeated = (items: readonly unknown[]): number => {
+  const plain = new Set<unknown>();
+  // Stryker disable next-line ArrayDeclaration: equivalent, no item is the same value as a string that is not among the items
+  const objects: object[] = [];
+  for (let index = 0; index < items.length; index++) {
+    const item: unknown = items[index];
+    // Stryker disable next-line LogicalOperator,ConditionalExpression: equivalent, the set is the fast path; `sameValue` gives a value that is no object the same answer, slower
+    if (typeof item !== 'object' || item === null) {
+      if (plain.has(item)) return index;
+      plain.add(item);
+    } else {
+      // Stryker disable next-line ArrayDeclaration: equivalent, a string is never the object being compared
+      if (objects.some((earlier) => sameValue(item, earlier, []))) return index;
+      objects.push(item);
+    }
+  }
+  return -1;
+};
+
+/** An array the wrapped schema accepts, with no two items the same value: JSON Schema's `uniqueItems`. */
+const isUnique = (schema: Node, value: unknown): boolean => Array.isArray(value) && run(schema.item as Node, value) && repeated(value) === -1;
+
+/** A value the schema in `key` refuses. */
+const isNot = (schema: Node, value: unknown): boolean => !run(schema.key as Node, value);
+
+/** A value exactly one member accepts: the second to accept it settles the answer. */
+const isOne = (schema: Node, value: unknown): boolean => {
+  const members = schema.fields as readonly Node[];
+  let count = 0;
+  for (let index = 0; index < members.length; index++) {
+    if (!run(members[index] as Node, value)) continue;
+    count += 1;
+    // Stryker disable next-line ConditionalExpression: equivalent, the count only grows, and the last line refuses any count but one; this stops at the second
+    if (count > 1) return false;
+  }
+  return count === 1;
+};
+
 /** Whether `value` is what the schema describes. A type guard, so a passing check narrows. */
 const check = <T>(schema: Schema<T, unknown>, value: unknown): value is T => schema.check(schema, value);
 
@@ -268,10 +426,13 @@ export {
   isBoolean,
   isCase,
   isClosed,
+  isContaining,
   isCounted,
   isCustom,
   isDate,
+  isEnding,
   isEvery,
+  isHolding,
   isInstance,
   isLater,
   isLiteral,
@@ -280,19 +441,27 @@ export {
   isMember,
   isMultiple,
   isNan,
+  isNot,
   isNothing,
   isNullable,
   isNullish,
   isNumber,
   isObject,
+  isOne,
   isRecord,
   isRefined,
   isSet,
+  isStarting,
   isString,
+  isTemplate,
   isTuple,
   isTypeOf,
   isUnion,
+  isUnique,
   keyCount,
   matches,
+  matching,
   points,
+  repeated,
+  type Step,
 };

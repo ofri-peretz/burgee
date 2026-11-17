@@ -17,6 +17,10 @@ interface Emitter {
   points: string | null;
   /** The multiple test's name, once a number has needed it. */
   multiple: string | null;
+  /** The template reader's name, once a template has needed it. */
+  template: string | null;
+  /** The test for two items that are the same value, once a unique array has needed it. */
+  same: string | null;
   /** The functions the schema names. Text cannot hold one, so the text calls them as `h[0]`, `h[1]`, … */
   readonly hooks: unknown[];
 }
@@ -154,7 +158,7 @@ const array = (emitter: Emitter, schema: Node): string => {
  * whatever its schema would say of `undefined` (`check` asks that first), so for these the text
  * asks it too; for every other kind the kind's test already refuses `undefined`.
  */
-const UNDEFINED_MAY_PASS: ReadonlySet<Kind> = new Set(['unknown', 'nullable', 'nullish', 'union', 'intersection', 'lazy', 'custom', 'refine', 'transform', 'message', 'pipe', 'preprocess', 'refineAsync', 'transformAsync']);
+const UNDEFINED_MAY_PASS: ReadonlySet<Kind> = new Set(['unknown', 'nullable', 'nullish', 'union', 'intersection', 'lazy', 'custom', 'refine', 'transform', 'message', 'pipe', 'preprocess', 'refineAsync', 'transformAsync', 'not', 'oneOf', 'catch', 'codec']);
 
 /** Whether a field's own test can be true of `undefined`: one of those kinds, or the literal `undefined`. */
 const mayPassUndefined = (field: Node): boolean => UNDEFINED_MAY_PASS.has(field.kind) || (field.kind === 'literal' && field.value === undefined);
@@ -294,6 +298,114 @@ const later = (emitter: Emitter, schema: Node, ref: string): string => {
   return `${name}(${ref})`;
 };
 
+/** `isTemplate` and `spread` of check.ts, as text: written once, and only for a schema with a template. */
+const TEMPLATE = `(t, s) => {
+  if (typeof s !== "string") return false;
+  const seen = [];
+  const spread = (from, round) => {
+    const out = [];
+    while (from.length > 0) {
+      const p = from.pop();
+      if (seen[p] === round) continue;
+      seen[p] = round;
+      const q = t[p];
+      if (q !== undefined && q[0] === 1) from.push(p + q[1], p + q[2]);
+      else out.push(p);
+    }
+    return out;
+  };
+  let now = spread([0], 0);
+  for (let i = 0; i < s.length; i++) {
+    const u = s.charCodeAt(i);
+    const next = [];
+    for (const p of now) {
+      const q = t[p];
+      if (q !== undefined && u >= q[1] && u <= q[2]) next.push(p + 1);
+    }
+    now = spread(next, i + 1);
+  }
+  return now.includes(t.length);
+}`;
+
+/** The steps of a template, as data the text reads. A node is data and may have been built by hand: steps that are not three numbers each are refused. */
+const steps = (value: unknown): string => {
+  const held = (value as { readonly steps?: unknown } | null)?.steps;
+  if (!Array.isArray(held) || !held.every((step) => Array.isArray(step) && step.length === 3 && step.every((part) => typeof part === 'number'))) {
+    throw new TypeError('cannot emit a template whose steps are not numbers. fix: build the schema with `template`');
+  }
+  return literal(held);
+};
+
+const template = (emitter: Emitter, schema: Node, ref: string): string => {
+  emitter.template ??= declare(emitter, 't', TEMPLATE);
+  return `${emitter.template}(${declare(emitter, 's', steps(schema.value))}, ${ref})`;
+};
+
+/** The text a string test looks for, which is refused when it is not a string, as a bound is when it is not a number. */
+const textOf = (value: unknown): string => {
+  if (typeof value !== 'string') throw new TypeError(`cannot emit a string test for ${shown(value)}: it is not a string. fix: build the schema with \`startsWith\`, \`endsWith\` or \`includes\``);
+  return literal(value);
+};
+
+/** A string test: a method of the string with the text, and the test of what it wraps. */
+const textual = (method: string) => (emitter: Emitter, schema: Node, ref: string): string =>
+  `(typeof ${ref} === "string" && ${ref}.${method}(${textOf(schema.value)}) && (${test(emitter, schema.item as Node, ref)}))`;
+
+const containing = (emitter: Emitter, schema: Node): string => `(v) => {
+  if (!Array.isArray(v) || !(${test(emitter, schema.item as Node, 'v')})) return false;
+  let n = 0;
+  for (let i = 0; i < v.length; i++) if (${test(emitter, schema.key as Node, 'v[i]')}) n += 1;
+  return n >= ${numeric(schema.min)} && n <= ${numeric(schema.max)};
+}`;
+
+/** `sameValue` and `repeated` of check.ts, as text: written once, and only for a schema with a unique array. */
+const SAME = `(() => {
+  const bare = (o) => { const p = Object.getPrototypeOf(o); return p === null || p === Object.prototype; };
+  const same = (a, b, inside) => {
+    if (a === b || Object.is(a, b)) return true;
+    if (typeof a !== "object" || typeof b !== "object" || a === null || b === null || inside.includes(a)) return false;
+    if (Array.isArray(a)) return Array.isArray(b) && a.length === b.length && a.every((x, i) => same(x, b[i], [...inside, a]));
+    if (a instanceof Date) return b instanceof Date && Object.is(a.getTime(), b.getTime());
+    if (!bare(a) || Array.isArray(b) || !bare(b)) return false;
+    const keys = Object.keys(a);
+    return keys.length === Object.keys(b).length && keys.every((k) => Object.hasOwn(b, k) && same(a[k], b[k], [...inside, a]));
+  };
+  return (v) => {
+    const plain = new Set();
+    const objects = [];
+    for (let i = 0; i < v.length; i++) {
+      const x = v[i];
+      if (typeof x !== "object" || x === null) {
+        if (plain.has(x)) return false;
+        plain.add(x);
+      } else {
+        if (objects.some((y) => same(x, y, []))) return false;
+        objects.push(x);
+      }
+    }
+    return true;
+  };
+})()`;
+
+const unique = (emitter: Emitter, schema: Node, ref: string): string => {
+  emitter.same ??= declare(emitter, 'u', SAME);
+  return `(Array.isArray(${ref}) && (${test(emitter, schema.item as Node, ref)}) && ${emitter.same}(${ref}))`;
+};
+
+/** What ends a line of the emitted text. */
+// Stryker disable next-line StringLiteral: equivalent, each line is a whole statement, so the text means the same on one line
+const LINE = '\n';
+
+/** Exactly one member: the count stops at the second. */
+const one = (emitter: Emitter, schema: Node): string => {
+  const tests = (schema.fields as readonly Node[]).map((member) => `  if (${test(emitter, member, 'v')} && ++n > 1) return false;`);
+  return `(v) => {
+  let n = 0;
+${tests.join(LINE)}
+  return n === 1;
+}`;
+};
+
 /** The test of each member of a union or an intersection, on the same value. */
 const members = (emitter: Emitter, schema: Node, ref: string): string[] =>
   (schema.fields as readonly Node[]).map((member) => `(${test(emitter, member, ref)})`);
@@ -340,6 +452,17 @@ const WRITERS: Readonly<Record<Kind, (emitter: Emitter, schema: Node, ref: strin
   // A rule or a map that is awaited is `parseAsync`'s to call: the text answers at once, for what goes in.
   refineAsync: (emitter, schema, ref) => test(emitter, schema.item as Node, ref),
   transformAsync: (emitter, schema, ref) => test(emitter, schema.item as Node, ref),
+  template,
+  startsWith: textual('startsWith'),
+  endsWith: textual('endsWith'),
+  includes: textual('includes'),
+  contains: (emitter, schema, ref) => `${named(emitter, schema, containing)}(${ref})`,
+  unique,
+  not: (emitter, schema, ref) => `!(${test(emitter, schema.key as Node, ref)})`,
+  oneOf: (emitter, schema, ref) => `${named(emitter, schema, one)}(${ref})`,
+  // A fallback and the second direction of a codec are `parse`'s and `encode`'s: the text describes what goes in.
+  catch: (emitter, schema, ref) => test(emitter, schema.item as Node, ref),
+  codec: (emitter, schema, ref) => test(emitter, schema.item as Node, ref),
 };
 
 function test(emitter: Emitter, schema: Node, ref: string): string {
@@ -352,7 +475,7 @@ function test(emitter: Emitter, schema: Node, ref: string): string {
 
 /** The declarations and the entry of the function for a schema, and the functions that text calls. */
 const write = (schema: Node): { body: string; hooks: readonly unknown[] } => {
-  const emitter: Emitter = { lines: [], named: new Map(), points: null, multiple: null, hooks: [] };
+  const emitter: Emitter = { lines: [], named: new Map(), points: null, multiple: null, template: null, same: null, hooks: [] };
   const entry = test(emitter, schema, 'v');
   return { body: `${emitter.lines.join('\n')}\nreturn (v) => ${entry};`, hooks: emitter.hooks };
 };

@@ -75,11 +75,13 @@ const extend = <T, O, const S extends Shape>(
 const keyof = <T>(schema: Schema<T, unknown>): Schema<keyof T & string> => enumOf(entriesOf(schema, 'take the keys of').map(([key]) => key)) as Schema<keyof T & string>;
 
 /**
- * The same schema, typed read-only. Nothing is frozen: `parse` hands back the caller's own value
- * when nothing changed (parity.md decision 10), and freezing that would write to it. Of the five
- * libraries only zod freezes; valibot, arktype and typebox mark the type alone, as this does.
+ * The same schema, typed read-only, and marked `readOnly` for the JSON Schema and OpenAPI it is
+ * written to: the value is the server's to set. Nothing is frozen: `parse` hands back the caller's
+ * own value when nothing changed (parity.md decision 10), and freezing that would write to it. Of
+ * the five libraries only zod freezes; valibot, arktype and typebox mark the type alone, as this does.
  */
-const readonly = <T, O>(schema: Schema<T, O>): Schema<Readonly<T>, [O] extends [Same] ? Same : Readonly<O>> => schema as Schema<Readonly<T>, never>;
+const readonly = <T, O>(schema: Schema<T, O>): Schema<Readonly<T>, [O] extends [Same] ? Same : Readonly<O>> =>
+  Object.freeze({ ...schema, meta: Object.freeze({ ...schema.meta, readOnly: true }) }) as Schema<Readonly<T>, never>;
 
 /** What a brand adds to a type: a member no value has, named by the brand. Two brands on one type are both there. */
 interface Brand<B extends string | symbol> {
