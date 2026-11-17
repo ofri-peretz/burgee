@@ -396,7 +396,7 @@ it.skipIf(!native || !existsSync(bin))('leaves no server running when the coordi
 
 // A warm run blocked in a synchronous child, past its budget at almost no CPU, is given its 3x in
 // place: on compat-oracle every such stop killed a server and re-ran the mutant (2026-11-15).
-it.skipIf(!native || !existsSync(bin) || process.platform === 'win32')('gives a blocked warm run its 3x in place, with no server restart and the same verdicts', () => {
+it.skipIf(!native || !existsSync(bin) || !nightly || process.platform === 'win32')('gives a blocked warm run its 3x in place, with no server restart and the same verdicts', () => {
   const run = groupRun('blocked-grace', 'src/size.ts', []);
   expect(run.verdicts.length).toBeGreaterThan(0);
   expect(run.verdicts.every((v) => v.endsWith(':Killed'))).toBe(true);
@@ -428,7 +428,7 @@ const childPids = (marks: string): number[] => markers(marks, 'child').map((f) =
 
 // A SIGKILLed server's children were re-parented and lived on: compat-oracle's uvu runners, 8 in one
 // 12-minute warm phase (2026-11-15). A server leads its own process group, and a kill takes the group.
-it.skipIf(!native || !existsSync(bin) || process.platform === 'win32')('takes the processes a test started with a server the watchdog kills', async () => {
+it.skipIf(!native || !existsSync(bin) || !nightly || process.platform === 'win32')('takes the processes a test started with a server the watchdog kills', async () => {
   const dir = path.join(pkg, 'test/fixtures/spawn-child');
   const marks = mkdtempSync(path.join(tmpdir(), 'oxmutate-children-'));
   const r = spawnSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', path.join(dir, 'reports'), '--reporter', 'json'], {
