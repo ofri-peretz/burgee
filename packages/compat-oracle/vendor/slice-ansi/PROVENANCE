@@ -3,7 +3,7 @@ repo:     https://github.com/chalk/slice-ansi
 version:  10.0.1
 tag:      v10.0.1
 commit:   9043bde48c295833b60385d28cfc3fea769b621a
-vendored: 2026-11-12
+vendored: 2026-11-16
 files:    1
 tool:     scripts/vendor-suite.ts
 
