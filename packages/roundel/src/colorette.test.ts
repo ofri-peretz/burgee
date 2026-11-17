@@ -172,9 +172,10 @@ describe('createColors', () => {
   });
 });
 
+const tty = (env: Record<string, string> = {}, argv: string[] = [], platform = 'linux'): World => ({ process: { env, argv, platform }, tty: true });
+const pipe = (env: Record<string, string> = {}, argv: string[] = [], platform = 'linux'): World => ({ process: { env, argv, platform }, tty: false });
+
 describe('colour is decided as colorette decides it, once, at import', () => {
-  const tty = (env: Record<string, string> = {}, argv: string[] = [], platform = 'linux'): World => ({ process: { env, argv, platform }, tty: true });
-  const pipe = (env: Record<string, string> = {}, argv: string[] = [], platform = 'linux'): World => ({ process: { env, argv, platform }, tty: false });
 
   it.each<[string, World, boolean]>([
     ['a terminal with a TERM', tty({ TERM: 'xterm' }), true],

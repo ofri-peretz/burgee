@@ -115,4 +115,5 @@ export const underlineWhiteBright = format('58;5;15', 59);
 
 // `import colors from 'roundel/yoctocolors'` is yoctocolors' `export * as default`: the module's
 // own namespace, so the default and the named exports are the same functions.
+// eslint-disable-next-line import-next/no-default-export, import-next/no-cycle -- the drop-in reproduces yoctocolors' own `export * as default`; a self re-export is not a cycle (FP ofri-peretz/eslint#1549)
 export * as default from './yoctocolors.js';

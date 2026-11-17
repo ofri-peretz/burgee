@@ -7,10 +7,11 @@ import { describe, expect, it } from 'vitest';
 
 import { discard } from './__fixtures__/scratch-dir.js';
 import { runCommand } from './execute.js';
-import { defineCommand, defineProgram } from './index.js';
 import { Manifest } from './manifest.js';
 import { schemaOf } from './schema-entry.js';
 import { runBurgee } from './testing.js';
+
+import { defineCommand, defineProgram } from './index.js';
 
 const program = defineProgram({
   name: 'app',

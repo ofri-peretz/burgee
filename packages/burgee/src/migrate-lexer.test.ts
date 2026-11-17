@@ -133,6 +133,8 @@ describe('a require() whose two sides return different kinds of value (A29)', ()
   });
 });
 
+const next = async (at: string): Promise<string> => (await migrate({ dir: at, dryRun: true, status: async () => undefined })).next;
+
 describe('the report', () => {
   let dir = '';
   afterEach(() => discard(dir));
@@ -143,7 +145,6 @@ describe('the report', () => {
     if (lockfile !== undefined) writeFileSync(join(dir, lockfile), '');
     return dir;
   };
-  const next = async (at: string): Promise<string> => (await migrate({ dir: at, dryRun: true, status: async () => undefined })).next;
 
   it('writes the next step for the package manager whose lockfile is there', async () => {
     // Pinned since U12-2, to the version roundel's own manifest declares.

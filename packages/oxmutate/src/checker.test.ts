@@ -115,6 +115,12 @@ const m = (id: string, file: string, replacement: string): CheckMutant => ({ id,
 const src = (...values: string[]): string => values.map((v) => `export const é = ${v};\n`).join('|');
 const leftover = (root: string): string[] => (existsSync(path.join(root, '.oxmutate-tmp')) ? readdirSync(path.join(root, '.oxmutate-tmp')) : []);
 
+const sandboxes = async (concurrency: number, survivors: CheckMutant[]): Promise<number> => {
+  rmSync(log, { force: true });
+  await checkSurvivors({ root: project(), tsconfig: 'tsconfig.json', command: `node ${fake}`, concurrency }, survivors);
+  return calls()[0]?.sandboxes ?? -1;
+};
+
 describe('checkSurvivors, against a stand-in compiler', () => {
   beforeEach(() => {
     rmSync(log, { force: true });
@@ -192,11 +198,6 @@ describe('checkSurvivors, against a stand-in compiler', () => {
   });
 
   it('opens one sandbox per worker, never more than the survivors, at least one', async () => {
-    const sandboxes = async (concurrency: number, survivors: CheckMutant[]): Promise<number> => {
-      rmSync(log, { force: true });
-      await checkSurvivors({ root: project(), tsconfig: 'tsconfig.json', command: `node ${fake}`, concurrency }, survivors);
-      return calls()[0]?.sandboxes ?? -1;
-    };
     expect(await sandboxes(4, [m('a1', 'a', '1'), m('a2', 'a', '2')])).toBe(2);
     expect(await sandboxes(1, [m('a1', 'a', '1'), m('a2', 'a', '2'), m('a3', 'a', '3')])).toBe(1);
     expect(await sandboxes(0, [m('a1', 'a', '1')])).toBe(1);

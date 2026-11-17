@@ -135,16 +135,16 @@ describe('moved — whether a release is worth an issue', () => {
   });
 });
 
-describe('weighs — whether anything we publish depends on a competitor\'s weight', () => {
-  const claim = (over: { claim?: 'surface' | 'weight' | 'compat'; cited?: string[] } = {}) => ({ owner: 'oxmutate', subpath: '.', claim: over.claim ?? 'surface', cited: over.cited ?? [] });
-  const site = (citations: number) => ({
-    owner: 'oxmutate',
-    subpath: '.',
-    claim: 'surface' as const,
-    targets: [],
-    citations: Array.from({ length: citations }, () => ({ file: 'packages/oxmutate/README.md', line: 1, text: 'Stryker 15,770,354 B' })),
-  });
+const claim = (over: { claim?: 'surface' | 'weight' | 'compat'; cited?: string[] } = {}) => ({ owner: 'oxmutate', subpath: '.', claim: over.claim ?? 'surface', cited: over.cited ?? [] });
+const site = (citations: number) => ({
+  owner: 'oxmutate',
+  subpath: '.',
+  claim: 'surface' as const,
+  targets: [],
+  citations: Array.from({ length: citations }, () => ({ file: 'packages/oxmutate/README.md', line: 1, text: 'Stryker 15,770,354 B' })),
+});
 
+describe('weighs — whether anything we publish depends on a competitor\'s weight', () => {
   it('is false for a `surface` claim with nothing cited anywhere', () => {
     expect(weighs({ strongest: 'surface', claims: [claim()] }, [site(0)])).toBe(false);
   });

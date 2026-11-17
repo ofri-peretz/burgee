@@ -58,6 +58,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { renderFigSpec } from './completions.js';
+
 import { defineCommand, defineProgram } from './index.js';
 
 const program = defineProgram({

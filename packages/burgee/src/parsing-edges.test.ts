@@ -5,8 +5,9 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { defineCommand, defineProgram, ExitCode } from './index.js';
 import { runBurgee } from './testing.js';
+
+import { defineCommand, defineProgram, ExitCode } from './index.js';
 
 const program = defineProgram({
   name: 'app',

@@ -11,8 +11,9 @@ import { Readable } from 'node:stream';
 
 import { describe, expect, it } from 'vitest';
 
-import { defineCommand, defineProgram } from './index.js';
 import { runBurgee } from './testing.js';
+
+import { defineCommand, defineProgram } from './index.js';
 
 /** An empty stdin that says it is a terminal, the way a caller's own stream can. */
 const terminal = (): Readable => Object.assign(Readable.from([]), { isTTY: true });

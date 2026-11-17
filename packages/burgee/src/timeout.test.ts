@@ -10,6 +10,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { duration } from './globals.js';
+
 import { defineCommand, defineProgram, ExitCode, runCommand } from './index.js';
 
 let signal: AbortSignal | undefined;

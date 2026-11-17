@@ -9,8 +9,9 @@
 import { describe, expect, it } from 'vitest';
 
 import { completionTree, renderFigSpec } from './completions.js';
-import { defineCommand, defineProgram, runCommand } from './index.js';
 import { toolsOf } from './mcp.js';
+
+import { defineCommand, defineProgram, runCommand } from './index.js';
 
 function program(serveArguments = true): ReturnType<typeof defineProgram> {
   return defineProgram({

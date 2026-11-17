@@ -11,8 +11,9 @@ import { describe, expect, it } from 'vitest';
 
 import { unalias } from './aliases.js';
 import { renderCompletion, renderFigSpec } from './completions.js';
-import { defineCommand, defineProgram, runCommand } from './index.js';
 import { toolsOf } from './mcp.js';
+
+import { defineCommand, defineProgram, runCommand } from './index.js';
 
 function program(): ReturnType<typeof defineProgram> {
   return defineProgram({

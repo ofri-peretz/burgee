@@ -25,6 +25,7 @@ function symbol(status: SpinnerStatus, def: { static: string }): string {
   // so they take the glyph. (Reversed on 2026-09-08: the glyph came first, which made every
   // third-party `static` unreachable, since the built-in plugin always registers a `running`.)
   if (status === 'running') return def.static || glyph('running');
+  // eslint-disable-next-line secure-coding/detect-object-injection -- FP ofri-peretz/eslint#1547: a call through a module-built const table, keyed by its own key type
   return PAINT[status](glyph(status));
 }
 

@@ -92,6 +92,8 @@ setTimeout(() => process.kill(process.pid, signal), 80);
 setTimeout(() => process.exit(0), 5000);
 `;
 
+const count = (file: string, needle: string): number => readFileSync(file, 'utf8').split(needle).length - 1;
+
 function twoSurfacesThenSignal(split: 'apart' | 'together', signal: string): Outcome {
   const dir = scratch('flagstaff-cursor-net-');
   const outLog = join(dir, 'fd1');
@@ -113,7 +115,6 @@ function twoSurfacesThenSignal(split: 'apart' | 'together', signal: string): Out
     closeSync(fd2);
   }
 
-  const count = (file: string, needle: string): number => readFileSync(file, 'utf8').split(needle).length - 1;
   return {
     stdout: { hide: count(outLog, HIDE_CURSOR), show: count(outLog, SHOW_CURSOR) },
     stderr: { hide: count(errLog, HIDE_CURSOR), show: count(errLog, SHOW_CURSOR) },

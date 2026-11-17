@@ -84,7 +84,6 @@ function unfold(node: Layout, text: ReadonlyMap<string, readonly string[]>): [La
   const column = node.direction === 'column';
   const parts = node.parts.map((part): [Part, number] => {
     // The tree is the program's own layout, as deep as it wrote it: the recursion is bounded by it.
-    // eslint-disable-next-line secure-coding/no-unchecked-loop-condition -- a walk over the program's own layout tree, as `collapse` and `layout` do
     const [content, need] = unfold(part.content, text);
     const asked = column && typeof part.size === 'number' ? part.size : need;
     const height = part.size === 0 ? 0 : Math.max(need, asked);

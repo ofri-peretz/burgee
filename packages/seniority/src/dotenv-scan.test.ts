@@ -123,7 +123,6 @@ describe('the scanner’s two character tables', () => {
    */
   it('treats exactly JavaScript’s whitespace as whitespace, for every code unit', () => {
     const disagree: string[] = [];
-    // eslint-disable-next-line secure-coding/no-unchecked-loop-condition -- bounded by a constant: the 65,536 UTF-16 code units, each once.
     for (let code = 0; code <= 0xffff; code++) {
       const ch = String.fromCharCode(code);
       // CR is normalised away and the line ends end a line in both; neither is a space question.

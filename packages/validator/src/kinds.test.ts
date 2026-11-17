@@ -1,5 +1,7 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
+import { compile } from './jit.js';
+
 import {
   type AnySchema,
   annotate,
@@ -30,7 +32,6 @@ import {
   union,
   unknown,
 } from './index.js';
-import { compile } from './jit.js';
 
 /**
  * Wave 1 of parity.md: the 24 features all five competitors have. The values each row accepts and

@@ -83,10 +83,11 @@ export function renderChangelog(manifest: Manifest, changelog: string): string {
   return `---\ntitle: Changelog\ndescription: ${JSON.stringify(description)}\n---\n\n${body.trimEnd()}\n`;
 }
 
+const host = (url: string): string => new URL(url).host;
+
 /** The family map: every public package, what it migrates from, and the site its docs are on. */
 export function familyIndex(): string {
   const all = publicPackages(PACKAGES);
-  const host = (url: string): string => new URL(url).host;
   const rows = all.map((pkg) => `| [${pkg.name}](${pkg.url}) | ${pkg.replaces} | [${host(pkg.url)}](${new URL(pkg.url).origin}) |`);
   return [
     "---",

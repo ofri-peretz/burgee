@@ -19,8 +19,9 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { defineCommand, defineProgram, ExitCode } from './index.js';
 import { runBurgee } from './testing.js';
+
+import { defineCommand, defineProgram, ExitCode } from './index.js';
 
 /** A pure command group: the root declares no `run`, so nothing resolves for a bare flag. */
 const group = defineProgram({

@@ -21,7 +21,9 @@ interface Out {
   isTTY?: boolean | undefined;
 }
 
-export function startProgress(reporters: readonly string[], out: Out, now: () => number = () => performance.now()): Progress {
+const performanceNow = (): number => performance.now();
+
+export function startProgress(reporters: readonly string[], out: Out, now: () => number = performanceNow): Progress {
   const enabled = reporters.some((r) => REPORTERS.has(r));
   const rewrite = Boolean(out.isTTY) && reporters.includes('progress');
   const start = now();
