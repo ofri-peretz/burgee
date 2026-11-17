@@ -1,6 +1,12 @@
 // The capability definition alone, not the family schema: see `scripts/schema-sync.mjs`'s
 // FRAGMENTS and D-108. The whole contract still ships at `paratext/schema.json`, as data.
-import CAPABILITY_SCHEMA from './capability.schema.json' with { type: 'json' };
+//
+// The capability shape, which since 0.3 is one `$defs` entry of the family plugin schema —
+// the same file roundel and flagstaff ship, byte for byte. `schema.required` used to be a
+// capability's required fields; the root's are a *plugin's*, so everything that reads the
+// shape reads it from here and there is still exactly one copy of the list. Imported under
+// the name it is read by, rather than aliased, which paid for `seed` on `./plugin`'s budget.
+import CAPABILITY from './capability.schema.json' with { type: 'json' };
 /**
  * A capability is one plain object, and that is the whole extension surface.
  *
@@ -83,16 +89,23 @@ export function register(capability: Capability): void {
   // capability, so the document-level deprecation has nothing to say about it, and a
   // built-in registering through the same call must not be told it is writing 0.2 JSON.
   for (const problem of capabilityProblems(capability)) throw new CapabilityError(problem.code, problem.line);
-  registry.set(capability.name, capability);
+  seed([capability]);
 }
 
 /**
- * The capability shape, which since 0.3 is one `$defs` entry of the family plugin schema —
- * the same file roundel and flagstaff ship, byte for byte. `schema.required` used to be a
- * capability's required fields; the root's are a *plugin's*, so everything that reads the
- * shape reads it from here and there is still exactly one copy of the list.
+ * Put records in the registry as they are, without the walk `register` runs — for the
+ * package's own built-ins, at import (`ansi-escapes.ts`), and nothing else.
+ *
+ * Not exported from any entry point. A record that arrives from outside the package goes
+ * through `register`, which is the only door a caller has; these seven are constants that
+ * `paratext.test.ts` holds to zero problems, so walking them again on every load answers a
+ * question the build already answered, and costs every bundle of the root's default export
+ * the schema walk it otherwise never reaches.
  */
-const CAPABILITY = CAPABILITY_SCHEMA;
+export function seed(records: readonly Capability[]): void {
+  for (const record of records) registry.set(record.name, record);
+}
+
 
 /**
  * The prefix on a line `check` returns that does **not** refuse the document.

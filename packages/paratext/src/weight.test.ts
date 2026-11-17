@@ -110,7 +110,10 @@ const RULES: Record<string, EntryRule> = {
   // (`scripts/schema-annotations.mjs`, −1.6 KB), which pays for a cached renderer, a kept
   // `eraseLines` and the root reading the process once. Measured 16,741.
   // 16,895 B on 2026-10-05 once `csi` spelled the kitty keyboard protocol's three sequences.
-  '.': { allow: [], builtins: [], budget: 17_000, denied: ['plugin.js'] },
+  // 17,000 → 16,700 on 2026-11-17: the root takes the drop-in's names by `export *` instead of a
+  // third copy of the CSI list, which pays for the default naming its members rather than
+  // spreading a namespace (`scripts/paratext-bundle-lock.test.ts`). Measured 16,683.
+  '.': { allow: [], builtins: [], budget: 16_700, denied: ['plugin.js'] },
   /**
    * OSC 8 alone, for a host that wants one clickable URL and not a plugin contract.
    * Measured **2,337 B**: `link.js` 768, `template.js` 774, `supports.js` 652,

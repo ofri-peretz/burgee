@@ -25,8 +25,8 @@
  * use that same call, and a caller whose terminal we mis-detect can correct us without
  * forking. See `capability.ts`.
  */
-// Importing the package registers what it ships: `ansi-escapes.js`, re-exported below, runs
-// `registerBuiltins()` as it loads, which is before this module's body could, so the root does
+// Importing the package registers what it ships: `ansi-escapes.js`, re-exported below, puts the
+// seven built-ins in the registry as it loads, which is before this module's body could, so the root does
 // not call it a second time. A caller that wants an empty registry calls `reset()`; a caller
 // that wants ours plus theirs just registers theirs on top.
 
@@ -40,7 +40,12 @@
  * `capability('link')` and `capability('image')`, or through `builtins`.
  */
 // eslint-disable-next-line import-next/no-default-export -- the root default IS the drop-in surface; see ansi-escapes.ts
-export { default, ansiEscapesFor, type AnsiEscapes, beep, beginSynchronizedOutput, clearScreen, clearTerminal, clearViewport, ConEmu, cursorBackward, cursorDown, cursorForward, cursorGetPosition, cursorHide, cursorLeft, cursorMove, cursorNextLine, cursorPrevLine, cursorRestorePosition, cursorSavePosition, cursorShow, cursorTo, cursorUp, endSynchronizedOutput, enterAlternativeScreen, eraseDown, eraseEndLine, eraseLine, eraseLines, eraseScreen, eraseStartLine, eraseUp, exitAlternativeScreen, image, type ImageOptions, iTerm, link, type NotImplemented, scrollDown, scrollUp, setCwd, synchronizedOutput } from './ansi-escapes.js';
+export { default } from './ansi-escapes.js';
+// Every named member of the drop-in surface — `ansiEscapesFor`, `beep`, the thirty-one CSI
+// members, `ConEmu`, `image`, `iTerm`, `link`, `setCwd` and their types — by `export *` rather
+// than a third copy of the CSI list: `ansi-escapes.ts` already names them twice, once to import
+// and once for the default object. `index.test.ts` holds the root's names to the incumbent's.
+export * from './ansi-escapes.js';
 export { bell, builtins, clipboard, cwd, notify, registerBuiltins, title } from './builtins.js';
 export { type Capability, CapabilityError, DEPRECATED, type Fields, type Support, capabilities, capability, check, emit, isDeprecation, refusals, register, reset, supports } from './capability.js';
 export { processRuntime, type Runtime } from './runtime.js';

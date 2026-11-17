@@ -627,7 +627,14 @@ export const BUNDLED_CEILING: Readonly<Record<string, number>> = {
   // after paying for the cached renderer and the kept `eraseLines` that made a link and a redraw
   // faster than ansi-escapes'. Measured 7,086 after #754's output-mode check, with the 80 B CI
   // margin rounded up to the next fifty.
-  paratext: 7_200,
+  //
+  // 4,400 on 2026-11-17 (`scripts/paratext-bundle-lock.test.ts`), down from 7,200: the root put its
+  // seven built-ins in the registry through `register` at import, so the schema walk and the
+  // capability fragment rode in every bundle of the default, and the default spread a `csi`
+  // namespace esbuild keeps as a getter object. The built-ins are constants held to zero schema
+  // problems by a test, and go in with `seed`; the default names its members. Measured 4,287
+  // against ansi-escapes 7.3.0's 4,351, plus the 80 B CI margin, rounded up to the next fifty.
+  paratext: 4_400,
   // bellpull R8, first measured 2026-09-27 (GAPS A10, D-160): `run` bundles to **5,901** bytes
   // against tinyexec 1.3.1's `x` at **5,969** — 0.989, so the ratio gate stays at the default 1
   // and it is R8's bytes half, met. This ceiling is the ratchet beside it: the measurement plus
@@ -851,7 +858,10 @@ export const RATIO_CEILING: Readonly<Record<string, number>> = {
   // first like-for-like figure — what is left over is the capability registry that makes the
   // OSC half degrade on a pipe. Measured 1.937.
   // 1.65 on 2026-09-30 with the byte ceiling above: (7,086 + 80) / 4,351 = 1.647.
-  paratext: 1.65,
+  // 1 on 2026-11-17 with the byte ceiling above: 4,287 / 4,351 = 0.985, so the row is held to
+  // U5's bar like `linegauge/strip`. CI read paratext's side byte-identical to local at 6eab290
+  // (7,038 both), and `paratext-bundle-lock.test.ts` checks this before every push.
+  paratext: 1,
   // foundation-claims-watched R6, 2026-10-12. `seniority/lilconfig` (0.611) and
   // `seniority/dotenv` (0.515) are lighter and take the default 1. The two closeout rows were
   // ratchets at 2.98 and 1.31 until 2026-10-20, when closeout-at-incumbent-weight brought them
