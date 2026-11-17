@@ -191,11 +191,10 @@ const emoji = /* @__PURE__ */ Object.freeze({ name: 'emoji', pattern: /* @__PURE
 const isJson = (text: string): boolean => {
   try {
     JSON.parse(text);
-    return true;
-    // Stryker disable next-line BlockStatement: equivalent, a format holds only where its test returns true, and an empty block returns undefined
   } catch {
     return false;
   }
+  return true;
 };
 
 /** A string that is a JSON text (RFC 8259 §2), as `JSON.parse` reads one: any JSON value, white space around it allowed. A test, so `emitWith` hands it over. */
@@ -211,26 +210,18 @@ const SEGMENTS = 3;
 const LAST_VERSION = 8;
 
 /**
- * The bytes a base64url segment holds, read as UTF-8: the empty string, which is no JSON, where
- * they are not UTF-8. The segment is one `isJwt` has already held to the alphabet and the length,
- * and `atob` reads base 64 without its padding (the forgiving decode of the HTML standard).
+ * Whether a header segment is a JSON object with an `alg` that is a string (RFC 7515 §4.1.1: it
+ * must be there), read from its bytes as UTF-8. Nothing in JSON but an object has a member, so
+ * asking for the member is asking for both. The segment is one `isJwt` has already held to the
+ * alphabet and the length, and `atob` reads base 64 without its padding (the forgiving decode of
+ * the HTML standard).
  */
-const decoded = (segment: string): string => {
+const isHeader = (segment: string): boolean => {
   const binary = atob(segment.replaceAll('-', '+').replaceAll('_', '/'));
-  try {
-    return new TextDecoder('utf-8', { fatal: true }).decode(Uint8Array.from(binary, (unit) => unit.codePointAt(0) as number));
-    // Stryker disable next-line BlockStatement: equivalent, `undefined` is no JSON text either
-  } catch {
-    // Stryker disable next-line StringLiteral: equivalent, any text that is not JSON refuses the header the same way
-    return '';
-  }
+  const text = new TextDecoder().decode(Uint8Array.from(binary, (unit) => unit.codePointAt(0) as number));
+  // A decoder puts U+FFFD where the bytes are not UTF-8: then the text, written back, is not the bytes that came in.
+  return String.fromCodePoint(...new TextEncoder().encode(text)) === binary && isJson(text) && typeof (JSON.parse(text) as { readonly alg?: unknown } | null)?.alg === 'string';
 };
-
-/**
- * Whether a header is a JSON object with an `alg` that is a string (RFC 7515 §4.1.1: it must be
- * there). Nothing in JSON but an object has a member, so asking for the member is asking for both.
- */
-const isHeader = (text: string): boolean => isJson(text) && typeof (JSON.parse(text) as { readonly alg?: unknown } | null)?.alg === 'string';
 
 /**
  * A JWS in its compact form (RFC 7515 §7.1), which is what a JWT is written as: three base64url
@@ -240,7 +231,7 @@ const isHeader = (text: string): boolean => isJson(text) && typeof (JSON.parse(t
  */
 const isJwt = (text: string): boolean => {
   const parts = text.split('.');
-  return parts.length === SEGMENTS && parts.every((part) => B64URL.test(part) && part.length % GROUP !== 1) && isHeader(decoded(parts[0] as string));
+  return parts.length === SEGMENTS && parts.every((part) => B64URL.test(part) && part.length % GROUP !== 1) && isHeader(parts[0] as string);
 };
 
 const jwt = /* @__PURE__ */ Object.freeze({ name: 'jwt', test: isJwt }) satisfies Format;
@@ -276,11 +267,10 @@ const isRegex = (text: string): boolean => {
   try {
     // eslint-disable-next-line secure-coding/detect-non-literal-regexp -- the pattern is only compiled, to ask whether it is one, and never run
     new RegExp(text, 'u');
-    return true;
-    // Stryker disable next-line BlockStatement: equivalent, a format holds only where its test returns true, and an empty block returns undefined
   } catch {
     return false;
   }
+  return true;
 };
 
 /**
