@@ -777,7 +777,7 @@ export function parse(text: string): unknown {
   };
 
   const bad = NON_PRINTABLE.exec(src);
-  if (bad !== null) fail('the stream contains non-printable characters', bad.index + 1);
+  if (bad !== null) fail('the stream contains non-printable characters', bad.index);
   const documents = stream();
   if (documents.length === 0) throw new YAMLException('expected a document, but the input is empty');
   if (documents.length > 1) throw new YAMLException('expected a single document in the stream, but found more');

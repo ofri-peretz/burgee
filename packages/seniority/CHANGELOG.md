@@ -1,5 +1,11 @@
 # seniority
 
+## 2.0.3
+
+### Patch Changes
+
+- [#1601](https://github.com/ofri-peretz/burgee/pull/1601) [`bd2ddc0`](https://github.com/ofri-peretz/burgee/commit/bd2ddc0be93633d2e621336058d2d6286877beff) Thanks [@dependabot](https://github.com/apps/dependabot)! - A YAML file with a non-printable character now reports that character's own column, as js-yaml 5.5 does; it reported the column after it, as js-yaml 5.4 did.
+
 ## 2.0.2
 
 ### Patch Changes
