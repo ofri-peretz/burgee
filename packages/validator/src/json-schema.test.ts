@@ -217,7 +217,7 @@ describe('toJsonSchema', () => {
         { type: 'object', properties: { t: { const: true } }, required: ['t'] },
       ],
     }, []],
-    ['a schema made from an object schema', readonly(partial(pick(extend(object({ a: string(), b: number() }, { unknown: 'strict' }), { c: boolean() }), ['a', 'c']))), { type: 'object', properties: { a: { type: 'string' }, c: { type: 'boolean' } }, additionalProperties: false }, []],
+    ['a schema made from an object schema', readonly(partial(pick(extend(object({ a: string(), b: number() }, { unknown: 'strict' }), { c: boolean() }), ['a', 'c']))), { type: 'object', properties: { a: { type: 'string' }, c: { type: 'boolean' } }, additionalProperties: false, readOnly: true }, []],
     ['the keys of an object schema', keyof(object({ a: string(), b: number() })), { enum: ['a', 'b'] }, []],
   ])('writes %s', (_, schema, document, findings) => {
     expect(written(schema)).toEqual([document, findings]);

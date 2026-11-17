@@ -13,10 +13,13 @@ import {
   isBoolean,
   isCase,
   isClosed,
+  isContaining,
   isCounted,
   isCustom,
   isDate,
+  isEnding,
   isEvery,
+  isHolding,
   isInstance,
   isLater,
   isLiteral,
@@ -24,22 +27,34 @@ import {
   isMapped,
   isMember,
   isNan,
+  isNot,
   isNothing,
   isNullable,
   isNullish,
   isNumber,
   isObject,
+  isOne,
   isRecord,
   isRefined,
   isSet,
+  isStarting,
   isString,
+  isTemplate,
   isTuple,
   isTypeOf,
   isUnion,
+  isUnique,
 } from './check.js';
-import { AWAITED_MAP, AWAITED_RULE, BEFORE, BIGINT, COUNTED, CUSTOM, DATE, EVERY, INSTANCE, LATER, MAP, MAPPED, NAN, NEVER, NULLABLE, NULLISH, PIPED, RECORD, REFINED, SET, TUPLE, TYPE, UNION, UNKNOWN, WORDED } from './own.js';
+import { ALONE, AWAITED_MAP, AWAITED_RULE, BEFORE, BIGINT, CONTAINING, COUNTED, CUSTOM, DATE, EVERY, FALLBACK, INSTANCE, LATER, MAP, MAPPED, NAN, NEVER, NULLABLE, NULLISH, ONE, PIPED, RECORD, REFINED, SET, TESTED, TUPLE, TYPE, UNION, UNIQUE, UNKNOWN, WORDED } from './own.js';
+import { compile, describe, type Part as TemplatePart } from './template.js';
 
 export type Check = (schema: Node, value: unknown) => boolean;
+
+/**
+ * The name this library gives itself in Standard Schema's `~standard.vendor`. The package's public
+ * name is not chosen yet (it is a working name), so this is the one place that has to change when it is.
+ */
+export const VENDOR = 'validator';
 
 export type Kind =
   | 'string'
@@ -74,7 +89,17 @@ export type Kind =
   | 'pipe'
   | 'preprocess'
   | 'refineAsync'
-  | 'transformAsync';
+  | 'transformAsync'
+  | 'template'
+  | 'startsWith'
+  | 'endsWith'
+  | 'includes'
+  | 'contains'
+  | 'unique'
+  | 'not'
+  | 'oneOf'
+  | 'catch'
+  | 'codec';
 
 /** A predicate a node names (spec.md R10). Beside `check`, `get` and a transform's map, it is the only kind of function a node may hold. */
 export type Test = (value: unknown) => boolean;
@@ -91,6 +116,8 @@ export interface Meta {
   readonly title?: string;
   readonly description?: string;
   readonly examples?: readonly unknown[];
+  /** The value is the server's to set and a client's to leave out: OpenAPI's and JSON Schema's `readOnly`, which `readonly` sets. */
+  readonly readOnly?: boolean;
 }
 
 /** What an object does with a key its shape does not name. `strip` is `keep` to `check`: only `parse` leaves the key out. */
@@ -866,3 +893,121 @@ export const refineAsync = <T, O>(schema: Schema<T, O>, test: (value: T) => Prom
  */
 export const transformAsync = <T, M, R>(schema: Schema<T, M>, map: (value: Out<T, M>) => Promise<R>): Schema<T, R> =>
   node('transformAsync', isMapped, { item: schema, value: map, own: AWAITED_MAP });
+
+/** What `String` writes for a value a template's hole may hold: TypeScript's own template literal types, read the same way. */
+type Written = string | number | bigint | boolean | null | undefined;
+
+/** The text of one part: itself, or what the schema in a hole validates, written as a template literal type writes it. */
+type PieceOf<P> = P extends string ? P : P extends Schema<infer T, unknown> ? (T extends Written ? `${T}` : never) : never;
+
+/** The string a template's parts describe. */
+export type TemplateOf<P extends readonly unknown[]> = P extends readonly [infer First, ...infer Rest] ? `${PieceOf<First>}${TemplateOf<Rest>}` : '';
+
+/**
+ * A string made of text and holes, as TypeScript's template literal types make one:
+ * `template(['user-', number({ int: true })])` accepts `user-7` and is typed `` `user-${number}` ``.
+ * A hole holds a string, a number, a bigint, a boolean, or a literal, an enum, a union or a nullable
+ * of those, with no bounds: what it matches is the text `String` writes for such a value. A number
+ * is written as JSON writes one, so `1e+21` matches and `0x10` does not.
+ *
+ * The template is read as a machine with no memory but where it may stand (check.ts, `isTemplate`),
+ * so a string is read in time proportional to its length times the template's, and two holes of open
+ * length side by side cannot make it backtrack, as the regular expression made of them would.
+ */
+export const template = <const P extends readonly (string | AnySchema)[]>(parts: P): Schema<TemplateOf<P>> => {
+  const shape = compile(parts as readonly TemplatePart[]);
+  return node('template', isTemplate, { value: shape, rule: Object.freeze({ name: describe(parts as readonly TemplatePart[]), pattern: null, test: null }), own: ALONE });
+};
+
+/** A test on a string: its kind, the kind's check, and how a message names it. */
+interface Textual {
+  readonly kind: 'startsWith' | 'endsWith' | 'includes';
+  readonly check: Check;
+  readonly words: string;
+}
+
+/**
+ * A test on a string, as data: the text it looks for, and how a message names it. The check is
+ * handed in by each builder when it is called, never kept in a table made when this module loads:
+ * check.ts and this module import each other, and a table would be made before the checks exist.
+ */
+const textual = <T extends string, O>(test: Textual, schema: Schema<T, O>, text: string): Schema<T, O> => {
+  if (typeof text !== 'string') throw new TypeError(`cannot test that a string ${test.words} a value of the type ${typeof text}. fix: give the text as a string`);
+  return node(test.kind, test.check, { item: schema, value: text, rule: Object.freeze({ name: `a string that ${test.words} ${JSON.stringify(text)}`, pattern: null, test: null }), own: TESTED });
+};
+
+/** The string schema, and the string starts with `text`: a prefix, without a regular expression of yours to escape. */
+export const startsWith = <T extends string, O>(schema: Schema<T, O>, text: string): Schema<T, O> => textual({ kind: 'startsWith', check: isStarting, words: 'starts with' }, schema, text);
+
+/** The string schema, and the string ends with `text`. */
+export const endsWith = <T extends string, O>(schema: Schema<T, O>, text: string): Schema<T, O> => textual({ kind: 'endsWith', check: isEnding, words: 'ends with' }, schema, text);
+
+/** The string schema, and the string has `text` somewhere in it. */
+export const includes = <T extends string, O>(schema: Schema<T, O>, text: string): Schema<T, O> => textual({ kind: 'includes', check: isHolding, words: 'includes' }, schema, text);
+
+export interface ContainsOptions {
+  /** The fewest items the schema has to accept: 1 unless another is given, and 0 makes the test always hold. */
+  readonly min?: number;
+  /** The most it may accept. */
+  readonly max?: number;
+}
+
+/**
+ * The array schema, and at least one of its items is what `match` describes: JSON Schema's
+ * `contains`, with `min` and `max` as its `minContains` and `maxContains`. The items are still each
+ * held to the array's own item schema; `match` only counts.
+ */
+export const contains = <T extends readonly unknown[], O>(schema: Schema<T, O>, match: AnySchema, options: ContainsOptions = {}): Schema<T, O> =>
+  node('contains', isContaining, { item: schema, key: match, min: options.min ?? 1, max: options.max, own: CONTAINING });
+
+/**
+ * The array schema, and no two of its items are the same value: JSON Schema's `uniqueItems`. Arrays
+ * and plain objects are compared by what they hold, in any key order; a date by its time; `NaN` is
+ * the same as `NaN`. Any other object is the same only as itself (check.ts, `sameValue`).
+ */
+export const unique = <T extends readonly unknown[], O>(schema: Schema<T, O>): Schema<T, O> => node('unique', isUnique, { item: schema, own: UNIQUE });
+
+/**
+ * Every value the schema refuses: JSON Schema's `not`. The type is `unknown`, since a type cannot
+ * say "everything but"; narrow it with an intersection, `intersection([string(), not(literal(''))])`.
+ */
+export const not = (schema: AnySchema): Schema<unknown> =>
+  node('not', isNot, { key: schema, rule: Object.freeze({ name: 'a value the schema it negates refuses', pattern: null, test: null }), own: ALONE });
+
+/**
+ * What exactly one member accepts: JSON Schema's `oneOf`, an exclusive or. A value two members
+ * accept fails, which a union would let through. Every member is asked, so this costs more than a
+ * union, which stops at the first that accepts; use it where two must not both hold.
+ */
+export const oneOf = <const T extends Schemas>(members: T): Schema<T[number]['~type'], AnyOut<T[number]>> => node('oneOf', isOne, { fields: [...members], own: ONE });
+
+/**
+ * The schema, and what `parse` reads in place of a value it refuses: `fallback`, or what a function
+ * makes of the schema's issues. The fallback stands for an input, as a default does: it is held to
+ * the schema and mapped by its transforms, so `catchOf(transform(string(), Number), '0')` hands out
+ * 0. `check`, `issues` and the input type still describe what the schema accepts: a fallback is a
+ * thing `parse` does, as coercion is.
+ */
+export const catchOf = <T, O>(schema: Schema<T, O>, fallback: T | ((issues: readonly Issue[]) => T)): Schema<T, Out<T, O>> =>
+  node('catch', isMapped, { item: schema, value: fallback, own: FALLBACK });
+
+/** A schema with two directions: `parse` decodes what arrives into the output, and `encode` turns an output back into what was sent. */
+export interface Codec<I, O> extends Schema<I, O> {
+  readonly '~codec': true;
+}
+
+export interface CodecMaps<I, O> {
+  /** From what the input schema accepted, to a value for the output schema. */
+  readonly decode: (value: I) => unknown;
+  /** From what the output schema accepted, to a value for the input schema. */
+  readonly encode: (value: O) => unknown;
+}
+
+/**
+ * Two schemas and the two maps between them: `parse` reads a value with `input`, decodes it and
+ * holds the result to `output`; `encode` does the same the other way. An ISO date string and a
+ * `Date`, cents and a decimal string: one place says both directions. `check` describes what goes
+ * in, which is the input schema alone, as it does for a pipe.
+ */
+export const codec = <I, IO, O, OO>(input: Schema<I, IO>, output: Schema<O, OO>, maps: CodecMaps<Out<I, IO>, Out<O, OO>>): Codec<I, Out<O, OO>> =>
+  node('codec', isMapped, { item: transform(input, maps.decode as (value: Out<I, IO>) => unknown), key: output, value: maps.encode, own: PIPED });

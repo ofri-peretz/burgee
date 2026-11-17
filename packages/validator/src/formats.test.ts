@@ -128,8 +128,10 @@ describe('the built-in formats', () => {
   it('are each marked as free of side effects, so a bundle carries only the ones it imports', () => {
     const source = readFileSync(`${import.meta.dirname}/formats.ts`, 'utf8');
     const frozen = source.split('Object.freeze(').length - 1;
-    expect(frozen).toBe(ALL.length + WAVE3.length);
-    expect(source.split('= /* @__PURE__ */ Object.freeze(').length - 1).toBe(frozen);
+    const constants = source.split('= /* @__PURE__ */ Object.freeze(').length - 1;
+    // Wave 4 adds ten constants, and `uuidVersion`, which freezes the format it makes when it is called.
+    expect(constants).toBe(ALL.length + WAVE3.length + 10);
+    expect(frozen).toBe(constants + 1);
   });
 
   it.each(WAVE3)('%s is data: a frozen name and a pattern with the flag u, which the emitter writes as text', (name, format) => {

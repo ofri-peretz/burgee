@@ -5,3 +5,4 @@ export { parse, type Parsed, type ParseOptions } from './parse.js';
 export * from './async.js';
 export * from './derive.js';
 export * from './assert.js';
+export * from './codec.js';

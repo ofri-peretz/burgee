@@ -1,7 +1,7 @@
 import { parseAsync } from './async.js';
 import { keysOf } from './issues.js';
 import { parse, type Parsed } from './parse.js';
-import { type Out, type Schema } from './schema.js';
+import { type Out, type Schema, VENDOR } from './schema.js';
 
 /**
  * Standard Schema (standardschema.dev, version 1): the `~standard` member a library reads to
@@ -15,12 +15,6 @@ import { type Out, type Schema } from './schema.js';
  * a rule or a map to await is wrapped with `standardAsync`, whose `validate` is one call of
  * `parseAsync` and answers with a promise.
  */
-
-/**
- * The name this library gives itself in `~standard.vendor`. The package's public name is not
- * chosen yet (it is a working name), so this is the one place that has to change when it is.
- */
-const VENDOR = 'validator';
 
 interface StandardIssue {
   readonly message: string;
