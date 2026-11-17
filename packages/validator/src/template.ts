@@ -15,6 +15,7 @@ import { type Node } from './schema.js';
 type Piece =
   | { readonly is: 'text'; readonly text: string }
   | { readonly is: 'range'; readonly low: number; readonly high: number }
+  | { readonly is: 'any' }
   | { readonly is: 'star'; readonly of: Piece }
   | { readonly is: 'either'; readonly of: readonly Piece[] }
   | { readonly is: 'row'; readonly of: readonly Piece[] };
@@ -26,6 +27,7 @@ interface Template {
   readonly tree: Piece;
 }
 
+// Stryker disable next-line NumericLiteral: equivalent, there is no UTF-16 unit above 0xffff for a wider range to take in
 const LAST_UNIT = 0xff_ff;
 const HEX = 16;
 const UNIT_DIGITS = 4;
@@ -53,7 +55,7 @@ const NUMBER = /* @__PURE__ */ row(
   /* @__PURE__ */ maybe(/* @__PURE__ */ row(/* @__PURE__ */ text('.'), DIGITS)),
   /* @__PURE__ */ maybe(/* @__PURE__ */ row(/* @__PURE__ */ either(/* @__PURE__ */ text('e'), /* @__PURE__ */ text('E')), /* @__PURE__ */ maybe(/* @__PURE__ */ either(/* @__PURE__ */ text('+'), /* @__PURE__ */ text('-'))), DIGITS)),
 );
-const ANY = /* @__PURE__ */ star(/* @__PURE__ */ range(0, LAST_UNIT));
+const ANY = /* @__PURE__ */ star({ is: 'any' });
 
 /** The text `String` writes for a literal's value, which is what TypeScript's template literal types read it as. */
 const written = (value: unknown, index: number): string => {
@@ -112,8 +114,14 @@ const pieceOf = (schema: Node, index: number): Piece => {
   }
 };
 
-/** A split: on to the steps `first` and `second` places on from this one. A jump is a split whose two ways are one. */
+/** A split: on to the steps `first` and `second` places on from this one. */
 const split = (first: number, second: number): Step => [1, first, second];
+
+/** A jump: a split whose two ways are one. */
+const jump = (to: number): Step => split(to, to);
+
+/** A step no unit is inside: what an `either` of nothing is. */
+const NONE: Step = [0, 1, 0];
 
 /**
  * The steps of a piece (Thompson, 1968). Every jump is counted from the step that makes it, so a
@@ -132,24 +140,22 @@ const stepsOf = (piece: Piece): Step[] => {
     case 'range': {
       return [[0, piece.low, piece.high]];
     }
+    case 'any': {
+      return [[0, 0, LAST_UNIT]];
+    }
     case 'star': {
+      // Into the piece or past it; at its end, back to the split.
       const inner = stepsOf(piece.of);
-      return [split(1, inner.length + 2), ...inner, split(-(inner.length + 1), -(inner.length + 1))];
+      return [split(1, inner.length + 2), ...inner, jump(-(inner.length + 1))];
     }
     case 'row': {
       return piece.of.flatMap(stepsOf);
     }
     case 'either': {
-      // Each way but the last is a split into it or past it, and a jump past the rest at its end.
+      // Two ways at a time, from the last: into the first or past it, and at its end a jump past the rest.
       const ways = piece.of.map(stepsOf);
-      const out: Step[] = [];
-      for (const [index, way] of ways.entries()) {
-        const after = ways.slice(index + 1).reduce((sum, next) => sum + next.length + 2, 0) - (index + 1 < ways.length ? 1 : 0);
-        if (index + 1 < ways.length) out.push(split(1, way.length + 2), ...way, split(after, after));
-        else out.push(...way);
-      }
-      // An `either` of nothing matches nothing: a step no unit is inside.
-      return ways.length === 0 ? [[0, 1, 0]] : out;
+      if (ways.length === 0) return [NONE];
+      return ways.reduceRight((rest, way) => [split(1, way.length + 2), ...way, jump(rest.length + 1), ...rest]);
     }
   }
 };
@@ -167,7 +173,10 @@ const sourceOf = (piece: Piece): string => {
       return piece.text.replaceAll(SYNTAX, '\\$&');
     }
     case 'range': {
-      return piece.low === 0 && piece.high === LAST_UNIT ? '[\\s\\S]' : `[${unit(piece.low)}-${unit(piece.high)}]`;
+      return `[${unit(piece.low)}-${unit(piece.high)}]`;
+    }
+    case 'any': {
+      return '[\\s\\S]';
     }
     case 'star': {
       return `(?:${sourceOf(piece.of)})*`;

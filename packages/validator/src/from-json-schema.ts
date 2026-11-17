@@ -107,12 +107,16 @@ const shown = (value: unknown): string => {
 
 const isJson = (value: unknown): value is Json => typeof value === 'object' && value !== null && !Array.isArray(value);
 
+/** A number JSON can hold: `Number.isFinite` is false for any value that is not a number. */
+const isFiniteNumber = (value: unknown): value is number => Number.isFinite(value);
+
 const token = (key: string | number): string => `/${String(key).replaceAll('~', '~0').replaceAll('/', '~1')}`;
 
-/** Options with what is not given left out: a builder's options are exact, and `undefined` is not "not given" to them. */
+/** The type of options with what is not given left out: a builder's option types are exact, and `undefined` is not "not given" to them. */
 type Given<T> = { [K in keyof T]?: Exclude<T[K], undefined> };
 
-const given = <T extends object>(options: T): Given<T> => Object.fromEntries(Object.entries(options).filter(([, value]) => value !== undefined)) as Given<T>;
+// Every builder reads an option that is `undefined` as one not given (`node` in schema.ts drops it), so only the type needs to say so.
+const given = <T extends object>(options: T): Given<T> => options as Given<T>;
 
 const lose = (reader: Reader, path: string, keyword: string, message: string): void => {
   reader.findings.push({ path, keyword, message });
@@ -127,7 +131,7 @@ function invalid(path: string, what: string): never {
 const numberAt = (schema: Json, key: string, path: string): number | undefined => {
   const value = schema[key];
   if (value === undefined) return undefined;
-  if (typeof value !== 'number' || !Number.isFinite(value)) invalid(path, `"${key}" is ${shown(value)}, not a number`);
+  if (!isFiniteNumber(value)) invalid(path, `"${key}" is ${shown(value)}, not a number`);
   return value;
 };
 
@@ -165,7 +169,7 @@ const all = (members: readonly Node[]): Node => {
  * function, so it can be written out as code.
  */
 const constant = (value: unknown, path: string): Node => {
-  if (value === null || typeof value === 'string' || typeof value === 'boolean' || (typeof value === 'number' && Number.isFinite(value))) return literal(value);
+  if (value === null || typeof value === 'string' || typeof value === 'boolean' || isFiniteNumber(value)) return literal(value);
   if (Array.isArray(value)) return tuple(value.map((item, index) => constant(item, `${path}${token(index)}`)) as AnySchema[]);
   if (isJson(value)) return object(Object.fromEntries(Object.entries(value).map(([key, member]) => [key, constant(member, `${path}${token(key)}`)])) as Record<string, AnySchema>, { unknown: 'strict' });
   invalid(path, `${shown(value)} is not a JSON value`);
@@ -237,7 +241,8 @@ const numberBranch = (reader: Reader, schema: Json, path: string, int: boolean):
   return number(given({ min: low.inclusive, max: high.inclusive, gt: low.exclusive, lt: high.exclusive, multipleOf: step, int }));
 };
 
-const ARRAY_KEYS = ['items', 'prefixItems', 'additionalItems', 'minItems', 'maxItems', 'uniqueItems', 'contains', 'minContains', 'maxContains'] as const;
+// `additionalItems`, `minContains` and `maxContains` are not here: each binds nothing without `items` or `contains` beside it, which are.
+const ARRAY_KEYS = ['items', 'prefixItems', 'minItems', 'maxItems', 'uniqueItems', 'contains'] as const;
 
 /**
  * An array's items: the schemas of its first items, which bind only the items that are there, and
@@ -290,7 +295,12 @@ const dependent = (reader: Reader, keyword: string, entry: readonly [string, unk
 /** The keys of `dependentRequired`, `dependentSchemas` and draft-07's `dependencies`, each as "no such key, or what it brings". */
 const dependents = (reader: Reader, schema: Json, path: string): Node[] => {
   // Each dialect has its own: 2020-12 split draft-07's `dependencies` in two, and OpenAPI 3.0 has neither.
-  const keywords = { '2020-12': ['dependentRequired', 'dependentSchemas'], 'draft-07': ['dependencies'], 'openapi-3.0': [] }[reader.draft];
+  const keywords = {
+    '2020-12': ['dependentRequired', 'dependentSchemas'],
+    'draft-07': ['dependencies'],
+    // Stryker disable next-line ArrayDeclaration: equivalent, the list made one keyword long names a keyword no document has
+    'openapi-3.0': [],
+  }[reader.draft];
   return keywords.flatMap((keyword) => {
     const value = schema[keyword];
     if (value === undefined) return [];
@@ -417,7 +427,7 @@ const meta = (schema: Json): Meta | null => {
   return Object.keys(out).length === 0 ? null : out;
 };
 
-/** The part of the document a JSON Pointer fragment names (RFC 6901 §6), or `undefined` where there is none. */
+/** The part of the document a `#` JSON Pointer fragment names (RFC 6901 §6), or `undefined` where there is none. The `#` goes with the first part. */
 const resolve = (root: unknown, fragment: string): unknown => {
   let at = root;
   for (const part of fragment.split('/').slice(1)) {
@@ -442,7 +452,7 @@ const referenced = (reader: Reader, ref: unknown, path: string): Node => {
   }
   const known = reader.refs.get(ref);
   if (known !== undefined) return known;
-  const target = resolve(reader.root, ref.slice(1));
+  const target = resolve(reader.root, ref);
   if (target === undefined) invalid(path, `"$ref" ${JSON.stringify(ref)} names nothing in the document`);
   let made: Node | undefined;
   // A reference is read when it is first used, from a fresh stack: the object it names may be one being read, which is how a schema names itself.

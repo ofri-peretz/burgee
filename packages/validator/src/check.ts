@@ -266,6 +266,7 @@ type Step = readonly [kind: number, low: number, high: number];
  * template of ten thousand alternatives is read on the same stack as one of two.
  */
 const spread = (steps: readonly Step[], from: number[], seen: number[], round: number): number[] => {
+  // Stryker disable next-line ArrayDeclaration: equivalent, a place that is no number names no step, and is never the end
   const out: number[] = [];
   while (from.length > 0) {
     const place = from.pop() as number;
@@ -289,16 +290,19 @@ const spread = (steps: readonly Step[], from: number[], seen: number[], round: n
 const isTemplate = (schema: Node, value: unknown): boolean => {
   if (typeof value !== 'string') return false;
   const { steps } = schema.value as { readonly steps: readonly Step[] };
+  // Stryker disable next-line ArrayDeclaration: equivalent, a member that is no round is never the round a place was reached in
   const seen: number[] = [];
   let now = spread(steps, [0], seen, 0);
   for (let index = 0; index < value.length; index++) {
     // eslint-disable-next-line conventions/prefer-code-point -- a unit, not a code point: the steps are UTF-16 units, so a pair is read as two
     const unit = value.charCodeAt(index);
+    // Stryker disable next-line ArrayDeclaration: equivalent, a place that is no number names no step, and is never the end
     const next: number[] = [];
     for (const place of now) {
       const step = steps[place];
       if (step !== undefined && unit >= step[1] && unit <= step[2]) next.push(place + 1);
     }
+    // Stryker disable next-line ArithmeticOperator: equivalent, the rounds would meet only at the second unit, and a template comes back to its start only through a string hole, which takes the first unit and so reaches every place of the start again in between
     now = spread(steps, next, seen, index + 1);
   }
   // The place past the last step is the end of the template.
@@ -359,9 +363,12 @@ const sameObject = (left: object, right: object, inside: readonly unknown[]): bo
  * are the same when they are the same time; a `Map`, a `Set`, a function, a symbol or an instance
  * of a class is the same as itself alone; and `1n` is not `1`.
  */
+/** Whether a value is an object of any kind: what `sameObject` can be asked about. */
+const isAnObject = (value: unknown): value is object => typeof value === 'object' && value !== null;
+
 function sameValue(left: unknown, right: unknown, inside: readonly unknown[]): boolean {
   if (left === right || Object.is(left, right)) return true;
-  return typeof left === 'object' && typeof right === 'object' && left !== null && right !== null && sameObject(left, right, inside);
+  return isAnObject(left) && isAnObject(right) && sameObject(left, right, inside);
 }
 
 /**
@@ -372,13 +379,16 @@ function sameValue(left: unknown, right: unknown, inside: readonly unknown[]): b
  */
 const repeated = (items: readonly unknown[]): number => {
   const plain = new Set<unknown>();
+  // Stryker disable next-line ArrayDeclaration: equivalent, no item is the same value as a string that is not among the items
   const objects: object[] = [];
   for (let index = 0; index < items.length; index++) {
     const item: unknown = items[index];
+    // Stryker disable next-line LogicalOperator,ConditionalExpression: equivalent, the set is the fast path; `sameValue` gives a value that is no object the same answer, slower
     if (typeof item !== 'object' || item === null) {
       if (plain.has(item)) return index;
       plain.add(item);
     } else {
+      // Stryker disable next-line ArrayDeclaration: equivalent, a string is never the object being compared
       if (objects.some((earlier) => sameValue(item, earlier, []))) return index;
       objects.push(item);
     }
@@ -399,6 +409,7 @@ const isOne = (schema: Node, value: unknown): boolean => {
   for (let index = 0; index < members.length; index++) {
     if (!run(members[index] as Node, value)) continue;
     count += 1;
+    // Stryker disable next-line ConditionalExpression: equivalent, the count only grows, and the last line refuses any count but one; this stops at the second
     if (count > 1) return false;
   }
   return count === 1;

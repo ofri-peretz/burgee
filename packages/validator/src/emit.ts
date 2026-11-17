@@ -392,12 +392,16 @@ const unique = (emitter: Emitter, schema: Node, ref: string): string => {
   return `(Array.isArray(${ref}) && (${test(emitter, schema.item as Node, ref)}) && ${emitter.same}(${ref}))`;
 };
 
+/** What ends a line of the emitted text. */
+// Stryker disable next-line StringLiteral: equivalent, each line is a whole statement, so the text means the same on one line
+const LINE = '\n';
+
 /** Exactly one member: the count stops at the second. */
 const one = (emitter: Emitter, schema: Node): string => {
   const tests = (schema.fields as readonly Node[]).map((member) => `  if (${test(emitter, member, 'v')} && ++n > 1) return false;`);
   return `(v) => {
   let n = 0;
-${tests.join('\n')}
+${tests.join(LINE)}
   return n === 1;
 }`;
 };

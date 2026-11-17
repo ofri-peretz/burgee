@@ -496,13 +496,13 @@ type StandardJson<T, O> = Schema<T, O> & {
 /** The findings that say a document describes what goes in, where what comes out of `parse` is another value: it cannot stand for the output. */
 const CHANGES: ReadonlySet<string> = new Set(['transform', 'pipe', 'preprocess', 'codec', 'catch']);
 
-const converted = (schema: Node, options: StandardJsonOptions, side: 'input' | 'output'): Record<string, unknown> => {
+const converted = (schema: Node, options: StandardJsonOptions, output: boolean): Record<string, unknown> => {
   const draft = TARGETS.get(options.target);
   if (draft === undefined) throw new TypeError(`cannot write JSON Schema for the target ${shown(options.target)}. fix: ask for "draft-2020-12" or "draft-07"`);
   const { schema: document, findings } = toJsonSchema(schema as Schema<unknown>, { draft });
   const report = options.libraryOptions?.['findings'];
   if (typeof report === 'function') (report as (findings: readonly Finding[]) => void)(findings);
-  const changed = side === 'output' ? findings.find((finding) => CHANGES.has(finding.keyword)) : undefined;
+  const changed = output ? findings.find((finding) => CHANGES.has(finding.keyword)) : undefined;
   if (changed !== undefined) {
     throw new TypeError(`cannot write the output of this schema as JSON Schema: at "${changed.path}", ${changed.message}. fix: ask for the input, or describe the output with a schema of its own`);
   }
@@ -521,7 +521,7 @@ const converted = (schema: Node, options: StandardJsonOptions, side: 'input' | '
  */
 const standardJson = <T, O>(schema: Schema<T, O>): StandardJson<T, O> => {
   const prior = (schema as { readonly '~standard'?: object })['~standard'];
-  const jsonSchema: StandardJsonConverter = Object.freeze({ input: (options: StandardJsonOptions) => converted(schema, options, 'input'), output: (options: StandardJsonOptions) => converted(schema, options, 'output') });
+  const jsonSchema: StandardJsonConverter = Object.freeze({ input: (options: StandardJsonOptions) => converted(schema, options, false), output: (options: StandardJsonOptions) => converted(schema, options, true) });
   // eslint-disable-next-line reliability/no-unsafe-type-narrowing -- the member is put on here, and the types it states live only in the type system, as `~type` does
   return Object.freeze({ ...schema, '~standard': Object.freeze({ version: 1, vendor: VENDOR, ...prior, jsonSchema }) }) as unknown as StandardJson<T, O>;
 };

@@ -217,8 +217,12 @@ Choices wave 3 made, each reversible:
 ## Wave 4 as built, 2026-11-17
 
 The features two of the five competitors have, all 24 rows. Ours now reads **143 yes, 4 partial,
-7 no**. 1,062 tests, 100% coverage; the three readers and `parse` agree on 558 probed values of a
-schema with every new kind (spec R2).
+7 no**. 1,109 tests, 100% coverage; the three readers and `parse` agree on 558 probed values of a
+schema with every new kind (spec R2). No surviving mutant in the package's source (oxmutate 2.6.1,
+5,453 mutants); 46 are excluded, each with its reason in the source, 22 more than after wave 3, and
+all of them in wave 4's fast paths and in pieces no buildable schema can tell apart. The 12
+survivors oxmutate reports in `src/__fixtures__/readers.ts` are in test scaffolding wave 4 did not
+touch.
 
 | Group | What landed |
 | :-- | :-- |

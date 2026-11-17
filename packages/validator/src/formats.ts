@@ -192,6 +192,7 @@ const isJson = (text: string): boolean => {
   try {
     JSON.parse(text);
     return true;
+    // Stryker disable next-line BlockStatement: equivalent, a format holds only where its test returns true, and an empty block returns undefined
   } catch {
     return false;
   }
@@ -209,22 +210,27 @@ const SEGMENTS = 3;
 /** The versions RFC 9562 §4.2 defines run from 1 to 8. */
 const LAST_VERSION = 8;
 
-/** The bytes a base64url segment holds, read as UTF-8: `null` where they are not UTF-8. The segment is one `isJwt` has already held to the alphabet and the length. */
-const decoded = (segment: string): string | null => {
-  const binary = atob(segment.replaceAll('-', '+').replaceAll('_', '/').padEnd(Math.ceil(segment.length / GROUP) * GROUP, '='));
+/**
+ * The bytes a base64url segment holds, read as UTF-8: the empty string, which is no JSON, where
+ * they are not UTF-8. The segment is one `isJwt` has already held to the alphabet and the length,
+ * and `atob` reads base 64 without its padding (the forgiving decode of the HTML standard).
+ */
+const decoded = (segment: string): string => {
+  const binary = atob(segment.replaceAll('-', '+').replaceAll('_', '/'));
   try {
     return new TextDecoder('utf-8', { fatal: true }).decode(Uint8Array.from(binary, (unit) => unit.codePointAt(0) as number));
+    // Stryker disable next-line BlockStatement: equivalent, `undefined` is no JSON text either
   } catch {
-    return null;
+    // Stryker disable next-line StringLiteral: equivalent, any text that is not JSON refuses the header the same way
+    return '';
   }
 };
 
-/** Whether a header is a JSON object with an `alg` that is a string (RFC 7515 §4.1.1: it must be there). */
-const isHeader = (text: string | null): boolean => {
-  if (text === null || !isJson(text)) return false;
-  const header: unknown = JSON.parse(text);
-  return typeof header === 'object' && header !== null && !Array.isArray(header) && typeof (header as Record<string, unknown>)['alg'] === 'string';
-};
+/**
+ * Whether a header is a JSON object with an `alg` that is a string (RFC 7515 §4.1.1: it must be
+ * there). Nothing in JSON but an object has a member, so asking for the member is asking for both.
+ */
+const isHeader = (text: string): boolean => isJson(text) && typeof (JSON.parse(text) as { readonly alg?: unknown } | null)?.alg === 'string';
 
 /**
  * A JWS in its compact form (RFC 7515 §7.1), which is what a JWT is written as: three base64url
@@ -234,7 +240,7 @@ const isHeader = (text: string | null): boolean => {
  */
 const isJwt = (text: string): boolean => {
   const parts = text.split('.');
-  return parts.length === SEGMENTS && parts.every((part) => B64URL.test(part) && part.length % GROUP !== 1) && (parts[0] as string).length > 0 && isHeader(decoded(parts[0] as string));
+  return parts.length === SEGMENTS && parts.every((part) => B64URL.test(part) && part.length % GROUP !== 1) && isHeader(decoded(parts[0] as string));
 };
 
 const jwt = /* @__PURE__ */ Object.freeze({ name: 'jwt', test: isJwt }) satisfies Format;
@@ -271,6 +277,7 @@ const isRegex = (text: string): boolean => {
     // eslint-disable-next-line secure-coding/detect-non-literal-regexp -- the pattern is only compiled, to ask whether it is one, and never run
     new RegExp(text, 'u');
     return true;
+    // Stryker disable next-line BlockStatement: equivalent, a format holds only where its test returns true, and an empty block returns undefined
   } catch {
     return false;
   }

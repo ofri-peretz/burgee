@@ -14,6 +14,7 @@ import {
   check,
   codec,
   contains,
+  custom,
   encode,
   endsWith,
   enumOf,
@@ -32,7 +33,10 @@ import {
   optional,
   parse,
   type Parsed,
+  pipe,
+  preprocess,
   readonly,
+  refine,
   type Schema,
   startsWith,
   string,
@@ -42,6 +46,7 @@ import {
   union,
   unique,
   unknown,
+  type Format,
 } from './index.js';
 import { compile } from './jit.js';
 import { fromJsonSchema, standardJson, toJsonSchema } from './json-schema.js';
@@ -718,3 +723,141 @@ describe('the readers, for the wave 4 kinds', () => {
     expect([paths.length * WAVE4_PROBES.length, accepted]).toEqual([558, 114]);
   });
 });
+
+/** Values that tell one wrong reading from the right one: each kills a mutant the first reading of wave 4 let live. */
+describe('wave 4, read closely', () => {
+  it('a template takes each way of an alternative of three or more, of any length', () => {
+    const Three = template([enumOf(['a', 'bbb', 'cc']), '!']);
+    expect(verdicts(Three, ['a!', 'bbb!', 'cc!', 'b!', 'bb!', 'c!', 'ccc!', 'abbb!', '!'])).toEqual([true, true, true, false, false, false, false, false, false]);
+    const Four = template([union([literal('x'), literal('yy'), number({ int: true }), boolean()]), '.']);
+    expect(verdicts(Four, ['x.', 'yy.', '12.', 'true.', 'false.', 'y.', 'xx.', '.'])).toEqual([true, true, true, true, true, false, false, false]);
+  });
+
+  it('a template with nothing in a hole matches no unit, the lowest included', () => {
+    expect(verdicts(template(['a', enumOf([])]), ['a\u0000', 'a\u0001', 'a'])).toEqual([false, false, false]);
+    // And a string hole takes every unit, the lowest and the highest included.
+    expect(verdicts(template([string()]), ['\u0000', '\uffff', '\u0000\uffff'])).toEqual([true, true, true]);
+  });
+
+  it('a template that starts with an open hole comes back to it on every unit', () => {
+    expect(verdicts(template([string(), 'b']), ['b', 'ab', 'aab', 'bab', 'a', 'ba'])).toEqual([true, true, true, true, false, false]);
+    expect(verdicts(template([number({ int: true }), 'x']), ['123x', '10x', '1x'])).toEqual([true, true, true]);
+  });
+
+  it('a template refuses a hole with one bound, a pattern or a format', () => {
+    expect(holeOf(string({ max: 3 }))).toThrow('a string with bounds');
+    expect(holeOf(string({ pattern: /a/u }))).toThrow('a string with bounds');
+    expect(holeOf(string({ format: ulid }))).toThrow('a string with bounds');
+    expect(holeOf(number({ max: 1 }))).toThrow('a number with bounds');
+    expect(holeOf(number({ lt: 1 }))).toThrow('a number with bounds');
+    expect(holeOf(bigint({ max: 1n }))).toThrow('a bigint with bounds');
+  });
+
+  it('a template is written as one pattern whose classes are escapes', () => {
+    expect(toJsonSchema(template([string()])).schema['pattern']).toBe('^(?:[\\s\\S])*$');
+    expect(toJsonSchema(template([bigint()])).schema['pattern']).toBe('^(?:-|)(?:0|[\\u0031-\\u0039](?:[\\u0030-\\u0039])*)$');
+  });
+
+  it('unique compares nested values as uniqueItems does: -0 is 0, NaN is NaN, and every key on both sides', () => {
+    expect(verdicts(Unique2, [[[0], [-0]], [[NaN], [NaN]], [[1], [1]], [{ a: 0 }, { a: -0 }], [[1, 2], [1]], [{ a: 1, b: 1 }, { a: 1 }], [[1], ['1']]])).toEqual([false, false, false, false, true, true, true]);
+  });
+
+  it('unique tells an object from what is no object, on either side, without reading a prototype of nothing', () => {
+    class Point {
+      constructor(readonly x: number) {}
+    }
+    expect(verdicts(Unique2, [[{ a: {} }, { a: null }], [{ a: null }, { a: {} }], [{ a: undefined }, { a: {} }], [{ a: {} }, { a: undefined }], [new Point(1), { x: 1 }], [{ x: 1 }, new Point(1)], [{ a: 1 }, { a: 2 }]])).toEqual([true, true, true, true, true, true, true]);
+  });
+
+  it('unique ends on two arrays that each hold themselves', () => {
+    const left: unknown[] = [];
+    left.push(left);
+    const right: unknown[] = [];
+    right.push(right);
+    expect(verdicts(Unique2, [[left, right]])).toEqual([true]);
+  });
+
+  it('contains counts only the items there are', () => {
+    expect(verdicts(contains(array(unknown()), unknown(), { max: 1 }), [[1], [1, 2]])).toEqual([true, false]);
+  });
+
+  it('oneOf of three refuses a value two accept and takes one only one accepts', () => {
+    expect(verdicts(oneOf([number(), string(), number({ int: true })]), [1.5, 'a', 1, true])).toEqual([true, true, false, false]);
+  });
+
+  it('a fallback and a codec at a required key still need the key, in the emitted code too', () => {
+    expect(verdicts(object({ a: catchOf(unknown(), 1) }), [{}, { a: 2 }])).toEqual([false, true]);
+    const Loose = codec(unknown(), unknown(), { decode: (input) => input, encode: (output) => output });
+    expect([{}, { a: 2 }].map((one) => compile(object({ a: Loose }))(one))).toEqual([false, true]);
+    expect([{}, { a: 2 }].map((one) => check(object({ a: Loose }), one))).toEqual([false, true]);
+  });
+
+  it('endsWith and includes say what they test', () => {
+    expect(issues(endsWith(string(), 'z'), 'a')[0]?.message).toBe('expected a string that ends with "z", got string "a". fix: send a string that ends with "z"');
+    expect(issues(includes(string(), 'z'), 'a')[0]?.message).toBe('expected a string that includes "z", got string "a". fix: send a string that includes "z"');
+  });
+
+  it('the JSON Schema writer reports a loss inside each new keyword at its own place', () => {
+    const loose = custom('loose', () => true);
+    expect(toJsonSchema(startsWith(transform(string(), String), 'a')).findings[0]?.path).toBe('/allOf/0');
+    expect(toJsonSchema(contains(array(loose), loose)).findings.map((one) => one.path)).toEqual(['/allOf/0/items', '/allOf/1/contains']);
+    expect(toJsonSchema(unique(array(loose))).findings[0]?.path).toBe('/allOf/0/items');
+    expect(toJsonSchema(not(loose)).findings[0]?.path).toBe('/not');
+    expect(toJsonSchema(contains(array(number()), number(), { min: 2 }), { draft: 'draft-07' }).findings.map((one) => one.keyword)).toEqual(['contains']);
+    expect(toJsonSchema(contains(array(number()), number(), { max: 2 }), { draft: 'draft-07' }).findings.map((one) => one.keyword)).toEqual(['contains']);
+  });
+
+  it('Standard JSON Schema writes any input, and refuses each output a document of the input cannot describe', () => {
+    const changing: AnySchema[] = [transform(string(), String), pipe(string(), string()), preprocess(String, string()), codec(string(), string(), { decode: String, encode: String }), catchOf(string(), '')];
+    for (const schema of changing) {
+      const props = standardJson(schema)['~standard'];
+      expect(props.jsonSchema.input({ target: 'draft-07' })['type']).toBe('string');
+      expect(() => props.jsonSchema.output({ target: 'draft-07' })).toThrow('cannot write the output of this schema as JSON Schema');
+    }
+    expect(standardJson(refine(string(), () => true))['~standard'].jsonSchema.output({ target: 'draft-07' })['type']).toBe('string');
+  });
+
+  it('each format holds the whole string, from its first character to its last', () => {
+    const whole: [Format, string][] = [
+      [cuid, 'cjld2cjxh0000qzrmn831i7rn'],
+      [nanoid, 'V1StGXR8_Z5jdHi6B-myT'],
+      [ulid, '01ARZ3NDEKTSV4RRFFQ69G5FAV'],
+      [emoji, '😀'],
+      [duration, 'P1D'],
+    ];
+    for (const [format, good] of whole) {
+      const schema = string({ format });
+      expect([good, `x${good}`, `${good}x`].map((text) => check(schema, text))).toEqual([true, false, false]);
+    }
+  });
+
+  it('duration reads a number of more than one digit in every place, and nothing but digits', () => {
+    const Duration = string({ format: duration });
+    const accepted = ['P10D', 'P10M', 'P10M10D', 'P10Y', 'P10Y10M', 'P10Y10M10D', 'PT10H', 'PT10H10M', 'PT10H10M10S', 'PT10M', 'PT10M10S', 'PT10S', 'P10W', 'P10DT10H', 'P10Y10M10DT10H10M10S'];
+    const refused = ['P1MxD', 'P1YxM', 'PT1HxM', 'PT1MxS', 'PxD', 'PTxH', 'P1Y1MT', 'P1W1D', 'P1DT', 'P1D1M'];
+    expect(accepted.map((text) => check(Duration, text))).toEqual(accepted.map(() => true));
+    expect(refused.map((text) => check(Duration, text))).toEqual(refused.map(() => false));
+  });
+
+  it('duration reads a time after a date in each of its forms', () => {
+    const Duration = string({ format: duration });
+    const accepted = ['P1DT10H', 'P1DT10H10M', 'P1DT1H1M', 'P1DT10M', 'P1DT10M10S', 'P1DT10S'];
+    const refused = ['P1DTxM', 'P1DT1MxS', 'P1DTxS', 'P1DT1M1H'];
+    expect(accepted.map((text) => check(Duration, text))).toEqual(accepted.map(() => true));
+    expect(refused.map((text) => check(Duration, text))).toEqual(refused.map(() => false));
+  });
+
+  it('jwt holds every segment to a length base 64 can have, and reads both URL-safe characters', () => {
+    const Jwt = string({ format: jwt });
+    // `{"alg":"?aa"}` and `{"alg":">aa"}`, whose encodings have a `_` and a `-`; a signature of nine characters, which is one past two whole groups; one of six, which is not.
+    expect(['eyJhbGciOiI_YWEifQ.e30.', 'eyJhbGciOiI-YWEifQ.e30.', 'eyJhbGciOiJub25lIn0.e30.abcdefghi', 'eyJhbGciOiJub25lIn0.e30.abcdef'].map((text) => check(Jwt, text))).toEqual([true, true, false, true]);
+  });
+
+  it('jwt decodes the header as UTF-8 and wants a JSON object with a string alg', () => {
+    const Jwt = string({ format: jwt });
+    // `{"alg":"` + 0xff + `"}`: valid JSON if the byte were read as a replacement character, and not UTF-8.
+    expect(['eyJhbGciOiL_In0.e30.', 'eyJhbGciOiJ4In0.e30.', 'Ingi.e30.', 'eyJhbGciOiJub25lIn0.e30.'].map((text) => check(Jwt, text))).toEqual([false, true, false, true]);
+  });
+});
+
+const Unique2 = unique(array(unknown()));
