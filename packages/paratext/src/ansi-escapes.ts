@@ -1,5 +1,8 @@
-// eslint-disable-next-line import-next/no-namespace -- the default export carries exactly csi's members, as the incumbent's carries its CSI half; listing thirty-one names twice cost 1.5 KB of the package against its weight ceiling
-import * as csi from './ansi-csi.js';
+// By name rather than `import * as csi`: a namespace spread into the default is a getter object a
+// bundler cannot fold, 242 B of every bundle that imports the default (`paratext-bundle-lock`).
+// `ansi-escapes.test.ts` holds the default's keys to `ansi-csi.ts`'s exports, so a member added
+// there and not here fails rather than going missing from the drop-in.
+import { beginSynchronizedOutput, clearScreen, clearTerminal, clearViewport, cursorBackward, cursorDown, cursorForward, cursorGetPosition, cursorHide, cursorLeft, cursorMove, cursorNextLine, cursorPrevLine, cursorRestorePosition, cursorSavePosition, cursorShow, cursorTo, cursorUp, endSynchronizedOutput, enterAlternativeScreen, eraseDown, eraseEndLine, eraseLine, eraseLines, eraseScreen, eraseStartLine, eraseUp, exitAlternativeScreen, scrollDown, scrollUp, synchronizedOutput } from './ansi-csi.js';
 /**
  * R8 — the `ansi-escapes` surface, all of it paratext implements.
  *
@@ -25,8 +28,8 @@ import * as csi from './ansi-csi.js';
  *
  * Graded by `npm run compat -- ansi-escapes`.
  */
-import { registerBuiltins } from './builtins.js';
-import { emit } from './capability.js';
+import { builtins } from './builtins.js';
+import { emit, seed } from './capability.js';
 import { imageFields, type ImageOptions } from './image.js';
 import { processRuntime, type Runtime } from './runtime.js';
 
@@ -37,11 +40,17 @@ import { processRuntime, type Runtime } from './runtime.js';
  * Not defensive padding — it is the difference between a bug and a *silent* one. `emit()`
  * answers an unregistered name with whatever text the caller passed, on purpose, because
  * output is not the place to discover a typo. Reached with an empty registry, `link('Docs',
- * url)` therefore returns `Docs`: no error, no bytes, and the URL quietly gone. Registration
- * is idempotent (`register` replaces by name), so this costs nothing where the entry point
- * has already run it.
+ * url)` therefore returns `Docs`: no error, no bytes, and the URL quietly gone. Putting a
+ * record in replaces by name, so this costs nothing where the entry point has already run.
+ *
+ * `seed`, not `registerBuiltins()`: the same seven records in the same registry, without the
+ * schema walk `register` runs on each. That walk is what a stranger's capability needs, and
+ * ours are constants — `paratext.test.ts` holds every built-in to zero problems, and
+ * `registerBuiltins()` still sends them through `register`. Running the walk here put
+ * `shape.js` and the schema fragment in every bundle of the default export, 2,510 B of
+ * 7,038, for an answer known before the package was built (`paratext-bundle-lock.test.ts`).
  */
-registerBuiltins();
+seed(builtins);
 
 /** The bell. A byte, not a sequence — and the one member that is a value rather than a call. */
 const BEL = '\u0007';
@@ -139,7 +148,7 @@ export const ConEmu: NotImplemented = undefined;
  * make that quietly untrue.
  */
 // eslint-disable-next-line import-next/no-default-export -- the incumbent's entry is a default export and R8 is the whole point of this file
-export default Object.freeze({ ...csi, beep, image, link, setCwd });
+export default Object.freeze({ beginSynchronizedOutput, clearScreen, clearTerminal, clearViewport, cursorBackward, cursorDown, cursorForward, cursorGetPosition, cursorHide, cursorLeft, cursorMove, cursorNextLine, cursorPrevLine, cursorRestorePosition, cursorSavePosition, cursorShow, cursorTo, cursorUp, endSynchronizedOutput, enterAlternativeScreen, eraseDown, eraseEndLine, eraseLine, eraseLines, eraseScreen, eraseStartLine, eraseUp, exitAlternativeScreen, scrollDown, scrollUp, synchronizedOutput, beep, image, link, setCwd });
 
 /**
  * `ansi-escapes`' `image()` options, declared beside the record in `image.ts` and re-exported
@@ -147,5 +156,5 @@ export default Object.freeze({ ...csi, beep, image, link, setCwd });
  * object, and one definition is what keeps the two façades describing one call.
  */
 export { type ImageOptions };
-export { beginSynchronizedOutput, clearScreen, clearTerminal, clearViewport, cursorBackward, cursorDown, cursorForward, cursorGetPosition, cursorHide, cursorLeft, cursorMove, cursorNextLine, cursorPrevLine, cursorRestorePosition, cursorSavePosition, cursorShow, cursorTo, cursorUp, endSynchronizedOutput, enterAlternativeScreen, eraseDown, eraseEndLine, eraseLine, eraseLines, eraseScreen, eraseStartLine, eraseUp, exitAlternativeScreen, scrollDown, scrollUp, synchronizedOutput } from './ansi-csi.js';
+export * from './ansi-csi.js';
 

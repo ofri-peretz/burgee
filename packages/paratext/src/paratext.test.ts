@@ -10,7 +10,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { builtins, link, registerBuiltins } from './builtins.js';
-import { type Capability, capabilities, capability, check, emit, isDeprecation, refusals, register, reset, schemaFields, supports } from './capability.js';
+import { type Capability, capabilities, capability, capabilityProblems, check, emit, isDeprecation, refusals, register, reset, schemaFields, supports } from './capability.js';
 import { type Runtime } from './runtime.js';
 import schema from './schema.json' with { type: 'json' };
 import { fieldsUsed, render } from './template.js';
@@ -33,6 +33,13 @@ beforeEach(() => {
 describe('what it ships', () => {
   it('registers every capability under a name, and nothing else', () => {
     expect(capabilities()).toEqual(['bell', 'clipboard', 'cwd', 'image', 'link', 'notify', 'title']);
+  });
+
+  it('ships seven records the schema walk has nothing to say about', () => {
+    // The root puts these in the registry with `seed`, which skips the walk `register` runs,
+    // so this is what makes that skip safe: a built-in the walk would refuse fails here, in the
+    // build, rather than being trusted at import. `registerBuiltins()` still walks them.
+    expect(builtins.map((record) => [record.name, capabilityProblems(record)])).toEqual(builtins.map((record) => [record.name, []]));
   });
 
   it('emits the sequences a supporting terminal understands', () => {

@@ -147,6 +147,15 @@ describe('the CSI half, byte-exact with the incumbent (D-138)', () => {
     expect(Object.keys(ansiEscapes).filter((key) => !(key in incumbent))).toEqual([]);
   });
 
+  it('the default carries every member `ansi-csi.ts` exports, and the four OSC members, and nothing else', async () => {
+    // The default lists its CSI members by name rather than spreading a namespace (a getter
+    // object no bundler folds, 242 B of every bundle). This is what keeps a member added to
+    // `ansi-csi.ts` from going missing from the drop-in's object.
+    const csi = await import('./ansi-csi.js');
+    expect(Object.keys(ansiEscapes).toSorted()).toEqual([...Object.keys(csi), 'beep', 'image', 'link', 'setCwd'].toSorted());
+    for (const [name, value] of Object.entries(csi)) expect((ansiEscapes as unknown as Record<string, unknown>)[name], name).toBe(value);
+  });
+
   it.each(CSI_VALUES)('%s is the incumbent\'s bytes', async (name) => {
     const incumbent = (await import('ansi-escapes')) as unknown as Record<string, unknown>;
     expect((ansiEscapes as unknown as Record<string, unknown>)[name]).toBe(incumbent[name]);
