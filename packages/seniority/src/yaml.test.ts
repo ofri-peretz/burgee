@@ -182,7 +182,7 @@ const REFUSALS: ReadonlyArray<[text: string, message: string, ours?: typeof OURS
   ['', 'expected a document, but the input is empty'],
   ['# only a comment\n', 'expected a document, but the input is empty'],
   ['a: 1\n---\nb: 2', 'expected a single document in the stream, but found more'],
-  ['a: \u0007', 'the stream contains non-printable characters (1:5)'],
+  ['a: \u0007', 'the stream contains non-printable characters (1:4)'], // js-yaml 5.5 marks the character itself; 5.4 marked the one after it
   ['a:\n\tb: 1', 'tab characters must not be used in indentation (2:1)'],
   ['a: b\nc', "expected ':' after a mapping key (2:2)"],
   ['a: 1\na: 2', 'duplicated mapping key (2:1)'],
