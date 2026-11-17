@@ -1502,6 +1502,7 @@ export interface Baseline {
 export function readBaseline(path: string): Baseline {
   // Read, then learn from the failure what the path was: checking first is a race (CWE-367).
   try {
+    // Stryker disable next-line StringLiteral: without an encoding readFileSync returns a Buffer, and JSON.parse reads a Buffer as UTF-8 text, so the result is the same
     return JSON.parse(readFileSync(path, 'utf8')) as Baseline;
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
