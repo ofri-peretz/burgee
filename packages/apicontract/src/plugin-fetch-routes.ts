@@ -114,7 +114,7 @@ export const routesOf = (contract: Contract): Read => {
   };
 
   const routeOf = (id: string, source: string): Omit<Route, 'name'> | undefined => {
-    // Stryker disable next-line Regex: equivalent, the model's sources all start `#/paths/` or `#/webhooks/`, and a longer one under paths ends in a name that is not a method
+    // Stryker disable next-line Regex,ArrayDeclaration: equivalent, a missing match and any fallback list both leave `method` undefined, and the model's sources all start `#/paths/` or `#/webhooks/`, and a longer one under paths ends in a name that is not a method
     const [, token, method] = /^#\/paths\/([^/]+)\/([^/]+)$/u.exec(source) ?? [];
     // Without a match there is no method either, so this one test refuses both.
     if (!METHODS.includes(method as Method)) {
