@@ -63,7 +63,7 @@ describe('the markdown plugin', () => {
 
   it('ignores an empty or non-text title and description', async () => {
     const runs = await Promise.all(
-      [{ title: '', description: '' }, { title: 3, description: 3 }].map(async (info) => host().generate('markdown', { openapi: '3.1.0', info, paths: { '/a': { get: { operationId: 'a', responses: {} } } } })),
+      [{ title: '', description: '' }, { title: 3, description: 3 }, null].map(async (info) => host().generate('markdown', { openapi: '3.1.0', info, paths: { '/a': { get: { operationId: 'a', responses: {} } } } })),
     );
     for (const files of runs) expect(files[1]?.content).toBe('# API\n\n- [a](a.md) — `GET /a`\n');
   });

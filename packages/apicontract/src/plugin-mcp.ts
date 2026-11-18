@@ -12,13 +12,14 @@ import { type GeneratedFile, type Generator, type GeneratorResult, type Plugin }
 import { clientFile, HANDLERS, serverFile, toolsFile } from './plugin-mcp-code.js';
 import { optionsOf, toolsOf } from './plugin-mcp-tools.js';
 
-const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
+/** A value's own members, read as a record: `{}` for null and undefined, so a missing member reads as `undefined`. */
+const membersOf = (value: unknown): Record<string, unknown> => Object(value) as Record<string, unknown>;
 
 const text = (value: unknown, fallback: string): string => (typeof value === 'string' && value !== '' ? value : fallback);
 
 /** The server's name and version: the document's `info`, else `api` and `0.0.0`. */
 const identity = (document: unknown): { name: string; version: string } => {
-  const info = isObject(document) && isObject(document.info) ? document.info : {};
+  const info = membersOf(membersOf(document).info);
   return { name: text(info.title, 'api'), version: text(info.version, '0.0.0') };
 };
 

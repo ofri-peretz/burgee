@@ -30,7 +30,8 @@ describe('toolNames', () => {
   it('cuts a long name to 64 characters with the hash of the id, the same on every run', () => {
     const id = `get${'Thing'.repeat(20)}`;
     const name = toolNames([id]).get(id) as string;
-    expect(name).toHaveLength(MAX_NAME);
+    expect(name).toHaveLength(64);
+    expect(MAX_NAME).toBe(64);
     expect(name.endsWith(`_${stableHash(id)}`)).toBe(true);
     expect(toolNames([id]).get(id)).toBe(name);
   });
@@ -111,6 +112,16 @@ describe('toolsOf', () => {
         fix: 'accept the looser schema, or validate the recursion in the handler',
       },
     ]);
+  });
+
+  it('lists every cycle of a tool in its finding', () => {
+    const document = {
+      openapi: '3.1.0',
+      paths: { '/x': { get: { operationId: 'x', responses: { '200': { description: 'd', content: { 'application/json': { schema: { $ref: '#/A' } } } } } } } },
+      A: { properties: { a: { $ref: '#/A' }, b: { $ref: '#/B' } } },
+      B: { properties: { b: { $ref: '#/B' } } },
+    };
+    expect(toolsOf(openapi.read(document), stdio).findings[0]?.message).toBe('"x" has a recursive schema; the tool\'s schema accepts anything where it repeats (#/A, #/B)');
   });
 
   it('leaves title and outputSchema out when there are none, and joins summary and description', () => {

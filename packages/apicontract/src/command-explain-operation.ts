@@ -34,7 +34,8 @@ export interface Explanation {
   readonly truncated?: { readonly maxBytes: number; readonly cut: readonly string[] };
 }
 
-const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
+/** A value's own members, read as a record: `{}` for null and undefined, so a missing member reads as `undefined`. */
+const membersOf = (value: unknown): Record<string, unknown> => Object(value) as Record<string, unknown>;
 
 const untoken = (token: string): string => token.replaceAll('~1', '/').replaceAll('~0', '~');
 
@@ -52,7 +53,7 @@ const http = (source: string): { method: string; path: string } | undefined => {
 const declared = (contract: Contract, operation: Operation): Record<string, unknown> => {
   try {
     const node = pointerGet(contract.document, operation.source);
-    return isObject(node) ? node : {};
+    return membersOf(node);
   } catch {
     return {};
   }
@@ -132,7 +133,7 @@ export const capped = (explanation: Explanation, max: number | undefined): Expla
     const result = { ...(value as Explanation), truncated: { maxBytes: max, cut } };
     const over = bytesOf(result) - max;
     if (over <= 0) return result;
-    // Stryker disable next-line EqualityOperator: equivalent, at 0 everything is cut and one more pass below 0 cuts nothing new
+    // Stryker disable next-line EqualityOperator,NumericLiteral: equivalent, at a budget of 0 or 1 byte every schema is cut, and a pass below cuts nothing new
     if (budget <= 0) throw new BudgetError(explanation.id, max, smallest(result));
     budget -= over;
   }

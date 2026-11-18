@@ -12,14 +12,15 @@ import { toMarkdown } from './command-explain-text.js';
 import { type Contract } from './core/model.js';
 import { type GeneratedFile, type Generator, type Options, type Plugin } from './host.js';
 
-const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
+/** A value's own members, read as a record: `{}` for null and undefined, so a missing member reads as `undefined`. */
+const membersOf = (value: unknown): Record<string, unknown> => Object(value) as Record<string, unknown>;
 
 /** The longest page stem `fileSlug` makes. */
 const MAX_FILE = 100;
 
 /** `info.title` and `info.description`, when the document has them (OpenAPI and AsyncAPI do). */
 const info = (document: unknown): { title: string; description?: string } => {
-  const declared = isObject(document) && isObject(document.info) ? document.info : {};
+  const declared = membersOf(membersOf(document).info);
   const title = typeof declared.title === 'string' && declared.title !== '' ? declared.title : 'API';
   return typeof declared.description === 'string' && declared.description !== '' ? { title, description: declared.description } : { title };
 };

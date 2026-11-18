@@ -76,7 +76,7 @@ describe('the mcp plugin', () => {
   });
 
   it('names the server after info, and falls back to api 0.0.0', async () => {
-    const runs = await Promise.all([undefined, { title: '', version: '' }, { title: 3 }].map(async (info) => host().generate('mcp', { openapi: '3.1.0', info, paths: {} })));
+    const runs = await Promise.all([undefined, null, { title: '', version: '' }, { title: 3 }].map(async (info) => host().generate('mcp', { openapi: '3.1.0', info, paths: {} })));
     for (const [, , server] of runs) expect(server?.content).toContain('new Server({ name: "api", version: "0.0.0" }');
   });
 
