@@ -1077,6 +1077,8 @@ const DOCUMENTS: readonly Case[] = [
     ],
   },
   {
+    // Upstream writes `…["query"]["x"]`, which tsc rejects: `query` is optional there, so it is read through
+    // `NonNullable` (2026-11-18 corpus: digitalocean, enode, opensuse). A required group is indexed as upstream does.
     name: 'references: a parameter reached through a path is indexed by its location and name',
     given: {"openapi":"3.1.0","paths":{"/a":{"parameters":[{"name":"x","in":"query"},{"name":3,"in":"header","required":true}]},"/b":{"get":{"parameters":[{"$ref":"#/paths/~1a/parameters/0"},{"$ref":"#/paths/~1a/parameters/1"}]}}}},
     want: [
@@ -1111,7 +1113,7 @@ const DOCUMENTS: readonly Case[] = [
       '        get: {',
       '            parameters: {',
       '                query?: {',
-      '                    x?: paths["/a"]["parameters"]["query"]["x"];',
+      '                    x?: NonNullable<paths["/a"]["parameters"]["query"]>["x"];',
       '                };',
       '                header: {',
       '                    3: paths["/a"]["parameters"]["header"][3];',

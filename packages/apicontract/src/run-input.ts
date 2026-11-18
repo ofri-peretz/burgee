@@ -14,12 +14,30 @@ import { ConfigError } from './run-config.js';
 
 type Apply = (document: unknown, overlays: readonly unknown[]) => unknown;
 
+/** C0 and C1 controls YAML calls non-printable (tab, line feed, carriage return and NEL are printable). */
+const NON_PRINTABLE = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u0084\u0086-\u009F]/gu;
+
+/**
+ * YAML, and if it fails only because text was mis-encoded somewhere (docusign's and sendgrid's
+ * descriptions, 2026-11-18 corpus), again with each non-printable character read as U+FFFD: the
+ * structure is untouched, and a strict parse of the same file would refuse the whole document.
+ */
+const parseYamlLeniently = (text: string): unknown => {
+  try {
+    return parseYaml(text);
+  } catch {
+    // ponytail: replaced silently; surface a finding once readDocument has a findings channel. Text with
+    // nothing to replace fails again with the same error, which is the refusal.
+    return parseYaml(text.replaceAll(NON_PRINTABLE, '\uFFFD'));
+  }
+};
+
 /** A JSON or YAML file, parsed. `file` names the config that pointed at it, for the refusal. */
 export const readDocument = (path: string, file: string): unknown => {
   if (!existsSync(path)) throw new ConfigError(file, [`${path} does not exist. fix: point \`input\` at the spec, relative to the config`]);
   const text = readFileSync(path, 'utf8');
   try {
-    return path.endsWith('.json') ? (JSON.parse(text) as unknown) : parseYaml(text);
+    return path.endsWith('.json') ? (JSON.parse(text) as unknown) : parseYamlLeniently(text);
   } catch (error) {
     throw new ConfigError(file, [`${path} is not JSON or YAML (${(error as Error).message}). fix: correct the file, or point \`input\` at another`]);
   }

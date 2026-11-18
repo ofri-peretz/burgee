@@ -36,6 +36,18 @@ describe('readDocument', () => {
     expect(refusal(() => readDocument(join(root, 'bad.json'), '/c.json'))).toMatch(/bad\.json is not JSON or YAML \(.+\)\. fix: correct the file, or point `input` at another$/u);
     writeFileSync(join(root, 'bad.yaml'), 'a: [\n');
     expect(refusal(() => readDocument(join(root, 'bad.yaml'), '/c.json'))).toContain('bad.yaml is not JSON or YAML');
+    // A file that fails for another reason and also holds a control character is still refused.
+    writeFileSync(join(root, 'both.yaml'), 'a: [\u0001\n');
+    expect(refusal(() => readDocument(join(root, 'both.yaml'), '/c.json'))).toContain('both.yaml is not JSON or YAML');
+  });
+
+  it('reads YAML whose text was mis-encoded, each non-printable character as U+FFFD (docusign, sendgrid)', () => {
+    const root = temp();
+    // Twice, so a pattern that kept state from one document would miss the second.
+    for (const name of ['one.yaml', 'two.yaml']) {
+      writeFileSync(join(root, name), 'openapi: 3.0.3\ninfo:\n  description: "recipient\u00C3\u0080\u0099s email"\n  city: ok\u0001\n');
+      expect(readDocument(join(root, name), 'c.json')).toEqual({ openapi: '3.0.3', info: { description: 'recipient\u00C3\uFFFD\uFFFDs email', city: 'ok\uFFFD' } });
+    }
   });
 });
 

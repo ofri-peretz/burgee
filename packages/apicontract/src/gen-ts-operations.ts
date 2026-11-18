@@ -154,6 +154,13 @@ const impliedPathParameters = (declared: readonly Parameter[], path: string): Pa
 const isDeprecated = ({ resolved: parameter }: Parameter): boolean =>
   Boolean(parameter.deprecated) || Boolean(dict(parameter.schema).deprecated);
 
+/** Whether no parameter of `location` is required in the operation a `…/parameters/<n>` reference points into. */
+const groupIsOptional = (ref: string, location: unknown, ctx: TransformOptions['ctx']): boolean => {
+  const operation = ref.split('/').slice(0, -2).join('/');
+  const listed = list(dict(ctx.resolve(operation)).parameters).map((item) => dict(isDict(item) && typeof item.$ref === 'string' ? ctx.resolve(item.$ref) : item));
+  return location !== 'path' && !listed.some((item) => item.in === location && item.required === true);
+};
+
 const parameterMember = ({ original, resolved: parameter }: Parameter, options: TransformOptions): Property => {
   const inline = (): TypeNode => {
     const path = createRef([options.path, 'parameters', String(parameter.in), String(parameter.name)]);
@@ -164,7 +171,10 @@ const parameterMember = ({ original, resolved: parameter }: Parameter, options: 
     readonly: options.ctx.immutable,
     name: propertyName(parameter.name),
     optional: parameter.in !== 'path' && !parameter.required,
-    type: '$ref' in original ? refType(String(original.$ref), { parameter }) : inline(),
+    type:
+      '$ref' in original
+        ? refType(String(original.$ref), { parameter, optionalGroup: groupIsOptional(String(original.$ref), parameter.in, options.ctx) })
+        : inline(),
     comment: jsDoc(parameter),
   });
 };

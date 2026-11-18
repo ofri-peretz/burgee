@@ -356,7 +356,45 @@ const securitySchemeOf = (scheme: unknown): Dict => {
   return { ...rest, type, flows: { [FLOWS[String(flow)] ?? String(flow)]: { ...urls, scopes: scopes ?? {} } } };
 };
 
-/** The keys a 2.0 document has that the 3.1 one states another way (`paths` is rewritten in place). */
+/** A 2.0 pointer into an operation's response schema: in 3.1 that schema sits under `content/<media type>`. */
+const RESPONSE_SCHEMA_REF = /^(#\/paths\/.+\/responses\/[^/]+)\/schema(\/.*)?$/u;
+
+/** What a local pointer names, or `undefined`: own members only, and never a throw. */
+const memberAt = (document: unknown, pointer: string): unknown =>
+  pointer
+    .slice('#/'.length)
+    .split('/')
+    .map((part) => decodeURIComponent(part).replaceAll('~1', '/').replaceAll('~0', '~'))
+    // eslint-disable-next-line conventions/consistent-existence-index-check -- own members only, as `core/resolve.ts` reads a pointer
+    .reduce<unknown>((node, key) => (isDict(node) && Object.hasOwn(node, key) ? node[key] : undefined), document);
+
+/**
+ * Rewrite every `$ref` into a response's 2.0 `schema` to the same schema in the converted `content`
+ * (bethmardutho's `#/paths/~1word~1{id}/get/responses/200/schema/…`, 2026-11-18 corpus). One whose
+ * response is not there is left as written, and resolving it reports it.
+ */
+const repointResponseRefs = (node: unknown, document: Dict, report: Report, at = '#'): void => {
+  if (Array.isArray(node)) {
+    for (const [index, item] of node.entries()) repointResponseRefs(item, document, report, `${at}/${String(index)}`);
+    return;
+  }
+  if (!isDict(node)) return;
+  // Stryker disable next-line ConditionalExpression: equivalent, `exec` of a missing $ref ("undefined") matches nothing
+  const match = typeof node.$ref === 'string' ? RESPONSE_SCHEMA_REF.exec(node.$ref) : null;
+  if (match !== null) {
+    const response = match[1] as string;
+    const rest = match[2] ?? '';
+    const content = dict(memberAt(document, `${response}/content`));
+    const [mediaType] = Object.keys(content);
+    if (mediaType !== undefined) {
+      const moved = `${response}/content/${token(mediaType)}/schema${rest}`;
+      report('ref-response-schema', `${at}/$ref`, `\`${String(node.$ref)}\` is written as \`${moved}\``, 'nothing to do: OpenAPI 3 keeps a response schema under its media type');
+      (node as Mutable).$ref = moved;
+    }
+  }
+  for (const [key, value] of Object.entries(node)) repointResponseRefs(value, document, report, `${at}/${token(key)}`);
+};
+
 const MOVED = new Set(['swagger', 'host', 'basePath', 'schemes', 'consumes', 'produces', 'definitions', 'parameters', 'responses', 'securityDefinitions']);
 
 /** A Swagger 2.0 document as an OpenAPI 3.1 one, and what had to change shape on the way. */
@@ -383,6 +421,7 @@ export const convert = (document: unknown): { document: Dict; findings: Contract
     paths: pathsOf({ root, report, converter }),
     ...(Object.keys(components).length > 0 ? { components } : {}),
   };
+  repointResponseRefs(converted, converted, report);
   return { document: converted, findings: [...findings.values()] };
 };
 

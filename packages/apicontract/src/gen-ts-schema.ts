@@ -5,12 +5,14 @@
 import {
   BOOLEAN,
   type Member,
+  type Property,
   NEVER,
   NULL,
   NUMBER,
   STRING,
   type TypeNode,
   UNKNOWN,
+  alias,
   array,
   intersection,
   isPrimitive,
@@ -108,7 +110,7 @@ const typedCore = (schema: Dict, options: TransformOptions): TypeNode | undefine
 };
 
 /** The property a discriminator adds: its name, typed as this schema's own value. */
-export const discriminatorProperty = (discriminator: Discriminator, path: string, readonly: boolean): Member => {
+export const discriminatorProperty = (discriminator: Discriminator, path: string, readonly: boolean): Property => {
   const inferred = pointerOf(path).pop();
   const mapped = Object.entries(discriminator.mapping ?? {}).find(([, target]) =>
     target.startsWith('#') ? pointerOf(target).pop() === inferred : target === inferred,
@@ -161,9 +163,9 @@ const propertyMember = (parent: Dict, entry: readonly [string, unknown], options
   const { ctx } = options;
   if (isExcluded(schema, ctx)) return [];
   const type = schema.$ref
-    ? refType(String(schema.$ref))
+    ? schemaRef(String(schema.$ref), { ...options, behindObject: true })
     :  
-      transformSchemaObject(value, { ...options, path: createRef([options.path, key]) });
+      transformSchemaObject(value, { ...options, path: createRef([options.path, key]), behindObject: true });
   return [
     property({
       readonly: isReadonly(schema, ctx),
@@ -194,17 +196,18 @@ const indexTypes = (schema: Dict, options: TransformOptions): TypeNode[] => {
   const { additionalProperties, patternProperties } = schema;
   const declared = size(additionalProperties);
   const types: TypeNode[] = [];
-  if ((declared ?? 0) > 0) types.push(transformSchemaObject(additionalProperties, options, true));
+  const behind = { ...options, behindObject: true };
+  if ((declared ?? 0) > 0) types.push(transformSchemaObject(additionalProperties, behind, true));
   if (additionalProperties === true || declared === 0 || (!additionalProperties && options.ctx.additionalProperties)) {
     types.push(UNKNOWN);
   }
   for (const [, pattern] of entries(patternProperties, options.ctx)) {
-    types.push(transformSchemaObject(pattern, options));
+    types.push(transformSchemaObject(pattern, behind));
   }
   return types;
 };
 
-const inheritedDiscriminator = (schema: Dict, options: TransformOptions): Member[] => {
+const inheritedDiscriminator = (schema: Dict, options: TransformOptions): Property[] => {
   const path = options.path ?? '';
   const { discriminators } = options.ctx;
   const isChild = Boolean(schema.allOf || schema.anyOf) && !schema.discriminator;
@@ -215,9 +218,14 @@ const inheritedDiscriminator = (schema: Dict, options: TransformOptions): Member
 /** The object a schema describes by itself: properties, `$defs` and an index signature. */
 const objectCore = (schema: Dict, options: TransformOptions): TypeNode | undefined => {
   const hasProperties = (size(schema.properties) ?? 0) > 0;
+  const inherited = inheritedDiscriminator(schema, options);
+  // A child that also lists the discriminator property keeps the inherited literal, not a second declaration of it.
+  const stated = new Set(inherited.map((member) => member.name));
   const members = [
-    ...inheritedDiscriminator(schema, options),
-    ...(hasProperties ? entries(schema.properties, options.ctx) : []).flatMap((entry) => propertyMember(schema, entry, options)),
+    ...inherited,
+    ...(hasProperties ? entries(schema.properties, options.ctx) : [])
+      .filter(([key]) => !stated.has(propertyName(key)))
+      .flatMap((entry) => propertyMember(schema, entry, options)),
     ...definitionsMember(schema.$defs, options),
   ];
   const isObjectLike = hasProperties || schema.additionalProperties || schema.patternProperties || schema.$defs;
@@ -228,24 +236,87 @@ const objectCore = (schema: Dict, options: TransformOptions): TypeNode | undefin
   return intersection([...named, object([signature])]);
 };
 
+const ROOT_TOKENS = 3;
+
+/** Keywords a pointer can pass through inside a schema that name no member of the generated type. */
+const STRUCTURAL = new Set(['allOf', 'anyOf', 'oneOf', 'not', 'items', 'prefixItems', 'additionalProperties', 'patternProperties', 'if', 'then', 'else', 'definitions']);
+
+/** Objects printed as the type of their value, so nothing past them is a member: a parameter, a header. */
+const PRINTED_AS_VALUE = new Set(['parameters', 'headers', 'requestBody']);
+
+/**
+ * Whether a reference can print as the indexed access upstream writes. Not when it runs through a schema's
+ * structure (`…/X/allOf/0`), through more than one property (the first may be `undefined`), or past an
+ * object printed as its value's type (`…/parameters/X/schema`, an optional `requestBody`): tsc rejects each.
+ */
+const indexable = (ref: string): boolean => {
+  const tokens = pointerOf(ref);
+  const deep = tokens.slice(ROOT_TOKENS);
+  if (tokens.slice(1, -1).some((token) => PRINTED_AS_VALUE.has(token))) return false;
+  return !deep.some((token) => STRUCTURAL.has(token)) && deep.filter((token) => token === 'properties').length <= 1;
+};
+
+/** Per run, the alias each deep reference was given: declared once, so schemas that reach into each other stay linear in size. */
+const deepAliases = new WeakMap<Context, Map<string, string>>();
+
+const aliasName = (ref: string, taken: ReadonlySet<string>): string => {
+  const base = `Ref_${pointerOf(ref).join('_').replaceAll(/[^\w$]/g, '_')}`;
+  let name = base;
+  for (let n = 2; taken.has(name); n += 1) name = `${base}_${n}`;
+  return name;
+};
+
+/**
+ * A schema reaching itself with no object in between (`X: string | X[]`, Vercel's EdgeConfigItemValue):
+ * as a member of `components` that is a circular type annotation, as a type alias it is a recursive type.
+ */
+const bareSelfReference = (ref: string, options: TransformOptions): boolean =>
+  options.behindObject !== true && `${String(options.path)}/`.startsWith(`${ref}/`);
+
+/**
+ * A schema's `$ref` as a type. Most become an indexed access (`components["schemas"]["Pet"]`); any other
+ * (Azure's `#/definitions/X/allOf/0`, a ref into `paths`, a bare self-reference; 2026-11-18 corpus) has its
+ * target declared once as a type alias at the end of the file, referenced by name.
+ */
+function schemaRef(ref: string, options: TransformOptions): TypeNode {
+  const { ctx } = options;
+  const target = ctx.resolve(ref);
+  // No document to resolve it in (a schema transformed on its own): printed as upstream writes it.
+  if ((indexable(ref) && !bareSelfReference(ref, options)) || target === undefined) return refType(ref);
+  const names = deepAliases.get(ctx) ?? new Map<string, string>();
+  deepAliases.set(ctx, names);
+  const known = names.get(ref);
+  if (known !== undefined) return reference(known);
+  const name = aliasName(ref, new Set(names.values()));
+  // Named before its body is built, so a target that reaches itself refers to the alias.
+  names.set(ref, name);
+  ctx.injectFooter.push(alias(name, transformSchemaObject(target, { ...options, path: ref, behindObject: false })));
+  return reference(name);
+}
+
 const unionMembers = (items: unknown, key: 'anyOf' | 'oneOf', options: TransformOptions): TypeNode[] =>
   list(items).map((item, index) =>
     // The index keeps names generated for nested enums apart.
     transformSchemaObject(item, { ...options, path: createRef([options.path, key, String(index)]) }),
   );
 
+const mayBeAbsent = (resolved: Dict, ref: string): boolean =>
+  resolved.nullable === true || (Array.isArray(resolved.type) && resolved.type.includes('null')) || pointerOf(ref).length > ROOT_TOKENS;
+
 /** A referenced `allOf` member, with the keys the parent requires of it made required. */
 const referencedMember = (item: Dict, required: readonly unknown[], options: TransformOptions): TypeNode => {
   const { ctx } = options;
   const ref = String(item.$ref);
-  const type = refType(ref);
+  const type = schemaRef(ref, options);
   const resolved = ctx.resolve(ref);
   if (!isDict(resolved) || !('properties' in resolved) || ctx.discriminators.refsHandled.includes(ref)) return type;
   const properties = dict(resolved.properties);
   const keys = required.filter((key) => Boolean(properties[String(key)]));
   if (keys.length === 0) return type;
   requireHelper(ctx.injectFooter, WITH_REQUIRED);
-  return reference('WithRequired', [type, union(keys.map((key) => literalType(key)))]);
+  // A nullable target or an optional property is `T | null` or `T | undefined`, whose `keyof` is `never`.
+  const base = mayBeAbsent(resolved, ref) ? reference('NonNullable', [type]) : type;
+  return reference('WithRequired', [base, union(keys.map((key) => literalType(key)))]);
 };
 
 const allOfMember = (item: unknown, required: readonly unknown[], options: TransformOptions): TypeNode => {
@@ -298,7 +369,10 @@ export function transformSchemaObject(schema: unknown, options: TransformOptions
       `Expected SchemaObject, received ${Array.isArray(schema) ? 'Array' : typeof schema} at ${String(options.path)}. fix: write a schema object, \`true\` or \`false\` there`,
     );
   }
-  if ('$ref' in schema) return refType(String(schema.$ref));
+  if ('$ref' in schema) return schemaRef(String(schema.$ref), options);
+  // `type: null` beside `oneOf`/`anyOf` reads as "or null" (Vercel's EdgeConfigItemValue): `null & (…)` is
+  // `never` at best, and a circular error when a variant refers back to the schema.
+  if (schema.type === 'null' && (schema.oneOf || schema.anyOf)) return composed({ ...schema, type: undefined, nullable: true }, options);
   if (schema.const !== null && schema.const !== undefined) return literalType(schema.const);
   return enumType(schema, options, fromAdditionalProperties) ?? composed(schema, options);
 }

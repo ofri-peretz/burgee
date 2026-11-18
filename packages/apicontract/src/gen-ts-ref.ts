@@ -64,6 +64,8 @@ export interface RefOptions {
   readonly extract?: ReadonlySet<string>;
   /** The parameter a reference into a `parameters` array points at: it is indexed by location and name. */
   readonly parameter?: Dict | undefined;
+  /** That parameter's location group is optional in the operation it points into (`query?: {…}`). */
+  readonly optionalGroup?: boolean;
 }
 
 const indexed = (type: TypeNode, segment: unknown): TypeNode =>
@@ -73,6 +75,12 @@ const extracted = (type: TypeNode, segment: string): TypeNode =>
   indexed(reference('Extract', [type, object([property({ name: segment, type: UNKNOWN })])]), segment);
 
 const ROOT_SEGMENTS = 3;
+
+/** A parameter by location and name. An optional group (`query?: {…}`) is `T | undefined`, which has no member named after it. */
+const parameterAccess = (type: TypeNode, parameter: Dict, optionalGroup: boolean): TypeNode => {
+  const group = indexed(type, parameter.in);
+  return indexed(optionalGroup ? reference('NonNullable', [group]) : group, parameter.name);
+};
 
 /** A reference as an indexed access, e.g. `components["schemas"]["Pet"]`. */
 export const refType = (ref: string, options: RefOptions = {}): TypeNode => {
@@ -89,7 +97,7 @@ export const refType = (ref: string, options: RefOptions = {}): TypeNode => {
     // A Media Type Object prints as its schema's type: upstream's `["content"][…]["schema"]` names a
     // member that type does not have, and tsc rejects it. It does not compile, so no output relies on it.
     else if (segment === 'schema' && segments[index - 2] === 'content') continue;
-    else if (isParameter && index === segments.length - 1) type = indexed(indexed(type, parameter.in), parameter.name);
+    else if (isParameter && index === segments.length - 1) type = parameterAccess(type, parameter, options.optionalGroup === true);
     else type = options.extract?.has(segment) ? extracted(type, segment) : indexed(type, segment);
   }
   return type;
