@@ -25,6 +25,112 @@
   <a href="https://github.com/ofri-peretz/burgee"><img src="https://img.shields.io/github/stars/ofri-peretz/burgee?style=flat&logo=github&label=Star" alt="GitHub stars" /></a>
 </p>
 
+Declare a command once. burgee serves it as help for a person, `--json` for a script and an
+MCP server for an agent.
+
+```bash
+npm i burgee
+```
+
+Before, with commander:
+
+```js
+// cli.mjs
+import { Command } from 'commander';
+
+new Command('greet')
+  .description('Greet someone by name')
+  .requiredOption('--name <name>', 'who to greet')
+  .action(({ name }) => console.log(`hello, ${name}`))
+  .parse();
+```
+
+After, with burgee. The command is a declaration, and the same file now answers a script and
+an agent too:
+
+```js
+// cli.mjs
+import { defineCommand, run } from 'burgee';
+
+run(defineCommand({
+  name: 'greet',
+  description: 'Greet someone by name',
+  options: { name: { type: 'string', required: true, description: 'who to greet' } },
+  effects: 'read_only', // it changes nothing, and --mcp tells the agent so
+  run: ({ options }) => ({ greeting: `hello, ${options.name}` }),
+}));
+```
+
+```console
+$ node cli.mjs --name ada
+greeting: hello, ada
+
+$ node cli.mjs --name ada --json
+{"ok":true,"data":{"greeting":"hello, ada"},"meta":{"provenance":{"name":{"source":"flag","location":"--name"}}}}
+
+$ node cli.mjs --mcp --print-config   # paste into an MCP client; the path is yours
+{
+  "mcpServers": {
+    "greet": {
+      "command": "node",
+      "args": [
+        "/path/to/cli.mjs",
+        "--mcp"
+      ]
+    }
+  }
+}
+
+$ node cli.mjs --help
+Usage: greet <command> [options]
+
+Greet someone by name
+
+Options:
+  --name <value>        who to greet (required)
+
+Global options:
+  --json                machine-readable output
+  --help                show this help
+  --schema              the program as data
+  --color <when>        always, never or auto (default: auto); NO_COLOR is honoured
+  --no-color            the same as --color=never
+  -q, --quiet           silence progress and hints; data and errors still print
+  --timeout <duration>  end the run after this long, exit 6: 500ms, 5s, 2m
+  --explain <option>    where an option's value came from
+
+Commands:
+  completion <shell>    Print a shell completion script: bash, zsh, fish, pwsh or fig
+
+Exit codes:
+  0                     ok: the command completed
+  1                     runtime: it ran and failed; read the message
+  2                     usage: bad arguments or an unknown command; rewrite the command
+  3                     config: the config or environment did not load; fix it, not the command
+  4                     cancelled: cancelled, or a decision is needed; decide, then run a next
+                        command
+  6                     timeout: the --timeout deadline passed; run it again with more time
+  130                   sigint: interrupted; stop
+
+For agents: --schema prints every command, option, default and env var as JSON, in one call. --json
+prints one envelope on stdout, and --explain <option> says where a value came from.
+```
+
+<p align="center">
+  <strong>📖 Docs: <a href="https://burgee.interlace.tools">burgee.interlace.tools</a></strong>
+  &nbsp;·&nbsp; <a href="https://burgee.interlace.tools/llms.txt">llms.txt</a>
+</p>
+
+<p align="center">
+  <a href="#-start-here">Start here</a> &nbsp;·&nbsp;
+  <a href="#-switch-in-one-command">Switch in one command</a> &nbsp;·&nbsp;
+  <a href="#-measured">Measured</a> &nbsp;·&nbsp;
+  <a href="#-the-family">The family</a> &nbsp;·&nbsp;
+  <a href="#-status">Status</a> &nbsp;·&nbsp;
+  <a href="#-repo-map">Repo map</a> &nbsp;·&nbsp;
+  <a href="./.sdlc/research/">Research</a>
+</p>
+
 <p align="center">
   <strong>One declaration, six surfaces.</strong> Declare a command once and burgee serves it as
   help, a --json envelope, a versioned --schema, an MCP server, shell completions and TypeScript
@@ -55,21 +161,6 @@
   <strong>⭐ <a href="https://github.com/ofri-peretz/burgee">Star the repo</a></strong> &nbsp;·&nbsp;
   <a href="https://github.com/ofri-peretz/burgee/subscription">👀 Watch releases</a> &nbsp;·&nbsp;
   <a href="https://github.com/ofri-peretz/burgee/issues">🐛 Report a bug</a>
-</p>
-
-<p align="center">
-  <strong>📖 Docs: <a href="https://burgee.interlace.tools">burgee.interlace.tools</a></strong>
-  &nbsp;·&nbsp; <a href="https://burgee.interlace.tools/llms.txt">llms.txt</a>
-</p>
-
-<p align="center">
-  <a href="#-start-here">Start here</a> &nbsp;·&nbsp;
-  <a href="#-switch-in-one-command">Switch in one command</a> &nbsp;·&nbsp;
-  <a href="#-measured">Measured</a> &nbsp;·&nbsp;
-  <a href="#-the-family">The family</a> &nbsp;·&nbsp;
-  <a href="#-status">Status</a> &nbsp;·&nbsp;
-  <a href="#-repo-map">Repo map</a> &nbsp;·&nbsp;
-  <a href="./.sdlc/research/">Research</a>
 </p>
 
 ---
