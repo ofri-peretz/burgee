@@ -109,6 +109,11 @@ describe('the edges a mutant would cross', () => {
     expect(result.findings[0]?.fix).toBe('remove it; `apicontract gen --help` lists what the types target takes');
   });
 
+  it('reads a null redocly.yaml, and an api with no settings, as nothing', () => {
+    expect(migrate('null\n', {}).findings.map((one) => one.code)).toEqual(['nothing-to-migrate']);
+    expect(migrate('apis:\n  a:\n', {}).findings.map((one) => one.code)).toEqual(['nothing-to-migrate']);
+  });
+
   it('reports YAML it cannot read in full, and nothing else from it', () => {
     const result = migrate('a: [', {});
     expect(result.config).toBeUndefined();

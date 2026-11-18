@@ -84,7 +84,7 @@ describe('`apicontract migrate`', () => {
     expect(readFileSync(join(directory, '.redocly.yaml'), 'utf8')).toBe('rules: {}\n');
     expect(readFileSync(join(directory, 'node_modules/openapi-fetch/index.ts'), 'utf8')).toBe("import x from 'openapi-fetch';");
     const second = await runBurgee(program, { argv: ['migrate', 'openapi-fetch', directory, '--json'] });
-    expect(data(second)).toMatchObject({ changed: false, config: null, written: [], edited: [] });
+    expect(data(second)).toMatchObject({ changed: false, config: null, written: [], unchanged: [], kept: [], edited: [] });
   });
 
   it('writes nothing with --dry-run', async () => {
