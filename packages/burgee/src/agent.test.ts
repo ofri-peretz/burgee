@@ -4,9 +4,10 @@ import { Readable } from 'node:stream';
 import { AGENTS, interactive } from 'roundel/terminal';
 import { describe, expect, it } from 'vitest';
 
-import { AGENT_PROBES, defineCommand, defineProgram, detectAgent, execute, type RunOptions } from './index.js';
 import { summaryOf } from './schema-entry.js';
 import { runBurgee } from './testing.js';
+
+import { AGENT_PROBES, defineCommand, defineProgram, detectAgent, execute, type RunOptions } from './index.js';
 
 /** A stdin a person could type on. */
 const terminal = (): NodeJS.ReadableStream => Object.assign(Readable.from([]), { isTTY: true });

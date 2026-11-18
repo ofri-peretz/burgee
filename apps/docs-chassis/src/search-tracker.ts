@@ -128,6 +128,7 @@ export function createSearchTracker(options: SearchTrackerOptions): SearchTracke
     if (sent === null) return;
     const results = answers.get(sent.query);
     if (results === undefined) return;
+    // eslint-disable-next-line conventions/analytics-event-naming -- `docs_search` is already collected and queried by name (.sdlc/research/docs-traffic-2026-10.md); renaming it splits the series
     options.capture(SEARCH_EVENT, { query: sent.query, results, clicked });
   };
 

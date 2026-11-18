@@ -204,7 +204,10 @@ function tagged(tag: string, node: Candidate): { value: unknown } | { reason: st
   const name = tag.startsWith('!!') ? `${CORE_TAG}${tag.slice(2)}` : tag;
   // Stryker disable next-line StringLiteral: any name that is not a core tag's — `''` or another — is neither a scalar resolver's nor `map` or `seq`.
   const short = name.startsWith(CORE_TAG) ? name.slice(CORE_TAG.length) : '';
-  if (node.kind !== 'scalar') return short === (node.kind === 'mapping' ? 'map' : 'seq') ? { value: node.value } : { reason: `unknown ${node.kind} tag !<${name}>` };
+  if (node.kind !== 'scalar') {
+    const collection = node.kind === 'mapping' ? 'map' : 'seq';
+    return short === collection ? { value: node.value } : { reason: `unknown ${node.kind} tag !<${name}>` };
+  }
   return taggedScalar(name, short, node.raw as string);
 }
 

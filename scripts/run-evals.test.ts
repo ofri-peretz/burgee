@@ -338,6 +338,8 @@ const spent = (over: Record<string, unknown>) =>
 
 const doc = (over: Record<string, unknown>) => JSON.stringify({ ...(JSON.parse(LIMIT_DOC) as object), ...over });
 
+const reason = (stdout: string, stderr = '') => caseOutcome(contains('x'), { stdout, stderr }).reason;
+
 describe('evals-record-not-run R1 — an agent that never ran is not scored', () => {
   it('R1 — a usage-limit stop is not-run, with its reason, never a failure', () => {
     const stream = [event({ type: 'system', subtype: 'init' }), LIMIT_DOC].join('\n');
@@ -367,7 +369,6 @@ describe('evals-record-not-run R1 — an agent that never ran is not scored', ()
   });
 
   it('names the reason: the status first, then the wording, then did-not-start', () => {
-    const reason = (stdout: string, stderr = '') => caseOutcome(contains('x'), { stdout, stderr }).reason;
     expect(reason(doc({ api_error_status: 401, result: 'nope' }))).toBe('auth');
     expect(reason(doc({ api_error_status: 403, result: 'nope' }))).toBe('auth');
     expect(reason(doc({ api_error_status: undefined, result: 'Claude usage limit reached' }))).toBe('usage-limit');

@@ -2,6 +2,8 @@ import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import { verdict, verdicts } from './__fixtures__/readers.js';
 import { emit } from './emit.js';
+import { toJsonSchema } from './json-schema.js';
+
 import {
   type AnySchema,
   array,
@@ -44,7 +46,6 @@ import {
   uppercase,
   voidOf,
 } from './index.js';
-import { toJsonSchema } from './json-schema.js';
 
 /**
  * Wave 3: the features three of the five competitors have. The values each accepts and refuses are

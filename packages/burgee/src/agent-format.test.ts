@@ -13,8 +13,9 @@
 import { describe, expect, it } from 'vitest';
 
 import { agentLines } from './agent-format.js';
-import { defineCommand, defineProgram } from './index.js';
 import { runBurgee } from './testing.js';
+
+import { defineCommand, defineProgram } from './index.js';
 
 const AGENT = '--format=agent';
 

@@ -7,9 +7,10 @@
  */
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
-import { checkDefinition, defineCommand, defineProgram, type InferOptions, type StandardSchemaV1 } from './index.js';
 import { schemaOf } from './schema-entry.js';
 import { runBurgee } from './testing.js';
+
+import { checkDefinition, defineCommand, defineProgram, type InferOptions, type StandardSchemaV1 } from './index.js';
 
 /** A Standard Schema implementation in ten lines — what zod, valibot or arktype provide. */
 const upperCase: StandardSchemaV1<string> = {

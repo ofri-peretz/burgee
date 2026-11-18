@@ -20,10 +20,11 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { discard } from './__fixtures__/scratch-dir.js';
-import { ExitCode, runCommand } from './index.js';
 import { quickstart } from './init.js';
 import { program as burgee } from './program.js';
 import { shellLine, shellWord } from './unknown-option.js';
+
+import { ExitCode, runCommand } from './index.js';
 
 const WINDOWS = process.platform === 'win32';
 const pkgRoot = fileURLToPath(new URL('..', import.meta.url));

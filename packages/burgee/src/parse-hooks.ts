@@ -21,7 +21,6 @@ export async function runParseHooks(plugins: readonly Plugin[], argv: string[]):
     const typed = current.join(' ');
     if (!hookApplies(hook, typed)) continue;
     // Sequential on purpose: each plugin is handed what the previous one returned.
-    // eslint-disable-next-line reliability/no-await-in-loop -- the chain is the contract; running them at once would hand every plugin the original argv
     const next = await hook.handler({ command: typed, options: {}, argv: [...current] });
     if (next === undefined) continue;
     if (!Array.isArray(next) || !next.every((a) => typeof a === 'string')) throw new Error(`burgee: plugin "${plugin.name}"'s parse hook returned ${typeof next}; return string[] or nothing`);

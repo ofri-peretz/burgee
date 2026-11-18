@@ -44,7 +44,7 @@ const CONFIG = join(ROOT, 'eslint.config.mjs');
  * was written, 2026-10-26, proven red from a ceiling of 0 first (D-20261026-disabled-rule-ceiling).
  * Only ever lowered.
  */
-const CEILING = 50;
+const CEILING = 48;
 
 /** The criterion's first half. */
 const MIN_INTERLACE_PLUGINS = 9;

@@ -7,11 +7,12 @@ import { describe, expect, it } from 'vitest';
 import { runCommand } from './execute.js';
 import { globalRows } from './globals.js';
 import { renderHelp } from './help-entry.js';
-import { defineCommand, defineProgram } from './index.js';
 import { type CommandNode } from './manifest.js';
 import { completionNode, exitRows, rootExamples } from './root-help.js';
 import { runBurgee } from './testing.js';
 import { listed } from './usage.js';
+
+import { defineCommand, defineProgram } from './index.js';
 
 const ok = (): string => 'ok';
 

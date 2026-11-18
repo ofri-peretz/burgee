@@ -115,6 +115,7 @@ const BOXES: Record<BoxLook, (option: Choice, label: string) => string> = {
   inactive: (_option, label) => `${paint('dim', S_CHECKBOX_INACTIVE)} ${lines(label, 'dim')}`,
 };
 
+// eslint-disable-next-line secure-coding/detect-object-injection -- FP ofri-peretz/eslint#1547: a call through a module-built const table, keyed by its own key type
 export const checkbox = (option: Choice, look: BoxLook): string => BOXES[look](option, labelOf(option));
 
 /** The look of an option in a multiple-choice list. */

@@ -443,6 +443,7 @@ function write(writer: Writer, schema: Node, path: string): JsonSchema {
   if (typeof schema.kind !== 'string' || !Object.hasOwn(WRITERS, schema.kind)) {
     throw new TypeError(`cannot export a node of the kind ${shown(schema.kind)}: there is no such kind. fix: build the schema with the builders`);
   }
+  // eslint-disable-next-line secure-coding/detect-object-injection -- FP ofri-peretz/eslint#1547: a call through a module-built const table, after an Object.hasOwn guard
   return beside(writer, WRITERS[schema.kind](writer, schema, path), annotations(writer, schema, path));
 }
 

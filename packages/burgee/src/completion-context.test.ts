@@ -25,9 +25,10 @@ import { describe, expect, it } from 'vitest';
 import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { completeDynamic } from './complete-dynamic.js';
 import { renderCompletion, SHELLS } from './completions.js';
-import { type CompletionContext, defineCommand, defineProgram } from './index.js';
 import { Manifest } from './manifest.js';
 import { runBurgee } from './testing.js';
+
+import { type CompletionContext, defineCommand, defineProgram } from './index.js';
 
 const scratch = scratchDirs();
 

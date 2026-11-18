@@ -9,9 +9,10 @@
 import { describe, expect, it } from 'vitest';
 
 import { runCommand as runEngine } from './execute.js';
-import { AuthError, defineCommand, defineProgram, ExitCode, UsageError } from './index.js';
 import { runBurgee } from './testing.js';
 import { shellWord } from './unknown-option.js';
+
+import { AuthError, defineCommand, defineProgram, ExitCode, UsageError } from './index.js';
 
 /**
  * What these cases read is the prose a person reads. A captured stderr is not a terminal, so a

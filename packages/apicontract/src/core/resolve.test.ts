@@ -124,24 +124,24 @@ describe('inline', () => {
   });
 });
 
+const leftover = (value: unknown, found: string[] = []): string[] => {
+  if (Array.isArray(value)) for (const item of value) leftover(item, found);
+  else if (typeof value === 'object' && value !== null) {
+    for (const [key, child] of Object.entries(value)) {
+      if (key === '$ref') found.push(child as string);
+      else leftover(child, found);
+    }
+  }
+  return found;
+};
+
+const depth = (value: unknown): number =>
+  Array.isArray(value) ? Math.max(0, ...value.map(depth)) + 1 : 0;
+
 // adapter.qnt's `safety`, on every reference graph over four nodes (2^16 of them).
 describe('inline on every reference graph over four nodes', () => {
   const NODES = ['A', 'B', 'C', 'D'];
   const EDGES = NODES.length * NODES.length;
-
-  const leftover = (value: unknown, found: string[] = []): string[] => {
-    if (Array.isArray(value)) for (const item of value) leftover(item, found);
-    else if (typeof value === 'object' && value !== null) {
-      for (const [key, child] of Object.entries(value)) {
-        if (key === '$ref') found.push(child as string);
-        else leftover(child, found);
-      }
-    }
-    return found;
-  };
-
-  const depth = (value: unknown): number =>
-    Array.isArray(value) ? Math.max(0, ...value.map(depth)) + 1 : 0;
 
   it('finishes, is never deeper than the node count, and leaves only the cycles it reports', () => {
     for (let mask = 0; mask < 2 ** EDGES; mask++) {

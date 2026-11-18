@@ -20,10 +20,11 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { defineCommand, defineProgram, ExitCode } from './index.js';
 import { budgetJson, printer } from './max-bytes.js';
 import { definePlugin } from './plugin.js';
 import { runBurgee } from './testing.js';
+
+import { defineCommand, defineProgram, ExitCode } from './index.js';
 
 const files = Array.from({ length: 12 }, (_, i) => ({ path: `src/module-${String(i)}.ts`, size: 1_024 * (i + 1), kind: i % 3 === 0 ? 'test' : 'source' }));
 const deployment = { id: 'dep_7f3a', status: 'ready', target: { region: 'iad1', url: 'https://app-7f3a.example.dev' } };

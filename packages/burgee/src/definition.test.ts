@@ -7,8 +7,9 @@ import { describe, expect, it } from 'vitest';
 
 import { report } from './dev.js';
 import { missingCardinality, missingExamples } from './examples-check.js';
-import { defineCommand, defineProgram } from './index.js';
 import { Manifest } from './manifest.js';
+
+import { defineCommand, defineProgram } from './index.js';
 
 const run = (): string => 'ok';
 const invoke = async (): Promise<{ stdout: string; stderr: string; code: number }> => ({ stdout: '', stderr: '', code: 0 });

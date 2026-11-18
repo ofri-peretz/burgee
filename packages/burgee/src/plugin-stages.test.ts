@@ -10,8 +10,9 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { defineCommand, defineProgram, type Plugin } from './index.js';
 import { runBurgee } from './testing.js';
+
+import { defineCommand, defineProgram, type Plugin } from './index.js';
 
 function program(plugins: Plugin[]): ReturnType<typeof defineProgram> {
   const manifest = defineProgram({

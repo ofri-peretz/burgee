@@ -1,4 +1,3 @@
-/* eslint-disable reliability/no-await-in-loop -- A port graded by its incumbent's own suite, where the walk is sequential by definition: whether to look one directory higher depends on what this one held, a matcher is awaited once per directory in order and may answer `findUpStop`, and `findDown`'s order — nearest level first, or each branch to the bottom — is what its strategy cases measure. Reading the directories concurrently would call a matcher for directories find-up never reaches. */
 /**
  * `seniority/find-up` — the override target for `find-up` and the three packages under it
  * (R8, and the second "rejected alternative" in the design).
