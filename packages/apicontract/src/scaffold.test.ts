@@ -42,6 +42,18 @@ describe('the scaffold', () => {
     expect(files[2]?.content).toContain(`a\n${kind}, scaffolded by`);
   });
 
+  it.each([
+    ['generator', 'a generator, spec to code'],
+    ['extractor', 'an extractor, code to spec'],
+    ['adapter', 'an input format, and a generator that reads it'],
+  ] as const)('says what a %s plugin is in its first line', (kind, what) => {
+    expect(scaffold('pets', kind)[0]?.content.split('\n').slice(0, 2)).toEqual(['/**', ` * The \`pets\` apicontract plugin: ${what}.`]);
+  });
+
+  it('indents the sample document where it sits', () => {
+    expect(scaffold('pets', 'generator')[0]?.content).toContain("        document: {\n          openapi: '3.1.0',\n          info: { title: 'pets sample', version: '1.0.0' },\n");
+  });
+
   it('hands the adapter test its `mutate`, and the others none', () => {
     expect(scaffold('pets', 'adapter')[1]?.content).toContain("import { mutate, plugin } from './plugin-pets.js';");
     expect(scaffold('pets', 'adapter')[1]?.content).toContain('await conformance(plugin, { mutate });');
