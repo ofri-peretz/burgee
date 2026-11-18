@@ -1,6 +1,6 @@
 # Design — the repository builds on TypeScript 6.0, and its packages are graded under 5.9, 6.0 and 7.0
 
-Intent: [`intent.md`](./intent.md). **Status:** approved — accepted by the owner, 2026-11-12.
+Intent: [`intent.md`](./intent.md). **Status:** shipped — accepted by the owner, 2026-11-12; shipped in #1533, verified on `main` at `a9c489a6ff` on 2026-11-18 (intent § Shipped).
 
 Grounded on `main` at `a643df081c`. The measurements are in the intent's § Why now.
 
