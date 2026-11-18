@@ -79,6 +79,13 @@ describe('classify agrees with compat.qnt on every single-schema trace', () => {
   });
 });
 
+describe('the choices --mode and --side offer', () => {
+  it('are exactly these', () => {
+    expect(MODES).toEqual(['backward', 'forward', 'full']);
+    expect(SIDES).toEqual(['caller', 'server']);
+  });
+});
+
 describe('payloadRules', () => {
   it.each([
     // oasdiff's question: old callers, new server. A request must accept what it accepted; a response must not send more.

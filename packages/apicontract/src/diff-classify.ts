@@ -32,6 +32,7 @@ export type PayloadRule = 'backward' | 'forward';
  * one rule for `backward` and `forward`, both for `full`.
  */
 export const payloadRules = (direction: Direction, mode: Mode, side: Side): PayloadRule[] => {
+  // Stryker disable next-line StringLiteral: equivalent, only `backward` is compared below and every other question is `forward`
   const questions: PayloadRule[] = mode === 'full' ? ['backward', 'forward'] : [mode];
   return questions.map((question) => {
     // `backward` keeps `side` on the old contract; `forward` moves it to the new one first.

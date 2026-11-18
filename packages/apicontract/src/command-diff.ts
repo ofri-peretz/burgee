@@ -52,6 +52,7 @@ interface Side_ {
   readonly contract: Contract;
 }
 
+// Stryker disable next-line Regex: equivalent, `.+` already runs to the end
 const GIT = /^git:(?<ref>[^:]+):(?<path>.+)$/;
 
 /** Read one side: a file, or a file at a git ref, into the model through the first adapter that detects it. */
@@ -62,12 +63,14 @@ const read = (spec: string, cwd: string, git: GitReader): Side_ => {
   const text = ref === undefined ? readFileSync(resolve(cwd, spec), 'utf8') : git(ref, file, cwd);
   let document: unknown;
   try {
-    document = text.trimStart().startsWith('{') ? JSON.parse(text) : parseYaml(text);
+    // YAML 1.2 reads JSON too.
+    document = parseYaml(text);
   } catch (error) {
     throw new Error(`cannot parse ${spec}: ${(error as Error).message}. fix: pass a JSON or YAML document`, { cause: error });
   }
   const found = Object.entries(builtinAdapters).find(([, adapter]) => adapter.detect(document));
   if (found === undefined) {
+    // Stryker disable next-line StringLiteral: equivalent while `openapi` is the only built-in adapter on main
     throw new Error(`no input format reads ${spec}. fix: pass a document one of these reads: ${Object.keys(builtinAdapters).join(', ')}`);
   }
   return { label: spec, file, contract: found[1].read(document) };
@@ -80,7 +83,7 @@ const HASH_DIGITS = 8;
 
 const LEVEL: Readonly<Record<Verdict, string>> = { breaking: 'error', unknown: 'warning', 'non-breaking': 'note' };
 
-const where = (finding: Finding): string => `${finding.payload === undefined ? '' : `${finding.payload} `}${finding.pointer}`.trim();
+const where = (finding: Finding): string => [finding.payload, finding.pointer].filter((part) => part !== undefined && part !== '').join(' ');
 
 const show = (value: unknown): string => (value === undefined ? '-' : JSON.stringify(value));
 

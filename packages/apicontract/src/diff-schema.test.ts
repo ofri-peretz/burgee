@@ -9,7 +9,42 @@ const obj = (properties: object, required: string[] = [], rest: object = {}) => 
 const doc = (pet: object) => ({ components: { schemas: { Pet: pet, Name: { type: 'string' } } } });
 const tree = (leaf: string) => ({ Node: { type: 'object', properties: { value: { type: leaf }, next: { $ref: '#/Node' } } } });
 
+const typeAt = (type: string) => ({ A: { type } });
+
 describe('compareSchemas, keyword by keyword', () => {
+  it.each(['title', 'description', 'examples', 'example', 'default', 'deprecated', 'readOnly', 'writeOnly', '$comment', '$schema', '$id', '$anchor', '$defs', 'definitions', 'externalDocs', 'xml', 'x-anything'])(
+    'ignores %s, which only describes',
+    (keyword) => {
+      expect(diff({ [keyword]: 1 }, { [keyword]: 2 })).toEqual([]);
+    },
+  );
+
+  it.each([
+    ['minimum', 'narrows', 'widens'],
+    ['exclusiveMinimum', 'narrows', 'widens'],
+    ['minLength', 'narrows', 'widens'],
+    ['minItems', 'narrows', 'widens'],
+    ['minProperties', 'narrows', 'widens'],
+    ['maximum', 'widens', 'narrows'],
+    ['exclusiveMaximum', 'widens', 'narrows'],
+    ['maxLength', 'widens', 'narrows'],
+    ['maxItems', 'widens', 'narrows'],
+    ['maxProperties', 'widens', 'narrows'],
+  ])('%s raised %s, lowered %s', (keyword, raising, lowering) => {
+    expect(diff({ [keyword]: 1 }, { [keyword]: 2 })).toEqual([[`${keyword}-increased`, `/${keyword}`, 1, 2, raising]]);
+    expect(diff({ [keyword]: 2 }, { [keyword]: 1 })).toEqual([[`${keyword}-decreased`, `/${keyword}`, 2, 1, lowering]]);
+    expect(diff({ [keyword]: 1 }, { [keyword]: 1 })).toEqual([]);
+  });
+
+  it('reports equal predicates and equal unknown keywords as nothing, and unknown ones in keyword order', () => {
+    expect(diff({ pattern: 'a', format: 'uuid', multipleOf: 2 }, { pattern: 'a', format: 'uuid', multipleOf: 2 })).toEqual([]);
+    expect(diff({ not: {}, else: {} }, {}).map((row) => row[1])).toEqual(['/else', '/not']);
+  });
+
+  it('a type number admits integers, and nothing else', () => {
+    expect(diff({ type: ['string', 'number'] }, { type: 'number' })).toEqual([['type-narrowed', '', ['string', 'number'], ['number'], 'narrows']]);
+  });
+
   it('reports nothing for equal schemas, or for keywords that only describe', () => {
     expect(diff({ type: 'string' }, { type: 'string', description: 'x', title: 't', examples: ['a'], 'x-internal': true, default: 'a' })).toEqual([]);
     expect(diff(true, {})).toEqual([]);
@@ -103,6 +138,14 @@ describe('objects', () => {
     expect(diff(obj({ id: { readOnly: true } }, ['id']), obj({}), 'request')).toEqual([]);
   });
 
+  it('a property only required, on a closed object, is the required-ness alone', () => {
+    expect(diff({ additionalProperties: false }, { required: ['x'], additionalProperties: false })).toEqual([['required-property-added', '/properties/x', false, true, 'narrows']]);
+  });
+
+  it('lists properties in name order', () => {
+    expect(diff(obj({ b: { type: 'string' }, a: { type: 'string' } }), obj({ b: {}, a: {} })).map((row) => row[1])).toEqual(['/properties/a', '/properties/b']);
+  });
+
   it('reads properties and required only when they are what they should be', () => {
     expect(diff({ properties: [], required: 'a' }, { properties: [], required: 'a' })).toEqual([]);
   });
@@ -167,6 +210,11 @@ describe('$ref', () => {
     expect(compareSchemas({ $ref: '#/components/schemas/Pet', type: 'string' }, { type: 'string', allOf: [{ type: 'string' }] }, 'request', documents)).toEqual([]);
     expect(compareSchemas({ $ref: '#/components/schemas/Pet', type: 'string', allOf: [{ minLength: 1 }] }, { type: 'string', allOf: [{ type: 'string' }, { minLength: 1 }] }, 'request', documents)).toEqual([]);
     expect(compareSchemas({ $ref: '#/components/schemas/Pet', type: 'string', allOf: 'x' }, { type: 'string', allOf: [{ type: 'string' }] }, 'request', documents)).toEqual([]);
+  });
+
+  it('compares the same reference again on a sibling path: only a cycle stops the walk', () => {
+    const twice = { properties: { x: { $ref: '#/A' }, y: { $ref: '#/A' } } };
+    expect(compareSchemas(twice, twice, 'request', { old: typeAt('string'), new: typeAt('integer') }).map((c) => c.pointer)).toEqual(['/properties/x', '/properties/x', '/properties/y', '/properties/y']);
   });
 
   it('a reference to `false` or `true` is that schema', () => {

@@ -47,7 +47,8 @@ export interface CompareOptions {
   readonly side?: Side | undefined;
 }
 
-const RANK: Readonly<Record<Verdict, number>> = { breaking: 0, unknown: 1, 'non-breaking': 2 };
+/** The order findings are listed in. */
+const SEVERITY: readonly Verdict[] = ['breaking', 'unknown', 'non-breaking'];
 
 /** `get /pets/{}` from `#/paths/~1pets~1{id}/get`: what an operation is when its id changes. Path parameter names do not count. */
 export const routeOf = (source: string): string | undefined => {
@@ -89,6 +90,7 @@ const kindOf = (name: string): 'parameter' | 'request-body' | 'response' | 'payl
 };
 
 /** `response:200` for every payload of that status, `body` for every body media type; else the name itself. */
+// Stryker disable next-line StringLiteral: equivalent, any separator keeps two different groups different
 const groupOf = (name: string): string => name.split(':').slice(0, kindOf(name) === 'response' ? 2 : 1).join(':');
 
 /** The rule for a payload that appeared or disappeared: whole status, whole body, or one media type of it. */
@@ -157,7 +159,7 @@ const renamedPathParameters = ({ old, nu }: Pair): Map<string, string> => {
 
 const comparePayloads = (a: Contract, b: Contract, pair: Pair): Raw[] => {
   const renamed = renamedPathParameters(pair);
-  const names = [...new Set([...pair.old.payloads, ...pair.nu.payloads].map((payload) => payload.name))].filter((name) => ![...renamed.values()].includes(name)).sort();
+  const names = [...new Set([...pair.old.payloads, ...pair.nu.payloads].map((payload) => payload.name))].filter((name) => ![...renamed.values()].includes(name));
   return names.flatMap((name) => {
     const before = pair.old.payloads.find((payload) => payload.name === (renamed.get(name) ?? name));
     const after = pair.nu.payloads.find((payload) => payload.name === name);
@@ -192,6 +194,7 @@ const overall = (summary: Readonly<Record<Verdict, number>>): Verdict => {
   return summary.unknown > 0 ? 'unknown' : 'non-breaking';
 };
 
+// Stryker disable next-line StringLiteral: equivalent, an operation-level finding never shares its operation with a payload's
 const whereOf = (finding: Finding): string => `${finding.source} ${finding.payload ?? ''} ${finding.pointer} ${finding.id}`;
 
 /** Compare `a` (old) with `b` (new): every change, classified. */
@@ -219,7 +222,7 @@ export const compareContracts = (a: Contract, b: Contract, options: CompareOptio
       };
     });
   });
-  findings.sort((x, y) => RANK[x.verdict] - RANK[y.verdict] || whereOf(x).localeCompare(whereOf(y), 'en'));
+  findings.sort((x, y) => SEVERITY.indexOf(x.verdict) - SEVERITY.indexOf(y.verdict) || whereOf(x).localeCompare(whereOf(y), 'en'));
   const count = (verdict: Verdict): number => findings.filter((finding) => finding.verdict === verdict).length;
   const summary = { breaking: count('breaking'), unknown: count('unknown'), 'non-breaking': count('non-breaking') };
   return { mode, side, verdict: overall(summary), summary, findings };

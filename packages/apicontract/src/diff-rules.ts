@@ -133,6 +133,6 @@ export interface RuleId {
 /** The public id of `rule` where it happened. */
 export const ruleId = (rule: string, direction: Direction, payload: string | undefined, pointer: string): RuleId => {
   const locus = locusOf(direction, payload, pointer);
-  const id = locus === undefined ? undefined : OASDIFF.get(`${rule}@${locus}`);
+  const id = OASDIFF.get(`${rule}@${String(locus)}`);
   return id === undefined ? { id: `ac-${rule}`, scheme: 'apicontract' } : { id, scheme: 'oasdiff' };
 };

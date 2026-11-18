@@ -89,7 +89,6 @@ const HANDLED: ReadonlySet<string> = new Set([
   'additionalProperties',
   'items',
   'prefixItems',
-  '$ref',
 ]);
 
 /** A value's text with object keys sorted, so two equal values compare equal however they were written. */
@@ -174,6 +173,7 @@ const compareBounds = (pointer: string, a: Dict, b: Dict): Change[] =>
     if (set !== undefined) return set;
     // OpenAPI 3.0 spells `exclusiveMinimum` as a boolean; containment across the two is not decided here.
     if (typeof before !== 'number' || typeof after !== 'number') return [at(where, before, after)(`${keyword}-changed`, 'unknown')];
+    // Stryker disable next-line EqualityOperator: equivalent, equal bounds returned above
     const up = after > before;
     return [at(where, before, after)(`${keyword}-${up ? 'increased' : 'decreased'}`, up === (raising === 'widens') ? 'widens' : 'narrows')];
   });

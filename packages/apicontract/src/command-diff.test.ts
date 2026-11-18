@@ -8,6 +8,7 @@ import { runBurgee } from 'burgee/testing';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { command, diff, type GitReader, noGit, toSarif, toText } from './command-diff.js';
+import { type Contract, type Payload } from './core/model.js';
 import { compareContracts } from './diff-contract.js';
 import { program } from './index.js';
 
@@ -36,6 +37,20 @@ describe('apicontract diff, through burgee', () => {
   it('is read-only and described for --help and the MCP tool list', () => {
     expect(command.description).toBe('What a contract change breaks, and for whom, under the compatibility mode you pick');
     expect(command.effects).toBe('read_only');
+    expect(command.examples).toEqual([
+      { command: 'apicontract diff old.yaml new.yaml', description: 'what breaks for callers built on old.yaml' },
+      { command: 'apicontract diff old.yaml new.yaml --mode full --sarif', description: 'both directions, for code scanning' },
+    ]);
+    expect(command.arguments).toEqual([
+      { name: 'old', description: 'the contract before: a file, or git:<ref>:<path>' },
+      { name: 'new', description: 'the contract after: a file, or git:<ref>:<path>' },
+    ]);
+    expect(command.options).toEqual({
+      mode: { type: 'string', choices: ['backward', 'forward', 'full'], description: 'backward: old peers keep working; forward: the side may move first; full: both (default backward)' },
+      side: { type: 'string', choices: ['caller', 'server'], description: 'whose code the question is about (default caller)' },
+      sarif: { type: 'boolean', description: 'print SARIF 2.1.0 for code scanning instead of text' },
+      changeset: { type: 'string', description: 'write .changeset/<hash>.md bumping this package by the verdict', placeholder: 'package' },
+    });
   });
 
   it('exits 1 on a breaking change, with the findings and a fix line in the --json envelope', async () => {
@@ -118,11 +133,14 @@ describe('diff', () => {
   it('refuses a git side by default, with the command to run instead', () => {
     expect(() => noGit('HEAD~1', 'a.yaml', '.')).toThrow('cannot read `git:HEAD~1:a.yaml`: this build of apicontract does not run git. fix: `git show HEAD~1:a.yaml > old.yaml` and diff that file');
     expect(() => diff({ cwd: '.', old: 'git:HEAD:a.yaml', new: 'b.yaml' })).toThrow('fix: `git show HEAD:a.yaml > old.yaml`');
+    // Only a side that starts with `git:` is one.
+    expect(() => diff({ cwd: scratch({}), old: 'my-git:HEAD:a.yaml', new: 'b.yaml', git: () => spec('') })).toThrow('ENOENT');
   });
 
   it('refuses what it cannot parse or read, with a fix line', () => {
     const dir = scratch({ 'bad.yaml': 'a: [', 'other.yaml': 'swagger: "2.0"\n', 'plain.yaml': 'just: data\n' });
     expect(() => diff({ cwd: dir, old: 'bad.yaml', new: 'bad.yaml' })).toThrow(/^cannot parse bad\.yaml: [\s\S]+\. fix: pass a JSON or YAML document$/);
+    expect(() => diff({ cwd: dir, old: 'bad.yaml', new: 'bad.yaml' })).toThrow(expect.objectContaining({ cause: expect.any(Error) }));
     expect(() => diff({ cwd: dir, old: 'plain.yaml', new: 'plain.yaml' })).toThrow('no input format reads plain.yaml. fix: pass a document one of these reads: openapi');
     expect(() => diff({ cwd: dir, old: 'other.yaml', new: 'plain.yaml' })).toThrow('no input format reads other.yaml');
   });
@@ -138,12 +156,15 @@ describe('diff', () => {
     const minor = diff({ cwd: dir, old: 'a.yaml', new: 'b.yaml', changeset: 'pets-api' });
     expect(readFileSync(join(dir, minor.changeset as string), 'utf8')).toBe("---\n'pets-api': minor\n---\n\nContract changes from a.yaml to b.yaml: non-breaking.\n");
     expect(diff({ cwd: dir, old: 'a.yaml', new: 'a.yaml', changeset: 'pets-api' })).not.toHaveProperty('changeset');
-    expect(readdirSync(join(dir, '.changeset'))).toHaveLength(2);
+    writeFileSync(join(dir, 'd.yaml'), spec(', maxProperties: 1, multipleOf: 2'));
+    const unknown = diff({ cwd: dir, old: 'a.yaml', new: 'd.yaml', changeset: 'pets-api' });
+    expect(readFileSync(join(dir, unknown.changeset as string), 'utf8')).toMatch(/^---\n'pets-api': major\n---\n\nContract changes from a\.yaml to d\.yaml: unknown\./);
+    expect(readdirSync(join(dir, '.changeset'))).toHaveLength(3);
   });
 
   it('puts SARIF in the data and the text with --sarif', () => {
     const data = diff({ cwd: FIXTURES, old: 'pets-old.yaml', new: 'pets-new.yaml', sarif: true });
-    expect(JSON.parse(text(data))).toEqual(data.sarif);
+    expect(text(data)).toBe(JSON.stringify(data.sarif, undefined, 2));
   });
 });
 
@@ -185,7 +206,14 @@ describe('toSarif', () => {
   });
 });
 
+const channel = (payloads: Payload[]): Contract => ({ format: 'asyncapi', document: {}, operations: [{ id: 'c', source: '#/c', payloads }] });
+
 describe('toText', () => {
+  it('names a payload whose change is at its root without a trailing space', () => {
+    const out = toText(compareContracts(channel([]), channel([{ name: 'message', direction: 'subscribe', schema: {}, required: true }])), 'a', 'b');
+    expect(out.split('\n').at(-1)).toBe('  non-breaking  ac-payload-added  message  - -> {}');
+  });
+
   it('says so when nothing changed', () => {
     expect(toText(compareContracts({ format: 'x', document: {}, operations: [] }, { format: 'x', document: {}, operations: [] }), 'a', 'b')).toBe('no changes between a and b');
   });

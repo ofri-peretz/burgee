@@ -26,6 +26,8 @@ const tool = (input: Payload['schema'], result: Payload['schema']) => op('search
 const answerFirst = op('t', [payload('result', 'tool-result'), payload('arguments', 'tool-call')]);
 const channel = (payloads: Payload[]) => contract([op('c', payloads)], 'asyncapi');
 
+const body = (schema: Payload['schema']) => payload('body:application/json', 'request', schema);
+
 describe('compareContracts on two OpenAPI documents', () => {
   it('finds the planted changes, breaking first, an operation matched by route when its id and path parameter were renamed', () => {
     const result = compareContracts(fixture('pets-old.yaml'), fixture('pets-new.yaml'));
@@ -39,7 +41,7 @@ describe('compareContracts on two OpenAPI documents', () => {
       ['non-breaking', 'response-optional-property-added', 'fetchPet', 'response:200:application/json', '/properties/age'],
     ]);
     expect(result).toMatchObject({ mode: 'backward', side: 'caller', verdict: 'breaking', summary: { breaking: 4, unknown: 0, 'non-breaking': 3 } });
-    expect(result.findings[2]).toEqual({
+    expect(result.findings[2]).toStrictEqual({
       id: 'api-removed-without-deprecation',
       scheme: 'oasdiff',
       verdict: 'breaking',
@@ -100,6 +102,33 @@ describe('payloads', () => {
   ])('%s', (_name, before, after, expected) => {
     const [finding] = pairOf(before, after).findings;
     expect(finding).toMatchObject({ ...expected, pointer: '' });
+  });
+
+  it('a status or body is whole when nothing else of its group is left', () => {
+    const json = payload('response:200:application/json', 'response');
+    const added = pairOf([json], [json, payload('response:400:application/json', 'response', { type: 'integer' })]).findings;
+    expect(added).toHaveLength(1);
+    expect(added[0]).toMatchObject({ id: 'response-success-status-added', after: { type: 'integer' } });
+    const query = payload('param:query:q', 'request', {}, false);
+    expect(pairOf([payload('body:application/json', 'request'), query], [query]).findings.map((f) => f.id)).toEqual(['ac-request-body-removed']);
+  });
+
+  it('pairs only the path parameters one side lacks', () => {
+    const before = [payload('param:path:a', 'request'), payload('param:path:b', 'request')];
+    const after = [payload('param:path:a', 'request', { type: 'integer' }), payload('param:path:c', 'request', { type: 'integer' })];
+    expect(rows(pairOf(before, after).findings).map((row) => row[3])).toEqual(['param:path:a', 'param:path:c', 'param:path:a', 'param:path:c']);
+  });
+
+  it('lists breaking first, then unknown, then non-breaking, whatever their place', () => {
+    const result = pairOf(
+      [body({ properties: { a: { enum: [1] }, b: { multipleOf: 2 }, c: { maxLength: 1 } } })],
+      [body({ properties: { a: { enum: [1, 2] }, b: { multipleOf: 3 }, c: { maxLength: 0 } } })],
+    );
+    expect(result.findings.map((f) => [f.verdict, f.pointer])).toEqual([
+      ['breaking', '/properties/c/maxLength'],
+      ['unknown', '/properties/b/multipleOf'],
+      ['non-breaking', '/properties/a'],
+    ]);
   });
 
   it('a payload that sends nothing is no payload: content added to a 204 is one media type added', () => {
@@ -177,6 +206,7 @@ describe('routeOf', () => {
     ['#/webhooks/new/post', undefined],
     ['#/paths/~1a/get/extra', undefined],
     ['x#/paths/~1a/get', undefined],
+    ['#/paths/~1a~0b/get', 'get /a~b'],
   ])('%s is %s', (source, route) => {
     expect(routeOf(source)).toBe(route);
   });
