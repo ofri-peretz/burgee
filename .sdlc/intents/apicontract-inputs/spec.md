@@ -6,15 +6,15 @@ Intent: [`intent.md`](./intent.md). **Status:** approved, 2026-11-18.
 
 ## Requirements
 
-- **R1** `src/input-<name>.tsindex.ts` exports `adapter: Adapter`; `src/inputs.ts` (created by
-  step 6.0) lists them in detection order: `openapi`, `swagger2`, `asyncapi`, `mcp`, `jsonschema`.
+- **R1** `src/input-<name>.ts` exports `adapter: Adapter`; `src/inputs.ts` (created by
+  step 6.0) names them in detection order: `openapi`, `swagger2`, `asyncapi`, `mcp`, `jsonschema`.
   `jsonschema` is last because almost any object is a schema.
 - **R2** `detect` reads only top-level keys (`openapi`, `swagger`, `asyncapi`, `tools`, `$schema` or
   `type`/`properties`) and never throws.
 - **R3** Every operation's `source` is a JSON Pointer into the document as given, so a finding can
   point at the line the user wrote.
-- **R4** Findings: an adapter may return `contract.findings: { code, pointer, message, fix }[]`
-  (added to the model by step 6.0, optional, so the existing reader is unchanged).
+- **R4** Findings: an adapter returns `contract.findings` (`ContractFinding[]` in `core/model.ts`,
+  added by step 6.0, optional, so the existing reader is unchanged).
 - **R5** `asyncapi` 3.0: one operation per `operations.<id>`; payload direction is `publish` for
   `action: send`, `subscribe` for `action: receive`. 2.6: `publish`/`subscribe` as declared, with
   the 2.x inversion documented in a finding once per document.

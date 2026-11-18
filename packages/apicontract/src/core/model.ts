@@ -27,10 +27,25 @@ export interface Operation {
   readonly payloads: readonly Payload[];
 }
 
+/**
+ * Something a reader or a generator could not carry over exactly. Never a silent loss: a keyword
+ * dropped, a construct translated, a value synthesised (program.md, definition of done 7).
+ */
+export interface ContractFinding {
+  /** Stable, kebab-case, e.g. `keyword-dropped`. */
+  readonly code: string;
+  /** JSON Pointer into the source document. */
+  readonly pointer: string;
+  readonly message: string;
+  readonly fix: string;
+}
+
 export interface Contract {
   /** The input format's name, e.g. `openapi`. */
   readonly format: string;
   /** The parsed source, untouched: a generator that must reproduce an incumbent's output reads it. */
   readonly document: unknown;
   readonly operations: readonly Operation[];
+  /** What the reader had to translate or could not read exactly. */
+  readonly findings?: readonly ContractFinding[];
 }

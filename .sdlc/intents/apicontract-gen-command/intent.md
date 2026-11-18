@@ -48,7 +48,7 @@ plugin lane consumes its API but does not edit it.
 ## Success criteria
 
 - `gen` on `src/__fixtures__/id.openapi.yaml` with the types target writes the files the generator's
-  `sample` declares; a second run reports `0 changed`. Test: `src/run-*.tsgen.test.ts`.
+  `sample` declares; a second run reports `0 changed`. Test: `src/run-gen.test.ts`.
 - `gen --check` exits 1 after the spec changes and 0 after `gen`; the exit codes match R-A2.
 - Regenerating after a spec change edits zero bytes of any `user` file (N1 = 0), proven by a test
   that edits a user file, changes the spec and regenerates.

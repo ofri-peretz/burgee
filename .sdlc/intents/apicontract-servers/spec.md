@@ -10,8 +10,8 @@ Intent: [`intent.md`](./intent.md). **Status:** approved, 2026-11-18.
   named after the framework; inputs `openapi` (all four) and `asyncapi` (`nest` only).
 - **R2** Each generator takes option `validators` (import path of the `validator` target's output,
   default `./validators.js`) and never emits validation logic itself.
-- **R3** Generated files carry the header from the spine lane (`apicontract-gen-command` R6); user
-  files carry none.
+- **R3** Generators return bodies only. The spine's writer adds the generated header
+  (`apicontract-gen-command` R6) when it writes, so `sample.files` hold bodies without it.
 - **R4** Operation → method name: `operationId` camelCased; without one, `<method><Path>` with path
   params as `By<Param>`; collisions suffixed deterministically.
 - **R5** Each operation's request params, query, headers and body are one typed `input` object; the
@@ -23,7 +23,7 @@ Intent: [`intent.md`](./intent.md). **Status:** approved, 2026-11-18.
 
 ## Design
 
-Shared helpers (naming, `input` type assembly, response unions) start inside `nest/` and are copied,
+Shared helpers (naming, `input` type assembly, response unions) start in `plugin-nest-*.ts` and are copied,
 not imported, by the next framework; the third copy moves to `src/plugin-server-*.ts` in the PR that
 makes it. Order: `nest` (R1–R7, then AsyncAPI gateways), `hono`, `fastify`, `express`.
 

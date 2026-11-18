@@ -35,8 +35,10 @@ hey-api closes it first, so time matters more here than anywhere else in the pro
 
 ## Affected users and systems
 
-`packages/apicontract/src/gen-ts-*.ts`, `src/openapi-typescript*.ts`, `src/__fixtures__/**`, and its
-vendored host in `packages/compat-oracle/vendor/openapi-typescript/**` (lane-owned grading artefacts).
+`packages/apicontract/src/gen-ts-*.ts`, `src/openapi-typescript*.ts`, `src/plugin-types*.ts`, `src/__fixtures__/types/**`, and the
+compat-oracle host it vendors: `packages/compat-oracle/vendor/openapi-typescript/**`,
+`baseline/openapi-typescript.json` and its own lines in `src/hosts.ts`. Read 2026-11-18: that host is
+not on `main` (#1560's description names it, the tree does not), so vendoring it is this lane's first step.
 
 ## Constraints
 

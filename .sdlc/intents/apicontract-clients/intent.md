@@ -40,9 +40,11 @@ one model are vision row 1 ("cannot disagree"); orval generates both but from it
 
 ## Success criteria
 
-- The `fetch` output type-checks on every corpus bench spec under TypeScript 5.9 and 6.0, and a test
-  against a local `node:http` server built from the `msw` scenarios round-trips each operation.
-- Every MSW handler's response validates against the spec (validator target), 100% on the fixtures.
+- In-lane: a test against a local `node:http` server answering from the `msw` scenarios round-trips
+  each fixture operation through the `fetch` client, and every scenario body validates against its
+  schema (with ajv from the root dev dependencies).
+- Follow-up readings, not the lane's exit: the `fetch` output type-checks on the corpus bench specs
+  and the MSW output runs under real MSW, both through `consumers.ts`.
 - Query keys are stable: the same input in a different property order yields the same key.
 - Each generator has a `sample`; X1 = 0.
 

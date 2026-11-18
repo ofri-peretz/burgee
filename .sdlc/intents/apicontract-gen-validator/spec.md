@@ -14,7 +14,7 @@ Intent: [`intent.md`](./intent.md). **Status:** approved, 2026-11-18.
   express is a finding and falls back to the run-time door, never dropped.
 - **R3** `src/plugin-json-schema.ts` exports `generators['json-schema']`; options `draft`
   (`2020-12` | `07`), `refs` (`keep` | `inline`), `dialect`.
-- **R4** `src/plugin-json-schema*.tsdialects/<provider>.ts` is data: `{ source, read, keywords: {
+- **R4** `src/plugin-json-schema-dialect-<provider>.ts` is data: `{ source, read, keywords: {
   [kw]: 'keep' | 'drop' | { rewrite } }, rootMustBeObject, additionalPropertiesFalseRequired,
   allRequired }`. The transform is one function over that table.
 - **R5** `draft: '07'` rewrites `$defs`→`definitions`, `prefixItems`→`items` array, `const` kept,

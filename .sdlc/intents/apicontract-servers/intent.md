@@ -53,6 +53,8 @@ graded on the plugin authors see first, which is the NestJS one.
 
 - N1 = 0: a test generates, edits every user file, changes the spec (add an operation, add a field,
   remove a field), regenerates, and asserts zero user bytes changed.
+- In-lane exit: N1 (above) and golden-file tests of each generator's output. Follow-up readings,
+  through the corpus lane's `consumers.ts`, which installs each framework outside the lockfile:
 - N2 = 100% on the corpus lane's server bench specs: output type-checks and the app boots in the
   consumer harness under TypeScript 5.9 and 6.0 (7.0 when the harness has it).
 - N3 = 100%: every generated contract test passes against the stub implementation that returns the

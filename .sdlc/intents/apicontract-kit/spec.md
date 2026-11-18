@@ -15,7 +15,7 @@ Intent: [`intent.md`](./intent.md). **Status:** approved, 2026-11-18.
   (refusals carry `fix:`), `paths` (all paths pass `validateFiles`).
 - **R3** `src/scaffold*.ts` holds the scaffold template as plain TypeScript strings; `plugin new`
   writes them through the spine's `apply`.
-- **R4** `src/migrate-*.ts<from>.ts` each exports `migrate(configText, files) → { config, edits, findings }`;
+- **R4** `src/migrate-<from>.ts` each exports `migrate(configText, files) → { config, edits, findings }`;
   pure, tested on fixtures copied from the incumbent's docs with their source URL in a comment.
 - **R5** `migrate` and `plugin` commands are declared in `src/command-*.ts` stubs created by 6.0.
 

@@ -23,18 +23,26 @@ set of owned paths, and one command that says it is done.
 | `ac-agents` | [`apicontract-agents`](../apicontract-agents/intent.md) | `gen mcp`, `explain`, `gen markdown` + `llms.txt` | 4–5 | 6.0 |
 | `ac-diff` | [`apicontract-diff`](../apicontract-diff/intent.md) | `diff` over every format, modes, SARIF, changesets, MCP drift | 5–6 | 6.0 |
 | `ac-kit` | [`apicontract-kit`](../apicontract-kit/intent.md) | Conformance suite (`apicontract/testing`), `plugin new`, `migrate` from openapi-typescript, openapi-fetch, Hey API, orval; `AGENTS.md` and the X3 eval | 3 | 6.0 |
-| `ac-corpus` | [`apicontract-corpus`](../apicontract-corpus/intent.md) | Pinned real-world corpus, grader, consumer harness, the scoreboard | 0 | — |
+| `ac-corpus` | [`apicontract-corpus`](../apicontract-corpus/intent.md) | Pinned real-world corpus, grader, consumer harness, the scoreboard | 0 | — (grades incumbents first; ours as each lane lands) |
 | `validator` | [`validator`](../validator/intent.md) | Parity 143 → 154, Standard JSON Schema, the benchmark after parity | b–c | — |
 
 "Needs first" is the only hard edge. Everything else is a soft edge: a lane writes against the
 public host API (`Generator`, `Adapter`, `Contract`) and its own fixtures, and tests its `run()`
 directly, so it does not wait for another lane to merge. Where a lane *uses* another's output (the
-servers import the `validator` target's output, `markdown` reuses `explain`'s functions), it uses
-the path option or the in-lane copy until the other has landed, then switches in a follow-up.
+servers import the `validator` target's output by a path option; the kit's regeneration rule needs
+the spine's owner rules), it uses the path option or an in-lane copy until the other has landed,
+then switches in a follow-up. No lane imports another lane's internals: generators return bodies,
+and the spine's writer adds headers. Every lane's "Done when" passes on its own fixtures; readings
+that need the corpus or another lane are follow-ups, named in its intent.
+
+What 6.0 already gives every lane in `host.ts` and `core/model.ts`, so none has to edit them:
+`ContractFinding` and `Contract.findings`; a generator may return `{ files, findings }`; the
+`Extractor` type and the `extractors` key; built-in adapters by name (`inputs.ts`), which
+`checkPlugin` registers first so a plugin's sample reads without carrying its own adapter.
 
 ## Why the lanes do not collide
 
-One package, `packages/apicontract`, carries nine lanes. That works only because step **6.0** shards
+One package, `packages/apicontract`, carries ten lanes. That works only because step **6.0** shards
 it first, the same move as PLAN's `SHARD` for `baseline.json`:
 
 - every lane's code goes in files with its own prefix, because this repository's lint forbids
@@ -60,7 +68,9 @@ Every plugin PR in this program meets all of these; the lane intents add their o
 2. Deterministic: two runs, same bytes; output sorted by operation id.
 3. Regeneration test: user-owned files unchanged after a spec change (N1 = 0).
 4. Round trip where the target has an extract half (R-RT).
-5. 100% line coverage of the lane's files; an oxmutate floor recorded at its first reading.
+5. `npm run coverage -w apicontract` stays at the package's 100% thresholds, and
+   `npm run mutation:changed` reports no survivor on the lane's lines (an equivalent mutant is
+   excluded in the source with its reason, as the validator does).
 6. A `fix:` line on every refusal and every non-zero exit (A3).
 7. A finding, never a silent drop, for anything the target cannot express (J3, B3).
 8. `npm run ci:local` and `npm run lint` green on the branch, except the artifact-size baseline,
@@ -87,5 +97,5 @@ npx tsx scripts/dispatch-lanes.ts --lane ac-validate
 ```
 
 prints the brief: owned paths, forbidden paths, the steps from `PLAN.md` Wave 6 with their "Done
-when" commands. The agent works in a checkout of its own branch, opens its own PR, and stops; it
-does not merge another lane's branch.
+when" commands. The agent works in a checkout of its own branch, opens its own PR against `main`, and
+stops; it does not merge another lane's branch.

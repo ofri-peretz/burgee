@@ -8,7 +8,8 @@ Intent: [`intent.md`](./intent.md). **Status:** approved, 2026-11-18.
 
 - **R1** `src/command-explain.ts` exports `command`, a burgee declaration with
   `effects: 'read_only'`, positional `operation`, flags `--input`, `--list`, `--max-bytes`.
-- **R2** `inline(schema, document)` resolves every `$ref` through `core/resolve.ts`; a cycle becomes
+- **R2** `explainInline(document, schema)` in `src/command-explain-inline.ts` wraps `core/resolve.ts`'s
+  `inline(document, node)` (which keeps a cycle as `$ref`) and turns each cycle into
   `{ "$comment": "cycle: <pointer>" }`. Pure and exhaustively tested on the resolver's fixtures.
 - **R3** `cap(value, bytes)` cuts the deepest subtree first, records each cut pointer, and is
   idempotent.
@@ -20,8 +21,8 @@ Intent: [`intent.md`](./intent.md). **Status:** approved, 2026-11-18.
 
 ## Design
 
-`explain`'s pure functions (R2, R3) live in `src/command-explain*.ts` and are imported by `markdown`
-through a relative path inside the lane. Order: R2, R3, R1 (explain), R5, R4.
+`explain`'s pure functions (R2, R3) live in `src/command-explain-*.ts` and `markdown` imports them
+from there (same lane, same folder). Order: R2, R3, R1 (explain), R5, R4.
 
 ## Verification
 

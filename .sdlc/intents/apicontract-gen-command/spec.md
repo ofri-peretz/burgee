@@ -10,7 +10,8 @@ Intent: [`intent.md`](./intent.md). **Status:** approved, 2026-11-18.
   targets: { [name]: { generator, out, options } } }`, validated with a `fix:` line per error.
 - **R2** `loadPlugins(config)` imports each entry of `plugins` (package name or relative path), runs
   `host.validate` on it, and merges the built-ins from `src/plugins.ts` first.
-- **R3** `readInput(path)` parses JSON or YAML, asks each adapter's `detect` in registration order
+- **R3** `readInput(path, overlays)` parses JSON or YAML, applies the config's `overlays` with
+  `applyOverlays` from `input-overlay.ts` when that lane has landed, asks each adapter's `detect` in registration order
   and returns the first adapter's `Contract`. No adapter → exit 2 with the formats it knows.
 - **R4** `plan(files, disk)` is pure: given generated files and what is on disk, it returns `write`,
   `skip` (user file exists), `unchanged`, `conflict` (hand edit in a generated file) per path.
@@ -21,14 +22,14 @@ Intent: [`intent.md`](./intent.md). **Status:** approved, 2026-11-18.
   sorted keys; written by `gen`, read by `check`, `diff` and the contract-test plugins.
 - **R8** Flags: `--check`, `--dry-run`, `--force`, `--target <name>` (repeatable), `--config <path>`.
   `gen` declares `effects: 'idempotent'`.
-- **R9** `extract --from <plugin> [--out spec.json]` runs an extractor (`extractors` key on the
-  plugin, same shape as a generator but returning a document) and writes through the same `plan`.
+- **R9** `extract --from <extractor> [--out spec.json]` runs an extractor (the host's `Extractor`,
+  added in 6.0: `run(options)` returns a document) and writes through the same `plan`.
 
 ## Design
 
 `run-config.ts`, `run-load.ts`, `run-input.ts`, `run-plan.ts`, `run-apply.ts`, `run-header.ts`,
 `run-map.ts` and `run-command.ts` (the burgee declarations for `gen` and `extract`). `cli.ts` imports
-`run-command.ts` in place of the `planned` stubs. `host.ts` gains the `extractors` key (R9) with the same `sample` rule as generators. Order:
+`run-command.ts` in place of the `planned` stubs. Order:
 R4 and R6 first (pure, tested exhaustively), then R1–R3, then R5, R7, R8, R9.
 
 ## Verification

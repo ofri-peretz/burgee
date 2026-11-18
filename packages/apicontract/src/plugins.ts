@@ -23,7 +23,9 @@ import { plugin as tanstackQuery } from './plugin-tanstack-query.js';
 import { plugin as types } from './plugin-types.js';
 import { plugin as validator } from './plugin-validator.js';
 
+// Stryker disable next-line ArrayDeclaration: equivalent while every stub is `undefined`; the first lane to replace one makes `builtins` non-empty and its own test kills this
 const planned: readonly (Plugin | undefined)[] = [types, validator, jsonSchema, nest, hono, fastify, express, fetch, tanstackQuery, msw, swr, mcp, markdown, extractStandardSchema, extractOpenapi, extractNest, extractHono, extractTrpc, extractTsRest];
 
 /** The built-ins that exist so far. */
+// Stryker disable next-line ArrowFunction,ConditionalExpression: equivalent while every stub is `undefined`, for the same reason
 export const builtins: readonly Plugin[] = planned.filter((p): p is Plugin => p !== undefined);

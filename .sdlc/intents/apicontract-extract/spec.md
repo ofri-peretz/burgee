@@ -6,12 +6,12 @@ Intent: [`intent.md`](./intent.md). **Status:** approved, 2026-11-18.
 
 ## Requirements
 
-- **R1** `src/extract-*.tsnormalise.ts`: `normalise(document)` sorts keys, drops annotations that do not
+- **R1** `src/extract-normalise.ts`: `normalise(document)` sorts keys, drops annotations that do not
   change validation (`title`, `description`, `examples` unless `--keep-docs`), and canonicalises
   `type` arrays, so two equal contracts compare equal byte for byte.
-- **R2** `src/extract-*.tsroundtrip.ts`: `roundtrip(spec, generator, extractor)` returns
+- **R2** `src/extract-roundtrip.ts`: `roundtrip(spec, generator, extractor)` returns
   `{ equal, diff }`, using `ac-diff`'s `compareContracts` when available and a structural diff until then.
-- **R3** `src/plugin-extract-standard-schema*.ts`: `extractors['standard-schema']` takes `module` (path) and
+- **R3** `src/plugin-extract-standard-schema.ts`: `extractors['standard-schema']` (host's `Extractor`: `{ description, sample: { options, document }, run(options) }`, added in 6.0) takes `module` (path) and
   `export` (name or `*`), imports it, and calls `~standard.jsonSchema.input`/`output` per value; a
   value without it is a finding naming the library.
 - **R4** `openapi-from-schemas` takes the operation map and writes OpenAPI 3.1 with the schemas under
@@ -27,7 +27,7 @@ Intent: [`intent.md`](./intent.md). **Status:** approved, 2026-11-18.
 
 ## Design
 
-Order: R1, R3, R2 (with the `validator`/`json-schema` targets once `ac-validate` lands), R4, R5,
+Order: R1, R3, R2, R4, R5,
 then Hono and tRPC/oRPC. Fixtures live in `src/__fixtures__/extract/`.
 
 ## Verification

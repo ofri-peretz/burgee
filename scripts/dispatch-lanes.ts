@@ -74,7 +74,7 @@ export function prompt(lane: Lane): string {
     `You may write only these paths: ${lane.owns.map((o) => `\`${o}\``).join(', ')}.`,
     `You may not write: ${forbidden().map((f) => `\`${f}\``).join(', ')} — those belong to the integrator lane,`,
     `and a lane that touches them conflicts with every other lane. \`npx tsx scripts/lanes.ts --check ${lane.branch}\``,
-    `over \`git diff --name-only origin/main...HEAD\` is the check; the pre-push hook runs it.`,
+    `over \`git diff --name-only origin/main...HEAD\` is the check; run it before you push.`,
     ``,
     `Record a changeset (\`.changeset/<anything>.md\`) for any published package you change, and never`,
     `edit a \`version\` field by hand — see \`## Releasing\` in .sdlc/PLAN.md.`,
@@ -96,8 +96,8 @@ export function prompt(lane: Lane): string {
         : []),
       ``,
     ]),
-    `When every step's "Done when" command passes, push \`${lane.branch}\` and stop. The integrator`,
-    `lane opens the PR. Do not merge, and do not rebase another lane's branch.`,
+    `When every step's "Done when" command passes, push \`${lane.branch}\` and open its PR against`,
+    `\`main\` (LANES.md § Running: every lane lands its own). Do not merge another lane's branch.`,
   ].join('\n');
 }
 

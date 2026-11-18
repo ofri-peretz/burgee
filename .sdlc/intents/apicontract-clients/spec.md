@@ -20,7 +20,7 @@ Intent: [`intent.md`](./intent.md). **Status:** approved, 2026-11-18.
 
 ## Design
 
-Three folders. `synth` lives in `msw/` (only user). Order: `fetch`, `msw`, `tanstack-query`.
+Three file prefixes. `synth` lives in `plugin-msw-synth.ts` (its only user). Order: `fetch`, `msw`, `tanstack-query`.
 
 ## Verification
 
