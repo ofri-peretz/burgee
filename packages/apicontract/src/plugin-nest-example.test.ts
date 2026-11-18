@@ -66,5 +66,6 @@ describe('exampleOf', () => {
     expect(exampleOf({ examples: [{ value: 9 }] }, { $ref: '#/Name' }, deref)).toEqual({ value: 'Rex', synthesised: false });
     expect(exampleOf({}, { type: 'boolean' }, deref)).toEqual({ value: true, synthesised: true });
     expect(exampleOf({}, true, deref)).toEqual({ value: null, synthesised: true });
+    expect(exampleOf({ examples: 'ab' }, { type: 'boolean' }, deref)).toEqual({ value: true, synthesised: true });
   });
 });

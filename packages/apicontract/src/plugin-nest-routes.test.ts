@@ -255,6 +255,15 @@ describe('routesOf', () => {
     expect(get).toStrictEqual({ id: 'b', method: 'get', path: '/a', source: '#/paths/~1a/get', name: 'b', handler: 'handleB', params: [], responses: [] });
   });
 
+  it('reads a malformed media type as one without an example, and keeps a colon in a parameter name', () => {
+    const { controllers } = routes({
+      '/a': { post: { operationId: 'a', parameters: [{ name: 'a:b', in: 'query', example: 1 }], requestBody: { content: { 'application/json': 'oops' } }, responses: {} } },
+    });
+    const [route] = controllers[0]?.routes ?? [];
+    expect(route?.body?.example).toBeNull();
+    expect(route?.params.map((param) => param.name)).toEqual(['a:b']);
+  });
+
   it('stops following a reference that names itself', () => {
     const { controllers } = routes(
       { '/a': { get: { operationId: 'a', parameters: [{ $ref: '#/components/parameters/Loop' }, { name: 'q', in: 'query', example: 1 }], responses: {} } } },
