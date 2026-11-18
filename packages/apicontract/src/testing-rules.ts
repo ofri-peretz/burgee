@@ -80,10 +80,10 @@ export const sample = (checked: Checked): Failure[] => {
     .map((finding) => ({ rule: 'sample', where: `${finding.generator}: ${finding.path}`, message: `the file is ${finding.problem}`, fix: finding.fix }));
 };
 
-const same = (first: Outcome, second: Outcome): boolean => {
-  if (isError(first) || isError(second)) return isError(first) && isError(second) && textOf(first.error) === textOf(second.error);
-  return JSON.stringify([first.files, first.findings]) === JSON.stringify([second.files, second.findings]);
-};
+/** What a run did, as text two runs can be compared by. */
+const fingerprint = (side: Outcome): string => (isError(side) ? textOf(side.error) : JSON.stringify([side.files, side.findings]));
+
+const same = (first: Outcome, second: Outcome): boolean => fingerprint(first) === fingerprint(second);
 
 /** `deterministic`: two runs on one document return the same bytes, on the sample and on every corpus document. */
 export const deterministic = (checked: Checked, runs: readonly Run[]): Failure[] => [
@@ -99,7 +99,7 @@ export const deterministic = (checked: Checked, runs: readonly Run[]): Failure[]
 export interface Regeneration {
   readonly generator: string;
   readonly before: Outcome;
-  readonly after?: Outcome;
+  readonly after: Outcome | undefined;
 }
 
 /** `regeneration`: after a spec change, the writer's owner rule leaves every user file as it was. */
@@ -161,7 +161,7 @@ type Dict = Record<string, unknown>;
 /** Data as text with its object keys sorted, so two equal documents compare equal whatever their key order. */
 const canonical = (value: unknown): string =>
   JSON.stringify(value, (_key, inner: unknown) =>
-    typeof inner === 'object' && inner !== null && !Array.isArray(inner) ? Object.fromEntries(Object.entries(inner as Dict).toSorted(([a], [b]) => (a < b ? -1 : 1))) : inner,
+    typeof inner === 'object' && inner !== null && !Array.isArray(inner) ? Object.fromEntries(Object.entries(inner as Dict).toSorted(([a], [b]) => a.localeCompare(b))) : inner,
   );
 
 /** A contract after normalisation: its operations by id, each with its payloads, and nothing about where they were read from. */

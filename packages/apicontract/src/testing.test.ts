@@ -112,6 +112,7 @@ describe('conformance', () => {
     const unpaired = await failures(both, { extractor });
     expect(unpaired.map((failure) => [failure.rule, failure.where])).toEqual([['roundtrip', 'generator "ids"']]);
     await expect(conformance(both, { extractor, generator: 'list' })).resolves.toBeUndefined();
+    expect((await failures(both, { extractor, generator: 'ids' })).map((failure) => [failure.rule, failure.where])).toEqual([['roundtrip', 'generator "ids"']]);
   });
 
   it('checks an extractor-only plugin through checkPlugin', async () => {
@@ -137,6 +138,18 @@ describe('conformance', () => {
     expect((await failures(reader)).map((failure) => [failure.rule, failure.where])).toEqual([
       ['sample', 'sample'],
       ['fix-lines', 'sample'],
+    ]);
+  });
+
+  it('probes only what the sample allows: no "../" probe and no corpus unless given', async () => {
+    const anything = { description: 'Reads anything', detect: () => true, read: (document: unknown) => ({ format: 'any', document, operations: [] }) };
+    const bare = { name: 'bare', adapters: { anything }, generators: { ids: { ...ids, run: () => [] as GeneratedFile[], sample: { document: 'x', files: [] } } } };
+    await expect(conformance(bare, { mutate: () => 'y' })).resolves.toBeUndefined();
+    const refusing = { ...bare, generators: { ids: { ...bare.generators.ids, run: () => { throw new Error('bare'); } } } };
+    expect((await failures(refusing, { mutate: () => 'y' })).filter((failure) => failure.rule === 'fix-lines').map((failure) => failure.where)).toEqual([
+      'generator "ids" on its sample',
+      'generator "ids" after a spec change',
+      'generator "ids" on a contract with no operations',
     ]);
   });
 });

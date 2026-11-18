@@ -121,7 +121,7 @@ describe('deterministic', () => {
 
 describe('regeneration', () => {
   it('asks for `mutate` when the suite cannot change the sample', () => {
-    expect(regeneration([{ generator: 'g', before: ok() }])).toEqual([
+    expect(regeneration([{ generator: 'g', before: ok(), after: undefined }])).toEqual([
       {
         rule: 'regeneration',
         where: 'generator "g"',

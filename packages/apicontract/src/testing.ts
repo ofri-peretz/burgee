@@ -101,7 +101,7 @@ const observe = async (host: Host, [name, generator]: readonly [string, Generato
     { where: where('on a contract with no operations'), outcome: empty },
     ...corpus,
   ];
-  return { runs, regeneration: after === undefined ? { generator: name, before } : { generator: name, before, after } };
+  return { runs, regeneration: { generator: name, before, after } };
 };
 
 /**
