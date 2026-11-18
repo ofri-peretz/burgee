@@ -34,6 +34,11 @@ describe('loadModule', () => {
     expect(await loadModule(given)).toBe(given);
   });
 
+  it('reads a .json module as data, as its default export, without importing it', async () => {
+    const path = fileURLToPath(new URL('__fixtures__/extract/data.json', import.meta.url));
+    expect(await loadModule(path)).toEqual({ default: { type: 'string' } });
+  });
+
   it('refuses no module, an empty name, or a value that is neither, with a fix', async () => {
     const refused = await Promise.allSettled([undefined, '', 3, []].map(async (module) => loadModule(module)));
     expect(refused.map((result) => (result.status === 'rejected' ? String(result.reason) : 'loaded'))).toEqual(Array.from({ length: 4 }, () => 'TypeError: the `module` option names no module. fix: set `"options": { "module": "./src/schemas.ts" }`'));
