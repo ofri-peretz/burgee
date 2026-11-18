@@ -82,6 +82,11 @@ Where the build departs from the design above, and why:
   The contract's `document` is the 3.1 form, so `#/components/schemas/…` references in payloads
   resolve against it; operation `source` pointers are unchanged by the conversion. Beyond R7's list,
   boolean `exclusiveMinimum`/`exclusiveMaximum` (draft-04) become numbers, with a finding.
+  A schema `$ref` into another file (`./loadBalancer.json#/definitions/X`) is kept as written and
+  reported as `ref-external` (2026-11-18, gap `A-20261118-types-external-refs-dangle`); it is never
+  rewritten to a local-looking `#/components/schemas/X`. `apicontract gen` bundles the spec's sibling
+  files before any adapter reads it (`run-input.ts` → `gen-ts-bundle.ts`), so a spec whose siblings
+  are present reaches the adapter as one document.
 - **Overlay.** `applyOverlays(document, overlays)` keeps the signature 6.0 gave it and returns only
   the document. `apply(document, overlay)` also returns findings (a target that matches nothing, an
   action with no effect): the spine's `--overlay` should call `apply` so a stale overlay is reported.

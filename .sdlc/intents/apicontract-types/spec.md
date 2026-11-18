@@ -35,7 +35,9 @@ number #1560 recorded. The host row stays `planned` and has no baseline fragment
 | :-- | --: | :-- | :-- | :-- | :-- |
 | `inject option` (`index.test.ts`) | 1 | `inject` was refused as a compiler option; it is a string | Written above the types as given (`gen-ts-index.ts`), not re-printed | `gen-ts-index.test.ts` "writes `inject`…", `openapi-typescript.test.ts` | **closed** |
 | `Unresolved $ref error messages` (`invalid.test.ts`) | 1 | No reference check: upstream's bundler prints every dangling local `$ref` and throws on the last | `unresolvedRefs` + a `GenerateError` naming the last (and the others); the drop-in prints each with `console.error` | `gen-ts-index.test.ts` "refuses a document whose local references lead nowhere…", `openapi-typescript.test.ts` | **closed** |
-| `$refs > parameters get hoisted`, `path object`, `path object & paths enum`, `YAML anchors`, `JSONSchema > $defs are respected`, `Generates path parameters` (`index.test.ts`) | 6 | The document `$ref`s another file; upstream bundles it with Redocly | A bundler for `file:` sources over `seniority/yaml` | — | open |
+| `$refs > parameters get hoisted`, `path object`, `path object & paths enum`, `YAML anchors`, `JSONSchema > $defs are respected`, `Generates path parameters` (`index.test.ts`) | 6 | The document `$ref`s another file; upstream bundles it with Redocly | `gen-ts-bundle.ts`: Redocly's hoisting and naming, for `file:` URLs (drop-in) and `gen`'s input; byte-identical to upstream on a five-file fixture | `gen-ts-bundle.test.ts`, `openapi-typescript.test.ts` "reads a file: URL whose references name the files next to it" | bundler landed; the 6 not yet re-graded |
+| Corpus: a `$ref` into a sibling file printed as an undeclared name (8 Azure Swagger 2.0 documents, gap `A-20261118-types-external-refs-dangle`) | — | The generator reads one document and dropped the file part of the pointer: `definitions["X"]`, TS2304 | `gen` bundles siblings that exist; a missing sibling, a remote address, or a document with no location (the corpus runner, a parsed value) is refused with a `fix:` naming the file (`checkRefs`) | `gen-ts-index.test.ts` "refuses a reference into another file…", `gen-ts-bundle.test.ts`, `plugin-types.test.ts` | **closed** |
+| Corpus: `apis-guru:APIs/surevoip.co.uk/9dcb0dc8` refers to a schema under a Media Type Object (`#/paths/~1/get/responses/200/content/application~1json/schema`) | — | Upstream prints `…["content"]["application/json"]["schema"]`; the media type's type is the schema's, so tsc rejects the member (upstream's own output fails the same way) | `refType` skips a `schema` token two after `content`. A departure from byte identity where upstream's output does not compile | `gen-ts-index.test.ts` "names a schema under a Media Type Object…", fixture `types/surevoip/` | **closed** |
 | `options > transform` ×4, `postTransform`, `transformProperty` ×2 (`node-api.test.ts`) | 7 | The option takes or returns TypeScript compiler nodes | None without the compiler (Rejected alternatives); a data-shaped equivalent is the plan | — | open: ceiling |
 | `cli.test.ts` (`enum root types filtering`, `--help`, `--version`, four `Redocly config`) and `yaml.test.ts` (2) | 9 | They spawn `bin/cli.js`; a target run writes a module there, not a program | A `--compat openapi-typescript` CLI, plus a `run.ts` change so a target's entry is executable: both outside this lane's paths | — | open: other lane |
 
@@ -54,7 +56,10 @@ compat-oracle run for the vendored host; G5 through `benchmarks/apicontract/cons
 ## Rejected alternatives
 
 - **Emitting through the TypeScript compiler's printer** (upstream's way). It is what breaks on TS 7.
-- **Fixing upstream bugs by default.** Byte identity is the migration path; fixes are opt-in.
+- **Fixing upstream bugs by default.** Byte identity is the migration path; fixes are opt-in. The
+  exception is output upstream writes that does not compile (the Media Type Object `["schema"]`, a
+  hoisted name like `a~1b` that upstream declares under one spelling and refers to under another):
+  no user's build depends on it, so the default writes what compiles.
 
 ## Out of scope
 
