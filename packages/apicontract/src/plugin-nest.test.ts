@@ -5,7 +5,8 @@ import { describe, expect, it } from 'vitest';
 import { checkPlugin, createHost, validate } from './host.js';
 import { builtinAdapters } from './inputs.js';
 import { read } from './openapi.js';
-import { optionsOf, plugin, run, SAMPLE_DOCUMENT } from './plugin-nest.js';
+import { optionsOf, plugin, run } from './plugin-nest.js';
+import { SAMPLE_DOCUMENT } from './plugin-server-sample.js';
 import { builtins } from './plugins.js';
 import { UsageError } from './run-config.js';
 
@@ -83,6 +84,12 @@ describe('the nest plugin', () => {
         fix: 'declare a `400` response with `application/problem+json` content',
       },
     ]);
+  });
+
+  it('names NestJS in a finding for an operation it does not route', () => {
+    expect(run(read({ openapi: '3.1.0', paths: { '/a': { trace: { operationId: 'a', responses: {} } } } }), {}).findings[0]?.message).toBe(
+      '`a` is not a route NestJS serves (a webhook, or a method the target does not route)',
+    );
   });
 
   it('writes only the runtime for a spec without routes', () => {

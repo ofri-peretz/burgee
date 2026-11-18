@@ -1,50 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import { read } from './openapi.js';
-import { baseFile, commented, controllerFile, lines, literal, moduleFile, routePath, stubResponse } from './plugin-nest-code.js';
-import { type Controller, type Route, routesOf } from './plugin-nest-routes.js';
+import { baseFile, controllerFile, moduleFile } from './plugin-nest-code.js';
+import { type Controller, routesOf } from './plugin-server-routes.js';
 
 const IMPORTS = { validators: './validators.js', types: './types.js' };
 
-const controller = (paths: unknown): Controller => routesOf(read({ openapi: '3.1.0', paths })).controllers[0] as Controller;
-
-const route = (responses: Route['responses']): Route => ({ id: 'a', method: 'get', path: '/a', source: '#', name: 'a', handler: 'handleA', params: [], responses });
-
-describe('text helpers', () => {
-  it('writes a value as a literal that cannot close a script or end a line', () => {
-    expect(literal('</script>\u2028\u2029')).toBe('"\\u003C/script\\u003E\\u2028\\u2029"');
-    expect(literal(undefined)).toBe('undefined');
-    expect(literal({ a: [1] })).toBe('{"a":[1]}');
-  });
-
-  it('keeps spec text from ending a comment', () => {
-    expect(commented('/a*/b')).toBe('/a*\\/b');
-  });
-
-  it('ends the lines with a newline', () => {
-    expect(lines('a', 'b')).toBe('a\nb\n');
-  });
-
-  it('writes a route as path-to-regexp 8 reads it', () => {
-    expect(routePath('/pets/{petId}/photos/{photo-id}')).toBe('/pets/:petId/photos/:photo_id');
-    expect(routePath('/a(b)[c]?+!*:d')).toBe('/a\\(b\\)\\[c\\]\\?\\+\\!\\*\\:d');
-    expect(routePath('/')).toBe('/');
-    // A backslash in the spec is escaped too, so it cannot escape the character after it.
-    expect(routePath(String.raw`/a\(b`)).toBe(String.raw`/a\\\(b`);
-  });
-});
-
-describe('stubResponse', () => {
-  it('answers the first 2xx with its example, a range or default as its first code, and throws without a response', () => {
-    expect(stubResponse(route([{ status: '404' }, { status: '201', content: { media: 'application/json', payload: 'p', example: { a: '<' } } }]))).toBe(
-      'return { status: 201, body: {"a":"\\u003C"} };',
-    );
-    expect(stubResponse(route([{ status: '2XX' }]))).toBe('return { status: 200 };');
-    expect(stubResponse(route([{ status: '4XX' }]))).toBe('return { status: 400 };');
-    expect(stubResponse(route([{ status: 'default' }]))).toBe('return { status: 200 };');
-    expect(stubResponse(route([]))).toBe('throw new Error("not implemented");');
-  });
-});
+const controller = (paths: unknown): Controller => routesOf(read({ openapi: '3.1.0', paths }), 'NestJS').controllers[0] as Controller;
 
 describe('baseFile', () => {
   it('types headers, an optional body and ranged responses, and reads headers lower-cased', () => {

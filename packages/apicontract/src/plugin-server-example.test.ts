@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { exampleOf, synthesise } from './plugin-nest-example.js';
+import { exampleOf, synthesise } from './plugin-server-example.js';
 
 type Dict = Readonly<Record<string, unknown>>;
 

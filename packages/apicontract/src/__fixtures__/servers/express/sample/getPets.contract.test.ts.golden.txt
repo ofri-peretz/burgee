@@ -1,0 +1,47 @@
+import assert from 'node:assert/strict';
+
+import { type Server } from 'node:http';
+import { type AddressInfo } from 'node:net';
+
+import express from 'express';
+import { afterAll, beforeAll, describe, it } from 'vitest';
+
+import { handlers } from './handlers.js';
+import { createRouter } from './routes.js';
+import { operations as validators } from "./validators.js";
+
+/** Each declared response: its validator, and whether its body is JSON. Absent for a response with no content. */
+const responses: Readonly<Record<string, { readonly check: (value: unknown) => boolean; readonly json: boolean } | undefined>> = {
+  "200": { check: validators["get /pets"]["response:200:application/json"], json: true },
+};
+
+describe("getPets: GET /pets", () => {
+  let server: Server;
+  let base: string;
+
+  beforeAll(async () => {
+    const app = express();
+    app.use(createRouter(handlers));
+    server = await new Promise<Server>((resolve) => {
+      const listening = app.listen(0, '127.0.0.1', () => resolve(listening));
+    });
+    base = `http://127.0.0.1:${String((server.address() as AddressInfo).port)}`;
+  });
+
+  afterAll(async () => {
+    await new Promise((resolve) => server.close(resolve));
+  });
+
+  it('answers the example request with a response the spec declares', async () => {
+    const response = await fetch(new URL("/pets?limit=1", base), { method: "GET", headers: {} });
+    const status = String(response.status);
+    const key = [status, `${status.charAt(0)}XX`, 'default'].find((candidate) => candidate in responses);
+    assert.ok(key !== undefined, `the route answered ${status}, which the spec does not declare`);
+    const declared = responses[key];
+    const text = await response.text();
+    if (declared === undefined) return;
+    // Malformed JSON is a body the spec does not declare: it fails the assertion below, with its text.
+    const body: unknown = declared.json ? (() => { try { return JSON.parse(text) as unknown; } catch { return text; } })() : text;
+    assert.ok(declared.check(body), `the route answered ${status} with a body the spec does not declare: ${text}`);
+  });
+});

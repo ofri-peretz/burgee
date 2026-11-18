@@ -1,9 +1,10 @@
 /**
- * The `nest` target's model (apicontract-servers R4, R5, R6): which operations become routes, what
- * each is named, which controller holds it, and the parts of the request and the responses it
- * declares. No code is written here; `plugin-nest-code.ts` prints it.
+ * The server targets' model (apicontract-servers R4, R5, R6), shared by `nest`, `hono`, `fastify`
+ * and `express`: which operations become routes, what each is named, which controller holds it
+ * (NestJS groups by tag; the others list every route in one table), and the parts of the request
+ * and the responses it declares. No code is written here; each target prints it.
  *
- * - **Routes.** Every operation under `paths` with a method NestJS routes. A webhook, `trace`,
+ * - **Routes.** Every operation under `paths` with a method every target routes. A webhook, `trace`,
  *   `query` and a method under `additionalOperations` are left out with a finding.
  * - **Names.** The `operationId` in camelCase; without one, `<method><Path>` with each path
  *   parameter as `By<Param>`. A collision, ignoring case (the contract test's file name is the
@@ -14,9 +15,9 @@
  */
 import { type Contract, type ContractFinding, type JsonSchema, type Operation, type Payload } from './core/model.js';
 import { pointerGet } from './core/resolve.js';
-import { exampleOf, type Picked } from './plugin-nest-example.js';
+import { exampleOf, type Picked } from './plugin-server-example.js';
 
-/** The methods NestJS has a route decorator for. */
+/** The methods every server target routes: NestJS has a decorator for each, and Hono, Fastify and Express a method. */
 const METHODS = new Set(['get', 'put', 'post', 'delete', 'options', 'head', 'patch']);
 
 /** The responses a 400 Problem Details answer is declared under. */
@@ -173,8 +174,8 @@ interface Built {
   readonly tag: string;
 }
 
-/** Every route the target generates, grouped into controllers, and what it reports. */
-export const routesOf = (contract: Contract): { controllers: Controller[]; findings: ContractFinding[] } => {
+/** Every route the target generates, grouped into controllers, and what it reports; `framework` names the target in a finding. */
+export const routesOf = (contract: Contract, framework: string): { controllers: Controller[]; findings: ContractFinding[] } => {
   const { document } = contract;
   const deref = derefIn(document);
   const findings: ContractFinding[] = [];
@@ -192,7 +193,7 @@ export const routesOf = (contract: Contract): { controllers: Controller[]; findi
   const dropped = (operation: Operation, payloads: readonly Payload[], what: string): void => {
     for (const payload of payloads) {
       findings.push(
-        finding('server-media-type-skipped', operation.source, `\`${operation.id}\` ${what} in ${mediaOf(payload.name)} is not served: the route serves one media type, JSON first`, 'serve the other media type outside the generated controller'),
+        finding('server-media-type-skipped', operation.source, `\`${operation.id}\` ${what} in ${mediaOf(payload.name)} is not served: the route serves one media type, JSON first`, 'serve the other media type outside the generated route'),
       );
     }
   };
@@ -210,7 +211,7 @@ export const routesOf = (contract: Contract): { controllers: Controller[]; findi
       .flatMap((payload): Param[] => {
         const [part, paramName] = partsOf(payload.name);
         if (part !== 'path' && part !== 'query' && part !== 'header') {
-          findings.push(finding('server-parameter-skipped', operation.source, `\`${operation.id}\` reads ${part} parameter "${paramName}", which the generated route does not pass on`, 'read it from the request in your controller'));
+          findings.push(finding('server-parameter-skipped', operation.source, `\`${operation.id}\` reads ${part} parameter "${paramName}", which the generated route does not pass on`, 'read it from the request in your handler'));
           return [];
         }
         const parameter = dict(declaredParams.get(payload.name));
@@ -247,11 +248,11 @@ export const routesOf = (contract: Contract): { controllers: Controller[]; findi
 
   const build = (operation: Operation): Built | undefined => {
     // The OpenAPI reader writes a route's source as `#/paths/<token>/<method>`, and anything else longer or elsewhere.
-    // Stryker disable next-line Regex: equivalent, a source without `#/paths/` at its start or with more after the method has no method NestJS routes
+    // Stryker disable next-line Regex: equivalent, a source without `#/paths/` at its start or with more after the method has no method a server target routes
     const match = /^#\/paths\/([^/]+)\/([a-z]+)$/u.exec(operation.source);
     if (match === null || !METHODS.has(match[2] as string)) {
       findings.push(
-        finding('server-operation-skipped', operation.source, `\`${operation.id}\` is not a route NestJS declares (a webhook, or a method it has no decorator for)`, 'serve it outside the generated controllers'),
+        finding('server-operation-skipped', operation.source, `\`${operation.id}\` is not a route ${framework} serves (a webhook, or a method the target does not route)`, 'serve it outside the generated routes'),
       );
       return undefined;
     }
@@ -263,7 +264,7 @@ export const routesOf = (contract: Contract): { controllers: Controller[]; findi
     const params = paramsOf(operation, declared, deref(pointerGet(document, `#/paths/${token}`)).parameters);
     for (const payload of operation.payloads.filter((candidate) => candidate.name.endsWith(':item'))) {
       findings.push(
-        finding('server-stream-skipped', operation.source, `\`${operation.id}\` streams ${payload.name.slice(0, -':item'.length)} item by item, which the generated route does not`, 'stream it from your controller, outside the generated route'),
+        finding('server-stream-skipped', operation.source, `\`${operation.id}\` streams ${payload.name.slice(0, -':item'.length)} item by item, which the generated route does not`, 'stream it from your handler, outside the generated route'),
       );
     }
     const body = bodyOf(operation, declared);
