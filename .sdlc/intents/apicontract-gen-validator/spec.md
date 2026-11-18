@@ -47,3 +47,35 @@ from the root `node_modules` (dev only).
 
 Runtime schema registries, schema publishing, and generating Standard Schema adapters (the validator
 package implements Standard Schema itself).
+
+## As built, 2026-11-18
+
+Files: `plugin-json-schema-build.ts` (payload → whole document, R2, R3, R5),
+`plugin-json-schema-dialect.ts` (the one narrowing function, R4) and one table per provider
+(`-openai`, `-anthropic`, `-gemini`, `-mcp`, `-mcp-elicitation`, each citing its page, read
+2026-11-18), `plugin-json-schema.ts`, `plugin-validator.ts`, `plugin-validator-code.ts` (emit or
+run-time door), `plugin-validator-names.ts` (R1, R6). Fixtures in `src/__fixtures__/validate/`.
+
+| Reading | Value | How |
+| :-- | :-- | :-- |
+| J1 | 3 of 3 fixture documents, every payload, in 2020-12 and draft-07, refs kept and inlined, and every dialect's output: compile in ajv 8.20.0 strict | `plugin-json-schema.test.ts`; formats registered from `validator/formats`, as a team registers `ajv-formats` |
+| J2 | 100% agreement on 2020-12 (kept and inlined); on draft-07 the only differences are where the output reports `draft-07 has no minContains/maxContains` | `plugin-validator.test.ts`; every payload sees a pass and a fail |
+| J3 | 0 silent losses: 49 keywords + 21 others × 3 sources × 2 drafts, and 50 × 5 dialects | the two keyword-enumeration tests |
+| R2 | generated 15.6–17.7 M valid/s and 15.2–15.8 M invalid/s, ajv 10.0–11.6 M and 7.9–8.3 M | bench order schema, same process, load average 30, so the ratio (about 1.5× valid, 1.9× invalid) and not the absolutes |
+
+Where the design was wrong or silent:
+
+- The emitter returns `(value) => boolean`, not a type guard, and its parameters are untyped. The
+  module starts with `// @ts-nocheck` and declares each validator `(value: unknown) => boolean`;
+  the inferred TypeScript type the intent asks for is not generated yet.
+- OpenAI's every-key-required rule makes an optional key arrive as `null`, which the full schema
+  refuses. The re-check's doc comment and a finding say so; stripping those `null`s before the
+  re-check is not generated yet.
+- A dialect whose root must be an object cannot take a payload whose root is a `$ref`, so the table
+  carries `refs` (inline for OpenAI, Anthropic and elicitation) beside the R4 fields, and `recursion`,
+  `formats`, `flat` and `limits`. A payload whose root is still not an object is not written, with a
+  finding. A payload that says nothing is sent (`false`) is not given to a model.
+- R5's draft-07 cannot carry `minContains`, `maxContains` or `unevaluated*`: they are findings, and
+  J2 is read on 2020-12.
+- The corpus lane's bench-spec payloads (J1 on the real corpus) are a follow-up: this lane reads J1
+  on its own fixtures.
