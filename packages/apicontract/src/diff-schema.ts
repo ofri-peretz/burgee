@@ -301,15 +301,14 @@ const compareCompositions = (walk: Walk, pointer: string, { a, b }: Sides): Chan
   });
 
 /**
- * A `$ref` replaced by its target, normalised. Keywords beside it apply too: merged in when none is
- * also the target's, which is the same intersection, else with the target moved under `allOf`.
+ * A `$ref` replaced by its target, normalised. Keywords beside it apply too, as the intersection
+ * they are: the target moves under `allOf`, which `normalise` merges back wherever that is sound.
  */
 const follow = (schema: Dict, document: unknown): unknown => {
   const { $ref: ref, ...siblings } = schema;
   const target = asDict(pointerGet(document, String(ref)));
   if (target === false) return false;
-  if (Object.keys(siblings).every((key) => !has(target, key))) return normalise({ ...target, ...siblings });
-  return normalise({ ...siblings, allOf: [target, ...arrayOf(siblings.allOf)] });
+  return normalise(Object.keys(siblings).length === 0 ? target : { ...siblings, allOf: [target, ...arrayOf(siblings.allOf)] });
 };
 
 const local = (schema: unknown): schema is Dict => isDict(schema) && typeof schema.$ref === 'string' && schema.$ref.startsWith('#');

@@ -34,14 +34,14 @@ const arrayOf = (value: unknown): unknown[] => (Array.isArray(value) ? value : [
 
 const without = (schema: Dict, keys: readonly string[]): Dict => Object.fromEntries(Object.entries(schema).filter(([key]) => !keys.includes(key)));
 
-/** Whether `schema` has exactly these keywords. */
-const only = (schema: unknown, ...keys: string[]): schema is Dict => isDict(schema) && canonical(Object.keys(schema).sort()) === canonical(keys.sort());
+/** Whether `schema` has this one keyword and no other; `''` asks for none at all. */
+const only = (schema: unknown, keyword: string): schema is Dict => isDict(schema) && Object.keys(schema).join() === keyword;
 
 /** The JSON type of a value, `integer` for a whole number. */
 export const typeOfValue = (value: unknown): string => {
   if (value === null) return 'null';
   if (Array.isArray(value)) return 'array';
-  if (typeof value === 'number' && Number.isInteger(value)) return 'integer';
+  if (Number.isInteger(value)) return 'integer';
   return typeof value;
 };
 
@@ -116,9 +116,10 @@ const TUPLE: ReadonlySet<string> = new Set(['type', 'prefixItems', 'items', 'min
 const exactTuple = (branch: unknown): { readonly length: number; readonly items: unknown[] } | undefined => {
   if (!isDict(branch) || !Object.keys(branch).every((key) => TUPLE.has(key)) || canonical(typeList(branch.type)) !== '["array"]') return undefined;
   const prefix = arrayOf(branch.prefixItems);
-  if (branch.items !== undefined && branch.items !== false) return undefined;
   const min = branch.minItems ?? 0;
   const max = branch.maxItems ?? (branch.items === false ? prefix.length : undefined);
+  // No longer than its prefix, `items` never applies, so may be anything.
+  // Stryker disable next-line ConditionalExpression: equivalent, a length that is not a number is never `lowest + index` in unionOfTuples
   if (typeof min !== 'number' || min !== max || min > prefix.length) return undefined;
   return { length: min, items: prefix.slice(0, min) };
 };
@@ -190,6 +191,6 @@ const children = (schema: Dict): Dict => ({
 /** `schema` in the one spelling it shares with every schema that accepts the same values. */
 export function normalise(schema: unknown): unknown {
   if (!isDict(schema)) return schema;
-  if (only(schema, 'not') && (schema.not === true || only(schema.not))) return false;
+  if (only(schema, 'not') && (schema.not === true || only(schema.not, ''))) return false;
   return patternAsFormat(valuesAsType(merge(collapse(children(schema)))));
 }

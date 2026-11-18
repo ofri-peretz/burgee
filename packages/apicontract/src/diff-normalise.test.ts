@@ -106,6 +106,7 @@ describe('near misses: written alike, accepting fewer values, still breaking', (
     expect(normalise({ oneOf: [{ type: 'string' }, { type: 'string' }] })).toEqual({ oneOf: [{ type: 'string' }, { type: 'string' }] });
     expect(normalise({ oneOf: [{ const: 1 }, { enum: [1, 2] }] })).toEqual({ oneOf: [{ const: 1 }, { enum: [1, 2] }] });
     expect(normalise({ anyOf: [{ type: 'integer' }, { type: 'number' }] })).toEqual({ type: ['integer', 'number'] });
+    expect(normalise({ oneOf: [{ type: 'integer' }, { type: 'string' }] })).toEqual({ type: ['integer', 'string'] });
     expect(normalise({ anyOf: [{ const: 1 }, { enum: [1, 2] }] })).toEqual({ enum: [1, 1, 2] });
   });
 
@@ -113,6 +114,9 @@ describe('near misses: written alike, accepting fewer values, still breaking', (
     expect(verdict(tuple, { anyOf: [byLength.anyOf[0], byLength.anyOf[2]] })).not.toBe('non-breaking');
   });
 });
+
+/** Every annotation, each written differently for each `n`. */
+const notes = (n: number) => ({ title: `t${String(n)}`, description: `d${String(n)}`, examples: [n], example: n, default: n, deprecated: n === 1, $comment: `c${String(n)}` });
 
 /** A union of the empty array and `branch`. */
 const two = (branch: unknown) => normalise({ anyOf: [{ type: 'array', maxItems: 0 }, branch] });
@@ -143,6 +147,9 @@ describe('normalise', () => {
     expect(normalise({ enum: 'x' })).toEqual({ enum: 'x' });
     expect(normalise({ type: 'string', const: null })).toEqual({ type: 'string', const: null });
     expect(normalise({ const: true, enum: [true, false] })).toEqual({ const: true, enum: [true, false] });
+    // `const` and `enum` together accept their intersection, here nothing.
+    expect(normalise({ const: null, enum: ['a'] })).toEqual({ const: null, enum: ['a'] });
+    expect(normalise({ type: 'null', enum: [null, true, false] })).toEqual({ type: 'null', enum: [null, true, false] });
   });
 
   it('collapses a union only when every branch is bare, and nothing it writes is already beside it', () => {
@@ -162,7 +169,6 @@ describe('normalise', () => {
     for (const branch of [
       { ...one, type: 'object' },
       { ...one, title: 't' },
-      { ...one, items: { type: 'string' } },
       { ...one, minItems: 0 },
       { ...one, minItems: '1' },
       { type: 'array', prefixItems: [{ type: 'string' }], minItems: 2, maxItems: 2 },
@@ -175,8 +181,34 @@ describe('normalise', () => {
     expect(normalise({ anyOf: [{ ...one, prefixItems: [{ type: 'number' }] }, { type: 'array', prefixItems: [{ type: 'string' }, {}], items: false, minItems: 2 }] })).toEqual({
       anyOf: [{ ...one, prefixItems: [{ type: 'number' }] }, { type: 'array', prefixItems: [{ type: 'string' }, {}], items: false, minItems: 2 }],
     });
+    // A branch of lengths 0 to 2 beside one of length 1: their union is up to 2, not up to 1.
+    const upToTwo = { type: 'array', prefixItems: [{ type: 'string' }, { type: 'number' }], items: false, minItems: 0 };
+    expect(normalise({ anyOf: [upToTwo, one] })).toEqual({ anyOf: [upToTwo, one] });
+    // A branch that asks for more items than it describes accepts nothing, so is no length of the tuple.
+    const none = { type: 'array', prefixItems: [{ type: 'string' }], minItems: 2, maxItems: 2 };
+    expect(normalise({ anyOf: [{ type: 'array', maxItems: 0 }, one, none] })).toEqual({ anyOf: [{ type: 'array', maxItems: 0 }, one, none] });
+    // Open after its prefix, a branch has no one length.
+    expect(two({ type: 'array', prefixItems: [{ type: 'string' }], minItems: 1 })).toEqual({ anyOf: [{ type: 'array', maxItems: 0 }, { type: 'array', prefixItems: [{ type: 'string' }], minItems: 1 }] });
+    // Within its prefix, `items` never applies.
+    expect(two({ type: 'array', prefixItems: [{ type: 'string' }], items: { type: 'number' }, minItems: 1, maxItems: 1 })).toEqual({ type: 'array', prefixItems: [{ type: 'string' }], items: false });
     // Two branches of one length.
     expect(normalise({ anyOf: [one, one] })).toEqual({ anyOf: [one, one] });
+  });
+
+  it('reads the lengths in any order', () => {
+    const [zero, first, second] = byLength.anyOf;
+    for (const order of [[second, first, zero], [first, second, zero], [second, zero, first]]) {
+      expect(normalise({ anyOf: order })).toEqual(tuple);
+    }
+  });
+
+  it('keeps a union whose spelling would replace a keyword beside it', () => {
+    const schema = { items: { type: 'string' }, anyOf: byLength.anyOf.slice(0, 2) };
+    expect(normalise(schema)).toEqual({ items: { type: 'string' }, anyOf: [byLength.anyOf[0], { type: 'array', prefixItems: [{ type: 'string' }], items: false, minItems: 1 }] });
+  });
+
+  it('merges parts that differ only in what describes', () => {
+    expect(normalise({ allOf: [{ type: 'string', ...notes(1) }, { minLength: 1, ...notes(2) }] })).toEqual({ type: 'string', minLength: 1, ...notes(2) });
   });
 
   it('merges `allOf` unless two parts disagree, a part is a `$ref` or `false`, or a keyword is split from the one it reads', () => {
@@ -230,6 +262,17 @@ describe('normalise', () => {
 describe('the helpers the comparison reads against a peer', () => {
   it('names the JSON type of each value, a whole number as an integer', () => {
     expect([null, [], 1, 1.5, 'a', true, {}].map((value) => typeOfValue(value))).toEqual(['null', 'array', 'integer', 'number', 'string', 'boolean', 'object']);
+  });
+
+  it('lists the values of a type only against a peer that lists values', () => {
+    expect(changes({ type: 'null' }, { type: 'boolean' }).map((change) => change.rule)).toEqual(['became-not-nullable', 'type-widened']);
+  });
+
+  it('follows a reference to a reference, and keeps keywords beside one apart from the target they cannot see', () => {
+    const documents = { old: { A: { $ref: '#/B' }, B: { type: 'string' }, P: { properties: { a: {} } } }, new: {} };
+    expect(changes({ $ref: '#/A' }, { type: 'string' }, documents)).toEqual([]);
+    expect(changes({ $ref: '#/A', type: 'integer' }, { type: 'integer' }, documents).map((change) => [change.rule, change.pointer])).toEqual([['all-of-removed', '/allOf/0']]);
+    expect(verdict({ $ref: '#/P', additionalProperties: false }, { properties: { a: {} }, additionalProperties: false }, documents)).toBe('breaking');
   });
 
   it('lists the values of finite types only', () => {
