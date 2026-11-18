@@ -1,5 +1,4 @@
-import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -7,6 +6,7 @@ import { ExitCode } from 'burgee';
 import { runBurgee } from 'burgee/testing';
 import { beforeAll, describe, expect, it } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/run/scratch-dir.js';
 import { command, diff, type GitReader, noGit, toSarif, toText } from './command-diff.js';
 import { type Contract, type Payload } from './core/model.js';
 import { compareContracts } from './diff-contract.js';
@@ -20,8 +20,10 @@ const TEXT = Symbol.for('burgee.text');
 
 const text = (data: Record<string | symbol, unknown>): string => (data[TEXT] as () => string)();
 
+const makeDir = scratchDirs();
+
 const scratch = (files: Record<string, string>): string => {
-  const dir = mkdtempSync(join(tmpdir(), 'apicontract-diff-'));
+  const dir = makeDir('apicontract-diff-');
   for (const [name, content] of Object.entries(files)) writeFileSync(join(dir, name), content);
   return dir;
 };

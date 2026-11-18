@@ -99,6 +99,6 @@ reviewer at Deploy should accept or send back.
 
 ### Not done here
 
-D1–D7 readings (corpus lane; MCP histories for D6), `diff --since <ref>`, `compat.qnt` in
+The D1–D5 readings (corpus lane), the unannounced MCP break in ten servers' histories (SC10), `diff --since <ref>`, `compat.qnt` in
 `models.yml`, and reading MCP snapshots, JSON Schema and AsyncAPI end to end (adapters in #1621;
 the engine is tested on hand-built contracts in those directions).
