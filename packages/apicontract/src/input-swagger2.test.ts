@@ -649,6 +649,19 @@ describe('a reference into a response schema (bethmardutho, 2026-11-18 corpus)',
     ]);
   });
 
+  it('reads a path whose name has a `~` and a `/` in it', () => {
+    const document = {
+      swagger: '2.0',
+      info: { title: 't', version: '1' },
+      produces: ['application/json'],
+      paths: {
+        '/a~b': { get: { responses: { '200': response } } },
+        '/c': { get: { responses: { '200': { description: 'ok', schema: { $ref: '#/paths/~1a~0b/get/responses/200/schema' } } } } },
+      },
+    };
+    expect(converted(document).paths['/c'].get.responses['200'].content['application/json'].schema).toEqual({ $ref: '#/paths/~1a~0b/get/responses/200/content/application~1json/schema' });
+  });
+
   it('leaves a reference it cannot follow as written', () => {
     const refs = {
       external: { $ref: 'other.json#/paths/~1word~1%7Bid%7D/get/responses/200/schema' },

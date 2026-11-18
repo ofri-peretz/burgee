@@ -271,7 +271,7 @@ const aliasName = (ref: string, taken: ReadonlySet<string>): string => {
  * as a member of `components` that is a circular type annotation, as a type alias it is a recursive type.
  */
 const bareSelfReference = (ref: string, options: TransformOptions): boolean =>
-  options.behindObject !== true && options.path !== undefined && (options.path === ref || options.path.startsWith(`${ref}/`));
+  options.behindObject !== true && `${String(options.path)}/`.startsWith(`${ref}/`);
 
 /**
  * A schema's `$ref` as a type. Most become an indexed access (`components["schemas"]["Pet"]`); any other

@@ -78,6 +78,18 @@ describe('a reference into a schema structure is declared once as an alias', () 
     expect(text.match(/export type Ref_components_schemas_A_x_allOf_0 = string;/gu)).toHaveLength(1);
     expect(text).toContain('export type Ref_components_schemas_A_x_allOf_0_2 = number;');
   });
+
+  it('counting up past every name already taken', async () => {
+    const text = await types(
+      doc({
+        'A-x': { allOf: [STRING] },
+        A_x: { allOf: [STRING] },
+        'A.x': { allOf: [STRING] },
+        B: { type: 'object', properties: { x: { $ref: '#/components/schemas/A-x/allOf/0' }, y: { $ref: '#/components/schemas/A_x/allOf/0' }, z: { $ref: '#/components/schemas/A.x/allOf/0' } } },
+      }),
+    );
+    expect(text).toContain('z?: Ref_components_schemas_A_x_allOf_0_3;');
+  });
 });
 
 describe('a reference upstream indexes stays an indexed access', () => {
@@ -86,6 +98,11 @@ describe('a reference upstream indexes stays an indexed access', () => {
     expect(text).toContain('x?: components["schemas"]["A"];');
     expect(text).toContain('y?: components["schemas"]["A"]["p"];');
     expect(text).not.toContain('Ref_');
+  });
+
+  it('to a schema named like a keyword', async () => {
+    const text = await types(doc({ allOf: STRING, B: { type: 'object', properties: { x: { $ref: '#/components/schemas/allOf' } } } }));
+    expect(text).toContain('x?: components["schemas"]["allOf"];');
   });
 
   it('to a schema named like an object printed as its value', async () => {
@@ -113,6 +130,11 @@ describe('a schema that reaches itself', () => {
     ['patternProperties', { type: 'object', patternProperties: { x: { $ref: '#/components/schemas/N' } } }, '[key: string]: components["schemas"]["N"];'],
   ])('through %s stays indexed', async (_, n, line) => {
     expect(await types(doc({ N: n }))).toContain(line);
+  });
+
+  it('from a property of it, even inside a union there', async () => {
+    const text = await types(doc({ X: { type: 'object', properties: { a: { oneOf: [{ $ref: '#/components/schemas/X' }, STRING] } } } }));
+    expect(text).toContain('a?: components["schemas"]["X"] | string;');
   });
 
   it('is not one a sibling whose name starts the same reaches', async () => {
