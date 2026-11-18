@@ -103,6 +103,9 @@ Today's descriptions open with what the package does in our own words ("Runs a s
    > commander, yargs and me". `npm-search-opening-lock` now holds every description to 255,
    > the eight first sentences were shortened (every incumbent kept), and criterion 3 is read
    > again after the next release.
+   >
+   > **2026-11-18: holds.** After the release, the registry `description` and version match
+   > `origin/main` for all 11 packages.
 4. **Maintain control:** `npx tsx scripts/npm-search-rank.ts --check` is run once the search
    index shows the new descriptions, and the reading is committed under `.sdlc/research/`.
    **Target: top 10 for each primary phrase.** The design-stage prediction (spec,
@@ -113,6 +116,12 @@ Today's descriptions open with what the package does in our own words ("Runs a s
    bellpull, burgee, oxmutate and seniority, whose phrases' top 10 is held by packages with
    100k+ weekly downloads. A miss on one of those four opens an adoption intent, not another
    rewording. A miss on any of the other seven is a design failure, and it reopens this intent.
+
+   > **2026-11-18: missed** ([reading](../../research/npm-search-rank-2026-11-18.md)). Three of the
+   > seven within reach made the top 10: closeout #6, linegauge #4 and paratext #2. caique (#16),
+   > controlroom (#19), roundel (#20) and flagstaff (#34) did not, so the intent stays open on
+   > those four. The reading was taken hours after publish, and a one-week re-reading confirms or
+   > clears the misses before any rewording.
 
 ## Open questions
 
