@@ -151,6 +151,7 @@ describe('the shape of what is read', () => {
     expect(read({ type: 'array', prefixItems: [true, true, true], items: false, maxItems: 1 })).toStrictEqual(intersection([union([tuple([]), tuple([unknown()]), tuple([unknown(), unknown(), unknown()])]), array(unknown(), { max: 1 })]));
     expect(read({ type: 'array', items: { type: 'string' }, maxItems: 0 })).toStrictEqual(array(string(), { max: 0 }));
     expect(read({ type: 'array', maxItems: 0 })).toStrictEqual(tuple([]));
+    expect(read({ type: 'array', minItems: 1, maxItems: 0 })).toStrictEqual(array(unknown(), { min: 1, max: 0 }));
   });
 
   it('keeps only the words about the schema that are of their kind', () => {

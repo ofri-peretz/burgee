@@ -108,6 +108,7 @@ describe('the validator plugin', () => {
     const untyped = validatorCode('A', { type: 'string', format: 'regex' }, where);
     const typed = validatorCode('B', { type: 'integer' }, { ...where, typed: true });
     expect([untyped.typed, typed.typed]).toEqual([false, true]);
+    expect(UNTYPED).toBe("// @ts-nocheck -- the code is written by the validator package's emitter, whose functions take untyped parameters");
     expect(untyped.text).toBe('const ASchema = fromJsonSchema({"type":"string","format":"regex"}).schema;\n/**\n * a\n *\n * Checked at run time: the schema names a format that is a function.\n */\nexport const A: (value: unknown) => boolean = (value) => check(ASchema, value);');
     expect(moduleOf([typed, untyped]).startsWith(`${UNTYPED}\n${DOOR_IMPORTS}\n\nexport type B = number;\n`)).toBe(true);
     expect(moduleOf([typed]).startsWith('export type B = number;\n')).toBe(true);

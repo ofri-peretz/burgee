@@ -137,6 +137,9 @@ describe('emit, typed', () => {
     }
     const Linked: Schema<List> = object({ next: nullable(lazy(() => Linked)) });
     expect(emit(lazy(() => Linked), { typescript: true }).startsWith('(() => {\ntype T_0 = { "next": T_0 | null };\nconst ')).toBe(true);
+    const Other: Schema<List> = object({ next: nullable(lazy(() => Other)) });
+    const both = emit(object({ a: lazy(() => Linked), b: lazy(() => Other) }), { typescript: true });
+    expect(both.startsWith('(() => {\ntype T_0 = { "next": T_0 | null };\ntype T_1 = { "next": T_1 | null };\nconst ')).toBe(true);
   });
 
   it('keeps the marks of an annotation that a value of the schema holds, as a value', () => {
