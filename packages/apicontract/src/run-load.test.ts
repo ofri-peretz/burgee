@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 import { scratchDirs } from './__fixtures__/run/scratch-dir.js';
 import { builtinAdapters } from './inputs.js';
+import { builtins } from './plugins.js';
 import { locate, loadPlugins } from './run-load.js';
 
 
@@ -44,14 +45,14 @@ describe('loadPlugins', () => {
     const root = temp();
     writeFileSync(join(root, 'named.mjs'), 'export const plugin = { name: "named", generators: {} };\n');
     const host = await loadPlugins({ root, file: join(root, 'c.json'), plugins: [PLUGIN, './named.mjs'] });
-    expect(host.plugins().map((plugin) => plugin.name)).toEqual(['apicontract', 'spine-test', 'named']);
+    expect(host.plugins().map((plugin) => plugin.name)).toEqual(['apicontract', ...builtins.map((plugin) => plugin.name), 'spine-test', 'named']);
     expect(host.plugins()[0]?.adapters).toBe(builtinAdapters);
     expect(host.generator('types').description).toBe('One type per schema, for the tests');
   });
 
   it('registers only the built-ins when the config names no plugin', async () => {
     const host = await loadPlugins({ root: temp(), file: 'c.json', plugins: [] });
-    expect(host.plugins().map((plugin) => plugin.name)).toEqual(['apicontract']);
+    expect(host.plugins().map((plugin) => plugin.name)).toEqual(['apicontract', ...builtins.map((plugin) => plugin.name)]);
   });
 
   it('stops on a plugin that does not load, naming it and how to install it', async () => {
