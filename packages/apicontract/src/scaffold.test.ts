@@ -1,19 +1,17 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { afterAll, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/kit/scratch-dir.js';
 import { checkName, KINDS, scaffold } from './scaffold.js';
 import { conformance, type ConformanceOptions } from './testing.js';
 
-const directory = mkdtempSync(join(tmpdir(), 'apicontract-scaffold-'));
+const scratch = scratchDirs();
+const directory = scratch('apicontract-scaffold-');
 const testing = pathToFileURL(join(import.meta.dirname, 'testing.ts')).href;
 
-afterAll(() => {
-  rmSync(directory, { recursive: true, force: true });
-});
 
 /** Write a scaffold to disk with `apicontract/testing` pointing at this checkout, and import it. */
 const load = async (name: string, kind: (typeof KINDS)[number]): Promise<Record<string, unknown>> => {

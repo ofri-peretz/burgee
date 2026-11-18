@@ -98,7 +98,7 @@ describe('the edges a mutant would cross', () => {
   });
 
   it('touches no script that does not run openapi-typescript, even in a package.json it cannot edit', () => {
-    const result = migrate(undefined, { 'package.json': '{"scripts":{"a":"openapi-typescript a.yaml -o a.ts","b":"eslint ."}}' });
+    const result = migrate(undefined, { 'package.json': '{"scripts":{"a":"openapi-typescript a.yaml -o a.ts","b":"eslint . && tsc"}}' });
     expect(result.findings.map((one) => one.pointer)).toEqual(['package.json#/scripts/a']);
   });
 

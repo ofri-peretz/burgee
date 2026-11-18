@@ -48,7 +48,9 @@ describe('reading the config', () => {
   });
 
   it('reads mock: true as msw and reports mock options', () => {
-    expect(only("export default { p: { input: 'a.yaml', output: { target: 'o.ts', client: 'fetch', mock: false } } }").config?.targets.msw).toBeUndefined();
+    const off = only("export default { p: { input: 'a.yaml', output: { target: 'o.ts', client: 'fetch', mock: false } } }");
+    expect(off.config?.targets.msw).toBeUndefined();
+    expect(off.findings.map((one) => one.code)).toEqual(['imports-change']);
     const options = only("export default { p: { input: 'a.yaml', output: { target: 'o.ts', client: 'fetch', mock: { type: 'msw' } } } }");
     expect(options.config?.targets.msw).toBeUndefined();
     expect(options.findings[0]).toEqual({
@@ -79,7 +81,17 @@ describe('reading the config', () => {
       'unreadable @ orval.config#/a/output',
       'nothing-to-migrate @ orval.config#/a',
     ]);
-    expect(only("export default { a: { input: 'a.yaml' } }").findings.map((one) => one.message)).toEqual(['the `a` project names no input or no output']);
+    expect(only("export default { a: { input: 'a.yaml' } }").findings).toEqual([
+      { code: 'nothing-to-migrate', pointer: 'orval.config#/a', message: 'the `a` project names no input or no output', fix: 'set `input` and `output` and run the migration again' },
+    ]);
+    expect(only("export default { a: { output: 'o.ts' } }").findings.map((one) => one.code)).toEqual(['nothing-to-migrate']);
+    expect(only("export default { a: null, b: { input: 'b.yaml', output: 'o.ts' } }").findings[0]).toEqual({
+      code: 'second-input',
+      pointer: 'orval.config#/b',
+      message: 'the `b` project is a second input, and one apicontract.config.json reads one',
+      fix: 'write a second apicontract.config.json for it in its own folder',
+    });
+    expect(only("export default { a: null }").findings.map((one) => `${one.code} @ ${one.pointer}`)).toEqual(['unreadable @ orval.config#/a']);
   });
 
   it('reports a config with no project, none it can read, and none at all', () => {

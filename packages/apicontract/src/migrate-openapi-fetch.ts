@@ -33,7 +33,9 @@ const TYPE_ARGUMENTS = /<[^>(]*>\(/uy;
 export const dropTypeArguments = (text: string, name: string): string => {
   let result = '';
   let from = 0;
-  for (let at = text.indexOf(`${name}<`); at !== -1; at = text.indexOf(`${name}<`, at + 1)) {
+  for (let at = -1; ; ) {
+    at = text.indexOf(`${name}<`, at + 1);
+    if (at === -1) break;
     TYPE_ARGUMENTS.lastIndex = at + name.length;
     const match = TYPE_ARGUMENTS.exec(text);
     if (match === null || /[\w$]/u.test(text.charAt(at - 1))) continue;

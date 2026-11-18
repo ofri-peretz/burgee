@@ -128,11 +128,17 @@ describe('the edges a mutant would cross', () => {
 
   it('splits a script at `&&` without spaces, and touches no script that does not run Hey API', () => {
     expect(migrate(undefined, { 'package.json': pkg({ a: 'rimraf x &&openapi-ts -i a.yaml' }) }).edits[0]?.after).toBe(pkg({ a: 'rimraf x &&apicontract gen' }));
-    expect(migrate(undefined, { 'package.json': '{"scripts":{"a":"openapi-ts -i a.yaml","b":"eslint ."}}' }).findings.map((one) => one.pointer).filter((pointer) => pointer.startsWith('package.json'))).toEqual(['package.json#/scripts/a']);
+    expect(migrate(undefined, { 'package.json': '{"scripts":{"a":"openapi-ts -i a.yaml","b":"eslint . && tsc"}}' }).findings.map((one) => one.pointer).filter((pointer) => pointer.startsWith('package.json'))).toEqual(['package.json#/scripts/a']);
   });
 
   it('counts http and https as remote, and only at the start', () => {
-    expect(only("export default { input: 'http://x.dev/a.yaml' }").findings[0]?.code).toBe('remote-input');
+    expect(only("export default { input: 'http://x.dev/a.yaml' }").findings[0]).toEqual({
+      code: 'remote-input',
+      pointer: 'apicontract.config.json#/input',
+      message: 'http://x.dev/a.yaml is fetched over the network, and apicontract reads local files',
+      fix: 'download the document into the project and point `input` at it',
+    });
+    expect(only("export default { input: 'a.yaml', plugins: [null] }").findings.map((one) => `${one.code} @ ${one.pointer}`)).toEqual(['imports-change @ openapi-ts.config#/output', 'unreadable @ openapi-ts.config#/plugins/0']);
     expect(only("export default { input: 'mirror/https://x.yaml' }").findings.map((one) => one.code)).toEqual(['imports-change']);
   });
 });

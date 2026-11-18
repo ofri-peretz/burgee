@@ -83,6 +83,11 @@ describe('the edges a mutant would cross', () => {
     expect(result.findings.map((one) => one.pointer)).toEqual(['src/deep/api.ts#L4', 'src/deep/api.ts#L5', 'src/deep/api.ts#L6']);
   });
 
+  it('strips only the final `.ts` from the client path', () => {
+    const result = migrate(undefined, { 'package.json': packageJson.replace('./src/lib/api/v1.d.ts', 'gen/x.tsfiles/v1.d.ts'), 'a.ts': "import c from 'openapi-fetch';" });
+    expect(result.edits[1]?.after).toBe("import { createClient as c } from './gen/x.tsfiles/client';");
+  });
+
   it('drops type arguments at the very start of the text, and nowhere a longer name ends', () => {
     expect(dropTypeArguments('c<p>(1); xc<p>(2); c<p>(3)', 'c')).toBe('c(1); xc<p>(2); c(3)');
     expect(dropTypeArguments('nothing here', 'c')).toBe('nothing here');

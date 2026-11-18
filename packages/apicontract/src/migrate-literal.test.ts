@@ -84,6 +84,8 @@ describe('isUnreadable', () => {
     [{ unreadable: 'x', other: 1 }, false],
     [['x'], false],
     [null, false],
+    [undefined, false],
+    [5, false],
     ['x', false],
   ])('%j is %s', (value, expected) => {
     expect(isUnreadable(value)).toBe(expected);

@@ -1,16 +1,14 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { afterAll, expect, it } from 'vitest';
+import { expect, it } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/kit/scratch-dir.js';
 import { writeFiles } from './scaffold-write.js';
 
-const directory = mkdtempSync(join(tmpdir(), 'apicontract-write-'));
+const scratch = scratchDirs();
+const directory = scratch('apicontract-write-');
 
-afterAll(() => {
-  rmSync(directory, { recursive: true, force: true });
-});
 
 it('writes what is missing, leaves what is equal, and keeps a user file with other bytes', async () => {
   writeFileSync(join(directory, 'same.ts'), 'same');

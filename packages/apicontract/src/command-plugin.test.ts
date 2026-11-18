@@ -1,11 +1,11 @@
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { ExitCode } from 'burgee';
 import { runBurgee } from 'burgee/testing';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/kit/scratch-dir.js';
 import { command } from './command-plugin.js';
 import { program } from './index.js';
 import { scaffold } from './scaffold.js';
@@ -13,15 +13,13 @@ import { scaffold } from './scaffold.js';
 /** What the command returned, out of burgee's `--json` envelope. */
 const data = (r: { json?: unknown }): unknown => (r.json as { data?: unknown }).data;
 
-const directory = mkdtempSync(join(tmpdir(), 'apicontract-plugin-'));
+const scratch = scratchDirs();
+const directory = scratch('apicontract-plugin-');
 
 beforeAll(async () => {
   await runBurgee(program, { argv: ['--version'] });
 });
 
-afterAll(() => {
-  rmSync(directory, { recursive: true, force: true });
-});
 
 describe('`apicontract plugin new`', () => {
   it('is described for --help, --schema and the MCP tool list', () => {

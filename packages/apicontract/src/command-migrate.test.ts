@@ -1,15 +1,16 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { ExitCode } from 'burgee';
 import { runBurgee } from 'burgee/testing';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/kit/scratch-dir.js';
 import { command, project, SOURCES } from './command-migrate.js';
 import { program } from './index.js';
 
-const root = mkdtempSync(join(tmpdir(), 'apicontract-migrate-'));
+const scratch = scratchDirs();
+const root = scratch('apicontract-migrate-');
 
 /** What the command returned, out of burgee's `--json` envelope. */
 const data = (r: { json?: unknown }): Record<string, unknown> => (r.json as { data: Record<string, unknown> }).data;
@@ -30,9 +31,6 @@ beforeAll(async () => {
   await runBurgee(program, { argv: ['--version'] });
 });
 
-afterAll(() => {
-  rmSync(root, { recursive: true, force: true });
-});
 
 describe('`apicontract migrate`', () => {
   it('is declared for --help, --schema and the MCP tool list', () => {

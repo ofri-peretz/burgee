@@ -115,8 +115,8 @@ export const migrate: Migrate = (configText, files) => {
       .map((part) => {
         const found = BINARY.exec(part);
         if (found === null) return part;
-        const flags = (found[2] as string).trim();
-        args ??= flags === '' ? [] : flags.split(/\s+/u);
+        // No flags at all is one empty word, which pairs with nothing.
+        args ??= (found[2] as string).trim().split(/\s+/u);
         return `${found[1] as string}apicontract gen`;
       })
       .join('');
