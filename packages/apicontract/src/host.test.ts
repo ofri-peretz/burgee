@@ -299,11 +299,22 @@ describe('what 6.0 added for the lanes', () => {
     expect(await host.generate('list', document)).toEqual([{ path: 'operations.txt', owner: 'generated', content: 'listPets\n' }]);
     expect(resultOf({ files: [], findings: [finding] }).findings).toEqual([finding]);
     expect(resultOf({ files: [], findings: 'not a list' }).findings).toEqual([]);
-    expect(resultOf([]).files).toEqual([]);
+    expect(resultOf([])).toEqual({ files: [], findings: [] });
+    expect(resultOf(null)).toEqual({ files: null, findings: [] });
+    expect(resultOf({ path: 'a' })).toEqual({ files: { path: 'a' }, findings: [] });
   });
 
   it('accepts an extractor with a sample, and refuses one without', () => {
     expect(() => validate({ name: 'x', extractors: { schemas: extractor } })).not.toThrow();
+    for (const bad of [1, { ...extractor, description: '' }, { ...extractor, run: 'no' }]) {
+      expect(refusal(() => validate({ name: 'x', extractors: { schemas: bad } })).message).toBe(
+        'plugin "x": extractors.schemas is not an extractor. fix: an extractor is `{ description, sample, run(options) }`',
+      );
+    }
+    expect(refusal(() => validate({ name: 'x', extractors: { schemas: { ...extractor, sample: {} } } })).message).toBe(
+      'plugin "x": extractors.schemas has no sample. fix: add `sample: { options, document }`: the options it runs with and the document it returns',
+    );
+    expect(refusal(() => validate({ name: 'x', extractors: 1 })).message).toBe('plugin "x": extractors must be an object. fix: map a name to each of the extractors');
     expect(refusal(() => validate({ name: 'x', extractors: { schemas: { description: 'd' } } })).fix).toBe('an extractor is `{ description, sample, run(options) }`');
     expect(refusal(() => validate({ name: 'x', extractors: { schemas: { ...extractor, sample: { document: {} } } } })).code).toBe('E_NO_STATIC_PROJECTION');
     expect(refusal(() => validate({ name: 'x', extractors: { schemas: { ...extractor, sample: { options: {} } } } })).code).toBe('E_NO_STATIC_PROJECTION');
