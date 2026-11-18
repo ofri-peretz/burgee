@@ -184,6 +184,22 @@ describe('compositions', () => {
     ]);
   });
 
+  it('compares a branch kept by equal text when the count changed: its reference may point at a changed target', () => {
+    const documents = { old: { A: { type: 'string' }, B: {}, C: {} }, new: { A: { type: 'string', maxLength: 5 }, B: {}, C: {} } };
+    const changes = compareSchemas({ allOf: [{ $ref: '#/A' }, { $ref: '#/B' }] }, { allOf: [{ $ref: '#/A' }, { $ref: '#/B' }, { $ref: '#/C' }] }, 'request', documents);
+    expect(changes).toEqual([
+      { rule: 'maxLength-set', pointer: '/allOf/0/maxLength', before: undefined, after: 5, effect: 'narrows' },
+      { rule: 'all-of-added', pointer: '/allOf/2', before: undefined, after: { $ref: '#/C' }, effect: 'narrows' },
+    ]);
+    // Paired by text, not by place: the kept branch moved from 1 to 0.
+    expect(
+      compareSchemas({ anyOf: [{ type: 'null' }, { $ref: '#/A' }] }, { anyOf: [{ $ref: '#/A' }] }, 'request', documents).map((c) => [c.rule, c.pointer]),
+    ).toEqual([
+      ['any-of-removed', '/anyOf/0'],
+      ['maxLength-set', '/anyOf/0/maxLength'],
+    ]);
+  });
+
   it('ignores a composition keyword that is not an array', () => {
     expect(diff({ anyOf: 'x' }, { anyOf: 'x' })).toEqual([]);
     expect(diff({ allOf: 'x' }, { allOf: [{}] })).toEqual([['all-of-added', '/allOf/0', undefined, {}, 'narrows']]);

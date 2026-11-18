@@ -269,7 +269,8 @@ const compareArrays = (walk: Walk, pointer: string, { a, b }: Sides): Change[] =
 
 /**
  * `oneOf`, `anyOf` and `allOf`: the same number of branches is compared branch by branch; otherwise
- * each branch with no equal on the other side is added or removed. A union branch added widens, an
+ * a branch is paired with an equal one on the other side and compared with it (a `$ref` written the
+ * same can point at a target that changed), and each branch with no equal is added or removed. A union branch added widens, an
  * `allOf` one narrows. ponytail: a branch added to `oneOf` can also narrow, where a value now matches
  * two; deciding that needs the branches' intersection.
  */
@@ -283,7 +284,11 @@ const compareCompositions = (walk: Walk, pointer: string, { a, b }: Sides): Chan
     const had = before.map((branch) => canonical(branch));
     const removing = adding === 'widens' ? 'narrows' : 'widens';
     return [
-      ...before.flatMap((branch, index) => (kept.includes(canonical(branch)) ? [] : [at(`${where}/${String(index)}`, branch, undefined)(`${name}-removed`, removing)])),
+      ...before.flatMap((branch, index) => {
+        const match = kept.indexOf(canonical(branch));
+        if (match === -1) return [at(`${where}/${String(index)}`, branch, undefined)(`${name}-removed`, removing)];
+        return compare(walk, `${where}/${String(match)}`, branch, after[match]);
+      }),
       ...after.flatMap((branch, index) => (had.includes(canonical(branch)) ? [] : [at(`${where}/${String(index)}`, undefined, branch)(`${name}-added`, adding)])),
     ];
   });
@@ -308,9 +313,11 @@ const compareRefs = (walk: Walk, pointer: string, a: unknown, b: unknown): Chang
   const key = `${local(a) ? String(a.$ref) : pointer}\n${local(b) ? String(b.$ref) : pointer}`;
   if (walk.open.has(key)) return [];
   walk.open.add(key);
-  const changes = compare(walk, pointer, local(a) ? follow(a, walk.documents.old) : a, local(b) ? follow(b, walk.documents.new) : b);
-  walk.open.delete(key);
-  return changes;
+  try {
+    return compare(walk, pointer, local(a) ? follow(a, walk.documents.old) : a, local(b) ? follow(b, walk.documents.new) : b);
+  } finally {
+    walk.open.delete(key);
+  }
 };
 
 function compare(walk: Walk, pointer: string, a: unknown, b: unknown): Change[] {

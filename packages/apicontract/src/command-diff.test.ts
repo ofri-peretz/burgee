@@ -1,13 +1,14 @@
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { ExitCode } from 'burgee';
 import { runBurgee } from 'burgee/testing';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { scratchDirs } from './__fixtures__/run/scratch-dir.js';
-import { command, diff, type GitReader, noGit, toSarif, toText } from './command-diff.js';
+import { command, diff, type GitReader, noGit, toSarif, toText, uriOf } from './command-diff.js';
 import { type Contract, type Payload } from './core/model.js';
 import { compareContracts } from './diff-contract.js';
 
@@ -40,9 +41,9 @@ describe('apicontract diff, through burgee', () => {
     await runBurgee(program, { argv: ['--version'] });
   });
 
-  it('is read-only and described for --help and the MCP tool list', () => {
+  it('is idempotent, since --changeset writes, and described for --help and the MCP tool list', () => {
     expect(command.description).toBe('What a contract change breaks, and for whom, under the compatibility mode you pick');
-    expect(command.effects).toBe('read_only');
+    expect(command.effects).toBe('idempotent');
     expect(command.examples).toEqual([
       { command: 'apicontract diff old.yaml new.yaml', description: 'what breaks for callers built on old.yaml' },
       { command: 'apicontract diff old.yaml new.yaml --mode full --sarif', description: 'both directions, for code scanning' },
@@ -112,6 +113,7 @@ describe('diff', () => {
     expect(data).not.toHaveProperty('fix');
     expect(data).not.toHaveProperty('sarif');
     expect(data).not.toHaveProperty('changeset');
+    expect(data.changed).toBe(false);
     expect(text(data)).toBe('non-breaking: 0 breaking, 0 unknown, 1 non-breaking (--mode backward --side caller)\n\na  #/paths/~1a/get\n  non-breaking  endpoint-added    - -> "a"');
   });
 
@@ -171,6 +173,9 @@ describe('diff', () => {
     expect(readFileSync(join(dir, file), 'utf8')).toBe(
       "---\n'pets-api': major\n---\n\nContract changes from a.yaml to c.yaml: breaking.\n\n- breaking: `ac-maxProperties-unset` in a response:200:application/json /maxProperties\n",
     );
+    expect(breaking.changed).toBe(true);
+    // The same input again: the same file, already there, so nothing changed.
+    expect(diff({ cwd: dir, old: 'a.yaml', new: 'c.yaml', changeset: 'pets-api' })).toMatchObject({ changeset: file, changed: false });
     const minor = diff({ cwd: dir, old: 'a.yaml', new: 'b.yaml', changeset: 'pets-api' });
     expect(readFileSync(join(dir, minor.changeset as string), 'utf8')).toBe("---\n'pets-api': minor\n---\n\nContract changes from a.yaml to b.yaml: non-breaking.\n");
     expect(diff({ cwd: dir, old: 'a.yaml', new: 'a.yaml', changeset: 'pets-api' })).not.toHaveProperty('changeset');
@@ -225,6 +230,22 @@ describe('toSarif', () => {
 });
 
 const channel = (payloads: Payload[]): Contract => ({ format: 'asyncapi', document: {}, operations: [{ id: 'c', source: '#/c', payloads }] });
+
+describe('uriOf', () => {
+  it('gives a relative path with forward slashes, and an absolute one as a file: URL', () => {
+    expect(uriOf('api/old.yaml')).toBe('api/old.yaml');
+    expect(uriOf('api\\v1\\old.yaml')).toBe('api/v1/old.yaml');
+    const absolute = join(tmpdir(), 'contracts', 'old yaml.json');
+    expect(uriOf(absolute)).toBe(pathToFileURL(absolute).href);
+    expect(uriOf(absolute)).toMatch(/^file:\/\/\/.*old%20yaml\.json$/);
+  });
+
+  it('is what --sarif puts in each location', async () => {
+    const r = await runBurgee(program, { argv: ['diff', OLD, NEW, '--sarif'] });
+    const sarif = JSON.parse(r.stdout) as { runs: { results: { locations: { physicalLocation: { artifactLocation: { uri: string } } }[] }[] }[] };
+    expect(new Set(sarif.runs[0]?.results.map((result) => result.locations[0]?.physicalLocation.artifactLocation.uri))).toEqual(new Set([pathToFileURL(OLD).href, pathToFileURL(NEW).href]));
+  });
+});
 
 describe('toText', () => {
   it('names a payload whose change is at its root without a trailing space', () => {

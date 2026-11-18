@@ -5,8 +5,9 @@
  * document and an MCP snapshot are all diffed by one engine. Exit 1 on a breaking or unknown change.
  */
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { isAbsolute, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import { defineCommand, ExitCode } from 'burgee';
 import { parse as parseYaml } from 'seniority/yaml';
@@ -84,6 +85,9 @@ const LEVEL: Readonly<Record<Verdict, string>> = { breaking: 'error', unknown: '
 
 const where = (finding: Finding): string => [finding.payload ?? '', finding.pointer].filter((part) => part !== '').join(' ');
 
+/** A SARIF `artifactLocation.uri` is a URI reference: an absolute path as a `file:` URL, a relative one with `/`. */
+export const uriOf = (file: string): string => (isAbsolute(file) ? pathToFileURL(file).href : file.replaceAll('\\', '/'));
+
 const show = (value: unknown): string => (value === undefined ? '-' : JSON.stringify(value));
 
 /** SARIF 2.1.0: one result per finding, at the side's file and the finding's operation. */
@@ -101,7 +105,7 @@ export const toSarif = (comparison: Comparison, old: Pick<Side_, 'file'>, nu: Pi
           message: { text: `${finding.verdict}: ${finding.operation} ${where(finding)} ${show(finding.before)} -> ${show(finding.after)}. fix: ${finding.fix}` },
           locations: [
             {
-              physicalLocation: { artifactLocation: { uri: (finding.document === 'old' ? old : nu).file } },
+              physicalLocation: { artifactLocation: { uri: uriOf((finding.document === 'old' ? old : nu).file) } },
               logicalLocations: [{ fullyQualifiedName: `${finding.source}${finding.payload === undefined ? '' : ` ${finding.payload}`}${finding.pointer}` }],
             },
           ],
@@ -132,17 +136,26 @@ export const toText = (comparison: Comparison, old: string, nu: string): string 
 
 const BUMP: Readonly<Record<Verdict, string>> = { breaking: 'major', unknown: 'major', 'non-breaking': 'minor' };
 
-/** `.changeset/<hash>.md` bumping `pkg` by the verdict; `undefined` when nothing changed. */
-const writeChangeset = (cwd: string, pkg: string, comparison: Comparison, labels: { readonly old: string; readonly nu: string }): string | undefined => {
+/**
+ * `.changeset/<hash>.md` bumping `pkg` by the verdict, and whether it is new; `undefined` when the
+ * contract did not change. The name is the content's hash, so a file already there is this one.
+ */
+const writeChangeset = (
+  cwd: string,
+  pkg: string,
+  comparison: Comparison,
+  labels: { readonly old: string; readonly nu: string },
+): { readonly file: string; readonly changed: boolean } | undefined => {
   const { old, nu } = labels;
   if (comparison.findings.length === 0) return undefined;
   const body = comparison.findings.filter((finding) => finding.verdict !== 'non-breaking').map((finding) => `- ${finding.verdict}: \`${finding.id}\` in ${finding.operation} ${where(finding)}`);
   const text = [`---`, `'${pkg}': ${BUMP[comparison.verdict]}`, `---`, '', `Contract changes from ${old} to ${nu}: ${comparison.verdict}.`, ...(body.length > 0 ? ['', ...body] : []), ''].join('\n');
   // Forward slashes on every platform: the path is reported, and `resolve` reads it on Windows too.
   const file = `.changeset/apicontract-diff-${createHash('sha256').update(text).digest('hex').slice(0, HASH_DIGITS)}.md`;
+  if (existsSync(resolve(cwd, file))) return { file, changed: false };
   mkdirSync(resolve(cwd, '.changeset'), { recursive: true });
   writeFileSync(resolve(cwd, file), text);
-  return file;
+  return { file, changed: true };
 };
 
 /** The command's work, with the folder and the git reader as inputs so a test can give its own. */
@@ -152,14 +165,16 @@ export const diff = (options: DiffOptions): Record<string | symbol, unknown> => 
   const nu = read(options.new, options.cwd, git);
   const comparison = compareContracts(old.contract, nu.contract, { mode: options.mode, side: options.side });
   const sarif = options.sarif === true ? toSarif(comparison, old, nu) : undefined;
-  const changeset = options.changeset === undefined ? undefined : writeChangeset(options.cwd, options.changeset, comparison, { old: old.label, nu: nu.label });
+  const written = options.changeset === undefined ? undefined : writeChangeset(options.cwd, options.changeset, comparison, { old: old.label, nu: nu.label });
   const failed = comparison.verdict !== 'non-breaking';
   const data: Record<string | symbol, unknown> = {
     ...comparison,
     old: old.label,
     new: nu.label,
     ...(sarif === undefined ? {} : { sarif }),
-    ...(changeset === undefined ? {} : { changeset }),
+    // burgee N7: an idempotent command says whether it changed anything.
+    changed: written?.changed ?? false,
+    ...(written === undefined ? {} : { changeset: written.file }),
     ...(failed
       ? {
           exitCode: ExitCode.RUNTIME,
@@ -181,7 +196,8 @@ const HERE = '.';
 export const command = defineCommand({
   name: 'diff',
   description: 'What a contract change breaks, and for whom, under the compatibility mode you pick',
-  effects: 'read_only',
+  // `--changeset` writes a file, the same file for the same input; without it nothing is written.
+  effects: 'idempotent',
   examples: [
     { command: 'apicontract diff old.yaml new.yaml', description: 'what breaks for callers built on old.yaml' },
     { command: 'apicontract diff old.yaml new.yaml --mode full --sarif', description: 'both directions, for code scanning' },

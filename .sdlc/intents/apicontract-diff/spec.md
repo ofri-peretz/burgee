@@ -91,12 +91,15 @@ reviewer at Deploy should accept or send back.
   `--changeset <package>` (`.changeset/apicontract-diff-<sha8>.md`; breaking or unknown → major,
   else minor; nothing written when nothing changed). **Departure:** exit 1 on `unknown` as well
   as `breaking`, since the intent's constraint says an unknown change is never compatible.
-  **Open question:** the command is declared `read_only` (fixed in `cli.test.ts`) yet
-  `--changeset` writes a file.
+  The command declares `effects: 'idempotent'`: `--changeset` writes a file, the same file for
+  the same input, so an MCP host that gates writes sees it (integrator-approved edit to
+  `cli.test.ts`, which pins every command's effect). SARIF locations are URI references: a
+  relative path with `/`, an absolute one as a `file:` URL.
 - **R6** `src/diff-rules.ts`: 91 rows, ours beside oasdiff's per place (parameter, body,
   property, request or response). The ids are from oasdiff's documentation and not yet graded
-  on its corpus (D1, corpus lane). **Inconsistency:** `D-20261106` says `cp-` for our ids; this
-  spec and the code say `ac-`. The decision record needs the one-word correction.
+  on its corpus (D1, corpus lane). Our prefix is `ac-`, recorded in
+  [`D-20261118-apicontract-diff-rule-prefix`](../../decisions/D-20261118-apicontract-diff-rule-prefix.md),
+  which replaces the `cp-` half of `D-20261106`.
 
 ### Not done here
 
