@@ -199,7 +199,7 @@ describe('gen', () => {
 
   it('refuses a generator the plugins do not provide, listing the ones they do', async () => {
     const root = project({ targets: { types: { generator: 'nope', out: 'o' } } });
-    expect((await failure(gen({ cwd: root }))).message).toContain('no generator is named "nope". fix: use one of: types');
+    expect((await failure(gen({ cwd: root }))).message).toMatch(/no generator is named "nope"\. fix: use one of: [^;]*\btypes\b/u);
   });
 
   it('refuses a map that was edited into something unreadable', async () => {
