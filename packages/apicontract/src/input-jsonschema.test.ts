@@ -32,7 +32,8 @@ describe('detect', () => {
       { properties: {} },
       { type: 'object' },
       { type: ['string', 'null'] },
-      { type: 'integer' },
+      { type: ['array'] },
+      ...['null', 'boolean', 'object', 'array', 'number', 'string', 'integer'].map((type) => ({ type })),
     ]) {
       expect(detect(schema)).toBe(true);
     }
@@ -167,6 +168,10 @@ describe('read', () => {
       ]);
     }
     expect(read({ $schema: 'json-schema.org/draft-07/schema#' }).findings).toEqual([]);
+    // The scheme is stripped only at the start, and the `#` only at the end.
+    for (const $schema of ['json-schema.org/draft-07/schema#http://', 'json-schema.org/#draft-07/schema']) {
+      expect(read({ $schema }).findings?.map(({ code }) => code)).toEqual(['dialect-unknown']);
+    }
     expect(read({ $schema: 3 }).findings).toEqual([]);
   });
 });
@@ -266,6 +271,7 @@ describe('references core/resolve.ts cannot follow from the root', () => {
     ).toEqual([]);
     expect(codes({ properties: { $ref: { $ref: 'x.json' } } })).toEqual(['ref-external #/properties/$ref/$ref']);
     expect(codes({ $defs: { 'a/~b': { $ref: '#c' } } })).toEqual(['ref-anchor #/$defs/a~1~0b/$ref']);
+    expect(codes({ properties: { a: null, b: { description: null } } })).toEqual([]);
   });
 });
 
