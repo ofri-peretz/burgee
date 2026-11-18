@@ -64,13 +64,37 @@ const alive = (p: number): boolean => {
   }
 };
 
+const reap = (p: number): void => {
+  try {
+    process.kill(p, 'SIGKILL');
+  } catch {
+    // ESRCH: already gone.
+  }
+};
+
 describe.skipIf(!serverGroups)('killGroup', () => {
+  // Every pid this suite starts. They ignore SIGTERM, so when killGroup fails (a surviving mutant does
+  // exactly that, run after run) nothing else ends them: ~90 had piled up on one Mac. Reap them whatever
+  // the assertions said, then prove they are gone.
+  const spawned: number[] = [];
+  afterEach(async () => {
+    const pids = spawned.splice(0);
+    for (const p of pids) {
+      reap(-p);
+      reap(p);
+    }
+    await vi.waitFor(() => expect(pids.filter(alive), 'a process this suite spawned outlived it').toEqual([]), { timeout: 5000 });
+  });
+
   it('kills a group leader and the children it started', async () => {
     // A leader that starts a child of its own and reports it: the child is the one a plain kill left behind.
-    // Both ignore SIGTERM, as a hung test's processes may: only SIGKILL ends them.
-    const stay = "process.on('SIGTERM', () => {}); setInterval(() => {}, 1000);";
+    // Both ignore SIGTERM, as a hung test's processes may: only SIGKILL ends them. The self-limit covers
+    // the one case afterEach cannot: vitest killing the worker mid-test.
+    const stay = "setTimeout(() => process.exit(0), 60_000); process.on('SIGTERM', () => {}); setInterval(() => {}, 1000);";
     const leader = spawn(process.execPath, ['-e', `const c = require('node:child_process').spawn(process.execPath, ['-e', ${JSON.stringify(stay)}], { stdio: 'ignore' }); console.log(c.pid); ${stay}`], { detached: true, stdio: ['ignore', 'pipe', 'ignore'] });
+    if (leader.pid !== undefined) spawned.push(leader.pid);
     const child = Number(await new Promise<string>((resolve) => leader.stdout.once('data', (d: Buffer) => resolve(String(d)))));
+    spawned.push(child);
     expect(killGroup(leader.pid ?? 0)).toBe(true);
     await vi.waitFor(() => expect(leader.exitCode !== null || leader.signalCode !== null).toBe(true), { timeout: 5000 });
     await vi.waitFor(() => expect(alive(child)).toBe(false), { timeout: 5000 });
