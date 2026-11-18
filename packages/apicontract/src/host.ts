@@ -22,11 +22,22 @@ export const CONTRACT = 1;
 /** `generated` is rewritten on every run. `user` is written once and never touched again (R-PL4). */
 export type Owner = 'generated' | 'user';
 
+/** One symbol a generated file declares for an operation: what `apicontract.map.json` records (R-BL1). */
+export interface GeneratedSymbol {
+  /** The operation's id in the contract. */
+  readonly operation: string;
+  /** The name the file declares for it, e.g. `ListPetsResponse`. */
+  readonly symbol: string;
+}
+
 export interface GeneratedFile {
   /** Relative to the output folder, with `/` separators. */
   readonly path: string;
+  /** The body: the writer adds the generated header, so a generator never writes one. */
   readonly content: string;
   readonly owner: Owner;
+  /** The symbols this file declares per operation. Optional: a file without them is still mapped by its path. */
+  readonly symbols?: readonly GeneratedSymbol[];
 }
 
 export type Options = Readonly<Record<string, unknown>>;
@@ -126,6 +137,10 @@ const inside = (path: string): boolean =>
   // An empty path and a leading `/` both show up as an empty part.
   !path.includes('\\') && !path.includes(':') && !path.split('/').some((part) => part === '..' || part === '.' || part === '');
 
+/** No symbols, or a list of `{ operation, symbol }`, both non-empty. */
+const symbolsOk = (symbols: unknown): boolean =>
+  symbols === undefined || (Array.isArray(symbols) && symbols.every((entry) => isRecord(entry) && text(entry.operation) && text(entry.symbol)));
+
 /** Refuse a list of files a host must not write. `where` names who produced it. */
 export const validateFiles = (files: unknown, where: string): GeneratedFile[] => {
   if (!Array.isArray(files)) refuse(`${where} did not return a list of files`, 'return `{ path, content, owner }[]`');
@@ -139,6 +154,9 @@ export const validateFiles = (files: unknown, where: string): GeneratedFile[] =>
     }
     if (file.owner !== 'generated' && file.owner !== 'user') {
       refuse(`${where} returned "${file.path}" without an owner`, 'say `owner: "generated"` (rewritten every run) or `owner: "user"` (written once)');
+    }
+    if (!symbolsOk(file.symbols)) {
+      refuse(`${where} returned "${file.path}" with malformed symbols`, 'each symbol is `{ operation, symbol }`, both non-empty strings');
     }
     if (seen.has(file.path)) refuse(`${where} returned "${file.path}" twice`, 'return each path once');
     seen.add(file.path);
@@ -207,12 +225,12 @@ export interface Host {
   readonly read: (document: unknown) => Contract;
   /** The generator registered under `target`. */
   readonly generator: (target: string) => Generator;
-  /**
-   * Run a generator on a document and return the files it would write. Its findings are not
-   * returned here: a caller that reports them runs `generator(target).run(…)` and reads them with
-   * `resultOf`, as `apicontract gen` does.
-   */
+  /** The extractor registered under `name`. */
+  readonly extractor: (name: string) => Extractor;
+  /** Run a generator on a document and return the files it would write. `run` returns its findings too. */
   readonly generate: (target: string, document: unknown, options?: Options) => Promise<GeneratedFile[]>;
+  /** Run a generator on a document: the files it would write, and what the reader and the generator report. */
+  readonly run: (target: string, document: unknown, options?: Options) => Promise<{ files: GeneratedFile[]; findings: ContractFinding[] }>;
 }
 
 export const createHost = (): Host => {
@@ -226,7 +244,7 @@ export const createHost = (): Host => {
     }
     return undefined;
   };
-  const names = (key: 'adapters' | 'generators'): string => {
+  const names = (key: 'adapters' | 'generators' | 'extractors'): string => {
     const all = [...new Set(order.flatMap((plugin) => Object.keys(plugin[key] ?? {})))].toSorted();
     return all.length === 0 ? 'none' : all.join(', ');
   };
@@ -242,13 +260,25 @@ export const createHost = (): Host => {
     return adapter.read(document);
   };
 
-  const generator = (target: string): Generator => {
-    // eslint-disable-next-line conventions/consistent-existence-index-check -- Own names only: `gen toString` must not find an inherited function
-    const found = latest((plugin) => (plugin.generators !== undefined && Object.hasOwn(plugin.generators, target) ? plugin.generators[target] : undefined));
+  const named = (key: 'generators' | 'extractors', name: string, kind: string): Generator | Extractor => {
+    const found = latest((plugin): Generator | Extractor | undefined => {
+      const group: Readonly<Record<string, Generator | Extractor>> | undefined = plugin[key];
+      // eslint-disable-next-line conventions/consistent-existence-index-check -- Own names only: `gen toString` must not find an inherited function
+      return group !== undefined && Object.hasOwn(group, name) ? group[name] : undefined;
+    });
     if (found === undefined) {
-      return refuse(`no generator is named "${target}"`, `use one of: ${names('generators')}; or install the plugin that provides it and add it to \`plugins\``, 'E_NO_CONTRIBUTION');
+      return refuse(`no ${kind} is named "${name}"`, `use one of: ${names(key)}; or install the plugin that provides it and add it to \`plugins\``, 'E_NO_CONTRIBUTION');
     }
     return found;
+  };
+  const generator = (target: string): Generator => named('generators', target, 'generator') as Generator;
+  const extractor = (name: string): Extractor => named('extractors', name, 'extractor') as Extractor;
+
+  const run = async (target: string, document: unknown, options: Options = {}): Promise<{ files: GeneratedFile[]; findings: ContractFinding[] }> => {
+    const chosen = generator(target);
+    const contract = read(document, chosen.inputs);
+    const result = resultOf(await chosen.run(contract, options));
+    return { files: validateFiles(result.files, `generator "${target}"`), findings: [...(contract.findings ?? []), ...result.findings] };
   };
 
   return {
@@ -262,10 +292,9 @@ export const createHost = (): Host => {
     },
     read: (document) => read(document),
     generator,
-    generate: async (target, document, options = {}) => {
-      const chosen = generator(target);
-      return validateFiles(resultOf(await chosen.run(read(document, chosen.inputs), options)).files, `generator "${target}"`);
-    },
+    extractor,
+    generate: async (target, document, options) => (await run(target, document, options)).files,
+    run,
   };
 };
 
