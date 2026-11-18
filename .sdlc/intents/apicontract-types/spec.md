@@ -7,7 +7,10 @@ Intent: [`intent.md`](./intent.md). **Status:** approved, 2026-11-18.
 ## Requirements
 
 - **R1** `src/plugin-types.ts` exports `plugin` with `generators.types`, wrapping
-  `gen-ts-index.ts`; inputs `openapi`, `jsonschema`. The wrapper is the only new import edge.
+  `gen-ts-index.ts`; inputs `openapi`. The wrapper is the only new import edge. **R1a** adds
+  `jsonschema` to `inputs` together with R4, since the generator reads OpenAPI documents only until
+  R4 teaches it JSON Schema; declaring the input earlier would accept documents it cannot generate.
+  Landed: R1 (#1618). Open: R1a with R4.
 - **R2** Each of the 24 failing upstream cases gets a row in this design's case table (below, filled
   as they are worked): cause, fix, test.
 - **R3** `--fix-upstream-bugs` is one option object threaded through the context; each bug fix reads

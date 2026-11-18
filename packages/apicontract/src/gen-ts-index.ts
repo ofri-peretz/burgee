@@ -94,6 +94,8 @@ export const unresolvedRefs = (root: unknown): string[] => {
     if (typeof node !== 'object' || node === null) return;
     const { $ref } = node as { $ref?: unknown };
     if (typeof $ref === 'string' && $ref.startsWith('#') && !exists(root, $ref)) found.push(path);
+    // `Object.entries` on an array yields its indices as string keys ('0', '1'), which is what makes the
+    // pointer `…/parameters/1`; a `for…of` here would lose them.
     for (const [key, member] of Object.entries(node)) {
       if (!DATA_MEMBERS.has(key) && !key.startsWith('x-')) walk(member, childPath(path, key));
     }
