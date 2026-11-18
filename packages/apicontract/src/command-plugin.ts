@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 /**
  * `apicontract plugin new <name> [--kind generator|extractor|adapter] [--out <dir>]`
  * (apicontract-kit R3): a plugin file, its conformance test and a README, passing the suite as
@@ -27,7 +28,7 @@ export const command = defineCommand({
   ],
   run: async ({ args, options }) => {
     const files = scaffold(args.name, options.kind);
-    const written = await writeFiles(options.out ?? process.cwd(), files);
+    const written = await writeFiles(resolve(options.out ?? ''), files);
     return { changed: written.written.length > 0, ...written, next: `node --test plugin-${args.name}.test.ts` };
   },
 });

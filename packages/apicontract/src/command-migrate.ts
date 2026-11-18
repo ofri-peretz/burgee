@@ -7,7 +7,7 @@
  * script or import of the incumbent left to rewrite.
  */
 import { readdir, readFile, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
 import { defineCommand } from 'burgee';
 
@@ -70,7 +70,7 @@ export const command = defineCommand({
     { command: 'apicontract migrate orval --dry-run --json', description: 'the config, the edits and every finding, as data; nothing written' },
   ],
   run: async ({ args, options }) => {
-    const root = args.dir ?? process.cwd();
+    const root = resolve(args.dir ?? '');
     const source = SOURCES[args.from] as (typeof SOURCES)[string];
     const [config, files] = await Promise.all([firstConfig(root, source.configs), project(root)]);
     const result = source.migrate(config?.text, files);
