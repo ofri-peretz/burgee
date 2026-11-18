@@ -1,0 +1,157 @@
+import { describe, expect, it } from 'vitest';
+
+import { read } from './openapi.js';
+import { baseFile, commented, controllerFile, lines, literal, moduleFile, routePath, stubResponse } from './plugin-nest-code.js';
+import { type Controller, type Route, routesOf } from './plugin-nest-routes.js';
+
+const IMPORTS = { validators: './validators.js', types: './types.js' };
+
+const controller = (paths: unknown): Controller => routesOf(read({ openapi: '3.1.0', paths })).controllers[0] as Controller;
+
+const route = (responses: Route['responses']): Route => ({ id: 'a', method: 'get', path: '/a', source: '#', name: 'a', handler: 'handleA', params: [], responses });
+
+describe('text helpers', () => {
+  it('writes a value as a literal that cannot close a script or end a line', () => {
+    expect(literal('</script>\u2028\u2029')).toBe('"\\u003C/script\\u003E\\u2028\\u2029"');
+    expect(literal(undefined)).toBe('undefined');
+    expect(literal({ a: [1] })).toBe('{"a":[1]}');
+  });
+
+  it('keeps spec text from ending a comment', () => {
+    expect(commented('/a*/b')).toBe('/a*\\/b');
+  });
+
+  it('ends the lines with a newline', () => {
+    expect(lines('a', 'b')).toBe('a\nb\n');
+  });
+
+  it('writes a route as path-to-regexp 8 reads it', () => {
+    expect(routePath('/pets/{petId}/photos/{photo-id}')).toBe('/pets/:petId/photos/:photo_id');
+    expect(routePath('/a(b)[c]?+!*:d')).toBe('/a\\(b\\)\\[c\\]\\?\\+\\!\\*\\:d');
+    expect(routePath('/')).toBe('/');
+  });
+});
+
+describe('stubResponse', () => {
+  it('answers the first 2xx with its example, a range or default as its first code, and throws without a response', () => {
+    expect(stubResponse(route([{ status: '404' }, { status: '201', content: { media: 'application/json', payload: 'p', example: { a: '<' } } }]))).toBe(
+      'return { status: 201, body: {"a":"\\u003C"} };',
+    );
+    expect(stubResponse(route([{ status: '2XX' }]))).toBe('return { status: 200 };');
+    expect(stubResponse(route([{ status: '4XX' }]))).toBe('return { status: 400 };');
+    expect(stubResponse(route([{ status: 'default' }]))).toBe('return { status: 200 };');
+    expect(stubResponse(route([]))).toBe('throw new Error("not implemented");');
+  });
+});
+
+describe('baseFile', () => {
+  it('types headers, an optional body and ranged responses, and reads headers lower-cased', () => {
+    const text = baseFile(
+      controller({
+        '/items/{item-id}': {
+          patch: {
+            operationId: 'patchItem',
+            parameters: [
+              { name: 'item-id', in: 'path', schema: { type: 'string' }, example: 'x' },
+              { name: 'X-Trace', in: 'header', schema: { type: 'string' }, example: 't' },
+            ],
+            requestBody: { content: { 'application/json': { schema: { type: 'object' }, example: {} } } },
+            responses: { '4XX': { description: 'no', content: { 'application/problem+json': { schema: { type: 'object' } } } }, default: { description: 'any' } },
+          },
+        },
+      }),
+      IMPORTS,
+    );
+    expect(text).toContain("import { Body, Headers, Param, Patch, Res } from '@nestjs/common';\n");
+    expect(text).toContain("import { coerce, invalid, problem, type Reply, send } from './contract-runtime.js';\n");
+    expect(text).toContain(
+      [
+        'export interface PatchItemInput {',
+        '  readonly path: NonNullable<PatchItemOperation["parameters"]["path"]>;',
+        '  readonly header: NonNullable<PatchItemOperation["parameters"]["header"]>;',
+        '  readonly body?: NonNullable<PatchItemOperation["requestBody"]>["content"]["application/json"];',
+        '}',
+        '',
+        '/** What `patchItem` answers: one member per response the spec declares. */',
+        'export type PatchItemOutput =',
+        '  | { readonly status: number; readonly body: PatchItemOperation["responses"]["4XX"]["content"]["application/problem+json"]; readonly headers?: Readonly<Record<string, string>> }',
+        '  | { readonly status: number; readonly body?: undefined; readonly headers?: Readonly<Record<string, string>> };',
+      ].join('\n'),
+    );
+    expect(text).toContain('  @Patch("/items/:item_id")\n');
+    expect(text).toContain(
+      '  async handlePatchItem(@Param() path: Record<string, unknown>, @Headers() header: Record<string, unknown>, @Body() body: unknown, @Res({ passthrough: true }) reply: Reply): Promise<unknown> {\n',
+    );
+    expect(text).toContain('      path: { "item-id": coerce(path["item_id"], "string") },\n      header: { "X-Trace": coerce(header["x-trace"], "string") },\n      body,\n');
+    expect(text).toContain('      { pointer: "/header/X-Trace", value: input.header["X-Trace"], required: false, check: validators["patchItem"]["param:header:X-Trace"] },\n');
+    expect(text).toContain('      { pointer: "/body", value: input.body, required: false, check: validators["patchItem"]["body:application/json"] },\n');
+    expect(text).toContain('      "4XX": { media: "application/problem+json", check: validators["patchItem"]["response:4XX:application/problem+json"] },\n      "default": {},\n');
+  });
+
+  it('imports neither coerce nor the validators when nothing is read or checked, and answers never without responses', () => {
+    const text = baseFile(
+      controller({
+        '/a': { delete: { operationId: 'a', responses: { '204': { description: 'gone' } } } },
+        '/b': { head: { operationId: 'b', responses: {} } },
+      }),
+      IMPORTS,
+    );
+    expect(text.split('\n\n')[0]).toBe("import { Delete, Head, Res } from '@nestjs/common';");
+    expect(text).toContain("\n\nimport { invalid, problem, type Reply, send } from './contract-runtime.js';\nimport { type paths } from \"./types.js\";\n\ntype AOperation");
+    expect(text).toContain('export type BOutput =\n  never;\n');
+    expect(text).toContain('    const input = {\n    };\n    const errors = invalid([\n    ]);\n');
+  });
+
+  it('imports the validators for a body alone, and for a response alone', () => {
+    const body = baseFile(controller({ '/a': { post: { operationId: 'a', requestBody: { content: { 'application/json': { example: 1 } } }, responses: {} } } }), IMPORTS);
+    expect(body).toContain('import { operations as validators } from "./validators.js";\n');
+    const response = baseFile(controller({ '/a': { get: { operationId: 'a', responses: { '200': { description: 'a', content: { 'text/plain': { example: 'a' } } } } } } }), IMPORTS);
+    expect(response).toContain('import { operations as validators } from "./validators.js";\n');
+  });
+});
+
+describe('controllerFile and moduleFile', () => {
+  const pets = controller({
+    '/pets': {
+      get: { operationId: 'listPets', tags: ['pets'], responses: { '200': { description: 'a', content: { 'application/json': { example: [] } } } } },
+      delete: { operationId: 'clearPets', tags: ['pets'], responses: { '204': { description: 'gone' } } },
+    },
+  });
+
+  it('writes one stub per operation into the user’s class', () => {
+    expect(controllerFile(pets)).toBe(`/**
+ * The \`pets\` routes. apicontract wrote this file once and never rewrites it: change it freely.
+ * \`PetsControllerBase\` (pets.controller.base.ts, regenerated) declares one method per
+ * operation and validates every request and response; each method here answers the spec's example until you replace it.
+ */
+import { Controller } from '@nestjs/common';
+
+import { PetsControllerBase, type ClearPetsInput, type ClearPetsOutput, type ListPetsInput, type ListPetsOutput } from './pets.controller.base.js';
+
+@Controller()
+export class PetsController extends PetsControllerBase {
+  /** DELETE /pets. */
+  clearPets(_input: ClearPetsInput): ClearPetsOutput {
+    return { status: 204 };
+  }
+
+  /** GET /pets. */
+  listPets(_input: ListPetsInput): ListPetsOutput {
+    return { status: 200, body: [] };
+  }
+}
+`);
+  });
+
+  it('lists every controller in the module', () => {
+    expect(moduleFile([pets, { file: 'pet-store', name: 'PetStore', routes: [] }])).toBe(`import { Module } from '@nestjs/common';
+
+import { PetsController } from './pets.controller.js';
+import { PetStoreController } from './pet-store.controller.js';
+
+/** Every controller generated from the spec. Import it into your application's module. */
+@Module({ controllers: [PetsController, PetStoreController] })
+export class ApiModule {}
+`);
+  });
+});
