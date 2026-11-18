@@ -1,0 +1,39 @@
+import { routes } from './tools.js';
+
+export interface Input {
+  readonly path?: Readonly<Record<string, unknown>>;
+  readonly query?: Readonly<Record<string, unknown>>;
+  readonly header?: Readonly<Record<string, unknown>>;
+  readonly cookie?: Readonly<Record<string, unknown>>;
+  readonly body?: unknown;
+}
+
+export type Handler = (input: Input) => Promise<unknown>;
+
+const base = (): string => (process.env.API_BASE_URL ?? '').replace(/\/+$/u, '');
+const authorization = (): string | undefined => process.env.API_AUTHORIZATION;
+
+/** Call one route: path parameters into the path, the rest into the query, headers and a JSON body. */
+export const call = async (route: { readonly method: string; readonly path: string }, input: Input): Promise<unknown> => {
+  if (base() === '') throw new Error('API_BASE_URL is not set. fix: set it to the address of the API, without a trailing slash');
+  const path = route.path.replaceAll(/\{([^}]+)\}/gu, (_, name: string) => encodeURIComponent(String(input.path?.[name] ?? '')));
+  const url = new URL(`${base()}${path}`);
+  for (const [name, value] of Object.entries(input.query ?? {})) if (value !== undefined) url.searchParams.set(name, String(value));
+  const headers = new Headers();
+  for (const [name, value] of Object.entries(input.header ?? {})) if (value !== undefined) headers.set(name, String(value));
+  const cookies = Object.entries(input.cookie ?? {}).map(([name, value]) => `${name}=${encodeURIComponent(String(value))}`);
+  if (cookies.length > 0) headers.set('cookie', cookies.join('; '));
+  const token = authorization();
+  if (token !== undefined) headers.set('authorization', token);
+  if (input.body !== undefined) headers.set('content-type', 'application/json');
+  const response = await fetch(url, { method: route.method, headers, body: input.body === undefined ? undefined : JSON.stringify(input.body) });
+  const text = await response.text();
+  if (!response.ok) throw new Error(`${route.method} ${path} answered ${String(response.status)}: ${text}`);
+  if (text === '') return null;
+  return (response.headers.get('content-type') ?? '').includes('json') ? (JSON.parse(text) as unknown) : text;
+};
+
+/** Every tool, calling its route. `handlers.ts` spreads these and replaces the ones it needs to. */
+export const defaults: Readonly<Record<string, Handler>> = {
+  "a_b": async (input) => call(routes["a_b"], input),
+};

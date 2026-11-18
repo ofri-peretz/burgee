@@ -12,7 +12,7 @@ import { type GeneratedFile, type Generator, type GeneratorResult, type Plugin }
 import { clientFile, HANDLERS, serverFile, toolsFile } from './plugin-mcp-code.js';
 import { optionsOf, toolsOf } from './plugin-mcp-tools.js';
 
-const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
+const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
 
 const text = (value: unknown, fallback: string): string => (typeof value === 'string' && value !== '' ? value : fallback);
 
@@ -28,7 +28,7 @@ export const run: Generator['run'] = (contract, options): GeneratorResult => {
   const { name, version } = identity(contract.document);
   const files: GeneratedFile[] = [
     { path: 'tools.ts', owner: 'generated', content: toolsFile(tools) },
-    { path: 'client.ts', owner: 'generated', content: clientFile(tools) },
+    { path: 'client.ts', owner: 'generated', content: clientFile(tools.map((tool) => tool.name)) },
     { path: 'server.ts', owner: 'generated', content: serverFile(name, version, checked.transport) },
     { path: 'handlers.ts', owner: 'user', content: HANDLERS },
   ];
@@ -44,8 +44,8 @@ const document = {
       get: {
         operationId: 'getPet',
         summary: 'One pet',
-        parameters: [{ name: 'petId', in: 'path', required: true, schema: { type: 'string' } }],
-        responses: { '200': { description: 'The pet', content: { 'application/json': { schema: { type: 'object', properties: { id: { type: 'string' } } } } } } },
+        parameters: [{ name: 'petId', in: 'path', schema: { type: 'string' } }],
+        responses: { '200': { content: { 'application/json': { schema: { type: 'object', properties: { id: { type: 'string' } } } } } } },
       },
     },
   },
@@ -106,8 +106,6 @@ export const routes = {
 } as const;
 `;
 
-const SAMPLE_ROUTE = { operationId: 'getPet', method: 'GET', path: '/pets/{petId}', output: true, wrap: false };
-
 const mcp: Generator = {
   description: 'An MCP server with one tool per operation: schemas, read-only hints, and handlers that call the API',
   inputs: ['openapi', 'swagger2'],
@@ -120,7 +118,7 @@ const mcp: Generator = {
     files: [
       { path: 'tools.ts', owner: 'generated', content: SAMPLE_TOOLS },
       // The other three are templates around the tool names; their text is pinned by plugin-mcp.test.ts.
-      { path: 'client.ts', owner: 'generated', content: clientFile([{ name: 'get_pet', description: '', inputSchema: {}, annotations: { readOnlyHint: true }, route: SAMPLE_ROUTE }]) },
+      { path: 'client.ts', owner: 'generated', content: clientFile(['get_pet']) },
       { path: 'server.ts', owner: 'generated', content: serverFile('Pets', '1.0.0', 'stdio') },
       { path: 'handlers.ts', owner: 'user', content: HANDLERS },
     ],

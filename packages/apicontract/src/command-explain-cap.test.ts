@@ -41,6 +41,10 @@ describe('cap', () => {
     expect(cap({ a: { b: [1], c: 2 }, d: { e: [1] } }, 22).cut).toEqual(['/d/e', '/a']);
   });
 
+  it('walks past null', () => {
+    expect(cap({ a: null, b: [1] }, 17).cut).toEqual(['/b']);
+  });
+
   it('skips containers that are already empty', () => {
     expect(cap({ a: {}, b: [1] }, 15).cut).toEqual(['/b']);
   });

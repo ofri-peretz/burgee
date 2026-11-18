@@ -45,6 +45,7 @@ describe('fileSlug', () => {
     expect(fileSlug('get /pets/{id}')).toBe('get-pets-id');
     expect(fileSlug('../x')).toBe('x');
     expect(fileSlug('v1.pets-list')).toBe('v1.pets-list');
+    expect(fileSlug('a--')).toBe('a');
   });
 
   it('names an id with no usable character `operation`, and cuts a long one with its hash', () => {

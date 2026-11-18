@@ -10,6 +10,7 @@ import { toolsOf } from './plugin-mcp-tools.js';
 import { plugin } from './plugin-mcp.js';
 import { builtins } from './plugins.js';
 
+const golden = (name: string): string => readFileSync(new URL(`__fixtures__/agents/${name}`, import.meta.url), 'utf8');
 const pets = parse(readFileSync(new URL('__fixtures__/agents/pets.openapi.yaml', import.meta.url), 'utf8'));
 
 const host = () => {
@@ -71,12 +72,19 @@ describe('the mcp plugin', () => {
     expect(findings.map((finding) => finding.code)).toEqual(['mcp-cycle-cut']);
     const { tools } = toolsOf(host().read(pets), { transport: 'stdio' });
     expect(files[0]?.content).toBe(toolsFile(tools));
-    expect(files[1]?.content).toBe(clientFile(tools));
+    expect(files[1]?.content).toBe(clientFile(tools.map((tool) => tool.name)));
   });
 
   it('names the server after info, and falls back to api 0.0.0', async () => {
-    const [, , server] = await host().generate('mcp', { openapi: '3.1.0', paths: {} });
-    expect(server?.content).toContain('new Server({ name: "api", version: "0.0.0" }');
+    const runs = await Promise.all([undefined, { title: '', version: '' }, { title: 3 }].map(async (info) => host().generate('mcp', { openapi: '3.1.0', info, paths: {} })));
+    for (const [, , server] of runs) expect(server?.content).toContain('new Server({ name: "api", version: "0.0.0" }');
+  });
+
+  it('declares its options for --help', () => {
+    expect(plugin.generators?.mcp?.options).toEqual({
+      include: { type: 'string', multiple: true, description: 'only these operation ids, or `tag:<name>`; required past 40 operations' },
+      transport: { type: 'string', choices: ['stdio', 'http'], description: 'stdio (default) or Streamable HTTP' },
+    });
   });
 
   it('starts on stdio by default', async () => {
@@ -123,24 +131,11 @@ createServer((request, response) => {
   });
 
   it('gives every tool a default handler in client.ts, calling its route with fetch', () => {
-    const { tools } = toolsOf(host().read(pets), { transport: 'stdio' });
-    const text = clientFile(tools);
-    expect(text).toContain("const base = (): string => (process.env.API_BASE_URL ?? '').replace(/\\/+$/u, '');");
-    expect(text).toContain("if (token !== undefined) headers.set('authorization', token);");
-    expect(text).toContain("  const path = route.path.replaceAll(/\\{([^}]+)\\}/gu, (_, name: string) => encodeURIComponent(String(input.path?.[name] ?? '')));");
-    expect(text.endsWith(
-      [
-        'export const defaults: Readonly<Record<string, Handler>> = {',
-        '  "list_pets": async (input) => call(routes["list_pets"], input),',
-        '  "create_pet": async (input) => call(routes["create_pet"], input),',
-        '  "delete_pet": async (input) => call(routes["delete_pet"], input),',
-        '  "get_tree": async (input) => call(routes["get_tree"], input),',
-        '};\n',
-      ].join('\n'),
-    )).toBe(true);
+    expect(clientFile(['a_b'])).toBe(golden('client.golden.txt'));
+    expect(clientFile(['x', 'y']).endsWith('  "x": async (input) => call(routes["x"], input),\n  "y": async (input) => call(routes["y"], input),\n};\n')).toBe(true);
   });
 
   it("leaves the user's handlers.ts spreading the defaults", () => {
-    expect(HANDLERS.endsWith("import { defaults, type Handler } from './client.js';\n\nexport const handlers: Readonly<Record<string, Handler | undefined>> = { ...defaults };\n")).toBe(true);
+    expect(HANDLERS).toBe(golden('handlers.golden.txt'));
   });
 });

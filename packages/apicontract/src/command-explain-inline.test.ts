@@ -31,6 +31,10 @@ describe('explainInline', () => {
     });
   });
 
+  it('marks a cycle inside an array', () => {
+    expect(explainInline({ A: { allOf: [{ $ref: '#/A' }] } }, { $ref: '#/A' }).value).toEqual({ allOf: [{ $comment: 'cycle: #/A' }] });
+  });
+
   it('keeps the keywords written beside a cycle reference', () => {
     const value = explainInline({ A: { items: { $ref: '#/A', description: 'again' } } }, { $ref: '#/A' }).value;
     expect(value).toEqual({ items: { description: 'again', $comment: 'cycle: #/A' } });

@@ -53,9 +53,9 @@ const START_HTTP = [
 /** `server.ts`: the MCP server, answering `tools/list` from `tools.ts` and `tools/call` through `handlers.ts`. */
 export const serverFile = (name: string, version: string, transport: 'stdio' | 'http'): string =>
   lines(
-    ...(transport === 'http' ? NODE_HTTP : []),
+    ...(transport === 'stdio' ? [] : NODE_HTTP),
     "import { Server } from '@modelcontextprotocol/sdk/server/index.js';",
-    ...(transport === 'http' ? HTTP : STDIO),
+    ...(transport === 'stdio' ? STDIO : HTTP),
     "import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';",
     '',
     "import { handlers } from './handlers.js';",
@@ -83,7 +83,7 @@ export const serverFile = (name: string, version: string, transport: 'stdio' | '
     '  });',
     '  return server;',
     '};',
-    ...(transport === 'http' ? START_HTTP : START_STDIO),
+    ...(transport === 'stdio' ? START_STDIO : START_HTTP),
   );
 
 /**
@@ -91,7 +91,7 @@ export const serverFile = (name: string, version: string, transport: 'stdio' | '
  * one. It calls the API with `fetch`, at `API_BASE_URL`, sending `API_AUTHORIZATION` (when set) as
  * the `Authorization` header.
  */
-export const clientFile = (tools: readonly Tool[]): string =>
+export const clientFile = (names: readonly string[]): string =>
   lines(
     "import { routes } from './tools.js';",
     '',
@@ -130,7 +130,7 @@ export const clientFile = (tools: readonly Tool[]): string =>
     '',
     '/** Every tool, calling its route. `handlers.ts` spreads these and replaces the ones it needs to. */',
     'export const defaults: Readonly<Record<string, Handler>> = {',
-    ...tools.map((tool) => `  ${JSON.stringify(tool.name)}: async (input) => call(routes[${JSON.stringify(tool.name)}], input),`),
+    ...names.map((name) => `  ${JSON.stringify(name)}: async (input) => call(routes[${JSON.stringify(name)}], input),`),
     '};',
   );
 

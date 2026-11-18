@@ -43,9 +43,29 @@ describe('the markdown plugin', () => {
     expect(files[5]?.content.split('\n').slice(0, 7)).toEqual(['# Pets', '', "> A pet store, for the agents lane's tests.", '', '## Operations', '', '- [listPets](listPets.md): `GET /pets` — List pets']);
   });
 
-  it('caps each page with maxBytes, as explain does', async () => {
+  it('caps each page with maxBytes, as explain does, and ignores a maxBytes that is not a number', async () => {
     const [page] = await host().generate('markdown', pets, { maxBytes: 500 });
     expect(page?.content).toContain('Truncated to 500 bytes; emptied:');
+    const [whole] = await host().generate('markdown', pets, { maxBytes: '500' });
+    expect(whole?.content).not.toContain('Truncated');
+  });
+
+  it('declares its options for --help', () => {
+    expect(plugin.generators?.markdown?.options).toEqual({ maxBytes: { type: 'number', description: 'cap each page as `explain --max-bytes` does: deepest schemas first' } });
+  });
+
+  it('keeps colliding page names within 100 characters', async () => {
+    const long = 'x'.repeat(100);
+    const paths = { '/a': { get: { operationId: `${long}/`, responses: {} } }, '/b': { get: { operationId: `${long}?`, responses: {} } } };
+    const files = await host().generate('markdown', { openapi: '3.1.0', paths });
+    expect(files.slice(0, 2).map((file) => file.path.length)).toEqual([103, 103]);
+  });
+
+  it('ignores an empty or non-text title and description', async () => {
+    const runs = await Promise.all(
+      [{ title: '', description: '' }, { title: 3, description: 3 }].map(async (info) => host().generate('markdown', { openapi: '3.1.0', info, paths: { '/a': { get: { operationId: 'a', responses: {} } } } })),
+    );
+    for (const files of runs) expect(files[1]?.content).toBe('# API\n\n- [a](a.md) — `GET /a`\n');
   });
 
   it('titles a document without info "API", and links an operation with no route by its id alone', async () => {

@@ -60,6 +60,13 @@ group('describe', () => {
     expect(tagsOf(read, copy)).toEqual(['t']);
   });
 
+  it('drops prose that is not text, and survives a source pointer at null', () => {
+    const read = openapi.read({ openapi: '3.1.0', paths: { '/x': { get: { operationId: 'x', summary: 5, responses: {} } } } });
+    expect(describe(read, read.operations[0] as Contract['operations'][number]).summary).toBeUndefined();
+    const nil: Contract = { format: 'x', document: { a: null }, operations: [{ id: 'o', source: '#/a', payloads: [] }] };
+    expect(describe(nil, nil.operations[0] as Contract['operations'][number])).toEqual({ id: 'o', format: 'x', source: '#/a', payloads: [] });
+  });
+
   it('drops empty prose and a tags member that is not a list', () => {
     const document = { openapi: '3.1.0', paths: { '/x': { get: { operationId: 'x', summary: '', tags: 'no', responses: {} } } } };
     const read = openapi.read(document);
@@ -89,6 +96,22 @@ group('capped', () => {
     expect(cut.some((pointer) => cut.some((other) => other.startsWith(`${pointer}/`)))).toBe(false);
   });
 
+  it('fits every budget from the smallest that works up to the whole, and refuses every one below', () => {
+    const whole = bytesOf(pet);
+    let fits = 0;
+    for (let max = 300; max < whole; max++) {
+      try {
+        const result = capped(pet, max);
+        expect(bytesOf(result)).toBeLessThanOrEqual(max);
+        fits++;
+      } catch (error) {
+        expect(error).toBeInstanceOf(BudgetError);
+        expect(fits).toBe(0);
+      }
+    }
+    expect(fits).toBeGreaterThan(0);
+  });
+
   it('refuses a budget no cut can meet, naming the smallest that works', () => {
     const smallest = (() => {
       try {
@@ -100,6 +123,7 @@ group('capped', () => {
     })();
     expect(smallest).toBeInstanceOf(BudgetError);
     expect(smallest?.code).toBe('USAGE');
+    expect(smallest?.name).toBe('BudgetError');
     const needed = Number(/--max-bytes (\d+)/u.exec(smallest?.message ?? '')?.[1]);
     expect(smallest?.message).toContain('"createPet" does not fit in 10 bytes');
     expect(bytesOf(capped(pet, needed))).toBeLessThanOrEqual(needed);

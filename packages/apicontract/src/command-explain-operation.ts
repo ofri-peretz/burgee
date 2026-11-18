@@ -34,7 +34,7 @@ export interface Explanation {
   readonly truncated?: { readonly maxBytes: number; readonly cut: readonly string[] };
 }
 
-const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
+const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
 
 const untoken = (token: string): string => token.replaceAll('~1', '/').replaceAll('~0', '~');
 
@@ -128,10 +128,11 @@ export const capped = (explanation: Explanation, max: number | undefined): Expla
   if (max === undefined || bytesOf(explanation) <= max) return explanation;
   let budget = max;
   for (;;) {
-    const { value, cut } = cap(explanation, Math.max(budget, 0), SCHEMA_DEPTH);
+    const { value, cut } = cap(explanation, budget, SCHEMA_DEPTH);
     const result = { ...(value as Explanation), truncated: { maxBytes: max, cut } };
     const over = bytesOf(result) - max;
     if (over <= 0) return result;
+    // Stryker disable next-line EqualityOperator: equivalent, at 0 everything is cut and one more pass below 0 cuts nothing new
     if (budget <= 0) throw new BudgetError(explanation.id, max, smallest(result));
     budget -= over;
   }

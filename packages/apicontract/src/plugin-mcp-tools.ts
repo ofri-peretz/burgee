@@ -48,15 +48,15 @@ export interface Tool {
 export const snake = (id: string): string =>
   id
     .replaceAll(/([a-z\d])([A-Z])/gu, '$1_$2')
-    .replaceAll(/([A-Z]+)([A-Z][a-z])/gu, '$1_$2')
+    .replaceAll(/([A-Z])([A-Z][a-z])/gu, '$1_$2')
     .replaceAll(/[^A-Za-z\d]+/gu, '_')
-    .replaceAll(/^_+|_+$/gu, '')
+    .replaceAll(/^_|_$/gu, '')
     .toLowerCase() || 'operation';
 
 /** A tool name for each id: snake_case, at most 64 characters, cut or colliding names carrying a stable hash. */
 export const toolNames = (ids: readonly string[]): Map<string, string> => unique(ids, (id) => fitted(snake(id), id, MAX_NAME), MAX_NAME);
 
-const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
+const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
 
 const object = (properties: Record<string, unknown>, required: readonly string[]): Record<string, unknown> => ({
   type: 'object',
@@ -69,11 +69,11 @@ const inputOf = (explanation: Explanation): Record<string, unknown> => {
   const properties: Record<string, unknown> = {};
   const required: string[] = [];
   for (const location of LOCATIONS) {
-    const params = explanation.payloads.filter((payload) => payload.name.startsWith(`param:${location}:`));
+    const prefix = `param:${location}:`;
+    const params = explanation.payloads.filter((payload) => payload.name.startsWith(prefix)).map((payload) => ({ ...payload, name: payload.name.slice(prefix.length) }));
     if (params.length === 0) continue;
-    const names = params.map((payload) => payload.name.slice(`param:${location}:`.length));
-    const needed = names.filter((_, at) => params[at]?.required === true);
-    properties[location] = object(Object.fromEntries(names.map((name, at) => [name, params[at]?.schema])), needed);
+    const needed = params.filter((param) => param.required).map((param) => param.name);
+    properties[location] = object(Object.fromEntries(params.map((param) => [param.name, param.schema])), needed);
     if (needed.length > 0) required.push(location);
   }
   const bodies = explanation.payloads.filter((payload) => payload.name.startsWith('body:') && !payload.name.endsWith(':item'));
@@ -87,9 +87,8 @@ const inputOf = (explanation: Explanation): Record<string, unknown> => {
 
 /** The first 2xx JSON response's schema, as MCP takes it: an object, or wrapped under `result`. */
 const outputOf = (explanation: Explanation): { schema?: Record<string, unknown>; wrap: boolean } => {
-  const success = explanation.payloads
-    .filter((payload) => /^response:2\d\d:[^:]*json[^:]*$/u.test(payload.name))
-    .toSorted((a, b) => a.name.localeCompare(b.name))[0];
+  // The reader lists responses in the document's key order, which puts integer keys ascending: the first is the lowest.
+  const success = explanation.payloads.find((payload) => /response:2\d\d:[^:]*json[^:]*$/u.test(payload.name));
   if (success === undefined) return { wrap: false };
   if (isObject(success.schema) && success.schema.type === 'object') return { schema: success.schema, wrap: false };
   return { schema: object({ result: success.schema }, ['result']), wrap: true };

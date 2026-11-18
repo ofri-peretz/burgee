@@ -18,6 +18,8 @@ describe('snake', () => {
     ['get /pets/{id}', 'get_pets_id'],
     ['__x__', 'x'],
     ['already_snake', 'already_snake'],
+    ['XMLHttpRequest', 'xml_http_request'],
+    ['-a-', 'a'],
     ['{}', 'operation'],
   ])('%s → %s', (id, name) => {
     expect(snake(id)).toBe(name);
@@ -48,7 +50,7 @@ describe('optionsOf', () => {
 
   it('refuses a transport or an include it cannot use, with a fix', () => {
     expect(() => optionsOf({ transport: 'sse' })).toThrow('mcp: transport is "sse". fix: set `transport` to "stdio" or "http"');
-    for (const include of ['a', [''], [1]]) expect(() => optionsOf({ include })).toThrow('fix: set `include` to ids or `tag:<name>` entries');
+    for (const include of ['a', [''], [1], ['a', 1]]) expect(() => optionsOf({ include })).toThrow('fix: set `include` to ids or `tag:<name>` entries');
   });
 });
 
@@ -102,16 +104,51 @@ describe('toolsOf', () => {
 
   it('reports a recursive schema as a finding', () => {
     expect(tools.findings).toEqual([
-      expect.objectContaining({ code: 'mcp-cycle-cut', pointer: '#/paths/~1tree/get', message: expect.stringContaining('#/components/schemas/Node') as unknown }),
+      {
+        code: 'mcp-cycle-cut',
+        pointer: '#/paths/~1tree/get',
+        message: '"getTree" has a recursive schema; the tool\'s schema accepts anything where it repeats (#/components/schemas/Node)',
+        fix: 'accept the looser schema, or validate the recursion in the handler',
+      },
     ]);
+  });
+
+  it('leaves title and outputSchema out when there are none, and joins summary and description', () => {
+    expect('title' in (tool('delete_pet') ?? {})).toBe(false);
+    expect('outputSchema' in (tool('delete_pet') ?? {})).toBe(false);
+    const both = openapi.read({ openapi: '3.1.0', paths: { '/x': { get: { operationId: 'x', summary: 'S', description: 'D', responses: {} } } } });
+    expect(toolsOf(both, stdio).tools[0]).toMatchObject({ title: 'S', description: 'S\n\nD' });
+  });
+
+  it('groups header and cookie parameters too, and marks HEAD and OPTIONS read-only', () => {
+    const contract = openapi.read({
+      openapi: '3.1.0',
+      paths: {
+        '/x': {
+          head: { operationId: 'h', parameters: [{ name: 'X-Id', in: 'header', required: true, schema: { type: 'string' } }], responses: {} },
+          options: { operationId: 'o', parameters: [{ name: 'sid', in: 'cookie', schema: { type: 'string' } }], responses: {} },
+        },
+      },
+    });
+    const head = toolsOf(contract, stdio).tools.find((candidate) => candidate.name === 'h');
+    const options = toolsOf(contract, stdio).tools.find((candidate) => candidate.name === 'o');
+    expect(head?.inputSchema).toEqual({
+      type: 'object',
+      properties: { header: { type: 'object', properties: { 'X-Id': { type: 'string' } }, required: ['X-Id'] } },
+      required: ['header'],
+      additionalProperties: false,
+    });
+    expect(options?.inputSchema).toEqual({ type: 'object', properties: { cookie: { type: 'object', properties: { sid: { type: 'string' } } } }, additionalProperties: false });
+    expect([head?.annotations.readOnlyHint, options?.annotations.readOnlyHint]).toEqual([true, true]);
   });
 
   it('includes operations by id and by tag, and reports an entry that matches nothing', () => {
     const chosen = toolsOf(pets, { ...stdio, include: ['tag:admin', 'getTree', 'tag:none', 'nope'] });
     expect(chosen.tools.map((candidate) => candidate.name)).toEqual(['create_pet', 'get_tree']);
-    expect(chosen.findings.filter((found) => found.code === 'mcp-include-unmatched').map((found) => found.message)).toEqual([
-      '`include` names "tag:none", which matches no operation',
-      '`include` names "nope", which matches no operation',
+    const fix = 'use an operation id from `apicontract explain --list`, or `tag:<name>` with a tag the spec declares';
+    expect(chosen.findings.filter((found) => found.code === 'mcp-include-unmatched')).toEqual([
+      { code: 'mcp-include-unmatched', pointer: '#', message: '`include` names "tag:none", which matches no operation', fix },
+      { code: 'mcp-include-unmatched', pointer: '#', message: '`include` names "nope", which matches no operation', fix },
     ]);
   });
 
@@ -123,6 +160,8 @@ describe('toolsOf', () => {
 
   it('takes the lowest 2xx JSON response, and none when only an error or a non-JSON response has a body', () => {
     expect(responses({ '202': json('string'), '200': json('object') })).toEqual({ type: 'object' });
+    expect(responses({ '200': { description: 'd', content: { 'application/json;charset=utf-8': { schema: { type: 'object' } } } } })).toEqual({ type: 'object' });
+    expect(responses({ '200': { description: 'd', content: { 'application/jsonl': { itemSchema: { type: 'object' } } } } })).toBeUndefined();
     expect(responses({ '400': json('object'), '200': { description: 'd', content: { 'text/csv': { schema: { type: 'string' } } } } })).toBeUndefined();
   });
 
@@ -130,7 +169,9 @@ describe('toolsOf', () => {
     const contract = openapi.read({ openapi: '3.1.0', webhooks: { born: { post: { operationId: 'born', responses: {} } } } });
     const result = toolsOf(contract, stdio);
     expect(result.tools).toEqual([]);
-    expect(result.findings).toEqual([expect.objectContaining({ code: 'mcp-not-http', pointer: '#/webhooks/born/post' })]);
+    expect(result.findings).toEqual([
+      { code: 'mcp-not-http', pointer: '#/webhooks/born/post', message: '"born" has no HTTP route, so it is not a tool', fix: 'leave it out of `include`; a webhook is called by the API, not by an agent' },
+    ]);
   });
 
   it(`generates no tool past ${String(MAX_TOOLS)} operations without include, and says why and how`, () => {
@@ -146,5 +187,7 @@ describe('toolsOf', () => {
       },
     ]);
     expect(toolsOf(many(MAX_TOOLS + 1), { ...stdio, include: ['op0'] }).tools).toHaveLength(1);
+    const all = many(MAX_TOOLS + 1);
+    expect(toolsOf(all, { ...stdio, include: all.operations.map((operation) => operation.id) }).tools).toHaveLength(MAX_TOOLS + 1);
   });
 });

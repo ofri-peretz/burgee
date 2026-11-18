@@ -12,7 +12,7 @@ import { toMarkdown } from './command-explain-text.js';
 import { type Contract } from './core/model.js';
 import { type GeneratedFile, type Generator, type Options, type Plugin } from './host.js';
 
-const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
+const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
 
 /** The longest page stem `fileSlug` makes. */
 const MAX_FILE = 100;
@@ -70,16 +70,16 @@ export const run = (contract: Contract, options: Options): GeneratedFile[] => {
 /** The sample: two operations, one with a reference and a summary, one bare. */
 const document = {
   openapi: '3.1.0',
-  info: { title: 'Pets', version: '1' },
+  info: { title: 'Pets' },
   paths: {
     '/pets': {
       get: {
         operationId: 'listPets',
         summary: 'List pets',
-        responses: { '200': { description: 'Pets', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/Pet' } } } } } },
+        responses: { '200': { content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/Pet' } } } } } },
       },
     },
-    '/health': { get: { operationId: 'index', responses: { '204': { description: 'Up' } } } },
+    '/health': { get: { operationId: 'index', responses: { '204': {} } } },
   },
   components: { schemas: { Pet: { type: 'object', properties: { id: { type: 'string' } } } } },
 };

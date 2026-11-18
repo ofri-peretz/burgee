@@ -37,6 +37,7 @@ interface Slot {
 /** Every container at `slot` and under it, in document order. */
 const slots = (slot: Slot): Slot[] => {
   const value = (slot.holder as Record<string, unknown>)[slot.key];
+  // Stryker disable next-line ArrayDeclaration: equivalent, a non-slot has no `depth` and the `keep` filter drops it
   if (!isContainer(value)) return [];
   const children = Object.keys(value).map((key) => slots({ holder: value, key, pointer: `${slot.pointer}/${token(key)}`, depth: slot.depth + 1 }));
   return [slot, ...children.flat()];
@@ -66,7 +67,7 @@ export const cap = (value: unknown, max: number, keep = 0): Capped => {
     const emptied = Array.isArray(node) ? [] : {};
     size -= bytesOf(node) - bytesOf(emptied);
     // Defined, not assigned: a JSON key may be `__proto__`, and an assignment would set the prototype.
-    Object.defineProperty(slot.holder, slot.key, { value: emptied, writable: true, enumerable: true, configurable: true });
+    Object.defineProperty(slot.holder, slot.key, { value: emptied, enumerable: true });
     // A cut inside this one is now part of it: the record names the outermost cut only.
     for (let at = cut.length - 1; at >= 0; at--) if ((cut[at] as string).startsWith(`${slot.pointer}/`)) cut.splice(at, 1);
     cut.push(slot.pointer);
