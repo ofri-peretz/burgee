@@ -1,6 +1,6 @@
 # Intent — the repository builds on TypeScript 6.0, and its packages are graded under 5.9, 6.0 and 7.0
 
-**Status:** approved · **Opened:** `2026-11-12` · **Owner:** `@ofri-peretz`
+**Status:** shipped · **Opened:** `2026-11-12` · **Owner:** `@ofri-peretz` · **Shipped:** 2026-11-12 in [#1533](https://github.com/ofri-peretz/burgee/pull/1533) ([`e823827b0d`](https://github.com/ofri-peretz/burgee/commit/e823827b0d)), verified against `main` at [`a9c489a6ff`](https://github.com/ofri-peretz/burgee/commit/a9c489a6ff) on 2026-11-18 — all 4 criteria held, see [§ Shipped](#shipped)
 
 Opened on the owner's instruction of 2026-11-12: "We need to move to higher TS. we can support
 multi TS versions." The product half of that is in the `apicontract` intents. This is the
@@ -164,3 +164,26 @@ None. Two were raised and closed on 2026-11-12:
 - ~~Whether 7.0 runs the repository's `typecheck` while 6.0 keeps the build.~~ Decided: no, until
   7.0 can also build
   ([D-20261112-typescript-7-does-not-typecheck-yet](../../decisions/D-20261112-typescript-7-does-not-typecheck-yet.md)).
+
+## Shipped
+
+Built in [#1533](https://github.com/ofri-peretz/burgee/pull/1533), merged 2026-11-12. Re-read on
+`main` at `a9c489a6ff` on 2026-11-18:
+
+1. `node_modules/.bin/tsc --version` prints `Version 6.0.3`. `ci:local` and `lint` are cited from
+   `main`'s CI on the same commit rather than re-run: `Quality (Full) · push` run 44382920473
+   (Build, Unit Tests, Typecheck, Coverage, Gate) and `Quality` run 44382919943 (Lint, Fast checks,
+   Gate), every job `success`.
+2. `npx vitest run --config vitest.root.config.ts scripts/typescript-matrix.test.ts`: 18 / 18 pass
+   in 5.1 s. That is the 14 compiler-and-consumer cells, the three alias-version cases and the
+   specifier case.
+3. With the `TS1471` entry deleted from `KNOWN`, exactly the three `node16 (ESM consumer)` cells
+   fail (3 failed, 15 passed), each printing
+   `packages/closeout/dist/signal-exit.d.cts(6,23): error TS1471`. Restored with `git checkout`.
+4. `KNOWN` holds two entries (`TS2307` on oxmutate's `vite.d.ts`, `TS1471` on closeout's
+   `signal-exit.d.cts`), the count it landed with.
+
+Nothing was owed to npm: #1533 touched no file under `packages/`, and 6.0.3 emits the same bytes
+as 5.9.3, so no changeset and no release. The `TS1471` excuse closes with gap
+[`A-20261112-closeout-signal-exit-dcts-node16`](../../gaps/A-20261112-closeout-signal-exit-dcts-node16.md),
+which stays open and is not part of this intent.
