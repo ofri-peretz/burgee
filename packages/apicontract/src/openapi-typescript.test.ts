@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { Readable } from 'node:stream';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { generate } from './gen-ts-index.js';
 import openapiTS, { astToString, COMMENT_HEADER, transformSchemaObject } from './openapi-typescript.js';
@@ -72,6 +72,29 @@ describe('the openapi-typescript drop-in', () => {
   it.each([undefined, null, ''])('refuses %j as an empty schema, with a fix', async (source) => {
     const failure = (await openapiTS(source as unknown as string).catch((cause: unknown) => cause)) as Error;
     expect(failure.message).toBe('Empty schema.\nfix: pass a document, its YAML or JSON text, or a `file:` URL');
+  });
+
+  // Upstream's own case (`invalid.test.ts`): every reference is printed, and the last one is thrown.
+  it('prints each reference it cannot resolve, then refuses the document', async () => {
+    const printed = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      const pet = { type: 'object', properties: { category: { $ref: '#/components/schemas/Gone' }, type: { $ref: '#/components/schemas/Also' } } };
+      const failure = (await openapiTS({ openapi: '3.1', components: { schemas: { Pet: pet } } }).catch((cause: unknown) => cause)) as Error;
+      expect(failure.message).toMatch(/^Can't resolve \$ref at #\/components\/schemas\/Pet\/properties\/type /u);
+      expect(printed.mock.calls).toEqual([
+        ["✘ Can't resolve $ref at #/components/schemas/Pet/properties/category"],
+        ["✘ Can't resolve $ref at #/components/schemas/Pet/properties/type"],
+      ]);
+      printed.mockClear();
+      await openapiTS(document);
+      expect(printed).not.toHaveBeenCalled();
+    } finally {
+      printed.mockRestore();
+    }
+  });
+
+  it('writes `inject` above the types, as upstream does', async () => {
+    expect(await openapiTS(document, { inject: 'type Foo = string;' })).toBe(`type Foo = string;\n${want}`);
   });
 
   it("exports the transforms upstream's entry exports", () => {
