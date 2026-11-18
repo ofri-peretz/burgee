@@ -1,14 +1,15 @@
-import { mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { defineProgram, ExitCode } from 'burgee';
 import { runBurgee } from 'burgee/testing';
 import { beforeAll, describe, expect, it } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/run/scratch-dir.js';
 import { program } from './cli.js';
 import { command, explain } from './command-explain.js';
 
+const scratch = scratchDirs();
 const FIXTURE = new URL('__fixtures__/agents/pets.openapi.yaml', import.meta.url).pathname;
 const failure = async (promise: Promise<unknown>): Promise<Error & { code?: string }> => promise.then(() => new Error('resolved'), (error: unknown) => error as Error);
 
@@ -53,7 +54,7 @@ describe('explain', () => {
   });
 
   it('shows ten ids, and an ellipsis only when there are more', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'explain-'));
+    const root = scratch('apicontract-explain-');
     writeFileSync(join(root, 'many.json'), JSON.stringify(spec(11)));
     writeFileSync(join(root, 'ten.json'), JSON.stringify(spec(10)));
     expect((await failure(explain({ cwd: root, input: 'many.json', operation: 'nope' }))).message).toContain('op8, op9, … (`--list`');
@@ -69,7 +70,7 @@ describe('explain', () => {
   });
 
   it("reads the config's input with its overlays when --input is absent, and refuses when there is neither", async () => {
-    const root = mkdtempSync(join(tmpdir(), 'explain-'));
+    const root = scratch('apicontract-explain-');
     expect(await failure(explain({ cwd: root, list: true }))).toMatchObject({ code: 'CONFIG' });
     expect((await failure(explain({ cwd: root, list: true }))).message).toBe(
       `${join(root, 'apicontract.config.json')} cannot be used:\n  - no spec was named. fix: pass --input <file>, or add \`"input"\` to apicontract.config.json`,
