@@ -8,9 +8,9 @@
  *   and are named `reply:<message>`. With no `messages` list, an operation carries every message of
  *   its channel, as the specification says.
  * - **2.x**: one operation per `channels.<name>.publish` and `.subscribe`, named by its
- *   `operationId` or `<verb> <channel>`. The directions are the verbs as declared. AsyncAPI 2.x
- *   names them from the client's side (`publish` is what the application *receives*), so the
- *   reading carries one finding per document that says so.
+ *   `operationId` or `<verb> <channel>`. AsyncAPI 2.x
+ *   names them from the client's side (`publish` is what the application *receives*); they are read
+ *   from the application's side, like 3.0, and one finding per document says so.
  *
  * Each message is a payload (`message:<name>`), its headers another (`message:<name>:headers`), and
  * each channel parameter a third (`param:<name>`). Schemas are handed over as written, `$ref`s intact.
@@ -167,8 +167,8 @@ const readV2 = (root: Dict, reader: Reader, report: Report): Operation[] => {
   report(
     'asyncapi2-directions',
     '#/asyncapi',
-    "AsyncAPI 2.x names operations from the client's side: `publish` is what this application receives and `subscribe` what it sends. The directions are read as declared",
-    "read `publish` as received and `subscribe` as sent, or move to AsyncAPI 3.0, whose `action: send | receive` is the application's side",
+    "AsyncAPI 2.x names operations from the client's side: `publish` is what this application receives and `subscribe` what it sends. They are read from the application's side, as 3.0's `send` and `receive` are, so a 2.x document and its 3.0 migration read the same",
+    'nothing to do; the operation ids keep their 2.x verbs, and each payload carries the direction it travels from this application',
   );
   const operations: Operation[] = [];
   for (const channel of membersOf(root.channels, '#/channels')) {
@@ -178,13 +178,15 @@ const readV2 = (root: Dict, reader: Reader, report: Report): Operation[] => {
       const declared = item.node[verb];
       if (!isDict(declared)) continue;
       const source = `${item.where}/${verb}`;
+      // The client's `publish` is what the application receives (D-20261118-asyncapi-direction).
+      const owned = opposite(verb);
       reader.notApplied(declared, source);
       const parameters = membersOf(item.node.parameters, `${item.where}/parameters`).flatMap((entry): Payload[] => {
         const parameter = reader.follow(entry.value, entry.at);
-        return parameter === undefined ? [] : [{ name: `param:${entry.key}`, direction: verb, schema: anyIfMissing(parameter.node.schema), required: true }];
+        return parameter === undefined ? [] : [{ name: `param:${entry.key}`, direction: owned, schema: anyIfMissing(parameter.node.schema), required: true }];
       });
       const message = { value: declared.message, at: `${source}/message`, key: undefined, index: 0 };
-      const payloads = declared.message === undefined ? [] : reader.messagePayloads(message, verb, 'message');
+      const payloads = declared.message === undefined ? [] : reader.messagePayloads(message, owned, 'message');
       const id = typeof declared.operationId === 'string' ? declared.operationId : `${verb} ${channel.key}`;
       operations.push({ id, source, payloads: [...parameters, ...payloads] });
     }

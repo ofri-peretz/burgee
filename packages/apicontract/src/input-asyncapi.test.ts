@@ -247,7 +247,7 @@ describe('AsyncAPI 3', () => {
 });
 
 describe('AsyncAPI 2', () => {
-  it('reads each publish and subscribe as declared, named by operationId or verb and channel, and says the verbs are inverted', () => {
+  it('reads each 2.x publish as received and subscribe as sent, named by operationId or verb and channel, and says so', () => {
     const document = {
       asyncapi: '2.6.0',
       channels: {
@@ -274,17 +274,17 @@ describe('AsyncAPI 2', () => {
       ['subscribe shared', '#/components/channels/shared/subscribe'],
     ]);
     expect(payloads(document)).toEqual([
-      ['publish param:id', 'publish param:zone', 'publish message:Lumens'],
-      ['subscribe param:id', 'subscribe param:zone', 'subscribe message:Lumens', 'subscribe message:byId', 'subscribe message:byName', 'subscribe message:3'],
-      ['subscribe message:0'],
+      ['subscribe param:id', 'subscribe param:zone', 'subscribe message:Lumens'],
+      ['publish param:id', 'publish param:zone', 'publish message:Lumens', 'publish message:byId', 'publish message:byName', 'publish message:3'],
+      ['publish message:0'],
     ]);
     expect(contract.operations[0]?.payloads.map(({ schema }) => schema)).toEqual([{ type: 'integer' }, true, { type: 'number' }]);
     expect(contract.findings?.[0]).toEqual({
       code: 'asyncapi2-directions',
       pointer: '#/asyncapi',
       message:
-        "AsyncAPI 2.x names operations from the client's side: `publish` is what this application receives and `subscribe` what it sends. The directions are read as declared",
-      fix: "read `publish` as received and `subscribe` as sent, or move to AsyncAPI 3.0, whose `action: send | receive` is the application's side",
+        "AsyncAPI 2.x names operations from the client's side: `publish` is what this application receives and `subscribe` what it sends. They are read from the application's side, as 3.0's `send` and `receive` are, so a 2.x document and its 3.0 migration read the same",
+      fix: 'nothing to do; the operation ids keep their 2.x verbs, and each payload carries the direction it travels from this application',
     });
     expect(codes(document)).toEqual([
       INVERSION,
@@ -297,8 +297,8 @@ describe('AsyncAPI 2', () => {
   it('reads an operation without a message as no payloads, and a 2.x schemaFormat it cannot read as none', () => {
     expect(payloads({ asyncapi: '2.6.0', channels: { c: { publish: {} } } })).toEqual([[]]);
     expect(read({ asyncapi: '2.6.0', channels: { c: { parameters: { p: {} }, publish: { message: { payload: {} } } } } }).operations[0]?.payloads).toEqual([
-      { name: 'param:p', direction: 'publish', schema: true, required: true },
-      { name: 'message:0', direction: 'publish', schema: {}, required: true },
+      { name: 'param:p', direction: 'subscribe', schema: true, required: true },
+      { name: 'message:0', direction: 'subscribe', schema: {}, required: true },
     ]);
     const avro = { asyncapi: '2.6.0', channels: { c: { publish: { message: { schemaFormat: 'application/vnd.apache.avro;version=1.9.0', payload: {} } } } } };
     expect(payloads(avro)).toEqual([[]]);
@@ -314,6 +314,17 @@ describe('every example in asyncapi/spec at v2.6.0 and v3.0.0', () => {
       expect(detect(document)).toBe(true);
       expect(() => read(document)).not.toThrow();
     }
+  });
+
+  it('reads a 2.x operation and its 3.0 migration in the same direction', () => {
+    const v2 = read({ asyncapi: '2.6.0', channels: { lights: { subscribe: { message: { payload: { type: 'number' } } } } } });
+    const v3 = read({
+      asyncapi: '3.0.0',
+      channels: { lights: { messages: { m: { payload: { type: 'number' } } } } },
+      operations: { sendLights: { action: 'send', channel: { $ref: '#/channels/lights' } } },
+    });
+    expect(v2.operations[0]?.payloads.map(({ direction }) => direction)).toEqual(['publish']);
+    expect(v3.operations[0]?.payloads.map(({ direction }) => direction)).toEqual(['publish']);
   });
 
   it('maps 3.0 send to publish and receive to subscribe, and every reply the other way', () => {

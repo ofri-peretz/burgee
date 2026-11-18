@@ -16,8 +16,10 @@ Intent: [`intent.md`](./intent.md). **Status:** approved, 2026-11-18.
 - **R4** Findings: an adapter returns `contract.findings` (`ContractFinding[]` in `core/model.ts`,
   added by step 6.0, optional, so the existing reader is unchanged).
 - **R5** `asyncapi` 3.0: one operation per `operations.<id>`; payload direction is `publish` for
-  `action: send`, `subscribe` for `action: receive`. 2.6: `publish`/`subscribe` as declared, with
-  the 2.x inversion documented in a finding once per document.
+  `action: send`, `subscribe` for `action: receive`. 2.6: read from the application's side as well,
+  so 2.x `publish` (what the application receives) is `subscribe` and 2.x `subscribe` is `publish`,
+  with one finding per document saying so
+  ([`D-20261118-asyncapi-direction`](../../decisions/D-20261118-asyncapi-direction.md)).
 - **R6** `mcp`: operation id = tool name; `inputSchema` → `tool-call`, `outputSchema` (if present) →
   `tool-result`; prompts' `arguments` become a `tool-call` object schema with a finding that it was
   synthesised.
