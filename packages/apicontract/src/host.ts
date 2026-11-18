@@ -88,7 +88,6 @@ export interface Plugin {
   readonly extractors?: Readonly<Record<string, Extractor>>;
 }
 
-
 export type PluginErrorCode = 'E_PLUGIN_SCHEMA' | 'E_PLUGIN_CONTRACT' | 'E_NO_STATIC_PROJECTION' | 'E_NO_CONTRIBUTION';
 
 /** A refusal says what is wrong and what to do about it: the family's one vocabulary. */
@@ -208,7 +207,11 @@ export interface Host {
   readonly read: (document: unknown) => Contract;
   /** The generator registered under `target`. */
   readonly generator: (target: string) => Generator;
-  /** Run a generator on a document and return the files it would write. */
+  /**
+   * Run a generator on a document and return the files it would write. Its findings are not
+   * returned here: a caller that reports them runs `generator(target).run(…)` and reads them with
+   * `resultOf`, as `apicontract gen` does.
+   */
   readonly generate: (target: string, document: unknown, options?: Options) => Promise<GeneratedFile[]>;
 }
 
@@ -288,6 +291,13 @@ const problemWith = (content: string, again: string | undefined, declared: strin
   return declared === content ? undefined : 'different';
 };
 
+/** Data as text with its object keys sorted, so two equal documents compare equal whatever their key order. */
+const canonical = (value: unknown): string | undefined =>
+  JSON.stringify(value, (_key, inner: unknown) =>
+    isRecord(inner) ? Object.fromEntries(Object.entries(inner).toSorted(([a], [b]) => a.localeCompare(b))) : inner,
+  );
+
+
 /** Two runs of one generator against what its sample declares. */
 const compare = (generator: string, first: Rendered, second: Rendered, declared: Rendered): Finding[] => {
   const findings: Finding[] = [];
@@ -307,6 +317,15 @@ const compare = (generator: string, first: Rendered, second: Rendered, declared:
 // The owner is part of what a file is: the same bytes under another owner is a different result.
 const render = (files: readonly GeneratedFile[]): Rendered => new Map(files.map((file) => [file.path, `${file.owner}\n${file.content}`]));
 
+// An extractor returns a document, not files: two runs must agree, and with the sample, as data.
+const checkExtractor = async ([name, extractor]: [string, Extractor]): Promise<Finding[]> => {
+  const first = canonical(await extractor.run(extractor.sample.options));
+  const second = canonical(await extractor.run(extractor.sample.options));
+  if (second !== first) return [{ generator: name, path: 'sample.document', problem: 'not deterministic', fix: FIXES['not deterministic'] }];
+  if (first === canonical(extractor.sample.document)) return [];
+  return [{ generator: name, path: 'sample.document', problem: 'different', fix: 'update `sample.document` to what `run(sample.options)` returns, or fix `run`' }];
+};
+
 /**
  * `apicontract check <plugin>` (R-PL5): run every generator on its own sample, twice, and compare
  * both runs with the files the sample declares, byte for byte. It proves the output is what the
@@ -325,7 +344,10 @@ export const checkPlugin = async (plugin: unknown): Promise<Finding[]> => {
     const first = await run();
     return compare(name, first, await run(), render(generator.sample.files));
   };
-  const findings = await Promise.all(Object.entries(registered.generators ?? {}).map(async (entry) => checkOne(entry)));
+  const findings = await Promise.all([
+    ...Object.entries(registered.generators ?? {}).map(async (entry) => checkOne(entry)),
+    ...Object.entries(registered.extractors ?? {}).map(async (entry) => checkExtractor(entry)),
+  ]);
   return findings.flat();
 };
 

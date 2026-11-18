@@ -289,6 +289,10 @@ describe('checkPlugin', () => {
   });
 });
 
+/** Check a plugin with one extractor, `schemas`, whose sample declares `document`. */
+const checkExtractor = async (run: () => unknown, document: unknown = { a: 1, b: [2] }) =>
+  checkPlugin({ name: 'x', extractors: { schemas: { description: 'd', sample: { options: {}, document }, run } } });
+
 describe('what 6.0 added for the lanes', () => {
   const finding = { code: 'keyword-dropped', pointer: '/paths', message: 'dropped', fix: 'nothing to do' };
   const extractor = { description: 'Reads schemas', sample: { options: { module: './a.js' }, document: { openapi: '3.1.0' } }, run: () => ({ openapi: '3.1.0' }) };
@@ -319,6 +323,23 @@ describe('what 6.0 added for the lanes', () => {
     expect(refusal(() => validate({ name: 'x', extractors: { schemas: { ...extractor, sample: { document: {} } } } })).code).toBe('E_NO_STATIC_PROJECTION');
     expect(refusal(() => validate({ name: 'x', extractors: { schemas: { ...extractor, sample: { options: {} } } } })).code).toBe('E_NO_STATIC_PROJECTION');
     expect(refusal(() => validate({ name: 'x', extractors: { schemas: { ...extractor, sample: 1 } } })).code).toBe('E_NO_STATIC_PROJECTION');
+  });
+
+  it('checks each extractor against its sample, as data, and run twice', async () => {
+    expect(await checkExtractor(() => ({ b: [2], a: 1 }))).toEqual([]);
+    expect(await checkExtractor(async () => ({ a: 1, b: [2] }))).toEqual([]);
+    expect(await checkExtractor(() => ({ a: 2, b: [2] }))).toEqual([
+      { generator: 'schemas', path: 'sample.document', problem: 'different', fix: 'update `sample.document` to what `run(sample.options)` returns, or fix `run`' },
+    ]);
+    expect(await checkExtractor(() => undefined)).toEqual([expect.objectContaining({ problem: 'different' })]);
+    let calls = 0;
+    expect(await checkExtractor(() => ({ a: (calls += 1), b: [2] }), { a: 1, b: [2] })).toEqual([
+      { generator: 'schemas', path: 'sample.document', problem: 'not deterministic', fix: 'remove whatever changes between runs: time, random values, iteration order' },
+    ]);
+    const options = { module: './m.js' };
+    let seen: unknown;
+    await checkPlugin({ name: 'x', extractors: { schemas: { description: 'd', sample: { options, document: 1 }, run: (o: unknown) => ((seen = o), 1) } } });
+    expect(seen).toBe(options);
   });
 
   it('checks a plugin that carries no adapter, by the built-in formats', async () => {
