@@ -21,6 +21,13 @@ const token = (key: string): string => key.replaceAll('~', '~0').replaceAll('/',
 /** No schema means any value. */
 const schemaOf = (holder: Dict): JsonSchema => (holder.schema === undefined ? true : (holder.schema as JsonSchema));
 
+/** A parameter's schema, or, for one described by `content` (3.2's `in: querystring` always is), its media type's. */
+const parameterSchema = (parameter: Dict): JsonSchema => {
+  if (parameter.schema !== undefined || !isDict(parameter.content)) return schemaOf(parameter);
+  const [media] = Object.values(parameter.content);
+  return schemaOf(dict(media));
+};
+
 interface Declared {
   readonly id: string;
   readonly source: string;
@@ -66,7 +73,15 @@ export const read = (document: unknown): Contract => {
     const types = Object.entries(dict(holder.content));
     // A response or a body with no content still says something: nothing is sent.
     if (types.length === 0) return [{ name: prefix, direction, schema: false, required }];
-    return types.map(([type, media]) => ({ name: `${prefix}:${type}`, direction, schema: schemaOf(dict(media)), required }));
+    // 3.2's `itemSchema` describes each item of a stream (`text/event-stream`, `application/jsonl`):
+    // one more payload, `…:item`. The whole body is a payload too when a `schema` describes it.
+    return types.flatMap(([type, media]) => {
+      const declared = dict(media);
+      const name = `${prefix}:${type}`;
+      const whole: Payload[] = declared.itemSchema === undefined || declared.schema !== undefined ? [{ name, direction, schema: schemaOf(declared), required }] : [];
+      const items: Payload[] = declared.itemSchema === undefined ? [] : [{ name: `${name}:item`, direction, schema: declared.itemSchema as JsonSchema, required }];
+      return [...whole, ...items];
+    });
   };
 
   const operation = ({ id, source, declared, shared }: Declared, sends: Direction, receives: Direction): Operation => {
@@ -77,7 +92,7 @@ export const read = (document: unknown): Contract => {
       const name = `param:${String(parameter.in)}:${String(parameter.name)}`;
       // A path parameter is always required, whatever the document says.
       const required = parameter.in === 'path' || parameter.required === true;
-      parameters.set(name, { name, direction: sends, schema: schemaOf(parameter), required });
+      parameters.set(name, { name, direction: sends, schema: parameterSchema(parameter), required });
     }
     const payloads = [...parameters.values()];
     if (declared.requestBody !== undefined) {
@@ -94,12 +109,16 @@ export const read = (document: unknown): Contract => {
   const section = (name: 'paths' | 'webhooks', sends: Direction, receives: Direction): void => {
     for (const [key, entry] of Object.entries(dict(root[name]))) {
       const item = deref(entry);
-      for (const method of METHODS) {
-        if (!isDict(item[method])) continue;
-        const declared = item[method];
+      // 3.2's `additionalOperations` holds the methods OpenAPI does not name (`COPY`, `LINK`), after the named ones.
+      const declaredMethods = [
+        ...METHODS.map((method) => [method, item[method], method] as const),
+        ...Object.entries(dict(item.additionalOperations)).map(([method, declared]) => [method, declared, `additionalOperations/${token(method)}`] as const),
+      ];
+      for (const [method, declared, at] of declaredMethods) {
+        if (!isDict(declared)) continue;
         const fallback = name === 'paths' ? `${method} ${key}` : `webhook ${method} ${key}`;
         const id = typeof declared.operationId === 'string' ? declared.operationId : fallback;
-        const source = `#/${name}/${token(key)}/${method}`;
+        const source = `#/${name}/${token(key)}/${at}`;
         operations.push(operation({ id, source, declared, shared: item.parameters }, sends, receives));
       }
     }
