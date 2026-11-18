@@ -1,0 +1,17 @@
+{
+  "tool": "ours:types",
+  "packages": [
+    "file:packages/apicontract"
+  ],
+  "family": "openapi",
+  "source": null,
+  "sample": null,
+  "seed": 1,
+  "typescripts": {
+    "ts59": "5.9.3",
+    "ts60": "6.0.3",
+    "ts70": "7.0.2"
+  },
+  "node": "v24.13.0",
+  "date": "2026-11-18T18:21:13.048Z"
+}
