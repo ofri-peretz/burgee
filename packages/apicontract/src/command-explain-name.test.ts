@@ -29,6 +29,10 @@ describe('unique', () => {
     expect(names.get('get_pet')).toBe(`getpet_${stableHash('get_pet')}`);
   });
 
+  it('counts names that differ only in case as a collision', () => {
+    expect(unique(['getPet', 'GetPet'], (id) => id, 64).get('GetPet')).toBe(`GetPet_${stableHash('GetPet')}`);
+  });
+
   it('keeps a colliding name within the limit', () => {
     const names = unique(['a', 'b'], () => 'y'.repeat(64), 64);
     expect(names.get('a')).toHaveLength(64);

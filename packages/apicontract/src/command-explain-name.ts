@@ -30,16 +30,17 @@ export const fitted = (text: string, full: string, max: number): string => {
 };
 
 /**
- * Give each id its name; when two ids would share one, each of them carries its hash instead, so
+ * Give each id its name; when two ids would share one (ignoring case), each of them carries its hash instead, so
  * neither name depends on which of the two came first.
  */
 export const unique = (ids: readonly string[], nameOf: (id: string) => string, max: number): Map<string, string> => {
   const named = ids.map((id) => [id, nameOf(id)] as const);
+  // Case-blind: `getPet.md` and `GetPet.md` are one file on macOS and Windows.
   const counts = new Map<string, number>();
-  for (const [, name] of named) counts.set(name, (counts.get(name) ?? 0) + 1);
+  for (const [, name] of named) counts.set(name.toLowerCase(), (counts.get(name.toLowerCase()) ?? 0) + 1);
   return new Map(
     named.map(([id, name]) => {
-      if (counts.get(name) === 1) return [id, name];
+      if (counts.get(name.toLowerCase()) === 1) return [id, name];
       const suffix = `_${stableHash(id)}`;
       return [id, `${name.slice(0, max - suffix.length)}${suffix}`];
     }),
