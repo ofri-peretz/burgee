@@ -73,6 +73,8 @@ export interface Context extends Required<GenerateOptions> {
 export interface TransformOptions {
   readonly path?: string;
   readonly ctx: Context;
+  /** Inside an object's property or index signature, where a type may name itself: tsc defers it. */
+  readonly behindObject?: boolean;
 }
 
 /** State upstream keeps in module scope, kept per run here so one run cannot change the next. */

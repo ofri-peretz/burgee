@@ -25,10 +25,9 @@ const NON_PRINTABLE = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u0084\u008
 const parseYamlLeniently = (text: string): unknown => {
   try {
     return parseYaml(text);
-  } catch (error) {
-    // `search`, not `test`: a global pattern's `test` carries `lastIndex` from one document to the next.
-    if (text.search(NON_PRINTABLE) === -1) throw error;
-    // ponytail: replaced silently; surface a finding once readDocument has a findings channel.
+  } catch {
+    // ponytail: replaced silently; surface a finding once readDocument has a findings channel. Text with
+    // nothing to replace fails again with the same error, which is the refusal.
     return parseYaml(text.replaceAll(NON_PRINTABLE, '\uFFFD'));
   }
 };

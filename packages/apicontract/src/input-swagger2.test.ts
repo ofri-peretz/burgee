@@ -609,3 +609,55 @@ describe('adapter', () => {
     expect(Object.isFrozen(adapter)).toBe(true);
   });
 });
+
+const at = (document: Record<string, any>, name: string): unknown => document.paths['/lexeme'].get.responses['200'].content['application/json'].schema.properties[name];
+
+describe('a reference into a response schema (bethmardutho, 2026-11-18 corpus)', () => {
+  const response = { description: 'ok', schema: { type: 'object', properties: { person: { type: 'string' } } } };
+  const swagger = (refs: Record<string, unknown>, produces = ['application/json']): Record<string, unknown> => ({
+    swagger: '2.0',
+    info: { title: 't', version: '1' },
+    produces,
+    paths: {
+      '/word/{id}': { get: { responses: { '200': response, '204': { description: 'empty' } } } },
+      '/lexeme': { get: { responses: { '200': { description: 'ok', schema: { type: 'object', properties: refs } } } } },
+    },
+  });
+
+  it('follows the schema under its media type, with or without a pointer past it', () => {
+    const { document, findings } = convert(
+      swagger({
+        whole: { $ref: '#/paths/~1word~1%7Bid%7D/get/responses/200/schema' },
+        part: { allOf: [{ $ref: '#/paths/~1word~1%7Bid%7D/get/responses/200/schema/properties/person' }] },
+      }),
+    );
+    expect(at(document, 'whole')).toEqual({ $ref: '#/paths/~1word~1%7Bid%7D/get/responses/200/content/application~1json/schema' });
+    expect(at(document, 'part')).toEqual({ allOf: [{ $ref: '#/paths/~1word~1%7Bid%7D/get/responses/200/content/application~1json/schema/properties/person' }] });
+    expect(findings.filter((f) => f.code === 'ref-response-schema')).toEqual([
+      {
+        code: 'ref-response-schema',
+        pointer: '#/paths/~1lexeme/get/responses/200/content/application~1json/schema/properties/whole/$ref',
+        message: '`#/paths/~1word~1%7Bid%7D/get/responses/200/schema` is written as `#/paths/~1word~1%7Bid%7D/get/responses/200/content/application~1json/schema`',
+        fix: 'nothing to do: OpenAPI 3 keeps a response schema under its media type',
+      },
+      {
+        code: 'ref-response-schema',
+        pointer: '#/paths/~1lexeme/get/responses/200/content/application~1json/schema/properties/part/allOf/0/$ref',
+        message: '`#/paths/~1word~1%7Bid%7D/get/responses/200/schema/properties/person` is written as `#/paths/~1word~1%7Bid%7D/get/responses/200/content/application~1json/schema/properties/person`',
+        fix: 'nothing to do: OpenAPI 3 keeps a response schema under its media type',
+      },
+    ]);
+  });
+
+  it('leaves a reference it cannot follow as written', () => {
+    const refs = {
+      external: { $ref: 'other.json#/paths/~1word~1%7Bid%7D/get/responses/200/schema' },
+      noSchema: { $ref: '#/paths/~1word~1%7Bid%7D/get/responses/204/schema' },
+      noResponse: { $ref: '#/paths/~1nowhere/get/responses/200/schema' },
+      lookalike: { $ref: '#/paths/~1word~1%7Bid%7D/get/responses/200/schemas' },
+    };
+    const { document, findings } = convert(swagger(refs));
+    for (const [name, ref] of Object.entries(refs)) expect(at(document, name)).toEqual(ref);
+    expect(findings.filter((f) => f.code === 'ref-response-schema')).toEqual([]);
+  });
+});

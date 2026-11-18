@@ -356,7 +356,6 @@ const securitySchemeOf = (scheme: unknown): Dict => {
   return { ...rest, type, flows: { [FLOWS[String(flow)] ?? String(flow)]: { ...urls, scopes: scopes ?? {} } } };
 };
 
-/** The keys a 2.0 document has that the 3.1 one states another way (`paths` is rewritten in place). */
 /** A 2.0 pointer into an operation's response schema: in 3.1 that schema sits under `content/<media type>`. */
 const RESPONSE_SCHEMA_REF = /^(#\/paths\/.+\/responses\/[^/]+)\/schema(\/.*)?$/u;
 
@@ -371,12 +370,15 @@ const repointResponseRefs = (node: unknown, document: Dict, report: Report, at =
     return;
   }
   if (!isDict(node)) return;
+  // Stryker disable next-line ConditionalExpression: equivalent, `exec` of a missing $ref ("undefined") matches nothing
   const match = typeof node.$ref === 'string' ? RESPONSE_SCHEMA_REF.exec(node.$ref) : null;
   if (match !== null) {
-    const [, response = '', rest = ''] = match;
+    const response = match[1] as string;
+    const rest = match[2] ?? '';
     let content: unknown;
     try {
       content = pointerGet(document, `${response}/content`);
+      // Stryker disable next-line BlockStatement: equivalent, `content` is still undefined when the pointer leads nowhere
     } catch {
       content = undefined;
     }
@@ -387,7 +389,7 @@ const repointResponseRefs = (node: unknown, document: Dict, report: Report, at =
       (node as Mutable).$ref = moved;
     }
   }
-  for (const [key, value] of Object.entries(node)) if (key !== '$ref') repointResponseRefs(value, document, report, `${at}/${token(key)}`);
+  for (const [key, value] of Object.entries(node)) repointResponseRefs(value, document, report, `${at}/${token(key)}`);
 };
 
 const MOVED = new Set(['swagger', 'host', 'basePath', 'schemes', 'consumes', 'produces', 'definitions', 'parameters', 'responses', 'securityDefinitions']);
