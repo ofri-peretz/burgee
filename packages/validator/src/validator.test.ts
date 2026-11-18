@@ -323,8 +323,9 @@ describe('a key Object.prototype has counts only as an own key', () => {
     expect(parse(Required, own)).toEqual({ ok: true, value: own });
   });
 
-  it('takes an optional one that is only inherited as absent', () => {
+  it('takes an optional one that is only inherited as absent, and still refuses what is no object', () => {
     expect(check(Optional, {})).toBe(true);
+    expect([null, undefined, [], 'x', 1].map((value) => check(Optional, value))).toEqual([false, false, false, false, false]);
     expect(issues(Optional, {})).toEqual([]);
     expect(parse(Optional, {})).toEqual({ ok: true, value: {} });
   });
@@ -345,7 +346,11 @@ describe('a key Object.prototype has counts only as an own key', () => {
     expect([check(Rest, {}), check(Rest, JSON.parse('{"toString": "y", "a": 1}')), check(Rest, JSON.parse('{"toString": "y", "a": "1"}'))]).toEqual([false, true, false]);
     const Keys = recordOf(['constructor'], string());
     expect([check(Keys, {}), check(Keys, JSON.parse('{"constructor": "c"}')), check(Keys, JSON.parse('{"constructor": "c", "b": "d"}'))]).toEqual([false, true, false]);
-    expect(issues(Strict, {}).map((i) => i.path)).toEqual(['/__proto__', '/toString']);
+    expect(issues(Strict, {}).map((i) => [i.path, i.keyword])).toEqual([
+      ['/__proto__', 'required'],
+      ['/toString', 'required'],
+    ]);
+    expect(parse(Strict, own)).toEqual({ ok: true, value: own });
   });
 
   it('takes an exact-optional one as absent only when it is not own, and not undefined', () => {
@@ -353,6 +358,9 @@ describe('a key Object.prototype has counts only as an own key', () => {
     expect([check(Exact, {}), check(Exact, { toString: undefined }), check(Exact, JSON.parse('{"toString": "y"}'))]).toEqual([true, false, true]);
     expect(issues(Exact, { toString: undefined }).map((i) => i.keyword)).toEqual(['undefined']);
     expect(issues(Exact, {})).toEqual([]);
+    // eslint-disable-next-line secure-coding/no-unsafe-deserialization, node-security/detect-eval-with-expression -- The emitted text is the subject under test
+    const compiled = new Function(`return ${emit(Exact)}`)() as (value: unknown) => boolean;
+    expect([compiled({}), compiled({ toString: undefined }), compiled(JSON.parse('{"toString": "y"}'))]).toEqual([true, false, true]);
   });
 
   it('is decided again for a derived shape, which keeps a closed one closed', () => {
