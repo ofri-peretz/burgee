@@ -1,0 +1,134 @@
+{
+  "run": "2026-11-18-023c145ebb",
+  "subject": "ours:types",
+  "tools": [
+    {
+      "tool": "ours:types",
+      "documents": 100,
+      "read": {
+        "passed": 100,
+        "of": 100
+      },
+      "generate": {
+        "passed": 50,
+        "of": 100
+      },
+      "typecheck": {
+        "ts59": {
+          "passed": 50,
+          "of": 100
+        },
+        "ts60": {
+          "passed": 50,
+          "of": 100
+        },
+        "ts70": {
+          "passed": 50,
+          "of": 100
+        }
+      },
+      "usable": {
+        "passed": 50,
+        "of": 100
+      },
+      "roundtrip": {
+        "passed": 0,
+        "of": 0
+      },
+      "medianMs": 124,
+      "p90Ms": 205
+    },
+    {
+      "tool": "hey-api",
+      "documents": 100,
+      "read": {
+        "passed": 0,
+        "of": 0
+      },
+      "generate": {
+        "passed": 92,
+        "of": 100
+      },
+      "typecheck": {
+        "ts59": {
+          "passed": 92,
+          "of": 100
+        },
+        "ts60": {
+          "passed": 92,
+          "of": 100
+        },
+        "ts70": {
+          "passed": 92,
+          "of": 100
+        }
+      },
+      "usable": {
+        "passed": 92,
+        "of": 100
+      },
+      "roundtrip": {
+        "passed": 0,
+        "of": 0
+      },
+      "medianMs": 562,
+      "p90Ms": 637
+    },
+    {
+      "tool": "openapi-typescript",
+      "documents": 100,
+      "read": {
+        "passed": 0,
+        "of": 0
+      },
+      "generate": {
+        "passed": 50,
+        "of": 100
+      },
+      "typecheck": {
+        "ts59": {
+          "passed": 50,
+          "of": 100
+        },
+        "ts60": {
+          "passed": 50,
+          "of": 100
+        },
+        "ts70": {
+          "passed": 50,
+          "of": 100
+        }
+      },
+      "usable": {
+        "passed": 50,
+        "of": 100
+      },
+      "roundtrip": {
+        "passed": 0,
+        "of": 0
+      },
+      "medianMs": 414,
+      "p90Ms": 519
+    }
+  ],
+  "errors": {
+    "ours:types": [
+      {
+        "error": "no input format recognises this document. fix: pass one of: openapi; or install the plugin that reads it",
+        "count": 50
+      }
+    ],
+    "hey-api": [
+      {
+        "error": "exit 0, no output",
+        "count": 8
+      }
+    ],
+    "openapi-typescript": [
+      {
+        "error": "Error: Unsupported Swagger version: 2.x. Use OpenAPI 3.x instead.",
+        "count": 50
+      }
+    ]
+  }
+}
