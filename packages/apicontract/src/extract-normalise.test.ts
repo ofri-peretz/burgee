@@ -95,6 +95,10 @@ describe('normalise', () => {
     expect(normalise({ parameters: 'x' })).toEqual({ parameters: 'x' });
   });
 
+  it('keeps the order of any other list: allOf is not reordered', () => {
+    expect(normalise({ allOf: [{ type: 'string' }, { minLength: 1 }] })).toEqual({ allOf: [{ type: 'string' }, { minLength: 1 }] });
+  });
+
   it('passes scalars and arrays of scalars through', () => {
     expect(normalise(3)).toBe(3);
     expect(normalise(null)).toBeNull();
@@ -126,6 +130,11 @@ describe('inline', () => {
   it('decodes ~01 as ~1, not as /', () => {
     const document = { '~1': { x: 1 }, '/': { x: 2 }, ref: { $ref: '#/~01' } };
     expect((inline(document) as { ref: unknown }).ref).toEqual({ x: 1 });
+  });
+
+  it('follows only a reference that starts with #/', () => {
+    const document = { 'her.json#': { x: { a: 1 } }, ref: { $ref: 'other.json#/x' } };
+    expect(inline(document)).toEqual(document);
   });
 
   it('leaves a reference that points nowhere, outside the document, or through a scalar, as it is', () => {

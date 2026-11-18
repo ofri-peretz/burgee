@@ -34,8 +34,9 @@ describe('loadModule', () => {
     expect(await loadModule(given)).toBe(given);
   });
 
-  it.each([[undefined], [''], [3], [[]]])('refuses %j, with a fix', async (module) => {
-    await expect(loadModule(module)).rejects.toThrow('the `module` option names no module. fix: set `"options": { "module": "./src/schemas.ts" }`');
+  it('refuses no module, an empty name, or a value that is neither, with a fix', async () => {
+    const refused = await Promise.allSettled([undefined, '', 3, []].map(async (module) => loadModule(module)));
+    expect(refused.map((result) => (result.status === 'rejected' ? String(result.reason) : 'loaded'))).toEqual(Array.from({ length: 4 }, () => 'TypeError: the `module` option names no module. fix: set `"options": { "module": "./src/schemas.ts" }`'));
   });
 });
 
@@ -140,6 +141,10 @@ describe('relocate', () => {
     place.defs.set('Node', { items: { $ref: '#/$defs/A' } });
     relocate({ $defs: { Node: { items: { $ref: '#' } } } }, 'A', place);
     expect(place.findings).toEqual([]);
+  });
+
+  it('rewrites only $ref: a value that looks like a reference elsewhere is data', () => {
+    expect(relocate({ const: '#', description: '#/$defs/A', $defs: { A: {} } }, 'X', placeAt('#/components/schemas/'))).toEqual({ const: '#', description: '#/$defs/A' });
   });
 
   it('decodes an escaped definition name in a reference, and escapes it again', () => {

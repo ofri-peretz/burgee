@@ -20,7 +20,12 @@ describe('the standard-schema extractor', () => {
     expect(builtins).toContain(plugin);
     expect(plugin.name).toBe('extract-standard-schema');
     expect(await checkPlugin(plugin)).toEqual([]);
-    expect(Object.keys(plugin.extractors?.['standard-schema']?.options ?? {})).toEqual(['module', 'export', 'side']);
+    expect(plugin.extractors?.['standard-schema']?.options).toEqual({
+      module: { type: 'string', description: 'the module to import, relative to the working folder; its code runs' },
+      export: { type: 'string', description: 'the export to read, or "*" for every schema it exports (default)' },
+      side: { type: 'string', description: '"input" (default): what parse reads; "output": what it hands out' },
+    });
+    expect(DIALECT).toBe('https://json-schema.org/draft/2020-12/schema');
   });
 
   it('reads Zod 4 schemas from a module path, by Standard JSON Schema alone', async () => {

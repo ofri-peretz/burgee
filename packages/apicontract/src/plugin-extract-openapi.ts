@@ -119,10 +119,11 @@ const schemaOf = (wanted: Wanted, build: Build): Json | undefined => {
     return build.place.defs.has(wanted.fallback) ? ref(wanted.fallback) : moved;
   }
   // One name, one schema: a side that writes another document is kept beside it.
-  const candidate = relocate(schema, exported, { ...build.place, defs: new Map(), findings: [] });
+  const candidate = relocate(schema, exported, placeAt(BASE));
   const first = build.place.defs.get(exported);
   const name = first === undefined || stable(first) === stable(candidate) ? exported : `${exported}.${wanted.side}`;
-  if (!build.place.defs.has(name)) build.place.defs.set(name, relocate(schema, name, build.place));
+  // Writing an equal schema again under its own name changes nothing.
+  build.place.defs.set(name, relocate(schema, name, build.place));
   return ref(name);
 };
 
@@ -138,10 +139,10 @@ const objectOf = (wanted: Wanted, build: Build): Json | undefined => {
 };
 
 const parametersOf = (schema: Json, location: string, only: (name: string) => boolean): Json[] => {
-  const required = Array.isArray(schema.required) ? (schema.required as unknown[]) : [];
+  const { required } = schema;
   return Object.entries(schema.properties as Json)
     .filter(([name]) => only(name))
-    .map(([name, property]) => ({ name, in: location, required: location === 'path' || required.includes(name), schema: property }));
+    .map(([name, property]) => ({ name, in: location, required: location === 'path' || (Array.isArray(required) && required.includes(name)), schema: property }));
 };
 
 /** The object schema without the properties named. */
@@ -223,7 +224,7 @@ export const toOpenApi = (routes: readonly Route[], names: ReadonlyMap<unknown, 
   const side = sideOf(options.responseSide ?? 'output');
   const build: Build = { place: placeAt(BASE), names };
   const paths = new Map<string, Map<string, Json>>();
-  for (const route of routes.toSorted((a, b) => (a.id < b.id ? -1 : 1))) {
+  for (const route of routes.toSorted((a, b) => a.id.localeCompare(b.id, 'en'))) {
     if (!METHODS.includes(route.method)) {
       build.place.findings.push(finding('unknown-method', route.pointer, `${route.id} has the method "${route.method}", which OpenAPI does not have`, `use one of ${METHODS.join(', ')}`));
       continue;
@@ -259,6 +260,9 @@ export const namesOf = (namespace: Json): Map<unknown, string> => {
   return names;
 };
 
+/** The export named, own only: an inherited `toString` is not an export. */
+export const exported = (namespace: Json, wanted: unknown): unknown => Object.entries(namespace).find(([name]) => name === wanted)?.[1];
+
 const isOperation = (value: unknown): value is Json => isRecord(value) && typeof value.method === 'string' && typeof value.path === 'string';
 
 /** One entry of the operation map as a route. */
@@ -293,8 +297,8 @@ const routeOf = (id: string, operation: Json, findings: ContractFinding[]): Rout
 export const operationsOf = (namespace: Json, wanted: unknown): { routes: Route[]; findings: ContractFinding[] } => {
   const findings: ContractFinding[] = [];
   const all = wanted === undefined || wanted === '*';
-  const map = all ? namespace : namespace[wanted as string];
-  if (!all && (typeof wanted !== 'string' || !Object.keys(namespace).includes(wanted) || !isRecord(map))) {
+  const map = all ? namespace : exported(namespace, wanted);
+  if (!isRecord(map)) {
     throw new TypeError(`the module has no operation map ${JSON.stringify(wanted)}. fix: name the export that holds \`{ [operationId]: { method, path, input, output } }\`, or write "*"`);
   }
   const routes: Route[] = [];
@@ -312,6 +316,14 @@ export const withFindings = (written: Written, more: readonly ContractFinding[])
   return findings.length === 0 ? written.document : { ...written.document, 'x-findings': findings };
 };
 
+/** The options every extractor that writes OpenAPI through {@link toOpenApi} takes. */
+export const WRITER_OPTIONS = {
+  module: { type: 'string', description: 'the module to import, relative to the working folder; its code runs' },
+  title: { type: 'string', description: 'info.title (default "API")' },
+  version: { type: 'string', description: 'info.version (default "0.0.0")' },
+  responseSide: { type: 'string', description: '"output" (default): responses as the schema hands them out; "input": as a client parses them' },
+} as const;
+
 export const extractOpenApi = (namespace: Json, options: Options): Json => {
   const { routes, findings } = operationsOf(namespace, options.export);
   return withFindings(toOpenApi(routes, namesOf(namespace), options), findings);
@@ -319,13 +331,7 @@ export const extractOpenApi = (namespace: Json, options: Options): Json => {
 
 const extractor: Extractor = {
   description: 'An OpenAPI 3.1 document from a module exporting `{ [operationId]: { method, path, input, output } }` of Standard Schema values',
-  options: {
-    module: { type: 'string', description: 'the module to import, relative to the working folder; its code runs' },
-    export: { type: 'string', description: 'the export holding the operation map, or "*" when the module\'s own exports are the operations (default)' },
-    title: { type: 'string', description: 'info.title (default "API")' },
-    version: { type: 'string', description: 'info.version (default "0.0.0")' },
-    responseSide: { type: 'string', description: '"output" (default): responses as the schema hands them out; "input": as a client parses them' },
-  },
+  options: { ...WRITER_OPTIONS, export: { type: 'string', description: 'the export holding the operation map, or "*" when the module\'s own exports are the operations (default)' } },
   sample: {
     options: { module: { getPet: { method: 'GET', path: '/pets/:id', output: standardJson(string()) } } },
     document: {

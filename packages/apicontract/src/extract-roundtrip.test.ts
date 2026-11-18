@@ -114,6 +114,11 @@ describe('differences', () => {
     expect(differences([1], [1, 2])).toEqual([{ pointer: '', problem: 'different', spec: [1], extracted: [1, 2] }]);
   });
 
+  it('compares an array with a string of its length as values, not item by item', () => {
+    expect(differences([1], 'x')).toEqual([{ pointer: '', problem: 'different', spec: [1], extracted: 'x' }]);
+    expect(differences('x', [1])).toEqual([{ pointer: '', problem: 'different', spec: 'x', extracted: [1] }]);
+  });
+
   it('compares an object with an array, or a scalar, as values', () => {
     expect(differences({}, [])).toEqual([{ pointer: '', problem: 'different', spec: {}, extracted: [] }]);
     expect(differences({ a: 1 }, { a: 1 })).toEqual([]);

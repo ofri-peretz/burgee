@@ -24,6 +24,8 @@ const graded = (document: unknown): unknown => {
   return paths;
 };
 
+const refusal = (wanted: string): string => `the module has no operation map ${wanted}. fix: name the export that holds \`{ [operationId]: { method, path, input, output } }\`, or write "*"`;
+
 const Pet = z.object({ id: z.string(), name: z.string() });
 
 describe('the openapi-from-schemas extractor', () => {
@@ -31,6 +33,13 @@ describe('the openapi-from-schemas extractor', () => {
     expect(() => validate(plugin)).not.toThrow();
     expect(builtins).toContain(plugin);
     expect(plugin.name).toBe('extract-openapi');
+    expect(plugin.extractors?.['openapi-from-schemas']?.options).toEqual({
+      module: { type: 'string', description: 'the module to import, relative to the working folder; its code runs' },
+      title: { type: 'string', description: 'info.title (default "API")' },
+      version: { type: 'string', description: 'info.version (default "0.0.0")' },
+      responseSide: { type: 'string', description: '"output" (default): responses as the schema hands them out; "input": as a client parses them' },
+      export: { type: 'string', description: 'the export holding the operation map, or "*" when the module\'s own exports are the operations (default)' },
+    });
     expect(await checkPlugin(plugin)).toEqual([]);
   });
 
@@ -64,7 +73,7 @@ describe('the openapi-from-schemas extractor', () => {
 
 describe('operationsOf', () => {
   it('takes the operation-shaped exports of the module, and skips its schemas and helpers', () => {
-    const { routes, findings } = operationsOf({ Pet, helper: () => 1, version: '1', getPet: { method: 'GET', path: '/pets/:id', output: Pet } }, '*');
+    const { routes, findings } = operationsOf({ Pet, helper: () => 1, version: '1', nothing: null, pathOnly: { path: '/' }, getPet: { method: 'GET', path: '/pets/:id', output: Pet } }, '*');
     expect(routes.map((route) => [route.id, route.method, route.path, route.pointer])).toEqual([['getPet', 'get', '/pets/{id}', '/getPet']]);
     expect(findings).toEqual([]);
     expect(operationsOf({ a: { method: 'get', path: '/' } }, undefined).routes).toHaveLength(1);
@@ -76,8 +85,16 @@ describe('operationsOf', () => {
     expect(findings).toEqual([{ code: 'not-an-operation', pointer: '/a~1b', message: 'a/b has no method and path', fix: 'write `{ method, path, input, output }`' }]);
   });
 
-  it.each([['missing'], [3], ['notAMap'], ['toString']])('refuses %j as the operation map', (wanted) => {
-    expect(() => operationsOf({ notAMap: [1] }, wanted)).toThrow(`the module has no operation map ${JSON.stringify(wanted)}. fix: name the export that holds \`{ [operationId]: { method, path, input, output } }\`, or write "*"`);
+  it('refuses an operation map the module does not have, or that is not a map', () => {
+    expect(() => operationsOf({ notAMap: [1] }, 'missing')).toThrow(refusal('"missing"'));
+    expect(() => operationsOf({ notAMap: [1] }, 3)).toThrow(refusal('3'));
+    expect(() => operationsOf({ notAMap: [1] }, 'notAMap')).toThrow(refusal('"notAMap"'));
+    expect(() => operationsOf({ notAMap: [1] }, 'toString')).toThrow(refusal('"toString"'));
+  });
+
+  it('finds the map by its own name, among others', () => {
+    const { routes } = operationsOf({ first: { a: { method: 'get', path: '/a' } }, second: { b: { method: 'get', path: '/b' } } }, 'second');
+    expect(routes.map((route) => route.id)).toEqual(['b']);
   });
 
   it('turns output and the responses map into responses, and reports one that is neither a schema nor null', () => {
@@ -143,6 +160,7 @@ describe('toOpenApi', () => {
   it('takes the input of a POST as the body, by name when the module exports it', () => {
     const written = write([route({ method: 'post', input: Pet })], new Map([[Pet, 'Pet']]));
     expect(operation(written, '/', 'post').requestBody).toEqual({ required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/Pet' } } } });
+    expect(operation(written, '/', 'post')).not.toHaveProperty('parameters');
     expect(written.document.components.schemas.Pet).toMatchObject({ type: 'object', required: ['id', 'name'] });
   });
 
@@ -156,6 +174,7 @@ describe('toOpenApi', () => {
     const only = operation(write([route({ method: 'patch', path: '/{id}', input: z.object({ id: z.string() }) })]), '/{id}', 'patch');
     expect(only.requestBody.content['application/json'].schema).toEqual({ type: 'object', properties: {} });
     const loose = operation(write([route({ method: 'patch', path: '/{id}', input: z.object({ id: z.string().optional(), a: z.string().optional() }) })]), '/{id}', 'patch');
+    expect(loose.parameters).toEqual([{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }]);
     expect(loose.requestBody.content['application/json'].schema).toEqual({ type: 'object', properties: { a: { type: 'string' } } });
   });
 
@@ -182,7 +201,7 @@ describe('toOpenApi', () => {
     const length = z.string().transform((text) => text.length);
     const asOutput = write([route({ responses: [{ status: '200', schema: length }] })]);
     expect(operation(asOutput).responses['200']).toEqual({ description: 'OK' });
-    expect(asOutput.findings.map((found) => found.code)).toEqual(['not-representable']);
+    expect(asOutput.findings.map((found) => `${found.code} ${found.pointer}`)).toEqual(['not-representable /op/responses/200']);
     const asInput = write([route({ responses: [{ status: '200', schema: length }] })], new Map(), { responseSide: 'input' });
     expect(operation(asInput).responses['200'].content['application/json'].schema).toEqual({ type: 'string' });
     expect(() => write([], new Map(), { responseSide: 'both' })).toThrow('fix: write "input" or "output"');
@@ -203,6 +222,29 @@ describe('toOpenApi', () => {
     const written = write([route({ responses: [{ status: '200', schema: Tree }] })]);
     expect(operation(written).responses['200'].content['application/json'].schema).toEqual({ $ref: '#/components/schemas/op.200' });
     expect(written.document.components.schemas['op.200']).toMatchObject({ properties: { kids: { items: { $ref: '#/components/schemas/op.200' } } } });
+  });
+
+  it('names an unnamed recursive input, body or query after the route, so it can refer to itself', () => {
+    const Tree = z.object({ label: z.string(), get kids() { return z.array(Tree); } });
+    const written = write([route({ method: 'post', input: Tree }), route({ id: 'b', path: '/b', method: 'post', body: Tree, query: Tree })]);
+    expect(Object.keys(written.document.components.schemas)).toEqual(['b.body', 'b.query', 'op.input']);
+    expect(operation(written, '/', 'post').requestBody.content['application/json'].schema).toEqual({ $ref: '#/components/schemas/op.input' });
+    expect(operation(written, '/b', 'post').requestBody.content['application/json'].schema).toEqual({ $ref: '#/components/schemas/b.body' });
+    expect(operation(written, '/b', 'post').parameters[1].schema).toEqual({ type: 'array', items: { $ref: '#/components/schemas/b.query' } });
+  });
+
+  it('writes an exported recursive schema once when both sides write it alike', () => {
+    const Tree = z.object({ label: z.string(), get kids() { return z.array(Tree); } });
+    const written = write([route({ method: 'post', input: Tree, responses: [{ status: '200', schema: Tree }] })], new Map([[Tree, 'Tree']]), { responseSide: 'input' });
+    expect(Object.keys(written.document.components.schemas)).toEqual(['Tree']);
+  });
+
+  it('adds a path parameter by name even when a query parameter has that name', () => {
+    const op = operation(write([route({ path: '/{q}', query: z.object({ q: z.string() }) })]), '/{q}');
+    expect(op.parameters).toEqual([
+      { name: 'q', in: 'query', required: true, schema: { type: 'string' } },
+      { name: 'q', in: 'path', required: true, schema: { type: 'string' } },
+    ]);
   });
 
   it('reports parameters that are not an object schema, or not a schema, and writes the rest', () => {

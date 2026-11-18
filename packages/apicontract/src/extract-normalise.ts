@@ -40,14 +40,13 @@ const DATA: ReadonlySet<string> = new Set(['const', 'enum', 'default']);
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
 
+const sortedKeys = (value: Record<string, unknown>): string[] => Object.keys(value).toSorted();
+
 /** Any JSON value as text with every object's keys sorted: equal data prints equal bytes. */
 export const stable = (value: unknown): string =>
   JSON.stringify(value, (_key, inner: unknown) =>
-    // Stryker disable next-line ArrowFunction: equivalent, any constant order is still one order, and a JSON object never repeats a key
-    isRecord(inner) ? Object.fromEntries(Object.entries(inner).toSorted(([a], [b]) => (a < b ? -1 : 1))) : inner,
+    isRecord(inner) ? Object.fromEntries(sortedKeys(inner).map((key) => [key, inner[key]])) : inner,
   ) as string;
-
-const sortedKeys = (value: Record<string, unknown>): string[] => Object.keys(value).toSorted();
 
 /** Data is kept whole, with its keys sorted. */
 const data = (value: unknown): unknown => JSON.parse(stable(value)) as unknown;
@@ -78,7 +77,8 @@ const member = (key: string, value: unknown, keepDocs: boolean): unknown => {
   if (DATA.has(key)) return data(value);
   if (key === 'type') return types(value);
   if (key === 'required' && Array.isArray(value)) return [...new Set(value as unknown[])].toSorted();
-  if (key === 'parameters' && Array.isArray(value)) return value.map((item) => walk(item, keepDocs)).toSorted((a, b) => (stable(a) < stable(b) ? -1 : 1));
+  // A walked value has its keys sorted already, so its text parses back to itself.
+  if (key === 'parameters' && Array.isArray(value)) return value.map((item) => stable(walk(item, keepDocs))).toSorted().map((text) => JSON.parse(text) as unknown);
   if (NAMED.has(key) && isRecord(value)) return Object.fromEntries(sortedKeys(value).map((name) => [name, walk(value[name], keepDocs)]));
   return walk(value, keepDocs);
 };

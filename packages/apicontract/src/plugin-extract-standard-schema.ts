@@ -21,10 +21,10 @@ export const FINDINGS = 'x-findings';
 /** Every export, by name, that is a schema; or the one named, whatever it is. */
 export const exportsOf = (namespace: Json, wanted: unknown): string[] => {
   if (wanted === undefined || wanted === '*') return Object.keys(namespace).filter((name) => isStandard(namespace[name])).toSorted();
-  if (typeof wanted !== 'string' || !Object.keys(namespace).includes(wanted)) {
+  if (!Object.keys(namespace).includes(wanted as string)) {
     throw new TypeError(`the module has no export ${JSON.stringify(wanted)}. fix: name one of ${Object.keys(namespace).toSorted().join(', ') || 'its exports'}, or write "*"`);
   }
-  return [wanted];
+  return [wanted as string];
 };
 
 /** The document for some exports of a module already loaded. */

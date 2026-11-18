@@ -10,7 +10,7 @@
 import { type ContractFinding } from './core/model.js';
 import { escape, finding, isStandard, type Json, loadModule } from './extract-standard.js';
 import { type Extractor, type Options, type Plugin } from './host.js';
-import { docsOf, namesOf, openapiPath, type Route, type RouteResponse, toOpenApi, withFindings } from './plugin-extract-openapi.js';
+import { docsOf, exported, namesOf, openapiPath, type Route, type RouteResponse, toOpenApi, withFindings, WRITER_OPTIONS } from './plugin-extract-openapi.js';
 
 /** `c.noBody()`: a route or response without a body. */
 const NO_BODY = 'ContractNoBody';
@@ -77,7 +77,7 @@ export const routesOf = (router: Json, keys: readonly string[] = [], findings: C
 /** The contract: the export named, or the module's own exports for `*`. */
 export const contractOf = (namespace: Json, wanted: unknown): Json => {
   if (wanted === undefined || wanted === '*') return namespace;
-  const found = typeof wanted === 'string' && Object.keys(namespace).includes(wanted) ? namespace[wanted] : undefined;
+  const found = exported(namespace, wanted);
   if (!isPlain(found)) throw new TypeError(`the module has no ts-rest contract ${JSON.stringify(wanted)}. fix: name the export that \`c.router(…)\` made, or write "*"`);
   return found;
 };
@@ -89,13 +89,7 @@ export const extractTsRest = (namespace: Json, options: Options): Json => {
 
 const extractor: Extractor = {
   description: 'An OpenAPI 3.1 document from a ts-rest contract (`c.router(…)`), read as data: ts-rest need not be installed',
-  options: {
-    module: { type: 'string', description: 'the module to import, relative to the working folder; its code runs' },
-    export: { type: 'string', description: 'the export holding the contract, or "*" when the module\'s own exports are its routers (default)' },
-    title: { type: 'string', description: 'info.title (default "API")' },
-    version: { type: 'string', description: 'info.version (default "0.0.0")' },
-    responseSide: { type: 'string', description: '"output" (default): responses as the schema hands them out; "input": as a client parses them' },
-  },
+  options: { ...WRITER_OPTIONS, export: { type: 'string', description: 'the export holding the contract, or "*" when the module\'s own exports are its routers (default)' } },
   sample: {
     options: { module: { contract: { health: { method: 'GET', path: '/health', responses: { 200: Symbol(NO_BODY) } } } }, export: 'contract' },
     document: { openapi: '3.1.0', info: { title: 'API', version: '0.0.0' }, paths: { '/health': { get: { operationId: 'health', responses: { '200': { description: 'OK' } } } } } },

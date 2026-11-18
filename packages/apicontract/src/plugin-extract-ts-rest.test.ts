@@ -20,6 +20,8 @@ describe('the ts-rest extractor', () => {
     expect(() => validate(plugin)).not.toThrow();
     expect(builtins).toContain(plugin);
     expect(plugin.name).toBe('extract-ts-rest');
+    expect(plugin.extractors?.['ts-rest']?.options?.export).toEqual({ type: 'string', description: 'the export holding the contract, or "*" when the module\'s own exports are its routers (default)' });
+    expect(Object.keys(plugin.extractors?.['ts-rest']?.options ?? {})).toEqual(['module', 'title', 'version', 'responseSide', 'export']);
     expect(await checkPlugin(plugin)).toEqual([]);
   });
 
@@ -70,12 +72,21 @@ describe('the ts-rest extractor', () => {
     const document = await run({
       module: { r: { method: 'POST', path: '/', body: 'text', responses: { 200: { contentType: 'text/plain', body: Symbol('ContractPlainType') }, 500: 3 } } },
     });
+    const odd = await run({
+      module: { r: { method: 'POST', path: '/', body: { description: 'ContractNoBody' }, responses: { 400: {}, 401: new (class { readonly contentType = 'text/plain'; readonly body = z.string(); })() } } },
+    });
+    expect((odd['x-findings'] as { pointer: string }[]).map((found) => found.pointer)).toEqual(['/r/responses/400', '/r/responses/401', '/r/body']);
     expect(document['x-findings']).toEqual([
       { code: 'type-only', pointer: '/r/responses/200/body', message: 'the 200 response is `c.type<T>()`, which has no schema at run time, so OpenAPI gets no schema for it', fix: 'give it a Standard Schema (a Zod 4 schema, for one) in place of `c.type<T>()`' },
       { code: 'unknown-body', pointer: '/r/responses/500', message: 'the 500 response is neither a schema, `c.noBody()` nor `c.type<T>()`', fix: 'give a Standard Schema, or `c.noBody()`' },
       { code: 'unknown-body', pointer: '/r/body', message: "r's body is neither a schema, `c.noBody()` nor `c.type<T>()`", fix: 'give a Standard Schema, or `c.noBody()`' },
     ]);
     expect(document.paths['/'].post.responses).toEqual({ '200': { description: 'OK' }, '500': { description: 'Internal Server Error' } });
+  });
+
+  it('writes the body as JSON when the content type is not a string', async () => {
+    const document = await run({ module: { r: { method: 'POST', path: '/', contentType: 5, body: z.string(), responses: { 204: Symbol('ContractNoBody') } } } });
+    expect(Object.keys(document.paths['/'].post.requestBody.content)).toEqual(['application/json']);
   });
 
   it('gives a route without responses a 204, and ignores responses that are not a map', async () => {
@@ -95,7 +106,7 @@ describe('routesOf', () => {
       readonly method = 'GET';
       readonly path = '/box';
     }
-    const router = { schema: z.object({ method: z.string(), path: z.string() }), box: new Box(), list: [{ method: 'GET', path: '/l' }], n: 1, bare: Object.assign(Object.create(null) as object, { method: 'GET', path: '/bare' }) };
+    const router = { nothing: null, schema: z.object({ method: z.string(), path: z.string() }), box: new Box(), list: [{ method: 'GET', path: '/l' }], n: 1, bare: Object.assign(Object.create(null) as object, { method: 'GET', path: '/bare' }) };
     expect(routesOf(router).routes.map((route) => route.id)).toEqual(['bare']);
   });
 
@@ -115,5 +126,7 @@ describe('contractOf', () => {
     expect(contractOf(namespace, undefined)).toBe(namespace);
     expect(contractOf(namespace, '*')).toBe(namespace);
     expect(contractOf(namespace, 'c')).toBe(namespace.c);
+    const two = { a: { r: 1 }, b: { r: 2 } };
+    expect(contractOf(two, 'b')).toBe(two.b);
   });
 });
