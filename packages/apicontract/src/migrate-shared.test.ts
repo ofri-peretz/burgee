@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { camel, configText, editScripts, finding, scripts } from './migrate-shared.js';
+import { camel, commandParts, configText, editScripts, finding, scripts } from './migrate-shared.js';
 
 describe('scripts', () => {
   it('reads the string scripts and nothing else', () => {
@@ -40,4 +40,9 @@ it('writes a config as two-space JSON with a final newline', () => {
 
 it('builds a finding', () => {
   expect(finding('c', 'p', 'm', 'f')).toEqual({ code: 'c', pointer: 'p', message: 'm', fix: 'f' });
+});
+
+it('splits a command at its separators, keeping them with their spaces', () => {
+  expect(commandParts('a && b||c ;d | e&&f')).toEqual(['a', ' && ', 'b', '||', 'c', ' ;', 'd', ' | ', 'e', '&&', 'f']);
+  expect(commandParts('one')).toEqual(['one']);
 });

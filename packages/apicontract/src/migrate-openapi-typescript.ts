@@ -9,7 +9,7 @@
 import { parse as parseYaml } from 'seniority/yaml';
 
 import { type ContractFinding } from './core/model.js';
-import { camel, type Config, editScripts, finding, type Files, type Migrate, scripts, type Target } from './migrate-shared.js';
+import { camel, type Config, commandParts, editScripts, finding, type Files, type Migrate, scripts, type Target } from './migrate-shared.js';
 
 /** The flags `types` carries over in compat mode: every documented flag that shapes the output. */
 const CARRIED = new Set([
@@ -72,7 +72,9 @@ const parseArgs = (args: readonly string[], pointer: string): { run: Run; check:
   const findings: ContractFinding[] = [];
   for (let index = 0; index < args.length; index += 1) {
     const word = args[index] as string;
-    const [rawName = '', inline] = word.split('=', 2) as [string, string | undefined];
+    const equals = word.indexOf('=');
+    const rawName = equals === -1 ? word : word.slice(0, equals);
+    const inline = equals === -1 ? undefined : word.slice(equals + 1);
     const name = ALIASES.get(rawName) ?? rawName;
     const next = (): string | undefined => {
       if (inline !== undefined) return inline;
@@ -97,20 +99,18 @@ const fromScripts = (files: Files): { runs: Run[]; replaced: Record<string, stri
   const runs: Run[] = [];
   const replaced = new Map<string, string>();
   for (const [name, command] of Object.entries(scripts(files))) {
-    const parts = command.split(/(\s*(?:&&|\|\||;|\|)\s*)/u);
-    let changed = false;
+    const parts = commandParts(command);
     const rewritten = parts.map((part) => {
       const list = words(part);
       const at = list.indexOf('openapi-typescript');
       if (at === -1) return part;
       const { run, check } = parseArgs(list.slice(at + 1), `package.json#/scripts/${name}`);
       runs.push(run);
-      changed = true;
-      let first = at;
-      while (first > 0 && RUNNERS.has(list[first - 1] as string)) first -= 1;
-      return [...list.slice(0, first), 'apicontract', 'gen', ...(check ? ['--check'] : [])].join(' ');
+      const before = list.slice(0, at);
+      while (RUNNERS.has(before.at(-1) as string)) before.pop();
+      return [...before, 'apicontract', 'gen', ...(check ? ['--check'] : [])].join(' ');
     });
-    if (changed) replaced.set(name, rewritten.join(''));
+    if (rewritten.join('') !== command) replaced.set(name, rewritten.join(''));
   }
   return { runs, replaced: Object.fromEntries(replaced) };
 };

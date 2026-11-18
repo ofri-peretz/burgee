@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -6,7 +6,7 @@ import { ExitCode } from 'burgee';
 import { runBurgee } from 'burgee/testing';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { command, SOURCES } from './command-migrate.js';
+import { command, project, SOURCES } from './command-migrate.js';
 import { program } from './index.js';
 
 const root = mkdtempSync(join(tmpdir(), 'apicontract-migrate-'));
@@ -116,3 +116,23 @@ describe('`apicontract migrate`', () => {
     expect(r.code).toBe(ExitCode.USAGE);
   });
 });
+
+describe('reading the project', () => {
+  it('reads package.json and every source, and nothing in a dependency, build or version-control folder', async () => {
+    const files = Object.fromEntries(
+      ['package.json', 'xpackage.json', 'a.ts', 'b.cts', 'c.mjs', 'd.jsx', 'e.tsx', 'f.ts.bak', 'g.json', 'sub/package.json', 'sub/h.js'].map((path) => [path, path]),
+    );
+    for (const skipped of ['node_modules', 'dist', 'build', 'coverage', '.git', '.next', '.turbo']) files[`${skipped}/x.ts`] = 'x';
+    const directory = make('walk', files);
+    symlinkSync(join(directory, 'a.ts'), join(directory, 'link.ts'));
+    expect(Object.keys(await project(directory)).toSorted()).toEqual(['a.ts', 'b.cts', 'c.mjs', 'd.jsx', 'e.tsx', 'package.json', 'sub/h.js', 'sub/package.json']);
+    expect((await project(directory))['sub/h.js']).toBe('sub/h.js');
+  });
+
+  it('reports a change when it writes the config and edits nothing', async () => {
+    const directory = make('config-only', { 'redocly.yaml': 'apis:\n  a:\n    root: a.yaml\n    x-openapi-ts:\n      output: a.ts\n' });
+    const r = await runBurgee(program, { argv: ['migrate', 'openapi-typescript', directory, '--json'] });
+    expect(data(r)).toMatchObject({ changed: true, read: 'redocly.yaml', written: ['apicontract.config.json'], edited: [] });
+  });
+});
+

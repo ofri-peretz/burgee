@@ -16,7 +16,7 @@ export interface Unreadable {
 export type Literal = null | undefined | boolean | number | string | Unreadable | readonly Literal[] | { readonly [key: string]: Literal };
 
 export const isUnreadable = (value: unknown): value is Unreadable =>
-  typeof value === 'object' && value !== null && !Array.isArray(value) && Object.keys(value).length === 1 && typeof (value as { unreadable?: unknown }).unreadable === 'string';
+  typeof value === 'object' && value !== null && Object.keys(value).length === 1 && typeof (value as { unreadable?: unknown }).unreadable === 'string';
 
 const WORDS: ReadonlyMap<string, Literal> = new Map<string, Literal>([
   ['true', true],
@@ -25,16 +25,30 @@ const WORDS: ReadonlyMap<string, Literal> = new Map<string, Literal>([
   ['undefined', undefined],
 ]);
 
-class Reader {
-  private at = 0;
+/** A bare word: a keyword, a number, or a name. */
+const WORD = /-?[\w$.]+/uy;
+const KEY = /[\w$]+/uy;
 
-  constructor(private readonly source: string) {}
+/** What may follow a value a word stands for: the end of the text, or a separator. */
+const ENDS = new Set(['', ',', ';', ')', ']', '}']);
+
+/** The match of a sticky pattern at `at`, if any. */
+const stickyMatch = (pattern: RegExp, source: string, index: number): string | undefined => {
+  pattern.lastIndex = index;
+  return pattern.exec(source)?.[0];
+};
+
+class Reader {
+  constructor(
+    private readonly source: string,
+    private at: number,
+  ) {}
 
   /** Skip spaces and comments. */
   private blank(): void {
     for (;;) {
       const rest = this.source.slice(this.at);
-      const skipped = /^(?:\s+|\/\/[^\n]*|\/\*[\s\S]*?\*\/)/u.exec(rest)?.[0];
+      const skipped = /^(?:\s|\/\/[^\n]*|\/\*[\s\S]*?\*\/)/u.exec(rest)?.[0];
       if (skipped === undefined) return;
       this.at += skipped.length;
     }
@@ -49,6 +63,7 @@ class Reader {
   private endOfString(start: number): number {
     const quote = this.source.charAt(start);
     let index = start + 1;
+    // Stryker disable next-line EqualityOperator: equivalent, one step past the end slices the same text
     while (index < this.source.length && this.source.charAt(index) !== quote) index += this.source.charAt(index) === '\\' ? 2 : 1;
     return index + 1;
   }
@@ -57,6 +72,7 @@ class Reader {
   private skip(): Unreadable {
     const start = this.at;
     let depth = 0;
+    // Stryker disable next-line EqualityOperator: equivalent, one step past the end slices the same text
     while (this.at < this.source.length) {
       const char = this.source.charAt(this.at);
       if (depth === 0 && /[,;)\]}]/u.test(char)) break;
@@ -97,7 +113,7 @@ class Reader {
       const read = this.string();
       return typeof read === 'string' ? read : undefined;
     }
-    const word = /^[\w$]+/u.exec(this.source.slice(this.at))?.[0];
+    const word = stickyMatch(KEY, this.source, this.at);
     if (word === undefined) return undefined;
     this.at += word.length;
     return word;
@@ -129,28 +145,19 @@ class Reader {
     if (char === '{') return this.object();
     if (char === '[') return this.list();
     if (/["'`]/u.test(char)) return this.string();
-    const word = /^-?[\w$.]+/u.exec(this.source.slice(this.at))?.[0] ?? '';
-    const after = this.source.slice(this.at + word.length).trimStart().charAt(0);
-    if (/[,)\]}]/u.test(after) || after === '' || after === ';') {
+    const word = stickyMatch(WORD, this.source, this.at);
+    if (word !== undefined && ENDS.has(this.source.slice(this.at + word.length).trimStart().charAt(0))) {
       if (WORDS.has(word)) {
         this.at += word.length;
         return WORDS.get(word);
       }
       // `word` is digits, letters, `$`, `_` and dots: `Number` reads exactly the numeric literals among them.
-      if (word !== '' && !Number.isNaN(Number(word))) {
+      if (!Number.isNaN(Number(word))) {
         this.at += word.length;
         return Number(word);
       }
     }
     return this.skip();
-  }
-
-  /** Where the exported value starts, past `export default`, `module.exports =` and `defineConfig(`. */
-  start(): boolean {
-    const found = /(?:export\s+default|module\.exports\s*=)\s*(?:[$A-Z_a-z][\w$]*\s*\(\s*)?/u.exec(this.source);
-    if (found === null) return false;
-    this.at = found.index + found[0].length;
-    return true;
   }
 }
 
@@ -159,6 +166,7 @@ class Reader {
  * this reader recognises. A name exported by reference (`export default config`) is unreadable.
  */
 export const readExport = (source: string): Literal => {
-  const reader = new Reader(source);
-  return reader.start() ? reader.value() : undefined;
+  // Where the exported value starts, past `export default`, `module.exports =` and `defineConfig(`.
+  const found = /(?:export\s+default|module\.exports\s*=)\s*(?:[$A-Z_a-z][\w$]*\s*\(\s*)?/u.exec(source);
+  return found === null ? undefined : new Reader(source, found.index + found[0].length).value();
 };

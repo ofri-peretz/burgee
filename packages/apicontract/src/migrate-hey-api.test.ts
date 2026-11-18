@@ -1,23 +1,28 @@
 import { describe, expect, it } from 'vitest';
 
+import recorded from './__fixtures__/kit/migrate-findings.json' with { type: 'json' };
+
 import { cases } from './__fixtures__/kit/migrate-hey-api.js';
 import { migrate } from './migrate-hey-api.js';
 
 const pkg = (scripts: Record<string, string>): string => `${JSON.stringify({ scripts }, undefined, 2)}\n`;
 
 describe('the documented examples', () => {
-  it.each(cases)('$name', ({ configText, script, config, findings }) => {
+  it.each(cases)('$name', ({ name, configText, script, config, findings }) => {
     const files = { 'package.json': pkg({ 'openapi-ts': script ?? 'openapi-ts' }) };
     const result = migrate(configText, files);
     expect(result.config).toEqual(config);
     expect(result.findings.map((one) => `${one.code} @ ${one.pointer}`).toSorted()).toEqual([...findings].toSorted());
     for (const one of result.findings) expect(one.fix).not.toBe('');
+    // Every finding in full, as recorded: the words a user reads are part of the behaviour.
+    expect(result.findings).toEqual((recorded['hey-api'] as Record<string, unknown>)[name]);
     expect(result.edits).toEqual([{ path: 'package.json', before: files['package.json'], after: pkg({ 'openapi-ts': 'apicontract gen' }) }]);
     expect(result.uninstall).toBe('npm uninstall @hey-api/openapi-ts @hey-api/client-fetch');
   });
 });
 
 const only = (configText: string) => migrate(configText, {});
+const files = (script: string) => ({ 'package.json': pkg({ a: script }) });
 
 describe('reading the config', () => {
   it('maps every plugin with a target, and says which plugin is translated', () => {
@@ -100,3 +105,35 @@ describe('scripts', () => {
     expect(migrate(undefined, { 'package.json': pkg({ a: 'openapi-tsx', b: 'my-openapi-ts' }) }).findings.map((one) => one.code)).toEqual(['config-unreadable']);
   });
 });
+
+describe('the edges a mutant would cross', () => {
+  it('reports what it cannot read at the exact place it sits', () => {
+    const result = only("export default { input: [{ path: 'a.yaml', watch: true }, 'b.yaml'], output: { path: dir() }, plugins: [['zod']] }");
+    expect(result.findings.map((one) => `${one.code} @ ${one.pointer}`)).toEqual([
+      'second-input @ openapi-ts.config#/input/1',
+      'option-dropped @ openapi-ts.config#/input/0/watch',
+      'unreadable @ openapi-ts.config#/output/path',
+      'imports-change @ openapi-ts.config#/output',
+      'unreadable @ openapi-ts.config#/plugins/0',
+    ]);
+    expect(only("export default { input: 'a.yaml', plugins: names }").findings[0]?.pointer).toBe('openapi-ts.config#/plugins');
+  });
+
+  it('reads a flag with no value as no input, and runs of spaces as one', () => {
+    expect(migrate(undefined, files('openapi-ts -o out -i')).findings.map((one) => one.code)).toEqual(['nothing-to-migrate']);
+    expect(migrate(undefined, files('npx  openapi-ts  -i a.yaml   -o out ')).config?.input).toBe('a.yaml');
+    expect(migrate(undefined, files('npx  openapi-ts  -i a.yaml   -o out ')).findings.map((one) => one.code)).toEqual(['imports-change']);
+    expect(migrate(undefined, files('openapi-ts')).findings.map((one) => one.code)).toEqual(['nothing-to-migrate']);
+  });
+
+  it('splits a script at `&&` without spaces, and touches no script that does not run Hey API', () => {
+    expect(migrate(undefined, { 'package.json': pkg({ a: 'rimraf x &&openapi-ts -i a.yaml' }) }).edits[0]?.after).toBe(pkg({ a: 'rimraf x &&apicontract gen' }));
+    expect(migrate(undefined, { 'package.json': '{"scripts":{"a":"openapi-ts -i a.yaml","b":"eslint ."}}' }).findings.map((one) => one.pointer).filter((pointer) => pointer.startsWith('package.json'))).toEqual(['package.json#/scripts/a']);
+  });
+
+  it('counts http and https as remote, and only at the start', () => {
+    expect(only("export default { input: 'http://x.dev/a.yaml' }").findings[0]?.code).toBe('remote-input');
+    expect(only("export default { input: 'mirror/https://x.yaml' }").findings.map((one) => one.code)).toEqual(['imports-change']);
+  });
+});
+

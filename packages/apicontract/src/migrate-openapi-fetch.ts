@@ -11,7 +11,7 @@ import { posix } from 'node:path';
 
 import { type ContractFinding } from './core/model.js';
 import { migrate as migrateTypes } from './migrate-openapi-typescript.js';
-import { type Edit, finding, type Files, type Migrate } from './migrate-shared.js';
+import { type Edit, finding, type Files, type Migrate, type Target } from './migrate-shared.js';
 
 const SOURCE = /\.(?:[cm]?[jt]s|[jt]sx)$/u;
 const DEFAULT_IMPORT = /import\s+([$A-Z_a-z][\w$]*)\s+from\s+(["'])openapi-fetch\2/gu;
@@ -30,7 +30,7 @@ const specifier = (file: string, client: string, text: string): string => {
 const TYPE_ARGUMENTS = /<[^>(]*>\(/uy;
 
 /** `name<…>(` as `name(`: the type arguments openapi-fetch's `createClient` takes and the generated one does not. */
-const dropTypeArguments = (text: string, name: string): string => {
+export const dropTypeArguments = (text: string, name: string): string => {
   let result = '';
   let from = 0;
   for (let at = text.indexOf(`${name}<`); at !== -1; at = text.indexOf(`${name}<`, at + 1)) {
@@ -47,7 +47,9 @@ const dropTypeArguments = (text: string, name: string): string => {
 const rewrite = (path: string, before: string, client: string): { edit?: Edit; findings: ContractFinding[] } => {
   const findings: ContractFinding[] = [];
   let after = before;
-  for (const [statement, name = '', quote = '"'] of before.matchAll(DEFAULT_IMPORT)) {
+  // The pattern has both groups, so a match always fills them and the defaults are never read.
+  // Stryker disable next-line StringLiteral: equivalent, see above
+  for (const [statement, name = '', quote = ''] of before.matchAll(DEFAULT_IMPORT)) {
     after = after.replace(statement, `import { ${name === 'createClient' ? name : `createClient as ${name}`} } from ${quote}${specifier(path, client, before)}${quote}`);
     after = dropTypeArguments(after, name);
   }
@@ -63,8 +65,9 @@ const rewrite = (path: string, before: string, client: string): { edit?: Edit; f
 export const migrate: Migrate = (configText, files: Files) => {
   const types = migrateTypes(configText, files);
   const uninstall = 'npm uninstall openapi-fetch openapi-typescript';
-  const out = types.config?.targets.types?.out;
-  if (types.config === undefined || out === undefined) return { ...types, uninstall };
+  if (types.config === undefined) return { ...types, uninstall };
+  // openapi-typescript's migration names its first target `types` whenever it returns a config.
+  const { out } = types.config.targets.types as Target;
   const client = posix.join(posix.dirname(out), 'client.ts');
   const config = { ...types.config, targets: { ...types.config.targets, fetch: { generator: 'fetch', out: client } } };
   const sources = Object.entries(files)

@@ -44,7 +44,7 @@ const walk = async (root: string, directory: string): Promise<string[]> => {
 };
 
 /** The project's sources and `package.json`, by `/`-separated path. */
-const project = async (root: string): Promise<Files> => {
+export const project = async (root: string): Promise<Files> => {
   const paths = await walk(root, '');
   return Object.fromEntries(await Promise.all(paths.map(async (path) => [path, await readFile(join(root, path), 'utf8')] as const)));
 };

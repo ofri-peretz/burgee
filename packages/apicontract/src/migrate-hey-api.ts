@@ -8,7 +8,7 @@
  */
 import { type ContractFinding } from './core/model.js';
 import { isUnreadable, type Literal, readExport } from './migrate-literal.js';
-import { type Config, editScripts, finding, type Files, type Migrate, scripts, type Target } from './migrate-shared.js';
+import { type Config, commandParts, editScripts, finding, type Files, type Migrate, scripts, type Target } from './migrate-shared.js';
 
 /** Hey API plugin → our generator. */
 const MAPPED: ReadonlyMap<string, string> = new Map([
@@ -102,7 +102,7 @@ const fromFlags = (args: readonly string[]): Record<string, Literal> => {
     }
     index += 1;
   }
-  if (list.length > 0) config.set('plugins', [...DEFAULT_PLUGINS, ...list]);
+  config.set('plugins', [...DEFAULT_PLUGINS, ...list]);
   return Object.fromEntries(config);
 };
 
@@ -113,14 +113,12 @@ const fromScripts = (files: Files): { replaced: Record<string, string>; args: st
   const replaced = new Map<string, string>();
   let args: string[] | undefined;
   for (const [name, command] of Object.entries(scripts(files))) {
-    const parts = command.split(/(\s*(?:&&|\|\||;)\s*)/u);
+    const parts = commandParts(command);
     const rewritten = parts.map((part) => {
       const found = BINARY.exec(part);
       if (found === null) return part;
-      args ??= part
-        .slice(found[0].length)
-        .split(/\s+/u)
-        .filter((word) => word !== '' && word !== '\\');
+      const rest = part.slice(found[0].length).trim();
+      args ??= rest === '' ? [] : rest.split(/\s+/u).filter((word) => word !== '\\');
       return `${found[1] as string}apicontract gen`;
     });
     if (rewritten.join('') !== command) replaced.set(name, rewritten.join(''));
@@ -138,7 +136,7 @@ const convert = (value: Literal, findings: ContractFinding[]): Config | undefine
   for (const key of Object.keys(rest)) findings.push(dropped(`${POINTER}#`, key));
   const path = pathOf(input, `${POINTER}#/input`, findings, 'input');
   const out = pathOf(output, `${POINTER}#/output`, findings, 'output') ?? 'src/client';
-  if (path === undefined) {
+  if (path === undefined || path === '') {
     findings.push(finding('nothing-to-migrate', `${POINTER}#/input`, 'the config names no input document', 'set `input` and run the migration again'));
     return undefined;
   }

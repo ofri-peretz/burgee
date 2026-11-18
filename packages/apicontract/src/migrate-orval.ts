@@ -9,7 +9,7 @@
  */
 import { type ContractFinding } from './core/model.js';
 import { isUnreadable, type Literal, readExport } from './migrate-literal.js';
-import { type Config, editScripts, finding, type Files, type Migrate, scripts, type Target } from './migrate-shared.js';
+import { type Config, commandParts, editScripts, finding, type Files, type Migrate, scripts, type Target } from './migrate-shared.js';
 
 /** orval `output.client` → our generators. */
 const CLIENTS: ReadonlyMap<string, readonly string[]> = new Map([
@@ -54,15 +54,16 @@ const targetOf = (value: Literal, pointer: string, findings: ContractFinding[], 
     return undefined;
   }
   for (const key of Object.keys(value).filter((name) => !read.has(name))) findings.push(dropped(pointer, key));
-  return typeof value.target === 'string' ? value.target : targetOf(value.target, `${pointer}/target`, findings, read);
+  return targetOf(value.target, `${pointer}/target`, findings, read);
 };
 
 /** The targets an orval output stands for: the models, the client, and the mocks. */
 const targetsOf = (settings: Readonly<Record<string, Literal>>, out: string, pointer: string, findings: ContractFinding[]): Record<string, Target> => {
   const targets = new Map<string, Target>([['types', { generator: 'types', out: typeof settings.schemas === 'string' ? settings.schemas : out }]]);
   const client = settings.client ?? DEFAULT_CLIENT;
-  const generators = typeof client === 'string' ? (CLIENTS.get(client) ?? []) : [];
-  const translated = typeof client === 'string' ? TRANSLATED.get(client) : undefined;
+  // A client that is not a string finds nothing in either map, and is reported as unreadable below.
+  const generators = CLIENTS.get(client as string) ?? [];
+  const translated = TRANSLATED.get(client as string);
   if (typeof client !== 'string') findings.push(unreadable(`${pointer}/output/client`, client));
   else if (translated !== undefined) findings.push(finding('client-translated', `${pointer}/output/client`, `the \`${client}\` client becomes ${translated}`, `check the call sites after \`apicontract gen\`, or keep orval for ${client}`));
   else if (generators.length === 0) findings.push(finding('client-dropped', `${pointer}/output/client`, `the \`${client}\` client has no apicontract target`, 'keep orval for it, or write the plugin: `apicontract plugin new`'));
@@ -92,15 +93,16 @@ const project = (name: string, value: Literal, findings: ContractFinding[]): Con
   return { input: path, targets: targetsOf(isDict(output) ? output : {}, out, pointer, findings) };
 };
 
-const BINARY = /^(\s*)(?:npx\s+)?orval(\s.*)?$/u;
+const BINARY = /^(\s*)(?:npx\s+)?orval((?:\s.*)?)$/u;
 
 /** The CLI form, `orval --input <spec> --output <file> [--client <name>]`, as the project it stands for. */
 const fromFlags = (args: readonly string[]): Record<string, Literal> | undefined => {
   const pairs: [string, string][] = [];
+  // Stryker disable next-line EqualityOperator,NumericLiteral: equivalent, a last flag with no value reads as absent either way
   for (let index = 0; index + 1 < args.length; index += 2) pairs.push([(args[index] as string).replace(/^-+/u, ''), args[index + 1] as string]);
   const { input, output, client, ...rest } = Object.fromEntries(pairs);
   if (input === undefined) return undefined;
-  return { cli: { input, output: output === undefined ? undefined : { target: output, ...(client === undefined ? {} : { client }) }, ...rest } };
+  return { cli: { input, output: { target: output, client }, ...rest } };
 };
 
 export const migrate: Migrate = (configText, files) => {
@@ -108,18 +110,20 @@ export const migrate: Migrate = (configText, files) => {
   const replaced = new Map<string, string>();
   let args: string[] | undefined;
   for (const [name, command] of Object.entries(scripts(files))) {
-    const parts = command.split(/(\s*(?:&&|\|\||;)\s*)/u);
+    const parts = commandParts(command);
     const rewritten = parts
       .map((part) => {
         const found = BINARY.exec(part);
         if (found === null) return part;
-        args ??= (found[2] ?? '').split(/\s+/u).filter((word) => word !== '');
+        const flags = (found[2] as string).trim();
+        args ??= flags === '' ? [] : flags.split(/\s+/u);
         return `${found[1] as string}apicontract gen`;
       })
       .join('');
     if (rewritten !== command) replaced.set(name, rewritten);
   }
-  const value = configText === undefined ? fromFlags(args ?? []) : readExport(configText);
+  const flags = args === undefined ? undefined : fromFlags(args);
+  const value = configText === undefined ? flags : readExport(configText);
   let config: Config | undefined;
   if (isDict(value)) {
     const [first, ...rest] = Object.entries(value);

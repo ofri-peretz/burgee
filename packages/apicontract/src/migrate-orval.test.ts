@@ -1,23 +1,28 @@
 import { describe, expect, it } from 'vitest';
 
+import recorded from './__fixtures__/kit/migrate-findings.json' with { type: 'json' };
+
 import { cases } from './__fixtures__/kit/migrate-orval.js';
 import { migrate } from './migrate-orval.js';
 
 const pkg = (scripts: Record<string, string>): string => `${JSON.stringify({ scripts }, undefined, 2)}\n`;
 
 describe('the documented examples', () => {
-  it.each(cases)('$name', ({ configText, script, config, findings }) => {
+  it.each(cases)('$name', ({ name, configText, script, config, findings }) => {
     const files = { 'package.json': pkg({ api: script ?? 'orval' }) };
     const result = migrate(configText, files);
     expect(result.config).toEqual(config);
     expect(result.findings.map((one) => `${one.code} @ ${one.pointer}`)).toEqual(findings);
     for (const one of result.findings) expect(one.fix).not.toBe('');
+    // Every finding in full, as recorded: the words a user reads are part of the behaviour.
+    expect(result.findings).toEqual((recorded['orval'] as Record<string, unknown>)[name]);
     expect(result.edits).toEqual([{ path: 'package.json', before: files['package.json'], after: pkg({ api: 'apicontract gen' }) }]);
     expect(result.uninstall).toBe('npm uninstall orval');
   });
 });
 
 const only = (configText: string) => migrate(configText, {});
+const files = (script: string) => ({ 'package.json': pkg({ a: script }) });
 
 describe('reading the config', () => {
   it('says what a translated client loses, and what a dropped one needs', () => {
@@ -98,3 +103,30 @@ describe('scripts', () => {
     expect(migrate(undefined, { 'package.json': pkg({ a: 'orval --input a.yaml' }) }).findings.map((one) => one.code)).toEqual(['nothing-to-migrate']);
   });
 });
+
+describe('the edges a mutant would cross', () => {
+  it('reads a project that is a list as unreadable', () => {
+    expect(only("export default { a: ['x'] }").findings).toEqual([
+      { code: 'unreadable', pointer: 'orval.config#/a', message: '`["x"]` is not data this migration can read', fix: 'write the value out as a literal, or carry it over by hand' },
+    ]);
+  });
+
+  it('runs only `orval` and `npx orval`, however spaced, and reads a flag without its dashes', () => {
+    expect(migrate(undefined, files('echo orval')).edits).toEqual([]);
+    expect(migrate(undefined, files('xorval --input a.yaml')).edits).toEqual([]);
+    const spaced = migrate(undefined, files('npx  orval  --input a.yaml   --output o.ts  no-dash v'));
+    expect(spaced.edits[0]?.after).toBe(pkg({ a: 'apicontract gen' }));
+    expect(spaced.config?.input).toBe('a.yaml');
+    expect(spaced.findings.map((one) => one.pointer)).toEqual(['orval.config#/cli/no-dash', 'orval.config#/cli/output/client', 'orval.config#/cli/output']);
+  });
+
+  it('touches no script that does not run orval', () => {
+    expect(migrate(undefined, { 'package.json': '{"scripts":{"a":"orval","b":"eslint ."}}' }).findings.map((one) => one.pointer).filter((pointer) => pointer.startsWith('package.json'))).toEqual(['package.json#/scripts/a']);
+  });
+
+  it('counts http and https as remote, and only at the start', () => {
+    expect(only("export default { a: { input: 'http://x.dev/a.yaml', output: 'o.ts' } }").findings[0]?.code).toBe('remote-input');
+    expect(only("export default { a: { input: 'mirror/https://x.yaml', output: 'o.ts' } }").findings.map((one) => one.code)).toEqual(['client-translated', 'imports-change']);
+  });
+});
+

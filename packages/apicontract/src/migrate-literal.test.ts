@@ -89,3 +89,21 @@ describe('isUnreadable', () => {
     expect(isUnreadable(value)).toBe(expected);
   });
 });
+
+describe('the edges a mutant would cross', () => {
+  it('reads an escaped quote right before the closing one, and `${` in a quoted string as text', () => {
+    expect(readExport("export default { a: 'x\\'', b: 'y${z}', c: 1 }")).toEqual({ a: "x'", b: 'y${z}', c: 1 });
+  });
+
+  it('reads a word before each separator a value can end at', () => {
+    expect(readExport('export default defineConfig(3)')).toBe(3);
+    expect(readExport('export default [true]')).toEqual([true]);
+    expect(readExport('export default { a: null }')).toEqual({ a: null });
+    expect(readExport('export default [1, x]')).toEqual([1, { unreadable: 'x' }]);
+  });
+
+  it('takes a list for unreadable only when it is an object with one text field', () => {
+    expect(isUnreadable(['x'])).toBe(false);
+  });
+});
+

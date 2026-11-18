@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { basic, packageJson, pathBased } from './__fixtures__/kit/migrate-openapi-fetch.js';
-import { migrate } from './migrate-openapi-fetch.js';
+import { dropTypeArguments, migrate } from './migrate-openapi-fetch.js';
 
 const types = { generator: 'types', out: './src/lib/api/v1.d.ts', options: { compat: 'openapi-typescript' } };
 
@@ -58,7 +58,9 @@ describe('imports', () => {
   });
 
   it('reads only source files that mention openapi-fetch', () => {
-    expect(migrate(undefined, { 'package.json': packageJson, 'a.md': 'client.GET(', 'b.ts': 'client.GET(', 'c.tsx': "import x from 'openapi-fetch'" }).edits.map((edit) => edit.path)).toEqual(['package.json', 'c.tsx']);
+    const result = migrate(undefined, { 'package.json': packageJson, 'a.md': "openapi-fetch client.GET(", 'b.ts': 'client.GET(', 'c.tsx': "import x from 'openapi-fetch'\nx.GET(", 'd.ts.md': "import y from 'openapi-fetch'" });
+    expect(result.edits.map((edit) => edit.path)).toEqual(['package.json', 'c.tsx']);
+    expect(result.findings.map((one) => one.pointer)).toEqual(['c.tsx#L2']);
   });
 
   it('puts the client beside types written at the root', () => {
@@ -72,3 +74,18 @@ it('changes nothing when there are no types to build on', () => {
   const result = migrate(undefined, { 'a.ts': "import c from 'openapi-fetch';" });
   expect(result).toEqual({ config: undefined, edits: [], findings: [expect.objectContaining({ code: 'nothing-to-migrate' })], uninstall: 'npm uninstall openapi-fetch openapi-typescript' });
 });
+
+describe('the edges a mutant would cross', () => {
+  it('reads imports however they are spaced, and counts lines from the first', () => {
+    const text = "\nimport  createClient  from  'openapi-fetch';\nimport { x } from  './xy.js';\nimport { type Middleware } from  'openapi-fetch';\nconst a = await import( 'openapi-fetch' );\nconst b = require( \"openapi-fetch\" );\n";
+    const result = migrate(undefined, files(text));
+    expect(result.edits[1]?.after.split('\n')[1]).toBe("import { createClient } from '../lib/api/client.js';");
+    expect(result.findings.map((one) => one.pointer)).toEqual(['src/deep/api.ts#L4', 'src/deep/api.ts#L5', 'src/deep/api.ts#L6']);
+  });
+
+  it('drops type arguments at the very start of the text, and nowhere a longer name ends', () => {
+    expect(dropTypeArguments('c<p>(1); xc<p>(2); c<p>(3)', 'c')).toBe('c(1); xc<p>(2); c(3)');
+    expect(dropTypeArguments('nothing here', 'c')).toBe('nothing here');
+  });
+});
+

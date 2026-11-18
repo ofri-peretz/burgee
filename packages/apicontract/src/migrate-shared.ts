@@ -45,9 +45,10 @@ export const finding = (code: string, pointer: string, message: string, fix: str
 /** The scripts in `package.json`, by name; none when it is absent or unreadable. */
 export const scripts = (files: Files): Readonly<Record<string, string>> => {
   try {
-    const { scripts: found } = JSON.parse(files['package.json'] ?? '{}') as { scripts?: unknown };
-    if (typeof found !== 'object' || found === null) return {};
-    return Object.fromEntries(Object.entries(found).filter((entry): entry is [string, string] => typeof entry[1] === 'string'));
+    // A missing package.json, text that is not JSON and `"scripts": null` all throw, and read as none.
+    const { scripts: found } = JSON.parse(files['package.json'] as string) as { scripts?: unknown };
+    if (Object(found) !== found) return {};
+    return Object.fromEntries(Object.entries(found as object).filter((entry): entry is [string, string] => typeof entry[1] === 'string'));
   } catch {
     return {};
   }
@@ -58,7 +59,8 @@ export const scripts = (files: Files): Readonly<Record<string, string>> => {
  * form the rewrite cannot find is reported, never skipped in silence.
  */
 export const editScripts = (files: Files, replaced: Readonly<Record<string, string>>): { edits: Edit[]; findings: ContractFinding[] } => {
-  const before = files['package.json'] ?? '';
+  // Only a package.json that exists has scripts to replace.
+  const before = files['package.json'] as string;
   const found = scripts(files);
   let after = before;
   const findings: ContractFinding[] = [];
@@ -72,6 +74,9 @@ export const editScripts = (files: Files, replaced: Readonly<Record<string, stri
   }
   return { edits: after === before ? [] : [{ path: 'package.json', before, after }], findings };
 };
+
+/** A shell command split at `&&`, `||`, `;` and `|`, the separators kept, so joining the parts gives it back. */
+export const commandParts = (command: string): string[] => command.split(/(\s*(?:&&|\|\||;|\|)\s*)/u);
 
 /** `kebab-case` as `camelCase`: CLI flags and YAML keys as option names. */
 export const camel = (name: string): string => name.replaceAll(/-([a-z])/gu, (_match, letter: string) => letter.toUpperCase());
