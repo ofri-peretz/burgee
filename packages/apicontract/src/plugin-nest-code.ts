@@ -36,11 +36,11 @@ const pascal = (name: string): string => `${name.charAt(0).toUpperCase()}${name.
 /** A path parameter's name as a route segment can carry it. */
 const segmentName = (name: string): string => name.replaceAll(/\W/gu, '_');
 
-/** The route as NestJS (path-to-regexp 8) reads it: `{petId}` is `:petId`, and its reserved characters escaped. */
+/** The route as NestJS (path-to-regexp 8) reads it: `{petId}` is `:petId`, and its reserved characters, the escape itself first among them, escaped. */
 export const routePath = (path: string): string =>
   path
     .split(/(\{[^}]*\})/u)
-    .map((piece, index) => (index % 2 === 1 ? `:${segmentName(piece.slice(1, -1))}` : piece.replaceAll(/[()[\]?+!*:]/gu, '\\$&')))
+    .map((piece, index) => (index % 2 === 1 ? `:${segmentName(piece.slice(1, -1))}` : piece.replaceAll(/[\\()[\]?+!*:]/gu, '\\$&')))
     .join('');
 
 /** Whether a response key is a status code, not a range (`4XX`) or `default`. */

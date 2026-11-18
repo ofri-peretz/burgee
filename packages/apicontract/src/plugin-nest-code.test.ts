@@ -29,6 +29,8 @@ describe('text helpers', () => {
     expect(routePath('/pets/{petId}/photos/{photo-id}')).toBe('/pets/:petId/photos/:photo_id');
     expect(routePath('/a(b)[c]?+!*:d')).toBe('/a\\(b\\)\\[c\\]\\?\\+\\!\\*\\:d');
     expect(routePath('/')).toBe('/');
+    // A backslash in the spec is escaped too, so it cannot escape the character after it.
+    expect(routePath(String.raw`/a\(b`)).toBe(String.raw`/a\\\(b`);
   });
 });
 
