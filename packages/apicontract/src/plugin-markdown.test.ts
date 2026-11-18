@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 import { parse } from 'seniority/yaml';
 import { describe, expect, it } from 'vitest';
@@ -10,7 +11,7 @@ import { builtinAdapters } from './inputs.js';
 import { plugin } from './plugin-markdown.js';
 import { builtins } from './plugins.js';
 
-const FIXTURE = new URL('__fixtures__/agents/pets.openapi.yaml', import.meta.url).pathname;
+const FIXTURE = fileURLToPath(new URL('__fixtures__/agents/pets.openapi.yaml', import.meta.url));
 const pets = parse(readFileSync(FIXTURE, 'utf8'));
 
 const host = () => {

@@ -1,5 +1,6 @@
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { defineProgram, ExitCode } from 'burgee';
 import { runBurgee } from 'burgee/testing';
@@ -10,7 +11,7 @@ import { program } from './cli.js';
 import { command, explain } from './command-explain.js';
 
 const scratch = scratchDirs();
-const FIXTURE = new URL('__fixtures__/agents/pets.openapi.yaml', import.meta.url).pathname;
+const FIXTURE = fileURLToPath(new URL('__fixtures__/agents/pets.openapi.yaml', import.meta.url));
 const failure = async (promise: Promise<unknown>): Promise<Error & { code?: string }> => promise.then(() => new Error('resolved'), (error: unknown) => error as Error);
 
 const spec = (count: number) => ({ openapi: '3.1.0', paths: Object.fromEntries(Array.from({ length: count }, (_, at) => [`/p${String(at)}`, { get: { operationId: `op${String(at)}`, responses: {} } }])) });
