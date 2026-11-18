@@ -150,7 +150,7 @@ describe('summary folding', () => {
     expect(folded.generate).toEqual({ passed: 2, of: 3 });
     expect(folded.typecheck.ts70).toEqual({ passed: 1, of: 3 });
     expect(folded.usable).toEqual({ passed: 1, of: 3 });
-    expect(folded.handled).toEqual({ passed: 1, of: 3 });
+    expect(folded.usableOrRefused).toEqual({ passed: 1, of: 3 });
     expect(folded.roundtrip).toEqual({ passed: 0, of: 0 });
     expect(folded.medianMs).toBe(200);
     expect(foldTool('them', theirs).read).toEqual({ passed: 0, of: 0 });
@@ -164,13 +164,13 @@ describe('summary folding', () => {
     expect(md).toContain('Usable for them only (where we lose): 1\n\n- `b`');
   });
 
-  it('counts a refusal that names its fix as handled, and nothing else', () => {
+  it('counts a refusal that names its fix as usable-or-refused, and nothing else', () => {
     const none = { ts59: null, ts60: null, ts70: null };
     const refusal = row('r', 'ours', { generate: false, typecheck: none, error: 'cannot resolve `x.json#/A`: no such file. fix: add x.json' });
     const bare = row('s', 'ours', { generate: false, typecheck: none, error: 'boom fix:' });
     const badOutput = row('t', 'ours', { typecheck: { ts59: false, ts60: false, ts70: false }, error: 'x. fix: y' });
     expect([refusal, bare, badOutput].map(refused)).toEqual([true, false, false]);
-    expect(foldTool('ours', [refusal, bare, badOutput, row('u', 'ours')]).handled).toEqual({ passed: 2, of: 4 });
+    expect(foldTool('ours', [refusal, bare, badOutput, row('u', 'ours')]).usableOrRefused).toEqual({ passed: 2, of: 4 });
     expect(renderSummary({ run: 'r', tools: [foldTool('ours', [refusal])], rows: {} })).toContain('| 0.0% (0/1) | 100.0% (1/1) |');
   });
 
@@ -178,7 +178,7 @@ describe('summary folding', () => {
     const unmeasured = row('v', 'ours', { typecheck: { ts59: null, ts60: null, ts70: true } });
     const folded = foldTool('ours', [unmeasured, row('w', 'ours')]);
     expect(folded.usable).toEqual({ passed: 1, of: 1 });
-    expect(folded.handled).toEqual({ passed: 1, of: 1 });
+    expect(folded.usableOrRefused).toEqual({ passed: 1, of: 1 });
   });
 
   it('median handles empty, odd and even', () => {

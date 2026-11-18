@@ -31,7 +31,7 @@
         "passed": 4011,
         "of": 4265
       },
-      "handled": {
+      "usableOrRefused": {
         "passed": 4215,
         "of": 4265
       },
@@ -71,7 +71,7 @@
         "passed": 4016,
         "of": 4265
       },
-      "handled": {
+      "usableOrRefused": {
         "passed": 4016,
         "of": 4265
       },
@@ -111,7 +111,7 @@
         "passed": 2067,
         "of": 4265
       },
-      "handled": {
+      "usableOrRefused": {
         "passed": 2067,
         "of": 4265
       },

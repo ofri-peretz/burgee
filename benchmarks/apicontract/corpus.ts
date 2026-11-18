@@ -157,7 +157,9 @@ function checkBatch(work: string, config: string, batch: readonly string[], resu
     const ran = runTsc(work, config, version);
     const output = `${ran.stdout}\n${ran.stderr}`;
     const failing = filesWithErrors(output, work, realpathSync(work));
-    // A non-zero exit with no attributable error is a compiler crash, not a verdict on any document in the batch.
+    // A non-zero exit with no attributable error is a compiler crash (out of heap, the case batching guards), not a
+    // verdict on any document in the batch. A file-less error such as TS5055 lands here too: it is about the run's
+    // config, not a document, so the batch is unmeasured and logged rather than failed.
     if (ran.status !== 0 && failing.size === 0) {
       process.stderr.write(`tsc ${version} exited ${ran.status} without a diagnostic on outputs ${path.basename(batch[0] ?? '')}-${path.basename(batch.at(-1) ?? '')}: ${firstLine(output)}\n`);
       for (const out of batch) checked.crashed.add(path.basename(out));

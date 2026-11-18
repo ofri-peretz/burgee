@@ -199,7 +199,7 @@ export interface ToolSummary {
   /** Generated and type-checked under every TypeScript: the row a user would call "works". */
   readonly usable: Share;
   /** Usable, or not generated with an error that names its own fix: a refusal the user can act on, not a crash or bad output. */
-  readonly handled: Share;
+  readonly usableOrRefused: Share;
   readonly roundtrip: Share;
   readonly medianMs: number | null;
   readonly p90Ms: number | null;
@@ -232,7 +232,7 @@ export function foldTool(tool: string, rows: readonly Row[]): ToolSummary {
     generate: share(rows.map((r) => r.generate)),
     typecheck: Object.fromEntries(keys.map((k) => [k, share(rows.map((r) => (r.generate ? r.typecheck[k] : false)))])) as Record<TsKey, Share>,
     usable: share(rows.map(usableOrUnmeasured)),
-    handled: share(rows.map((r) => (refused(r) ? true : usableOrUnmeasured(r)))),
+    usableOrRefused: share(rows.map((r) => (refused(r) ? true : usableOrUnmeasured(r)))),
     roundtrip: share(rows.map((r) => r.roundtrip)),
     medianMs: median(ms),
     p90Ms: ms.length === 0 ? null : (ms[Math.min(ms.length - 1, Math.floor(ms.length * P90))] ?? null),
@@ -280,7 +280,7 @@ export function renderSummary({ run, tools, rows, subject, listed = LISTED }: Su
     '| Tool | Docs | Read | Generate | TS 5.9 | TS 6.0 | TS 7.0 | Usable | Usable or refused | Median ms | p90 ms |',
     '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
     ...tools.map((t) =>
-      `| ${t.tool} | ${t.documents} | ${pct(t.read)} | ${pct(t.generate)} | ${pct(t.typecheck.ts59)} | ${pct(t.typecheck.ts60)} | ${pct(t.typecheck.ts70)} | ${pct(t.usable)} | ${pct(t.handled)} | ${t.medianMs ?? '—'} | ${t.p90Ms ?? '—'} |`,
+      `| ${t.tool} | ${t.documents} | ${pct(t.read)} | ${pct(t.generate)} | ${pct(t.typecheck.ts59)} | ${pct(t.typecheck.ts60)} | ${pct(t.typecheck.ts70)} | ${pct(t.usable)} | ${pct(t.usableOrRefused)} | ${t.medianMs ?? '—'} | ${t.p90Ms ?? '—'} |`,
     ),
   ];
   const mine = subject === undefined ? undefined : rows[subject];
