@@ -27,6 +27,7 @@ import {
   transformSchema,
   transformSchemaObject,
   transformWebhooksObject,
+  unresolvedRefs,
 } from './gen-ts-index.js';
 
 interface Case {
@@ -38,6 +39,11 @@ interface Case {
   /** What references resolve against. */
   readonly document?: unknown;
   readonly discriminators?: Discriminators;
+  /**
+   * The document keeps references that lead nowhere, which `generate` refuses as upstream's
+   * bundler does; it is printed through `transformSchema`, upstream's transform past that check.
+   */
+  readonly unresolved?: true;
   readonly want: readonly string[];
 }
 
@@ -614,6 +620,7 @@ const DOCUMENTS: readonly Case[] = [
   },
   {
     name: 'paths: shared and operation parameters, bodies, responses, headers',
+    unresolved: true,
     given: {"openapi":"3.1.0","paths":{"/pets/{id}":{"parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"integer"}},{"name":"trace","in":"header","description":"Shared.","schema":{"type":"string"}},{"$ref":"#/components/parameters/Limit"},{"$ref":"#/components/parameters/Gone"}],"get":{"summary":"Get a pet","description":"Reads one pet.","deprecated":true,"parameters":[{"name":"trace","in":"header","required":true,"schema":{"type":"string"}},{"name":"q","in":"query"},{"name":"session","in":"cookie","required":true,"schema":{"type":"string","enum":["a","b"]}},{"$ref":"#/components/parameters/ById"}],"requestBody":{"description":"The body.","required":true,"content":{"application/json":{"schema":{"type":"object","properties":{"size":{"type":"number","default":1}}}},"text/plain":{},"application/xml":{"$ref":"#/components/schemas/Pet"}}},"responses":{"200":{"description":"OK","headers":{"X-Rate":{"schema":{"type":"integer"},"required":true,"description":"Remaining."},"X-Ref":{"$ref":"#/components/headers/Rate"},"X-Content":{"content":{"application/json":{"schema":{"type":"string"}},"a/b":{"$ref":"#/components/schemas/Pet"}}},"X-Bare":{}},"content":{"application/json":{"schema":{"$ref":"#/components/schemas/Pet"}},"text/plain":{}}},"204":{"description":"No content"},"default":{"$ref":"#/components/responses/Problem"}}},"put":{"requestBody":{"$ref":"#/components/requestBodies/PetBody"},"responses":{}},"post":{"requestBody":{"content":{}}},"delete":{"$ref":"#/components/pathItems/Shared/delete"},"patch":{"operationId":"pets#patch","parameters":[{"name":"mode","in":"query","schema":{"type":"string","enum":["x"]}}],"requestBody":{"$ref":"#/components/requestBodies/Missing"},"responses":{"200":{"description":"OK"}}},"head":{"operationId":"headPet","responses":{"200":{"description":"OK"}}}},"/ref":{"$ref":"#/components/pathItems/Shared","description":"A shared item."},"/skipped":null},"webhooks":{"petAdded":{"post":{"operationId":"onPet","responses":{"200":{"description":"OK"}}}}},"components":{"schemas":{"Pet":{"type":"object","properties":{"name":{"type":"string"}}}},"responses":{"Problem":{"description":"A problem.","content":{"application/problem+json":{"schema":{"type":"object"}}}}},"parameters":{"Limit":{"name":"limit","in":"query","description":"Page size.","schema":{"type":"integer"}},"ById":{"name":7,"in":"path","required":true},"Bare":{"name":"bare","in":"query"}},"requestBodies":{"PetBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/Pet"}}}}},"headers":{"Rate":{"schema":{"type":"integer"}}},"pathItems":{"Shared":{"delete":{"responses":{"204":{"description":"Gone"}}}}}}},
     want: [
       'export interface paths {',
@@ -2170,9 +2177,68 @@ describe('transformSchemaObject', () => {
   });
 });
 
+/** What `generate` does after its checks: the transforms read a copy that always has components. */
+const transformed = (given: unknown, options?: GenerateOptions): string => {
+  const copy = structuredClone(given) as Record<string, unknown>;
+  copy.components ||= {};
+  return transformSchema(copy, createContext(copy, options, scanDiscriminators(copy)));
+};
+
 describe('generate', () => {
-  it.each(DOCUMENTS)('$name', ({ given, options, want }) => {
+  it.each(DOCUMENTS.filter((c) => c.unresolved === undefined))('$name', ({ given, options, want }) => {
+    expect(unresolvedRefs(given)).toEqual([]);
     expect(generate(given, options)).toBe(text(want));
+  });
+
+  it.each(DOCUMENTS.filter((c) => c.unresolved === true))('$name, through the transform past the reference check', ({ given, options, want }) => {
+    expect(unresolvedRefs(given)).not.toEqual([]);
+    expect(transformed(given, options)).toBe(text(want));
+  });
+
+  it('refuses a document whose local references lead nowhere, naming the last and then the others', () => {
+    const given = {
+      openapi: '3.1',
+      components: { schemas: { Pet: { type: 'object', properties: { category: { $ref: '#/components/schemas/Gone' }, type: { $ref: '#/components/schemas/Also' } } } } },
+    };
+    expect(() => generate(given)).toThrow(
+      new GenerateError(
+        "Can't resolve $ref at #/components/schemas/Pet/properties/type (and at #/components/schemas/Pet/properties/category).",
+        'point each `$ref` at a member the document has, or bundle the files it names into one document first',
+      ),
+    );
+    const one = { openapi: '3.1', paths: { '/a': { $ref: '#/components/pathItems/A' } } };
+    expect(() => generate(one)).toThrow("Can't resolve $ref at #/paths/~1a. fix: ");
+  });
+
+  it('checks local references only, in structure and not in data, and walks arrays', () => {
+    const document = {
+      openapi: '3.1',
+      'x-note': { $ref: '#/nowhere' },
+      paths: { '/a': { get: { parameters: [{ $ref: '#/components/parameters/P' }, { $ref: '#/components/parameters/Q' }] } } },
+      components: {
+        parameters: { P: { name: 'p', in: 'query' } },
+        schemas: {
+          A: { $ref: 'other.yaml#/A' },
+          B: { example: { $ref: '#/x' }, default: { $ref: '#/x' }, enum: [{ $ref: '#/x' }], const: { $ref: '#/x' } },
+          C: { $ref: '#' },
+          D: { $ref: '#/components/schemas/toString' },
+          E: { $ref: 7 },
+          F: { $ref: '#/components/schemas/A/$ref/0' },
+        },
+      },
+    };
+    expect(unresolvedRefs(document)).toEqual([
+      '#/paths/~1a/get/parameters/1',
+      '#/components/schemas/D',
+      '#/components/schemas/F',
+    ]);
+  });
+
+  it('writes `inject` above the document, as given, and nothing for an empty one', () => {
+    const empty = generate({ openapi: '3.1' });
+    expect(generate({ openapi: '3.1' }, { inject: 'type Foo = string;\ntype Bar = number;\n\n' })).toBe(`type Foo = string;\ntype Bar = number;\n${empty}`);
+    expect(generate({ openapi: '3.1' }, { inject: '' })).toBe(empty);
+    expect(generate({ openapi: '3.1' }, { inject: 3 } as unknown as GenerateOptions)).toBe(empty);
   });
 
   it('does not change the document it is given', () => {
@@ -2211,7 +2277,7 @@ describe('generate', () => {
     expect(() => generate(given)).toThrow(new GenerateError(message.slice(0, message.indexOf(' fix: ')), message.slice(message.indexOf(' fix: ') + ' fix: '.length)));
   });
 
-  it.each(['transform', 'postTransform', 'transformProperty', 'inject'])('refuses the %s option, which needs the compiler', (name) => {
+  it.each(['transform', 'postTransform', 'transformProperty'])('refuses the %s option, which needs the compiler', (name) => {
     const options = { [name]: 'type A = string;' } as unknown as GenerateOptions;
     expect(() => generate({ openapi: '3.1.0' }, options)).toThrow(
       `The \`${name}\` option needs the TypeScript compiler, which this generator does not use. fix: drop the option and edit the generated text instead`,

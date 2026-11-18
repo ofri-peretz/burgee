@@ -22,6 +22,7 @@ import {
   transformWebhooksObject as webhooksType,
 } from './gen-ts-operations.js';
 import { printFile } from './gen-ts-print.js';
+import { childPath, pointerOf } from './gen-ts-ref.js';
 import { transformSchemaObject as schemaType } from './gen-ts-schema.js';
 
 /** The comment upstream's CLI writes above the generated types. `generate` does not add it. */
@@ -55,8 +56,8 @@ const checkVersion = (root: Readonly<Record<string, unknown>>): void => {
   }
 };
 
-// Upstream options that hand compiler nodes in or out, or re-print source through the compiler.
-const COMPILER_OPTIONS: ReadonlySet<string> = new Set(['transform', 'postTransform', 'transformProperty', 'inject']);
+// Upstream options that hand compiler nodes in or out. `inject` is text, and is written as given.
+const COMPILER_OPTIONS: ReadonlySet<string> = new Set(['transform', 'postTransform', 'transformProperty']);
 
 /** Refuse an option that cannot be honoured, rather than print types that silently ignore it. */
 const checkOptions = (options: object): void => {
@@ -67,6 +68,49 @@ const checkOptions = (options: object): void => {
       'drop the option and edit the generated text instead',
     );
   }
+};
+
+// Values that are data, not part of the document's structure: a `$ref` inside one is not a reference.
+const DATA_MEMBERS: ReadonlySet<string> = new Set(['example', 'default', 'enum', 'const']);
+
+const exists = (root: unknown, ref: string): boolean => {
+  let node = root;
+  for (const token of pointerOf(ref)) {
+    // eslint-disable-next-line conventions/consistent-existence-index-check -- Own members only: `#/toString` must not resolve to an inherited function
+    if (typeof node !== 'object' || node === null || !Object.hasOwn(node, token)) return false;
+    node = (node as Record<string, unknown>)[token];
+  }
+  return true;
+};
+
+/**
+ * The pointer of every object whose local `$ref` leads nowhere, in document order: what
+ * upstream's bundler reports as `Can't resolve $ref at <pointer>`. A reference to another file
+ * is not checked here; it is not read at all.
+ */
+export const unresolvedRefs = (root: unknown): string[] => {
+  const found: string[] = [];
+  const walk = (node: unknown, path: string): void => {
+    if (typeof node !== 'object' || node === null) return;
+    const { $ref } = node as { $ref?: unknown };
+    if (typeof $ref === 'string' && $ref.startsWith('#') && !exists(root, $ref)) found.push(path);
+    for (const [key, member] of Object.entries(node)) {
+      if (!DATA_MEMBERS.has(key) && !key.startsWith('x-')) walk(member, childPath(path, key));
+    }
+  };
+  walk(root, '#');
+  return found;
+};
+
+const checkRefs = (root: unknown): void => {
+  const unresolved = unresolvedRefs(root);
+  const last = unresolved.at(-1);
+  if (last === undefined) return;
+  const others = unresolved.slice(0, -1);
+  throw new GenerateError(
+    `Can't resolve $ref at ${last}${others.length === 0 ? '' : ` (and at ${others.join(', ')})`}.`,
+    'point each `$ref` at a member the document has, or bundle the files it names into one document first',
+  );
 };
 
 /** The schema type of one Schema Object. */
@@ -121,12 +165,15 @@ export const generate = (root: unknown, options: GenerateOptions = {}): string =
   }
   checkOptions(options);
   checkVersion(root);
+  checkRefs(root);
   // Discriminators are written into the schemas they map to, so the transforms read a copy.
   const copy = structuredClone(root);
   // Upstream's bundler gives every document a Components Object, so the root is always printed in full.
   copy.components ||= {};
   const ctx = createContext(copy, options, scanDiscriminators(copy));
-  return printFile(documentStatements(copy, ctx));
+  const body = printFile(documentStatements(copy, ctx));
+  // Upstream writes the injected statements first, then the document's.
+  return typeof options.inject === 'string' && options.inject !== '' ? `${options.inject.trimEnd()}\n${body}` : body;
 };
 
 export {
