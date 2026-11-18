@@ -16,7 +16,7 @@ const WORKING = [
 /** The commands whose lanes are under way: their effects are fixed here, their behaviour by their lane. */
 const LANE_COMMANDS = [
   ['explain', 'read_only'],
-  ['diff', 'idempotent'],
+  ['diff', 'read_only'],
   ['migrate', 'idempotent'],
   ['plugin', 'idempotent'],
 ] as const;
