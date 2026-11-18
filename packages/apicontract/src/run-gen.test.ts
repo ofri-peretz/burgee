@@ -8,6 +8,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { scratchDirs } from './__fixtures__/run/scratch-dir.js';
 import { program } from './cli.js';
+import { builtins } from './plugins.js';
 import { gen, requireConfig } from './run-gen.js';
 import { withHeader } from './run-header.js';
 
@@ -199,7 +200,9 @@ describe('gen', () => {
 
   it('refuses a generator the plugins do not provide, listing the ones they do', async () => {
     const root = project({ targets: { types: { generator: 'nope', out: 'o' } } });
-    expect((await failure(gen({ cwd: root }))).message).toContain('no generator is named "nope". fix: use one of: types');
+    // Every built-in, not a fixed list: each lane that lands a plugin adds a name.
+    const names = builtins.flatMap((plugin) => Object.keys(plugin.generators ?? {})).toSorted();
+    expect((await failure(gen({ cwd: root }))).message).toContain(`no generator is named "nope". fix: use one of: ${names.join(', ')};`);
   });
 
   it('refuses a map that was edited into something unreadable', async () => {
