@@ -73,6 +73,10 @@ const sorted = <T>(entries: Iterable<[string, T]>): Record<string, T> => {
  * The map after a run: every entry of the targets that ran is replaced by what they produced now,
  * and the entries of the targets that did not run are kept as they were.
  */
+/** Map entries in one stable order: target, then file, then symbol. */
+const byTargetFileSymbol = (a: MapEntry, b: MapEntry): number =>
+  `${a.target}\0${a.file}\0${a.symbol}`.localeCompare(`${b.target}\0${b.file}\0${b.symbol}`, 'en');
+
 export const updateMap = (previous: ContractMap, produced: readonly Produced[]): ContractMap => {
   const ran = new Set(produced.map((entry) => entry.target));
   const operations = new Map<string, MapEntry[]>();
@@ -87,8 +91,7 @@ export const updateMap = (previous: ContractMap, produced: readonly Produced[]):
       for (const { operation, symbol } of file.symbols ?? []) add(operation, [{ file: file.path, symbol, target }]);
     }
   }
-  const order = (a: MapEntry, b: MapEntry): number => `${a.target}\0${a.file}\0${a.symbol}`.localeCompare(`${b.target}\0${b.file}\0${b.symbol}`, 'en');
-  const kept = [...operations].filter(([, entries]) => entries.length > 0).map(([id, entries]): [string, MapEntry[]] => [id, entries.toSorted(order)]);
+  const kept = [...operations].filter(([, entries]) => entries.length > 0).map(([id, entries]): [string, MapEntry[]] => [id, entries.toSorted(byTargetFileSymbol)]);
   return { version: 1, operations: sorted(kept), files: sorted(files) };
 };
 

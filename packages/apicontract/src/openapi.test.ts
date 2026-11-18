@@ -126,6 +126,75 @@ describe('read', () => {
     );
   });
 
+  it('reads 3.2 additionalOperations after the named methods, in paths and webhooks', () => {
+    const document = {
+      openapi: '3.2.0',
+      paths: { '/a': { get: {}, additionalOperations: { COPY: { operationId: 'copyA' }, 'LINK/X': {}, BAD: 'not an operation' } } },
+      webhooks: { hook: { additionalOperations: { NOTIFY: { requestBody: { content: { 'application/json': {} } } } } } },
+    };
+    expect(read(document).operations.map(({ id, source }) => [id, source])).toEqual([
+      ['get /a', '#/paths/~1a/get'],
+      ['copyA', '#/paths/~1a/additionalOperations/COPY'],
+      ['LINK/X /a', '#/paths/~1a/additionalOperations/LINK~1X'],
+      ['webhook NOTIFY hook', '#/webhooks/hook/additionalOperations/NOTIFY'],
+    ]);
+    expect(read(document).operations[3]?.payloads).toEqual([{ name: 'body:application/json', direction: 'publish', schema: true, required: false }]);
+    expect(read({ openapi: '3.2.0', paths: { '/a': { additionalOperations: [] } } }).operations).toEqual([]);
+  });
+
+  it('reads a 3.2 itemSchema as one more payload, each item of the stream', () => {
+    const event = { type: 'object' };
+    const document = {
+      openapi: '3.2.0',
+      paths: {
+        '/events': {
+          get: {
+            responses: {
+              200: {
+                content: {
+                  'text/event-stream': { itemSchema: event },
+                  'application/jsonl': { schema: { type: 'string' }, itemSchema: event },
+                  'application/json': { schema: { type: 'array' } },
+                },
+              },
+            },
+          },
+        },
+      },
+    };
+    expect(read(document).operations[0]?.payloads).toEqual([
+      { name: 'response:200:text/event-stream:item', direction: 'response', schema: event, required: true },
+      { name: 'response:200:application/jsonl', direction: 'response', schema: { type: 'string' }, required: true },
+      { name: 'response:200:application/jsonl:item', direction: 'response', schema: event, required: true },
+      { name: 'response:200:application/json', direction: 'response', schema: { type: 'array' }, required: true },
+    ]);
+  });
+
+  it("reads a parameter described by `content`, as 3.2's querystring always is, by its media type's schema", () => {
+    const filter = { type: 'object', properties: { q: { type: 'string' } } };
+    const document = {
+      openapi: '3.2.0',
+      paths: {
+        '/search': {
+          get: {
+            parameters: [
+              { name: 'filter', in: 'querystring', content: { 'application/x-www-form-urlencoded': { schema: filter } } },
+              { name: 'empty', in: 'query', content: {} },
+              { name: 'both', in: 'query', schema: { type: 'integer' }, content: { 'application/json': { schema: filter } } },
+              { name: 'odd', in: 'query', content: 'x' },
+            ],
+          },
+        },
+      },
+    };
+    expect(read(document).operations[0]?.payloads.map(({ name, schema }) => [name, schema])).toEqual([
+      ['param:querystring:filter', filter],
+      ['param:query:empty', true],
+      ['param:query:both', { type: 'integer' }],
+      ['param:query:odd', true],
+    ]);
+  });
+
   it('reads a document with no paths as no operations', () => {
     expect(read({ openapi: '3.0.0', paths: [] }).operations).toEqual([]);
   });
