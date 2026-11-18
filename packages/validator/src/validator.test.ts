@@ -359,7 +359,7 @@ describe('a key Object.prototype has counts only as an own key', () => {
     expect([check(Exact, {}), check(Exact, { toString: undefined }), check(Exact, JSON.parse('{"toString": "y"}'))]).toEqual([true, false, true]);
     expect(issues(Exact, { toString: undefined }).map((i) => i.keyword)).toEqual(['undefined']);
     expect(issues(Exact, {})).toEqual([]);
-    // eslint-disable-next-line secure-coding/no-unsafe-deserialization, node-security/detect-eval-with-expression -- The emitted text is the subject under test
+    // eslint-disable-next-line node-security/detect-eval-with-expression -- The emitted text is the subject under test
     const compiled = new Function(`return ${emit(Exact)}`)() as (value: unknown) => boolean;
     expect([compiled({}), compiled({ toString: undefined }), compiled(JSON.parse('{"toString": "y"}'))]).toEqual([true, false, true]);
   });
