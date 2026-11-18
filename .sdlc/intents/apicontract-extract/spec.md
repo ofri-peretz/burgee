@@ -45,3 +45,48 @@ the round-trip test is the check that would catch a generator and an extractor d
 ## Out of scope
 
 Extracting from Express or Fastify handlers without schemas (there is nothing typed to read).
+
+## As built (2026-11-18, PR for PLAN.md 6.5)
+
+Landed: R1 (`extract-normalise.ts`: `normalise`, `inline`, `stable`), R3
+(`plugin-extract-standard-schema.ts`, shared code in `extract-standard.ts`), R4
+(`plugin-extract-openapi.ts`, extractor `openapi-from-schemas`), R2 (`extract-roundtrip.ts`), R7
+(`plugin-extract-ts-rest.ts`). Not yet: R5 (NestJS), Hono, tRPC/oRPC.
+
+Where the design was wrong or silent, and what was done:
+
+- **Findings have no channel.** `Extractor.run` returns a document; `apicontract extract` writes it
+  and reports no findings. Every extractor here puts its findings in the document's root
+  `x-findings` (an extension key both JSON Schema and OpenAPI allow) rather than dropping them.
+  The spine should give `Extractor.run` a `{ document, findings }` return, as `Generator` has.
+- **A schema library writes a document of its own**, with `$defs` and `$ref: "#"` (Zod's recursion
+  and `.meta({ id })`). `relocate` moves those `$defs` to the extracted document's `$defs` or
+  `components.schemas` and rewrites every reference; a clashing name is renamed with a finding.
+- **Responses have two sides.** A response schema is written as its output by default (what a
+  server's schema hands out: Zod's object output has `additionalProperties: false`), and as its
+  input with `responseSide: "input"`, which is what zod-to-openapi writes.
+- **R2 uses `compareContracts`** now that `ac-diff` has landed, but alongside the structural diff,
+  not instead of it: `equal` is the structural verdict, `comparison` the classified one.
+- **The `json-schema` target is not on main** (6.4), so the round trip's generator half is the
+  validator at run time: `fromJsonSchema` then `standardJson`, the module the `validator` target
+  would export, without writing it.
+
+Readings, 2026-11-18:
+
+- **B1 (round trip).** The validator's own Standard Schema fixtures: equal (2/2 schemas). The
+  five-document fixture corpus through the validator: 0/5 equal on the first pass (a format is
+  written back as its pattern, an enum as `anyOf` of `const`, `type: "null"` as `const: null`),
+  4/5 a fixed point after it; a tuple (`prefixItems` with `items: false`) grows on every pass — the
+  validator lane's to fix. `compareContracts` calls 1/5 of those round trips non-breaking; the
+  other four are rewrites that validate the same values, which the classifier reads as breaking
+  (the diff lane's to refine). Zod through `z.fromJSONSchema` on the same corpus, for comparison:
+  1/5 equal.
+- **B2 (zod-to-openapi's own examples).** 2/2 equivalent on `paths` after `inline` and `normalise`
+  with `responseSide: "input"` (README quick example; `example/index.ts` against
+  `example/openapi-docs.yml`, at 9af9229). With the default output side the one difference is
+  Zod's `additionalProperties: false` on the response object. Operation ids are left out of the
+  grade: zod-to-openapi writes none unless given one.
+- **B3 = 0 on the fixture set:** a value without Standard JSON Schema, a converter that throws, a
+  `c.type<T>()` body or response, a non-object parameter schema, an unknown method, a duplicate
+  route and a renamed definition are each a finding with a `fix`.
+- Mutation on the changed lines: 1016 killed, 3 timeout, 0 survived.

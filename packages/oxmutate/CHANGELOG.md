@@ -1,5 +1,21 @@
 # oxmutate
 
+## 2.7.0
+
+### Minor Changes
+
+- [#1608](https://github.com/ofri-peretz/burgee/pull/1608) [`6dcc3ca`](https://github.com/ofri-peretz/burgee/commit/6dcc3ca96b20be9c9c300b121abd5916460dee89) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The governor's load hold: while the load average, less oxmutate's own busy servers, is past `resources.maxLoad` (default 1.5 × cores; `--max-load`), no new unit starts, until it falls under 80% of that. One server always runs, and a unit already running is never stopped. Where the OS reports no load average (Windows), busy cores are read from CPU time. Servers now start at a lowered OS priority; `resources.priority: 'normal'` (`--priority normal`) keeps the normal one. The summary reports how long starts were held.
+
+- [#1608](https://github.com/ofri-peretz/burgee/pull/1608) [`6dcc3ca`](https://github.com/ofri-peretz/burgee/commit/6dcc3ca96b20be9c9c300b121abd5916460dee89) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `static.readers` is now on by default: a static mutant runs only in the test files that read its value, with one survivor in twenty audited in every loading file and the run failing on a disagreement. Set `static.readers: 'off'` or pass `--no-static-readers` to run every loading file, as before. The read-tracking dry run is skipped when no tracked module is loaded by more than one test file.
+
+### Patch Changes
+
+- [#1608](https://github.com/ofri-peretz/burgee/pull/1608) [`6dcc3ca`](https://github.com/ofri-peretz/burgee/commit/6dcc3ca96b20be9c9c300b121abd5916460dee89) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A server killed by the watchdog, or one whose coordinator died, now takes the processes its tests started with it. Each server leads its own process group (not on Windows), and a kill or a lost coordinator ends the group. Before, those processes were re-parented and lived on: 8 uvu runners from one 12-minute compat-oracle warm phase.
+
+- [#1608](https://github.com/ofri-peretz/burgee/pull/1608) [`6dcc3ca`](https://github.com/ofri-peretz/burgee/commit/6dcc3ca96b20be9c9c300b121abd5916460dee89) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Each Vitest server's tests now write their temporary files (`TMPDIR`, `TMP`, `TEMP`) inside the run's work directory, which is removed when the run ends. A test interrupted by a kill never runs its own cleanup, and runs had left tens of thousands of entries in the system's temporary directory.
+
+- [#1608](https://github.com/ofri-peretz/burgee/pull/1608) [`6dcc3ca`](https://github.com/ofri-peretz/burgee/commit/6dcc3ca96b20be9c9c300b121abd5916460dee89) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A warm run that passes its budget while its worker is blocked, not looping (under half a core: a synchronous child process, or module loading on a loaded machine), now gets the 3x its re-run would have had in place, instead of a server kill, a restart and that re-run. Loops are still stopped at the budget, waits inside a test are still a Timeout, and no test is waited on past 5 s. The summary counts these as `watchdog: N blocked run(s) given 3x their budget in place`.
+
 ## 2.6.2
 
 ### Patch Changes
