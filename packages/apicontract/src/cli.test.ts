@@ -4,13 +4,19 @@ import { beforeAll, describe, expect, it } from 'vitest';
 
 import { program } from './index.js';
 
-/** Each command with the roadmap phase that delivers it and what it does to the user's files. */
+/** Each command still owned by the spine, with the roadmap phase that delivers it and what it does to the user's files. */
 const COMMANDS = [
   ['gen', 'Phase 1', 'idempotent'],
   ['extract', 'Phase 2', 'idempotent'],
-  ['explain', 'Phase 5', 'read_only'],
-  ['diff', 'Phase 5', 'read_only'],
   ['check', 'Phase 7', 'read_only'],
+] as const;
+
+/** The commands whose lanes are under way: their effects are fixed here, their behaviour by their lane. */
+const LANE_COMMANDS = [
+  ['explain', 'read_only'],
+  ['diff', 'read_only'],
+  ['migrate', 'idempotent'],
+  ['plugin', 'idempotent'],
 ] as const;
 
 describe('apicontract, Phase 0', () => {
@@ -31,11 +37,12 @@ describe('apicontract, Phase 0', () => {
     expect(commands.map((c) => c.name).slice(0, 2)).toEqual(['gen', 'extract']);
   });
 
-  it('declares what each command does to files: the two that write say so, the rest are read-only for an agent', async () => {
+  it('declares what each command does to files: the ones that write say so, the rest are read-only for an agent', async () => {
     const r = await runBurgee(program, { argv: ['--schema'] });
     expect(r.code).toBe(ExitCode.OK);
     const { commands } = JSON.parse(r.stdout) as { commands: { name: string; effects?: string }[] };
     const effects = Object.fromEntries(commands.map((c) => [c.name, c.effects]));
     for (const [name, , effect] of COMMANDS) expect(effects[name], name).toBe(effect);
+    for (const [name, effect] of LANE_COMMANDS) expect(effects[name], name).toBe(effect);
   });
 });

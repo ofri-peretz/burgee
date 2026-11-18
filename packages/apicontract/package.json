@@ -30,6 +30,21 @@
       "import": "./dist/openapi-typescript.js",
       "default": "./dist/openapi-typescript.js"
     },
+    "./input-*": {
+      "types": "./dist/input-*.d.ts",
+      "import": "./dist/input-*.js",
+      "default": "./dist/input-*.js"
+    },
+    "./plugin-*": {
+      "types": "./dist/plugin-*.d.ts",
+      "import": "./dist/plugin-*.js",
+      "default": "./dist/plugin-*.js"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js",
+      "default": "./dist/testing.js"
+    },
     "./package.json": "./package.json"
   },
   "bin": {
@@ -49,7 +64,8 @@
   },
   "dependencies": {
     "burgee": "^2.0.0",
-    "seniority": "^2.0.0"
+    "seniority": "^2.0.0",
+    "validator": "0.0.0"
   },
   "devDependencies": {
     "vitest": "^5.0.1"
