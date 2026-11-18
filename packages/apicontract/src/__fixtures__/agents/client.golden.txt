@@ -21,7 +21,7 @@ export const call = async (route: { readonly method: string; readonly path: stri
   for (const [name, value] of Object.entries(input.query ?? {})) if (value !== undefined) url.searchParams.set(name, String(value));
   const headers = new Headers();
   for (const [name, value] of Object.entries(input.header ?? {})) if (value !== undefined) headers.set(name, String(value));
-  const cookies = Object.entries(input.cookie ?? {}).map(([name, value]) => `${name}=${encodeURIComponent(String(value))}`);
+  const cookies = Object.entries(input.cookie ?? {}).map(([name, value]) => `${encodeURIComponent(name)}=${encodeURIComponent(String(value))}`);
   if (cookies.length > 0) headers.set('cookie', cookies.join('; '));
   const token = authorization();
   if (token !== undefined) headers.set('authorization', token);

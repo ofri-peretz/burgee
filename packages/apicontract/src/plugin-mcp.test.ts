@@ -139,3 +139,18 @@ createServer((request, response) => {
     expect(HANDLERS).toBe(golden('handlers.golden.txt'));
   });
 });
+
+describe('what the spec puts into generated source', () => {
+  it('cannot end a string or a comment early: <, >, U+2028 and U+2029 are written as escapes', () => {
+    const description = 'ends </script> here\u2028and\u2029there';
+    const tools = toolsFile([{ name: 'a', description, inputSchema: { type: 'object' }, route: { method: 'GET', path: '/a', structured: false } } as never]);
+    expect(tools).toContain(String.raw`ends \u003C/script\u003E here\u2028and\u2029there`);
+    expect(tools).not.toMatch(/[<>\u2028\u2029]script/u);
+    expect(serverFile('<x>', '1\u2028', 'stdio')).toContain(String.raw`name: "\u003Cx\u003E", version: "1\u2028"`);
+    expect(clientFile(['<a>'])).toContain(String.raw`"\u003Ca\u003E": async (input) => call(routes["\u003Ca\u003E"], input),`);
+  });
+
+  it('encodes cookie names as well as their values', () => {
+    expect(clientFile([])).toContain('`${encodeURIComponent(name)}=${encodeURIComponent(String(value))}`');
+  });
+});

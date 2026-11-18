@@ -11,7 +11,14 @@
  */
 import { type Route, type Tool } from './plugin-mcp-tools.js';
 
-const json = (value: unknown): string => JSON.stringify(value, null, 2);
+/**
+ * A value as a TypeScript literal, safe to place in generated source: JSON, with the characters a
+ * page or an older parser could misread escaped as well (`<`, `>`, U+2028, U+2029).
+ * Every name, description and schema in the generated files comes from the user's spec.
+ */
+const UNSAFE: Readonly<Record<string, string>> = { '<': '\\u003C', '>': '\\u003E', '\u2028': '\\u2028', '\u2029': '\\u2029' };
+const literal = (value: unknown, indent?: number): string => JSON.stringify(value, null, indent).replaceAll(/[<>\u2028\u2029]/gu, (character) => UNSAFE[character] as string);
+const json = (value: unknown): string => literal(value, 2);
 
 const lines = (...text: readonly string[]): string => `${text.join('\n')}\n`;
 
@@ -65,7 +72,7 @@ export const serverFile = (name: string, version: string, transport: 'stdio' | '
     '',
     '/** A server that lists the tools and calls the handler a tool names. */',
     'export const createMcpServer = (): Server => {',
-    `  const server = new Server({ name: ${JSON.stringify(name)}, version: ${JSON.stringify(version)} }, { capabilities: { tools: {} } });`,
+    `  const server = new Server({ name: ${literal(name)}, version: ${literal(version)} }, { capabilities: { tools: {} } });`,
     '  server.setRequestHandler(ListToolsRequestSchema, () => ({ tools }));',
     '  server.setRequestHandler(CallToolRequestSchema, async (request) => {',
     '    const { name } = request.params;',
@@ -116,7 +123,7 @@ export const clientFile = (names: readonly string[]): string =>
     '  for (const [name, value] of Object.entries(input.query ?? {})) if (value !== undefined) url.searchParams.set(name, String(value));',
     '  const headers = new Headers();',
     '  for (const [name, value] of Object.entries(input.header ?? {})) if (value !== undefined) headers.set(name, String(value));',
-    '  const cookies = Object.entries(input.cookie ?? {}).map(([name, value]) => `${name}=${encodeURIComponent(String(value))}`);',
+    '  const cookies = Object.entries(input.cookie ?? {}).map(([name, value]) => `${encodeURIComponent(name)}=${encodeURIComponent(String(value))}`);',
     "  if (cookies.length > 0) headers.set('cookie', cookies.join('; '));",
     '  const token = authorization();',
     "  if (token !== undefined) headers.set('authorization', token);",
@@ -130,7 +137,7 @@ export const clientFile = (names: readonly string[]): string =>
     '',
     '/** Every tool, calling its route. `handlers.ts` spreads these and replaces the ones it needs to. */',
     'export const defaults: Readonly<Record<string, Handler>> = {',
-    ...names.map((name) => `  ${JSON.stringify(name)}: async (input) => call(routes[${JSON.stringify(name)}], input),`),
+    ...names.map((name) => `  ${literal(name)}: async (input) => call(routes[${literal(name)}], input),`),
     '};',
   );
 
