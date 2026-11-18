@@ -39,3 +39,26 @@ fixture plugins are the check that would catch a rule that passes everything.
 ## Out of scope
 
 Migrating from openapi-generator (Java templates; on request) and from Speakeasy/Stainless configs.
+
+## Build notes (lane `ac-kit`, 2026-11-18)
+
+What the build found that this design did not say, for the reviewer at Deploy:
+
+- **`regeneration` runs on an in-lane copy of the owner rule** (`src/testing-owner.ts`), as planned:
+  `run-plan.ts` is in PR #1619. `plugin new` and `migrate` write through the same copy, not the
+  spine's `apply`. Both switch in a follow-up once #1619 lands.
+- **The host's types had no public subpath.** `Plugin`, `Generator`, `Contract` and the rest are
+  re-exported from `apicontract/testing`, which the scaffold imports. A `./host` export (or the
+  root) is the better home; that is the spine's call.
+- **`paths` and `fix-lines` need probes, not only the sample.** A generator that names files by
+  operation id passes its own sample; the suite also runs it on the sample plus an operation whose
+  id is `../conformance-probe`, and on the contract with no operations, and checks those runs.
+- **`plugin new` is `plugin <action> <name>`** with `action` limited to `new`, not a subcommand: a
+  group declares no `effects`, and `cli.test.ts` holds `plugin` to `idempotent` in `--schema`.
+- **`out` in `apicontract.config.json`** is written as the incumbent's own output path, a file for
+  one-file output and a folder otherwise; the gen-command spec does not say which. The types target's
+  compat option is written `options.compat: 'openapi-typescript'`, which the types lane has not fixed.
+- **openapi-fetch is not an import rewrite.** Its calls go by method and path (`client.GET("/x")`);
+  the `fetch` target has one method per operation (clients R1). The migration rewrites the import and
+  the `createClient<paths>` call, and reports every call site, by line, as a finding.
+- **Not done here:** the skill and the X3 eval case (`evals/` belongs to the integrator).
