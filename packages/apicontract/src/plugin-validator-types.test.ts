@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { promisify } from 'node:util';
 
 import { beforeAll, describe, expect, it } from 'vitest';
 
@@ -56,12 +57,18 @@ if (operations.listTrees['response:200:application/json'](value)) void (value sa
 if (ListPetsResponse200(value)) void value.id;
 `;
 
-const tsc = (dir: string, cwd: string): Promise<string> =>
-  new Promise((done) => {
-    execFile(process.execPath, [join(ROOT, 'node_modules', dir, 'bin', 'tsc'), '-p', cwd], { cwd, encoding: 'utf8' }, (_, stdout) => {
-      done(stdout);
-    });
-  });
+/**
+ * tsc's diagnostics, or '' when it ran clean. A compiler that did not start fails the test: its
+ * error carries no stdout, and `String(undefined)` is not ''.
+ */
+const tsc = async (dir: string, cwd: string): Promise<string> => {
+  try {
+    await promisify(execFile)(process.execPath, [join(ROOT, 'node_modules', dir, 'bin', 'tsc'), '-p', cwd], { cwd, encoding: 'utf8' });
+    return '';
+  } catch (error) {
+    return String((error as { stdout?: unknown }).stdout);
+  }
+};
 
 describe('validators.ts type-checks under strict', () => {
   let dir = '';

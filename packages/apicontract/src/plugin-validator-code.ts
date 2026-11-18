@@ -39,7 +39,7 @@ export interface Code {
  * What a module of untyped validators starts with: their functions take untyped parameters. Only
  * the `json-schema` target's re-checks are still written so; `gen validator` writes typed guards.
  */
-export const UNTYPED = "// @ts-nocheck -- the code is written by the validator package's emitter, whose functions take untyped parameters";
+export const UNTYPED = "// @ts-nocheck -- at least one validator below was emitted untyped (typed: false), so its parameters carry no types";
 
 /** Where a validator comes from, what its doc comment says, and whether it is a typed guard (`typed`, false unless given). */
 export interface Where {
