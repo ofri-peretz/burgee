@@ -2240,6 +2240,12 @@ describe('generate', () => {
     expect(out).toContain('account: paths["/customers/{account}/announcements"]["get"]["parameters"]["path"]["account"];');
     expect(out).toContain('"/status": paths["/"];');
     expect(out).not.toContain('["schema"]');
+    // A property named `schema` is still a member of its schema's type.
+    const property = generate({
+      openapi: '3.1.0',
+      components: { schemas: { Pet: { type: 'object', properties: { schema: { type: 'string' } } }, Kind: { $ref: '#/components/schemas/Pet/properties/schema' } } },
+    });
+    expect(property).toContain('Kind: components["schemas"]["Pet"]["schema"];');
   });
 
   it('checks local references only, in structure and not in data, and walks arrays', () => {

@@ -124,7 +124,7 @@ const checkRefs = (root: unknown): void => {
   // file when the document's own location is known; one that reaches here was not bundled.
   const external = refsOf(root).find(({ ref }) => !ref.startsWith('#'));
   if (external === undefined) return;
-  const file = external.ref.replace(/#.*$/su, '');
+  const file = external.ref.replace(/#.*/su, '');
   throw new GenerateError(
     `\`${external.ref}\` at ${external.at} is in another file, ${file}, which is not part of the document.`,
     `generate from the document's own file, so ${file} is read next to it, or bundle ${file} into the document first`,

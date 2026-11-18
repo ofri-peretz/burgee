@@ -121,6 +121,7 @@ const REMOTE = /^[a-z][\d+.a-z-]*:/iu;
 
 /** The file a reference names, resolved against the file it is written in, and the pointer into it. */
 const targetOf = (ref: string, from: string): { path: string; fragment: string } => {
+  // Stryker disable next-line StringLiteral: equivalent, `split` always returns the part before the first `#`
   const [address = '', fragment = ''] = ref.split('#');
   return { path: address === '' ? from : resolve(dirname(from), decodeURI(address)), fragment };
 };
@@ -130,6 +131,7 @@ const kindOf = (kind: string, key: string): string | undefined => {
   if (kind.startsWith('*')) return kind.slice(1);
   if (isData(key)) return undefined;
   const children = new Map(Object.entries(CHILDREN[kind] ?? {}));
+  // Stryker disable next-line StringLiteral: equivalent, any kind `CHILDREN` and the groups do not name reads the same
   return children.get(key) ?? children.get('*') ?? 'other';
 };
 
@@ -153,6 +155,7 @@ export const bundle = (document: unknown, file: string): unknown => {
   const groups = new Map(Object.entries(openapi ? GROUPS_3 : GROUPS_2));
   // OpenAPI 3 keeps its members in `components`; Swagger 2.0 at the root.
   const own = openapi ? dict(document.components) : document;
+  // Stryker disable next-line StringLiteral: equivalent off Windows, where a path has no `\`
   const shown = (path: string): string => relative(dirname(file), path).replaceAll('\\', '/');
   const where = ({ from, at }: Site): string => (from === file ? at : `${shown(from)}${at}`);
 
@@ -173,6 +176,7 @@ export const bundle = (document: unknown, file: string): unknown => {
     } catch (error) {
       throw new GenerateError(`${shown(path)} is not JSON or YAML (${(error as Error).message}).`, `correct ${shown(path)}`);
     }
+    // Stryker disable next-line CallExpression: equivalent, a file read again parses the same; this saves the read
     files.set(path, parsed);
     return parsed;
   };
@@ -225,6 +229,7 @@ export const bundle = (document: unknown, file: string): unknown => {
   const hoist = (node: Dict, group: string, value: unknown, into: Site): Dict => {
     const key = keyOf(into);
     const known = names.get(key);
+    // Stryker disable next-line ConditionalExpression: equivalent, a target walked again is named the same (its content equals the member hoisted); this saves the walk
     if (known !== undefined) return { ...node, $ref: local(group, known) };
     const out = { ...node };
     const pending = waiting.get(key);
@@ -236,12 +241,13 @@ export const bundle = (document: unknown, file: string): unknown => {
     waiting.set(key, references);
     const content = walk(value, into);
     const name = nameFor(group, into.from, into.at.slice(1), content);
+    // Stryker disable next-line CallExpression: equivalent, as `known` above: it saves walking the target again
     names.set(key, name);
     const members = hoisted.get(group) ?? new Map<string, unknown>();
     hoisted.set(group, members);
-    if (!members.has(name)) members.set(name, content);
+    // A name already hoisted is reused only for equal content, so setting it again changes nothing.
+    members.set(name, content);
     for (const each of references) each.$ref = local(group, name);
-    waiting.delete(key);
     return out;
   };
 

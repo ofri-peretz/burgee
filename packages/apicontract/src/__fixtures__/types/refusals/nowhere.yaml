@@ -3,4 +3,4 @@ paths: {}
 components:
   schemas:
     Thing:
-      $ref: './part.yaml#/components/schemas/Absent'
+      $ref: './part.yaml#/components/nothing/Absent'

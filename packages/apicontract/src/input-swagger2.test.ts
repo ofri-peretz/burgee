@@ -131,6 +131,8 @@ describe('convert', () => {
       fix: 'bundle the document into one file first',
     });
     expect(codes(document).filter((code) => code.includes('tags'))).toEqual([]);
+    const local = one({ responses: { 200: { description: 'ok', schema: { $ref: '#/parameters/P' } } } }, { produces: ['application/json'] });
+    expect(codes(local).filter((code) => code.startsWith('ref-external'))).toEqual([]);
   });
 
   it('converts every subschema: items, additionalProperties, allOf and the rest', () => {

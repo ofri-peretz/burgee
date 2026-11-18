@@ -12,7 +12,7 @@
       "required": ["privateIPAddress"],
       "properties": {
         "privateIPAddress": { "type": "string" },
-        "loadBalancer": { "$ref": "#/definitions/LoadBalancer" }
+        "loadBalancer": { "$ref": "./loadBalancer.json#/definitions/LoadBalancer" }
       }
     }
   }

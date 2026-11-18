@@ -15,4 +15,5 @@ components:
     six: {$ref: './b/Twin.yaml'}
     seven: {$ref: './part.yaml#/components/schemas/Equal'}
     eight: {$ref: './part.yaml#/components/schemas/a~1b'}
+    nine: {$ref: './c/part.yaml'}
     part: {type: 'null'}

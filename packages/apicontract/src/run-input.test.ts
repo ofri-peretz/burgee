@@ -46,6 +46,8 @@ describe('readInput', () => {
     const root = temp();
     writeFileSync(join(root, 'spec.yaml'), 'openapi: 3.1.0\n');
     expect(readInput({ root, file: 'c.json', input: 'spec.yaml', overlays: [] }, undefined)).toEqual({ openapi: '3.1.0' });
+    // No overlays: the document is not handed to `apply` at all.
+    expect(readInput({ root, file: 'c.json', input: 'spec.yaml', overlays: [] }, apply)).toEqual({ openapi: '3.1.0' });
   });
 
   it('applies the overlays in order, each read relative to the config folder', () => {
