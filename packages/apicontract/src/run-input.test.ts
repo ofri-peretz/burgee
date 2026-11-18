@@ -59,13 +59,10 @@ describe('readInput', () => {
     });
   });
 
-  it('refuses overlays while nothing can apply them, rather than reading without them', () => {
+  it("applies the config's overlays with input-overlay.ts by default", () => {
     const root = temp();
-    writeFileSync(join(root, 'spec.yaml'), 'openapi: 3.1.0\n');
-    expect(refusal(() => readInput({ root, file: '/c.json', input: 'spec.yaml', overlays: ['o.yaml'] }, undefined))).toBe(
-      '/c.json cannot be used:\n  - `overlays` are not supported by this apicontract yet. fix: remove `overlays`, or apply them to the spec before `gen`',
-    );
-    // The default is input-overlay.ts's own, which is a stub until its lane lands.
-    expect(refusal(() => readInput({ root, file: '/c.json', input: 'spec.yaml', overlays: ['o.yaml'] }))).toContain('`overlays` are not supported');
+    writeFileSync(join(root, 'spec.yaml'), 'openapi: 3.1.0\ninfo: { title: before, version: 1.0.0 }\npaths: {}\n');
+    writeFileSync(join(root, 'o.yaml'), "overlay: 1.0.0\ninfo: { title: rename, version: 1.0.0 }\nactions:\n  - target: '$.info'\n    update: { title: after }\n");
+    expect(readInput({ root, file: '/c.json', input: 'spec.yaml', overlays: ['o.yaml'] })).toMatchObject({ info: { title: 'after' } });
   });
 });

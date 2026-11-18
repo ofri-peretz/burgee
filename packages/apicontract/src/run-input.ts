@@ -11,7 +11,7 @@ import { parse as parseYaml } from 'seniority/yaml';
 import { applyOverlays } from './input-overlay.js';
 import { ConfigError } from './run-config.js';
 
-type Apply = ((document: unknown, overlays: readonly unknown[]) => unknown) | undefined;
+type Apply = (document: unknown, overlays: readonly unknown[]) => unknown;
 
 /** A JSON or YAML file, parsed. `file` names the config that pointed at it, for the refusal. */
 export const readDocument = (path: string, file: string): unknown => {
@@ -31,14 +31,9 @@ export interface InputOptions {
   readonly overlays: readonly string[];
 }
 
-/**
- * The document a run generates from, overlays applied. `apply` is `input-overlay.ts`'s, until a
- * test hands in its own; while that lane has not landed, a config that lists overlays is refused
- * rather than read without them.
- */
+/** The document a run generates from, overlays applied in the order the config lists them. */
 export const readInput = ({ root, file, input, overlays }: InputOptions, apply: Apply = applyOverlays): unknown => {
   const document = readDocument(resolve(root, input), file);
   if (overlays.length === 0) return document;
-  if (apply === undefined) throw new ConfigError(file, ['`overlays` are not supported by this apicontract yet. fix: remove `overlays`, or apply them to the spec before `gen`']);
   return apply(document, overlays.map((overlay) => readDocument(resolve(root, overlay), file)));
 };
