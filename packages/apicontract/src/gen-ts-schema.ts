@@ -278,8 +278,11 @@ const bareSelfReference = (ref: string, options: TransformOptions): boolean =>
  * (Azure's `#/definitions/X/allOf/0`, a ref into `paths`, a bare self-reference; 2026-11-18 corpus) has its
  * target declared once as a type alias at the end of the file, referenced by name.
  */
-function schemaRef(ref: string, options: TransformOptions): TypeNode {
+function schemaRef(written: string, options: TransformOptions): TypeNode {
   const { ctx } = options;
+  // Past a component, a reference that lands on another `$ref` names where that one ends, as upstream does
+  // ("$defs are respected": `…/RemoteDefs/$defs/remoteDef` is `components["schemas"]["remoteDef"]`).
+  const ref = pointerOf(written).length > ROOT_TOKENS ? ctx.lastRef(written) : written;
   const target = ctx.resolve(ref);
   // No document to resolve it in (a schema transformed on its own): printed as upstream writes it.
   if ((indexable(ref) && !bareSelfReference(ref, options)) || target === undefined) return refType(ref);

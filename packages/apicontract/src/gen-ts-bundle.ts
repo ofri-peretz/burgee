@@ -267,7 +267,12 @@ export const bundle = (document: unknown, file: string): unknown => {
     }
     const into: Site = { kind: site.kind, from: path, at: `#${fragment}` };
     const group = groups.get(site.kind);
-    return group === undefined ? inline(value, ref, site, into) : hoist(node, group, value, into);
+    if (group !== undefined) return hoist(node, group, value, into);
+    const inlined = inline(value, ref, site, into);
+    if (site.kind !== 'pathItem') return inlined;
+    // A Path Item's fields beside its `$ref` (upstream's "Generates path parameters": `parameters`) win over the referenced item's.
+    const { $ref: _, ...siblings } = node;
+    return { ...dict(inlined), ...dict(walk(siblings, site)) };
   };
 
   const walk = (node: unknown, site: Site): unknown => {

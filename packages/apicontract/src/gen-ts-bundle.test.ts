@@ -166,6 +166,24 @@ describe('bundle', () => {
     expect(out.components.schemas['components-schemas-Local']?.description).toBe('in memory');
   });
 
+  it('lays a path item\'s fields beside its `$ref` over the item it names (upstream "Generates path parameters")', () => {
+    const root = scratch('apicontract-bundle-');
+    writeFileSync(join(root, 'paths.yaml'), 'Item:\n  description: shared\n  get:\n    responses:\n      "204":\n        description: ok\n');
+    const id = { name: 'id', in: 'path', required: true, schema: { type: 'number' } };
+    const document = { openapi: '3.1.0', paths: { '/a/{id}': { $ref: './paths.yaml#/Item', parameters: [id] }, '/b/{id}': { $ref: './paths.yaml#/Item' } } };
+    const { paths } = bundle(document, join(root, 'openapi.yaml')) as { paths: Record<string, Record<string, unknown>> };
+    expect(paths['/a/{id}']).toEqual({ description: 'shared', get: { responses: { '204': { description: 'ok' } } }, parameters: [id] });
+    expect(paths['/b/{id}']).toEqual({ description: 'shared', get: { responses: { '204': { description: 'ok' } } } });
+  });
+
+  it('writes a schema in place without the fields beside its `$ref`', () => {
+    const root = scratch('apicontract-bundle-');
+    writeFileSync(join(root, 'part.yaml'), 'Item:\n  get:\n    responses:\n      "200":\n        description: ok\n        content:\n          application/json:\n            schema:\n              $ref: "#/S"\nS:\n  type: string\n');
+    const document = { openapi: '3.1.0', paths: { '/a': { $ref: './part.yaml#/Item' } } };
+    const { paths } = bundle(document, join(root, 'openapi.yaml')) as { paths: Record<string, any> };
+    expect(paths['/a'].get.responses['200'].content['application/json'].schema).toEqual({ $ref: '#/components/schemas/S' });
+  });
+
   it('replaces a member that refers to the same target, and only that one', () => {
     const root = scratch('apicontract-bundle-');
     writeFileSync(join(root, 'part.yaml'), 'A:\n  type: string\nOther:\n  type: number\n');

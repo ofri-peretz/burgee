@@ -49,6 +49,13 @@ const follow = (document: unknown, ref: string): unknown => {
   return node || undefined;
 };
 
+/** The reference a chain ends on: `ref` itself unless what it names is another `$ref`, followed until it is not. */
+export const lastRef = (document: unknown, ref: string, visited: ReadonlySet<string> = new Set([ref])): string => {
+  const node = follow(document, ref);
+  if (!isDict(node) || typeof node.$ref !== 'string' || !node.$ref.startsWith('#/') || visited.has(node.$ref)) return ref;
+  return lastRef(document, node.$ref, new Set([...visited, node.$ref]));
+};
+
 /** What a local reference points at, following references to references; `undefined` when it leads nowhere. */
 export const resolveRef = (document: unknown, ref: string, visited: ReadonlySet<string> = new Set()): unknown => {
   if (pointerOf(ref).length === 0) return undefined;

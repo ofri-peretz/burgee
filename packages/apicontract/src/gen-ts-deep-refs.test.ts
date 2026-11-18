@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { lastRef } from './gen-ts-ref.js';
 import { createHost } from './host.js';
 import { builtinAdapters } from './inputs.js';
 import { plugin } from './plugin-types.js';
@@ -199,5 +200,40 @@ describe('a parameter reused from another operation', () => {
   it('in the path is never optional', async () => {
     const text = await types(reused([{ name: 'id', in: 'path', schema: STRING }]));
     expect(text).toContain('id: paths["/a/{id}"]["get"]["parameters"]["path"]["id"];');
+  });
+});
+
+describe('a reference past a component that lands on another `$ref` (upstream "$defs are respected")', () => {
+  it('names where the chain ends', async () => {
+    const text = await types(
+      doc({
+        Target: STRING,
+        Holder: { type: 'object', $defs: { d: { $ref: '#/components/schemas/Target' }, e: { $ref: '#/components/schemas/Holder/$defs/d' } } },
+        B: { type: 'object', properties: { x: { $ref: '#/components/schemas/Holder/$defs/d' }, y: { $ref: '#/components/schemas/Holder/$defs/e' } } },
+      }),
+    );
+    expect(text).toContain('x?: components["schemas"]["Target"];');
+    expect(text).toContain('y?: components["schemas"]["Target"];');
+  });
+
+  it('keeps a reference to a component that is itself a `$ref`, as upstream writes it', async () => {
+    const text = await types(doc({ Target: STRING, Alias: { $ref: '#/components/schemas/Target' }, B: { type: 'object', properties: { x: { $ref: '#/components/schemas/Alias' } } } }));
+    expect(text).toContain('x?: components["schemas"]["Alias"];');
+  });
+
+  it('stops where the next reference leaves the document', () => {
+    const document = { a: { $ref: 'other.json#/b' }, b: { $ref: '#/c' }, c: 1 };
+    expect(lastRef(document, '#/a')).toBe('#/a');
+    expect(lastRef(document, '#/b')).toBe('#/c');
+  });
+
+  it('stops at a chain that circles', async () => {
+    const text = await types(
+      doc({
+        Holder: { type: 'object', $defs: { a: { $ref: '#/components/schemas/Holder/$defs/b' }, b: { $ref: '#/components/schemas/Holder/$defs/a' } } },
+        B: { type: 'object', properties: { x: { $ref: '#/components/schemas/Holder/$defs/a' } } },
+      }),
+    );
+    expect(text).toContain('x?: components["schemas"]["Holder"]["$defs"]["b"];');
   });
 });
