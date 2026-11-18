@@ -19,6 +19,7 @@ export interface Written {
 const current = async (path: string): Promise<string | undefined> => {
   try {
     return await readFile(path, 'utf8');
+    // Stryker disable next-line BlockStatement: equivalent, an empty catch block returns undefined too
   } catch {
     return undefined;
   }
@@ -27,8 +28,7 @@ const current = async (path: string): Promise<string | undefined> => {
 /** Write `files` under `directory`, as the owner rule allows, and say what happened to each. */
 export const writeFiles = async (directory: string, files: readonly GeneratedFile[]): Promise<Written> => {
   const found = await Promise.all(files.map(async (file) => [file.path, await current(join(directory, file.path))] as const));
-  const disk = new Map(found.filter((entry): entry is readonly [string, string] => entry[1] !== undefined));
-  const planned = plan(files, disk);
+  const planned = plan(files, new Map(found));
   const writes = files.filter((_file, index) => planned[index]?.action === 'write');
   await Promise.all(
     writes.map(async (file) => {

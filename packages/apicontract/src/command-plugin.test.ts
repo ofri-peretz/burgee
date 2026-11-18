@@ -24,8 +24,33 @@ afterAll(() => {
 });
 
 describe('`apicontract plugin new`', () => {
-  it('is described for --help and the MCP tool list', () => {
+  it('is described for --help, --schema and the MCP tool list', () => {
     expect(command.description).toBe('Scaffold a plugin that passes the conformance suite as generated');
+    expect(command.arguments).toEqual([
+      { name: 'action', description: '`new`: scaffold a plugin', choices: ['new'], required: true },
+      { name: 'name', description: 'the plugin name: lowercase letters, digits and single dashes', required: true },
+    ]);
+    expect(command.options).toEqual({
+      kind: { type: 'string', choices: ['generator', 'extractor', 'adapter'], default: 'generator', description: 'what the plugin contributes: spec to code, code to spec, or an input format' },
+      out: { type: 'string', placeholder: 'dir', description: 'directory to write into. Defaults to the current directory' },
+    });
+    expect(command.examples).toEqual([
+      { command: 'apicontract plugin new my-target', description: 'a generator plugin, its conformance test and a README' },
+      { command: 'apicontract plugin new my-source --kind extractor --out plugins', description: 'an extractor, written under plugins/' },
+    ]);
+  });
+
+  it('refuses an action other than `new`', async () => {
+    const r = await runBurgee(program, { argv: ['plugin', 'old', 'pets', '--json'] });
+    expect(r.code).toBe(ExitCode.USAGE);
+  });
+
+  it('reports a change when it writes one file of three', async () => {
+    const out = join(directory, 'partial');
+    await runBurgee(program, { argv: ['plugin', 'new', 'one', '--out', out, '--json'] });
+    rmSync(join(out, 'README.md'));
+    const r = await runBurgee(program, { argv: ['plugin', 'new', 'one', '--out', out, '--json'] });
+    expect(data(r)).toEqual({ changed: true, written: ['README.md'], unchanged: ['plugin-one.ts', 'plugin-one.test.ts'], kept: [], next: 'node --test plugin-one.test.ts' });
   });
 
   it('writes a generator plugin by default, then nothing on a second run', async () => {

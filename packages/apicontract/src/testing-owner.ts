@@ -15,8 +15,8 @@ export interface Planned {
   readonly action: Action;
 }
 
-/** What the writer does with each file, given what is on disk, by path. */
-export const plan = (files: readonly GeneratedFile[], disk: ReadonlyMap<string, string>): Planned[] =>
+/** What the writer does with each file, given what is on disk, by path (`undefined`: not there). */
+export const plan = (files: readonly GeneratedFile[], disk: ReadonlyMap<string, string | undefined>): Planned[] =>
   files.map((file) => {
     const current = disk.get(file.path);
     if (current === file.content) return { path: file.path, action: 'unchanged' };
