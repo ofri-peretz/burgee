@@ -1,6 +1,6 @@
 {
   "name": "apicontract",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "description": "A CLI that turns specs into code and code into specs, through plugins: TypeScript types, validators, NestJS modules, and the spec back from each. Codename; unpublished until the naming pass.",
   "license": "MIT",
@@ -65,7 +65,7 @@
   "dependencies": {
     "burgee": "^2.0.0",
     "seniority": "^2.0.0",
-    "validator": "0.0.0"
+    "validator": "0.0.1"
   },
   "devDependencies": {
     "vitest": "^5.0.1"
