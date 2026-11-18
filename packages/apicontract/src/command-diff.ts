@@ -198,7 +198,7 @@ export const command = defineCommand({
   description: 'What a contract change breaks, and for whom, under the compatibility mode you pick',
   // ponytail: `--changeset` writes a file, so the effect is really the idempotent one, and the
   // result already reports whether it wrote. The spine's test pins every effect; this follows it.
-  effects: 'read_only',
+  effects: 'idempotent',
   examples: [
     { command: 'apicontract diff old.yaml new.yaml', description: 'what breaks for callers built on old.yaml' },
     { command: 'apicontract diff old.yaml new.yaml --mode full --sarif', description: 'both directions, for code scanning' },

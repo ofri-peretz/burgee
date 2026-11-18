@@ -92,10 +92,8 @@ reviewer at Deploy should accept or send back.
   else minor; nothing written when nothing changed). **Departure:** exit 1 on `unknown` as well
   as `breaking`, since the intent's constraint says an unknown change is never compatible.
   `--changeset` writes a file, the same file for the same input, so the command's effect is
-  `idempotent`, and its result already reports `changed` (burgee N7). **Pending:** the declaration
-  stays `read_only` until `cli.test.ts` (the spine's file, which pins every command's effect and
-  which the lane-boundaries lock keeps out of this lane) says `idempotent` on main; then it is a
-  one-word change here. SARIF locations are URI references: a
+  `idempotent`, and its result already reports `changed` (burgee N7)." The declaration says so, and
+  `cli.test.ts` pins it (an integrator change, since that file is the spine's). SARIF locations are URI references: a
   relative path with `/`, an absolute one as a `file:` URL.
 - **R6** `src/diff-rules.ts`: 91 rows, ours beside oasdiff's per place (parameter, body,
   property, request or response). The ids are from oasdiff's documentation and not yet graded

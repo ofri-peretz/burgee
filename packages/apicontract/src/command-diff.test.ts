@@ -43,7 +43,7 @@ describe('apicontract diff, through burgee', () => {
 
   it('is described for --help and the MCP tool list, and says whether it wrote anything', () => {
     expect(command.description).toBe('What a contract change breaks, and for whom, under the compatibility mode you pick');
-    expect(command.effects).toBe('read_only');
+    expect(command.effects).toBe('idempotent');
     expect(command.examples).toEqual([
       { command: 'apicontract diff old.yaml new.yaml', description: 'what breaks for callers built on old.yaml' },
       { command: 'apicontract diff old.yaml new.yaml --mode full --sarif', description: 'both directions, for code scanning' },
