@@ -136,3 +136,7 @@ export const conformance = async (plugin: unknown, options: ConformanceOptions =
 };
 
 export { type Failure, type Rule, RULES } from './testing-rules.js';
+// The shapes a plugin is written against. The package has no public subpath for the host yet, and a
+// plugin's own file and its conformance test both import from here (the `plugin new` scaffold does).
+export { type Contract, type ContractFinding, type Operation, type Payload } from './core/model.js';
+export { type Adapter, type Extractor, type GeneratedFile, type Generator, type GeneratorResult, type Options, type Plugin, PluginError } from './host.js';
