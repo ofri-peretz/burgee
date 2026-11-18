@@ -1,0 +1,6 @@
+openapi: 3.1.0
+paths: {}
+components:
+  schemas:
+    Thing:
+      $ref: 'https://example.com/schemas.yaml#/Thing'

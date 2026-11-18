@@ -1,0 +1,8 @@
+post:
+  callbacks:
+    onEvent:
+      '{$request.body#/url}':
+        $ref: './loop-path.yaml'
+  responses:
+    '200':
+      description: OK

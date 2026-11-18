@@ -5,7 +5,7 @@
  *
  * Each `transform*` function takes what upstream's function of the same name takes and returns the
  * string upstream's `astToString` gives for its result. Local `#/…` references only: a document
- * split over files has to be bundled first.
+ * split over files is bundled first (`gen-ts-bundle.ts`), and one that was not is refused.
  */
 import { type Context, type GenerateOptions, type TransformOptions, createContext } from './gen-ts-context.js';
 import { isDict } from './gen-ts-dict.js';
@@ -83,17 +83,13 @@ const exists = (root: unknown, ref: string): boolean => {
   return true;
 };
 
-/**
- * The pointer of every object whose local `$ref` leads nowhere, in document order: what
- * upstream's bundler reports as `Can't resolve $ref at <pointer>`. A reference to another file
- * is not checked here; it is not read at all.
- */
-export const unresolvedRefs = (root: unknown): string[] => {
-  const found: string[] = [];
+/** Every `$ref` the document makes, with the pointer of the object that makes it, in document order. */
+const refsOf = (root: unknown): { at: string; ref: string }[] => {
+  const found: { at: string; ref: string }[] = [];
   const walk = (node: unknown, path: string): void => {
     if (typeof node !== 'object' || node === null) return;
     const { $ref } = node as { $ref?: unknown };
-    if (typeof $ref === 'string' && $ref.startsWith('#') && !exists(root, $ref)) found.push(path);
+    if (typeof $ref === 'string') found.push({ at: path, ref: $ref });
     // `Object.entries` on an array yields its indices as string keys ('0', '1'), which is what makes the
     // pointer `…/parameters/1`; a `for…of` here would lose them.
     for (const [key, member] of Object.entries(node)) {
@@ -104,14 +100,34 @@ export const unresolvedRefs = (root: unknown): string[] => {
   return found;
 };
 
+/**
+ * The pointer of every object whose local `$ref` leads nowhere, in document order: what
+ * upstream's bundler reports as `Can't resolve $ref at <pointer>`. A reference to another file
+ * is not checked here: {@link checkRefs} refuses it.
+ */
+export const unresolvedRefs = (root: unknown): string[] =>
+  refsOf(root)
+    .filter(({ ref }) => ref.startsWith('#') && !exists(root, ref))
+    .map(({ at }) => at);
+
 const checkRefs = (root: unknown): void => {
   const unresolved = unresolvedRefs(root);
   const last = unresolved.at(-1);
-  if (last === undefined) return;
-  const others = unresolved.slice(0, -1);
+  if (last !== undefined) {
+    const others = unresolved.slice(0, -1);
+    throw new GenerateError(
+      `Can't resolve $ref at ${last}${others.length === 0 ? '' : ` (and at ${others.join(', ')})`}.`,
+      'point each `$ref` at a member the document has, or bundle the files it names into one document first',
+    );
+  }
+  // A reference into another file would print as a name the file never declares. `bundle` reads the
+  // file when the document's own location is known; one that reaches here was not bundled.
+  const external = refsOf(root).find(({ ref }) => !ref.startsWith('#'));
+  if (external === undefined) return;
+  const file = external.ref.replace(/#.*/su, '');
   throw new GenerateError(
-    `Can't resolve $ref at ${last}${others.length === 0 ? '' : ` (and at ${others.join(', ')})`}.`,
-    'point each `$ref` at a member the document has, or bundle the files it names into one document first',
+    `\`${external.ref}\` at ${external.at} is in another file, ${file}, which is not part of the document.`,
+    `generate from the document's own file, so ${file} is read next to it, or bundle ${file} into the document first`,
   );
 };
 

@@ -44,6 +44,12 @@ describe('the openapi-typescript drop-in', () => {
     expect(await openapiTS(fixture)).toBe(want);
   });
 
+  // Upstream bundles a file's siblings with Redocly; `openapi-typescript.7.13.0.txt` is what it wrote.
+  it('reads a file: URL whose references name the files next to it, as openapi-typescript 7.13.0 does', async () => {
+    const want = readFileSync(new URL('__fixtures__/types/external/openapi-typescript.7.13.0.txt', import.meta.url), 'utf8');
+    expect(COMMENT_HEADER + (await openapiTS(new URL('__fixtures__/types/external/openapi.yaml', import.meta.url)))).toBe(want);
+  });
+
   it.each([
     ['a remote URL', new URL('https://example.com/api.yaml'), '`https://example.com/api.yaml` is a remote address'],
     ['a remote address as text', 'http://example.com/api.yaml', '`http://example.com/api.yaml` is a remote address'],

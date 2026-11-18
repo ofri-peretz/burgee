@@ -86,6 +86,9 @@ export const refType = (ref: string, options: RefOptions = {}): TypeNode => {
   for (const [index, segment] of segments.entries()) {
     if (index < ROOT_SEGMENTS - 1) type = indexed(type, segment);
     else if (segment === 'properties') continue;
+    // A Media Type Object prints as its schema's type: upstream's `["content"][…]["schema"]` names a
+    // member that type does not have, and tsc rejects it. It does not compile, so no output relies on it.
+    else if (segment === 'schema' && segments[index - 2] === 'content') continue;
     else if (isParameter && index === segments.length - 1) type = indexed(indexed(type, parameter.in), parameter.name);
     else type = options.extract?.has(segment) ? extracted(type, segment) : indexed(type, segment);
   }

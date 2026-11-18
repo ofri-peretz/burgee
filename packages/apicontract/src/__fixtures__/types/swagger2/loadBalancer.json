@@ -1,0 +1,19 @@
+{
+  "definitions": {
+    "LoadBalancer": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "frontendIPConfigurations": { "type": "array", "items": { "$ref": "#/definitions/FrontendIPConfiguration" } }
+      }
+    },
+    "FrontendIPConfiguration": {
+      "type": "object",
+      "required": ["privateIPAddress"],
+      "properties": {
+        "privateIPAddress": { "type": "string" },
+        "loadBalancer": { "$ref": "./loadBalancer.json#/definitions/LoadBalancer" }
+      }
+    }
+  }
+}

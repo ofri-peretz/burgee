@@ -122,6 +122,17 @@ describe('convert', () => {
     const out = converted(document);
     expect(out.paths['/pets'].post.responses['200'].content['application/json'].schema).toStrictEqual({ $ref: '#/components/schemas/Pet' });
     expect(out.components.schemas.Pet.properties).toStrictEqual({ tags: { items: { $ref: '#/components/schemas/a~1b' } }, other: { $ref: 'other.yaml#/definitions/X' } });
+    // Not rewritten to a local-looking `#/components/schemas/X`, which this document lacks, and said.
+    expect(codes(document)).toContain('ref-external #/definitions/Pet/properties/other/$ref');
+    expect(read(document).findings).toContainEqual({
+      code: 'ref-external',
+      pointer: '#/definitions/Pet/properties/other/$ref',
+      message: '`other.yaml#/definitions/X` is in another file and is not read',
+      fix: 'bundle the document into one file first',
+    });
+    expect(codes(document).filter((code) => code.includes('tags'))).toEqual([]);
+    const local = one({ responses: { 200: { description: 'ok', schema: { $ref: '#/parameters/P' } } } }, { produces: ['application/json'] });
+    expect(codes(local).filter((code) => code.startsWith('ref-external'))).toEqual([]);
   });
 
   it('converts every subschema: items, additionalProperties, allOf and the rest', () => {
@@ -584,8 +595,9 @@ describe('the Swagger 2.0 examples and swagger-codegen 2.0 test documents', () =
       'file-type': 2,
       'form-data': 4,
       'produces-assumed': 2,
-      // petstore-separate keeps its shared parameters in `parameters.yaml`.
-      'ref-external': 2,
+      // petstore-separate keeps its shared parameters in `parameters.yaml` (2) and its schemas in
+      // `Pet.yaml`, `NewPet.yaml` and `../common/Error.yaml` (8): each schema `$ref` is kept as written, and said.
+      'ref-external': 10,
     });
   });
 });

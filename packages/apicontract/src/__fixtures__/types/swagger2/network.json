@@ -1,0 +1,28 @@
+{
+  "swagger": "2.0",
+  "info": { "title": "NetworkManagementClient", "version": "2024-01-01" },
+  "paths": {
+    "/loadBalancers/{name}": {
+      "get": {
+        "operationId": "LoadBalancers_Get",
+        "parameters": [
+          { "name": "name", "in": "path", "required": true, "type": "string" },
+          { "$ref": "./network.common.json#/parameters/ApiVersionParameter" }
+        ],
+        "responses": {
+          "200": { "description": "OK", "schema": { "$ref": "./loadBalancer.json#/definitions/LoadBalancer" } },
+          "default": { "description": "Error", "schema": { "$ref": "./network.common.json#/definitions/CloudError" } }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "LoadBalancerListResult": {
+      "type": "object",
+      "properties": {
+        "value": { "type": "array", "items": { "$ref": "./loadBalancer.json#/definitions/LoadBalancer" } },
+        "nextLink": { "type": "string" }
+      }
+    }
+  }
+}

@@ -3,6 +3,9 @@
  * openapi-typescript 7.13.0 on upstream's own test tables and example snapshots, then read line by
  * line against upstream's rules. Upstream's suite itself is run by the compatibility grader.
  */
+import { readFileSync } from 'node:fs';
+
+import { parse as parseYaml } from 'seniority/yaml';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -2208,6 +2211,41 @@ describe('generate', () => {
     );
     const one = { openapi: '3.1', paths: { '/a': { $ref: '#/components/pathItems/A' } } };
     expect(() => generate(one)).toThrow("Can't resolve $ref at #/paths/~1a. fix: ");
+  });
+
+  // Gap A-20261118-types-external-refs-dangle: `./loadBalancer.json#/definitions/X` printed as `definitions["X"]`, a name tsc rejects.
+  it('refuses a reference into another file, naming the file, once every local one resolves', () => {
+    const given = {
+      openapi: '3.1.0',
+      'x-note': { $ref: 'notes.yaml' },
+      components: { schemas: { Pool: { type: 'object', properties: { frontend: { $ref: './loadBalancer.json#/definitions/Frontend' }, also: { $ref: 'more.json' } } } } },
+    };
+    expect(() => generate(given)).toThrow(
+      new GenerateError(
+        '`./loadBalancer.json#/definitions/Frontend` at #/components/schemas/Pool/properties/frontend is in another file, ./loadBalancer.json, which is not part of the document.',
+        "generate from the document's own file, so ./loadBalancer.json is read next to it, or bundle ./loadBalancer.json into the document first",
+      ),
+    );
+    expect(() => generate({ openapi: '3.1.0', paths: { '/a': { $ref: 'a.yaml' } } })).toThrow('`a.yaml` at #/paths/~1a is in another file, a.yaml, which');
+    const both = { openapi: '3.1.0', components: { schemas: { A: { $ref: 'a.yaml' }, B: { $ref: '#/nowhere' } } } };
+    expect(() => generate(both)).toThrow("Can't resolve $ref at #/components/schemas/B.");
+  });
+
+  // Gap A-20261118-types-external-refs-dangle: upstream prints `…["content"]["application/json"]["schema"]`, which tsc rejects.
+  it('names a schema under a Media Type Object by the media type, the surevoip.co.uk shape', () => {
+    const document = parseYaml(readFileSync(new URL('__fixtures__/types/surevoip/openapi.yaml', import.meta.url), 'utf8'));
+    const out = generate(document);
+    expect(out).toContain('"text/xml": paths["/"]["get"]["responses"]["200"]["content"]["application/json"];');
+    expect(out).toContain('"text/xml": paths["/announcements"]["post"]["responses"]["201"]["content"]["application/json"][];');
+    expect(out).toContain('account: paths["/customers/{account}/announcements"]["get"]["parameters"]["path"]["account"];');
+    expect(out).toContain('"/status": paths["/"];');
+    expect(out).not.toContain('["schema"]');
+    // A property named `schema` is still a member of its schema's type.
+    const property = generate({
+      openapi: '3.1.0',
+      components: { schemas: { Pet: { type: 'object', properties: { schema: { type: 'string' } } }, Kind: { $ref: '#/components/schemas/Pet/properties/schema' } } },
+    });
+    expect(property).toContain('Kind: components["schemas"]["Pet"]["schema"];');
   });
 
   it('checks local references only, in structure and not in data, and walks arrays', () => {

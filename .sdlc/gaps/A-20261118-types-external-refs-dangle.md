@@ -1,7 +1,7 @@
 ---
 id: A-20261118-types-external-refs-dangle
 section: A
-status: open
+status: closed
 source: 'corpus reading 2026-11-18 with the fixed grader (benchmarks/apicontract/results/2026-11-18-39d59662d1-fixed): 9 of 100 sampled documents generate and do not type-check'
 done_when: 'the types target either bundles a $ref to a sibling file the spec can reach, or refuses it with a fix line naming the file, so no generated file names a type it does not declare; the corpus sample reads 0 documents that generate and fail tsc'
 ---
@@ -19,3 +19,23 @@ multi-file upstream cases.
 
 A ninth document, `apis-guru:APIs/surevoip.co.uk/9dcb0dc8/openapi.yaml`, generates and fails tsc for
 a reason not yet read; it belongs to the same `done_when`.
+
+**Closed (2026-11-18) on branch `integrate/types-external-refs`.** The same sample (`--sample 100
+--seed 1`, the corpus cache of 2026-11-18) read 100/100 generated and 91 usable before; it now
+reads 92/100 generated and 92 usable under TypeScript 5.9, 6.0 and 7.0, and 0 documents that
+generate and fail tsc.
+
+- The eight Azure documents are refused, each with a `fix:` naming the sibling it needs
+  (`./virtualNetwork.json`, `./networkInterface.json`, `./expressRouteCircuit.json`,
+  `./loadBalancer.json`): the corpus hands the runner a parsed document with no location, and
+  APIs.guru does not ship the siblings. `gen-ts-index.ts` `checkRefs` now refuses any `$ref` that
+  is not local, after the dangling-local check. `input-swagger2.ts` keeps such a schema `$ref` as
+  written and reports it as `ref-external`.
+- When the location is known (`apicontract gen`'s `input`, a `file:` URL to the drop-in),
+  `gen-ts-bundle.ts` bundles the siblings as openapi-typescript 7.13.0's Redocly bundler does:
+  hoisted into components under Redocly's names, byte-identical on a five-file fixture
+  (`src/__fixtures__/types/external/`). A sibling that is missing is refused with
+  `fix: add <file> next to <spec>`.
+- surevoip.co.uk referred to a schema under a Media Type Object. openapi-typescript writes
+  `…["content"]["application/json"]["schema"]` and fails tsc on the same document; `refType` now
+  stops at the media type, which is the schema's type.
