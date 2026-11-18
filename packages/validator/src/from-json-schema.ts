@@ -247,24 +247,49 @@ const ARRAY_KEYS = ['items', 'prefixItems', 'minItems', 'maxItems', 'uniqueItems
 /**
  * An array's items: the schemas of its first items, which bind only the items that are there, and
  * the schema of the items after them. A tuple of this library is closed and needs every item it
- * names, so "the first two items, if they are there" is a union of a tuple for each length.
+ * names, so "the first two items, if they are there" is a union of a tuple for each length. Only
+ * the lengths `minItems` and `maxItems` allow get one, and a bound every member already keeps is not
+ * added again: so the tuple `toJsonSchema` writes (its length as `minItems`, `false` after it) is read
+ * back as that tuple alone, and the round trip settles after one pass.
  */
-const itemsOf = (reader: Reader, schema: Json, path: string): Node => {
+interface Bounds {
+  readonly min: number | undefined;
+  readonly max: number | undefined;
+}
+
+/**
+ * The tuples for first items that bind only the items that are there: one for each length the
+ * bounds allow short of all of them, and one for all of them and what comes after.
+ */
+const prefixed = (prefix: readonly AnySchema[], rest: AnySchema | null, bounds: Bounds): Node => {
+  const [min, max] = [bounds.min ?? 0, bounds.max ?? Number.POSITIVE_INFINITY];
+  const full = rest === null ? tuple(prefix) : tuple(prefix, { rest });
+  const shorter = prefix.map((_, length) => length).filter((length) => length >= min && length <= max).map((length) => tuple(prefix.slice(0, length)));
+  const one = shorter.length === 0 ? full : union([...shorter, full]);
+  // The shorter tuples are each inside the bounds; the full one is when its lengths, from its own to its longest, are.
+  const longest = rest === null ? prefix.length : Number.POSITIVE_INFINITY;
+  return min <= prefix.length && max >= longest ? one : intersection([one as AnySchema, array(unknown(), given(bounds))]);
+};
+
+const itemsOf = (reader: Reader, schema: Json, path: string, bounds: Bounds): Node => {
   // 2020-12 names the first items `prefixItems` and the rest `items`; before it, `items` is a list for the first and `additionalItems` the rest, or one schema for all.
   const listed = reader.draft === '2020-12' ? 'prefixItems' : 'items';
   const first = Array.isArray(schema[listed]) ? (schema[listed] as readonly unknown[]) : [];
   const restKey = reader.draft !== '2020-12' && first.length > 0 ? 'additionalItems' : 'items';
-  const rest = schema[restKey] === undefined ? unknown() : read(reader, schema[restKey], `${path}/${restKey}`);
-  if (first.length === 0) return array(rest as AnySchema);
+  const after = schema[restKey];
+  if (first.length === 0) {
+    // Room for no item at all, with nothing said of an item, is the empty tuple: what `toJsonSchema` writes it as.
+    if (after === undefined && bounds.max === 0 && (bounds.min ?? 0) === 0) return tuple([]);
+    return array((after === undefined ? unknown() : read(reader, after, `${path}/${restKey}`)) as AnySchema, given(bounds));
+  }
   const prefix = first.map((item, index) => read(reader, item, `${path}/${listed}/${String(index)}`) as AnySchema);
-  const shorter = prefix.map((_, length) => tuple(prefix.slice(0, length)));
-  return union([...shorter, tuple(prefix, { rest: rest as AnySchema })]);
+  // No item after the first ones is a closed tuple, not one whose rest is `never`, which would be written back as `{ "not": {} }`.
+  if (after === false) return prefixed(prefix, null, bounds);
+  return prefixed(prefix, (after === undefined ? unknown() : read(reader, after, `${path}/${restKey}`)) as AnySchema, bounds);
 };
 
 const arrayBranch = (reader: Reader, schema: Json, path: string): Node => {
-  let out = itemsOf(reader, schema, path);
-  const [min, max] = [countAt(schema, 'minItems', path), countAt(schema, 'maxItems', path)];
-  if (min !== undefined || max !== undefined) out = out.kind === 'array' ? array(out.item as AnySchema, given({ min, max })) : intersection([out as AnySchema, array(unknown(), given({ min, max }))]);
+  let out = itemsOf(reader, schema, path, { min: countAt(schema, 'minItems', path), max: countAt(schema, 'maxItems', path) });
   if (schema['uniqueItems'] === true) out = unique(out as Schema<unknown[]>);
   if (schema['contains'] !== undefined) {
     // Draft-07 has no `minContains` or `maxContains`: there they are keywords it does not know, and are ignored.

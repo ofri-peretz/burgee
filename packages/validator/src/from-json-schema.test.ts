@@ -141,7 +141,12 @@ describe('the shape of what is read', () => {
     expect(read({ type: 'array', minItems: 1 })).toStrictEqual(array(unknown(), { min: 1 }));
     expect(verdicts(read({ type: 'array', prefixItems: [true], maxItems: 1 }), [[], [1], [1, 2]])).toEqual([true, true, false]);
     expect(read({ type: 'array', prefixItems: [true] })).toStrictEqual(union([tuple([]), tuple([unknown()], { rest: unknown() })]));
-    expect(read({ type: 'array', prefixItems: [true], minItems: 1 })).toStrictEqual(intersection([union([tuple([]), tuple([unknown()], { rest: unknown() })]), array(unknown(), { min: 1 })]));
+    expect(read({ type: 'array', prefixItems: [true], minItems: 1 })).toStrictEqual(tuple([unknown()], { rest: unknown() }));
+    expect(read({ type: 'array', prefixItems: [true], minItems: 2 })).toStrictEqual(intersection([tuple([unknown()], { rest: unknown() }), array(unknown(), { min: 2 })]));
+    expect(read({ type: 'array', prefixItems: [true, true], items: false, maxItems: 1 })).toStrictEqual(intersection([union([tuple([]), tuple([unknown()]), tuple([unknown(), unknown()])]), array(unknown(), { max: 1 })]));
+    expect(read({ type: 'array', prefixItems: [true, true], items: false, minItems: 1, maxItems: 2 })).toStrictEqual(union([tuple([unknown()]), tuple([unknown(), unknown()])]));
+    expect(read({ type: 'array', prefixItems: [true], items: false, minItems: 2 })).toStrictEqual(intersection([tuple([unknown()]), array(unknown(), { min: 2 })]));
+    expect(read({ type: 'array', items: false })).toStrictEqual(array(never()));
   });
 
   it('keeps only the words about the schema that are of their kind', () => {
