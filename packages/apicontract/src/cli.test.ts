@@ -4,12 +4,14 @@ import { beforeAll, describe, expect, it } from 'vitest';
 
 import { program } from './index.js';
 
-/** Each command with the roadmap phase that delivers it and what it does to the user's files. */
+/** Each command with the roadmap phase or PLAN.md wave that delivers it, and what it does to the user's files. */
 const COMMANDS = [
   ['gen', 'Phase 1', 'idempotent'],
   ['extract', 'Phase 2', 'idempotent'],
-  ['explain', 'Phase 5', 'read_only'],
-  ['diff', 'Phase 5', 'read_only'],
+  ['explain', 'Wave 6', 'read_only'],
+  ['diff', 'Wave 6', 'read_only'],
+  ['migrate', 'Wave 6', 'idempotent'],
+  ['plugin', 'Wave 6', 'idempotent'],
   ['check', 'Phase 7', 'read_only'],
 ] as const;
 
@@ -31,7 +33,7 @@ describe('apicontract, Phase 0', () => {
     expect(commands.map((c) => c.name).slice(0, 2)).toEqual(['gen', 'extract']);
   });
 
-  it('declares what each command does to files: the two that write say so, the rest are read-only for an agent', async () => {
+  it('declares what each command does to files: the ones that write say so, the rest are read-only for an agent', async () => {
     const r = await runBurgee(program, { argv: ['--schema'] });
     expect(r.code).toBe(ExitCode.OK);
     const { commands } = JSON.parse(r.stdout) as { commands: { name: string; effects?: string }[] };
