@@ -44,7 +44,7 @@ export const loadModule = async (module: unknown): Promise<Json> => {
     throw new TypeError('the `module` option names no module. fix: set `"options": { "module": "./src/schemas.ts" }`');
   }
   // A .json file is data, never code: read as `import … with { type: 'json' }` would hand it over, without running anything.
-  if (module.endsWith('.json')) return { default: JSON.parse(await readFile(module, 'utf8')) as unknown };
+  if (module.endsWith('.json')) return { default: JSON.parse(String(await readFile(module))) as unknown };
   // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the module is the user's own code, named in their config: importing it is what extract is
   return { ...((await import(pathToFileURL(resolve(module)).href)) as Json) };
 };
