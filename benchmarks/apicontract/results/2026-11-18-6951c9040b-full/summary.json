@@ -1,0 +1,178 @@
+{
+  "run": "2026-11-18-6951c9040b-full",
+  "subject": "ours:types",
+  "tools": [
+    {
+      "tool": "ours:types",
+      "documents": 4265,
+      "read": {
+        "passed": 4263,
+        "of": 4265
+      },
+      "generate": {
+        "passed": 4058,
+        "of": 4265
+      },
+      "typecheck": {
+        "ts59": {
+          "passed": 4011,
+          "of": 4265
+        },
+        "ts60": {
+          "passed": 4011,
+          "of": 4265
+        },
+        "ts70": {
+          "passed": 4011,
+          "of": 4265
+        }
+      },
+      "usable": {
+        "passed": 4011,
+        "of": 4265
+      },
+      "usableOrRefused": {
+        "passed": 4215,
+        "of": 4265
+      },
+      "roundtrip": {
+        "passed": 0,
+        "of": 0
+      },
+      "medianMs": 138,
+      "p90Ms": 215
+    },
+    {
+      "tool": "hey-api",
+      "documents": 4265,
+      "read": {
+        "passed": 0,
+        "of": 0
+      },
+      "generate": {
+        "passed": 4016,
+        "of": 4265
+      },
+      "typecheck": {
+        "ts59": {
+          "passed": 4016,
+          "of": 4265
+        },
+        "ts60": {
+          "passed": 4016,
+          "of": 4265
+        },
+        "ts70": {
+          "passed": 4016,
+          "of": 4265
+        }
+      },
+      "usable": {
+        "passed": 4016,
+        "of": 4265
+      },
+      "usableOrRefused": {
+        "passed": 4016,
+        "of": 4265
+      },
+      "roundtrip": {
+        "passed": 0,
+        "of": 0
+      },
+      "medianMs": 625,
+      "p90Ms": 881
+    },
+    {
+      "tool": "openapi-typescript",
+      "documents": 4265,
+      "read": {
+        "passed": 0,
+        "of": 0
+      },
+      "generate": {
+        "passed": 2093,
+        "of": 4265
+      },
+      "typecheck": {
+        "ts59": {
+          "passed": 2067,
+          "of": 4265
+        },
+        "ts60": {
+          "passed": 2067,
+          "of": 4265
+        },
+        "ts70": {
+          "passed": 2067,
+          "of": 4265
+        }
+      },
+      "usable": {
+        "passed": 2067,
+        "of": 4265
+      },
+      "usableOrRefused": {
+        "passed": 2067,
+        "of": 4265
+      },
+      "roundtrip": {
+        "passed": 0,
+        "of": 0
+      },
+      "medianMs": 566,
+      "p90Ms": 691
+    }
+  ],
+  "errors": {
+    "ours:types": [
+      {
+        "error": "`.<path> at #<path> is in another file, .<path> which is not part of the document. fix: generate from the document's own file, so .<path>",
+        "count": 81
+      },
+      {
+        "error": "`.<path> at #<path> is in another file, .<path> which is not part of the document. fix: generate from the document's own file, so .<path> is read next to it, or",
+        "count": 57
+      },
+      {
+        "error": "`.<path> at #<path> is in another file, .<path> which is not part of the document. fix: generate from the document's own file, so .<path> is read nex…",
+        "count": 23
+      },
+      {
+        "error": "`.<path> at #<path> is in another file, .<path> which is not part of the document. fix: generate from the document's own file, so .<path> is read next …",
+        "count": 14
+      },
+      {
+        "error": "`.<path> at #<path> is in another file, .<path> which is not part of the document. fix: generate from the document's own file, so .<path> is rea…",
+        "count": 10
+      }
+    ],
+    "hey-api": [
+      {
+        "error": "[Job 1] ❌ Input file not found:",
+        "count": 204
+      },
+      {
+        "error": "[Job 1] ❌ Failed with the message:",
+        "count": 44
+      },
+      {
+        "error": "timed out after 120000 ms",
+        "count": 1
+      }
+    ],
+    "openapi-typescript": [
+      {
+        "error": "Error: Unsupported Swagger version: 2.x. Use OpenAPI 3.x instead.",
+        "count": 2169
+      },
+      {
+        "error": "✘  Can't resolve $ref: ENOENT: no such file or directory '<path> at #<path>",
+        "count": 2
+      },
+      {
+        "error": "✘  Can't resolve $ref: Failed to load https:<path> 400 Bad Request at #<path>",
+        "count": 1
+      }
+    ]
+  }
+}

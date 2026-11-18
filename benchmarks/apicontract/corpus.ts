@@ -131,39 +131,60 @@ function generateOne({ tool, input, out, timeout, toolDir }: Job): Generated {
   return { read: null, generate: ok, ms, error: ok ? null : errorLine(`${result.stderr}\n${result.stdout}`) || `exit ${String(result.status)}, no output`, out };
 }
 
-/** One `tsc` per compiler over every output; returns, per compiler, the document folders with an error (or `null` when tsc crashed). */
-function typecheck(work: string, outs: readonly string[]): Map<TsKey, Set<string> | null> {
-  const files = outs.flatMap((o) => tsFiles(o)).map((f) => path.relative(work, f));
-  const config = path.join(work, 'tsconfig.json');
-  writeFileSync(
-    config,
-    JSON.stringify({
-      compilerOptions: { strict: true, noEmit: true, skipLibCheck: true, target: 'es2022', module: 'esnext', moduleResolution: 'bundler', lib: ['es2023', 'dom'], types: [] },
-      files,
-    }),
-  );
-  const result = new Map<TsKey, Set<string> | null>();
+/** Outputs per `tsc` process: one process over the full corpus (4,000+ outputs) runs out of heap on TS 5.9 and 6.0. */
+const TSC_BATCH = 250;
+
+/** Per compiler, the document folders with an error, and the folders whose batch crashed `tsc` (unmeasured, not failed). */
+interface Checked {
+  readonly failing: Set<string>;
+  readonly crashed: Set<string>;
+}
+
+function runTsc(work: string, config: string, version: string): { stdout: string; stderr: string; status: number | null } {
+  const tsc = bin(install([`typescript@${version}`]), 'tsc');
+  return spawnSync(tsc, ['-p', config, '--pretty', 'false'], {
+    cwd: work,
+    encoding: 'utf8',
+    maxBuffer: MAX_BUFFER,
+    env: { ...process.env, NODE_OPTIONS: `--max-old-space-size=${TSC_HEAP_MB}` },
+  });
+}
+
+/** Every compiler over one batch, folded into `result`. */
+function checkBatch(work: string, config: string, batch: readonly string[], result: Map<TsKey, Checked>): void {
   for (const [key, version] of Object.entries(TYPESCRIPTS) as [TsKey, string][]) {
-    if (files.length === 0) {
-      result.set(key, new Set());
-      continue;
-    }
-    const tsc = bin(install([`typescript@${version}`]), 'tsc');
-    const ran = spawnSync(tsc, ['-p', config, '--pretty', 'false'], {
-      cwd: work,
-      encoding: 'utf8',
-      maxBuffer: MAX_BUFFER,
-      env: { ...process.env, NODE_OPTIONS: `--max-old-space-size=${TSC_HEAP_MB}` },
-    });
+    const checked = result.get(key) as Checked;
+    const ran = runTsc(work, config, version);
     const output = `${ran.stdout}\n${ran.stderr}`;
     const failing = filesWithErrors(output, work, realpathSync(work));
-    // A non-zero exit with no attributable error is a compiler crash, not a verdict on any document.
+    // A non-zero exit with no attributable error is a compiler crash (out of heap, the case batching guards), not a
+    // verdict on any document in the batch. A file-less error such as TS5055 lands here too: it is about the run's
+    // config, not a document, so the batch is unmeasured and logged rather than failed.
     if (ran.status !== 0 && failing.size === 0) {
-      process.stderr.write(`tsc ${version} exited ${ran.status} without a diagnostic: ${firstLine(output)}\n`);
-      result.set(key, null);
+      process.stderr.write(`tsc ${version} exited ${ran.status} without a diagnostic on outputs ${path.basename(batch[0] ?? '')}-${path.basename(batch.at(-1) ?? '')}: ${firstLine(output)}\n`);
+      for (const out of batch) checked.crashed.add(path.basename(out));
       continue;
     }
-    result.set(key, new Set([...failing].map((f) => f.split('/')[0] as string)));
+    for (const f of failing) checked.failing.add(f.split('/')[0] as string);
+  }
+}
+
+/** `tsc` per compiler over the outputs, in batches of {@link TSC_BATCH}; each error is attributed to its document's folder. */
+function typecheck(work: string, outs: readonly string[]): Map<TsKey, Checked> {
+  const result = new Map<TsKey, Checked>(Object.keys(TYPESCRIPTS).map((k) => [k as TsKey, { failing: new Set<string>(), crashed: new Set<string>() }]));
+  for (let start = 0; start < outs.length; start += TSC_BATCH) {
+    const batch = outs.slice(start, start + TSC_BATCH);
+    const files = batch.flatMap((o) => tsFiles(o)).map((f) => path.relative(work, f));
+    if (files.length === 0) continue;
+    const config = path.join(work, 'tsconfig.json');
+    writeFileSync(
+      config,
+      JSON.stringify({
+        compilerOptions: { strict: true, noEmit: true, skipLibCheck: true, target: 'es2022', module: 'esnext', moduleResolution: 'bundler', lib: ['es2023', 'dom'], types: [] },
+        files,
+      }),
+    );
+    checkBatch(work, config, batch, result);
   }
   return result;
 }
@@ -214,8 +235,8 @@ export async function grade(options: GradeOptions): Promise<{ file: string; rows
     const folder = String(index);
     const typecheckRow = Object.fromEntries(
       keys.map((k) => {
-        const failing = checked?.get(k);
-        return [k, !g.generate || failing === undefined || failing === null ? null : !failing.has(folder)];
+        const one = checked?.get(k);
+        return [k, !g.generate || one === undefined || one.crashed.has(folder) ? null : !one.failing.has(folder)];
       }),
     ) as Record<TsKey, boolean | null>;
     return { id: pin.id, tool, read: g.read, generate: g.generate, typecheck: typecheckRow, roundtrip: null, ms: g.ms, error: g.error };
