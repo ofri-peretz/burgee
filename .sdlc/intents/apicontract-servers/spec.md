@@ -27,6 +27,39 @@ Shared helpers (naming, `input` type assembly, response unions) start in `plugin
 not imported, by the next framework; the third copy moves to `src/plugin-server-*.ts` in the PR that
 makes it. Order: `nest` (R1–R7, then AsyncAPI gateways), `hono`, `fastify`, `express`.
 
+## As built: `nest` (2026-11-18)
+
+- **Files.** Per controller (first tag, kebab-case; untagged → `default`): `<tag>.controller.base.ts`
+  (generated: per route a `type <Op>Operation = paths[path][method]`, `<Op>Input`, `<Op>Output`, the
+  abstract method, and a decorated `handle<Op>` that coerces and validates path/query/header/body,
+  calls the abstract method and checks the answer) and `<tag>.controller.ts` (user, written once,
+  each stub answering the first 2xx with the spec's example). Also generated: `api.module.ts`,
+  `contract-runtime.ts` (coercion, `invalid`, `problem`, `send`) and `<op>.contract.test.ts`.
+- **Types come from the `types` target, by path option** (`types`, default `./types.js`), the same
+  way validators come from the `validator` target (R2). R5 did not say where the typed `input`
+  and response union come from; re-deriving TypeScript from JSON Schema here would have been a
+  second types generator. `paths[path][method]` is used for every operation, so one without an
+  `operationId` is typed the same way.
+- **Problem Details.** A refused request answers `400 application/problem+json` with RFC 9457
+  `errors[].pointer` (`/path/petId`, `/query/limit`, `/body`). A handler answer the contract does
+  not declare (status or body) answers `500` Problem Details instead of being sent. An operation
+  that validates input but declares no `400`/`4XX`/`default` gets `server-problem-undeclared`.
+- **Findings.** `server-operation-skipped` (webhooks, `trace`, `query`, `additionalOperations`),
+  `server-parameter-skipped` (cookies), `server-media-type-skipped` (one media type served, JSON
+  first), `server-stream-skipped` (`itemSchema`), `server-example-synthesised` (R6).
+- **Contract tests** boot `ApiModule` with `NestFactory`, listen on `127.0.0.1:0`, `fetch` the
+  example request, and assert the status is declared (code, range, `default`) and the body passes
+  its validator. Assertions use `node:assert/strict`, so only the `describe`/`it` import changes
+  with `testRunner` (`vitest`, `node`, `jest`).
+- **Out-of-lockfile reading, 2026-11-18** (scratch folder, `@nestjs/*@11`, TS 5.9 `strict` +
+  `noUnusedLocals`, vitest 3): the sample type-checks; 3/3 contract tests pass against the stubs
+  (N3 = 100% on the sample); a stub edited to answer a wrong body fails its contract test with a
+  500; `GET /pets/abc`, `?limit=0` and a body without `name` answer 400 Problem Details. After the
+  N1 spec change, `tsc` reports `TS2515 … does not implement inherited abstract member deletePet`
+  in the user's `pets.controller.ts`, and nothing else of the user's moved.
+- **Not yet:** AsyncAPI gateways and microservice handlers (R1 `asyncapi` input); Hono, Fastify,
+  Express.
+
 ## Verification
 
 `npm test -w apicontract -- src/plugin-nest` (and per framework); the regeneration test
