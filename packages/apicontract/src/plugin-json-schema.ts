@@ -42,6 +42,7 @@ const DRAFTS: ReadonlyMap<unknown, Draft> = new Map<unknown, Draft>([
 const REFS: ReadonlyMap<unknown, Refs> = new Map<unknown, Refs>([
   [undefined, 'keep'],
   ['keep', 'keep'],
+  // Stryker disable next-line StringLiteral: equivalent, every `refs` but `keep` inlines
   ['inline', 'inline'],
 ]);
 

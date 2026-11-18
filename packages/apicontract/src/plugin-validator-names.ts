@@ -34,6 +34,14 @@ export const baseName = (operation: string, payload: string): string => {
   return /^\d/u.test(name) ? `_${name}` : name;
 };
 
+/** `base`, or `base2`, `base3`, … : the first that is not taken, which is then taken. */
+export const unique = (base: string, taken: Set<string>): string => {
+  let name = base;
+  for (let suffix = 2; taken.has(name); suffix += 1) name = `${base}${String(suffix)}`;
+  taken.add(name);
+  return name;
+};
+
 /** Every payload of the contract with its name, sorted by operation id, then by the payload's order in the operation. */
 export const namedPayloads = (contract: Contract): Named[] => {
   const taken = new Set<string>();
@@ -42,12 +50,8 @@ export const namedPayloads = (contract: Contract): Named[] => {
   const operations = ids.flatMap((id) => contract.operations.filter((operation) => operation.id === id));
   return operations.flatMap((operation) =>
     operation.payloads.map((payload) => {
-      const base = baseName(operation.id, payload.name);
-      let name = base;
       // A name already given, even one that was itself a suffixed base, is not given again.
-      for (let suffix = 2; taken.has(name); suffix += 1) name = `${base}${String(suffix)}`;
-      taken.add(name);
-      return { name, operation, payload };
+      return { name: unique(baseName(operation.id, payload.name), taken), operation, payload };
     }),
   );
 };

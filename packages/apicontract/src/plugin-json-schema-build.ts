@@ -14,6 +14,7 @@
  */
 import { type Contract, type ContractFinding, type JsonSchema } from './core/model.js';
 import { pointerGet } from './core/resolve.js';
+import { unique } from './plugin-validator-names.js';
 
 /** The dialect a document is written in: 2020-12, or draft-07 for an ajv set up for it. */
 export type Draft = '2020-12' | '07';
@@ -259,9 +260,7 @@ const define = (state: State, ref: string, target: unknown): string => {
   if (known !== undefined) return known.name;
   const last = (ref.split('/').at(-1) as string).replaceAll('~1', '/').replaceAll('~0', '~');
   const base = ref === '#' ? 'root' : decodeURIComponent(last).replaceAll(/[^\w.-]/gu, '_') || 'def';
-  let name = base;
-  for (let suffix = 2; state.names.has(name); suffix += 1) name = `${base}${String(suffix)}`;
-  state.names.add(name);
+  const name = unique(base, state.names);
   // Stryker disable next-line BooleanLiteral: equivalent, the placeholder is replaced on the next line before anything reads it
   const def: Def = { name, schema: true };
   // Set before it is walked: a target that refers to itself finds its own name.
@@ -341,7 +340,7 @@ const body = (schema: JsonSchema): Dict => {
 const tuple07 = (out: Dict, say: Say): Dict => {
   if (!('prefixItems' in out)) return out;
   say('keyword-rewritten', '`prefixItems` is written as draft-07\'s list of `items`, and `items` as `additionalItems`', 'nothing to do: the document means the same');
-  return { ...without(out, 'prefixItems', 'items'), items: out.prefixItems, ...(out.items !== undefined && { additionalItems: out.items }) };
+  return { ...without(out, 'prefixItems'), items: out.prefixItems, ...(out.items !== undefined && { additionalItems: out.items }) };
 };
 
 /** Draft-07's `dependencies`, which 2020-12 split in two. */
