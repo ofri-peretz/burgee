@@ -297,7 +297,6 @@ const canonical = (value: unknown): string | undefined =>
     isRecord(inner) ? Object.fromEntries(Object.entries(inner).toSorted(([a], [b]) => a.localeCompare(b))) : inner,
   );
 
-
 /** Two runs of one generator against what its sample declares. */
 const compare = (generator: string, first: Rendered, second: Rendered, declared: Rendered): Finding[] => {
   const findings: Finding[] = [];
