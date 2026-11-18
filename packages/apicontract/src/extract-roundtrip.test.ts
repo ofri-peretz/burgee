@@ -4,6 +4,8 @@ import { describe, expect, it } from 'vitest';
 import { corpus } from './__fixtures__/extract/corpus.js';
 import { Owner, Pet } from './__fixtures__/extract/validator-schemas.js';
 import { differences, roundtrip } from './extract-roundtrip.js';
+import { createHost } from './host.js';
+import { builtinAdapters } from './inputs.js';
 import { extractSchemas } from './plugin-extract-standard-schema.js';
 
 type Spec = { readonly $defs: Readonly<Record<string, object>> };
@@ -43,6 +45,34 @@ describe('the round trip through the validator and the standard-schema extractor
     const once = await roundtrip(corpus[name], generate, extract);
     expect(once.equal).toBe(first);
     expect((await roundtrip(once.extracted, generate, extract)).equal).toBe(fixed);
+  });
+
+  /**
+   * The same corpus classified by `ac-diff`. A verdict other than non-breaking on a rewrite that
+   * validates the same values (`type: null` as `const: null`, an enum as `anyOf` of `const`, a
+   * format as its pattern) is the classifier's to refine (its own lane): read 2026-11-18.
+   */
+  it.each([
+    ['scalars', 'breaking'],
+    ['objects', 'non-breaking'],
+    ['collections', 'breaking'],
+    ['choices', 'breaking'],
+    ['formats', 'breaking'],
+  ])('classifies the round trip of %s as %s', async (name, verdict) => {
+    const host = createHost();
+    host.register({ name: 'apicontract', adapters: builtinAdapters });
+    const result = await roundtrip(corpus[name], generate, extract, { read: host.read });
+    expect(result.comparison?.verdict).toBe(verdict);
+  });
+
+  it('classifies nothing without a reader', async () => {
+    expect(await roundtrip({}, () => 0, () => ({}))).not.toHaveProperty('comparison');
+  });
+
+  it('classifies what the extractor returned, not its comparison form', async () => {
+    const read: unknown[] = [];
+    await roundtrip({ a: 1 }, () => 0, () => ({ a: 1, title: 'kept' }), { read: (document) => (read.push(document), { format: 'x', document, operations: [] }) });
+    expect(read).toEqual([{ a: 1 }, { a: 1, title: 'kept' }]);
   });
 
   it('says where a round trip lost something, added something, or changed it', async () => {

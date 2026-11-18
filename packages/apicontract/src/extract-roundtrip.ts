@@ -3,9 +3,13 @@
  * normalised. It is the check that catches a generator and an extractor disagreeing, which neither
  * one's own tests can see.
  *
- * The comparison is structural, by JSON Pointer. `ac-diff`'s `compareContracts` replaces it when it
- * lands, so a difference is then reported as breaking or not; the call shape stays.
+ * `equal` is structural, by JSON Pointer, on the comparison form: a rewrite that validates the same
+ * values but is spelled another way is a difference. Given a reader, `ac-diff`'s
+ * `compareContracts` also says whether the round trip broke the contract, which is the question a
+ * user of the extracted spec asks.
  */
+import { type Contract } from './core/model.js';
+import { type Comparison, compareContracts } from './diff-contract.js';
 import { normalise, type NormaliseOptions, stable } from './extract-normalise.js';
 import { escape, isRecord } from './extract-standard.js';
 
@@ -23,6 +27,13 @@ export interface Roundtrip {
   readonly diff: readonly Difference[];
   /** What the extractor returned, normalised. */
   readonly extracted: unknown;
+  /** The spec (old) against what came back (new), classified: only when a reader was given. */
+  readonly comparison?: Comparison;
+}
+
+export interface RoundtripOptions extends NormaliseOptions {
+  /** Reads a document into the model, e.g. a host's `read`; with it, the round trip is also classified. */
+  readonly read?: (document: unknown) => Contract;
 }
 
 /** Every place where two JSON values differ, by JSON Pointer, in key order. */
@@ -51,9 +62,11 @@ export const roundtrip = async <Generated>(
   spec: unknown,
   generate: (spec: unknown) => Generated | Promise<Generated>,
   extract: (generated: Generated) => unknown,
-  options: NormaliseOptions = {},
+  options: RoundtripOptions = {},
 ): Promise<Roundtrip> => {
-  const extracted = normalise(await extract(await generate(spec)), options);
+  const back = await extract(await generate(spec));
+  const extracted = normalise(back, options);
   const diff = differences(normalise(spec, options), extracted);
-  return { equal: diff.length === 0, diff, extracted };
+  const { read } = options;
+  return { equal: diff.length === 0, diff, extracted, ...(read === undefined ? {} : { comparison: compareContracts(read(spec), read(back)) }) };
 };
