@@ -39,7 +39,7 @@ agent claim to measure (A1, A5–A7) and needs nothing that is not on `main`.
 
 ## Affected users and systems
 
-`packages/apicontract/src/plugins/{mcp,markdown}/**`, `src/commands/explain/**`.
+`packages/apicontract/src/plugin-mcp*.ts, src/plugin-markdown*.ts`, `src/command-explain*.ts`.
 
 ## Constraints
 

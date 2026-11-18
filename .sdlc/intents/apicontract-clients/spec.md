@@ -6,14 +6,14 @@ Intent: [`intent.md`](./intent.md). **Status:** approved, 2026-11-18.
 
 ## Requirements
 
-- **R1** `src/plugins/fetch/` exports `generators.fetch`; output `client.ts` with
+- **R1** `src/plugin-fetch*.ts` exports `generators.fetch`; output `client.ts` with
   `createClient({ baseUrl, fetch?, headers?, validate? })` returning one method per operation.
 - **R2** Path params are encoded with `encodeURIComponent`; query arrays follow the spec's `style`
   and `explode` (form/explode default); bodies by media type (`application/json`, form, multipart).
 - **R3** The return type is `{ status, body, headers }` per declared response, plus a typed
   `unexpected` branch; nothing throws on a non-2xx.
-- **R4** `src/plugins/tanstack-query/` imports the `fetch` output by path option `client`.
-- **R5** `src/plugins/msw/` emits `handlers.ts` (`http.<method>(path, resolver)`) and `scenarios.ts`;
+- **R4** `src/plugin-tanstack-query*.ts` imports the `fetch` output by path option `client`.
+- **R5** `src/plugin-msw*.ts` emits `handlers.ts` (`http.<method>(path, resolver)`) and `scenarios.ts`;
   values come from `example`, then `examples[0]`, then a seeded synthesis over the schema.
 - **R6** The synthesiser is a pure function `synth(schema, seed)` honouring `enum`, `const`,
   `format`, `minimum`/`maximum`, `minLength`, `pattern` (only for the formats table), and `$ref`.
@@ -24,7 +24,7 @@ Three folders. `synth` lives in `msw/` (only user). Order: `fetch`, `msw`, `tans
 
 ## Verification
 
-`npm test -w apicontract -- src/plugins/fetch src/plugins/msw src/plugins/tanstack-query`;
+`npm test -w apicontract -- src/plugin-fetch src/plugin-msw src/plugin-tanstack-query`;
 the round-trip test (client against a server built from the mock scenarios) is the check that would
 catch the client and mocks disagreeing.
 

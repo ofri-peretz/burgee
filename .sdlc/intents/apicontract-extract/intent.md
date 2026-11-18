@@ -45,7 +45,7 @@ library, which turns B5 from a per-framework grind into one plugin.
 
 ## Affected users and systems
 
-`packages/apicontract/src/extract/**`, `src/plugins/{standard-schema,nest-extract,hono-extract,trpc-extract}/**`.
+`packages/apicontract/src/extract-*.ts`, `src/plugin-extract-*.ts` (Standard Schema, OpenAPI from schemas, NestJS, Hono, tRPC / oRPC, ts-rest).
 
 ## Constraints
 

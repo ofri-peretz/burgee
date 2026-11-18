@@ -6,7 +6,7 @@ Intent: [`intent.md`](./intent.md). **Status:** approved, 2026-11-18.
 
 ## Requirements
 
-- **R1** One folder per framework under `src/plugins/`, each exporting `plugin` with one generator
+- **R1** One file per framework, `src/plugin-<framework>.ts` (helpers `plugin-<framework>-*.ts`), each exporting `plugin` with one generator
   named after the framework; inputs `openapi` (all four) and `asyncapi` (`nest` only).
 - **R2** Each generator takes option `validators` (import path of the `validator` target's output,
   default `./validators.js`) and never emits validation logic itself.
@@ -24,12 +24,12 @@ Intent: [`intent.md`](./intent.md). **Status:** approved, 2026-11-18.
 ## Design
 
 Shared helpers (naming, `input` type assembly, response unions) start inside `nest/` and are copied,
-not imported, by the next framework; the third copy moves to `src/plugins/_server/` in the PR that
+not imported, by the next framework; the third copy moves to `src/plugin-server-*.ts` in the PR that
 makes it. Order: `nest` (R1–R7, then AsyncAPI gateways), `hono`, `fastify`, `express`.
 
 ## Verification
 
-`npm test -w apicontract -- src/plugins/nest` (and per framework); the regeneration test
+`npm test -w apicontract -- src/plugin-nest` (and per framework); the regeneration test
 (N1) is the check that would have caught overwriting user code. Boot and type-check readings come
 from `benchmarks/apicontract/consumers.ts` (corpus lane).
 

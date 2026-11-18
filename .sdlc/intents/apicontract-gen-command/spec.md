@@ -9,7 +9,7 @@ Intent: [`intent.md`](./intent.md). **Status:** approved, 2026-11-18.
 - **R1** `loadConfig(cwd)` finds `apicontract.config.{json,mjs,ts}` and returns `{ input, plugins,
   targets: { [name]: { generator, out, options } } }`, validated with a `fix:` line per error.
 - **R2** `loadPlugins(config)` imports each entry of `plugins` (package name or relative path), runs
-  `host.validate` on it, and merges the built-ins from `src/plugins/index.ts` first.
+  `host.validate` on it, and merges the built-ins from `src/plugins.ts` first.
 - **R3** `readInput(path)` parses JSON or YAML, asks each adapter's `detect` in registration order
   and returns the first adapter's `Contract`. No adapter → exit 2 with the formats it knows.
 - **R4** `plan(files, disk)` is pure: given generated files and what is on disk, it returns `write`,
@@ -26,14 +26,14 @@ Intent: [`intent.md`](./intent.md). **Status:** approved, 2026-11-18.
 
 ## Design
 
-`src/gen/` holds `config.ts`, `load.ts`, `input.ts`, `plan.ts`, `apply.ts`, `header.ts`, `map.ts`
-and `command.ts` (the burgee declaration). `cli.ts` imports `command.ts` in place of the `planned`
-stub. `host.ts` gains the `extractors` key (R9) with the same `sample` rule as generators. Order:
+`run-config.ts`, `run-load.ts`, `run-input.ts`, `run-plan.ts`, `run-apply.ts`, `run-header.ts`,
+`run-map.ts` and `run-command.ts` (the burgee declarations for `gen` and `extract`). `cli.ts` imports
+`run-command.ts` in place of the `planned` stubs. `host.ts` gains the `extractors` key (R9) with the same `sample` rule as generators. Order:
 R4 and R6 first (pure, tested exhaustively), then R1–R3, then R5, R7, R8, R9.
 
 ## Verification
 
-`npm test -w apicontract -- src/gen` exits non-zero on any failing requirement; the
+`npm test -w apicontract -- src/run-` exits non-zero on any failing requirement; the
 regeneration-safety test (intent § Success criteria) is the check that would have caught a
 generator overwriting user code. `npm run ci:local` before the push.
 

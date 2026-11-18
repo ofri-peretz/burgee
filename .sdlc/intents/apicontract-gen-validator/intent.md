@@ -41,7 +41,7 @@ generator with findings is a capability no incumbent has (roadmap row marked **n
 
 ## Affected users and systems
 
-`packages/apicontract/src/plugins/validator/**` and `src/plugins/json-schema/**`. Reads
+`packages/apicontract/src/plugin-validator*.ts` and `src/plugin-json-schema*.ts`. Reads
 `packages/validator` through its public exports only (`validator`, `validator/emit`).
 
 ## Constraints

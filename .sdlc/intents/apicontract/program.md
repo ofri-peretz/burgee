@@ -37,13 +37,16 @@ the path option or the in-lane copy until the other has landed, then switches in
 One package, `packages/apicontract`, carries nine lanes. That works only because step **6.0** shards
 it first, the same move as PLAN's `SHARD` for `baseline.json`:
 
-- every lane's code goes in its own folder (`src/inputs/<name>/`, `src/plugins/<name>/`,
-  `src/commands/<name>/`, `src/diff/`, `src/extract/`, `src/gen/`);
+- every lane's code goes in files with its own prefix, because this repository's lint forbids
+  parent-directory and barrel imports, so every package is flat (as `gen-ts-*.ts` already is):
+  `input-<name>*.ts`, `plugin-<name>*.ts`, `plugin-extract-<name>*.ts`, `command-<name>*.ts`,
+  `run-*.ts`, `diff-*.ts`, `extract-*.ts`, `testing*.ts`, `migrate-*.ts`, `scaffold*.ts`; fixtures
+  under `src/__fixtures__/<lane>/`. No prefix is a prefix of another lane's;
 - the three files every lane would otherwise append to are created once, by 6.0, with a line for
-  every planned folder already in them: `src/inputs/index.ts`, `src/plugins/index.ts` and
-  `src/commands/index.ts`; each imports a stub `index.ts` in each folder that exports `undefined`
-  until its lane fills it;
-- `package.json` gains wildcard subpath exports (`./plugins/*`, `./inputs/*`) once, so no lane edits it;
+  every planned file already in them: `src/inputs.ts`, `src/plugins.ts` and `src/commands.ts`;
+  each imports a stub (`input-<name>.ts`, `plugin-<name>.ts`, `command-<name>.ts`) that exports
+  `undefined` or a refusing command until its lane replaces it;
+- `package.json` gains pattern exports (`./plugin-*`, `./input-*`, `./testing`) once, so no lane edits it;
 - `validator` becomes a workspace dependency of `apicontract` once, in 6.0, the only lockfile edit.
 
 After 6.0 the owned paths in `LANES.md` are disjoint, which `scripts/lane-boundaries-lock.test.ts`
@@ -57,7 +60,7 @@ Every plugin PR in this program meets all of these; the lane intents add their o
 2. Deterministic: two runs, same bytes; output sorted by operation id.
 3. Regeneration test: user-owned files unchanged after a spec change (N1 = 0).
 4. Round trip where the target has an extract half (R-RT).
-5. 100% line coverage of the lane's folder; an oxmutate floor recorded at its first reading.
+5. 100% line coverage of the lane's files; an oxmutate floor recorded at its first reading.
 6. A `fix:` line on every refusal and every non-zero exit (A3).
 7. A finding, never a silent drop, for anything the target cannot express (J3, B3).
 8. `npm run ci:local` and `npm run lint` green on the branch, except the artifact-size baseline,
@@ -67,7 +70,7 @@ Every plugin PR in this program meets all of these; the lane intents add their o
 
 | Wave | Lanes running | Exit |
 | :-- | :-- | :-- |
-| **6.0** shard | integrator | `src/{inputs,plugins,commands}/index.ts` with stubs; wildcard exports; `validator` dependency; lanes lock green |
+| **6.0** shard | integrator | `src/inputs.ts`, `src/plugins.ts`, `src/commands.ts` with flat stubs; pattern exports; `validator` dependency; lanes lock green |
 | **A** foundation | `ac-spine`, `ac-types`, `ac-inputs` (JSON Schema, MCP first), `ac-kit` (conformance first), `ac-corpus`, `validator` | `gen` writes the types target on a fixture; JSON Schema and MCP read; corpus `--sample 100` runs |
 | **B** first targets | `ac-validate`, `ac-agents` (`explain` first), `ac-extract` (Standard JSON Schema first), `ac-diff` (schema compare first) | Phase 2 exit rows J1–J3, R1–R3, B1 read |
 | **C** frameworks | `ac-servers` (NestJS first), `ac-clients` (`fetch`, MSW), `ac-agents` (`gen mcp`), `ac-extract` (NestJS, ts-rest) | N1–N3 read; consumer harness boots NestJS and Hono output |

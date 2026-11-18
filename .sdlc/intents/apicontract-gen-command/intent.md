@@ -34,7 +34,7 @@ regeneration safety (vision row 3, metric N1) would be eight implementations ins
 
 ## Affected users and systems
 
-`packages/apicontract` (`src/gen/**`, `src/config/**`, `src/cli.ts`, `src/host.ts`). Every
+`packages/apicontract` (`src/run-*.ts`, `src/cli.ts`, `src/host.ts`). Every
 plugin lane consumes its API but does not edit it.
 
 ## Constraints
@@ -48,14 +48,14 @@ plugin lane consumes its API but does not edit it.
 ## Success criteria
 
 - `gen` on `src/__fixtures__/id.openapi.yaml` with the types target writes the files the generator's
-  `sample` declares; a second run reports `0 changed`. Test: `src/gen/gen.test.ts`.
+  `sample` declares; a second run reports `0 changed`. Test: `src/run-*.tsgen.test.ts`.
 - `gen --check` exits 1 after the spec changes and 0 after `gen`; the exit codes match R-A2.
 - Regenerating after a spec change edits zero bytes of any `user` file (N1 = 0), proven by a test
   that edits a user file, changes the spec and regenerates.
 - A hand edit inside a `generated` file makes `gen` exit 1 with `fix: move the change to a user file,
   or pass --force`.
 - `apicontract gen --json --dry-run` validates against burgee's envelope (A2 = 100%).
-- Coverage of `src/gen/**` 100%; mutation floor set at first reading (R-M1).
+- Coverage of `src/run-*.ts` 100%; mutation floor set at first reading (R-M1).
 
 ## Defaults taken
 

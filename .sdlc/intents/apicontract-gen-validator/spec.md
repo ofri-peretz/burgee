@@ -6,15 +6,15 @@ Intent: [`intent.md`](./intent.md). **Status:** approved, 2026-11-18.
 
 ## Requirements
 
-- **R1** `src/plugins/validator/index.ts` exports a plugin with `generators.validator`; inputs:
+- **R1** `src/plugin-validator.ts` exports a plugin with `generators.validator`; inputs:
   every adapter name. Output: `validators.ts` (generated) with one exported validator per payload,
   named `<operationId><PayloadName>` in PascalCase, collisions suffixed deterministically.
 - **R2** Each payload schema is resolved against the document with `core/resolve.ts`, translated with
   `fromJsonSchema` from `validator/json-schema`, and emitted with `validator/emit`. A keyword the validator cannot
   express is a finding and falls back to the run-time door, never dropped.
-- **R3** `src/plugins/json-schema/index.ts` exports `generators['json-schema']`; options `draft`
+- **R3** `src/plugin-json-schema.ts` exports `generators['json-schema']`; options `draft`
   (`2020-12` | `07`), `refs` (`keep` | `inline`), `dialect`.
-- **R4** `src/plugins/json-schema/dialects/<provider>.ts` is data: `{ source, read, keywords: {
+- **R4** `src/plugin-json-schema*.tsdialects/<provider>.ts` is data: `{ source, read, keywords: {
   [kw]: 'keep' | 'drop' | { rewrite } }, rootMustBeObject, additionalPropertiesFalseRequired,
   allRequired }`. The transform is one function over that table.
 - **R5** `draft: '07'` rewrites `$defs`→`definitions`, `prefixItems`→`items` array, `const` kept,
@@ -27,13 +27,13 @@ Intent: [`intent.md`](./intent.md). **Status:** approved, 2026-11-18.
 
 ## Design
 
-Two folders, each `index.ts`, `generate.ts`, tests and `__fixtures__/`. The dialect tables are the
+Two file prefixes, `plugin-validator*.ts` and `plugin-json-schema*.ts`, each with its tests; fixtures in `src/__fixtures__/validate/`. The dialect tables are the
 only provider knowledge, so updating one when a provider changes its docs is a one-file PR. Order:
 `json-schema` without dialects (J1, J2), then `validator` (R1, R2), then dialects.
 
 ## Verification
 
-`npm test -w apicontract -- src/plugins/validator src/plugins/json-schema`; the keyword
+`npm test -w apicontract -- src/plugin-validator src/plugin-json-schema`; the keyword
 enumeration test (intent J3) is the check that would catch a silent drop. J2 agreement test runs ajv
 from the root `node_modules` (dev only).
 

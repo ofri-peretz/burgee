@@ -29,7 +29,7 @@ one model are vision row 1 ("cannot disagree"); orval generates both but from it
 
 ## Affected users and systems
 
-`packages/apicontract/src/plugins/{fetch,tanstack-query,msw}/**`.
+`packages/apicontract/src/plugin-fetch*.ts, src/plugin-tanstack-query*.ts, src/plugin-msw*.ts`.
 
 ## Constraints
 

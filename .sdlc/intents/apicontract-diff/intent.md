@@ -24,13 +24,13 @@ both read through the same adapters, compared on the model, per payload directio
 
 ## Why now
 
-D1–D7 have no reading. MCP servers change tool schemas silently (SC10: find ≥ 1 real case in ten
+`D1`–`D7` have no reading. MCP servers change tool schemas silently (SC10: find ≥ 1 real case in ten
 popular servers). The diff is model-level, so it covers OpenAPI, JSON Schema, AsyncAPI and MCP at
-once, which no incumbent does (D5: oasdiff 1, mcpdiff 1).
+once, which no incumbent does (`D5`: oasdiff 1, mcpdiff 1).
 
 ## Affected users and systems
 
-`packages/apicontract/src/diff/**`, `src/commands/diff/**`.
+`packages/apicontract/src/diff-*.ts`, `src/command-diff*.ts`.
 
 ## Constraints
 
@@ -42,11 +42,11 @@ once, which no incumbent does (D5: oasdiff 1, mcpdiff 1).
 
 ## Success criteria
 
-- D1: verdict agreement with oasdiff on its own test corpus, each disagreement explained in a file.
-- D2 = 0 missed planted breaks; D3 below each incumbent on the planted corpus.
-- D5 = 4 at this intent's exit (OpenAPI, JSON Schema, AsyncAPI, MCP).
-- D6 ≥ 1: one unannounced breaking change found in the histories of the ten MCP servers.
-- D7: `compat.qnt` invariants green in `models.yml`; Q2 reported.
+- `D1`: verdict agreement with oasdiff on its own test corpus, each disagreement explained in a file.
+- `D2` = 0 missed planted breaks; `D3` below each incumbent on the planted corpus.
+- `D5` = 4 at this intent's exit (OpenAPI, JSON Schema, AsyncAPI, MCP).
+- `D6` ≥ 1: one unannounced breaking change found in the histories of the ten MCP servers.
+- `D7`: `compat.qnt` invariants green in `models.yml`; Q2 reported.
 
 ## Defaults taken
 

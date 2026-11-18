@@ -40,7 +40,7 @@ graded on the plugin authors see first, which is the NestJS one.
 
 ## Affected users and systems
 
-`packages/apicontract/src/plugins/{nest,hono,fastify,express}/**`.
+`packages/apicontract/src/plugin-nest*.ts, src/plugin-hono*.ts, src/plugin-fastify*.ts, src/plugin-express*.ts`.
 
 ## Constraints
 

@@ -6,18 +6,18 @@ Intent: [`intent.md`](./intent.md). **Status:** approved, 2026-11-18.
 
 ## Requirements
 
-- **R1** `src/testing/index.ts` exports `conformance(plugin, options?)`: async, throws a
+- **R1** `src/testing.ts` exports `conformance(plugin, options?)`: async, throws a
   `ConformanceError` listing every failed rule (not only the first), each with a `fix:` line.
 - **R2** Rules, each its own function and test: `schema` (host.validate), `sample` (run on
   `sample.document` equals `sample.files`), `deterministic`, `regeneration` (mutates the sample
   document by adding one operation and one property, regenerates through the spine's `plan`, asserts
   no `user` file changes), `roundtrip` (when `options.extractor` is given), `fix-lines`
   (refusals carry `fix:`), `paths` (all paths pass `validateFiles`).
-- **R3** `src/plugins/_scaffold/` holds the scaffold template as plain TypeScript strings; `plugin new`
+- **R3** `src/scaffold*.ts` holds the scaffold template as plain TypeScript strings; `plugin new`
   writes them through the spine's `apply`.
-- **R4** `src/migrate/<from>.ts` each exports `migrate(configText, files) → { config, edits, findings }`;
+- **R4** `src/migrate-*.ts<from>.ts` each exports `migrate(configText, files) → { config, edits, findings }`;
   pure, tested on fixtures copied from the incumbent's docs with their source URL in a comment.
-- **R5** `migrate` and `plugin` commands are declared in `src/commands/` stubs created by 6.0.
+- **R5** `migrate` and `plugin` commands are declared in `src/command-*.ts` stubs created by 6.0.
 
 ## Design
 
@@ -27,7 +27,7 @@ uses an in-lane copy of the owner rule and switches in a follow-up.
 
 ## Verification
 
-`npm test -w apicontract -- src/testing src/migrate src/plugins/_scaffold`; the seven broken
+`npm test -w apicontract -- src/testing src/migrate- src/scaffold`; the seven broken
 fixture plugins are the check that would catch a rule that passes everything.
 
 ## Rejected alternatives

@@ -6,7 +6,7 @@ Intent: [`intent.md`](./intent.md). **Status:** approved, 2026-11-18.
 
 ## Requirements
 
-- **R1** `src/inputs/<name>/index.ts` exports `adapter: Adapter`; `src/inputs/index.ts` (created by
+- **R1** `src/input-<name>.tsindex.ts` exports `adapter: Adapter`; `src/inputs.ts` (created by
   step 6.0) lists them in detection order: `openapi`, `swagger2`, `asyncapi`, `mcp`, `jsonschema`.
   `jsonschema` is last because almost any object is a schema.
 - **R2** `detect` reads only top-level keys (`openapi`, `swagger`, `asyncapi`, `tools`, `$schema` or
@@ -27,14 +27,14 @@ Intent: [`intent.md`](./intent.md). **Status:** approved, 2026-11-18.
 
 ## Design
 
-One folder per adapter with `index.ts`, `read.ts`, `read.test.ts` and `__fixtures__/`. Shared
-helpers stay inside each folder (duplicated rather than shared across lanes, until a third copy
+One file per adapter, `input-<name>.ts` with `input-<name>.test.ts`, fixtures in
+`src/__fixtures__/inputs/<name>/`. Shared helpers stay in each adapter's own files (duplicated rather than shared across lanes, until a third copy
 earns a `core` helper through the spine lane). Order: `jsonschema` (unblocks `ac-validate`),
 `mcp` (unblocks `ac-agents`), `asyncapi`, `swagger2`, OpenAPI 3.2.
 
 ## Verification
 
-`npm test -w apicontract -- src/inputs src/openapi` and the corpus lane's
+`npm test -w apicontract -- src/input- src/openapi` and the corpus lane's
 `benchmarks/apicontract/corpus.ts --adapters` reading (0 thrown documents is the gate).
 
 ## Rejected alternatives

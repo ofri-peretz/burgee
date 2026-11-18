@@ -12,8 +12,8 @@
 
 ## What is wanted
 
-Five adapters, each `{ description, detect, read }` on the public host API, each in its own folder
-under `src/inputs/`:
+Five adapters, each `{ description, detect, read }` on the public host API, each in its own
+`src/input-<name>.ts`:
 
 | Adapter | Reads | Payload directions |
 | :-- | :-- | :-- |
@@ -38,7 +38,7 @@ on the critical path of `gen validator` (Phase 2); the MCP adapter of `gen mcp` 
 
 ## Affected users and systems
 
-`packages/apicontract/src/inputs/**` and `src/openapi.ts`. The corpus lane grades each adapter on
+`packages/apicontract/src/input-*.ts` and `src/openapi.ts`. The corpus lane grades each adapter on
 real documents.
 
 ## Constraints
@@ -59,7 +59,7 @@ real documents.
   `outputSchema` become `tool-call` and `tool-result` payloads.
 - `swagger2`: the Swagger 2.0 Petstore and 50 corpus documents read; every translated construct
   (`formData`, `collectionFormat`, `x-nullable`) produces a finding, never a silent change.
-- Coverage 100% of `src/inputs/**`; mutation floor set at first reading.
+- Coverage 100% of `src/input-*.ts`; mutation floor set at first reading.
 
 ## Defaults taken
 

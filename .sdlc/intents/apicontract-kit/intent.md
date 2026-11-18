@@ -18,7 +18,7 @@
    round trip where an extractor is paired, and refusal messages carrying `fix:`. Every lane's plugin
    test calls it once the kit lands.
 2. **`apicontract plugin new <name> [--kind generator|extractor|adapter]`** — scaffolds a plugin
-   folder: `index.ts` with a working one-operation `sample`, a test that calls `conformance`, and a
+   file: `plugin-<name>.ts` with a working one-operation `sample`, a test that calls `conformance`, and a
    README; the scaffold passes the suite as generated.
 3. **`apicontract migrate <from>`** — reads the incumbent's config and imports and writes ours,
    reporting every option it could not carry as a finding:
@@ -39,7 +39,7 @@ path is the cheapest adoption lever in the program (research, 2026-11-18).
 
 ## Affected users and systems
 
-`packages/apicontract/src/testing/**`, `src/migrate/**`, `src/plugins/_scaffold/**`,
+`packages/apicontract/src/testing*.ts`, `src/migrate-*.ts`, `src/scaffold*.ts`,
 `packages/apicontract/AGENTS.md`, `evals/cases/apicontract-plugin-*.json` (through the integrator).
 
 ## Constraints
@@ -52,7 +52,7 @@ path is the cheapest adoption lever in the program (research, 2026-11-18).
 ## Success criteria
 
 - `conformance` fails each of seven deliberately broken fixture plugins (one per rule) and passes the
-  scaffold; mutation testing kills every mutant in `src/testing/**`.
+  scaffold; mutation testing kills every mutant in `src/testing*.ts`.
 - `plugin new` output passes `conformance` and `npm run typecheck` with no edits.
 - Each `migrate` source: 100% of the incumbent's documented config examples convert, or produce a
   finding per unsupported option.
