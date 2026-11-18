@@ -4,11 +4,13 @@ import { beforeAll, describe, expect, it } from 'vitest';
 
 import { program } from './index.js';
 
-/** Each command still owned by the spine, with the roadmap phase that delivers it and what it does to the user's files. */
-const COMMANDS = [
-  ['gen', 'Phase 1', 'idempotent'],
-  ['extract', 'Phase 2', 'idempotent'],
-  ['check', 'Phase 7', 'read_only'],
+/** Each command still planned by the spine, with the roadmap phase that delivers it and what it does to the user's files. */
+const COMMANDS = [['check', 'Phase 7', 'read_only']] as const;
+
+/** The commands the spine runs for real (run-command.ts): both write files, and a rerun is safe. */
+const WORKING = [
+  ['gen', 'idempotent'],
+  ['extract', 'idempotent'],
 ] as const;
 
 /** The commands whose lanes are under way: their effects are fixed here, their behaviour by their lane. */
@@ -43,6 +45,7 @@ describe('apicontract, Phase 0', () => {
     const { commands } = JSON.parse(r.stdout) as { commands: { name: string; effects?: string }[] };
     const effects = Object.fromEntries(commands.map((c) => [c.name, c.effects]));
     for (const [name, , effect] of COMMANDS) expect(effects[name], name).toBe(effect);
+    for (const [name, effect] of WORKING) expect(effects[name], name).toBe(effect);
     for (const [name, effect] of LANE_COMMANDS) expect(effects[name], name).toBe(effect);
   });
 });
