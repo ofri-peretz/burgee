@@ -13,6 +13,18 @@ it('lists the seven rules in the order a report reads them', () => {
   expect(RULES).toEqual(['schema', 'sample', 'deterministic', 'regeneration', 'roundtrip', 'fix-lines', 'paths']);
 });
 
+const error = (text: string): Outcome => ({ error: new Error(text) });
+
+const reading = (transform: (written: Record<string, unknown>) => unknown): Extractor => ({
+  description: 'Reads it back',
+  sample: { options: { from: 'doc.json' }, document: {} },
+  run: (options) => {
+    const files = options.files as GeneratedFile[];
+    const written = JSON.parse(files.find((one) => one.path === options.from)?.content ?? '{}') as Record<string, unknown>;
+    return transform(written);
+  },
+});
+
 describe('failureOf and hasFix', () => {
   it('splits a refusal at its fix line, without the stop before it', () => {
     expect(failureOf('paths', 'here', new Error('it broke. fix: mend it'), 'fallback')).toEqual({ rule: 'paths', where: 'here', message: 'it broke', fix: 'mend it' });
@@ -104,7 +116,6 @@ describe('deterministic', () => {
   });
 
   it('compares each run made twice: files, findings and refusals', () => {
-    const error = (text: string): Outcome => ({ error: new Error(text) });
     const runs: Run[] = [
       { where: 'once', outcome: ok(file('a')) },
       { where: 'same', outcome: ok(file('a')), again: ok(file('a')) },
@@ -220,15 +231,6 @@ describe('roundtrip', () => {
     sample: { document, options: { indent: 1 }, files: [] },
     run: (contract, options) => [file('doc.json', JSON.stringify({ document: contract.document, options }))],
   };
-  const reading = (transform: (written: Record<string, unknown>) => unknown): Extractor => ({
-    description: 'Reads it back',
-    sample: { options: { from: 'doc.json' }, document: {} },
-    run: (options) => {
-      const files = options.files as GeneratedFile[];
-      const written = JSON.parse(files.find((one) => one.path === options.from)?.content ?? '{}') as Record<string, unknown>;
-      return transform(written);
-    },
-  });
 
   it('passes when the extracted document reads as the same contract, whatever its key order and sources', async () => {
     const reordered = reading((written) => {

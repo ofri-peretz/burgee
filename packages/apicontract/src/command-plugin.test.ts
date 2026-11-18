@@ -7,8 +7,9 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { scratchDirs } from './__fixtures__/kit/scratch-dir.js';
 import { command } from './command-plugin.js';
-import { program } from './index.js';
 import { scaffold } from './scaffold.js';
+
+import { program } from './index.js';
 
 /** What the command returned, out of burgee's `--json` envelope. */
 const data = (r: { json?: unknown }): unknown => (r.json as { data?: unknown }).data;
@@ -17,6 +18,8 @@ const scratch = scratchDirs();
 const directory = scratch('apicontract-plugin-');
 
 beforeAll(async () => {
+  // Every run that is not given a directory writes into a scratch one, never the package's own.
+  vi.spyOn(process, 'cwd').mockReturnValue(join(directory, 'elsewhere'));
   await runBurgee(program, { argv: ['--version'] });
 });
 
@@ -75,7 +78,7 @@ describe('`apicontract plugin new`', () => {
       expect(data(r)).toMatchObject({ written: ['plugin-here.ts', 'plugin-here.test.ts', 'README.md'] });
       expect(readFileSync(join(out, 'README.md'), 'utf8')).toBe(scaffold('here', 'generator')[2]?.content);
     } finally {
-      cwd.mockRestore();
+      cwd.mockReturnValue(join(directory, 'elsewhere'));
     }
   });
 

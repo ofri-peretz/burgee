@@ -7,6 +7,7 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { scratchDirs } from './__fixtures__/kit/scratch-dir.js';
 import { command, project, SOURCES } from './command-migrate.js';
+
 import { program } from './index.js';
 
 const scratch = scratchDirs();
@@ -28,6 +29,8 @@ const make = (name: string, files: Record<string, string>): string => {
 const pkg = (scripts: Record<string, string>): string => `${JSON.stringify({ scripts }, undefined, 2)}\n`;
 
 beforeAll(async () => {
+  // Every run that is not given a directory writes into a scratch one, never the package's own.
+  vi.spyOn(process, 'cwd').mockReturnValue(join(root, 'elsewhere'));
   await runBurgee(program, { argv: ['--version'] });
 });
 
@@ -105,7 +108,7 @@ describe('`apicontract migrate`', () => {
       const r = await runBurgee(program, { argv: ['migrate', 'openapi-typescript', '--json'] });
       expect(data(r)).toMatchObject({ changed: true, written: ['apicontract.config.json'] });
     } finally {
-      cwd.mockRestore();
+      cwd.mockReturnValue(join(root, 'elsewhere'));
     }
   });
 
