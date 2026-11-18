@@ -1,0 +1,163 @@
+/**
+ * The `fetch` target's sample (R-PL5): a small document and exactly what it produces, written out
+ * so it can be read without running anything. `checkPlugin` proves the generator still writes it.
+ */
+
+/** The sample document. */
+export const document = {"openapi":"3.1.0","paths":{"/pets/{petId}":{"get":{"operationId":"getPet","parameters":[{"name":"petId","in":"path"},{"name":"fields","in":"query","explode":false}],"responses":{"200":{"content":{"application/json":{}}},"404":{}}}}}};
+
+/** `client.ts` for it. */
+export const SAMPLE_CLIENT = `import type { paths } from "./types.js";
+
+/** A declared response: the status as the spec writes it, the status received, the body and the headers. */
+export interface Answer<S, B> {
+  readonly status: S;
+  readonly code: number;
+  readonly body: B;
+  readonly headers: Headers;
+}
+
+/** A status the operation does not declare, or a body \`validate\` refused. Never thrown. */
+export interface Unexpected extends Answer<'unexpected', unknown> {
+  /** What \`validate\` reported. */
+  readonly errors?: readonly unknown[];
+}
+
+type BodyOf<R> = R extends { content: infer C } ? C[keyof C] : undefined;
+
+export interface ClientOptions {
+  /** Where the API is, e.g. \`https://api.example.com/v1\`. */
+  readonly baseUrl: string;
+  /** Defaults to the platform \`fetch\`. */
+  readonly fetch?: (url: string, init: RequestInit) => Promise<Response>;
+  /** Sent with every request. */
+  readonly headers?: Readonly<Record<string, string>>;
+  /** Checks a declared response body; any error turns the result into \`unexpected\`. */
+  readonly validate?: (check: { readonly operation: string; readonly status: string; readonly body: unknown }) => readonly unknown[] | undefined;
+}
+
+type Place = 'path' | 'query' | 'header' | 'cookie';
+
+interface Param {
+  readonly name: string;
+  readonly in: Place;
+  readonly style: string;
+  readonly explode: boolean;
+}
+
+interface Route {
+  readonly id: string;
+  readonly method: string;
+  readonly path: string;
+  readonly params: readonly Param[];
+  readonly body?: string;
+  readonly responses: Readonly<Record<string, 'json' | 'text' | 'blob' | 'none'>>;
+}
+
+type Bag = Readonly<Record<string, unknown>>;
+
+const isBag = (value: unknown): value is Bag => typeof value === "object" && value !== null && !Array.isArray(value) && !(value instanceof Blob);
+const atom = (value: unknown): string => (typeof value === "object" && value !== null ? JSON.stringify(value) : String(value));
+const present = (value: Bag): [string, unknown][] => Object.entries(value).filter((entry) => entry[1] !== undefined);
+
+/** The \`simple\` style (path and header), each piece through \`encode\`. */
+const simple = (value: unknown, explode: boolean, encode: (text: string) => string): string => {
+  if (Array.isArray(value)) return value.map((item) => encode(atom(item))).join(",");
+  if (!isBag(value)) return encode(atom(value));
+  return present(value).map(([name, item]) => \`\${encode(name)}\${explode ? "=" : ","}\${encode(atom(item))}\`).join(",");
+};
+
+const DELIMITERS: Readonly<Record<string, string>> = { spaceDelimited: "%20", pipeDelimited: "|" };
+
+/** One query parameter as \`name=value\` pairs, already encoded. */
+const query = (param: Param, value: unknown): string[] => {
+  const name = encodeURIComponent(param.name);
+  const one = (item: unknown): string => encodeURIComponent(atom(item));
+  if (Array.isArray(value)) {
+    if (param.explode) return value.map((item) => \`\${name}=\${one(item)}\`);
+    return [\`\${name}=\${value.map(one).join(DELIMITERS[param.style] ?? ",")}\`];
+  }
+  if (!isBag(value)) return [\`\${name}=\${one(value)}\`];
+  const entries = present(value);
+  if (param.style === "deepObject") return entries.map(([inner, item]) => \`\${name}%5B\${encodeURIComponent(inner)}%5D=\${one(item)}\`);
+  if (param.explode) return entries.map(([inner, item]) => \`\${encodeURIComponent(inner)}=\${one(item)}\`);
+  return [\`\${name}=\${entries.map(([inner, item]) => \`\${encodeURIComponent(inner)},\${one(item)}\`).join(",")}\`];
+};
+
+/** A body as the media type the operation sends. */
+const encodeBody = (type: string, body: unknown): BodyInit => {
+  if (/[/+]json(?:;|$)/u.test(type)) return JSON.stringify(body);
+  const fields = isBag(body) ? present(body).flatMap(([name, value]) => (Array.isArray(value) ? value : [value]).map((item): [string, unknown] => [name, item])) : [];
+  if (type === "application/x-www-form-urlencoded") return new URLSearchParams(fields.map(([name, item]) => [name, atom(item)]));
+  if (type !== "multipart/form-data") return body as BodyInit;
+  const form = new FormData();
+  for (const [name, item] of fields) {
+    if (item instanceof Blob) form.append(name, item);
+    else form.append(name, atom(item));
+  }
+  return form;
+};
+
+/** The body of a response; an undeclared one is JSON when it parses and text when it does not. */
+const read = async (response: Response, kind: 'json' | 'text' | 'blob' | 'none' | undefined): Promise<unknown> => {
+  if (kind === "none") return undefined;
+  if (kind === "blob") return response.blob();
+  const text = await response.text();
+  if (kind === "text" || text === "") return kind === "text" ? text : undefined;
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return text;
+  }
+};
+
+const call = async (options: ClientOptions, route: Route, input: object): Promise<unknown> => {
+  const sent = input as Partial<Record<Place, Bag>> & { readonly body?: unknown };
+  const headers = new Headers(options.headers);
+  const pairs: string[] = [];
+  const cookies: string[] = [];
+  let path = route.path;
+  for (const param of route.params) {
+    const value = sent[param.in]?.[param.name];
+    if (value === undefined) continue;
+    if (param.in === "path") path = path.replaceAll(\`{\${param.name}}\`, simple(value, param.explode, encodeURIComponent));
+    else if (param.in === "query") pairs.push(...query(param, value));
+    else if (param.in === "header") headers.set(param.name, simple(value, param.explode, String));
+    else cookies.push(\`\${param.name}=\${simple(value, false, encodeURIComponent)}\`);
+  }
+  if (cookies.length > 0) headers.set("cookie", cookies.join("; "));
+  const init: RequestInit = { method: route.method, headers };
+  if (route.body !== undefined && sent.body !== undefined) {
+    if (route.body !== "multipart/form-data") headers.set("content-type", route.body);
+    init.body = encodeBody(route.body, sent.body);
+  }
+  const search = pairs.length === 0 ? "" : \`?\${pairs.join("&")}\`;
+  const response = await (options.fetch ?? fetch)(\`\${options.baseUrl.replace(/\\/+$/u, "")}\${path}\${search}\`, init);
+  const code = String(response.status);
+  const status = [code, \`\${code.charAt(0)}XX\`, "default"].find((candidate) => Object.hasOwn(route.responses, candidate));
+  const body = await read(response, status === undefined ? undefined : route.responses[status]);
+  const answer = { code: response.status, body, headers: response.headers };
+  if (status === undefined) return { status: "unexpected", ...answer };
+  const errors = options.validate?.({ operation: route.id, status, body }) ?? [];
+  if (errors.length > 0) return { status: "unexpected", ...answer, errors };
+  return { status: /^\\d+$/u.test(status) ? Number(status) : status, ...answer };
+};
+
+const routes = {
+  "getPet": {"id":"getPet","method":"GET","path":"/pets/{petId}","params":[{"name":"petId","in":"path","style":"simple","explode":false},{"name":"fields","in":"query","style":"form","explode":false}],"responses":{"200":"json","404":"none"}},
+} as const satisfies Readonly<Record<string, Route>>;
+
+type GetPet = paths["/pets/{petId}"]["get"];
+export type GetPetInput = GetPet["parameters"] & { readonly body?: never };
+export type GetPetResult =
+  | Answer<200, BodyOf<GetPet["responses"][200]>>
+  | Answer<404, BodyOf<GetPet["responses"][404]>>
+  | Unexpected;
+
+/** One method per operation. A method resolves to the response whatever its status; only a failed request rejects. */
+export const createClient = (options: ClientOptions) => ({
+  getPet: async (input: GetPetInput): Promise<GetPetResult> => (await call(options, routes["getPet"], input)) as GetPetResult,
+});
+
+export type Client = ReturnType<typeof createClient>;
+`;

@@ -1,0 +1,37 @@
+/** One response for a declared status: what a mock answers with. */
+export interface Scenario {
+  readonly status: number;
+  readonly contentType?: string;
+  readonly body?: unknown;
+}
+
+/** Every operation's scenarios, by operation id and the status as the spec writes it. */
+export const scenarios = {
+  "createPet": {
+    "201": {"status":201,"contentType":"application/json","body":{"id":697,"name":"charlie","status":"available","born":"2024-01-15","contact":"user@example.com","ref":"3f2b6c1e-8d4a-4c7e-9b1f-5a6d7e8f9a0b","weight":46,"kind":"pet","vaccinated":true,"nickname":"foxtrot","owner":{"name":"foxtrot","pets":[]},"toys":["hotel","foxtrot"]}},
+    "422": {"status":422,"contentType":"application/json","body":{"code":422,"message":"name is too short"}},
+  },
+  "deletePet": {
+    "204": {"status":204},
+  },
+  "get /health": {
+    "200": {"status":200,"contentType":"text/plain","body":"ok"},
+  },
+  "getPet": {
+    "200": {"status":200,"contentType":"application/json","body":{"id":409,"name":"bravo","status":"pending","born":"2024-01-15","contact":"user@example.com","ref":"3f2b6c1e-8d4a-4c7e-9b1f-5a6d7e8f9a0b","weight":81,"kind":"pet","vaccinated":false,"nickname":"echo","owner":{"name":"delta","pets":[]},"toys":["golf","golf"]}},
+    "4XX": {"status":400,"contentType":"application/problem+json","body":{"code":50,"message":"charlie"}},
+  },
+  "getPhoto": {
+    "200": {"status":200,"contentType":"image/png","body":"iVBORw0KGgo="},
+  },
+  "listPets": {
+    "200": {"status":200,"contentType":"application/json","body":[{"id":1,"name":"Rex","status":"available"}]},
+    "default": {"status":500,"contentType":"application/problem+json","body":{"code":35,"message":"echo"}},
+  },
+  "login": {
+    "200": {"status":200,"contentType":"application/json","body":{"token":"foxtrotfoxtrotfo","expires":"2024-01-15T09:30:00Z"}},
+  },
+  "uploadPhoto": {
+    "200": {"status":200,"contentType":"text/plain","body":"stored"},
+  },
+} as const satisfies Readonly<Record<string, Readonly<Record<string, Scenario>>>>;

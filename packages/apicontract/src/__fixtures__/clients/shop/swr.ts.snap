@@ -1,0 +1,49 @@
+import { type Client, type CreatePetInput, type DeletePetInput, type GetHealthInput, type GetPetInput, type GetPhotoInput, type ListPetsInput, type LoginInput, type UploadPhotoInput } from "../api/client.js";
+
+/** A value with its object keys sorted at every depth: the same input in any property order is the same key. */
+export const stable = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(stable);
+  if (typeof value !== "object" || value === null) return value;
+  const record = value as Readonly<Record<string, unknown>>;
+  return Object.fromEntries(Object.keys(record).sort().map((name) => [name, stable(record[name])]));
+};
+
+export const createPetSWRMutation = (client: Client) => ({
+  key: ["createPet"] as const,
+  fetcher: async (_key: unknown, { arg }: { readonly arg: CreatePetInput }) => client["createPet"](arg),
+});
+
+export const deletePetSWRMutation = (client: Client) => ({
+  key: ["deletePet"] as const,
+  fetcher: async (_key: unknown, { arg }: { readonly arg: DeletePetInput }) => client["deletePet"](arg),
+});
+
+export const getHealthSWR = (client: Client, input: GetHealthInput = {}) => ({
+  key: ["get /health", stable(input)] as const,
+  fetcher: async () => client["get /health"](input),
+});
+
+export const getPetSWR = (client: Client, input: GetPetInput) => ({
+  key: ["getPet", stable(input)] as const,
+  fetcher: async () => client["getPet"](input),
+});
+
+export const getPhotoSWR = (client: Client, input: GetPhotoInput) => ({
+  key: ["getPhoto", stable(input)] as const,
+  fetcher: async () => client["getPhoto"](input),
+});
+
+export const listPetsSWR = (client: Client, input: ListPetsInput = {}) => ({
+  key: ["listPets", stable(input)] as const,
+  fetcher: async () => client["listPets"](input),
+});
+
+export const loginSWRMutation = (client: Client) => ({
+  key: ["login"] as const,
+  fetcher: async (_key: unknown, { arg }: { readonly arg: LoginInput }) => client["login"](arg),
+});
+
+export const uploadPhotoSWRMutation = (client: Client) => ({
+  key: ["uploadPhoto"] as const,
+  fetcher: async (_key: unknown, { arg }: { readonly arg: UploadPhotoInput }) => client["uploadPhoto"](arg),
+});
