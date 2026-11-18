@@ -1,0 +1,45 @@
+openapi: 3.1.0
+info: { title: Pets, version: 2.0.0 }
+paths:
+  /pets/{petId}:
+    parameters:
+      - { name: petId, in: path, schema: { type: string } }
+    get:
+      operationId: fetchPet
+      parameters:
+        - { name: fields, in: query, schema: { type: string } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Pet' }
+        '404':
+          description: none
+  /pets:
+    post:
+      operationId: addPet
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewPet' }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Pet' }
+components:
+  schemas:
+    NewPet:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, maxLength: 32 }
+        kind: { enum: [cat, dog, bird] }
+    Pet:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        kind: { enum: [cat, dog, bird] }
+        age: { type: integer }

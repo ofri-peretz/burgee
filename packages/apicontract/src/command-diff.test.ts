@@ -1,14 +1,192 @@
-/** Stub test created by PLAN.md 6.0; lane `ac-diff` replaces it with the command's own tests. */
-import { describe, expect, it } from 'vitest';
+import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-import { command } from './command-diff.js';
+import { ExitCode } from 'burgee';
+import { runBurgee } from 'burgee/testing';
+import { beforeAll, describe, expect, it } from 'vitest';
 
-describe('`diff` before its lane lands', () => {
-  it('is described for --help and the MCP tool list', () => {
-    expect(command.description).toBe('What a contract change breaks, and for whom, under the compatibility mode you pick');
+import { command, diff, type GitReader, noGit, toSarif, toText } from './command-diff.js';
+import { compareContracts } from './diff-contract.js';
+import { program } from './index.js';
+
+const FIXTURES = fileURLToPath(new URL('__fixtures__/diff/', import.meta.url));
+const OLD = join(FIXTURES, 'pets-old.yaml');
+const NEW = join(FIXTURES, 'pets-new.yaml');
+const TEXT = Symbol.for('burgee.text');
+
+const text = (data: Record<string | symbol, unknown>): string => (data[TEXT] as () => string)();
+
+const scratch = (files: Record<string, string>): string => {
+  const dir = mkdtempSync(join(tmpdir(), 'apicontract-diff-'));
+  for (const [name, content] of Object.entries(files)) writeFileSync(join(dir, name), content);
+  return dir;
+};
+
+const spec = (extra: string): string =>
+  `openapi: 3.1.0\ninfo: { title: t, version: '1' }\npaths:\n  /a:\n    get:\n      operationId: a\n      responses:\n        '200':\n          content:\n            application/json:\n              schema: { type: object${extra} }\n`;
+
+describe('apicontract diff, through burgee', () => {
+  // burgee's first run loads its renderers lazily; paying that here keeps each case under 5 s.
+  beforeAll(async () => {
+    await runBurgee(program, { argv: ['--version'] });
   });
 
-  it('refuses with a fix line naming the lane', () => {
-    expect(() => (command.run as () => unknown)()).toThrow('`apicontract diff` is not implemented yet. fix: it lands in Wave 6 (.sdlc/PLAN.md, lane ac-diff)');
+  it('is read-only and described for --help and the MCP tool list', () => {
+    expect(command.description).toBe('What a contract change breaks, and for whom, under the compatibility mode you pick');
+    expect(command.effects).toBe('read_only');
+  });
+
+  it('exits 1 on a breaking change, with the findings and a fix line in the --json envelope', async () => {
+    const r = await runBurgee(program, { argv: ['diff', OLD, NEW, '--json'] });
+    expect(r.code).toBe(ExitCode.RUNTIME);
+    const { data } = r.json as { data: Record<string, unknown> };
+    expect(data).toMatchObject({
+      verdict: 'breaking',
+      mode: 'backward',
+      side: 'caller',
+      old: OLD,
+      new: NEW,
+      summary: { breaking: 4, unknown: 0, 'non-breaking': 3 },
+      exitCode: ExitCode.RUNTIME,
+      fix: 'make each breaking change compatible as its own fix line says, or release it as a major version',
+    });
+    expect((data.findings as unknown[]).length).toBe(7);
+  });
+
+  it('prints text grouped by operation, each breaking finding with its fix', async () => {
+    const r = await runBurgee(program, { argv: ['diff', OLD, NEW] });
+    expect(r.code).toBe(ExitCode.RUNTIME);
+    expect(r.stdout).toContain('breaking: 4 breaking, 0 unknown, 3 non-breaking (--mode backward --side caller)');
+    expect(r.stdout).toContain('deletePet  #/paths/~1pets~1{id}/delete\n  breaking      api-removed-without-deprecation    "deletePet" -> -\n');
+  });
+
+  it('passes --mode and --side through, and refuses a mode it does not know', async () => {
+    const r = await runBurgee(program, { argv: ['diff', OLD, NEW, '--mode', 'full', '--side', 'server', '--json'] });
+    expect((r.json as { data: unknown }).data).toMatchObject({ mode: 'full', side: 'server', summary: { breaking: 5 } });
+    expect((await runBurgee(program, { argv: ['diff', OLD, NEW, '--mode', 'sideways'] })).code).toBe(ExitCode.USAGE);
+  });
+
+  it('prints SARIF with --sarif', async () => {
+    const r = await runBurgee(program, { argv: ['diff', OLD, NEW, '--sarif'] });
+    const sarif = JSON.parse(r.stdout) as { version: string; runs: { results: { level: string }[] }[] };
+    expect(sarif.version).toBe('2.1.0');
+    expect(sarif.runs[0]?.results.map((result) => result.level)).toEqual(['error', 'error', 'error', 'error', 'note', 'note', 'note']);
+  });
+
+  it('exits 0 when nothing breaks', async () => {
+    const r = await runBurgee(program, { argv: ['diff', OLD, OLD] });
+    expect(r.code).toBe(ExitCode.OK);
+    expect(r.stdout).toContain(`no changes between ${OLD} and ${OLD}`);
+  });
+});
+
+describe('diff', () => {
+  it('reads files relative to cwd, JSON as well as YAML', () => {
+    const dir = scratch({ 'old.json': JSON.stringify({ openapi: '3.1.0', paths: {} }), 'new.yaml': spec('') });
+    const data = diff({ cwd: dir, old: 'old.json', new: 'new.yaml' });
+    expect(data).toMatchObject({ verdict: 'non-breaking', summary: { 'non-breaking': 1 }, old: 'old.json', new: 'new.yaml' });
+    expect(data).not.toHaveProperty('exitCode');
+    expect(data).not.toHaveProperty('fix');
+    expect(data).not.toHaveProperty('sarif');
+    expect(data).not.toHaveProperty('changeset');
+    expect(text(data)).toBe('non-breaking: 0 breaking, 0 unknown, 1 non-breaking (--mode backward --side caller)\n\na  #/paths/~1a/get\n  non-breaking  endpoint-added    - -> "a"');
+  });
+
+  it('exits 1 on an unknown change too: a keyword it cannot judge is never compatible', () => {
+    const dir = scratch({ 'old.yaml': spec(', multipleOf: 2'), 'new.yaml': spec(', multipleOf: 3') });
+    const data = diff({ cwd: dir, old: 'old.yaml', new: 'new.yaml' });
+    expect(data).toMatchObject({ verdict: 'unknown', exitCode: ExitCode.RUNTIME, fix: 'make each unknown change compatible as its own fix line says, or release it as a major version' });
+    expect(text(data)).toContain(
+      '  unknown       ac-keyword-changed  response:200:application/json /multipleOf  2 -> 3\n                fix: review a response:200:application/json /multipleOf by hand',
+    );
+  });
+
+  it('reads a git:<ref>:<path> side through the git reader, from cwd', () => {
+    const calls: unknown[] = [];
+    const git: GitReader = (ref, path, cwd) => {
+      calls.push([ref, path, cwd]);
+      return spec('');
+    };
+    const dir = scratch({ 'new.yaml': spec(', required: [id]') });
+    const data = diff({ cwd: dir, old: 'git:origin/main:api/spec.yaml', new: 'new.yaml', git });
+    expect(calls).toEqual([['origin/main', 'api/spec.yaml', dir]]);
+    expect(data).toMatchObject({ old: 'git:origin/main:api/spec.yaml', verdict: 'non-breaking' });
+  });
+
+  it('refuses a git side by default, with the command to run instead', () => {
+    expect(() => noGit('HEAD~1', 'a.yaml', '.')).toThrow('cannot read `git:HEAD~1:a.yaml`: this build of apicontract does not run git. fix: `git show HEAD~1:a.yaml > old.yaml` and diff that file');
+    expect(() => diff({ cwd: '.', old: 'git:HEAD:a.yaml', new: 'b.yaml' })).toThrow('fix: `git show HEAD:a.yaml > old.yaml`');
+  });
+
+  it('refuses what it cannot parse or read, with a fix line', () => {
+    const dir = scratch({ 'bad.yaml': 'a: [', 'other.yaml': 'swagger: "2.0"\n', 'plain.yaml': 'just: data\n' });
+    expect(() => diff({ cwd: dir, old: 'bad.yaml', new: 'bad.yaml' })).toThrow(/^cannot parse bad\.yaml: [\s\S]+\. fix: pass a JSON or YAML document$/);
+    expect(() => diff({ cwd: dir, old: 'plain.yaml', new: 'plain.yaml' })).toThrow('no input format reads plain.yaml. fix: pass a document one of these reads: openapi');
+    expect(() => diff({ cwd: dir, old: 'other.yaml', new: 'plain.yaml' })).toThrow('no input format reads other.yaml');
+  });
+
+  it('writes a changeset whose bump follows the verdict, named by its content', () => {
+    const dir = scratch({ 'a.yaml': spec(', maxProperties: 1'), 'b.yaml': spec(', maxProperties: 1, required: [id]'), 'c.yaml': spec('') });
+    const breaking = diff({ cwd: dir, old: 'a.yaml', new: 'c.yaml', changeset: 'pets-api' });
+    const file = breaking.changeset as string;
+    expect(file).toMatch(/^\.changeset\/apicontract-diff-[0-9a-f]{8}\.md$/);
+    expect(readFileSync(join(dir, file), 'utf8')).toBe(
+      "---\n'pets-api': major\n---\n\nContract changes from a.yaml to c.yaml: breaking.\n\n- breaking: `ac-maxProperties-unset` in a response:200:application/json /maxProperties\n",
+    );
+    const minor = diff({ cwd: dir, old: 'a.yaml', new: 'b.yaml', changeset: 'pets-api' });
+    expect(readFileSync(join(dir, minor.changeset as string), 'utf8')).toBe("---\n'pets-api': minor\n---\n\nContract changes from a.yaml to b.yaml: non-breaking.\n");
+    expect(diff({ cwd: dir, old: 'a.yaml', new: 'a.yaml', changeset: 'pets-api' })).not.toHaveProperty('changeset');
+    expect(readdirSync(join(dir, '.changeset'))).toHaveLength(2);
+  });
+
+  it('puts SARIF in the data and the text with --sarif', () => {
+    const data = diff({ cwd: FIXTURES, old: 'pets-old.yaml', new: 'pets-new.yaml', sarif: true });
+    expect(JSON.parse(text(data))).toEqual(data.sarif);
+  });
+});
+
+const toolDoc = (schema: Readonly<Record<string, unknown>>) => ({ format: 'mcp', document: {}, operations: [{ id: 't', source: '#/tools/0', payloads: [{ name: 'arguments', direction: 'tool-call' as const, schema, required: true }] }] });
+
+describe('toSarif', () => {
+  it('locates each result at its side’s file and operation, one rule per id', () => {
+    const old = { format: 'mcp', document: {}, operations: [{ id: 't', source: '#/tools/0', payloads: [{ name: 'arguments', direction: 'tool-call' as const, schema: {}, required: true }] }] };
+    const nu = { format: 'mcp', document: {}, operations: [{ id: 'u', source: '#/tools/0', payloads: [{ name: 'arguments', direction: 'tool-call' as const, schema: { multipleOf: 2 }, required: true }] }] };
+    const sarif = toSarif(compareContracts(old, nu), { file: 'old.json' }, { file: 'new.json' });
+    expect(sarif).toEqual({
+      version: '2.1.0',
+      $schema: 'https://json.schemastore.org/sarif-2.1.0.json',
+      runs: [
+        {
+          tool: { driver: { name: 'apicontract diff', rules: [{ id: 'ac-operation-added' }, { id: 'ac-operation-removed' }] } },
+          results: [
+            {
+              ruleId: 'ac-operation-removed',
+              level: 'error',
+              message: { text: 'breaking: t  "t" -> -. fix: keep accepting at t what the old contract accepted, or release this as a major version' },
+              locations: [{ physicalLocation: { artifactLocation: { uri: 'old.json' } }, logicalLocations: [{ fullyQualifiedName: '#/tools/0' }] }],
+            },
+            {
+              ruleId: 'ac-operation-added',
+              level: 'note',
+              message: { text: 'non-breaking: u  - -> "u". fix: nothing to do' },
+              locations: [{ physicalLocation: { artifactLocation: { uri: 'new.json' } }, logicalLocations: [{ fullyQualifiedName: '#/tools/0' }] }],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it('names a payload and pointer in the logical location, and warns on unknown', () => {
+    const sarif = toSarif(compareContracts(toolDoc({ multipleOf: 2 }), toolDoc({ multipleOf: 3 })), { file: 'a' }, { file: 'b' }) as { runs: { results: { level: string; locations: { logicalLocations: unknown }[] }[] }[] };
+    expect(sarif.runs[0]?.results[0]).toMatchObject({ level: 'warning', locations: [{ logicalLocations: [{ fullyQualifiedName: '#/tools/0 arguments/multipleOf' }] }] });
+  });
+});
+
+describe('toText', () => {
+  it('says so when nothing changed', () => {
+    expect(toText(compareContracts({ format: 'x', document: {}, operations: [] }, { format: 'x', document: {}, operations: [] }), 'a', 'b')).toBe('no changes between a and b');
   });
 });

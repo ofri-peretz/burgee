@@ -54,7 +54,7 @@ export const routeOf = (source: string): string | undefined => {
   const match = /^#?\/paths\/(?<path>[^/]+)\/(?<method>[a-z]+)$/.exec(source);
   if (match === null) return undefined;
   const { path, method } = match.groups as { path: string; method: string };
-  return `${method} ${path.replaceAll(/\{[^}]*\}/g, '{}')}`;
+  return `${method} ${path.replaceAll('~1', '/').replaceAll('~0', '~').replaceAll(/\{[^}]*\}/g, '{}')}`;
 };
 
 /** Pairs of operations, old with new; an unpaired one was removed or added. Ids first, then routes. */
@@ -72,9 +72,14 @@ const pair = (a: readonly Operation[], b: readonly Operation[]): [Operation | un
   return [...pairs, ...rest.map((operation): [undefined, Operation] => [undefined, operation])];
 };
 
-/** The direction an operation is called in: its first payload the server receives, else its first payload. */
-const callDirection = (operation: Operation): Direction =>
-  (operation.payloads.find((payload) => serverReceives(payload.direction)) ?? operation.payloads[0])?.direction ?? 'request';
+/** The direction that asks for each direction that answers: what calling an operation sends. */
+const CALLS: Readonly<Partial<Record<Direction, Direction>>> = { response: 'request', publish: 'subscribe', 'tool-result': 'tool-call' };
+
+/** The direction an operation is called in: its first payload's, or the one that asks for it. */
+const callDirection = (operation: Operation): Direction => {
+  const first = operation.payloads[0]?.direction ?? 'request';
+  return CALLS[first] ?? first;
+};
 
 /** What kind of payload a name is: a parameter, a request body, a response, or anything else. */
 const kindOf = (name: string): 'parameter' | 'request-body' | 'response' | 'payload' => {
@@ -137,10 +142,24 @@ const comparePayload = (documents: { old: unknown; new: unknown }, before: Paylo
   return [{ rule, payload: name, direction, pointer: '', before: before.required, after: after.required, effect: after.required ? 'narrows' : 'widens' }, ...changes];
 };
 
+/** The path parameters `operation` declares and `other` does not, in order. */
+const pathParametersOnlyIn = (operation: Operation, other: Operation): string[] =>
+  operation.payloads.filter((payload) => payload.name.startsWith('param:path:') && !other.payloads.some((o) => o.name === payload.name)).map((payload) => payload.name);
+
+/**
+ * Path parameters renamed with their path (`/pets/{id}` to `/pets/{petId}`) are the same
+ * parameter: those on one side only are paired in order, the new name standing for both.
+ */
+const renamedPathParameters = ({ old, nu }: Pair): Map<string, string> => {
+  const after = pathParametersOnlyIn(nu, old);
+  return new Map(pathParametersOnlyIn(old, nu).flatMap((name, index) => (index < after.length ? [[after[index] as string, name] as const] : [])));
+};
+
 const comparePayloads = (a: Contract, b: Contract, pair: Pair): Raw[] => {
-  const names = [...new Set([...pair.old.payloads, ...pair.nu.payloads].map((payload) => payload.name))].sort();
+  const renamed = renamedPathParameters(pair);
+  const names = [...new Set([...pair.old.payloads, ...pair.nu.payloads].map((payload) => payload.name))].filter((name) => ![...renamed.values()].includes(name)).sort();
   return names.flatMap((name) => {
-    const before = pair.old.payloads.find((payload) => payload.name === name);
+    const before = pair.old.payloads.find((payload) => payload.name === (renamed.get(name) ?? name));
     const after = pair.nu.payloads.find((payload) => payload.name === name);
     if (before === undefined || after === undefined) return comparePresence(name, pair);
     return comparePayload({ old: a.document, new: b.document }, before, after);
@@ -161,7 +180,7 @@ const compareOperation = (old: Operation | undefined, nu: Operation | undefined)
 };
 
 const fixFor = (raw: Raw, verdict: Verdict, operation: string): string => {
-  const where = `${operation}${raw.payload === undefined ? '' : ` ${raw.payload}`}${raw.pointer}`;
+  const where = [operation, raw.payload, raw.pointer].filter((part) => part !== undefined && part !== '').join(' ');
   if (verdict === 'unknown') return `review ${where} by hand: apicontract cannot tell what \`${raw.rule}\` does to the values it accepts`;
   if (verdict === 'non-breaking') return 'nothing to do';
   if (raw.effect === 'narrows') return `keep accepting at ${where} what the old contract accepted, or release this as a major version`;

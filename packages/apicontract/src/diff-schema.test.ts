@@ -112,6 +112,7 @@ describe('arrays', () => {
   it('compares items, and prefixItems position by position', () => {
     expect(diff({ items: { type: 'string' } }, { items: { type: 'integer' } }).map((row) => row[1])).toEqual(['/items', '/items']);
     expect(diff({}, { items: false })).toEqual([['accepts-nothing', '/items', true, false, 'narrows']]);
+    expect(diff({ items: { type: 'string' } }, {})).toEqual([['type-unset', '/items', ['string'], undefined, 'widens']]);
     expect(diff({ prefixItems: [{}, { enum: [1] }] }, { prefixItems: [{}, { enum: [2] }] })).toEqual([
       ['enum-value-removed', '/prefixItems/1', 1, undefined, 'narrows'],
       ['enum-value-added', '/prefixItems/1', undefined, 2, 'widens'],
