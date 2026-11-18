@@ -3,7 +3,7 @@ id: A-20261118-diff-false-breaking-equivalent-rewrites
 section: A
 status: open
 source: 'lane ac-extract round-trip reading, 2026-11-18 (PR #1630, .sdlc/intents/apicontract-extract/spec.md § As built)'
-done_when: 'compareContracts reports non-breaking for every schema pair in the extract lane corpus that accepts exactly the same values, with a test per rewrite shape, and B1 reads 5 / 5 non-breaking on that corpus'
+done_when: 'compareContracts reports non-breaking for every schema pair in the extract lane corpus that accepts exactly the same values, with a test per rewrite shape, no equivalent but differently written pair in the corpus lane''s full corpus is classified breaking, and metric B1 (round trip, .sdlc/intents/apicontract/metrics.md) reads 5 / 5 non-breaking on the extract corpus'
 ---
 
 **`apicontract diff` calls a schema rewrite breaking when it accepts exactly the same values.** The

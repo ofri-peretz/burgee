@@ -10,4 +10,5 @@ done_when: 'fromJsonSchema(toJsonSchema(s)) is a fixed point for every tuple sch
 Round-tripping a `prefixItems` tuple through `validator/json-schema` (`toJsonSchema` then
 `fromJsonSchema`) wraps it once more on each pass, so the round trip never settles: 4 of 5 corpus
 documents reach a fixed point after one pass, the tuple document never does. The validator lane
-owns the fix; the extract lane's B1 reading depends on it.
+owns the fix; the extract lane's reading of metric B1 (round trip,
+[`metrics.md`](../intents/apicontract/metrics.md)) depends on it.
