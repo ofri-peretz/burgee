@@ -1,11 +1,11 @@
 import { execFile } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 
-import { afterAll, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { TYPED } from './__fixtures__/typed.js';
 import { emit, emitWith, typeOf } from './emit.js';
 import { type AnySchema, array, discriminated, enumOf, intersection, lazy, literal, type Node, nullable, nullish, number, object, oneOf, optional, record, type Schema, string, union } from './schema.js';
@@ -19,8 +19,7 @@ import { type AnySchema, array, discriminated, enumOf, intersection, lazy, liter
 const ROOT = join(import.meta.dirname, '../../..');
 const TSC = join(ROOT, 'node_modules/typescript/bin/tsc');
 
-const scratch = mkdtempSync(join(tmpdir(), 'validator-typed-'));
-afterAll(() => rmSync(scratch, { recursive: true, force: true }));
+const scratch = scratchDirs()('validator-typed-');
 
 /** The diagnostics `tsc` prints for a module, under `strict`: empty when it type-checks. */
 const typeCheck = async (source: string): Promise<string> => {
