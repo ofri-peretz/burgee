@@ -324,6 +324,8 @@ export interface RunOptions {
   timeoutMS: number;
   dryRunTimeoutMinutes: number;
   reportFile: string;
+  /** oxmutate only: where verdicts are kept between runs (roadmap 3.2). */
+  incrementalFile?: string | undefined;
 }
 
 /** The Stryker config every run uses; see the spec's Design for why each value is what it is. */
@@ -367,6 +369,9 @@ export function oxmutateConfig(o: RunOptions): Record<string, unknown> {
     dryRunTimeoutMinutes: o.dryRunTimeoutMinutes,
     reporters: ['clear-text', 'json'],
     jsonReporter: { fileName: o.reportFile },
+    // A push after the first re-decides only what changed: a verdict is reused when its source, its
+    // tests and their module graph are unchanged (fingerprint), and one in twenty reused is re-run.
+    ...(o.incrementalFile && { incremental: true, incrementalFile: o.incrementalFile }),
   };
 }
 
@@ -410,7 +415,7 @@ export function runPackage(pkg: string, mutate: readonly string[], o: { concurre
   writeFileSync(vitestConfig, wrapperConfig(packageDir, Object.keys(SKIPPED_TESTS[pkg] ?? {})));
   // oxmutate reads the same keys from a config of its own; it never writes the sources, so the
   // snapshot below only ever finds Stryker's leftovers.
-  const config = engine === 'oxmutate' ? oxmutateConfig({ ...o, vitestConfig, mutate, reportFile }) : strykerConfig({ ...o, vitestConfig, mutate, reportFile });
+  const config = engine === 'oxmutate' ? oxmutateConfig({ ...o, vitestConfig, mutate, reportFile, incrementalFile: path.join(wrapperDir, 'oxmutate-incremental.json') }) : strykerConfig({ ...o, vitestConfig, mutate, reportFile });
   writeFileSync(configFile, JSON.stringify(config, null, 2));
   const before = snapshot(packageDir, mutate);
   const started = Date.now();

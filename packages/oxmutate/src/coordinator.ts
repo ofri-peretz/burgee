@@ -24,6 +24,7 @@ import { rangeDisables } from './directives.js';
 import { guardDisk, isClean, type DiskChange } from './diskguard.js';
 import { globToRegExp, matchFiles } from './files.js';
 import type { FrozenOracle } from './frozen.js';
+import { createGovernor } from './governor.js';
 import { changedLines, parseMutateSpec, shardOf, touches, withinRange, type MutateRange } from './lanes.js';
 import { native, type NativeMutant } from './native.js';
 import { startProgress } from './progress.js';
@@ -122,6 +123,10 @@ export interface RunStats {
   serversSpawned: number;
   /** Servers closed for sitting idle past `resources.workerIdleTimeout`: memory given back before the run ended. */
   serversReleased: number;
+  /** Warm runs past their budget, blocked rather than looping, given their 3x in place instead of a kill. */
+  watchdogGraced: number;
+  /** Milliseconds unit starts were held because the machine was past `resources.maxLoad` (`R18`). */
+  heldByLoadMs: number;
   /** Mutants whose Timeout their worker called itself, the wait able to end by nothing (quiescence.ts): no watchdog wait, no respawn. */
   deadlocks: number;
 }
@@ -333,7 +338,7 @@ export async function run(options: Options): Promise<RunResult> {
   const work = mkdtempSync(path.join(tmpdir(), 'oxmutate-'));
   const stats: RunStats = {
     files: 0, mutants: 0, instrumentMs: 0, dryRunMs: 0, mutationMs: 0, staticMs: 0, staticRecollections: 0, staticGroupRuns: 0, staticGroupSplits: 0, staticAuditSampled: 0, staticAuditDisagreed: 0, isolatedMs: 0, wallMs: 0, testExecutions: 0, warmUnitMs: 0, warmArmedMs: 0, isolatedByCause: { static: 0, stopped: 0, unfinished: 0, rerun: 0, confirm: 0, flaky: 0 },
-    watchdogKills: 0, idleStalls: 0, deadlocks: 0, crashes: 0, canaryFiles: 0, pollutionRestarts: 0, diskWrites: 0, diskWritePaths: [], auditSampled: 0, auditDisagreed: 0, survivorsOverturned: 0, timeoutsOverturned: 0, compileErrors: 0, isolatedRuns: 0, reused: 0, flakyTests: 0, flakyMutants: 0, units: 0, serversSpawned: 0, serversReleased: 0,
+    watchdogKills: 0, idleStalls: 0, deadlocks: 0, crashes: 0, canaryFiles: 0, pollutionRestarts: 0, diskWrites: 0, diskWritePaths: [], auditSampled: 0, auditDisagreed: 0, survivorsOverturned: 0, timeoutsOverturned: 0, compileErrors: 0, isolatedRuns: 0, reused: 0, flakyTests: 0, flakyMutants: 0, units: 0, serversSpawned: 0, serversReleased: 0, watchdogGraced: 0, heldByLoadMs: 0,
   };
   let unitSeq = 0;
   const fileFor = (kind: string, ext: string): string => path.join(work, `${kind}-${String(unitSeq++)}.${ext}`);
@@ -360,6 +365,8 @@ export async function run(options: Options): Promise<RunResult> {
     const changed = options.since ? await changedLines(root, options.since) : undefined;
     const mutants: MutantResult[] = [];
     const trackedIds = new Set<string>();
+    /** Source files holding a tracked static mutant (`static.readers`). */
+    const trackedSources = new Set<string>();
     const codeMap: Record<string, string> = {};
     const directiveErrors: string[] = [];
     for (const f of instrumented) {
@@ -375,7 +382,10 @@ export async function run(options: Options): Promise<RunResult> {
         const off = offs.find((d) => d.line === m.start.line && (d.mutators === 'all' || d.mutators.includes(m.mutatorName)));
         const inRange = ranged.reasonFor(m.start.line, m.mutatorName);
         const excluded = options.excludedMutations.includes(m.mutatorName);
-        if (m.tracked) trackedIds.add(m.id);
+        if (m.tracked) {
+          trackedIds.add(m.id);
+          trackedSources.add(path.join(root, f.path));
+        }
         const { tracked: _tracked, ...plain } = m;
         mutants.push({
           ...plain,
@@ -461,9 +471,13 @@ export async function run(options: Options): Promise<RunResult> {
     // `static.readers: 'report'`: the same suite once more with reads tracked, before the flaky check
     // takes the dry pool. Its verdicts are not used; a test that fails only here (a Proxy it did not
     // expect) makes every static mutant count its loaders.
+    // Only when a source holding tracked mutants is loaded by more than one test file: with one
+    // loader there is no file to leave out, and the second dry run would be pure cost.
+    const loaders = (source: string): number => Object.values(dry.modules).filter((mods) => mods.includes(source)).length;
+    const trackReads = options.staticReaders !== 'off' && [...trackedSources].some((source) => loaders(source) > 1);
     const r0 = performance.now();
-    if (options.staticReaders !== 'off' && trackedIds.size > 0) progress.phase('dry run with reads tracked (static.readers)');
-    const tracking = options.staticReaders !== 'off' && trackedIds.size > 0 ? await dryRun(true) : undefined;
+    if (trackReads) progress.phase('dry run with reads tracked (static.readers)');
+    const tracking = trackReads ? await dryRun(true) : undefined;
     const readersDryRunMs = performance.now() - r0;
     const failing = dry.tests.filter((t) => t.state === 'fail');
     if (failing.length) throw new InstrumentFault(`${String(failing.length)} test(s) fail with no mutant active, so no verdict can be trusted: ${failing.slice(0, 5).map((t) => t.name).join('; ')}. fix: make the suite pass first`);
@@ -600,6 +614,15 @@ export async function run(options: Options): Promise<RunResult> {
     // not one. 3x the covering test's dry-run time, not Stryker's 1.5x: at 1.5x, subprocess-heavy
     // burgee/paratext tests were stopped as false timeouts (2026-10-27).
     const warmBudget = (id: string): number => Math.min(MAX_TEST_MS, options.timeoutMS + Math.max(options.timeoutFactor, 3) * maxTestMs(id) + 250);
+    /**
+     * A blocked, not looping, warm run gets the 3x its re-run would get, in place: a kill there cost
+     * a server start and that re-run (compat-oracle, 2026-11-15: 25 stops in 12 minutes, every one
+     * busy at 0–6% CPU, its worker in `spawnSync`). Still within MAX_TEST_MS per test it runs.
+     */
+    const warmGrace = (id: string): number => {
+      const m = byId.get(id);
+      return Math.min(RERUN_SLACK * warmBudget(id), MAX_TEST_MS * Math.max(1, m ? allCovering(m).length : 1));
+    };
 
     // Files a mutant's covering tests live in, cheapest first (by the covering tests' time there).
     const fileOrder = new Map<string, string[]>();
@@ -702,7 +725,8 @@ export async function run(options: Options): Promise<RunResult> {
     const runaways = new Set<string>();
     const crashedIds = new Set<string>();
     // Dependencies inlined here too, so the static phase (5b) reuses these servers instead of starting its own.
-    const pool = createPool({ root, vitestConfig: options.vitestConfig, workers: 1, instrumentedMap: mapFile, nodeArgs: options.testRunnerNodeArgs, inlineDeps: true }, options.concurrency, { workDir: work, tag: 'mutant', lifecycle: options.workers });
+    const governor = createGovernor(options.maxLoad);
+    const pool = createPool({ root, vitestConfig: options.vitestConfig, workers: 1, instrumentedMap: mapFile, nodeArgs: options.testRunnerNodeArgs, inlineDeps: true }, options.concurrency, { workDir: work, tag: 'mutant', lifecycle: options.workers, governor, lowPriority: options.lowPriority });
     pools.push(pool);
     /** Mutants decided on one verdict track: the tests', or a spec oracle's replay tests'. */
     const killedSoFar = (spec: boolean): Set<string> => new Set([...runaways, ...crashedIds, ...records.filter((r) => r.type === 'mutant' && r.status !== 'Survived' && Boolean(r.spec) === spec).map((r) => r.id ?? '')]);
@@ -774,7 +798,7 @@ export async function run(options: Options): Promise<RunResult> {
       writeFileSync(unit.plan as string, JSON.stringify({ tests: left, hitLimits, skip: [], specTests: [...specOf.keys()], runOnce: dry.runOnce, testMs: testMsOf(left) }));
       return true;
     };
-    await pool.drain(unitsForRound(toRun, (m) => fileOrder.get(m.id) ?? []), (_, id) => warmBudget(id), afterUnit, beforeUnit);
+    await pool.drain(unitsForRound(toRun, (m) => fileOrder.get(m.id) ?? []), (_, id) => warmBudget(id), afterUnit, { prepare: beforeUnit, grace: (_, id) => warmGrace(id) });
     stats.mutationMs = performance.now() - m0;
 
     // ── 5. Verdicts from the warm run ─────────────────────────────────────────────────────────
@@ -981,7 +1005,7 @@ export async function run(options: Options): Promise<RunResult> {
       // file that loads it, and most of those runs pass (10 static mutants on one line of
       // compat-oracle's hosts.ts cost 389 s that way, sc8-profile.md §6). The first round stays one
       // mutant at a time: that is where the kills are, and a kill splits a group.
-      for (const [i, round] of rounds.entries()) await staticPool.drain(unitsFor(round, i > 0), (_, id) => isolatedCapped(id, 2), afterStatic, keepUndecided);
+      for (const [i, round] of rounds.entries()) await staticPool.drain(unitsFor(round, i > 0), (_, id) => isolatedCapped(id, 2), afterStatic, { prepare: keepUndecided });
       const undecided: MutantResult[] = [];
       for (const m of items) {
         const k = killed.get(m.id);
@@ -1171,6 +1195,8 @@ export async function run(options: Options): Promise<RunResult> {
     }
     stats.isolatedMs = performance.now() - i0;
     stats.watchdogKills = pool.stats.killed;
+    stats.watchdogGraced = pool.stats.graced;
+    stats.heldByLoadMs = governor.heldMs;
     stats.idleStalls = pool.stats.idle;
     for (const [id, paths] of writers) {
       const m = byId.get(id);

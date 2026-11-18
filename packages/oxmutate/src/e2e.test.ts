@@ -204,9 +204,12 @@ const groupRun = (name: string, file: string, args: string[], env: Record<string
 // `static.group` arms several static mutants in one re-collection of a file that is not their
 // first (oxmutate-fastest R3–R6, D-20261113-oxmutate-static-group-disjoint).
 describe.skipIf(!native || !existsSync(bin) || !nightly)('static survivors armed in groups', () => {
+  // Groups and the budget act on a static mutant's later files. With static.readers (the default) a
+  // fixture value is read in one file, so there are none: these cases run every loading file.
+  const LOADERS = '--no-static-readers';
   it('gives every mutant the verdict it gets alone, in fewer runs', () => {
-    const alone = groupRun('static-group', 'src/table.ts', []);
-    const grouped = groupRun('static-group', 'src/table.ts', ['--static-group', '4']);
+    const alone = groupRun('static-group', 'src/table.ts', [LOADERS]);
+    const grouped = groupRun('static-group', 'src/table.ts', [LOADERS, '--static-group', '4']);
     expect(grouped.verdicts).toEqual(alone.verdicts);
     expect(alone.verdicts.some((v) => v.endsWith(':Survived'))).toBe(true);
     expect(alone.verdicts.some((v) => v.endsWith(':Killed'))).toBe(true);
@@ -216,8 +219,8 @@ describe.skipIf(!native || !existsSync(bin) || !nightly)('static survivors armed
   });
 
   it('static.budgetMs: once it is spent no static unit starts, and what is undecided is Ignored, not scored', () => {
-    const alone = groupRun('static-group', 'src/table.ts', []);
-    const spent = groupRun('static-group', 'src/table.ts', ['--static-budget', '1']);
+    const alone = groupRun('static-group', 'src/table.ts', [LOADERS]);
+    const spent = groupRun('static-group', 'src/table.ts', [LOADERS, '--static-budget', '1']);
     // A millisecond is gone before the second unit starts. What a unit already running found stands,
     // and it is what the mutant gets alone; nothing is called Survived on part of its files.
     expect(spent.verdicts.length).toBe(alone.verdicts.length);
@@ -227,15 +230,15 @@ describe.skipIf(!native || !existsSync(bin) || !nightly)('static survivors armed
     expect(spent.stats['isolatedRuns']).toBe(0);
     expect(spent.status).toBe(0);
     // A budget the phase fits in changes nothing.
-    expect(groupRun('static-group', 'src/table.ts', ['--static-budget', '600000']).verdicts).toEqual(alone.verdicts);
+    expect(groupRun('static-group', 'src/table.ts', [LOADERS, '--static-budget', '600000']).verdicts).toEqual(alone.verdicts);
   });
 
   it('static.readers reports the tests where each static value is read, and changes no verdict', () => {
-    const plain = groupRun('static-group', 'src/table.ts', []);
+    const plain = groupRun('static-group', 'src/table.ts', ['--no-static-readers']);
     // The fixture: alpha.spec reads row 0, copy.spec reads row 1 through a copy made while its file
     // loads, loads.spec loads the module and reads nothing. One test each.
     const readers = groupRun('static-readers', 'src/hosts.ts', ['--report-static-readers']);
-    const off = groupRun('static-readers', 'src/hosts.ts', []);
+    const off = groupRun('static-readers', 'src/hosts.ts', ['--no-static-readers']);
     expect(readers.stats['staticReaders'] as unknown).toEqual({ mutants: 8, loaderTests: 24, readerTests: 11, fellBack: 2, dryRunMs: expect.any(Number) as number });
     // A report only: the verdicts are the ones a run without it gives.
     expect(readers.verdicts).toEqual(off.verdicts);
@@ -243,9 +246,18 @@ describe.skipIf(!native || !existsSync(bin) || !nightly)('static survivors armed
     expect(off.stats['staticReaders']).toBeUndefined();
   });
 
+  it('static.readers skips its second dry run when every tracked module has one loading file', () => {
+    const on = groupRun('static-one-loader', 'src/rows.ts', []);
+    const off = groupRun('static-one-loader', 'src/rows.ts', ['--no-static-readers']);
+    expect(on.verdicts.length).toBeGreaterThan(0);
+    expect(on.verdicts).toEqual(off.verdicts);
+    // No tracking run took place: there was no file to leave out.
+    expect(on.stats['staticReaders']).toBeUndefined();
+  });
+
   it('static.readers in use gives every mutant the verdict it gets in every loader, and the audit agrees', () => {
     for (const [name, file] of [['static-readers', 'src/hosts.ts'], ['static-group', 'src/table.ts'], ['static-const', 'src/limits.ts']] as const) {
-      const off = groupRun(name, file, []);
+      const off = groupRun(name, file, ['--no-static-readers']);
       const on = groupRun(name, file, ['--static-readers'], { OXMUTATE_STATIC_AUDIT: 'all' });
       expect(off.verdicts.length).toBeGreaterThan(0);
       expect(on.verdicts).toEqual(off.verdicts);
@@ -380,6 +392,71 @@ it.skipIf(!native || !existsSync(bin))('leaves no server running when the coordi
   expect(started, 'a server reached the spinning test').toBe(true);
   expect(servers.length).toBeGreaterThan(0);
   expect(left).toEqual([]);
+}, T6_CASE_MS);
+
+// A warm run blocked in a synchronous child, past its budget at almost no CPU, is given its 3x in
+// place: on compat-oracle every such stop killed a server and re-ran the mutant (2026-11-15).
+it.skipIf(!native || !existsSync(bin) || !nightly || process.platform === 'win32')('gives a blocked warm run its 3x in place, with no server restart and the same verdicts', () => {
+  const run = groupRun('blocked-grace', 'src/size.ts', []);
+  expect(run.verdicts.length).toBeGreaterThan(0);
+  expect(run.verdicts.every((v) => v.endsWith(':Killed'))).toBe(true);
+  expect(run.stats['watchdogGraced']).toBeGreaterThan(0);
+  expect(run.stats['watchdogKills']).toBe(0);
+}, 120_000);
+
+// A test's temporary files go in the run's work directory and are removed with it: killed tests
+// never clean up, and runs had left 27,562 entries in the system's temporary directory (2026-11-15).
+it.skipIf(!native || !existsSync(bin))('removes what tests left in the temporary directory when the run ends', () => {
+  const dir = path.join(pkg, 'test/fixtures/tmp-leak');
+  const marks = mkdtempSync(path.join(tmpdir(), 'oxmutate-leaks-'));
+  spawnSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', path.join(dir, 'reports'), '--reporter', 'json'], {
+    cwd: dir,
+    stdio: 'ignore',
+    env: { ...process.env, OXMUTATE_E2E_MARKER: path.join(marks, 'm') },
+  });
+  const left = markers(marks, 'leak').map((f) => readFileSync(path.join(marks, f), 'utf8'));
+  const stayed = left.filter((p) => existsSync(p));
+  for (const p of stayed) rmSync(p, { recursive: true, force: true });
+  discard(marks);
+  discard(path.join(dir, 'reports'));
+  expect(left.length, 'a mutant run left scratch').toBeGreaterThan(0);
+  expect(stayed).toEqual([]);
+}, 120_000);
+
+/** The pids of the children the spawn-child fixture's tests started, from their markers. */
+const childPids = (marks: string): number[] => markers(marks, 'child').map((f) => Number(f.slice('m.child-'.length)));
+
+// A SIGKILLed server's children were re-parented and lived on: compat-oracle's uvu runners, 8 in one
+// 12-minute warm phase (2026-11-15). A server leads its own process group, and a kill takes the group.
+it.skipIf(!native || !existsSync(bin) || !nightly || process.platform === 'win32')('takes the processes a test started with a server the watchdog kills', async () => {
+  const dir = path.join(pkg, 'test/fixtures/spawn-child');
+  const marks = mkdtempSync(path.join(tmpdir(), 'oxmutate-children-'));
+  const r = spawnSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', path.join(dir, 'reports'), '--reporter', 'json'], {
+    cwd: dir,
+    stdio: 'ignore',
+    env: { ...process.env, OXMUTATE_E2E_MARKER: path.join(marks, 'm') },
+  });
+  const children = childPids(marks);
+  await until(() => !children.some(alive), GONE_MS);
+  const left = children.filter(alive);
+  for (const p of left) process.kill(p, 'SIGKILL');
+  discard(marks);
+  discard(path.join(dir, 'reports'));
+  expect(r.status).not.toBeNull();
+  expect(children.length, 'the mutant run started a child').toBeGreaterThan(0);
+  expect(left).toEqual([]);
+}, T6_CASE_MS);
+
+it.skipIf(!native || !existsSync(bin) || process.platform === 'win32')('takes the processes a test started with a server whose coordinator dies (T6)', async () => {
+  const { started, left, marks } = await t6Run('spawn-child', (m) => markers(m, 'child').length > 0);
+  const children = childPids(marks);
+  await until(() => !children.some(alive), GONE_MS);
+  const orphans = children.filter(alive);
+  for (const p of orphans) process.kill(p, 'SIGKILL');
+  discard(marks);
+  expect(started, 'a test started its child').toBe(true);
+  expect(left).toEqual([]);
+  expect(orphans).toEqual([]);
 }, T6_CASE_MS);
 
 it.skipIf(!native || !existsSync(bin) || !nightly)('confirms a watchdog stop with 3x the budget before reporting a timeout', () => {

@@ -41,3 +41,17 @@ export const pid = process.pid;
 export const cwd = (): string => process.cwd();
 export const stderr = process.stderr;
 export const exit = (code: number): never => process.exit(code);
+/**
+ * Servers lead their own process group where the OS has them, so a kill takes the processes their
+ * tests spawned with them: a SIGKILLed server's children were re-parented to launchd and lived on
+ * (compat-oracle's uvu runners, 8 in one 12-minute warm phase, 2026-11-15).
+ */
+export const serverGroups = process.platform !== 'win32';
+/** SIGKILL a process group by its leader's pid; false when there is none (it is already gone). */
+export const killGroup = (leader: number): boolean => {
+  try {
+    return process.kill(-leader, 'SIGKILL');
+  } catch {
+    return false;
+  }
+};

@@ -18,7 +18,7 @@ import { ExitCode } from 'burgee';
 
 import { BEAT_ENV, beatFile, CPU_SAMPLE_MS } from './heartbeat.js';
 import { resolveEsm } from './resolve.js';
-import { ACTIVE_MUTANT_ENV, argv, env, exit, pid } from './runtime.js';
+import { ACTIVE_MUTANT_ENV, argv, env, exit, killGroup, pid, serverGroups } from './runtime.js';
 import { instrumentedSources } from './vite-plugin.js';
 
 export interface ServerConfig {
@@ -59,8 +59,14 @@ export interface Unit {
 // 100% CPU 11 hours after their run ended, and slowed the next run 50x (2026-10-27). Listened for
 // before Vitest loads: a server that listened only after lived on through a load that takes seconds
 // on a busy machine (T6, 2026-11-02), and one whose coordinator died before it started exits now.
-process.on('disconnect', () => exit(ExitCode.OK));
-if (!process.connected) exit(ExitCode.OK);
+// A server leads its own process group (scheduler.ts), so it takes the processes its tests started
+// with it: they would outlive it, re-parented, with nothing left to end them.
+const leave = (): never => {
+  if (serverGroups) killGroup(pid);
+  return exit(ExitCode.OK);
+};
+process.on('disconnect', leave);
+if (!process.connected) leave();
 
 const config = JSON.parse(readFileSync(argv[2] ?? '', 'utf8')) as ServerConfig;
 env['NODE_ENV'] ??= 'test';

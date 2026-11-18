@@ -9,14 +9,16 @@
  * shard set the whole mutation phase at 42.9 s while the other shards finished in 8 s).
  */
 import { fork, type ChildProcess } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import type { ServerConfig, Unit } from './child.js';
-import { beatFile, classifyStall, CPU_WINDOW_MS, cpuShare, readBeat, type CpuSample, type Stall } from './heartbeat.js';
+import type { Governor } from './governor.js';
+import { beatFile, classifyStall, CPU_WINDOW_MS, cpuShare, LOOP_CPU, readBeat, type CpuSample, type Stall } from './heartbeat.js';
 import { markReader } from './progress-file.js';
-import { env, stderr } from './runtime.js';
+import { env, killGroup, serverGroups, stderr } from './runtime.js';
 
 const childJs = fileURLToPath(new URL('./child.js', import.meta.url));
 /** The tail of a server's stderr kept for an error message. */
@@ -45,12 +47,45 @@ export interface UnitOutcome {
   crashedFor?: string | undefined;
   /** Wall time from the unit being sent to its outcome, on this side of the IPC. */
   ms?: number | undefined;
+  /** Mutants that ran past their budget blocked, not looping, and were given their grace in place. */
+  graced?: number | undefined;
   stderr: string;
 }
 
 const PERCENT = 100;
 /** How many CPU samples a server keeps: a little over the window. */
 const CPU_SAMPLES_KEPT = 8;
+
+// Stryker disable all: diagnostics behind OXMUTATE_DEBUG_WATCHDOG; no verdict reads them
+const debugStop = (o: { id: string; ran: number; stall: Stall; beat: { age: number; inTest: boolean }; share: number | undefined }): void => {
+  const cpu = o.share === undefined ? '?' : `${String(Math.round(o.share * PERCENT))}%`;
+  stderr.write(`oxmutate watchdog: stop ${o.id} after ${String(o.ran)} ms; ${o.stall}; beat ${Number.isFinite(o.beat.age) ? `${String(o.beat.age)} ms ago` : 'never'}${o.beat.inTest ? ' in a test' : ''}; cpu ${cpu} over ${String(CPU_WINDOW_MS)} ms\n`);
+};
+// Stryker restore all
+
+/** A busy run under LOOP_CPU, not graced yet and inside its limit, gets that limit once; says whether it did. */
+export function graceOnce(graced: Map<string, number>, o: { id: string; ran: number; stall: Stall; share: number | undefined; limit: number | undefined }): boolean {
+  const notLooping = o.stall === 'busy' && o.share !== undefined && o.share < LOOP_CPU;
+  if (!notLooping || graced.has(o.id) || o.limit === undefined || o.limit <= o.ran) return false;
+  graced.set(o.id, o.limit);
+  return true;
+}
+
+/** Lowers a server's OS priority (`R15`); a failure is a warning, once. */
+let priorityWarned = false;
+function lowerPriority(pid: number): void {
+  try {
+    os.setPriority(pid, LOW_PRIORITY);
+  } catch (error) {
+    if (!priorityWarned) stderr.write(`oxmutate: could not lower the servers' priority (${error instanceof Error ? error.message : String(error)}); they run at the normal one\n`);
+    priorityWarned = true;
+  }
+}
+/** The niceness `resources.priority: 'low'` gives a server. */
+const LOW_PRIORITY = 10;
+
+/** Servers started by this process, for each one's temporary directory. */
+let serversStarted = 0;
 
 class Server {
   readonly child: ChildProcess;
@@ -65,7 +100,12 @@ class Server {
   exited = false;
 
   constructor(configFile: string, cwd: string, execArgv: string[], workDir: string) {
-    this.child = fork(childJs, [configFile], { cwd, stdio: ['ignore', 'ignore', 'pipe', 'ipc'], execArgv });
+    // Its tests' temporary files go in the run's work directory and are removed with it: a killed
+    // test never runs its cleanup, and runs had left 27,562 entries in the system's (2026-11-15).
+    const tmp = path.join(workDir, `tmp-${String(++serversStarted)}`);
+    mkdirSync(tmp, { recursive: true });
+    const childEnv = { ...process.env, TMPDIR: tmp, TMP: tmp, TEMP: tmp };
+    this.child = fork(childJs, [configFile], { cwd, stdio: ['ignore', 'ignore', 'pipe', 'ipc'], execArgv, detached: serverGroups, env: childEnv });
     this.beat = beatFile(workDir, this.child.pid);
     this.child.stderr?.on('data', (d: Buffer) => (this.stderr = (this.stderr + d.toString()).slice(-STDERR_TAIL)));
     this.ready = new Promise((resolve) => {
@@ -92,10 +132,18 @@ class Server {
     });
   }
 
-  run(unit: Unit, budget: (id: string) => number): Promise<UnitOutcome> {
+  /**
+   * `grace`, when given: a mutant past its budget whose server is busy but burns under LOOP_CPU of a
+   * core (a worker blocked in a synchronous call, or loading modules on a loaded machine) gets until
+   * this limit in place before it is killed. A kill there costs a server start and a re-run with the
+   * same 3x the grace gives; a loop burns its core and is killed at the budget, as before.
+   */
+  run(unit: Unit, budget: (id: string) => number, grace?: (id: string) => number): Promise<UnitOutcome> {
     // Opened once and read in place on every poll (progress-file.ts).
     const progress = markReader(unit.progress);
     const sent = performance.now();
+    /** Each graced mutant and the time it was graced until. */
+    const graced = new Map<string, number>();
     return new Promise((resolve) => {
       let settled = false;
       const finish = (o: UnitOutcome) => {
@@ -105,23 +153,22 @@ class Server {
         progress.close();
         this.onMessage = undefined;
         this.onExit = undefined;
-        resolve({ ...o, ms: performance.now() - sent });
+        resolve({ ...o, ms: performance.now() - sent, ...(graced.size > 0 && { graced: graced.size }) });
       };
       const timer = setInterval(() => {
         const line = progress.read();
         if (!line) return;
         const [id = '', since = '0'] = line.split(' ');
         const now = Date.now();
-        if (now - Number(since) > budget(id)) {
+        const ran = now - Number(since);
+        if (ran > (graced.get(id) ?? budget(id))) {
           // Read before the kill: an idle stop is a Timeout as it stands, a busy one is re-run (heartbeat.ts).
           const beat = readBeat(this.beat, now);
           const share = cpuShare(this.cpu, now);
           const stall = classifyStall({ beat, cpuShare: share });
-          if (env['OXMUTATE_DEBUG_WATCHDOG']) {
-            const cpu = share === undefined ? '?' : `${String(Math.round(share * PERCENT))}%`;
-            stderr.write(`oxmutate watchdog: stop ${id} after ${String(now - Number(since))} ms; ${stall}; beat ${Number.isFinite(beat.age) ? `${String(beat.age)} ms ago` : 'never'}${beat.inTest ? ' in a test' : ''}; cpu ${cpu} over ${String(CPU_WINDOW_MS)} ms\n`);
-          }
-          this.child.kill('SIGKILL');
+          if (graceOnce(graced, { id, ran, stall, share, limit: grace?.(id) })) return;
+          if (env['OXMUTATE_DEBUG_WATCHDOG']) debugStop({ id, ran, stall, beat, share });
+          this.kill();
           finish({ killedFor: id, stall, stderr: this.stderr });
         }
       }, WATCHDOG_POLL_MS);
@@ -137,24 +184,34 @@ class Server {
   close(): void {
     if (this.exited) return;
     this.child.send({ type: 'close' });
-    setTimeout(() => this.child.kill('SIGKILL'), CLOSE_GRACE_MS).unref();
+    setTimeout(() => this.kill(), CLOSE_GRACE_MS).unref();
   }
+
+  /** Kill the server and, where it leads a process group, every process its tests started. */
+  kill(): void {
+    if (!(serverGroups && this.child.pid !== undefined && killGroup(this.child.pid))) this.child.kill('SIGKILL');
+  }
+}
+
+/** What a drain may add: `prepare` sees a unit as a server takes it and returns false to drop it; `grace` is a mutant's limit in place (Server.run). */
+export interface DrainHooks {
+  prepare?: ((unit: Unit) => boolean) | undefined;
+  grace?: ((unit: Unit, id: string) => number) | undefined;
 }
 
 export interface Pool {
   /**
-   * Run every unit; `after` is called with each outcome and may return follow-up units. `prepare`, when
-   * given, sees a unit as a server takes it, and returns false to drop it (nothing left to run).
+   * Run every unit; `after` is called with each outcome and may return follow-up units (`hooks`: DrainHooks).
    */
   drain(
     units: Unit[],
     budget: (unit: Unit, id: string) => number,
     after: (unit: Unit, outcome: UnitOutcome) => Unit[] | Promise<Unit[]>,
-    prepare?: (unit: Unit) => boolean,
+    hooks?: DrainHooks,
   ): Promise<void>;
   close(): void;
-  /** `idle`: stops whose worker was idle (heartbeat.ts), of `killed`. `released`: servers closed for sitting idle (`resources.workerIdleTimeout`). */
-  stats: { spawned: number; killed: number; idle: number; crashed: number; released: number };
+  /** `idle`: stops whose worker was idle (heartbeat.ts), of `killed`. `released`: servers closed for sitting idle (`resources.workerIdleTimeout`). `graced`: mutants given their grace in place instead of a kill. */
+  stats: { spawned: number; killed: number; idle: number; crashed: number; released: number; graced: number };
 }
 
 /**
@@ -170,12 +227,19 @@ export interface Lifecycle {
 
 /** How often idle servers are looked for. */
 const IDLE_CHECK_MS = 1000;
+/** The sweep's shortest interval: a short timeout is looked at about as often as it is long, never more than this often. */
+// Stryker disable next-line NumericLiteral: a floor on the sweep's interval; no release a test can time tells 10 ms from 11
+const MIN_IDLE_CHECK_MS = 10;
 
 /** Where a pool keeps its files and how its servers live. */
 export interface PoolPlace {
   workDir: string;
   tag: string;
   lifecycle?: Lifecycle | undefined;
+  /** Holds a unit's start while the machine is past `resources.maxLoad` (governor.ts). */
+  governor?: Governor | undefined;
+  /** Start servers at a lowered OS priority (`resources.priority: 'low'`, `R15`). */
+  lowPriority?: boolean | undefined;
 }
 
 export function createPool(config: ServerConfig, size: number, place: PoolPlace): Pool {
@@ -183,10 +247,12 @@ export function createPool(config: ServerConfig, size: number, place: PoolPlace)
   const lifecycle = place.lifecycle ?? { warm: true, idleTimeoutMs: 0 };
   const configFile = path.join(workDir, `server-${tag}.json`);
   writeFileSync(configFile, JSON.stringify(config));
-  const stats = { spawned: 0, killed: 0, idle: 0, crashed: 0, released: 0 };
+  const stats = { spawned: 0, killed: 0, idle: 0, crashed: 0, released: 0, graced: 0 };
   const spawn = (): Server => {
     stats.spawned++;
-    return new Server(configFile, config.root, config.nodeArgs ?? [], workDir);
+    const server = new Server(configFile, config.root, config.nodeArgs ?? [], workDir);
+    if (place.lowPriority && server.child.pid !== undefined) lowerPriority(server.child.pid);
+    return server;
   };
   // Cold: nothing waits; each unit starts its own server. Warm: the slots and a spare start now.
   const servers: (Server | undefined)[] = Array.from({ length: size }, () => (lifecycle.warm ? spawn() : undefined));
@@ -209,13 +275,14 @@ export function createPool(config: ServerConfig, size: number, place: PoolPlace)
           spare = undefined;
           stats.released++;
         }
-      }, IDLE_CHECK_MS)
+      }, Math.max(MIN_IDLE_CHECK_MS, Math.min(IDLE_CHECK_MS, lifecycle.idleTimeoutMs)))
     : undefined;
   sweep?.unref();
   const tally = (outcome: UnitOutcome): void => {
     if (outcome.killedFor) stats.killed++;
     if (outcome.stall === 'idle') stats.idle++;
     if (outcome.crashed) stats.crashed++;
+    stats.graced += outcome.graced ?? 0;
   };
   const replacement = (): Server => {
     const next = spare ?? spawn();
@@ -246,7 +313,8 @@ export function createPool(config: ServerConfig, size: number, place: PoolPlace)
 
   return {
     stats,
-    async drain(units, budget, after, prepare) {
+    async drain(units, budget, after, hooks = {}) {
+      const { prepare, grace } = hooks;
       const queue = [...units];
       let busy = 0;
       const waiters: (() => void)[] = [];
@@ -270,9 +338,10 @@ export function createPool(config: ServerConfig, size: number, place: PoolPlace)
               await new Promise<void>((r) => waiters.push(r));
               continue;
             }
+            await place.governor?.hold(() => busy);
             busy++;
             const server = await serverFor(slot);
-            const outcome = await server.run(unit, (id) => budget(unit, id));
+            const outcome = await server.run(unit, (id) => budget(unit, id), grace && ((id) => grace(unit, id)));
             tally(outcome);
             settle(slot, server, outcome);
             const more = await after(unit, outcome);

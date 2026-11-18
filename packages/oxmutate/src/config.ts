@@ -9,6 +9,7 @@ import { availableParallelism } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+import { MAX_LOAD_PER_CORE } from './governor.js';
 import { type IgnoreRule } from './native.js';
 import { resolveEsm } from './resolve.js';
 import { type SpecOracle } from './spec-oracle.js';
@@ -30,6 +31,13 @@ function workersOf(resources: unknown): Options['workers'] {
   return { warm: r.warmWorkers !== false, idleTimeoutMs: ms >= 0 ? ms : DEFAULT_IDLE_TIMEOUT_MS };
 }
 
+/** `resources.maxLoad` and `resources.priority` (`R12`, `R15`): a load past which no unit starts, 1.5 × cores by default; servers at low priority unless it says `'normal'`. */
+function governorOf(resources: unknown): Pick<Options, 'maxLoad' | 'lowPriority'> {
+  const r = (typeof resources === 'object' && resources !== null ? resources : {}) as { maxLoad?: unknown; priority?: unknown };
+  const asked = Number(r.maxLoad);
+  return { maxLoad: asked > 0 ? asked : MAX_LOAD_PER_CORE * availableParallelism(), lowPriority: r.priority !== 'normal' };
+}
+
 /** `static.group` as a whole number of at least one; anything that is not a number is one. */
 function staticGroupOf(group: unknown): number {
   const asked = Math.floor(Number(group));
@@ -47,7 +55,7 @@ export const STATIC_BUDGET_REASON = 'static mutant (static budget spent)';
 
 /** `static.readers`: `'report'` or `'on'` exactly; anything else is off. */
 function staticReadersOf(readers: unknown): Options['staticReaders'] {
-  return readers === 'report' || readers === 'on' ? readers : 'off';
+  return readers === 'report' || readers === 'off' ? readers : 'on';
 }
 
 /** Why a static mutant is Ignored under `ignoreStatic`; the summary counts them by it. */
@@ -65,6 +73,10 @@ export interface Options {
    * closed, and a new one starts if work comes later; 0 keeps every server until the run ends.
    */
   workers: { warm: boolean; idleTimeoutMs: number };
+  /** The governor (`R12`): no unit starts while the load oxmutate does not account for is past this. */
+  maxLoad: number;
+  /** `R15`: servers start at a lowered OS priority. */
+  lowPriority: boolean;
   timeoutMS: number;
   timeoutFactor: number;
   thresholds: Thresholds;
@@ -296,6 +308,7 @@ export async function loadOptions(root: string, overrides: Partial<Options> = {}
     vitestConfig: vitest.configFile ? path.resolve(root, vitest.configFile) : undefined,
     concurrency: Number(raw['concurrency'] ?? Math.max(1, Math.min(MAX_DEFAULT_CONCURRENCY, availableParallelism() - 1))),
     workers: workersOf(raw['resources']),
+    ...governorOf(raw['resources']),
     timeoutMS: Number(raw['timeoutMS'] ?? DEFAULT_TIMEOUT_MS),
     timeoutFactor: Number(raw['timeoutFactor'] ?? DEFAULT_TIMEOUT_FACTOR),
     thresholds: { high: thresholds.high ?? DEFAULT_THRESHOLD_HIGH, low: thresholds.low ?? DEFAULT_THRESHOLD_LOW, break: thresholds.break ?? null },

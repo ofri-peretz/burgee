@@ -1,8 +1,9 @@
+import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { ACTIVE_MUTANT_ENV, FILE_KEY, NAMESPACE, cwd, exit } from './runtime.js';
+import { ACTIVE_MUTANT_ENV, FILE_KEY, NAMESPACE, cwd, exit, killGroup, serverGroups } from './runtime.js';
 
 // The emitter that writes the other half of the contract.
 const emitter = readFileSync(new URL('../native/src/instrument.rs', import.meta.url), 'utf8');
@@ -52,5 +53,29 @@ describe('the runner writes through open descriptors', () => {
   });
   it('closes what it opened when the run ends, for a pool whose workers are threads', () => {
     expect(runner).toMatch(/closeFiles\(\);\n\s+return super\.onAfterRunFiles/u);
+  });
+});
+
+const alive = (p: number): boolean => {
+  try {
+    return process.kill(p, 0);
+  } catch {
+    return false;
+  }
+};
+
+describe.skipIf(!serverGroups)('killGroup', () => {
+  it('kills a group leader and the children it started', async () => {
+    // A leader that starts a child of its own and reports it: the child is the one a plain kill left behind.
+    // Both ignore SIGTERM, as a hung test's processes may: only SIGKILL ends them.
+    const stay = "process.on('SIGTERM', () => {}); setInterval(() => {}, 1000);";
+    const leader = spawn(process.execPath, ['-e', `const c = require('node:child_process').spawn(process.execPath, ['-e', ${JSON.stringify(stay)}], { stdio: 'ignore' }); console.log(c.pid); ${stay}`], { detached: true, stdio: ['ignore', 'pipe', 'ignore'] });
+    const child = Number(await new Promise<string>((resolve) => leader.stdout.once('data', (d: Buffer) => resolve(String(d)))));
+    expect(killGroup(leader.pid ?? 0)).toBe(true);
+    await vi.waitFor(() => expect(leader.exitCode !== null || leader.signalCode !== null).toBe(true), { timeout: 5000 });
+    await vi.waitFor(() => expect(alive(child)).toBe(false), { timeout: 5000 });
+  });
+  it('answers false for a group that is not there', () => {
+    expect(killGroup(2 ** 22 + 1)).toBe(false);
   });
 });

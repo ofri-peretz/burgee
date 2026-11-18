@@ -446,9 +446,26 @@ F7 needed under 21,890 s (6 h 5 m). Mean load 29.8 over 360 one-minute samples, 
 | isolated |     2 h 8 m, unfinished | stopped at 17:04Z to free the machine for another session's pushes     |
 
 **F7 was missed in the warm phase alone, and not by test work:** 2,308 s of tests in 17,100 s of
-wall. The cause is **not known**. It is not other programs' CPU: the deadlock detector's
-`otherShare` counts only the server process's own other threads, and mutant servers run one worker
-thread. The working directory was removed before the stalled units were read, so the next step is a
-warm-phase-only run with `OXMUTATE_DEBUG_QUIET` on the units that stall, to see which deadlock
-condition fails to hold. O3 (`static.readers` on the same set) was not started; O2 and O3 re-run
-once the stall is understood.
+wall. The deadlock detector is not the cause: its `otherShare` counts only the server process's own
+other threads, and mutant servers run one worker thread.
+
+**The cause, found by a 12-minute warm-phase rerun the same evening (same build, same config):**
+the package's own tests wait on the machine's endpoint scanner. Stack samples of all four servers
+showed the Vitest worker inside `spawnSync` (three) or `rmSync` (one); the processes they waited on
+were `git init` / `commit` / `tag` building fixture repos. The whole run used about 20% of one core
+while the scanner's processes used about 400% and Spotlight's indexers about 70%. Every watchdog stop
+(25 in the window) read busy, at 0–6% CPU, with the beat late: a worker blocked in a synchronous call,
+not a hang. Units finished at 2–13 per half-minute and none in stretches of two minutes, as load
+moved between 24 and 72.
+
+So compat-oracle's warm phase is bounded by how fast the scanner clears process starts and new files,
+which no change to oxmutate moves, and which Stryker pays per test run as well. O1's 58 minutes and
+O2's 4 h 45 m were the same tests at different scanner backlogs. The F7 comparison on this machine
+needs the two tools interleaved in one window, or a machine without endpoint scanning (the Linux
+reading on the roadmap). O3 waits for one of those.
+
+**Found on the way, and fixed:** a server killed by the watchdog left the processes its tests had
+started running, re-parented (8 uvu runners in that window). Servers now lead a process group and a
+kill takes it (`fix(oxmutate): a killed server takes the processes its tests started`). Test runs
+had also left 27,562 entries in the system temp directory and 566 `.grade-*` directories in the
+package.

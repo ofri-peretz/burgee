@@ -1,0 +1,1 @@
+{ "mutate": ["src/size.ts"], "concurrency": 1, "flakyReruns": 0, "timeoutMS": 600, "reporters": ["json"] }
