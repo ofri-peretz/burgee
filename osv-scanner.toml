@@ -3,3 +3,9 @@
 # `reason`; an expired entry counts again, and an entry nothing matches fails check:osv.
 # Waive only what has no fixed release and no removable path — say both in the reason.
 
+
+
+[[IgnoredVulns]]
+id = "GHSA-fc5q-39xc-vjpf"
+ignoreUntil = 2026-12-18
+reason = "picomatch ReDoS through single-branch repeated extglobs; the advisory lists no fixed version (last_affected 4.0.7), so no upgrade exists. Reached only through dev tools (markdownlint-cli2 > micromatch > picomatch@2.3.2, ava > picomatch@4.0.7) that match globs this repository writes, never input from a user of a published package. No published package depends on picomatch. Re-check on expiry or when a fixed release appears."

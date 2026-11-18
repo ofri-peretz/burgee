@@ -6,6 +6,8 @@
  */
 import { defineCommand, defineProgram, type Effects } from 'burgee';
 
+import { commands } from './commands.js';
+
 export const VERSION = '0.0.0';
 
 const planned = (name: string, description: string, phase: string, effects: Effects = 'read_only') =>
@@ -26,8 +28,8 @@ export const program = defineProgram({
     // The two that write files. The same input writes the same output, so a rerun is safe.
     planned('gen', 'Code from a spec, one plugin per target: TypeScript types, validators, NestJS modules', 'Phase 1', 'idempotent'),
     planned('extract', 'A spec from your code, one plugin per source: validator schemas, NestJS, Hono', 'Phase 2', 'idempotent'),
-    planned('explain', 'One operation, message or tool, fully resolved and size-capped for an agent', 'Phase 5'),
-    planned('diff', 'What a contract change breaks, and for whom, under the compatibility mode you pick', 'Phase 5'),
+    // One `command-<name>.ts` per command, each owned by its lane (.sdlc/LANES.md).
+    ...commands,
     planned('check', 'Call sites in the code that disagree with the contract, found statically', 'Phase 7'),
   ],
 });

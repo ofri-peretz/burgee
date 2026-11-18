@@ -13,7 +13,8 @@
  * Nothing here touches the file system. A generator returns files and the caller writes them
  * (R-PL3), so a dry run, `--check` and overwrite safety live in one place and not in every plugin.
  */
-import { type Contract } from './core/model.js';
+import { type Contract, type ContractFinding } from './core/model.js';
+import { builtinAdapters } from './inputs.js';
 
 /** The plugin contract version: one number for the family. */
 export const CONTRACT = 1;
@@ -44,6 +45,12 @@ export interface Sample {
   readonly files: readonly GeneratedFile[];
 }
 
+/** What a generator may return when it has something to report besides files. */
+export interface GeneratorResult {
+  readonly files: readonly GeneratedFile[];
+  readonly findings: readonly ContractFinding[];
+}
+
 /** Spec → code: data plus one function (R-PL2). */
 export interface Generator {
   readonly description: string;
@@ -52,7 +59,24 @@ export interface Generator {
   /** burgee option declarations, keyed by option name. */
   readonly options?: Readonly<Record<string, unknown>>;
   readonly sample: Sample;
-  readonly run: (contract: Contract, options: Options) => readonly GeneratedFile[] | Promise<readonly GeneratedFile[]>;
+  readonly run: (
+    contract: Contract,
+    options: Options,
+  ) => readonly GeneratedFile[] | GeneratorResult | Promise<readonly GeneratedFile[] | GeneratorResult>;
+}
+
+/** An extractor's static projection: the options it is run with, and the document it returns. */
+export interface ExtractorSample {
+  readonly options: Options;
+  readonly document: unknown;
+}
+
+/** Code → spec (spec.md R-TE2): reads the user's code, named by its options, and returns a document. */
+export interface Extractor {
+  readonly description: string;
+  readonly options?: Readonly<Record<string, unknown>>;
+  readonly sample: ExtractorSample;
+  readonly run: (options: Options) => unknown;
 }
 
 /** The keys apicontract reads. Any object with these fields is a plugin here, whatever else it carries. */
@@ -61,6 +85,7 @@ export interface Plugin {
   readonly contract?: number;
   readonly adapters?: Readonly<Record<string, Adapter>>;
   readonly generators?: Readonly<Record<string, Generator>>;
+  readonly extractors?: Readonly<Record<string, Extractor>>;
 }
 
 export type PluginErrorCode = 'E_PLUGIN_SCHEMA' | 'E_PLUGIN_CONTRACT' | 'E_NO_STATIC_PROJECTION' | 'E_NO_CONTRIBUTION';
@@ -86,6 +111,12 @@ function refuse(message: string, fix: string, code: PluginErrorCode = 'E_PLUGIN_
 }
 
 const text = (value: unknown): value is string => typeof value === 'string' && value !== '';
+
+/** A generator's return value, with the files and the findings apart. */
+export const resultOf = (value: unknown): { files: unknown; findings: readonly ContractFinding[] } => {
+  if (!isRecord(value) || !('files' in value)) return { files: value, findings: [] };
+  return { files: value.files, findings: Array.isArray(value.findings) ? (value.findings as ContractFinding[]) : [] };
+};
 
 /**
  * Whether a path stays inside the output folder. A generator is somebody else's code, and this is
@@ -137,6 +168,16 @@ const validateGenerator = (generator: unknown, where: string): void => {
   validateFiles(sample.files, `${where}: sample`);
 };
 
+const validateExtractor = (extractor: unknown, where: string): void => {
+  if (!isRecord(extractor) || !text(extractor.description) || typeof extractor.run !== 'function') {
+    refuse(`${where} is not an extractor`, 'an extractor is `{ description, sample, run(options) }`');
+  }
+  const { sample } = extractor;
+  if (!isRecord(sample) || !isRecord(sample.options) || !('document' in sample)) {
+    refuse(`${where} has no sample`, 'add `sample: { options, document }`: the options it runs with and the document it returns', 'E_NO_STATIC_PROJECTION');
+  }
+};
+
 const each = (group: unknown, plugin: string, key: string, validateOne: (value: unknown, where: string) => void): void => {
   if (group === undefined) return;
   if (!isRecord(group)) refuse(`plugin "${plugin}": ${key} must be an object`, `map a name to each of the ${key}`);
@@ -153,6 +194,7 @@ export function validate(plugin: unknown): asserts plugin is Plugin {
   }
   each(plugin.adapters, name, 'adapters', validateAdapter);
   each(plugin.generators, name, 'generators', validateGenerator);
+  each(plugin.extractors, name, 'extractors', validateExtractor);
 }
 
 /** A set of registered plugins. One per program run; tests make their own. */
@@ -165,7 +207,11 @@ export interface Host {
   readonly read: (document: unknown) => Contract;
   /** The generator registered under `target`. */
   readonly generator: (target: string) => Generator;
-  /** Run a generator on a document and return the files it would write. */
+  /**
+   * Run a generator on a document and return the files it would write. Its findings are not
+   * returned here: a caller that reports them runs `generator(target).run(…)` and reads them with
+   * `resultOf`, as `apicontract gen` does.
+   */
   readonly generate: (target: string, document: unknown, options?: Options) => Promise<GeneratedFile[]>;
 }
 
@@ -218,7 +264,7 @@ export const createHost = (): Host => {
     generator,
     generate: async (target, document, options = {}) => {
       const chosen = generator(target);
-      return validateFiles(await chosen.run(read(document, chosen.inputs), options), `generator "${target}"`);
+      return validateFiles(resultOf(await chosen.run(read(document, chosen.inputs), options)).files, `generator "${target}"`);
     },
   };
 };
@@ -245,6 +291,12 @@ const problemWith = (content: string, again: string | undefined, declared: strin
   return declared === content ? undefined : 'different';
 };
 
+/** Data as text with its object keys sorted, so two equal documents compare equal whatever their key order. */
+const canonical = (value: unknown): string | undefined =>
+  JSON.stringify(value, (_key, inner: unknown) =>
+    isRecord(inner) ? Object.fromEntries(Object.entries(inner).toSorted(([a], [b]) => a.localeCompare(b))) : inner,
+  );
+
 /** Two runs of one generator against what its sample declares. */
 const compare = (generator: string, first: Rendered, second: Rendered, declared: Rendered): Finding[] => {
   const findings: Finding[] = [];
@@ -264,6 +316,15 @@ const compare = (generator: string, first: Rendered, second: Rendered, declared:
 // The owner is part of what a file is: the same bytes under another owner is a different result.
 const render = (files: readonly GeneratedFile[]): Rendered => new Map(files.map((file) => [file.path, `${file.owner}\n${file.content}`]));
 
+// An extractor returns a document, not files: two runs must agree, and with the sample, as data.
+const checkExtractor = async ([name, extractor]: [string, Extractor]): Promise<Finding[]> => {
+  const first = canonical(await extractor.run(extractor.sample.options));
+  const second = canonical(await extractor.run(extractor.sample.options));
+  if (second !== first) return [{ generator: name, path: 'sample.document', problem: 'not deterministic', fix: FIXES['not deterministic'] }];
+  if (first === canonical(extractor.sample.document)) return [];
+  return [{ generator: name, path: 'sample.document', problem: 'different', fix: 'update `sample.document` to what `run(sample.options)` returns, or fix `run`' }];
+};
+
 /**
  * `apicontract check <plugin>` (R-PL5): run every generator on its own sample, twice, and compare
  * both runs with the files the sample declares, byte for byte. It proves the output is what the
@@ -271,16 +332,21 @@ const render = (files: readonly GeneratedFile[]): Rendered => new Map(files.map(
  */
 export const checkPlugin = async (plugin: unknown): Promise<Finding[]> => {
   const host = createHost();
+  // The built-in formats first, so a generator's sample reads without the plugin carrying an adapter.
+  host.register({ name: 'apicontract', adapters: builtinAdapters });
   host.register(plugin);
-  const [registered] = host.plugins() as [Plugin];
+  const [, registered] = host.plugins() as [Plugin, Plugin];
   const checkOne = async ([name, generator]: [string, Generator]): Promise<Finding[]> => {
     const contract = host.read(generator.sample.document);
     const run = async (): Promise<Rendered> =>
-      render(validateFiles(await generator.run(contract, generator.sample.options ?? {}), `generator "${name}"`));
+      render(validateFiles(resultOf(await generator.run(contract, generator.sample.options ?? {})).files, `generator "${name}"`));
     const first = await run();
     return compare(name, first, await run(), render(generator.sample.files));
   };
-  const findings = await Promise.all(Object.entries(registered.generators ?? {}).map(async (entry) => checkOne(entry)));
+  const findings = await Promise.all([
+    ...Object.entries(registered.generators ?? {}).map(async (entry) => checkOne(entry)),
+    ...Object.entries(registered.extractors ?? {}).map(async (entry) => checkExtractor(entry)),
+  ]);
   return findings.flat();
 };
 

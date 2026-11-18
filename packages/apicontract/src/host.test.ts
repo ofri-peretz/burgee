@@ -12,6 +12,7 @@ import {
   register,
   registered,
   reset,
+  resultOf,
   validate,
   validateFiles,
 } from './host.js';
@@ -285,5 +286,64 @@ describe('checkPlugin', () => {
   it('checks every generator of the plugin, each under its own name', async () => {
     const two: Plugin = { name: 'two', adapters: { openapi }, generators: { good: generator(), bad: generator({ run: () => [] }) } };
     expect((await checkPlugin(two)).map((finding) => [finding.generator, finding.problem])).toEqual([['bad', 'missing']]);
+  });
+});
+
+/** Check a plugin with one extractor, `schemas`, whose sample declares `document`. */
+const checkExtractor = async (run: () => unknown, document: unknown = { a: 1, b: [2] }) =>
+  checkPlugin({ name: 'x', extractors: { schemas: { description: 'd', sample: { options: {}, document }, run } } });
+
+describe('what 6.0 added for the lanes', () => {
+  const finding = { code: 'keyword-dropped', pointer: '/paths', message: 'dropped', fix: 'nothing to do' };
+  const extractor = { description: 'Reads schemas', sample: { options: { module: './a.js' }, document: { openapi: '3.1.0' } }, run: () => ({ openapi: '3.1.0' }) };
+
+  it('lets a generator return files with findings, and writes only the files', async () => {
+    const host = createHost();
+    host.register(plugin({ run: (contract, options) => ({ files: list(contract, options), findings: [finding] }) }));
+    expect(await host.generate('list', document)).toEqual([{ path: 'operations.txt', owner: 'generated', content: 'listPets\n' }]);
+    expect(resultOf({ files: [], findings: [finding] }).findings).toEqual([finding]);
+    expect(resultOf({ files: [], findings: 'not a list' }).findings).toEqual([]);
+    expect(resultOf([])).toEqual({ files: [], findings: [] });
+    expect(resultOf(null)).toEqual({ files: null, findings: [] });
+    expect(resultOf({ path: 'a' })).toEqual({ files: { path: 'a' }, findings: [] });
+  });
+
+  it('accepts an extractor with a sample, and refuses one without', () => {
+    expect(() => validate({ name: 'x', extractors: { schemas: extractor } })).not.toThrow();
+    for (const bad of [1, { ...extractor, description: '' }, { ...extractor, run: 'no' }]) {
+      expect(refusal(() => validate({ name: 'x', extractors: { schemas: bad } })).message).toBe(
+        'plugin "x": extractors.schemas is not an extractor. fix: an extractor is `{ description, sample, run(options) }`',
+      );
+    }
+    expect(refusal(() => validate({ name: 'x', extractors: { schemas: { ...extractor, sample: {} } } })).message).toBe(
+      'plugin "x": extractors.schemas has no sample. fix: add `sample: { options, document }`: the options it runs with and the document it returns',
+    );
+    expect(refusal(() => validate({ name: 'x', extractors: 1 })).message).toBe('plugin "x": extractors must be an object. fix: map a name to each of the extractors');
+    expect(refusal(() => validate({ name: 'x', extractors: { schemas: { description: 'd' } } })).fix).toBe('an extractor is `{ description, sample, run(options) }`');
+    expect(refusal(() => validate({ name: 'x', extractors: { schemas: { ...extractor, sample: { document: {} } } } })).code).toBe('E_NO_STATIC_PROJECTION');
+    expect(refusal(() => validate({ name: 'x', extractors: { schemas: { ...extractor, sample: { options: {} } } } })).code).toBe('E_NO_STATIC_PROJECTION');
+    expect(refusal(() => validate({ name: 'x', extractors: { schemas: { ...extractor, sample: 1 } } })).code).toBe('E_NO_STATIC_PROJECTION');
+  });
+
+  it('checks each extractor against its sample, as data, and run twice', async () => {
+    expect(await checkExtractor(() => ({ b: [2], a: 1 }))).toEqual([]);
+    expect(await checkExtractor(async () => ({ a: 1, b: [2] }))).toEqual([]);
+    expect(await checkExtractor(() => ({ a: 2, b: [2] }))).toEqual([
+      { generator: 'schemas', path: 'sample.document', problem: 'different', fix: 'update `sample.document` to what `run(sample.options)` returns, or fix `run`' },
+    ]);
+    expect(await checkExtractor(() => undefined)).toEqual([expect.objectContaining({ problem: 'different' })]);
+    let calls = 0;
+    expect(await checkExtractor(() => ({ a: (calls += 1), b: [2] }), { a: 1, b: [2] })).toEqual([
+      { generator: 'schemas', path: 'sample.document', problem: 'not deterministic', fix: 'remove whatever changes between runs: time, random values, iteration order' },
+    ]);
+    const options = { module: './m.js' };
+    let seen: unknown;
+    await checkPlugin({ name: 'x', extractors: { schemas: { description: 'd', sample: { options, document: 1 }, run: (o: unknown) => ((seen = o), 1) } } });
+    expect(seen).toBe(options);
+  });
+
+  it('checks a plugin that carries no adapter, by the built-in formats', async () => {
+    const generators = { list: generator() };
+    expect(await checkPlugin({ name: 'no-adapters', generators })).toEqual([]);
   });
 });
