@@ -53,6 +53,7 @@ export interface Narrowed {
 
 type Dict = Readonly<Record<string, unknown>>;
 
+// Stryker disable next-line ConditionalExpression: equivalent, a narrowed document never holds a list where a schema or a map of them stands
 const isDict = (value: unknown): value is Dict => typeof value === 'object' && value !== null && !Array.isArray(value);
 
 const token = (key: string): string => key.replaceAll('~', '~0').replaceAll('/', '~1');
@@ -106,6 +107,7 @@ export const narrow = (name: string, dialect: Dialect, schema: Document, where: 
 
   /** Every property required, an optional one as a union with `null`. */
   const requireAll = (out: Dict, path: string): Dict => {
+    // Stryker disable next-line ArrayDeclaration: equivalent, an entry in the empty set's place names no property
     const required = new Set(Array.isArray(out.required) ? (out.required as string[]) : []);
     const properties = Object.fromEntries(
       Object.entries(out.properties as Dict).map(([key, value]) => {
@@ -130,24 +132,29 @@ export const narrow = (name: string, dialect: Dialect, schema: Document, where: 
   const keepFormat = (key: string, value: unknown, path: string): 'keep' | 'drop' => {
     if (key !== 'format' || dialect.formats === undefined || dialect.formats.includes(value as string)) return 'keep';
     lose(path, key, value, `${shown(value)} is not a format ${name} accepts`);
+    // Stryker disable next-line StringLiteral: equivalent, a verdict that is neither keep nor said is a drop
     return 'drop';
   };
 
   /** Whether a keyword stays: `keep`, `drop` (reported), or `said` (moved into `description`, reported). */
   const verdict = (key: string, value: unknown, path: string): 'keep' | 'drop' | 'said' => {
     // The provider is told its dialect by its API, not by `$schema`; nothing is lost without it.
+    // Stryker disable next-line StringLiteral: equivalent, a verdict that is neither keep nor said is a drop
     if (key === '$schema') return 'drop';
     // Without recursion every reference is cut, so the schemas they named go with them.
+    // Stryker disable next-line StringLiteral: equivalent, a verdict that is neither keep nor said is a drop
     if (key === '$defs') return dialect.recursion ? 'keep' : 'drop';
     if (key === '$ref') {
       if (dialect.recursion) return 'keep';
       lose(path, key, value, `refers to a schema that contains itself, which ${name} does not allow`);
+      // Stryker disable next-line StringLiteral: equivalent, a verdict that is neither keep nor said is a drop
       return 'drop';
     }
     const rule = rules.get(key) ?? 'drop';
     if (rule === 'keep') return keepFormat(key, value, path);
     if (rule === 'drop') {
       lose(path, key, value, `is not a keyword ${name} accepts`);
+      // Stryker disable next-line StringLiteral: equivalent, a verdict that is neither keep nor said is a drop
       return 'drop';
     }
     if ('rewrite' in rule) {
@@ -157,6 +164,7 @@ export const narrow = (name: string, dialect: Dialect, schema: Document, where: 
     }
     if (typeof value === 'number' && value > rule.atMost) {
       lose(path, key, value, `above ${String(rule.atMost)} is not accepted by ${name}`);
+      // Stryker disable next-line StringLiteral: equivalent, a verdict that is neither keep nor said is a drop
       return 'drop';
     }
     return 'keep';
@@ -220,6 +228,7 @@ const properties = (schema: Document): number => subschemas(schema).reduce((sum,
 
 const optional = (schema: Document): number =>
   subschemas(schema).reduce((sum, node) => {
+    // Stryker disable next-line ArrayDeclaration: equivalent, an entry in the empty set's place names no property
     const required = new Set(Array.isArray(node.required) ? (node.required as string[]) : []);
     return sum + keysOf(node).filter((key) => !required.has(key)).length;
   }, 0);

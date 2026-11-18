@@ -20,8 +20,9 @@ const JSON_MEDIA = ':application/json';
 /** Words of letters and digits, each with its first letter upper-cased: `get /pets/{id}` is `GetPetsId`. */
 const pascal = (text: string): string =>
   text
+    // An empty word, at either end, adds nothing to the join: no filter is needed.
+    // Stryker disable next-line Regex: equivalent, splitting on each character instead of each run only adds empty words
     .split(/[^A-Za-z0-9]+/u)
-    .filter((word) => word !== '')
     .map((word) => `${word.charAt(0).toUpperCase()}${word.slice(1)}`)
     .join('');
 
@@ -36,7 +37,9 @@ export const baseName = (operation: string, payload: string): string => {
 /** Every payload of the contract with its name, sorted by operation id, then by the payload's order in the operation. */
 export const namedPayloads = (contract: Contract): Named[] => {
   const taken = new Set<string>();
-  const operations = contract.operations.toSorted((a, b) => (a.id < b.id ? -1 : Number(a.id > b.id)));
+  // Sorted by UTF-16 code unit, the default sort, so every machine and locale agrees; one id's operations keep their order.
+  const ids = [...new Set(contract.operations.map((operation) => operation.id))].toSorted();
+  const operations = ids.flatMap((id) => contract.operations.filter((operation) => operation.id === id));
   return operations.flatMap((operation) =>
     operation.payloads.map((payload) => {
       const base = baseName(operation.id, payload.name);

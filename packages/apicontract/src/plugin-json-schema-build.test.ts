@@ -25,6 +25,7 @@ describe('the dialect a source writes', () => {
     expect(sourceOf(contract('jsonschema', true))).toBe('2020-12');
     expect(sourceOf(contract('mcp', null))).toBe('2020-12');
     expect(sourceOf(contract('jsonschema', ['draft-07']))).toBe('2020-12');
+    expect(sourceOf(contract('jsonschema', { $schema: ['draft-07'] }))).toBe('2020-12');
   });
 });
 
@@ -85,7 +86,18 @@ describe('what a source writes in its own way', () => {
         { code: 'keyword-rewritten', pointer: `${AT}/exclusiveMaximum`, message: 'X: `exclusiveMaximum: false` is the boolean form of draft-04: written as `maximum` alone', fix: 'nothing to do: the document means the same' },
       ],
     });
-    expect(run({ exclusiveMaximum: true }).schema).toEqual({ $schema: URI_2020 });
+    expect(run({ exclusiveMaximum: true })).toStrictEqual({
+      schema: { $schema: URI_2020 },
+      findings: [
+        {
+          code: 'keyword-dropped',
+          pointer: `${AT}/exclusiveMaximum`,
+          message: 'X: `exclusiveMaximum: true` is the boolean form of draft-04, and there is no `maximum` beside it: it is left out',
+          fix: 'nothing to do: it says nothing without the bound',
+        },
+      ],
+    });
+    expect(run({ exclusiveMinimum: false, minimum: 2 }).schema).toStrictEqual({ $schema: URI_2020, minimum: 2 });
     expect(run({ exclusiveMinimum: 3 })).toEqual({ schema: { $schema: URI_2020, exclusiveMinimum: 3 }, findings: [] });
   });
 
@@ -178,6 +190,7 @@ describe('references', () => {
         'a%20b': { type: 'number' },
         '': { type: 'null' },
         'x~1y': { type: 'boolean' },
+        'p/q': { type: 'boolean' },
       },
     },
     other: { Pet: { type: 'integer' } },
@@ -201,6 +214,7 @@ describe('references', () => {
         { $ref: '#/components/schemas/a%20b' },
         { $ref: '#/components/schemas/' },
         { $ref: '#/components/schemas/x~01y' },
+        { $ref: '#/components/schemas/p~1q' },
         { $ref: '#/other/Pet' },
         { $ref: '#/components/schemas/Pet' },
         { $ref: '#/components/schemas/a b' },
@@ -212,6 +226,7 @@ describe('references', () => {
       { $ref: '#/$defs/a_b2' },
       { $ref: '#/$defs/def' },
       { $ref: '#/$defs/x_1y' },
+      { $ref: '#/$defs/p_q' },
       { $ref: '#/$defs/Pet' },
       { $ref: '#/$defs/Pet2' },
       { $ref: '#/$defs/a_b' },
@@ -269,7 +284,7 @@ describe('draft-07', () => {
       schema: { $schema: URI_07, $ref: '#/definitions/A', definitions: { A: { items: { $ref: '#/definitions/A' } } } },
       findings: [{ code: 'keyword-rewritten', pointer: AT, message: 'X: `$defs` is written as draft-07\'s `definitions`', fix: 'nothing to do: the document means the same' }],
     });
-    expect(run({ type: 'string' }, d7)).toEqual({ schema: { $schema: URI_07, type: 'string' }, findings: [] });
+    expect(run({ type: 'string' }, d7)).toStrictEqual({ schema: { $schema: URI_07, type: 'string' }, findings: [] });
   });
 
   it('writes a tuple as `items` and `additionalItems`', () => {
@@ -284,7 +299,9 @@ describe('draft-07', () => {
         },
       ],
     });
-    expect(run({ anyOf: [{ prefixItems: [{}] }] }, d7).schema).toEqual({ $schema: URI_07, anyOf: [{ items: [{}] }] });
+    expect(run({ anyOf: [{ prefixItems: [{}] }] }, d7).schema).toStrictEqual({ $schema: URI_07, anyOf: [{ items: [{}] }] });
+    expect(run({ items: { prefixItems: [{}] } }, d7).findings[0]?.message).toBe('X: at "/items" in the document, `prefixItems` is written as draft-07\'s list of `items`, and `items` as `additionalItems`');
+    expect(run({ anyOf: [{ prefixItems: [{}] }] }, d7).findings[0]?.message).toBe('X: at "/anyOf/0" in the document, `prefixItems` is written as draft-07\'s list of `items`, and `items` as `additionalItems`');
   });
 
   it('writes `dependentRequired` and `dependentSchemas` as `dependencies`', () => {
@@ -330,9 +347,14 @@ describe('draft-07', () => {
       properties: { a: { allOf: [{ $ref: '#/definitions/A' }, { maxLength: 1 }] } },
       definitions: { A: {} },
     });
-    expect(run({ properties: { a: { $ref: '#/A', minLength: 1 } } }, d7, document).findings.map((finding) => finding.message)).toEqual([
-      'X: at "/properties/a" in the document, `$ref` with keywords beside it is written under `allOf`, which draft-07 does not ignore',
-      'X: `$defs` is written as draft-07\'s `definitions`',
+    expect(run({ properties: { a: { $ref: '#/A', minLength: 1 } } }, d7, document).findings).toEqual([
+      {
+        code: 'keyword-rewritten',
+        pointer: AT,
+        message: 'X: at "/properties/a" in the document, `$ref` with keywords beside it is written under `allOf`, which draft-07 does not ignore',
+        fix: 'nothing to do: the document means the same',
+      },
+      { code: 'keyword-rewritten', pointer: AT, message: 'X: `$defs` is written as draft-07\'s `definitions`', fix: 'nothing to do: the document means the same' },
     ]);
   });
 });

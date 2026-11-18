@@ -61,7 +61,7 @@ const document = {
       get: {
         operationId: 'listPets',
         parameters: [{ name: 'limit', in: 'query', schema: { type: 'integer', minimum: 1 } }],
-        responses: { '200': { description: 'Pets', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/Pet' } } } } } },
+        responses: { '200': { content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/Pet' } } } } } },
       },
     },
   },

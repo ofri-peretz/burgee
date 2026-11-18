@@ -186,17 +186,19 @@ const exclusive = (state: State, schema: Dict, at: string): Dict => {
     const on = out[flag];
     if (typeof on !== 'boolean') continue;
     const value = out[bound];
-    const rest = without(out, flag, bound);
-    const moved = on && value !== undefined;
-    out = { ...rest, ...(value !== undefined && { [moved ? flag : bound]: value }) };
-    report(state)('keyword-rewritten', `${at}/${flag}`, `\`${flag}: ${String(on)}\` is the boolean form of draft-04: written as ${moved ? `\`${flag}: ${String(value)}\`` : `\`${bound}\` alone`}`, 'nothing to do: the document means the same');
+    out = without(out, flag, bound);
+    if (value === undefined) {
+      report(state)('keyword-dropped', `${at}/${flag}`, `\`${flag}: ${String(on)}\` is the boolean form of draft-04, and there is no \`${bound}\` beside it: it is left out`, 'nothing to do: it says nothing without the bound');
+      continue;
+    }
+    out = { ...out, [on ? flag : bound]: value };
+    report(state)('keyword-rewritten', `${at}/${flag}`, `\`${flag}: ${String(on)}\` is the boolean form of draft-04: written as ${on ? `\`${flag}: ${String(value)}\`` : `\`${bound}\` alone`}`, 'nothing to do: the document means the same');
   }
   return out;
 };
 
 /** OpenAPI 3.0's `nullable: true` adds `null` to the schema's `type`; without a `type` it adds nothing (3.0.3). */
 const nullable = (state: State, schema: Dict, at: string): Dict => {
-  if (!('nullable' in schema)) return schema;
   const rest = without(schema, 'nullable');
   if (schema.nullable !== true) return rest;
   if (typeof rest.type === 'string') {
@@ -260,6 +262,7 @@ const define = (state: State, ref: string, target: unknown): string => {
   let name = base;
   for (let suffix = 2; state.names.has(name); suffix += 1) name = `${base}${String(suffix)}`;
   state.names.add(name);
+  // Stryker disable next-line BooleanLiteral: equivalent, the placeholder is replaced on the next line before anything reads it
   const def: Def = { name, schema: true };
   // Set before it is walked: a target that refers to itself finds its own name.
   state.defs.set(ref, def);
@@ -275,13 +278,14 @@ const referenced = (state: State, ref: unknown, beside: Dict, { at, open }: Plac
     return beside;
   }
   const target = pointerGet(state.document, ref);
-  if (state.options.refs === 'inline' && !open.has(ref)) {
+  const inline = state.options.refs !== 'keep';
+  if (inline && !open.has(ref)) {
     const inlined = walk(state, target, { at: ref, open: new Set(open).add(ref) });
     if (Object.keys(beside).length === 0) return inlined;
     // As `core/resolve.ts` inlines: the keywords beside a reference stay, and its target moves under `allOf`.
     return { ...beside, allOf: [inlined, ...(Array.isArray(beside.allOf) ? (beside.allOf as unknown[]) : [])] };
   }
-  if (state.options.refs === 'inline' && !state.cut.has(ref)) {
+  if (inline && !state.cut.has(ref)) {
     state.cut.add(ref);
     report(state)('ref-cycle-kept', ref, `\`${ref}\` refers to itself, so it cannot be inlined: it is kept under \`$defs\``, 'nothing to do; or generate with `refs: keep`');
   }
@@ -328,6 +332,7 @@ function walk(state: State, schema: unknown, place: Place, root = false): JsonSc
 
 /** A document's body: `true` is the empty schema, `false` the schema nothing passes. */
 const body = (schema: JsonSchema): Dict => {
+  // Stryker disable next-line ConditionalExpression: equivalent, `true` falls through to a spread of `true`, which is `{}` too
   if (schema === true) return {};
   return schema === false ? { not: {} } : schema;
 };

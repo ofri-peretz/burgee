@@ -70,7 +70,23 @@ describe('the json-schema plugin', () => {
   });
 
   it('declares its options', () => {
-    expect(Object.keys(plugin.generators?.['json-schema']?.options ?? {})).toEqual(['draft', 'refs', 'dialect']);
+    expect(plugin.generators?.['json-schema']?.options).toStrictEqual({
+      draft: { type: 'string', choices: ['2020-12', '07'], default: '2020-12', description: 'the JSON Schema dialect to write' },
+      refs: { type: 'string', choices: ['keep', 'inline'], default: 'keep', description: 'keep each referenced schema under `$defs`, or copy it in place' },
+      dialect: { type: 'string', choices: ['anthropic', 'gemini', 'mcp', 'mcp-elicitation', 'openai'], description: 'narrow to what this model provider accepts, and write a re-check' },
+    });
+  });
+
+  it('returns its sample files exactly, symbols and all', async () => {
+    const generator = plugin.generators?.['json-schema'];
+    expect((await host().run('json-schema', generator?.sample.document)).files).toStrictEqual(generator?.sample.files);
+  });
+
+  it('keeps references by default and when asked', async () => {
+    const [kept] = (await host().run('json-schema', pets, { refs: 'keep' })).files;
+    const [byDefault] = (await host().run('json-schema', pets)).files;
+    expect(kept?.content).toBe(byDefault?.content);
+    expect(kept?.content).toContain('"$ref": "#/$defs/Pet"');
   });
 });
 
@@ -90,6 +106,12 @@ describe('a provider dialect: narrow, then re-check (R7)', () => {
     const recheck = files[1]?.content ?? '';
     expect(recheck).toContain(' * Re-checks an answer to `CreatePetBody.anthropic.json` against the full schema of `createPet` body:application/json.\n * anthropic was given less than the full schema; the narrowed schema does not say:\n * - /properties/name: `minLength` 1\n */\nexport const CreatePetBodyRecheck: (value: unknown) => boolean = (() => {');
     expect(findings.map((finding) => finding.code)).toEqual(['keyword-dropped', 'dialect-rewritten', 'dialect-root-not-object']);
+    expect(findings[1]).toStrictEqual({
+      code: 'dialect-rewritten',
+      pointer: '#/paths/~1pets/post',
+      message: 'CreatePetBody: for anthropic, at "/properties/name" in the document, `minLength` is not a keyword anthropic enforces: it is said in `description` instead',
+      fix: 'validate the answer with the generated re-check before using it',
+    });
     const module = await load(recheck, scratch('apicontract-recheck-'), 'recheck');
     const check = module.CreatePetBodyRecheck as (value: unknown) => boolean;
     expect([check({ name: 'a' }), check({ name: '' }), check({})]).toEqual([true, false, false]);
@@ -99,6 +121,16 @@ describe('a provider dialect: narrow, then re-check (R7)', () => {
     const { files, findings } = await host().run('json-schema', pets, { dialect: 'mcp' });
     expect(files.map(({ path }) => path)).toEqual(['CreatePetBody.mcp.json', 'CreatePetResponse200.mcp.json']);
     expect(findings.map((finding) => finding.code)).toEqual(['keyword-dropped']);
+  });
+
+  it('re-checks through the run-time door where the full schema needs it, with its finding', async () => {
+    const regex = { ...pets, components: { schemas: { Pet: { type: 'object', properties: { p: { type: 'string', format: 'regex' } } } } } };
+    const { files, findings } = await host().run('json-schema', regex, { dialect: 'openai' });
+    const recheck = files.find(({ path }) => path === RECHECK_FILE)?.content ?? '';
+    expect(recheck).toContain(
+      'const CreatePetBodyRecheckSchema = fromJsonSchema({"$schema":"https://json-schema.org/draft/2020-12/schema","$ref":"#/$defs/Pet","$defs":{"Pet":{"type":"object","properties":{"p":{"type":"string","format":"regex"}}}}}).schema;',
+    );
+    expect(findings.map((finding) => finding.code)).toEqual(['dialect-dropped', 'dialect-rewritten', 'validator-runtime-door', 'dialect-root-not-object']);
   });
 
   it('reports a per-request limit over the whole generated set', async () => {

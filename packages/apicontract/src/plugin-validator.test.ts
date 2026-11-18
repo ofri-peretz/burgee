@@ -87,6 +87,20 @@ describe('the validator plugin', () => {
     expect([check('^a+$'), check('('), check(1)]).toEqual([true, false, false]);
   });
 
+  it('returns its sample files exactly, symbols and all', async () => {
+    const generator = plugin.generators?.validator;
+    expect((await host().run('validator', generator?.sample.document)).files).toStrictEqual(generator?.sample.files);
+  });
+
+  it('imports the run-time door once, in a module where only some validators need it', async () => {
+    const document = { title: 'T', type: 'string', format: 'regex', $defs: { Plain: { type: 'integer' } } };
+    const content = (await host().run('validator', document)).files[0]?.content ?? '';
+    expect(content.match(/^import /gmu)).toHaveLength(2);
+    expect(content).toContain('export const PlainValue: (value: unknown) => boolean = (() => {');
+    const module = await load(content, scratch('apicontract-mixed-'), 'mixed');
+    expect([(module.PlainValue as Check)(1), (module.TValue as Check)('(')]).toEqual([true, false]);
+  });
+
   it('writes a doc comment that nothing in it can end early', () => {
     expect(comment(['a */ b', '', 'c'])).toBe('/**\n * a *\\/ b\n *\n * c\n */');
   });

@@ -27,7 +27,7 @@ const run = (schema: Document, more: Partial<Dialect> = {}) => narrow('p', table
 describe('narrowing to a dialect', () => {
   it('keeps what the table keeps, walks every kind of keyword, and drops `$schema` without a word', () => {
     const schema = { $schema: 'x', type: 'object', properties: { a: { type: 'array', items: { anyOf: [{ type: 'string' }] } } }, enum: [{ minimum: 1 }] };
-    expect(run(schema)).toEqual({ narrowed: { schema: { type: 'object', properties: schema.properties, enum: [{ minimum: 1 }] }, findings: [], dropped: [] }, findings: [] });
+    expect(run(schema)).toStrictEqual({ narrowed: { schema: { type: 'object', properties: schema.properties, enum: [{ minimum: 1 }] }, findings: [], dropped: [] }, findings: [] });
   });
 
   it('drops a keyword the table does not list, with a finding and a line for the re-check', () => {
@@ -43,6 +43,7 @@ describe('narrowing to a dialect', () => {
       },
     ]);
     expect(run({ minLength: 2 }).narrowed?.dropped).toEqual(['/: `minLength` 2']);
+    expect(run({ anyOf: [{ minLength: 2 }], properties: { 'd~e': { minLength: 3 } } }).narrowed?.dropped).toEqual(['/anyOf/0: `minLength` 2', '/properties/d~0e: `minLength` 3']);
     expect(run({ minLength: 2 }, { keywords: { minLength: 'drop' } }).narrowed?.dropped).toEqual(['/: `minLength` 2']);
   });
 
@@ -142,6 +143,7 @@ describe('the object rules of a dialect', () => {
       pick: { type: 'array', items: { enum: ['a'] } },
       picks: { type: 'array', items: { anyOf: [{ enum: ['a'] }] } },
       o: { type: 'object' },
+      fake: { type: 'object', items: { enum: ['a'] } },
       list: { type: 'array', items: { type: 'string' } },
       bare: { type: 'array' },
       none: true,
@@ -149,9 +151,11 @@ describe('the object rules of a dialect', () => {
     const result = run({ type: 'object', properties, required: ['s', 'o'] }, flat);
     expect(Object.keys(result.narrowed?.schema.properties as object)).toEqual(['s', 'n', 'i', 'b', 'pick', 'picks']);
     expect(result.narrowed?.schema.required).toEqual(['s']);
-    expect(result.narrowed?.dropped).toEqual(['/properties/o: `o` {"type":"object"}', '/properties/list: `list` {"type":"array","items":{"type":"string"}}', '/properties/bare: `bare` {"type":"array"}', '/properties/none: `none` true']);
+    expect(result.narrowed?.dropped).toEqual(['/properties/o: `o` {"type":"object"}', '/properties/fake: `fake` {"type":"object","items":{"enum":["a"]}}', '/properties/list: `list` {"type":"array","items":{"type":"string"}}', '/properties/bare: `bare` {"type":"array"}', '/properties/none: `none` true']);
     expect(result.findings[0]?.message).toBe('X: for p, at "/properties/o" in the document, `o` is not a primitive, which p cannot ask for, and is left out of the narrowed schema: the re-check holds the answer to it');
-    expect(run({ type: 'object', properties: { o: { type: 'object' } } }, flat).narrowed?.schema).toEqual({ type: 'object', properties: {} });
+    expect(run({ type: 'object', properties: { o: { type: 'object' } } }, flat).narrowed?.schema).toStrictEqual({ type: 'object', properties: {} });
+    const nested = { type: 'object', properties: { o: { type: 'object' } } };
+    expect(run({ type: 'object', anyOf: [nested], $defs: { D: nested } }, flat).narrowed?.schema).toStrictEqual({ type: 'object', anyOf: [nested], $defs: { D: nested } });
     // Only the root is flat: an object nested in a kept keyword is not looked at again.
     expect(run({ type: 'object', items: { type: 'object', properties: { o: { type: 'object' } } } }, flat).narrowed?.schema.items).toEqual({ type: 'object', properties: { o: { type: 'object' } } });
     expect(run({ type: 'object' }, flat).narrowed?.schema).toEqual({ type: 'object' });
@@ -159,6 +163,22 @@ describe('the object rules of a dialect', () => {
 });
 
 describe('limits', () => {
+  // Each way into a subschema is on the path to the deepest object, and holds a property of its own.
+  const deep = {
+    type: 'object',
+    properties: { m: { type: 'object', items: { type: 'object', anyOf: [{ type: 'object', properties: { l: {} }, additionalProperties: true }] } } },
+    $defs: { D: { properties: { d: {} } } },
+    enum: [{ type: 'object', properties: { a: { type: 'object', properties: { b: { type: 'object', properties: { c: { type: 'object', properties: { d: { type: 'object' } } } } } } } } }],
+  };
+
+  it('reaches a subschema under every kind of keyword, and only those', () => {
+    const each = (measure: Dialect['limits'][number]['measure']) => overLimits('p', table({ limits: [{ measure, max: 0, per: 'schema' }] }), [{ label: 'C', at: '#/c', schema: deep }])[0]?.message;
+    expect(each('properties')).toBe('C: 3 properties, and p takes at most 0');
+    expect(each('optional')).toBe('C: 3 optional, and p takes at most 0');
+    expect(each('depth')).toBe('C: 4 depth, and p takes at most 0');
+    expect(each('enum')).toBe('C: 1 enum, and p takes at most 0');
+  });
+
   const schemas = [
     { label: 'A', at: '#/a', schema: { type: 'object', properties: { x: { type: ['string', 'null'] }, y: { anyOf: [{}] } }, required: ['x'], $defs: { D: { type: 'object', properties: { z: { enum: [1, 2, 3] } } } } } },
     { label: 'B', at: '#/b', schema: { type: 'object', properties: { o: { type: 'object', properties: { p: { properties: {} } } } }, items: { enum: [4] }, anyOf: [{ not: true }] } },
@@ -202,6 +222,503 @@ describe('every dialect keeps or reports every keyword (J3)', () => {
     const kept = JSON.stringify(narrowed?.schema.properties).includes(`"${keyword}"`);
     const reported = findings.some((finding) => finding.message.includes(`\`${keyword}\``) || (keyword !== '$ref' && finding.message.includes('`a` is not a primitive')));
     expect(kept || reported).toBe(true);
+  });
+
+  // The tables are the provider knowledge, read from the cited pages: a change to one is a change to this snapshot, made on purpose.
+  it('pins the anthropic table', () => {
+    expect(DIALECTS.get('anthropic')).toMatchInlineSnapshot(`
+      {
+        "additionalPropertiesFalseRequired": true,
+        "allRequired": false,
+        "flat": false,
+        "formats": [
+          "date-time",
+          "time",
+          "date",
+          "duration",
+          "email",
+          "hostname",
+          "uri",
+          "ipv4",
+          "ipv6",
+          "uuid",
+        ],
+        "keywords": {
+          "additionalProperties": "keep",
+          "allOf": "keep",
+          "anyOf": "keep",
+          "const": "keep",
+          "default": "keep",
+          "description": "keep",
+          "enum": "keep",
+          "exclusiveMaximum": {
+            "rewrite": "description",
+          },
+          "exclusiveMinimum": {
+            "rewrite": "description",
+          },
+          "format": "keep",
+          "items": "keep",
+          "maxItems": {
+            "rewrite": "description",
+          },
+          "maxLength": {
+            "rewrite": "description",
+          },
+          "maximum": {
+            "rewrite": "description",
+          },
+          "minItems": {
+            "atMost": 1,
+          },
+          "minLength": {
+            "rewrite": "description",
+          },
+          "minimum": {
+            "rewrite": "description",
+          },
+          "multipleOf": {
+            "rewrite": "description",
+          },
+          "pattern": "keep",
+          "properties": "keep",
+          "required": "keep",
+          "title": "keep",
+          "type": "keep",
+        },
+        "limits": [
+          {
+            "max": 24,
+            "measure": "optional",
+            "per": "request",
+          },
+          {
+            "max": 16,
+            "measure": "unions",
+            "per": "request",
+          },
+        ],
+        "read": "2026-11-18",
+        "recursion": false,
+        "refs": "inline",
+        "rootMustBeObject": true,
+        "source": "https://platform.claude.com/docs/en/build-with-claude/structured-outputs#json-schema-limitations",
+      }
+    `);
+  });
+
+  it('pins the gemini table', () => {
+    expect(DIALECTS.get('gemini')).toMatchInlineSnapshot(`
+      {
+        "additionalPropertiesFalseRequired": false,
+        "allRequired": false,
+        "flat": false,
+        "formats": [
+          "date-time",
+          "date",
+          "time",
+        ],
+        "keywords": {
+          "additionalProperties": "keep",
+          "anyOf": "keep",
+          "description": "keep",
+          "enum": "keep",
+          "format": "keep",
+          "items": "keep",
+          "maxItems": "keep",
+          "maximum": "keep",
+          "minItems": "keep",
+          "minimum": "keep",
+          "prefixItems": "keep",
+          "properties": "keep",
+          "required": "keep",
+          "title": "keep",
+          "type": "keep",
+        },
+        "limits": [],
+        "read": "2026-11-18",
+        "recursion": true,
+        "refs": "keep",
+        "rootMustBeObject": false,
+        "source": "https://aistudio.google.com/docs/structured-output",
+      }
+    `);
+  });
+
+  it('pins the mcp table', () => {
+    expect(DIALECTS.get('mcp')).toMatchInlineSnapshot(`
+      {
+        "additionalPropertiesFalseRequired": false,
+        "allRequired": false,
+        "flat": false,
+        "keywords": {
+          "$comment": "keep",
+          "additionalProperties": "keep",
+          "allOf": "keep",
+          "anyOf": "keep",
+          "const": "keep",
+          "contains": "keep",
+          "contentEncoding": "keep",
+          "contentMediaType": "keep",
+          "contentSchema": "keep",
+          "default": "keep",
+          "dependentRequired": "keep",
+          "dependentSchemas": "keep",
+          "deprecated": "keep",
+          "description": "keep",
+          "else": "keep",
+          "enum": "keep",
+          "examples": "keep",
+          "exclusiveMaximum": "keep",
+          "exclusiveMinimum": "keep",
+          "format": "keep",
+          "if": "keep",
+          "items": "keep",
+          "maxContains": "keep",
+          "maxItems": "keep",
+          "maxLength": "keep",
+          "maxProperties": "keep",
+          "maximum": "keep",
+          "minContains": "keep",
+          "minItems": "keep",
+          "minLength": "keep",
+          "minProperties": "keep",
+          "minimum": "keep",
+          "multipleOf": "keep",
+          "not": "keep",
+          "oneOf": "keep",
+          "pattern": "keep",
+          "patternProperties": "keep",
+          "prefixItems": "keep",
+          "properties": "keep",
+          "propertyNames": "keep",
+          "readOnly": "keep",
+          "required": "keep",
+          "then": "keep",
+          "title": "keep",
+          "type": "keep",
+          "unevaluatedItems": "keep",
+          "unevaluatedProperties": "keep",
+          "uniqueItems": "keep",
+          "writeOnly": "keep",
+        },
+        "limits": [],
+        "read": "2026-11-18",
+        "recursion": true,
+        "refs": "keep",
+        "rootMustBeObject": false,
+        "source": "https://modelcontextprotocol.io/specification/2026-07-28/server/tools.md",
+      }
+    `);
+  });
+
+  it('pins the mcp-elicitation table', () => {
+    expect(DIALECTS.get('mcp-elicitation')).toMatchInlineSnapshot(`
+      {
+        "additionalPropertiesFalseRequired": false,
+        "allRequired": false,
+        "flat": true,
+        "formats": [
+          "email",
+          "uri",
+          "date",
+          "date-time",
+        ],
+        "keywords": {
+          "anyOf": "keep",
+          "const": "keep",
+          "default": "keep",
+          "description": "keep",
+          "enum": "keep",
+          "format": "keep",
+          "items": "keep",
+          "maxItems": "keep",
+          "maxLength": "keep",
+          "maximum": "keep",
+          "minItems": "keep",
+          "minLength": "keep",
+          "minimum": "keep",
+          "oneOf": "keep",
+          "properties": "keep",
+          "required": "keep",
+          "title": "keep",
+          "type": "keep",
+        },
+        "limits": [],
+        "read": "2026-11-18",
+        "recursion": false,
+        "refs": "inline",
+        "rootMustBeObject": true,
+        "source": "https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation.md",
+      }
+    `);
+  });
+
+  it('pins the openai table', () => {
+    expect(DIALECTS.get('openai')).toMatchInlineSnapshot(`
+      {
+        "additionalPropertiesFalseRequired": true,
+        "allRequired": true,
+        "flat": false,
+        "formats": [
+          "date-time",
+          "time",
+          "date",
+          "duration",
+          "email",
+          "hostname",
+          "ipv4",
+          "ipv6",
+          "uuid",
+        ],
+        "keywords": {
+          "additionalProperties": "keep",
+          "anyOf": "keep",
+          "const": "keep",
+          "description": "keep",
+          "enum": "keep",
+          "exclusiveMaximum": "keep",
+          "exclusiveMinimum": "keep",
+          "format": "keep",
+          "items": "keep",
+          "maxItems": "keep",
+          "maximum": "keep",
+          "minItems": "keep",
+          "minimum": "keep",
+          "multipleOf": "keep",
+          "pattern": "keep",
+          "properties": "keep",
+          "required": "keep",
+          "title": "keep",
+          "type": "keep",
+        },
+        "limits": [
+          {
+            "max": 5000,
+            "measure": "properties",
+            "per": "schema",
+          },
+          {
+            "max": 10,
+            "measure": "depth",
+            "per": "schema",
+          },
+          {
+            "max": 1000,
+            "measure": "enum",
+            "per": "schema",
+          },
+        ],
+        "read": "2026-11-18",
+        "recursion": true,
+        "refs": "inline",
+        "rootMustBeObject": true,
+        "source": "https://developers.openai.com/api/docs/guides/structured-outputs#supported-schemas",
+      }
+    `);
+  });
+
+  it('pins the keywords a document carries, and the kind of each', () => {
+    expect([...KEYWORDS]).toMatchInlineSnapshot(`
+      [
+        [
+          "additionalProperties",
+          "schema",
+        ],
+        [
+          "propertyNames",
+          "schema",
+        ],
+        [
+          "items",
+          "schema",
+        ],
+        [
+          "contains",
+          "schema",
+        ],
+        [
+          "not",
+          "schema",
+        ],
+        [
+          "if",
+          "schema",
+        ],
+        [
+          "then",
+          "schema",
+        ],
+        [
+          "else",
+          "schema",
+        ],
+        [
+          "unevaluatedItems",
+          "schema",
+        ],
+        [
+          "unevaluatedProperties",
+          "schema",
+        ],
+        [
+          "contentSchema",
+          "schema",
+        ],
+        [
+          "allOf",
+          "list",
+        ],
+        [
+          "anyOf",
+          "list",
+        ],
+        [
+          "oneOf",
+          "list",
+        ],
+        [
+          "prefixItems",
+          "list",
+        ],
+        [
+          "properties",
+          "map",
+        ],
+        [
+          "patternProperties",
+          "map",
+        ],
+        [
+          "dependentSchemas",
+          "map",
+        ],
+        [
+          "type",
+          "data",
+        ],
+        [
+          "enum",
+          "data",
+        ],
+        [
+          "const",
+          "data",
+        ],
+        [
+          "required",
+          "data",
+        ],
+        [
+          "multipleOf",
+          "data",
+        ],
+        [
+          "maximum",
+          "data",
+        ],
+        [
+          "exclusiveMaximum",
+          "data",
+        ],
+        [
+          "minimum",
+          "data",
+        ],
+        [
+          "exclusiveMinimum",
+          "data",
+        ],
+        [
+          "maxLength",
+          "data",
+        ],
+        [
+          "minLength",
+          "data",
+        ],
+        [
+          "pattern",
+          "data",
+        ],
+        [
+          "maxItems",
+          "data",
+        ],
+        [
+          "minItems",
+          "data",
+        ],
+        [
+          "uniqueItems",
+          "data",
+        ],
+        [
+          "maxContains",
+          "data",
+        ],
+        [
+          "minContains",
+          "data",
+        ],
+        [
+          "maxProperties",
+          "data",
+        ],
+        [
+          "minProperties",
+          "data",
+        ],
+        [
+          "dependentRequired",
+          "data",
+        ],
+        [
+          "format",
+          "data",
+        ],
+        [
+          "contentEncoding",
+          "data",
+        ],
+        [
+          "contentMediaType",
+          "data",
+        ],
+        [
+          "title",
+          "data",
+        ],
+        [
+          "description",
+          "data",
+        ],
+        [
+          "default",
+          "data",
+        ],
+        [
+          "deprecated",
+          "data",
+        ],
+        [
+          "readOnly",
+          "data",
+        ],
+        [
+          "writeOnly",
+          "data",
+        ],
+        [
+          "examples",
+          "data",
+        ],
+        [
+          "$comment",
+          "data",
+        ],
+      ]
+    `);
   });
 
   it('cites the provider page and the date it was read', () => {

@@ -80,6 +80,7 @@ export const generateSchemas = (contract: Contract, options: Options = {}): Gene
   }
   const rechecks: Code[] = [];
   const checked: GeneratedSymbol[] = [];
+  // Stryker disable next-line ArrayDeclaration: equivalent, an entry that is no schema measures zero against every limit
   const narrowed: { label: string; at: string; schema: Document }[] = [];
   // A payload that says nothing is sent (`false`) is no schema to give a model.
   for (const { name: label, operation, payload } of named.filter((entry) => entry.payload.schema !== false)) {
@@ -118,7 +119,7 @@ const document = {
       post: {
         operationId: 'createPet',
         requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/Pet' } } } },
-        responses: { '201': { description: 'Created' } },
+        responses: { '201': {} },
       },
     },
   },
