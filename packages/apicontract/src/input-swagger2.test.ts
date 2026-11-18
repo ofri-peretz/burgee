@@ -12,6 +12,8 @@ const FIXTURES = new URL('__fixtures__/inputs/swagger2/', import.meta.url);
 const REFERENCED = /petstore-separate\/(?:common\/|spec\/(?:NewPet|Pet|parameters)\.yaml)/;
 
 const fixtures: { file: string; document: Record<string, unknown> }[] = (readdirSync(FIXTURES, { recursive: true }) as string[])
+  // Windows separates with `\\`; the patterns below are written with `/`.
+  .map((file) => file.replaceAll('\\', '/'))
   .filter((file) => /\.(?:ya?ml|json)$/.test(file) && !REFERENCED.test(file))
   .toSorted()
   .map((file) => {

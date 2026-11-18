@@ -9,6 +9,8 @@ const FIXTURES = new URL('__fixtures__/inputs/asyncapi/', import.meta.url);
 
 /** Every document in `asyncapi/spec/examples` at v2.6.0 and v3.0.0; `common/` holds what they reference. */
 const fixtures: { file: string; document: Record<string, unknown> }[] = (readdirSync(FIXTURES, { recursive: true }) as string[])
+  // Windows separates with `\\`; the patterns below are written with `/`.
+  .map((file) => file.replaceAll('\\', '/'))
   .filter((file) => /\.ya?ml$/.test(file) && !file.includes('common'))
   .toSorted()
   .map((file) => ({ file, document: parse(readFileSync(new URL(file, FIXTURES), 'utf8')) as Record<string, unknown> }));
