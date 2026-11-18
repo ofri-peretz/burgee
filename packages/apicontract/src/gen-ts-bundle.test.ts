@@ -172,9 +172,10 @@ describe('bundle', () => {
     writeFileSync(join(root, 'other.yaml'), 'A:\n  type: boolean\n');
     const document = {
       openapi: '3.1.0',
-      components: { schemas: { A: { $ref: './other.yaml#/A' }, Other: { $ref: './part.yaml#/A' }, C: { $ref: './part.yaml#/Other' } } },
+      components: { schemas: { Other: { $ref: './part.yaml#/A' }, A: { $ref: './other.yaml#/A' }, C: { $ref: './part.yaml#/Other' } } },
     };
-    // `Other` names part.yaml#/A, not other.yaml#/A; `C` names part.yaml#/Other, not part.yaml#/A.
+    // `Other` is read before `A` is replaced: `A` names other.yaml#/A, not part.yaml#/A. `C`'s
+    // first choice, `Other`, names part.yaml#/A, not part.yaml#/Other.
     expect((bundle(document, join(root, 'openapi.yaml')) as { components: unknown }).components).toEqual({
       schemas: {
         A: { type: 'boolean' },
