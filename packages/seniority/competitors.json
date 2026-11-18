@@ -84,7 +84,7 @@
           "mergeAll",
           "metaSearchPlaces"
         ],
-        "measured": "2026-11-06"
+        "measured": "2026-11-18"
       }
     }
   ],
@@ -122,7 +122,7 @@
           "parse",
           "populate"
         ],
-        "measured": "2026-11-12"
+        "measured": "2026-11-18"
       }
     }
   ],
@@ -159,7 +159,7 @@
           "lilconfig",
           "lilconfigSync"
         ],
-        "measured": "2026-11-12"
+        "measured": "2026-11-18"
       }
     }
   ],
@@ -189,7 +189,7 @@
           "test/test.js": "1e277a1cdda596747a7d3d7d7995b43eb104901ce9f0ecf234dc6e625e2ebe6b"
         },
         "exports": [],
-        "measured": "2026-11-06"
+        "measured": "2026-11-18"
       }
     }
   ],
@@ -223,7 +223,7 @@
           "findUpStop",
           "findUpSync"
         ],
-        "measured": "2026-11-06"
+        "measured": "2026-11-18"
       }
     }
   ]
