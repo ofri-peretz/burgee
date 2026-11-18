@@ -43,6 +43,8 @@ describe('synthesise', () => {
   it('fills the required properties only, merges allOf, takes the first oneOf or anyOf, and ends a recursion in null', () => {
     expect(make({ properties: { a: { type: 'string' }, b: { type: 'boolean' } }, required: ['b'] })).toEqual({ b: true });
     expect(make({ type: 'object' })).toEqual({});
+    expect(make({ properties: { 'Stryker was here': { type: 'string' } } })).toStrictEqual({});
+    expect(make({ allOf: [{ type: 'array', items: { type: 'integer' } }, { required: ['a'], properties: { a: { const: 1 } } }] })).toStrictEqual({ a: 1 });
     expect(make({ allOf: [{ type: 'object', required: ['a'], properties: { a: { type: 'integer' } } }, { type: 'string' }, { required: ['b'], properties: { b: { const: 2 } } }] })).toEqual({ a: 1, b: 2 });
     expect(make({ oneOf: [{ type: 'boolean' }, { type: 'string' }] })).toBe(true);
     expect(make({ anyOf: [{ type: 'string' }] })).toBe('example');

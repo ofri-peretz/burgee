@@ -110,6 +110,43 @@ describe('baseFile', () => {
   });
 });
 
+describe('baseFile, per method and part', () => {
+  it('decorates PUT and OPTIONS, and imports only the decorators it uses', () => {
+    const text = baseFile(controller({ '/a': { put: { operationId: 'a', responses: {} }, options: { operationId: 'b', responses: {} } } }), IMPORTS);
+    expect(text.split('\n')[0]).toBe("import { Options, Put, Res } from '@nestjs/common';");
+    expect(text).toContain('  @Put("/a")\n');
+    expect(text).toContain('  @Options("/a")\n');
+  });
+
+  it('reads query parameters under their own names, and imports Query without Param', () => {
+    const text = baseFile(
+      controller({
+        '/a': {
+          get: {
+            operationId: 'a',
+            parameters: [
+              { name: 'page-size', in: 'query', schema: { type: 'integer' }, example: 1 },
+              { name: 'q', in: 'query', example: 'x' },
+            ],
+            responses: {},
+          },
+        },
+      }),
+      IMPORTS,
+    );
+    expect(text.split('\n')[0]).toBe("import { Get, Query, Res } from '@nestjs/common';");
+    expect(text).toContain('      query: { "page-size": coerce(query["page-size"], "number"), "q": coerce(query["q"], "string") },\n');
+  });
+
+  it('imports the validators when any one route checks something', () => {
+    const text = baseFile(
+      controller({ '/a': { post: { operationId: 'a', requestBody: { content: { 'application/json': { example: 1 } } }, responses: {} }, get: { operationId: 'b', responses: {} } } }),
+      IMPORTS,
+    );
+    expect(text).toContain('import { operations as validators } from "./validators.js";\n');
+  });
+});
+
 describe('controllerFile and moduleFile', () => {
   const pets = controller({
     '/pets': {

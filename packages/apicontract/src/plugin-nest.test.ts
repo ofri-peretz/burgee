@@ -39,6 +39,10 @@ describe('the nest plugin', () => {
     );
   });
 
+  it('samples the document the golden files were written from', () => {
+    expect(SAMPLE_DOCUMENT).toStrictEqual(JSON.parse(readFileSync(new URL('__fixtures__/servers/nest/sample/openapi.json', import.meta.url), 'utf8')));
+  });
+
   it('produces exactly its sample, on every run', async () => {
     expect(await checkPlugin(plugin)).toEqual([]);
     expect(plugin.generators?.nest?.sample.document).toBe(SAMPLE_DOCUMENT);

@@ -56,7 +56,9 @@ export const run = (contract: Contract, options: Options): GeneratorResult => {
       ...controller.routes.map((route): GeneratedFile => ({ path: `${route.name}.contract.test.ts`, owner: 'generated', content: contractTest(route, checked, checked.testRunner) })),
     ]),
   ];
-  return { files: files.toSorted((a, b) => (a.path < b.path ? -1 : 1)), findings };
+  // Sorted by UTF-16 code unit, the default sort, so every machine and locale agrees.
+  const byPath = new Map(files.map((file) => [file.path, file]));
+  return { files: [...byPath.keys()].toSorted().map((key) => byPath.get(key) as GeneratedFile), findings };
 };
 
 /** The sample (R7): a GET with a path parameter, a POST with a body and two responses, and a GET without an `operationId`. */

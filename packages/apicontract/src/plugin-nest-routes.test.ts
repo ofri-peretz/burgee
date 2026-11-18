@@ -21,6 +21,8 @@ describe('naming', () => {
     expect(fallbackName('post', '/stores/{store-id}/pets')).toBe('postStoresByStoreIdPets');
     expect(fallbackName('get', '/')).toBe('get');
     expect(fallbackName('get', '/{}x')).toBe('getX');
+    expect(fallbackName('get', '/a{b}')).toBe('getAB');
+    expect(fallbackName('get', '/{b}c')).toBe('getBC');
   });
 
   it('suffixes a taken name, ignoring case, and takes what it returns', () => {
@@ -36,6 +38,7 @@ describe('naming', () => {
     expect(kebab('!!')).toBe('default');
     expect(classOf('pet-store')).toBe('PetStore');
     expect(classOf('2fa')).toBe('_2fa');
+    expect(classOf('pets-v2')).toBe('PetsV2');
   });
 
   it('stubs the first 2xx, else the first response', () => {
@@ -238,6 +241,26 @@ describe('routesOf', () => {
         ],
       ],
     ]);
+  });
+
+  it('prefers application/json to a media type declared before it, and leaves a route without a body without one', () => {
+    const { controllers } = routes({
+      '/a': {
+        post: { operationId: 'a', requestBody: { content: { 'text/plain': { example: 't' }, 'application/json': { example: 1 } } }, responses: {} },
+        get: { operationId: 'b', responses: {} },
+      },
+    });
+    const [post, get] = controllers[0]?.routes ?? [];
+    expect(post?.body?.media).toBe('application/json');
+    expect(get).toStrictEqual({ id: 'b', method: 'get', path: '/a', source: '#/paths/~1a/get', name: 'b', handler: 'handleB', params: [], responses: [] });
+  });
+
+  it('stops following a reference that names itself', () => {
+    const { controllers } = routes(
+      { '/a': { get: { operationId: 'a', parameters: [{ $ref: '#/components/parameters/Loop' }, { name: 'q', in: 'query', example: 1 }], responses: {} } } },
+      { components: { parameters: { Loop: { $ref: '#/components/parameters/Loop' } } } },
+    );
+    expect(controllers[0]?.routes[0]?.params.map((param) => param.name)).toEqual(['q']);
   });
 
   it('decodes the path from the pointer', () => {

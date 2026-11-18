@@ -43,10 +43,13 @@ export const routePath = (path: string): string =>
     .map((piece, index) => (index % 2 === 1 ? `:${segmentName(piece.slice(1, -1))}` : piece.replaceAll(/[()[\]?+!*:]/gu, '\\$&')))
     .join('');
 
+/** Whether a response key is a status code, not a range (`4XX`) or `default`. */
+const isCode = (status: string): boolean => !Number.isNaN(Number(status));
+
 /** The status as the union member's type: a code is itself, a range or `default` is any number. */
-const statusType = (status: string): string => (/^\d+$/u.test(status) ? status : 'number');
+const statusType = (status: string): string => (isCode(status) ? status : 'number');
 /** The status as the `types` target indexes it. */
-const statusKey = (status: string): string => (/^\d+$/u.test(status) ? status : literal(status));
+const statusKey = (status: string): string => (isCode(status) ? status : literal(status));
 
 const where = (route: Route): string => `${route.method.toUpperCase()} ${commented(route.path)}`;
 
@@ -166,7 +169,7 @@ export const stubResponse = (route: Route): string => {
   const response = route.responses.find((candidate) => candidate.status === wanted);
   if (response === undefined) return 'throw new Error("not implemented");';
   const first = response.status === 'default' ? '2' : response.status.charAt(0);
-  const status = /^\d+$/u.test(response.status) ? response.status : `${first}00`;
+  const status = isCode(response.status) ? response.status : `${first}00`;
   return `return { status: ${status}${response.content === undefined ? '' : `, body: ${literal(response.content.example)}`} };`;
 };
 

@@ -34,6 +34,8 @@ describe('exampleUrl', () => {
     });
     expect(exampleUrl(route)).toBe('/a/x%20y/b/2?tags=p&tags=q&filter=%7B%22k%22%3A1%7D');
     expect(exampleUrl(only({ '/a': { get: { operationId: 'a', responses: {} } } }))).toBe('/a');
+    // Only a path parameter fills a template, even when a query parameter has its name.
+    expect(exampleUrl(only({ '/a/{x}': { get: { operationId: 'a', parameters: [{ name: 'x', in: 'query', example: 'q' }], responses: {} } } }))).toBe('/a/{x}?x=q');
   });
 });
 

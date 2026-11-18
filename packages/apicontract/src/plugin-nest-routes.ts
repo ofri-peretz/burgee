@@ -82,12 +82,14 @@ export interface Controller {
 
 type Dict = Readonly<Record<string, unknown>>;
 
-const isDict = (value: unknown): value is Dict => typeof value === 'object' && value !== null && !Array.isArray(value);
+// An array read as a record has no member this file reads, so it needs no separate case.
+const isDict = (value: unknown): value is Dict => typeof value === 'object' && value !== null;
 const dict = (value: unknown): Dict => (isDict(value) ? value : {});
 
 const finding = (code: string, pointer: string, message: string, fix: string): ContractFinding => ({ code, pointer, message, fix });
 
 /** Words of letters and digits. */
+// Stryker disable next-line Regex: equivalent, splitting on each character instead of each run only adds empty words, which are filtered
 const words = (text: string): string[] => text.split(/[^A-Za-z0-9]+/u).filter((word) => word !== '');
 const upper = (word: string): string => `${word.charAt(0).toUpperCase()}${word.slice(1)}`;
 const lower = (word: string): string => `${word.charAt(0).toLowerCase()}${word.slice(1)}`;
@@ -148,17 +150,17 @@ export const kindOf = (schema: JsonSchema, deref: (value: unknown) => Dict): Kin
   return type === 'boolean' ? 'boolean' : 'string';
 };
 
-/** A payload name's parts: `response:200:application/json` is `response`, `200`, `application/json`. */
-const partsOf = (name: string): [string, string, string] => {
-  const [prefix = '', second = '', ...rest] = name.split(':');
-  return [prefix, second, rest.join(':')];
+/** A payload name's parts after its kind: `response:200:application/json` is `200`, `application/json`. Every payload name has a kind and a second part. */
+const partsOf = (name: string): [string, string] => {
+  const parts = name.split(':');
+  return [parts[1] as string, parts.slice(2).join(':')];
 };
 
 /** The payloads one body or one response carries, one per media type, with `:item` streams left out. */
 const media = (payloads: readonly Payload[]): Payload[] => payloads.filter((payload) => !payload.name.endsWith(':item'));
 
 /** A body's or a response's media type: what follows `body:` or `response:<status>:`. */
-const mediaOf = (name: string): string => (name.startsWith('body:') ? name.slice('body:'.length) : partsOf(name)[2]);
+const mediaOf = (name: string): string => (name.startsWith('body:') ? name.slice('body:'.length) : partsOf(name)[1]);
 
 /** JSON when it is there, else the first; and the ones left out. */
 const pick = (payloads: readonly Payload[]): { chosen: Payload; dropped: Payload[] } => {
@@ -167,7 +169,7 @@ const pick = (payloads: readonly Payload[]): { chosen: Payload; dropped: Payload
 };
 
 interface Built {
-  readonly route: Route;
+  readonly route: Omit<Route, 'handler'>;
   readonly tag: string;
 }
 
@@ -198,14 +200,15 @@ export const routesOf = (contract: Contract): { controllers: Controller[]; findi
   /** The path, query and header parameters; a cookie is reported, not passed on. */
   const paramsOf = (operation: Operation, declared: Dict, shared: unknown): Param[] => {
     const declaredParams = new Map<string, Dict>();
-    for (const entry of [...(Array.isArray(shared) ? shared : []), ...(Array.isArray(declared.parameters) ? declared.parameters : [])]) {
+    // A missing list is `undefined` in the flattened list, which reads as an empty parameter.
+    for (const entry of [shared, declared.parameters].flat()) {
       const parameter = deref(entry);
       declaredParams.set(`param:${String(parameter.in)}:${String(parameter.name)}`, parameter);
     }
     return operation.payloads
       .filter((candidate) => candidate.name.startsWith('param:'))
       .flatMap((payload): Param[] => {
-        const [, part, paramName] = partsOf(payload.name);
+        const [part, paramName] = partsOf(payload.name);
         if (part !== 'path' && part !== 'query' && part !== 'header') {
           findings.push(finding('server-parameter-skipped', operation.source, `\`${operation.id}\` reads ${part} parameter "${paramName}", which the generated route does not pass on`, 'read it from the request in your controller'));
           return [];
@@ -243,15 +246,17 @@ export const routesOf = (contract: Contract): { controllers: Controller[]; findi
   };
 
   const build = (operation: Operation): Built | undefined => {
+    // The OpenAPI reader writes a route's source as `#/paths/<token>/<method>`, and anything else longer or elsewhere.
+    // Stryker disable next-line Regex: equivalent, a source without `#/paths/` at its start or with more after the method has no method NestJS routes
     const match = /^#\/paths\/([^/]+)\/([a-z]+)$/u.exec(operation.source);
-    const method = match?.[2] ?? '';
-    if (match === null || !METHODS.has(method)) {
+    if (match === null || !METHODS.has(match[2] as string)) {
       findings.push(
         finding('server-operation-skipped', operation.source, `\`${operation.id}\` is not a route NestJS declares (a webhook, or a method it has no decorator for)`, 'serve it outside the generated controllers'),
       );
       return undefined;
     }
     const token = match[1] as string;
+    const method = match[2] as string;
     const path = token.replaceAll('~1', '/').replaceAll('~0', '~');
     const declared = deref(pointerGet(document, operation.source));
     const name = unique(typeof declared.operationId === 'string' ? camel(declared.operationId) : fallbackName(method, path), taken);
@@ -262,7 +267,7 @@ export const routesOf = (contract: Contract): { controllers: Controller[]; findi
       );
     }
     const body = bodyOf(operation, declared);
-    const statuses = [...new Set(operation.payloads.filter((payload) => payload.name.startsWith('response:')).map((payload) => partsOf(payload.name)[1]))];
+    const statuses = [...new Set(operation.payloads.filter((payload) => payload.name.startsWith('response:')).map((payload) => partsOf(payload.name)[0]))];
     const responses = responsesOf(operation, declared, statuses);
     if ((params.length > 0 || body !== undefined) && !statuses.some((status) => PROBLEM_STATUSES.has(status))) {
       findings.push(
@@ -270,7 +275,7 @@ export const routesOf = (contract: Contract): { controllers: Controller[]; findi
       );
     }
     const tags = Array.isArray(declared.tags) ? declared.tags : [];
-    const route: Route = { id: operation.id, method, path, source: operation.source, name, handler: '', params, ...(body === undefined ? {} : { body }), responses };
+    const route = { id: operation.id, method, path, source: operation.source, name, params, ...(body === undefined ? {} : { body }), responses };
     return { route, tag: kebab(typeof tags[0] === 'string' ? tags[0] : '') };
   };
 
