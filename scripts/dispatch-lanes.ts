@@ -30,8 +30,9 @@ const PLAN_MD = readFileSync(resolve(ROOT, '.sdlc/PLAN.md'), 'utf-8');
  * twelve vendored suites and the whole of 4.2 and 4.3.
  */
 function steps(lane: Lane): { id: string; what: string; fan: boolean }[] {
-  const packageLane = lane.owns.some((o) => o.startsWith('packages/')) && lane.name !== 'harness' && lane.name !== 'integrator';
-  return [...LANES_MD.matchAll(/^\| (\d[\w.–-]*) ([^|]+)\|\s*(\w+)\s*\| ([\w*]+)/gm)]
+  // A lane that owns a whole package does the fan steps; the `ac-*` lanes own folders inside one and do not.
+  const packageLane = lane.owns.some((o) => /^packages\/[^/]+\/\*\*$/.test(o)) && lane.name !== 'harness' && lane.name !== 'integrator';
+  return [...LANES_MD.matchAll(/^\| (\d[\w.–-]*) ([^|]+)\|\s*(\w+)\s*\| ([\w*-]+)/gm)]
     .filter((m) => (m[4] as string).replaceAll('*', '') === lane.name || (packageLane && m[3] === 'fan'))
     .map((m) => ({ id: m[1] as string, what: (m[2] as string).trim(), fan: m[3] === 'fan' }));
 }

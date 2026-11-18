@@ -1,7 +1,7 @@
 # Vision — what `apicontract` and the validator can become
 
 Intent: [`intent.md`](./intent.md) · Roadmap: [`roadmap.md`](./roadmap.md) · Validator:
-[`../validator/intent.md`](../validator/intent.md) · **Status:** proposal, 2026-11-13, not accepted.
+[`../validator/intent.md`](../validator/intent.md) · **Status:** accepted 2026-11-18 ([`D-20261118-contracts-program-go-ahead`](../../decisions/D-20261118-contracts-program-go-ahead.md)); proposed 2026-11-13; the field re-read 2026-11-18 in [`../../research/contracts-2026-11/`](../../research/contracts-2026-11/) · Program: [`program.md`](./program.md)
 
 This file is the argument. The roadmap is the order of work. Nothing here is a claim for a README:
 every "we win" below is a bet until its row in [`metrics.md`](./metrics.md) is measured and won
@@ -138,14 +138,104 @@ catalogue is not limited by maintainers, and a team's private conventions are se
 | The validator cannot beat ajv on throughput ahead of time, or Zod on type-check cost | It ships as the generated target only, with the losing rows published, and Zod stays the authoring answer for users who want it |
 | A second input format needs a core change | The model is wrong. Stop adding generators and fix it |
 
-## What the owner is asked to decide
+## The field moved, 2026-11-18
 
-1. Is this the vision? If yes, it becomes the accepted positioning and the intent's first section
-   points here.
-2. The roadmap adds capabilities that were not in the 2026-11-12 order: provider dialects for
-   JSON Schema, a typed client for MCP tools, a Markdown reference, `bundle` and `convert`, a
-   data-layer wave, a Zod codemod. Each is marked **new** there. Accept, cut or reorder.
-3. Decided 2026-11-13: MSW handlers and `gen mcp`, which a 2026-11-06 rejection excluded, are
-   reopened as generators ([`D-20261113-apicontract-mocks-and-mcp-generation`](../../decisions/D-20261113-apicontract-mocks-and-mcp-generation.md)).
-   Publishable SDK generation stays rejected.
-4. Still open from before: accept the design (R-PL), and confirm "beat them both" means Zod and ajv.
+Read that day; every number and link is in [`../../research/contracts-2026-11/`](../../research/contracts-2026-11/).
+Downloads inflated across npm in the last year (zod 8.4×, typescript 4.2× year on year), so the
+research compares growth against those controls, not raw counts.
+
+| What happened | What it opens |
+| :-- | :-- |
+| **Hey API stalled.** Last stable 0.99.0 on 2026-06-22, last commit 2026-09-30, 561 open issues, one maintainer, "fund this feature" added to every issue template on 2026-08-24. Still the download leader among full generators (7.7M weekly) | Its users' top requests are targets, not core: MSW 372 👍, Effect client 180, Hono 154, Faker 129, SWR 119, Express 60, case transforms 55. Every one is a plugin on one model |
+| **openapi-fetch and the openapi-ts clients went into maintenance** on 2025-12-29; openapi-typescript last released 2026-02-11 and crashes on TypeScript 7 | 17.3M + 18.2M weekly with no active owner. Byte-identical output plus a codemod is a one-line switch |
+| **Stainless was acquired by Anthropic** (2026-05-18) and closed to new signups; **Fern went to Postman** (2026-01-08); **Speakeasy open-sourced its generator under AGPL-3.0** (2026-09-17) | The paid SDK generators are being absorbed or going copyleft. An MIT, zero-dependency generator with regeneration safety is now a gap, not a crowded niche |
+| **Orval and Kubb ship MCP generation, agent skills and `AGENTS.md`.** Kubb's contributors include `claude` (1,009 commits) and Copilot (756); it releases daily | Agent-assisted maintenance is table stakes for velocity. What nobody has is a plugin format an agent can write *and a suite that grades it*, so outside agents add targets safely |
+| **MCP SDK v2 takes Standard Schema and Standard JSON Schema** for tool schemas and swaps its validator; **TypeScript 7** has no compiler API; **OpenAPI 3.2** is fully read only by Kubb; Overlay 1.2 and Arazzo 1.1 are unclaimed by TypeScript generators | Our validator plugs into every MCP server; extraction must not depend on the compiler API; 3.2 and Overlay are cheap leads |
+| **ts-rest is archived** (967k weekly) and the original `trpc-openapi` abandoned; every no-run extractor loses schema *values* because it reads *types* | Extraction through Standard JSON Schema keeps the values; ts-rest users need a way out |
+
+## How we become the best open-source project in contracts
+
+"Best" is not a feeling. It is six things a person can check, each with a number in
+[`metrics.md`](./metrics.md) or a row added by the program's intents.
+
+### 1. Correct on real contracts, and it says so in public
+
+No incumbent publishes a pass rate on real specs; their trackers are full of "crashes on spec X". We
+run every generator over a pinned corpus of 2,000+ public OpenAPI documents, the AsyncAPI examples,
+ten MCP servers and SchemaStore, beside openapi-typescript, Hey API, orval and kubb, and publish the
+table nightly with the losing rows ([`apicontract-corpus`](../apicontract-corpus/intent.md)). This is
+the claim every other claim stands on, and it is the regression net that lets ten lanes move at once.
+
+### 2. A drop-in exit from every stalled tool
+
+Each of these gets byte-compatible output where that is possible, a codemod for config and imports,
+and a migration guide graded on the incumbent's own fixtures (PRINCIPLES rule 3):
+
+| From | Weekly | State | Our route |
+| :-- | --: | :-- | :-- |
+| openapi-typescript | 17.3M | last release 2026-02-11, TS 7 crash | `--compat openapi-typescript`, 61/61 upstream cases ([`apicontract-types`](../apicontract-types/intent.md)) |
+| openapi-fetch | 18.2M | maintenance since 2025-12-29 | the `fetch` client with an openapi-fetch-shaped `createClient` ([`apicontract-clients`](../apicontract-clients/intent.md)) |
+| @hey-api/openapi-ts | 7.7M | stalled since 2026-06-22 | `apicontract migrate hey-api` reads `openapi-ts.config.*` and writes ours, plugin by plugin |
+| ts-rest | 1.0M | archived | `extract --from ts-rest`, then `gen` the server and client ([`apicontract-extract`](../apicontract-extract/intent.md)) |
+| openapi-zod-client | 0.3M | no release since 2025-02-10 | `gen validator`, and `--dialect` when the reason was Zod-for-LLMs |
+| Stainless | — | closed to new signups | regeneration-safe servers and clients from the spec they already have; we do not rebuild the hosted SDK pipeline (rejected 2026-11-06, stands) |
+
+### 3. One model, so the outputs cannot disagree, in both directions
+
+Unchanged from above, and now the sharpest contrast: orval ships many targets from one parser but
+no server, no extraction and no diff; kubb has adapters and plugins but extracts nothing; Hey API
+has a plugin per target and is not shipping. Types, validators, servers, clients, mocks, MCP tools,
+docs and diffs from one parse, and the spec back from code, round trip proven per plugin.
+
+### 4. Regeneration never touches your code
+
+What Stainless and Speakeasy sold, and what no open-source generator does well: generated files
+are rewritten, user files are written once, a hand edit in a generated file is refused, never lost
+(N1 = 0, [`apicontract-gen-command`](../apicontract-gen-command/intent.md)). Former Stainless
+customers who can no longer regenerate are the first audience to tell.
+
+### 5. Agents extend it, and a suite grades what they write
+
+Kubb proves agents can maintain a generator. We go one step further: a plugin is data plus one
+function, the conformance suite grades any plugin (round trip, regeneration, determinism, coverage,
+consumer type-check), and `apicontract plugin new` scaffolds one. So a team's agent writes the
+generator for its own error envelope or auth wrapper in one turn (X3), and a stranger's agent can
+add the Zustand target Hey API's users have asked for since 2024 without a maintainer reading every
+line. The top unmet target requests become a public board of plugin issues with the suite as the
+acceptance test.
+
+### 6. The agent era is first-class, not a plugin
+
+`gen mcp` hands the MCP SDK precompiled validators; `--dialect` narrows a schema for each model
+provider and re-checks the answer against the full schema locally; `explain` and `gen markdown`
+(with `llms.txt`) give agents one operation, not a 2 MB document; every command is an MCP tool and a
+skill through burgee ([`apicontract-agents`](../apicontract-agents/intent.md),
+[`apicontract-gen-validator`](../apicontract-gen-validator/intent.md)).
+
+### How the community grows, measured
+
+| Lever | What we do | Measured by |
+| :-- | :-- | :-- |
+| Licence | MIT, zero runtime dependencies outside the family (G4) | stated; checked by `dependency-claim-lock` |
+| Cadence | Release on merge (no window since 2026-10-27); upstream tracked within 7 days | Q4 ≤ 14 days, Q5 ≤ 7 days |
+| Triage | Every issue answered within 48 hours with either a fix plan or a `fix:` line; requests ranked by 👍 like this document ranks theirs | median first response, published |
+| Contribution path | Every target request becomes a plugin issue with the conformance suite as its acceptance test, labelled for agents and people | X4, third-party plugins passing |
+| Agent distribution | `AGENTS.md`, a Claude Code plugin with skills, `--mcp` on the CLI, `llms.txt` on the docs | X3 weekly; installs of the plugin |
+| Proof | The corpus scoreboard and every incumbent's own suite, published with the losing rows | the scoreboard page exists and is current |
+
+## Where it is *not* a game changer, re-read
+
+The 2026-11-13 list stands, with two changes: **performance is not what users ask for** (no
+top-voted issue on Hey API, orval or kubb is about speed), so G2 and R2 stay measured but never lead
+a launch post; and **breadth alone is not a moat** (orval already ships most targets), so a target
+counts only when it passes the shared definition of done in [`program.md`](./program.md).
+
+## What would prove this wrong, re-read
+
+The 2026-11-13 table stands. Added:
+
+| If we see | Then |
+| :-- | :-- |
+| Hey API resumes weekly releases and clears its backlog before our first public release | Lead with regeneration safety and extraction, not migration from it |
+| The corpus pass rate of our types target is below openapi-typescript's on the full corpus | The migration claim is withheld until it is not; the number is published either way |
+| Agents writing plugins pass the suite but users report broken output | The suite grades the wrong things; fix the suite before accepting more outside plugins |

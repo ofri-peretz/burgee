@@ -2,7 +2,7 @@
 
 Intent: [`intent.md`](./intent.md) · Design: [`spec.md`](./spec.md) · Metrics:
 [`metrics.md`](./metrics.md) · **Status:** draft, 2026-11-06; reordered around the generators 2026-11-12;
-full catalogue proposed 2026-11-13 with [`vision.md`](./vision.md), rows marked **new** not accepted.
+full catalogue proposed 2026-11-13 with [`vision.md`](./vision.md); every **new** row accepted 2026-11-18 ([`D-20261118-contracts-program-go-ahead`](../../decisions/D-20261118-contracts-program-go-ahead.md)) and cut into parallel lanes in [`program.md`](./program.md).
 
 `apicontract` is a CLI that turns a team's specs into generated code and their code back into specs,
 through plugins (owner,
@@ -49,7 +49,7 @@ a claim about us.
 | :-- | :-: | :-: | :-: | :-: | :-- | :-- |
 | `gen validator` (our own, compiled ahead of time) | ✓ | ✓ | ✓ | 2 | zod 451.0M, ajv 515.9M | accepted |
 | `gen json-schema` (draft 2020-12 or draft-07, runs in the team's own ajv) | ✓ | | | 2 | the OpenAPI → JSON Schema converters, named in Phase 0 | accepted |
-| `gen json-schema --dialect <provider>`: the subset a model provider's tool-call or structured-output mode accepts, with a finding per dropped keyword | ✓ | | ✓ | 2 | zod-to-json-schema 94.5M | **new** |
+| `gen json-schema --dialect <provider>`: the subset a model provider's tool-call or structured-output mode accepts, with a finding per dropped keyword | ✓ | | ✓ | 2 | zod-to-json-schema 94.5M | accepted 2026-11-18 |
 | `apicontract-zod`: a spec from existing Zod schemas | | ✓ | ✓ | 2 | @asteasolutions/zod-to-openapi 7.6M, zod-to-json-schema 94.5M | accepted; whether any plugin may *emit* Zod is an open owner question, default no |
 | Valibot, TypeBox, ArkType through Standard Schema | ✓ | ✓ | ✓ | 8 | valibot 32.0M | accepted |
 
@@ -59,7 +59,7 @@ a claim about us.
 | :-- | :-: | :-: | :-: | :-: | :-- | :-- |
 | NestJS: controllers, WebSocket gateways, microservice handlers, a contract test per operation | ✓ | ✓ | ✓ | 3 | @nestjs/swagger 11.6M (extract only); openapi-generator's NestJS server (beta) | accepted |
 | Hono, Express, Fastify | ✓ | ✓ | ✓ | 4 | @hono/zod-openapi 4.3M, tsoa 0.6M, fastify-openapi-glue | accepted |
-| tRPC, oRPC, ts-rest (code-first: a spec and drift, no generation) | | ✓ | ✓ | 4 | @trpc/server 7.8M, @ts-rest/core 1.0M | accepted (ts-rest **new**) |
+| tRPC, oRPC, ts-rest (code-first: a spec and drift, no generation) | | ✓ | ✓ | 4 | @trpc/server 7.8M, @ts-rest/core 1.0M | accepted; ts-rest 2026-11-18 (archived upstream, a way out) |
 
 ### Clients
 
@@ -74,10 +74,10 @@ a claim about us.
 | :-- | :-: | :-: | :-: | :-: | :-- | :-- |
 | Every command as an MCP tool (`--mcp`), `--json`, `--schema` | | | | 1 | none; it comes from burgee | accepted |
 | `explain`: one operation, resolved and size-capped | | | | 5 | reading the raw spec | accepted |
-| Markdown reference per operation (the `explain` output written to files) | ✓ | | | 5 | none read yet | **new** |
+| Markdown reference per operation (the `explain` output written to files) | ✓ | | | 5 | none read yet | accepted 2026-11-18 |
 | `gen mcp`: an MCP server from a spec, handlers user-owned | ✓ | | | 4 | none leading; @modelcontextprotocol/sdk 87.5M is the runtime | accepted 2026-11-13 (was Phase 6, was rejected); see below |
 | MCP `tools/list`, live or snapshot: extract, `diff`, drift | | ✓ | ✓ | 6 | mcpdiff, mcp-lint | accepted |
-| A typed client for an MCP server's tools | ✓ | | ✓ | 6 | none read yet | **new** |
+| A typed client for an MCP server's tools | ✓ | | ✓ | 6 | none read yet | accepted 2026-11-18 |
 
 ### Tests and mocks
 
@@ -94,7 +94,7 @@ a claim about us.
 | socket.io, ws, Kafka and NATS consumers (AsyncAPI) | ✓ | ✓ | ✓ | 8 | @asyncapi/modelina 0.2M | accepted |
 | OpenRPC, CloudEvents/Avro, burgee CLI contracts | ✓ | ✓ | ✓ | 8 | — | accepted |
 | protobuf/gRPC/Connect and GraphQL, through their owners' engines | | | ✓ | 8 | @bufbuild/protoc-gen-es 3.9M, @graphql-codegen/cli 10.1M | accepted; own diff rules decided at Phase 8 |
-| Drizzle and Prisma models → JSON Schema and validators | | ✓ | ✓ | on pull | drizzle-zod 4.6M | **new** |
+| Drizzle and Prisma models → JSON Schema and validators | | ✓ | ✓ | on pull | drizzle-zod 4.6M | accepted 2026-11-18 |
 | FastAPI, Spring, Go | | | ✓ | on pull | their owners' tools, spawned through bellpull | accepted |
 
 ### Spec utilities
@@ -102,10 +102,28 @@ a claim about us.
 | Command | Phase | Incumbent (weekly) | Status |
 | :-- | :-: | :-- | :-- |
 | `gen --check`, dry run and the diff of what would change | 1 | — | accepted (R-PL3) |
-| `bundle`: one file with every `$ref` resolved. Ships only if it is the Phase 1 resolver's output with no new model code | 1 | @redocly/cli 4.2M | **new** |
-| `convert`: Swagger 2.0 and OpenAPI 3.0 → 3.1 | on pull | — | **new** |
-| TypeSpec as an input format | on pull | @typespec/compiler 0.4M | **new** |
+| `bundle`: one file with every `$ref` resolved. Ships only if it is the Phase 1 resolver's output with no new model code | 1 | @redocly/cli 4.2M | accepted 2026-11-18 |
+| `convert`: Swagger 2.0 and OpenAPI 3.0 → 3.1 | on pull | — | accepted 2026-11-18 |
+| TypeSpec as an input format | on pull | @typespec/compiler 0.4M | accepted 2026-11-18 |
 | `lint` | 9 | @stoplight/spectral-cli 2.3M | accepted, only on request |
+
+### Added 2026-11-18, from the field re-read
+
+[`../../research/contracts-2026-11/`](../../research/contracts-2026-11/) holds the evidence for each row.
+
+| Plugin or command | G | E | D | Wave | Why | Lane |
+| :-- | :-: | :-: | :-: | :-: | :-- | :-- |
+| `migrate openapi-typescript`, `openapi-fetch`, `hey-api`, `orval` | | | | B | 17.3M + 18.2M weekly unowned; Hey API stalled since 2026-06-22 | `ac-kit` |
+| `apicontract/testing` conformance suite and `plugin new` | | | | A | R-EX8 had no lane; X3 is the Phase 3 gate | `ac-kit` |
+| Overlay 1.2 applied before reading | | | | D | unclaimed by TypeScript generators | `ac-inputs` |
+| OpenAPI 3.2 (`QUERY`, `querystring`, `itemSchema`, `$self`) | | | | D | only Kubb reads it fully (2026-11-05) | `ac-inputs` |
+| `--dialect` narrows and re-checks (`mcp-elicitation` included) | ✓ | | ✓ | B | no provider accepts full JSON Schema | `ac-validate` |
+| `gen mcp` on our validator through MCP SDK v2's Standard Schema door | ✓ | | | C | SDK v2 takes Standard Schema and swaps its validator | `ac-agents` |
+| RFC 9457 Problem Details in every server target and its spec | ✓ | | | C | the most reported gap in code-first tools | `ac-servers` |
+| `extract --from ts-rest` | | ✓ | ✓ | C | ts-rest archived, 967k weekly | `ac-extract` |
+| SWR client | ✓ | | | D | Hey API #1479, 119 👍 | `ac-clients` |
+| Case transforms, split by tag, dates decoded by codecs | ✓ | | | D | Hey API #558; orval #2535, #1222, #1432 not planned | `ac-types` |
+| The public corpus scoreboard | | | | A–D | no incumbent publishes a pass rate on real specs | `ac-corpus`, integrator |
 
 Exit for every plugin, unchanged: its capabilities graded by the competitor's own fixtures where one
 exists (R-C2), a regeneration test that changes zero user lines, the round trip (R-RT) on its

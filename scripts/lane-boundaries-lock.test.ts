@@ -128,7 +128,7 @@ describe('lane boundaries', () => {
   });
 
   it('names a lane for every row, and only lanes that exist', () => {
-    const named = [...LANES_MD.matchAll(/^\| \d[^|]*\|[^|]*\| ([\w*]+)/gm)].map((m) => m[1] as string);
+    const named = [...LANES_MD.matchAll(/^\| \d[^|]*\|[^|]*\| ([\w*-]+)/gm)].map((m) => m[1] as string);
     expect(named.length, 'every step row names a lane').toBeGreaterThanOrEqual(20);
     // `**owner**` and `**person**` are the two steps no agent may take — 0.3, a repository
     // setting, and 5.3, an adopter. Bolded in the table so they read as the exception.

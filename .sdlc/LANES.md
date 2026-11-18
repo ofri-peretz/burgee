@@ -19,7 +19,17 @@ and `chalk` (wave 0.4, the red ratchet) is roundel's incumbent, not anyone else'
 | `paratext` | `lane/paratext` | `packages/paratext/**`, `.sdlc/intents/paratext/**` | harness 2.0 |
 | `caique` | `lane/caique` | `packages/caique/**`, `.sdlc/intents/caique/**` | harness 2.0 |
 | `seniority` | `lane/seniority` | `packages/seniority/**`, `.sdlc/intents/seniority/**` | harness 2.0 |
-| `apicontract` | `lane/apicontract` | `packages/apicontract/**`, `.sdlc/intents/apicontract/**`, `benchmarks/apicontract/**` | harness 2.0 |
+| `ac-spine` | `lane/ac-spine` | `packages/apicontract/src/gen/**`, `packages/apicontract/src/core/**`, `packages/apicontract/src/cli.ts`, `packages/apicontract/src/cli.test.ts`, `packages/apicontract/src/bin.ts`, `packages/apicontract/src/bin.test.ts`, `packages/apicontract/src/index.ts`, `packages/apicontract/src/host.ts`, `packages/apicontract/src/host.test.ts`, `packages/apicontract/src/commands/index.ts`, `packages/apicontract/src/inputs/index.ts`, `packages/apicontract/src/plugins/index.ts`, `packages/apicontract/package.json`, `packages/apicontract/README.md`, `packages/apicontract/CHANGELOG.md`, `packages/apicontract/tsconfig.json`, `packages/apicontract/tsconfig.build.json`, `packages/apicontract/vitest.config.ts`, `.sdlc/intents/apicontract/**`, `.sdlc/intents/apicontract-gen-command/**` | 6.0 |
+| `ac-types` | `lane/ac-types` | `packages/apicontract/src/gen-ts-*.ts`, `packages/apicontract/src/openapi-typescript.ts`, `packages/apicontract/src/openapi-typescript.test.ts`, `packages/apicontract/src/__fixtures__/**`, `packages/apicontract/src/plugins/types/**`, `.sdlc/intents/apicontract-types/**` | 6.0 |
+| `ac-inputs` | `lane/ac-inputs` | `packages/apicontract/src/openapi.ts`, `packages/apicontract/src/openapi.test.ts`, `packages/apicontract/src/inputs/jsonschema/**`, `packages/apicontract/src/inputs/asyncapi/**`, `packages/apicontract/src/inputs/mcp/**`, `packages/apicontract/src/inputs/swagger2/**`, `packages/apicontract/src/inputs/overlay/**`, `.sdlc/intents/apicontract-inputs/**` | 6.0 |
+| `ac-validate` | `lane/ac-validate` | `packages/apicontract/src/plugins/validator/**`, `packages/apicontract/src/plugins/json-schema/**`, `.sdlc/intents/apicontract-gen-validator/**` | 6.0 |
+| `ac-extract` | `lane/ac-extract` | `packages/apicontract/src/extract/**`, `packages/apicontract/src/plugins/standard-schema/**`, `packages/apicontract/src/plugins/openapi-from-schemas/**`, `packages/apicontract/src/plugins/nest-extract/**`, `packages/apicontract/src/plugins/hono-extract/**`, `packages/apicontract/src/plugins/trpc-extract/**`, `packages/apicontract/src/plugins/ts-rest-extract/**`, `.sdlc/intents/apicontract-extract/**` | 6.0 |
+| `ac-servers` | `lane/ac-servers` | `packages/apicontract/src/plugins/nest/**`, `packages/apicontract/src/plugins/hono/**`, `packages/apicontract/src/plugins/fastify/**`, `packages/apicontract/src/plugins/express/**`, `packages/apicontract/src/plugins/_server/**`, `.sdlc/intents/apicontract-servers/**` | 6.0 |
+| `ac-clients` | `lane/ac-clients` | `packages/apicontract/src/plugins/fetch/**`, `packages/apicontract/src/plugins/tanstack-query/**`, `packages/apicontract/src/plugins/msw/**`, `packages/apicontract/src/plugins/swr/**`, `.sdlc/intents/apicontract-clients/**` | 6.0 |
+| `ac-agents` | `lane/ac-agents` | `packages/apicontract/src/plugins/mcp/**`, `packages/apicontract/src/plugins/markdown/**`, `packages/apicontract/src/commands/explain/**`, `.sdlc/intents/apicontract-agents/**` | 6.0 |
+| `ac-diff` | `lane/ac-diff` | `packages/apicontract/src/diff/**`, `packages/apicontract/src/commands/diff/**`, `.sdlc/intents/apicontract-diff/**` | 6.0 |
+| `ac-kit` | `lane/ac-kit` | `packages/apicontract/src/testing/**`, `packages/apicontract/src/migrate/**`, `packages/apicontract/src/plugins/_scaffold/**`, `packages/apicontract/src/commands/migrate/**`, `packages/apicontract/src/commands/plugin/**`, `packages/apicontract/AGENTS.md`, `.sdlc/intents/apicontract-kit/**` | 6.0 |
+| `ac-corpus` | `lane/ac-corpus` | `benchmarks/apicontract/**`, `.sdlc/intents/apicontract-corpus/**` | — |
 | `validator` | `lane/validator` | `packages/validator/**`, `.sdlc/intents/validator/**`, `benchmarks/validator/**` | harness 2.0 |
 | `closeout` | `lane/closeout` | `packages/closeout/**`, `.sdlc/intents/closeout/**` | harness 2.0 |
 | `bellpull` | `lane/bellpull` | `packages/bellpull/**`, `.sdlc/intents/bellpull/**` | harness 2.0 |
@@ -98,9 +108,25 @@ Three kinds, because three kinds exist:
 | 5.1 `/docs/benchmarks` rows | serial | integrator |
 | 5.2 generated README lock | serial | integrator |
 | 5.3 first-adopter | — | **person**, not an agent |
+| 6.0 shard `packages/apicontract` for the lanes | serial | integrator |
+| 6.1 `gen` and `extract` run for real | own | ac-spine |
+| 6.2 types target closes Phase 1 | own | ac-types |
+| 6.3 input adapters | own | ac-inputs |
+| 6.4 `gen validator` and `gen json-schema` | own | ac-validate |
+| 6.5 extractors and the round trip | own | ac-extract |
+| 6.6 server generators | own | ac-servers |
+| 6.7 clients and MSW | own | ac-clients |
+| 6.8 `gen mcp`, `explain`, `gen markdown` | own | ac-agents |
+| 6.9 `diff` | own | ac-diff |
+| 6.10 conformance suite, scaffold, migrations | own | ac-kit |
+| 6.11 corpus, grader, consumer harness | own | ac-corpus |
+| 6.12 validator parity 143 → 154 and the benchmark | own | validator |
+| 6.13 corpus scoreboard page and nightly workflow | serial | integrator |
 
-Thirty-six steps: 24 `own`, 3 `fan`, 9 `serial`, of which two (0.3, 5.3) are not agent
-work at all.
+Fifty steps: 36 `own`, 3 `fan`, 11 `serial`, of which two (0.3, 5.3) are not agent
+work at all. Wave 6 (6.0–6.13) is the contracts program, cut in
+[`intents/apicontract/program.md`](./intents/apicontract/program.md); its `ac-*` lanes replace the
+single `apicontract` lane, and are disjoint only after 6.0 shards the package.
 
 ## Why the shared files get sharded first
 

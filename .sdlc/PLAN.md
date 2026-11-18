@@ -449,6 +449,31 @@ Three consequences, none of which the draft anticipated:
   the author of those packages. Until that PR exists this step is `manual` in
   `plan-progress.ts`, never ticked by inference.
 
+## Wave 6 — the contracts program
+
+Vision, workstreams and the dependency graph: [`intents/apicontract/program.md`](./intents/apicontract/program.md).
+Each step is one lane and one intent with its design; the intent's `## Success criteria` is the full
+bar, and the "Done when" here is the command a lane runs before it pushes. Every generator and
+extractor also meets the shared definition of done in `program.md`. Accepted by
+[`D-20261118-contracts-program-go-ahead`](./decisions/D-20261118-contracts-program-go-ahead.md);
+nothing here publishes to npm.
+
+- **6.0 Shard `packages/apicontract` for the lanes.** Create `src/inputs/index.ts`, `src/plugins/index.ts` and `src/commands/index.ts`, each importing a stub `index.ts` (exporting `undefined`) in every folder `LANES.md` gives an `ac-*` lane; wildcard subpath exports `./plugins/*`, `./inputs/*`, `./testing`; `validator` as a workspace dependency of `apicontract` (the one lockfile edit, by script); `cli.ts` registers the commands index. Done when: `npx vitest run scripts/lane-boundaries-lock.test.ts` and `npm run typecheck -w apicontract` pass, and every `ac-*` lane brief from `scripts/dispatch-lanes.ts` lists its Wave 6 step with its paragraph.
+- **6.1 `gen` and `extract` run for real** ([`apicontract-gen-command`](./intents/apicontract-gen-command/intent.md)). Done when: `npm test -w apicontract -- src/gen` passes, including the regeneration-safety test (N1 = 0).
+- **6.2 The types target closes Phase 1** ([`apicontract-types`](./intents/apicontract-types/intent.md)): the `types` plugin, 61 / 61 upstream cases, TypeScript 5.9 / 6.0 / 7.0. Done when: `npm test -w apicontract -- src/plugins/types src/gen-ts` passes and the compat-oracle reading for openapi-typescript is 61 / 61.
+- **6.3 Input adapters** ([`apicontract-inputs`](./intents/apicontract-inputs/intent.md)): JSON Schema and MCP first, then AsyncAPI, Swagger 2.0, Overlay, OpenAPI 3.2. Done when: `npm test -w apicontract -- src/inputs src/openapi` passes with 20 real documents per adapter.
+- **6.4 `gen validator` and `gen json-schema`** ([`apicontract-gen-validator`](./intents/apicontract-gen-validator/intent.md)), dialects and the re-check last. Done when: `npm test -w apicontract -- src/plugins/validator src/plugins/json-schema` passes, including the keyword-enumeration test (J3 = 0).
+- **6.5 Extractors and the round trip** ([`apicontract-extract`](./intents/apicontract-extract/intent.md)): Standard JSON Schema first. Done when: `npm test -w apicontract -- src/extract src/plugins/standard-schema` passes with the round trip equal on every fixture.
+- **6.6 Server generators** ([`apicontract-servers`](./intents/apicontract-servers/intent.md)): NestJS first. Done when: `npm test -w apicontract -- src/plugins/nest` passes, including the regeneration test and one contract test per sample operation.
+- **6.7 Clients and MSW** ([`apicontract-clients`](./intents/apicontract-clients/intent.md)). Done when: `npm test -w apicontract -- src/plugins/fetch src/plugins/msw` passes, including the client-against-mock round trip.
+- **6.8 `gen mcp`, `explain`, `gen markdown`** ([`apicontract-agents`](./intents/apicontract-agents/intent.md)): `explain` first. Done when: `npm test -w apicontract -- src/commands/explain src/plugins/mcp src/plugins/markdown` passes and `explain --json` validates against the envelope.
+- **6.9 `diff`** ([`apicontract-diff`](./intents/apicontract-diff/intent.md)): schema compare and classification against `compat.qnt` first. Done when: `npm test -w apicontract -- src/diff src/commands/diff` passes, including the property test over `compat.qnt` traces.
+- **6.10 Conformance suite, scaffold, migrations** ([`apicontract-kit`](./intents/apicontract-kit/intent.md)): the suite first, so other lanes adopt it. Done when: `npm test -w apicontract -- src/testing src/migrate` passes and all seven broken fixture plugins fail the suite.
+- **6.11 Corpus, grader, consumer harness** ([`apicontract-corpus`](./intents/apicontract-corpus/intent.md)). Done when: `npx vitest run benchmarks/apicontract` passes and `npx tsx benchmarks/apicontract/corpus.ts --sample 20 --tool ours:types` writes a results folder.
+- **6.12 Validator parity 143 → 154 and the benchmark after parity** ([`validator/parity.md`](./intents/validator/parity.md) § The build list). Done when: the parity probe reads 154 yes or partial-with-reason for ours, and `benchmarks/validator/baseline.ts` reads every library at the same feature count.
+- **6.13 The corpus scoreboard is public.** A nightly workflow runs `corpus.ts` on the full corpus and the docs site renders `summary.md`. Done when: the workflow has one green scheduled run and the page links from the apicontract README.
+
+
 ---
 
 ## Releasing
