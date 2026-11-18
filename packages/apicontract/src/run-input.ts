@@ -8,6 +8,7 @@ import { resolve } from 'node:path';
 
 import { parse as parseYaml } from 'seniority/yaml';
 
+import { bundle } from './gen-ts-bundle.js';
 import { applyOverlays } from './input-overlay.js';
 import { ConfigError } from './run-config.js';
 
@@ -31,9 +32,12 @@ export interface InputOptions {
   readonly overlays: readonly string[];
 }
 
-/** The document a run generates from, overlays applied in the order the config lists them. */
+/**
+ * The document a run generates from, overlays applied in the order the config lists them, then the
+ * files its `$ref`s name, next to it, bundled in: only here is the document's location known.
+ */
 export const readInput = ({ root, file, input, overlays }: InputOptions, apply: Apply = applyOverlays): unknown => {
-  const document = readDocument(resolve(root, input), file);
-  if (overlays.length === 0) return document;
-  return apply(document, overlays.map((overlay) => readDocument(resolve(root, overlay), file)));
+  const path = resolve(root, input);
+  const document = readDocument(path, file);
+  return bundle(overlays.length === 0 ? document : apply(document, overlays.map((overlay) => readDocument(resolve(root, overlay), file))), path);
 };

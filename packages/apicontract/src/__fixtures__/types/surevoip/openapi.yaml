@@ -1,0 +1,64 @@
+# The shape of apis-guru:APIs/surevoip.co.uk/9dcb0dc8/openapi.yaml that openapi-typescript 7.13.0
+# types as `…["content"]["application/json"]["schema"]`, a member the media type's type lacks.
+openapi: 3.0.3
+info:
+  title: The surevoip.co.uk shape
+  version: '1'
+paths:
+  /:
+    get:
+      operationId: root
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [OK]
+            text/xml:
+              schema:
+                $ref: '#/paths/~1/get/responses/200/content/application~1json/schema'
+  /announcements:
+    post:
+      operationId: createAnnouncement
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+            text/xml:
+              schema:
+                type: array
+                items:
+                  $ref: '#/paths/~1announcements/post/responses/201/content/application~1json/schema'
+  /customers/{account}/announcements:
+    get:
+      operationId: listAnnouncements
+      parameters:
+        - name: account
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+  /customers/{account}/greetings:
+    get:
+      operationId: listGreetings
+      parameters:
+        - $ref: '#/paths/~1customers~1%7Baccount%7D~1announcements/get/parameters/0'
+      responses:
+        '200':
+          description: OK
+  /status:
+    $ref: '#/paths/~1'

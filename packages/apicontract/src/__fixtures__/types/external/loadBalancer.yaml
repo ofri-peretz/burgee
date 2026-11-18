@@ -1,0 +1,30 @@
+components:
+  parameters:
+    Name:
+      name: name
+      in: path
+      required: true
+      schema:
+        type: string
+  schemas:
+    LoadBalancer:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        frontends:
+          type: array
+          items:
+            $ref: '#/components/schemas/Frontend'
+        owner:
+          $ref: './openapi.yaml#/components/schemas/Local'
+    Frontend:
+      type: object
+      properties:
+        ip:
+          type: string
+    Local:
+      type: array
+      items:
+        type: string

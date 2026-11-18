@@ -1,5 +1,9 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
 import { describe, expect, it } from 'vitest';
 
+import { bundle } from './gen-ts-bundle.js';
 import { checkPlugin, createHost, validate } from './host.js';
 import { builtinAdapters } from './inputs.js';
 import openapiTS from './openapi-typescript.js';
@@ -65,6 +69,18 @@ describe('the types plugin', () => {
     expect(file?.content).toContain('name?: string | null;');
     expect(file?.content).toContain('id: number;');
     expect(file?.content).toContain('"application/json": components["schemas"]["Pet"];');
+  });
+
+  // Gap A-20261118-types-external-refs-dangle: the Azure shape, `./loadBalancer.json#/definitions/…`.
+  it('writes types for a Swagger 2.0 document whose sibling files are bundled in, and refuses one whose are not', async () => {
+    const path = fileURLToPath(new URL('__fixtures__/types/swagger2/network.json', import.meta.url));
+    const document = JSON.parse(readFileSync(path, 'utf8')) as unknown;
+    const [file] = await hostWithTypes().generate('types', bundle(document, path));
+    expect(file?.content).toContain('frontendIPConfigurations?: components["schemas"]["FrontendIPConfiguration"][];');
+    expect(file?.content).toContain('"api-version": string;');
+    expect(file?.content).not.toContain('definitions[');
+    const refusal = (await hostWithTypes().generate('types', document).catch((cause: unknown) => cause)) as Error;
+    expect(refusal.message).toMatch(/^`\.\/loadBalancer\.json#\/definitions\/LoadBalancer` at #\/paths\/.+ is in another file, \.\/loadBalancer\.json, which is not part of the document\. fix: /u);
   });
 
   it('refuses a document that is not OpenAPI, with a fix', async () => {

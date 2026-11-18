@@ -1,4 +1,4 @@
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -64,5 +64,30 @@ describe('readInput', () => {
     writeFileSync(join(root, 'spec.yaml'), 'openapi: 3.1.0\ninfo: { title: before, version: 1.0.0 }\npaths: {}\n');
     writeFileSync(join(root, 'o.yaml'), "overlay: 1.0.0\ninfo: { title: rename, version: 1.0.0 }\nactions:\n  - target: '$.info'\n    update: { title: after }\n");
     expect(readInput({ root, file: '/c.json', input: 'spec.yaml', overlays: ['o.yaml'] })).toMatchObject({ info: { title: 'after' } });
+  });
+});
+
+const overlaid = (document: unknown): unknown => ({ ...(document as object), info: { title: 'overlaid' } });
+
+describe('readInput, over files that refer to each other', () => {
+  it('bundles the files the spec names, relative to the spec, after the overlays', () => {
+    const root = temp();
+    mkdirSync(join(root, 'api'));
+    writeFileSync(join(root, 'api', 'spec.yaml'), 'openapi: 3.1.0\ncomponents:\n  schemas:\n    A:\n      $ref: ./part.yaml\n');
+    writeFileSync(join(root, 'api', 'part.yaml'), 'type: string\n');
+    writeFileSync(join(root, 'one.yaml'), 'overlay: 1\n');
+    expect(readInput({ root, file: 'c.json', input: 'api/spec.yaml', overlays: ['one.yaml'] }, overlaid)).toEqual({
+      openapi: '3.1.0',
+      info: { title: 'overlaid' },
+      components: { schemas: { A: { $ref: '#/components/schemas/part' }, part: { type: 'string' } } },
+    });
+  });
+
+  it('refuses a spec whose sibling is not there, naming the file', () => {
+    const root = temp();
+    writeFileSync(join(root, 'spec.yaml'), 'swagger: "2.0"\ndefinitions:\n  A:\n    $ref: ./loadBalancer.json#/definitions/LoadBalancer\n');
+    expect(() => readInput({ root, file: 'c.json', input: 'spec.yaml', overlays: [] })).toThrow(
+      'fix: add loadBalancer.json next to spec.yaml, or replace the `$ref` with what it names',
+    );
   });
 });

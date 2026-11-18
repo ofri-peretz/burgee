@@ -7,14 +7,17 @@
  * options that take or return compiler nodes (`transform`, `postTransform`, `transformProperty`)
  * are refused with a `fix:` line; `inject` is text, so it is written as given rather than
  * re-printed. Documents are read from this machine only: a remote address is refused rather than
- * fetched, and `$ref`s to other files are not bundled.
+ * fetched. A `file:` URL's `$ref`s into the files next to it are bundled, as upstream's Redocly
+ * bundler does; a document passed as text or a value has no location, so one is refused.
  */
 import { readFileSync } from 'node:fs';
 import { Readable } from 'node:stream';
 import { text as textOf } from 'node:stream/consumers';
+import { fileURLToPath } from 'node:url';
 
 import { parse as parseYaml } from 'seniority/yaml';
 
+import { bundle } from './gen-ts-bundle.js';
 import { generate, type GenerateOptions, unresolvedRefs } from './gen-ts-index.js';
 
 /** What `openapiTS` reads: a parsed document, YAML or JSON text, a `file:` address, or a stream of text. */
@@ -35,7 +38,7 @@ const parse = (source: string): unknown => {
 
 const read = async (source: Source): Promise<unknown> => {
   if (typeof source === 'string') return parse(source);
-  if (source instanceof URL) return source.protocol === 'file:' ? parse(readFileSync(source, 'utf8')) : remote(source.href);
+  if (source instanceof URL) return source.protocol === 'file:' ? bundle(parse(readFileSync(source, 'utf8')), fileURLToPath(source)) : remote(source.href);
   if (Buffer.isBuffer(source)) return parse(source.toString('utf8'));
   return source instanceof Readable ? parse(await textOf(source)) : source;
 };

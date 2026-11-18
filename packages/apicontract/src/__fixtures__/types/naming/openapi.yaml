@@ -1,0 +1,18 @@
+openapi: 3.1.0
+info: {title: t, version: '1'}
+paths: {}
+components:
+  schemas:
+    Part: {type: string}
+    schemas-Part: {type: number}
+    components-schemas-Part: {type: boolean}
+    part_components-schemas-Part: {type: integer}
+    one: {$ref: './part.yaml#/components/schemas/Part'}
+    two: {$ref: './part.yaml'}
+    three: {$ref: './a/Same.yaml'}
+    four: {$ref: './b/Same.yaml'}
+    five: {$ref: './a/Twin.yaml'}
+    six: {$ref: './b/Twin.yaml'}
+    seven: {$ref: './part.yaml#/components/schemas/Equal'}
+    eight: {$ref: './part.yaml#/components/schemas/a~1b'}
+    part: {type: 'null'}

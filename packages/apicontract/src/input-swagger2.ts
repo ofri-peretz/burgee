@@ -132,6 +132,8 @@ const createConverter = (root: Dict, report: Report) => {
       else out[key] = SUBSCHEMA.has(key) ? schema(value, where) : value;
     }
     if (typeof out.$ref === 'string' && out.$ref.startsWith(DEFINITIONS)) out.$ref = `#/components/schemas/${out.$ref.slice(DEFINITIONS.length)}`;
+    // Kept as written: rewriting `./x.json#/definitions/A` to a local pointer would name a schema this document lacks.
+    else if (typeof out.$ref === 'string' && !out.$ref.startsWith('#')) report('ref-external', `${at}/$ref`, `\`${out.$ref}\` is in another file and is not read`, 'bundle the document into one file first');
     return translate(out, at);
   };
 

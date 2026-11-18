@@ -1,0 +1,32 @@
+openapi: 3.1.0
+info:
+  title: Load balancers
+  version: '1'
+paths:
+  /load-balancers/{name}:
+    parameters:
+      - $ref: './loadBalancer.yaml#/components/parameters/Name'
+    get:
+      operationId: getLoadBalancer
+      responses:
+        '200':
+          description: The load balancer
+          content:
+            application/json:
+              schema:
+                $ref: './loadBalancer.yaml#/components/schemas/LoadBalancer'
+        default:
+          $ref: './common/error.yaml'
+  /health:
+    $ref: './health.yaml'
+components:
+  schemas:
+    Local:
+      type: object
+      properties:
+        frontend:
+          $ref: './loadBalancer.yaml#/components/schemas/Frontend'
+        tags:
+          $ref: './loadBalancer.yaml#/components/schemas/Local'
+    Pet:
+      $ref: './Pet.yaml'

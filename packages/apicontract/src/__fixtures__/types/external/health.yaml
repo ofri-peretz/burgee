@@ -1,0 +1,5 @@
+get:
+  operationId: health
+  responses:
+    '204':
+      description: Healthy

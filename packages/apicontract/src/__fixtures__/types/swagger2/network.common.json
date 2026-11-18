@@ -1,0 +1,11 @@
+{
+  "parameters": {
+    "ApiVersionParameter": { "name": "api-version", "in": "query", "required": true, "type": "string" }
+  },
+  "definitions": {
+    "CloudError": {
+      "type": "object",
+      "properties": { "error": { "type": "object", "properties": { "code": { "type": "string" }, "message": { "type": "string" } } } }
+    }
+  }
+}

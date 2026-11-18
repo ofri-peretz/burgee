@@ -1,0 +1,5 @@
+components:
+  schemas:
+    Part: {type: object}
+    Equal: {type: string}
+    a/b: {type: object, properties: {x: {type: string}}}
