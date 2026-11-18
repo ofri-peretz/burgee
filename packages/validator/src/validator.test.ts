@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import { emit } from './emit.js';
+
 import {
   type AnySchema,
   array,
@@ -359,6 +360,9 @@ describe('a key Object.prototype has counts only as an own key', () => {
     expect([check(Exact, {}), check(Exact, { toString: undefined }), check(Exact, JSON.parse('{"toString": "y"}'))]).toEqual([true, false, true]);
     expect(issues(Exact, { toString: undefined }).map((i) => i.keyword)).toEqual(['undefined']);
     expect(issues(Exact, {})).toEqual([]);
+    const Mixed = object({ toString: optional(string()), a: exactOptional(string()) });
+    expect([check(Mixed, {}), check(Mixed, { a: undefined }), check(Mixed, { a: 'x' })]).toEqual([true, false, true]);
+    expect(issues(Mixed, { a: undefined }).map((i) => [i.path, i.keyword])).toEqual([['/a', 'undefined']]);
     // eslint-disable-next-line node-security/detect-eval-with-expression -- The emitted text is the subject under test
     const compiled = new Function(`return ${emit(Exact)}`)() as (value: unknown) => boolean;
     expect([compiled({}), compiled({ toString: undefined }), compiled(JSON.parse('{"toString": "y"}'))]).toEqual([true, false, true]);
