@@ -154,7 +154,7 @@ describe('read', () => {
       message: 'prompt `review` declares arguments, not a schema; its `tool-call` payload is an object of strings built from them',
       fix: 'nothing to do: prompt arguments are strings on the wire; describe each in `arguments[].description`',
     });
-    expect(contract.findings?.map(({ pointer }) => pointer)).toEqual(['#/prompts/0/arguments', '#/prompts/1/arguments']);
+    expect(contract.findings?.map(({ pointer }) => pointer)).toEqual(['#/prompts/0/arguments']);
   });
 
   it("builds a resource template's variables into an object of strings, and says it was synthesised", () => {

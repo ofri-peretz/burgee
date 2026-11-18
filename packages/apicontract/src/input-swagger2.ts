@@ -384,7 +384,12 @@ export const convert = (document: unknown): { document: Dict; findings: Contract
   return { document: converted, findings: [...findings.values()] };
 };
 
-/** Read a Swagger 2.0 document into the model, through its OpenAPI 3.1 form. */
+/**
+ * Read a Swagger 2.0 document into the model, through its OpenAPI 3.1 form. `document` is that 3.1
+ * form, because it is what generators read; each finding's pointer is into the 2.0 document as the
+ * user wrote it, because that is the file the user edits. Operation pointers agree in both: `paths`
+ * keeps its keys through the conversion.
+ */
 export const read = (document: unknown): Contract => {
   const converted = convert(document);
   return { format: 'swagger2', document: converted.document, operations: readOpenApi(converted.document).operations, findings: converted.findings };

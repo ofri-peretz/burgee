@@ -95,12 +95,15 @@ const toolOf = (tool: Dict, name: string, at: string, report: Finding): Operatio
 const promptOf = (prompt: Dict, name: string, at: string, report: Finding): Operation => {
   const declared = Array.isArray(prompt.arguments) ? prompt.arguments.filter((argument): argument is Dict => isDict(argument) && typeof argument.name === 'string') : [];
   const members = declared.map((argument) => ({ name: argument.name as string, description: argument.description, required: argument.required === true }));
-  report(
-    'prompt-arguments-synthesised',
-    `${at}/arguments`,
-    `prompt \`${name}\` declares arguments, not a schema; its \`tool-call\` payload is an object of strings built from them`,
-    'nothing to do: prompt arguments are strings on the wire; describe each in `arguments[].description`',
-  );
+  // A prompt with no arguments has nothing synthesised: its payload is the empty object it declares.
+  if (declared.length > 0) {
+    report(
+      'prompt-arguments-synthesised',
+      `${at}/arguments`,
+      `prompt \`${name}\` declares arguments, not a schema; its \`tool-call\` payload is an object of strings built from them`,
+      'nothing to do: prompt arguments are strings on the wire; describe each in `arguments[].description`',
+    );
+  }
   return { id: `prompt:${name}`, source: at, payloads: [{ name: 'arguments', direction: 'tool-call', schema: strings(members), required: true }] };
 };
 
