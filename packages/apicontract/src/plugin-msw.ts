@@ -8,9 +8,9 @@
  */
 import { type Contract } from './core/model.js';
 import { type Generator, type GeneratorResult, type Plugin } from './host.js';
-import { read } from './openapi.js';
 import { routesOf } from './plugin-fetch-routes.js';
 import { handlersFile, scenariosFile, scenariosOf } from './plugin-msw-files.js';
+import { document, SAMPLE_HANDLERS, SAMPLE_SCENARIOS } from './plugin-msw-sample.js';
 
 export const HANDLERS_FILE = 'handlers.ts';
 export const SCENARIOS_FILE = 'scenarios.ts';
@@ -28,28 +28,16 @@ const run = (contract: Contract): GeneratorResult => {
   };
 };
 
-/** The sample: one operation, one response with an example and one synthesised from its schema. */
-const document = {
-  openapi: '3.1.0',
-  info: { title: 'Pets', version: '1' },
-  paths: {
-    '/pets/{petId}': {
-      get: {
-        operationId: 'getPet',
-        parameters: [{ name: 'petId', in: 'path', required: true, schema: { type: 'string' } }],
-        responses: {
-          '200': { description: 'The pet', content: { 'application/json': { schema: { type: 'object' }, example: { id: 'p1', name: 'Rex' } } } },
-          '404': { description: 'No such pet', content: { 'application/json': { schema: { type: 'object', required: ['message'], properties: { message: { type: 'string' } } } } } },
-        },
-      },
-    },
-  },
-};
-
 const msw: Generator = {
   description: 'MSW handlers and a scenario for every declared response, from the spec’s examples or a seeded synthesis',
   inputs: ['openapi'],
-  sample: { document, files: run(read(document)).files },
+  sample: {
+    document,
+    files: [
+      { path: HANDLERS_FILE, owner: 'generated', content: SAMPLE_HANDLERS },
+      { path: SCENARIOS_FILE, owner: 'generated', content: SAMPLE_SCENARIOS },
+    ],
+  },
   run,
 };
 

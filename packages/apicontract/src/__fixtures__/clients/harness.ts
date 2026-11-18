@@ -17,6 +17,7 @@ import { type GeneratedFile, type GeneratorResult, type Plugin } from '../../hos
 import { read } from '../../openapi.js';
 import { plugin as fetchPlugin } from '../../plugin-fetch.js';
 import { plugin as mswPlugin } from '../../plugin-msw.js';
+import { plugin as swrPlugin } from '../../plugin-swr.js';
 import { plugin as queryPlugin } from '../../plugin-tanstack-query.js';
 import { plugin as typesPlugin } from '../../plugin-types.js';
 
@@ -28,9 +29,9 @@ const runOne = async (plugin: Plugin, document: unknown, options: Readonly<Recor
   return Array.isArray(result) ? { files: result as GeneratedFile[], findings: [] } : (result as GeneratorResult);
 };
 
-/** Every file the types, fetch, msw and tanstack-query targets write for `document`, by path. */
+/** Every file the types, fetch, msw, tanstack-query and swr targets write for `document`, by path. */
 export const generateAll = async (document: unknown): Promise<{ files: Record<string, string>; findings: Record<string, readonly ContractFinding[]> }> => {
-  const results = { types: await runOne(typesPlugin, document), fetch: await runOne(fetchPlugin, document), msw: await runOne(mswPlugin, document), query: await runOne(queryPlugin, document) };
+  const results = { types: await runOne(typesPlugin, document), fetch: await runOne(fetchPlugin, document), msw: await runOne(mswPlugin, document), query: await runOne(queryPlugin, document), swr: await runOne(swrPlugin, document) };
   const files = Object.fromEntries(Object.values(results).flatMap((result) => result.files.map((file) => [file.path, file.content])));
   const findings = Object.fromEntries(Object.entries(results).map(([name, result]) => [name, result.findings]));
   return { files, findings };

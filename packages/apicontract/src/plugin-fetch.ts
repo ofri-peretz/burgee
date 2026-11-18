@@ -7,9 +7,9 @@
  */
 import { type Contract } from './core/model.js';
 import { type GeneratedFile, type Generator, type GeneratorResult, type Options, type Plugin } from './host.js';
-import { read } from './openapi.js';
 import { clientFile } from './plugin-fetch-client.js';
 import { routesOf } from './plugin-fetch-routes.js';
+import { document, SAMPLE_CLIENT } from './plugin-fetch-sample.js';
 
 /** The file the target writes, relative to the output folder. */
 export const CLIENT_FILE = 'client.ts';
@@ -23,31 +23,10 @@ const run = (contract: Contract, options: Options): GeneratorResult => {
   return { files, findings };
 };
 
-/** The sample: one operation with a path parameter, a query parameter and two responses. */
-const document = {
-  openapi: '3.1.0',
-  info: { title: 'Pets', version: '1' },
-  paths: {
-    '/pets/{petId}': {
-      get: {
-        operationId: 'getPet',
-        parameters: [
-          { name: 'petId', in: 'path', required: true, schema: { type: 'string' } },
-          { name: 'fields', in: 'query', schema: { type: 'array', items: { type: 'string' } } },
-        ],
-        responses: {
-          '200': { description: 'The pet', content: { 'application/json': { schema: { type: 'object', properties: { id: { type: 'string' } } } } } },
-          '404': { description: 'No such pet' },
-        },
-      },
-    },
-  },
-};
-
 const fetchTarget: Generator = {
   description: 'A typed client over the platform fetch: one method per operation, every response a typed result, nothing thrown on a non-2xx',
   inputs: ['openapi'],
-  sample: { document, files: run(read(document), {}).files },
+  sample: { document, files: [{ path: CLIENT_FILE, owner: 'generated', content: SAMPLE_CLIENT }] },
   run,
 };
 

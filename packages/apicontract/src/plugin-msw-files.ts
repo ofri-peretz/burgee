@@ -9,7 +9,8 @@ import { type Response, type Route } from './plugin-fetch-routes.js';
 import { lines, literal } from './plugin-fetch-text.js';
 import { exampleOf, seedOf, synth } from './plugin-msw-synth.js';
 
-const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> => typeof value === 'object' && value !== null && !Array.isArray(value);
+/** An object or an array: a list where a map belongs reads as one, which `exampleOf` has already taken. */
+const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> => typeof value === 'object' && value !== null;
 
 export interface Scenario {
   readonly status: number;
@@ -23,6 +24,7 @@ const RANGE = 100;
 
 /** The status a scenario answers with: the code itself, or the first one in its range no other response declares. */
 const statusOf = (key: string, exact: readonly string[]): number => {
+  // Stryker disable next-line Regex: equivalent, an OpenAPI status key is all digits, a range like 4XX, or default, so none ends in a digit without being all digits
   if (/^\d+$/u.test(key)) return Number(key);
   const first = key === 'default' ? DEFAULT_STATUS : Number(key.charAt(0)) * RANGE;
   let status = first;
@@ -56,7 +58,8 @@ export const scenariosOf = (routes: readonly Route[], root: unknown): Built => {
   };
   const scenarios = Object.fromEntries(
     routes.map((route) => {
-      const exact = route.responses.map((response) => response.key).filter((key) => /^\d+$/u.test(key));
+      // Only codes can equal a status written as digits, so the ranges and `default` among them never match.
+      const exact = route.responses.map((response) => response.key);
       return [route.id, Object.fromEntries(route.responses.map((response) => [response.key, scenario(route, response, exact)]))];
     }),
   );

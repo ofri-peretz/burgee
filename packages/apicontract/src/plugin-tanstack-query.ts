@@ -13,15 +13,16 @@
  */
 import { type Contract } from './core/model.js';
 import { type Generator, type GeneratorResult, type Options, type Plugin } from './host.js';
-import { read } from './openapi.js';
+import { optional } from './plugin-fetch-client.js';
 import { type Route, routesOf } from './plugin-fetch-routes.js';
 import { lines, literal } from './plugin-fetch-text.js';
+import { document, SAMPLE_QUERIES } from './plugin-tanstack-query-sample.js';
 
 export const QUERIES_FILE = 'queries.ts';
 
-const QUERY_METHODS: readonly string[] = ['get', 'head'];
+export const QUERY_METHODS: readonly string[] = ['get', 'head'];
 
-const STABLE = [
+export const STABLE = [
   '/** A value with its object keys sorted at every depth: the same input in any property order is the same key. */',
   'export const stable = (value: unknown): unknown => {',
   '  if (Array.isArray(value)) return value.map(stable);',
@@ -31,9 +32,7 @@ const STABLE = [
   '};',
 ];
 
-const camel = (name: string): string => `${name.charAt(0).toLowerCase()}${name.slice(1)}`;
-
-const optional = (route: Route): boolean => !route.parameters.some((parameter) => parameter.required) && route.body?.required !== true;
+export const camel = (name: string): string => `${name.charAt(0).toLowerCase()}${name.slice(1)}`;
 
 const factory = (route: Route): string[] => {
   const input = `input: ${route.name}Input${optional(route) ? ' = {}' : ''}`;
@@ -73,22 +72,19 @@ const run = (contract: Contract, options: Options): GeneratorResult => {
   return { files: [{ path: QUERIES_FILE, owner: 'generated', content: queriesFile(routes, client), symbols }], findings };
 };
 
-/** The sample: a query and a mutation. */
-const document = {
-  openapi: '3.1.0',
-  info: { title: 'Pets', version: '1' },
-  paths: {
-    '/pets': {
-      get: { operationId: 'listPets', parameters: [{ name: 'limit', in: 'query', schema: { type: 'integer' } }], responses: { '200': { description: 'Pets' } } },
-      post: { operationId: 'createPet', requestBody: { required: true, content: { 'application/json': { schema: { type: 'object' } } } }, responses: { '201': { description: 'Created' } } },
-    },
-  },
-};
-
 const tanstackQuery: Generator = {
   description: 'TanStack Query options for every operation over the fetch client, with stable query keys',
   inputs: ['openapi'],
-  sample: { document, files: run(read(document), {}).files },
+  sample: {
+    document,
+    files: [
+      {
+        path: QUERIES_FILE,
+        owner: 'generated',
+        content: SAMPLE_QUERIES,
+      },
+    ],
+  },
   run,
 };
 

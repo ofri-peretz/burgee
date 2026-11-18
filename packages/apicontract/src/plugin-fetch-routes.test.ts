@@ -83,17 +83,17 @@ describe('routesOf', () => {
             { name: 'a', in: 'query' },
             { name: 'b', in: 'query', explode: false },
             { name: 'c', in: 'cookie' },
-            { name: 'd', in: 'header', explode: true },
+            { name: 'd', in: 'header', explode: true, required: true },
           ],
           responses: ok,
         },
       },
     });
-    expect(routes[0]?.parameters.map(({ name, style, explode }) => [name, style, explode])).toEqual([
-      ['a', 'form', true],
-      ['b', 'form', false],
-      ['c', 'form', true],
-      ['d', 'simple', true],
+    expect(routes[0]?.parameters.map(({ name, style, explode, required }) => [name, style, explode, required])).toEqual([
+      ['a', 'form', true, false],
+      ['b', 'form', false, false],
+      ['c', 'form', true, false],
+      ['d', 'simple', true, true],
     ]);
   });
 
@@ -169,12 +169,41 @@ describe('routesOf', () => {
     ]);
   });
 
+  it('reads every standard method, and nothing from responses written as a list', () => {
+    const methods = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'];
+    const { routes } = of({ '/m': Object.fromEntries(methods.map((method) => [method, { operationId: method, responses: [{ description: 'listed' }] }])) });
+    expect(routes.map((route) => [route.method, route.responses])).toEqual(methods.toSorted().map((method) => [method, []]));
+  });
+
+  it('reads nothing from a null where an object belongs', () => {
+    const { routes } = of({ '/n': { parameters: null, get: { operationId: 'x', parameters: [null], responses: null } } });
+    expect(routes).toEqual([{ id: 'x', name: 'X', method: 'get', path: '/n', parameters: [], responses: [] }]);
+  });
+
+  it('decodes the path and encodes the media type in a pointer', () => {
+    const { routes } = of({ '/a~b/c': { get: { operationId: 'x', responses: { '200': { description: 'OK', content: { 'application/x~y': {} } } } } } });
+    expect(routes[0]?.path).toBe('/a~b/c');
+    expect(routes[0]?.responses[0]?.media[0]?.pointer).toBe('#/paths/~1a~0b~1c/get/responses/200/content/application~1x~0y');
+  });
+
+  it('reports a path-level parameter at the path, and a reference that refers to itself', () => {
+    const { findings } = of(
+      { '/p': { parameters: [{ name: 'q', in: 'query', style: 'matrix' }], get: { operationId: 'x', parameters: [{ $ref: '#/components/parameters/Loop' }], responses: ok } } },
+      { components: { parameters: { Loop: { $ref: '#/components/parameters/Loop' } } } },
+    );
+    expect(findings.map((finding) => [finding.code, finding.pointer])).toEqual([
+      ['style-translated', '#/paths/~1p/parameters/0'],
+      ['parameter-skipped', '#/paths/~1p/get/parameters/0'],
+    ]);
+  });
+
   it('names each operation as a type, unique in the file', () => {
-    const { routes } = of({ '/a': { get: op('a-b'), put: op('a_b'), post: op('1x'), delete: op('ab') }, '/b': { get: { responses: ok } } });
+    const { routes } = of({ '/a': { get: op('a-b'), put: op('a_b'), post: op('1x'), delete: op('ab'), patch: op('a.b') }, '/b': { get: { responses: ok } } });
     expect(routes.map((route) => [route.id, route.name])).toEqual([
       ['1x', 'Op1x'],
       ['a-b', 'AB'],
-      ['a_b', 'AB2'],
+      ['a.b', 'AB2'],
+      ['a_b', 'AB3'],
       ['ab', 'Ab'],
       ['get /b', 'GetB'],
     ]);

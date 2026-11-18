@@ -31,7 +31,6 @@ describe('the tanstack-query plugin', () => {
 
   it('produces exactly its sample, on every run', async () => {
     expect(await checkPlugin(plugin)).toEqual([]);
-    await expect(plugin.generators?.['tanstack-query']?.sample.files[0]?.content).toMatchFileSnapshot('./__fixtures__/clients/sample/queries.ts.snap');
   });
 
   it('writes queries.ts for the fixture spec: a query for each GET and HEAD, a mutation for the rest', async () => {
@@ -49,6 +48,11 @@ describe('the tanstack-query plugin', () => {
     ]);
     expect(findings).toEqual([]);
     await expect(files[0]?.content).toMatchFileSnapshot('./__fixtures__/clients/shop/queries.ts.snap');
+  });
+
+  it('makes a query of a HEAD operation too', async () => {
+    const [file] = await host().generate('tanstack-query', { openapi: '3.1.0', paths: { '/x': { head: { operationId: 'probe', responses: {} } } } });
+    expect(file?.content).toContain('export const probeQueryOptions = (client: Client, input: ProbeInput = {}) => ({\n');
   });
 
   it('imports the client from the path option `client`, and only the client when there is no operation', async () => {

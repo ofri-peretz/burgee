@@ -34,6 +34,7 @@ describe('synth', () => {
     expect(synth({ enum: ['a', 'b', 'c'] }, 1)).toBe('c');
     expect(synth({ enum: ['a', 'b', 'c'] }, 2)).toBe('b');
     expect(synth({ enum: [], type: 'boolean' }, 1)).toBe(true);
+    expect(synth({ enum: ['only'], type: 'string' }, 1)).toBe('only');
     expect(synth({ type: 'boolean' }, 3)).toBe(false);
     expect(synth({ type: 'string', example: 'x' }, 1)).toBe('x');
     expect(synth({ oneOf: [{ const: 1 }, { const: 2 }] }, 1)).toBe(1);
@@ -44,6 +45,25 @@ describe('synth', () => {
   it('merges the parts of allOf when each is an object, and takes the first otherwise', () => {
     expect(synth({ allOf: [{ properties: { a: { const: 1 } } }, { properties: { b: { const: 2 } } }] }, 1)).toEqual({ a: 1, b: 2 });
     expect(synth({ allOf: [{ const: 'x' }, { properties: {} }] }, 1)).toBe('x');
+  });
+
+  it('writes a fixed value for each format in its table', () => {
+    const formats = ['date', 'date-time', 'time', 'email', 'uuid', 'uri', 'hostname', 'ipv4', 'ipv6'];
+    expect(Object.fromEntries(formats.map((format) => [format, synth({ type: 'string', format }, 1)]))).toEqual({
+      date: '2024-01-15',
+      'date-time': '2024-01-15T09:30:00Z',
+      time: '09:30:00Z',
+      email: 'user@example.com',
+      uuid: '3f2b6c1e-8d4a-4c7e-9b1f-5a6d7e8f9a0b',
+      uri: 'https://example.com/',
+      hostname: 'example.com',
+      ipv4: '192.0.2.1',
+      ipv6: '2001:db8::1',
+    });
+  });
+
+  it('draws a word from its list', () => {
+    expect(synth({ type: 'string' }, 9)).toBe('alpha');
   });
 
   it('honours format, minLength and maxLength for a string', () => {
@@ -62,6 +82,7 @@ describe('synth', () => {
     expect(synth({ type: 'number', exclusiveMinimum: 0.5, maximum: 1 }, 1)).toBe(1);
     expect(synth({ type: 'integer', minimum: 10 }, 1)).toBe(48);
     expect(synth({ type: 'integer', exclusiveMaximum: 3 }, 1)).toBe(2);
+    expect(synth({ type: 'integer', minimum: 2, exclusiveMaximum: 4 }, 1)).toBe(2);
     expect(synth({ type: 'integer', minimum: '3', maximum: '4' }, 1)).toBe(38);
   });
 
@@ -77,10 +98,12 @@ describe('synth', () => {
     expect(synth({ type: ['null'] }, 1)).toBeNull();
     expect(synth({ type: 'null' }, 1)).toBeNull();
     expect(synth({ properties: { a: { const: 1 } } }, 1)).toEqual({ a: 1 });
+    expect(synth({ properties: { a: { type: 'null' }, b: { type: ['null'] }, c: {} } }, 1)).toStrictEqual({ a: null, b: null, c: null });
     expect(synth({ type: 'object' }, 1)).toEqual({});
     expect(synth({ type: 'object', properties: [] }, 1)).toEqual({});
     expect(synth({}, 1)).toBeNull();
     expect(synth(true, 1)).toBeNull();
+    expect(synth(null, 1)).toBeNull();
   });
 
   it('follows $ref against the root, and stops at a reference back into a schema being built', () => {
@@ -89,7 +112,8 @@ describe('synth', () => {
         Node: { type: 'object', properties: { name: { const: 'n' }, next: { $ref: '#/$defs/Node' }, children: { type: 'array', items: { $ref: '#/$defs/Node' } } } },
       },
     };
-    expect(synth({ $ref: '#/$defs/Node' }, 1, root)).toEqual({ name: 'n', children: [] });
+    expect(synth({ $ref: '#/$defs/Node' }, 1, root)).toStrictEqual({ name: 'n', children: [] });
+    expect(synth({ properties: { a: { $ref: '#/$defs/Leaf' }, b: { $ref: '#/$defs/Leaf' } } }, 1, { $defs: { Leaf: { const: 'leaf' } } })).toStrictEqual({ a: 'leaf', b: 'leaf' });
     expect(synth({ type: 'array', items: { $ref: '#/$defs/Node' } }, 1, root)).toEqual([{ name: 'n', children: [] }]);
     expect(synth({ $ref: '#' }, 1)).toBeNull();
   });

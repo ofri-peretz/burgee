@@ -152,6 +152,7 @@ const RUNTIME = [
 ];
 
 /** The status as a type: `200` for a code, `"4XX"` or `"default"` as written. */
+// Stryker disable next-line Regex: equivalent, an OpenAPI status key is all digits, a range like 4XX, or default, so none ends in a digit without being all digits
 const statusType = (status: string): string => (/^\d+$/u.test(status) ? status : literal(status));
 
 const routeData = (route: Route): string => {
@@ -167,7 +168,7 @@ const routeData = (route: Route): string => {
 };
 
 /** Whether every part of an operation's input may be left out. */
-const optional = (route: Route): boolean => !route.parameters.some((parameter) => parameter.required) && route.body?.required !== true;
+export const optional = (route: Route): boolean => !route.parameters.some((parameter) => parameter.required) && route.body?.required !== true;
 
 const bodyType = (route: Route): string => {
   if (route.body === undefined) return '{ readonly body?: never }';

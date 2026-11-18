@@ -35,9 +35,6 @@ describe('the msw plugin', () => {
 
   it('produces exactly its sample, on every run', async () => {
     expect(await checkPlugin(plugin)).toEqual([]);
-    const [handlers, scenarios] = plugin.generators?.msw?.sample.files ?? [];
-    await expect(handlers?.content).toMatchFileSnapshot('./__fixtures__/clients/sample/handlers.ts.snap');
-    await expect(scenarios?.content).toMatchFileSnapshot('./__fixtures__/clients/sample/scenarios.ts.snap');
   });
 
   it('writes handlers.ts and scenarios.ts for the fixture spec, and reports every synthesised body', async () => {
@@ -72,6 +69,7 @@ describe('the msw plugin', () => {
       findings: [],
     });
     expect((await scenarioOf({ 'application/json': { schema, examples: { a: { value: 'named' }, b: { value: 'second' } } } })).line).toBe('    "200": {"status":200,"contentType":"application/json","body":"named"},');
+    expect((await scenarioOf({ 'application/json': { schema, examples: null } })).line).toBe('    "200": {"status":200,"contentType":"application/json","body":"from-schema"},');
     expect((await scenarioOf({ 'application/json': { schema, examples: {} } })).line).toBe('    "200": {"status":200,"contentType":"application/json","body":"from-schema"},');
     expect((await scenarioOf({ 'application/json': { schema: true, examples: [] } })).findings).toHaveLength(1);
     expect((await scenarioOf({ 'text/plain': { schema: { const: 'c' } } })).line).toBe('    "200": {"status":200,"contentType":"text/plain","body":"c"},');
@@ -98,9 +96,9 @@ describe('the msw plugin', () => {
   });
 
   it('escapes what the spec writes into the generated source', async () => {
-    const document = one({ 'application/json': { example: '</script>\u2028' } });
+    const document = one({ 'application/json': { example: '</script>\u2028\u2029' } });
     const [handlers, scenarios] = await host().generate('msw', { ...document, paths: { '/<x>': document.paths['/x'] } });
     expect(handlers?.content).toContain('  "x": ["get", "*/\\u003Cx\\u003E"],\n');
-    expect(scenarios?.content).toContain('"body":"\\u003C/script\\u003E\\u2028"');
+    expect(scenarios?.content).toContain('"body":"\\u003C/script\\u003E\\u2028\\u2029"');
   });
 });

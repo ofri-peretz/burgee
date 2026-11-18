@@ -54,10 +54,11 @@ export const exampleOf = (node: Dict): { readonly value: unknown } | undefined =
 };
 
 const typeOf = (node: Dict): unknown => {
-  if (Array.isArray(node.type)) return node.type.find((type) => type !== 'null') ?? 'null';
+  // A list with only `null` in it finds nothing, which reads as `null` below.
+  if (Array.isArray(node.type)) return node.type.find((type) => type !== 'null');
   if (node.type !== undefined) return node.type;
   if (node.properties !== undefined) return 'object';
-  return node.items === undefined ? 'null' : 'array';
+  return node.items === undefined ? undefined : 'array';
 };
 
 const bound = (node: Dict, inclusive: string, exclusive: string, step: number): number | undefined => {
@@ -103,12 +104,12 @@ export const synth = (schema: unknown, seed: number, root: unknown = schema): un
   };
 
   const text = (node: Dict): string => {
+    const format = String(node.format);
     // eslint-disable-next-line conventions/consistent-existence-index-check -- Own keys only: a `format: toString` must not find an inherited function
-    if (typeof node.format === 'string' && Object.hasOwn(FORMATS, node.format)) return FORMATS[node.format] as string;
+    if (Object.hasOwn(FORMATS, format)) return FORMATS[format] as string;
     const word = WORDS[draw(WORDS.length)] as string;
-    const min = typeof node.minLength === 'number' ? node.minLength : 0;
-    const max = typeof node.maxLength === 'number' ? node.maxLength : Infinity;
-    return word.padEnd(min, word).slice(0, max);
+    // A missing bound pads nothing and cuts nothing.
+    return word.padEnd(node.minLength as number, word).slice(0, node.maxLength as number);
   };
 
   const typed = (node: Dict): unknown => {

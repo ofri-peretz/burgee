@@ -17,6 +17,7 @@ const host = () => {
 const USE = `import { createClient } from './client.js';
 import { getPetQueryOptions, createPetMutationOptions } from './queries.js';
 import { handlers, handler } from './handlers.js';
+import { getPetSWR, createPetSWRMutation } from './swr.js';
 
 const client = createClient({ baseUrl: 'https://api.example.com' });
 const pet = await client.getPet({ path: { petId: 'p1' } });
@@ -46,6 +47,13 @@ const key: readonly ['getPet', unknown] = query.queryKey;
 void key;
 const created = await createPetMutationOptions(client).mutationFn({ body: { name: 'Rex' } });
 void created;
+const swr = getPetSWR(client, { path: { petId: 'p1' } });
+const fetched = await swr.fetcher();
+if (fetched.status === 200) {
+  const named: string = fetched.body.name;
+  void named;
+}
+await createPetSWRMutation(client).fetcher(swr.key, { arg: { body: { name: 'Rex' } } });
 void handlers;
 void handler('getPet', '4XX');
 export {};
@@ -74,9 +82,6 @@ describe('the fetch plugin', () => {
 
   it('produces exactly its sample, on every run', async () => {
     expect(await checkPlugin(plugin)).toEqual([]);
-    const [file] = plugin.generators?.fetch?.sample.files ?? [];
-    expect(file?.path).toBe(CLIENT_FILE);
-    await expect(file?.content).toMatchFileSnapshot('./__fixtures__/clients/sample/client.ts.snap');
   });
 
   it('writes client.ts for the fixture spec, with a symbol per operation and nothing to report', async () => {

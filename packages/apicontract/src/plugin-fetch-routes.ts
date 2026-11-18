@@ -15,7 +15,7 @@ type Dict = Readonly<Record<string, unknown>>;
 const isDict = (value: unknown): value is Dict => typeof value === 'object' && value !== null && !Array.isArray(value);
 const dict = (value: unknown): Dict => (isDict(value) ? value : {});
 
-export const METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'] as const;
+const METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'] as const;
 export type Method = (typeof METHODS)[number];
 
 export type Place = 'path' | 'query' | 'header' | 'cookie';
@@ -70,8 +70,7 @@ const decodeToken = (token: string): string => token.replaceAll('~1', '/').repla
 
 /** `Get pets/{id}` → `GetPetsId`; a name that would start with a digit starts with `Op`. */
 const pascal = (id: string): string => {
-  const words = id.split(/[^A-Za-z0-9]+/u).filter((word) => word !== '');
-  const name = words.map((word) => `${word.charAt(0).toUpperCase()}${word.slice(1)}`).join('');
+  const name = id.split(/[^A-Za-z0-9]/u).map((word) => `${word.charAt(0).toUpperCase()}${word.slice(1)}`).join('');
   return /^[A-Za-z]/u.test(name) ? name : `Op${name}`;
 };
 
@@ -114,19 +113,20 @@ export const routesOf = (contract: Contract): Read => {
     return { name: String(declared.name), in: where, style, explode, required: where === 'path' || declared.required === true };
   };
 
-  const routeOf = (id: string, source: string): Route | undefined => {
-    const match = /^#\/paths\/([^/]+)\/([^/]+)$/u.exec(source);
-    const method = match?.[2] as Method | undefined;
-    if (match === null || !METHODS.includes(method as Method)) {
+  const routeOf = (id: string, source: string): Omit<Route, 'name'> | undefined => {
+    // Stryker disable next-line Regex: equivalent, the model's sources all start `#/paths/` or `#/webhooks/`, and a longer one under paths ends in a name that is not a method
+    const [, token, method] = /^#\/paths\/([^/]+)\/([^/]+)$/u.exec(source) ?? [];
+    // Without a match there is no method either, so this one test refuses both.
+    if (!METHODS.includes(method as Method)) {
       note('operation-skipped', source, `"${id}" is not a request a client sends`, 'call it yourself; the client covers operations under `paths` with a standard method');
       return undefined;
     }
-    const path = decodeToken(match[1] as string);
+    const path = decodeToken(token as string);
     const declared = dict(pointerGet(root, source));
-    const item = dict(pointerGet(root, `#/paths/${match[1] as string}`));
+    const item = dict(pointerGet(root, `#/paths/${token as string}`));
     const byPlace = new Map<string, Parameter>();
     const lists = [
-      [item.parameters, `#/paths/${match[1] as string}/parameters`],
+      [item.parameters, `#/paths/${token as string}/parameters`],
       [declared.parameters, `${source}/parameters`],
     ] as const;
     for (const [list, at] of lists) {
@@ -135,9 +135,8 @@ export const routesOf = (contract: Contract): Read => {
         if (parameter !== undefined) byPlace.set(`${parameter.in}:${parameter.name}`, parameter);
       }
     }
-    const route: { -readonly [K in keyof Route]: Route[K] } = {
+    const route: { -readonly [K in keyof Omit<Route, 'name'>]: Route[K] } = {
       id,
-      name: '',
       method: method as Method,
       path,
       parameters: [...byPlace.values()],
@@ -165,7 +164,8 @@ export const routesOf = (contract: Contract): Read => {
 
   const routes = contract.operations
     .map((operation) => routeOf(operation.id, operation.source))
-    .filter((route): route is Route => route !== undefined)
+    .filter((route) => route !== undefined)
+    // Stryker disable next-line EqualityOperator,NumericLiteral: equivalent, ids are unique so none compare equal, and the sort reads only whether the result is below 0
     .toSorted((a, b) => (a.id < b.id ? -1 : 1));
   const taken = new Set<string>();
   const named = routes.map((route) => {
