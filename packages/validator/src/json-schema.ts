@@ -1,4 +1,4 @@
-import { type Kind, type Node, type Rule, type Schema } from './schema.js';
+import { type Kind, type Node, type Out, type Rule, type Schema, VENDOR } from './schema.js';
 
 /**
  * The JSON Schema writer (spec.md R2, R10, R13): a node as a JSON Schema document, and beside it
@@ -26,7 +26,8 @@ interface Finding {
   readonly path: string;
   /**
    * What was lost: `not-json`, `custom`, `refine`, `transform`, `format`, `pattern`, `coerce`,
-   * `strip`, `multipleOf`, `default`, `enum`, `tag`, `meta`, `pipe`, `preprocess`.
+   * `strip`, `multipleOf`, `default`, `enum`, `tag`, `meta`, `pipe`, `preprocess`, `contains`,
+   * `catch`, `codec`.
    */
   readonly keyword: string;
   readonly message: string;
@@ -330,6 +331,35 @@ const before = (writer: Writer, schema: Node, path: string): JsonSchema => {
   return write(writer, schema.item as Node, path);
 };
 
+/** A pattern's text for a string that holds `text` somewhere: escaped, so that nothing in it is read as pattern syntax. */
+const escaped = (text: unknown): string => named(text).replaceAll(/[\^$\\.*+?()[\]{}|/]/gu, '\\$&');
+
+/** A string test beside what it wraps: the wrapped schema, and a string the pattern accepts. */
+const textual = (before: string, after: string) => (writer: Writer, schema: Node, path: string): JsonSchema => ({
+  allOf: [write(writer, schema.item as Node, `${path}/allOf/0`), { type: 'string', pattern: `${before}${escaped(schema.value)}${after}` }],
+});
+
+/** A template is a pattern made of the same tree its steps are (template.ts), so the two read the same strings. */
+const templated = (_: Writer, schema: Node): JsonSchema => ({ type: 'string', pattern: named((schema.value as { readonly source?: unknown } | null)?.source) });
+
+/**
+ * `contains`, with `minContains` and `maxContains` written only where they are not what `contains`
+ * alone means. Draft-07 has neither, so there a count other than "at least one" is a finding.
+ */
+const containing = (writer: Writer, schema: Node, path: string): JsonSchema => {
+  const [min, max] = [bound(schema.min), bound(schema.max)];
+  const counts = { ...(min !== 1 && { minContains: min }), ...(max < Number.MAX_VALUE && { maxContains: max }) };
+  if (!writer.dialect.prefix && Object.keys(counts).length > 0) {
+    lose(writer, path, 'contains', `draft-07 has no minContains or maxContains: the document asks for at least one matching item, and the schema for ${String(min)} to ${String(max)}`);
+  }
+  return {
+    allOf: [
+      write(writer, schema.item as Node, `${path}/allOf/0`),
+      { type: 'array', contains: write(writer, schema.key as Node, `${path}/allOf/1/contains`), ...(writer.dialect.prefix && counts) },
+    ],
+  };
+};
+
 const WRITERS: Readonly<Record<Kind, (writer: Writer, schema: Node, path: string) => JsonSchema>> = {
   string,
   number,
@@ -366,6 +396,22 @@ const WRITERS: Readonly<Record<Kind, (writer: Writer, schema: Node, path: string
   preprocess: before,
   refineAsync: refined,
   transformAsync: mapped,
+  template: templated,
+  startsWith: textual('^', ''),
+  endsWith: textual('', '$'),
+  includes: textual('', ''),
+  contains: containing,
+  unique: (writer, schema, path) => ({ allOf: [write(writer, schema.item as Node, `${path}/allOf/0`), { type: 'array', uniqueItems: true }] }),
+  not: (writer, schema, path) => ({ not: write(writer, schema.key as Node, `${path}/not`) }),
+  oneOf: (writer, schema, path) => listed(writer, schema, { path, keyword: 'oneOf', none: NOTHING }),
+  catch: (writer, schema, path) => {
+    lose(writer, path, 'catch', 'parse hands out a fallback in place of a value this schema refuses, which JSON Schema cannot say: the document describes what the schema accepts');
+    return write(writer, schema.item as Node, path);
+  },
+  codec: (writer, schema, path) => {
+    lose(writer, path, 'codec', 'parse decodes this value into another schema, which JSON Schema cannot say: the document describes what goes in, before it is decoded');
+    return write(writer, ((schema.item as Node).item ?? schema.item) as Node, path);
+  },
 };
 
 /** A schema with more keywords beside it. In draft-07 a `$ref` silences its siblings, so there it is put under `allOf`. */
@@ -388,6 +434,7 @@ const annotations = (writer: Writer, schema: Node, path: string): JsonSchema => 
   ...noted(writer, path, 'title', schema.meta?.title),
   ...noted(writer, path, 'description', schema.meta?.description),
   ...noted(writer, path, 'examples', schema.meta?.examples),
+  ...(schema.meta?.readOnly === true && { readOnly: true }),
   ...noted(writer, path, 'default', schema.default),
 });
 
@@ -424,4 +471,61 @@ const toJsonSchema = <T>(schema: Schema<T, unknown>, options: ExportOptions = {}
   }
 };
 
-export { type Draft, type Exported, type ExportOptions, type Finding, type JsonSchema, toJsonSchema };
+/** The dialects Standard JSON Schema names (standardschema.dev, `StandardJSONSchemaV1.Target`) that this writer writes, and as which of its drafts. */
+const TARGETS: ReadonlyMap<unknown, Draft> = new Map<unknown, Draft>([
+  ['draft-2020-12', '2020-12'],
+  ['draft-07', 'draft-07'],
+]);
+
+interface StandardJsonOptions {
+  /** `draft-2020-12` or `draft-07`; any other target is refused, as the specification asks. */
+  readonly target: string;
+  /** `findings`: a function handed the findings of each document written, which the interface has no place for. */
+  readonly libraryOptions?: Readonly<Record<string, unknown>> | undefined;
+}
+
+interface StandardJsonConverter {
+  readonly input: (options: StandardJsonOptions) => Record<string, unknown>;
+  readonly output: (options: StandardJsonOptions) => Record<string, unknown>;
+}
+
+/** A schema of this library that is also a Standard JSON Schema: `~standard.jsonSchema.input(...)` and `output(...)` write it. */
+type StandardJson<T, O> = Schema<T, O> & {
+  readonly '~standard': { readonly version: 1; readonly vendor: string; readonly jsonSchema: StandardJsonConverter; readonly types?: { readonly input: T; readonly output: Out<T, O> } | undefined };
+};
+
+/** The findings that say a document describes what goes in, where what comes out of `parse` is another value: it cannot stand for the output. */
+const CHANGES: ReadonlySet<string> = new Set(['transform', 'pipe', 'preprocess', 'codec', 'catch']);
+
+const converted = (schema: Node, options: StandardJsonOptions, output: boolean): Record<string, unknown> => {
+  const draft = TARGETS.get(options.target);
+  if (draft === undefined) throw new TypeError(`cannot write JSON Schema for the target ${shown(options.target)}. fix: ask for "draft-2020-12" or "draft-07"`);
+  const { schema: document, findings } = toJsonSchema(schema as Schema<unknown>, { draft });
+  const report = options.libraryOptions?.['findings'];
+  if (typeof report === 'function') (report as (findings: readonly Finding[]) => void)(findings);
+  const changed = output ? findings.find((finding) => CHANGES.has(finding.keyword)) : undefined;
+  if (changed !== undefined) {
+    throw new TypeError(`cannot write the output of this schema as JSON Schema: at "${changed.path}", ${changed.message}. fix: ask for the input, or describe the output with a schema of its own`);
+  }
+  return { ...document };
+};
+
+/**
+ * The schema as a Standard JSON Schema (standardschema.dev): a library that asks a schema for JSON
+ * Schema, such as a model provider's SDK or an MCP server, calls `~standard.jsonSchema.input({
+ * target })` and gets `toJsonSchema`'s document. Kept beside a `~standard` the schema already has,
+ * so `json(standard(Order))` is both a Standard Schema and a Standard JSON Schema.
+ *
+ * The interface has no place for findings: pass `libraryOptions: { findings }` to be handed them.
+ * `output` is refused for a schema whose `parse` hands out another value than it reads (a transform,
+ * a pipe, a codec, a fallback), since no document of what goes in describes what comes out.
+ */
+const standardJson = <T, O>(schema: Schema<T, O>): StandardJson<T, O> => {
+  const prior = (schema as { readonly '~standard'?: object })['~standard'];
+  const jsonSchema: StandardJsonConverter = Object.freeze({ input: (options: StandardJsonOptions) => converted(schema, options, false), output: (options: StandardJsonOptions) => converted(schema, options, true) });
+  // eslint-disable-next-line reliability/no-unsafe-type-narrowing -- the member is put on here, and the types it states live only in the type system, as `~type` does
+  return Object.freeze({ ...schema, '~standard': Object.freeze({ version: 1, vendor: VENDOR, ...prior, jsonSchema }) }) as unknown as StandardJson<T, O>;
+};
+
+export { type Draft, type Exported, type ExportOptions, type Finding, type JsonSchema, type StandardJson, standardJson, type StandardJsonConverter, type StandardJsonOptions, toJsonSchema };
+export { fromJsonSchema, type ImportDraft, type Imported, type ImportFinding, type ImportOptions } from './from-json-schema.js';

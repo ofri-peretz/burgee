@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { check } from './check.js';
 import { emit, emitWith } from './emit.js';
 import { issues } from './issues.js';
-import { AWAITED_MAP, AWAITED_RULE, BEFORE, BIGINT, COUNTED, CUSTOM, DATE, EVERY, INSTANCE, LATER, MAP, MAPPED, NAN, NEVER, NULLABLE, NULLISH, PIPED, RECORD, REFINED, SET, TUPLE, TYPE, UNION, UNKNOWN, WORDED } from './own.js';
+import { ALONE, AWAITED_MAP, AWAITED_RULE, BEFORE, BIGINT, CONTAINING, COUNTED, CUSTOM, DATE, EVERY, FALLBACK, INSTANCE, LATER, MAP, MAPPED, NAN, NEVER, NULLABLE, NULLISH, ONE, PIPED, RECORD, REFINED, SET, TESTED, TUPLE, TYPE, UNION, UNIQUE, UNKNOWN, WORDED } from './own.js';
 import { parse } from './parse.js';
 import {
   type AnySchema,
@@ -13,6 +13,16 @@ import {
   array,
   bigint,
   boolean,
+  catchOf,
+  codec,
+  contains,
+  endsWith,
+  includes,
+  not,
+  oneOf,
+  startsWith,
+  template,
+  unique,
   custom,
   date,
   discriminated,
@@ -114,6 +124,16 @@ describe('a kind brings its own reading for issues and parse', () => {
     ['preprocess', preprocess(always, string()), BEFORE],
     ['refineAsync', refineAsync(string(), later), AWAITED_RULE],
     ['transformAsync', transformAsync(string(), later), AWAITED_MAP],
+    ['template', template(['a']), ALONE],
+    ['startsWith', startsWith(string(), 'a'), TESTED],
+    ['endsWith', endsWith(string(), 'a'), TESTED],
+    ['includes', includes(string(), 'a'), TESTED],
+    ['contains', contains(array(string()), string()), CONTAINING],
+    ['unique', unique(array(string())), UNIQUE],
+    ['not', not(string()), ALONE],
+    ['oneOf', oneOf([]), ONE],
+    ['catchOf', catchOf(string(), ''), FALLBACK],
+    ['codec', codec(string(), string(), { decode: upper, encode: upper }), PIPED],
   ];
 
   it.each(CORE)('%s is one of the eight kinds issues and parse read themselves, and carries none', (_, schema) => {

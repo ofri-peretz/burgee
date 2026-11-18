@@ -17,3 +17,22 @@ describe('importing the root', () => {
     expect(emit({ env: {}, isTTY: { stdout: false } }, 'link', { text: 'Docs', url: 'https://x.dev' })).toBe('Docs (https://x.dev)');
   });
 });
+
+describe('the root exports', () => {
+  it('names exactly what it named when each one was listed by hand', async () => {
+    const root = await import('./index.js');
+    // The drop-in half arrives by `export * from './ansi-escapes.js'` since 2026-11-17, so the
+    // list is written here instead: a name gained or lost through that line fails this.
+    expect(Object.keys(root).toSorted()).toEqual(
+      [
+        'default', 'ansiEscapesFor', 'beep', 'beginSynchronizedOutput', 'clearScreen', 'clearTerminal', 'clearViewport', 'ConEmu', 'cursorBackward', 'cursorDown',
+        'cursorForward', 'cursorGetPosition', 'cursorHide', 'cursorLeft', 'cursorMove', 'cursorNextLine', 'cursorPrevLine', 'cursorRestorePosition', 'cursorSavePosition',
+        'cursorShow', 'cursorTo', 'cursorUp', 'endSynchronizedOutput', 'enterAlternativeScreen', 'eraseDown', 'eraseEndLine', 'eraseLine', 'eraseLines', 'eraseScreen',
+        'eraseStartLine', 'eraseUp', 'exitAlternativeScreen', 'image', 'iTerm', 'link', 'scrollDown', 'scrollUp', 'setCwd', 'synchronizedOutput',
+        'bell', 'builtins', 'clipboard', 'cwd', 'notify', 'registerBuiltins', 'title',
+        'CapabilityError', 'DEPRECATED', 'capabilities', 'capability', 'check', 'emit', 'isDeprecation', 'refusals', 'register', 'reset', 'supports',
+        'processRuntime', 'fieldsUsed', 'render',
+      ].toSorted(),
+    );
+  });
+});

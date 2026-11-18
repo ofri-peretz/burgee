@@ -186,7 +186,8 @@ describe('a schema made from an object schema', () => {
     const keys = keyof(Wide);
     const fixed = readonly(Wide);
     const list = readonly(array(number()));
-    expect(fixed).toBe(Wide);
+    // The same node, marked read-only for the documents it is written to.
+    expect(fixed).toEqual({ ...Wide, meta: { readOnly: true } });
   });
 
   // parity.md decision 10: the value handed back may be the caller's own, so nothing is frozen.

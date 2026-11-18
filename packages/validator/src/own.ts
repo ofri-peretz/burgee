@@ -1,4 +1,4 @@
-import { keyCount } from './check.js';
+import { keyCount, matching, repeated } from './check.js';
 import { type Filler, type Issue, type Node, type Own, type Pass, type Reader, type Rule, type Test, type Walk } from './schema.js';
 
 /**
@@ -448,6 +448,98 @@ const counted: Reader = (walk, schema, got, path) => {
 
 const COUNTED: Own = /* @__PURE__ */ Object.freeze({ issues: counted, fill: inner });
 
+/**
+ * The reading of a schema that adds one test of its own to what it wraps, or is one test alone: the
+ * wrapped schema's issues first, and where there are none and the node's own check still says no,
+ * one issue under the node's kind, expecting what the node's rule is named. So a kind that is one
+ * test brings no reader of its own.
+ */
+const tested: Reader = (walk, schema, got, path) => {
+  const before = walk.found.length;
+  if (schema.item !== null) walk.visit(walk, schema.item, got, path);
+  if (walk.found.length > before || schema.check(schema, got)) return;
+  const { name } = schema.rule as Rule;
+  walk.add(walk, { path, keyword: schema.kind, expected: name, got, fix: `send ${name}` });
+};
+
+/** For a test on top of a schema: `parse` makes of the value what that schema makes of it. */
+const TESTED: Own = /* @__PURE__ */ Object.freeze({ issues: tested, fill: inner });
+
+/** For a test that stands alone: a template, or the refusal of a schema, which `parse` has nothing to make anything of. */
+const ALONE: Own = /* @__PURE__ */ Object.freeze({ issues: tested, fill: same });
+
+/**
+ * The wrapped array's issues, and then the count of the items the schema in `key` accepts: too few
+ * is reported under `contains` and too many under `maxContains`, at the array.
+ */
+const containing: Reader = (walk, schema, got, path) => {
+  const before = walk.found.length;
+  walk.visit(walk, schema.item as Node, got, path);
+  if (walk.found.length > before || !Array.isArray(got)) return;
+  const count = matching(schema.key as Node, got);
+  const [min, max] = [String(schema.min), String(schema.max)];
+  if (count < schema.min) walk.add(walk, { path, keyword: 'contains', expected: `at least ${min} items of the kind it must contain, not ${String(count)}`, got, fix: `send ${min} or more of them` });
+  else if (count > schema.max) walk.add(walk, { path, keyword: 'maxContains', expected: `at most ${max} items of the kind it may contain, not ${String(count)}`, got, fix: `send ${max} or fewer of them` });
+};
+
+const CONTAINING: Own = /* @__PURE__ */ Object.freeze({ issues: containing, fill: inner });
+
+/** The wrapped array's issues, and then the first item that says again what an earlier one said, reported at that item. */
+const unique: Reader = (walk, schema, got, path) => {
+  const before = walk.found.length;
+  walk.visit(walk, schema.item as Node, got, path);
+  if (walk.found.length > before || !Array.isArray(got)) return;
+  const index = repeated(got);
+  if (index !== -1) walk.add(walk, { path: path + token(index), keyword: 'unique', expected: 'an item unlike every item before it', got: got[index], fix: 'remove it, or change it' });
+};
+
+const UNIQUE: Own = /* @__PURE__ */ Object.freeze({ issues: unique, fill: inner });
+
+/**
+ * One issue for the whole schema, as a union has one. Where no member accepts the value its `fix:`
+ * line says where each first fails, as a union's does; where more than one accepts it, it names
+ * the members that do, since the value has to stop matching all of them but one.
+ */
+const one: Reader = (walk, schema, got, path) => {
+  const members = schema.fields as readonly Node[];
+  const misses: string[] = [];
+  const accepting: string[] = [];
+  for (const [index, member] of members.entries()) {
+    // Stryker disable next-line BooleanLiteral: equivalent, only the member's first issue is read; stopping there saves finding the rest
+    const inner: Walk = { ...walk, found: [], first: true, message: undefined };
+    walk.visit(inner, member, got, path);
+    const [miss] = inner.found;
+    if (miss === undefined) accepting.push(String(index));
+    else misses.push(`member ${String(index)} fails ${miss.keyword} at "${miss.path}"`);
+  }
+  if (accepting.length === 1) return;
+  const expected = `a value exactly one of ${String(members.length)} members accepts`;
+  if (accepting.length === 0) walk.add(walk, { path, keyword: 'oneOf', expected, got, fix: ['satisfy one of them', ...misses].join('; ') });
+  else walk.add(walk, { path, keyword: 'oneOf', expected, got, fix: `change it so that only one of the members ${accepting.join(', ')} accepts it` });
+};
+
+/** `parse` makes of the value what the first member to accept its own output makes of it, as in a union. */
+const ONE: Own = /* @__PURE__ */ Object.freeze({ issues: one, fill: first });
+
+/**
+ * Before `check`, a value the wrapped schema refuses is replaced by the fallback, or by what the
+ * fallback, when it is a function, makes of the issues: those are the wrapped schema's own, read
+ * by parsing the value again, so the function form costs that second reading and the plain form
+ * nothing. After `check` the value is one the schema accepted, the fallback or not.
+ */
+const caught: Filler = (schema, value, pass) => {
+  const item = schema.item as Node;
+  const out = pass.fill(item, value, pass);
+  if (pass.late || item.check(item, out)) return out;
+  const instead = schema.value;
+  if (typeof instead !== 'function') return instead;
+  // `parse` fills the value as this walk just did and then checks it, so it refuses it too: the issues are there.
+  const { issues } = pass.parse(item, value, pass.options) as { readonly issues: Issue[] };
+  return (instead as (issues: readonly Issue[]) => unknown)(issues);
+};
+
+const FALLBACK: Own = /* @__PURE__ */ Object.freeze({ issues: mapped, fill: caught });
+
 /** The keywords a schema reports one key below itself, about that key: of an object, a record or a discriminated union. */
 const ABOUT_A_KEY: ReadonlySet<string> = /* @__PURE__ */ new Set(['required', 'unknown', 'undefined', 'key', 'tag']);
 
@@ -531,14 +623,17 @@ const AWAITED_RULE: Own = /* @__PURE__ */ Object.freeze({ issues: mapped, fill: 
 const AWAITED_MAP: Own = /* @__PURE__ */ Object.freeze({ issues: mapped, fill: waiting });
 
 export {
+  ALONE,
   AWAITED_MAP,
   AWAITED_RULE,
   BEFORE,
   BIGINT,
+  CONTAINING,
   COUNTED,
   CUSTOM,
   DATE,
   EVERY,
+  FALLBACK,
   full,
   INSTANCE,
   isMembers,
@@ -555,17 +650,20 @@ export {
   type Notes,
   NULLABLE,
   NULLISH,
+  ONE,
   PIPED,
   rebuilt,
   RECORD,
   REFINED,
   same,
   SET,
+  TESTED,
   token,
   TUPLE,
   TYPE,
   under,
   UNION,
+  UNIQUE,
   UNKNOWN,
   WORDED,
 };

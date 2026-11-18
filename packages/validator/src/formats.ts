@@ -157,4 +157,127 @@ const isHttpUrl = (text: string): boolean => HTTP.test(text) && isUrl(text);
 /** The same, with the scheme `http` or `https` and a host: what may be offered as a link. */
 const httpUrl = /* @__PURE__ */ Object.freeze({ name: 'http-url', test: isHttpUrl }) satisfies Format;
 
-export { base64, date, datetime, email, hex, hostname, httpUrl, ipv4, ipv6, localTime, time, url, uuid };
+/**
+ * RFC 4648 §5, base 64 with the URL and filename safe alphabet (`-` and `_` for `+` and `/`), and
+ * with no padding, as §3.2 allows where the length is known and as JWT (RFC 7515 §2) writes it. So
+ * `=` is refused, and so is a length that leaves one character over, which encodes no whole byte.
+ */
+const base64url = /* @__PURE__ */ Object.freeze({ name: 'base64url', pattern: /^(?:[A-Za-z0-9_-]{4})*(?:[A-Za-z0-9_-]{2,3})?$/u }) satisfies Format;
+
+/** A cuid (version 1, deprecated by its author): `c` and then 24 lower-case letters and digits, 25 in all. */
+const cuid = /* @__PURE__ */ Object.freeze({ name: 'cuid', pattern: /^c[0-9a-z]{24}$/u }) satisfies Format;
+
+/** A cuid2: a lower-case letter, then lower-case letters and digits, from 2 to 32 in all (the library's own bounds; 24 is its default). */
+const cuid2 = /* @__PURE__ */ Object.freeze({ name: 'cuid2', pattern: /^[a-z][0-9a-z]{1,31}$/u }) satisfies Format;
+
+/**
+ * RFC 3339 Appendix A `duration`, which is what JSON Schema's `duration` format names: `P`, then
+ * years, months and days, a `T` with hours, minutes and seconds, or weeks alone; whole numbers, no
+ * sign. The grammar is strict about order and about gaps: a minute may follow an hour, not skip it,
+ * so `PT1H1S` and `P1Y1D` are refused, `P1DT2H` and `PT36H` accepted.
+ */
+const duration = /* @__PURE__ */ Object.freeze({
+  name: 'duration',
+  pattern: /^P(?:(?:\d+D|\d+M(?:\d+D)?|\d+Y(?:\d+M(?:\d+D)?)?)(?:T(?:\d+H(?:\d+M(?:\d+S)?)?|\d+M(?:\d+S)?|\d+S))?|T(?:\d+H(?:\d+M(?:\d+S)?)?|\d+M(?:\d+S)?|\d+S)|\d+W)$/u,
+}) satisfies Format;
+
+/**
+ * One or more emoji of Unicode's recommended set (UTS #51, `RGI_Emoji`), as the engine's own Unicode
+ * tables have them: a flag, a family and a skin tone are each one. So `"123"` is refused, which a
+ * test of single code points would let through, since a digit is an emoji component.
+ */
+const emoji = /* @__PURE__ */ Object.freeze({ name: 'emoji', pattern: /* @__PURE__ */ new RegExp('^\\p{RGI_Emoji}+$', 'v') }) satisfies Format;
+
+const isJson = (text: string): boolean => {
+  try {
+    JSON.parse(text);
+  } catch {
+    return false;
+  }
+  return true;
+};
+
+/** A string that is a JSON text (RFC 8259 §2), as `JSON.parse` reads one: any JSON value, white space around it allowed. A test, so `emitWith` hands it over. */
+const json = /* @__PURE__ */ Object.freeze({ name: 'json', test: isJson }) satisfies Format;
+
+const B64URL = /^[A-Za-z0-9_-]*$/u;
+
+/** Base 64 writes three bytes as four characters; a segment one character past a whole group encodes no whole byte. */
+const GROUP = 4;
+/** The segments of a JWS in its compact form: header, payload, signature. */
+const SEGMENTS = 3;
+/** The versions RFC 9562 §4.2 defines run from 1 to 8. */
+const LAST_VERSION = 8;
+
+/**
+ * Whether a header segment is a JSON object with an `alg` that is a string (RFC 7515 §4.1.1: it
+ * must be there), read from its bytes as UTF-8. Nothing in JSON but an object has a member, so
+ * asking for the member is asking for both. The segment is one `isJwt` has already held to the
+ * alphabet and the length, and `atob` reads base 64 without its padding (the forgiving decode of
+ * the HTML standard).
+ */
+const isHeader = (segment: string): boolean => {
+  const binary = atob(segment.replaceAll('-', '+').replaceAll('_', '/'));
+  const text = new TextDecoder().decode(Uint8Array.from(binary, (unit) => unit.codePointAt(0) as number));
+  // A decoder puts U+FFFD where the bytes are not UTF-8: then the text, written back, is not the bytes that came in.
+  return String.fromCodePoint(...new TextEncoder().encode(text)) === binary && isJson(text) && typeof (JSON.parse(text) as { readonly alg?: unknown } | null)?.alg === 'string';
+};
+
+/**
+ * A JWS in its compact form (RFC 7515 §7.1), which is what a JWT is written as: three base64url
+ * segments with no padding, joined by dots, the first a JSON object with a string `alg`. The payload
+ * and the signature are not read: the signature is empty for `alg: none`, and the payload need not be
+ * JSON. Whether the token is signed by anyone you trust is not a format's to say.
+ */
+const isJwt = (text: string): boolean => {
+  const parts = text.split('.');
+  return parts.length === SEGMENTS && parts.every((part) => B64URL.test(part) && part.length % GROUP !== 1) && isHeader(parts[0] as string);
+};
+
+const jwt = /* @__PURE__ */ Object.freeze({ name: 'jwt', test: isJwt }) satisfies Format;
+
+/** A Nano ID of the library's defaults: 21 characters of its URL-safe alphabet, `A`–`Z`, `a`–`z`, `0`–`9`, `_` and `-`. */
+const nanoid = /* @__PURE__ */ Object.freeze({ name: 'nanoid', pattern: /^[A-Za-z0-9_-]{21}$/u }) satisfies Format;
+
+/**
+ * A ULID (github.com/ulid/spec): 26 characters of Crockford's base 32, which has no `I`, `L`, `O` or
+ * `U`. Read in either case, as the spec says it is. The first is at most `7`: 26 characters hold 130
+ * bits, and a ULID is 128.
+ */
+const ulid = /* @__PURE__ */ Object.freeze({ name: 'ulid', pattern: /^[0-7][0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{25}$/u }) satisfies Format;
+
+/** The UUID versions RFC 9562 defines. */
+// eslint-disable-next-line conventions/no-magic-numbers -- the versions themselves, as RFC 9562 §4.2 numbers them
+type UuidVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+
+/**
+ * A UUID of one version (RFC 9562 §4.2): the `uuid` format with that digit where the version stands,
+ * and the RFC's variant. `uuidVersion(4)` refuses a version-1 UUID, and the Nil and Max UUIDs, which
+ * have no version.
+ */
+const uuidVersion = (version: UuidVersion): Format => {
+  if (!Number.isInteger(version) || version < 1 || version > LAST_VERSION) {
+    throw new TypeError(`there is no UUID version ${typeof version === 'number' ? String(version) : `that is a value of the type ${typeof version}`}. fix: name a version from 1 to 8 (RFC 9562 §4.2)`);
+  }
+  // eslint-disable-next-line secure-coding/detect-non-literal-regexp -- the one part decided at run time is a version just held to the digits 1 to 8
+  return Object.freeze({ name: `uuid-v${String(version)}`, pattern: new RegExp(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-${String(version)}[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$`, 'u') });
+};
+
+const isRegex = (text: string): boolean => {
+  try {
+    // eslint-disable-next-line secure-coding/detect-non-literal-regexp -- the pattern is only compiled, to ask whether it is one, and never run
+    new RegExp(text, 'u');
+  } catch {
+    return false;
+  }
+  return true;
+};
+
+/**
+ * A string that is itself a regular expression, read as ECMA-262 reads one under the `u` flag,
+ * which is how JSON Schema's `regex` format and its `pattern` keyword read them. So `^a+$` passes and
+ * `(` does not; neither does `\-`, which only a pattern without the flag reads.
+ */
+const regex = /* @__PURE__ */ Object.freeze({ name: 'regex', test: isRegex }) satisfies Format;
+
+export { base64, base64url, cuid, cuid2, date, datetime, duration, email, emoji, hex, hostname, httpUrl, ipv4, ipv6, json, jwt, localTime, nanoid, regex, time, ulid, url, uuid, uuidVersion, type UuidVersion };
