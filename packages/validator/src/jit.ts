@@ -10,6 +10,6 @@ import { type Schema } from './schema.js';
 export const compile = <T>(schema: Schema<T, unknown>): ((value: unknown) => value is T) => {
   const { source, hooks } = emitWith(schema);
   // eslint-disable-next-line node-security/detect-eval-with-expression -- The text is written by `emit` from a schema's own data, every string in it through JSON.stringify; no input reaches it
-  const build = new Function(`return ${source};`)() as (hooks: readonly unknown[]) => (value: unknown) => value is T;
+  const build = new Function(`return ${source};`)() as NonNullable<(typeof source)['~evaluates']>;
   return build(hooks);
 };

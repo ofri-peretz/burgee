@@ -1,3 +1,4 @@
+import { escaped, IDENTIFIER, typeOf } from './emit-type.js';
 import { type Kind, type Node, type Rule, type Schema } from './schema.js';
 
 /**
@@ -25,9 +26,6 @@ interface Emitter {
   readonly hooks: unknown[];
 }
 
-const HEX = 16;
-const UNIT = 4;
-
 /**
  * The values JSON cannot write: it throws on a bigint, and calls a number that is not finite null,
  * which is another value. Each is its own text, made of digits and letters only.
@@ -42,8 +40,7 @@ const unquoted = (value: unknown): string | null => {
  * are for where the text may end up: `<`, `>` and `/` cannot close a `<script>` or open a comment
  * there, and the two Unicode line separators cannot end a line in an older parser.
  */
-const literal = (value: unknown): string =>
-  (unquoted(value) ?? String(JSON.stringify(value))).replaceAll(/[<>/\u2028\u2029]/gu, (unit) => `\\u${(unit.codePointAt(0) as number).toString(HEX).padStart(UNIT, '0')}`);
+const literal = (value: unknown): string => escaped(unquoted(value) ?? String(JSON.stringify(value)));
 
 /**
  * A value a hand-built node holds where it should not, for the message that refuses it: a string
@@ -88,7 +85,7 @@ const declare = (emitter: Emitter, prefix: string, source: string): string => {
  * The code-point counter, written once and only for a schema that needs it: the loop of `points`
  * in check.ts, as text.
  */
-const POINTS = `(s) => {
+const POINTS = `(s«: any»)«: number» => {
   let n = s.length;
   for (let i = 0; i < s.length; i++) if (s.codePointAt(i) > 65535) n -= 1;
   return n;
@@ -115,7 +112,7 @@ const string = (emitter: Emitter, schema: Node, ref: string): string => {
 };
 
 /** `isMultiple` of check.ts, as text: written once, and only for a schema with a `multipleOf`. */
-const MULTIPLE = `(v, s) => {
+const MULTIPLE = `(v«: any», s«: any»)«: boolean» => {
   const r = Math.abs(v % s);
   return r === 0 || (!Number.isInteger(s) && Math.min(r, s - r) <= Math.abs(v) * Number.EPSILON);
 }`;
@@ -146,7 +143,7 @@ const array = (emitter: Emitter, schema: Node): string => {
   const [min, max] = [numeric(schema.min), numeric(schema.max)];
   const bounds = [schema.min > 0 ? ` || v.length < ${min}` : '', schema.max < Number.MAX_VALUE ? ` || v.length > ${max}` : ''];
   const item = test(emitter, schema.item as Node, 'v[i]');
-  return `(v) => {
+  return `(v«: any»)«: boolean» => {
   if (!Array.isArray(v)${bounds.join('')}) return false;
   for (let i = 0; i < v.length; i++) if (!(${item})) return false;
   return true;
@@ -170,7 +167,7 @@ const mayPassUndefined = (field: Node): boolean => UNDEFINED_MAY_PASS.has(field.
 const extras = (emitter: Emitter, schema: Node): string => {
   const named = (schema.keys as readonly string[]).map((key) => `k === ${literal(key)}`);
   const rest = schema.item === null ? '' : ` && !(${test(emitter, schema.item, 'v[k]')})`;
-  return `(v) => {
+  return `(v«: any»)«: boolean» => {
   for (const k in v) if (!(${named.length === 0 ? 'false' : named.join(' || ')})${rest}) return false;
   return true;
 }`;
@@ -191,12 +188,12 @@ const object = (emitter: Emitter, schema: Node): string => {
     return mayPassUndefined(field) ? `(${ref} !== undefined && (${inner}))` : `(${inner})`;
   });
   if (schema.unknown === 'strict' || schema.item !== null) tests.push(`${declare(emitter, 'f', extras(emitter, schema))}(v)`);
-  return `(v) => ${[isObject('v'), ...tests].join('\n  && ')}`;
+  return `(v«: any»)«: boolean» => ${[isObject('v'), ...tests].join('\n  && ')}`;
 };
 
 const record = (emitter: Emitter, schema: Node): string => {
   const key = schema.key === null ? '' : `!(${test(emitter, schema.key, 'k')}) || `;
-  return `(v) => {
+  return `(v«: any»)«: boolean» => {
   if (!(${isObject('v')})) return false;
   for (const k in v) if (${key}!(${test(emitter, schema.item as Node, 'v[k]')})) return false;
   return true;
@@ -207,8 +204,8 @@ const tuple = (emitter: Emitter, schema: Node): string => {
   const fields = schema.fields as readonly Node[];
   const tests = fields.map((field, index) => `(${test(emitter, field, `v[${String(index)}]`)})`);
   const count = String(fields.length);
-  if (schema.item === null) return `(v) => ${[`Array.isArray(v) && v.length === ${count}`, ...tests].join('\n  && ')}`;
-  return `(v) => {
+  if (schema.item === null) return `(v«: any»)«: boolean» => ${[`Array.isArray(v) && v.length === ${count}`, ...tests].join('\n  && ')}`;
+  return `(v«: any»)«: boolean» => {
   if (!(${[`Array.isArray(v) && v.length >= ${count}`, ...tests].join('\n  && ')})) return false;
   for (let i = ${count}; i < v.length; i++) if (!(${test(emitter, schema.item, 'v[i]')})) return false;
   return true;
@@ -217,7 +214,7 @@ const tuple = (emitter: Emitter, schema: Node): string => {
 
 const cases = (emitter: Emitter, schema: Node): string => {
   const chosen = [...(schema.cases as ReadonlyMap<unknown, Node>)].map(([tag, one]) => `    case ${literal(tag)}: return ${test(emitter, one, 'v')};`);
-  return `(v) => {
+  return `(v«: any»)«: boolean» => {
   if (!(${isObject('v')})) return false;
   switch (v[${literal(schema.tag)}]) {
 ${chosen.join('\n')}
@@ -226,7 +223,7 @@ ${chosen.join('\n')}
 }`;
 };
 
-const map = (emitter: Emitter, schema: Node): string => `(v) => {
+const map = (emitter: Emitter, schema: Node): string => `(v«: any»)«: boolean» => {
   if (!(v instanceof Map)) return false;
   for (const [k, x] of v) if (!(${test(emitter, schema.key as Node, 'k')}) || !(${test(emitter, schema.item as Node, 'x')})) return false;
   return true;
@@ -235,7 +232,7 @@ const map = (emitter: Emitter, schema: Node): string => `(v) => {
 const set = (emitter: Emitter, schema: Node): string => {
   const [min, max] = [numeric(schema.min), numeric(schema.max)];
   const bounds = [schema.min > 0 ? ` || v.size < ${min}` : '', schema.max < Number.MAX_VALUE ? ` || v.size > ${max}` : ''];
-  return `(v) => {
+  return `(v«: any»)«: boolean» => {
   if (!(v instanceof Set)${bounds.join('')}) return false;
   for (const x of v) if (!(${test(emitter, schema.item as Node, 'x')})) return false;
   return true;
@@ -243,7 +240,7 @@ const set = (emitter: Emitter, schema: Node): string => {
 };
 
 /** An object the wrapped schema accepts, and the count of its keys: `for … in`, as `isCounted` counts them. */
-const counted = (emitter: Emitter, schema: Node): string => `(v) => {
+const counted = (emitter: Emitter, schema: Node): string => `(v«: any»)«: boolean» => {
   if (!(${isObject('v')}) || !(${test(emitter, schema.item as Node, 'v')})) return false;
   let n = 0;
   for (const k in v) n += 1;
@@ -297,16 +294,16 @@ const later = (emitter: Emitter, schema: Node, ref: string): string => {
   const name = `g${String(emitter.named.size)}`;
   emitter.named.set(schema, name);
   const body = test(emitter, (schema.get as () => Node)(), 'v');
-  emitter.lines.push(`const ${name} = (v) => ${body};`);
+  emitter.lines.push(`const ${name} = (v«: any»)«: boolean» => ${body};`);
   return `${name}(${ref})`;
 };
 
 /** `isTemplate` and `spread` of check.ts, as text: written once, and only for a schema with a template. */
-const TEMPLATE = `(t, s) => {
+const TEMPLATE = `(t«: any», s«: any»)«: boolean» => {
   if (typeof s !== "string") return false;
-  const seen = [];
-  const spread = (from, round) => {
-    const out = [];
+  const seen«: any[]» = [];
+  const spread = (from«: any[]», round«: number»)«: any[]» => {
+    const out«: any[]» = [];
     while (from.length > 0) {
       const p = from.pop();
       if (seen[p] === round) continue;
@@ -320,7 +317,7 @@ const TEMPLATE = `(t, s) => {
   let now = spread([0], 0);
   for (let i = 0; i < s.length; i++) {
     const u = s.charCodeAt(i);
-    const next = [];
+    const next«: any[]» = [];
     for (const p of now) {
       const q = t[p];
       if (q !== undefined && u >= q[1] && u <= q[2]) next.push(p + 1);
@@ -354,7 +351,7 @@ const textOf = (value: unknown): string => {
 const textual = (method: string) => (emitter: Emitter, schema: Node, ref: string): string =>
   `(typeof ${ref} === "string" && ${ref}.${method}(${textOf(schema.value)}) && (${test(emitter, schema.item as Node, ref)}))`;
 
-const containing = (emitter: Emitter, schema: Node): string => `(v) => {
+const containing = (emitter: Emitter, schema: Node): string => `(v«: any»)«: boolean» => {
   if (!Array.isArray(v) || !(${test(emitter, schema.item as Node, 'v')})) return false;
   let n = 0;
   for (let i = 0; i < v.length; i++) if (${test(emitter, schema.key as Node, 'v[i]')}) n += 1;
@@ -363,8 +360,8 @@ const containing = (emitter: Emitter, schema: Node): string => `(v) => {
 
 /** `sameValue` and `repeated` of check.ts, as text: written once, and only for a schema with a unique array. */
 const SAME = `(() => {
-  const bare = (o) => { const p = Object.getPrototypeOf(o); return p === null || p === Object.prototype; };
-  const same = (a, b, inside) => {
+  const bare = (o«: any»)«: boolean» => { const p = Object.getPrototypeOf(o); return p === null || p === Object.prototype; };
+  const same = (a«: any», b«: any», inside«: any[]»)«: boolean» => {
     if (a === b || Object.is(a, b)) return true;
     if (typeof a !== "object" || typeof b !== "object" || a === null || b === null || inside.includes(a)) return false;
     if (Array.isArray(a)) return Array.isArray(b) && a.length === b.length && a.every((x, i) => same(x, b[i], [...inside, a]));
@@ -373,9 +370,9 @@ const SAME = `(() => {
     const keys = Object.keys(a);
     return keys.length === Object.keys(b).length && keys.every((k) => Object.hasOwn(b, k) && same(a[k], b[k], [...inside, a]));
   };
-  return (v) => {
+  return (v«: any»)«: boolean» => {
     const plain = new Set();
-    const objects = [];
+    const objects«: any[]» = [];
     for (let i = 0; i < v.length; i++) {
       const x = v[i];
       if (typeof x !== "object" || x === null) {
@@ -402,7 +399,7 @@ const LINE = '\n';
 /** Exactly one member: the count stops at the second. */
 const one = (emitter: Emitter, schema: Node): string => {
   const tests = (schema.fields as readonly Node[]).map((member) => `  if (${test(emitter, member, 'v')} && ++n > 1) return false;`);
-  return `(v) => {
+  return `(v«: any»)«: boolean» => {
   let n = 0;
 ${tests.join(LINE)}
   return n === 1;
@@ -477,22 +474,70 @@ function test(emitter: Emitter, schema: Node, ref: string): string {
   return WRITERS[schema.kind](emitter, schema, ref);
 }
 
+interface EmitOptions {
+  /**
+   * TypeScript in place of JavaScript: every parameter typed, and the function a guard,
+   * `(v: any): v is T`, with `T` the type the schema validates written out as `typeOf` writes it.
+   * The checks are the same text, so what it answers and how fast are the same as the JavaScript's.
+   */
+  readonly typescript?: boolean;
+  /**
+   * With `typescript`: the name `T` is declared under beside the text (`typeOf(schema, name)`
+   * writes it), which the guard names in place of the type written out inside the text.
+   */
+  readonly type?: string;
+}
+
+/** A function that answers whether a value is a `T`, and says so to the type system. */
+type Guard<T> = (value: unknown) => value is T;
+
+/** Source text, and, in the type system only, what it evaluates to. */
+type Source<F> = string & { readonly '~evaluates'?: F };
+
+/**
+ * What each type annotation in the text is between: kept for TypeScript, cut for JavaScript.
+ * Every value of the schema's that reaches the text goes through `literal`, which escapes both, so
+ * the two marks stand in the text only where this file put them.
+ */
+const ANNOTATION = /«([^«»]*)»/gu;
+
+const annotated = (text: string, typescript: boolean): string => text.replaceAll(ANNOTATION, typescript ? '$1' : '');
+
+/** The type the guard names, and the declarations it needs inside the text. A name given is held to be one, since it is written into the text as it is. */
+const guarded = (schema: Node, options: EmitOptions): { type: string; aliases: string[] } => {
+  const { type } = options;
+  if (type !== undefined) {
+    if (typeof type !== 'string' || !IDENTIFIER.test(type)) throw new TypeError(`cannot name the type of a guard ${shown(type)}: it is not an identifier. fix: give a name of letters, digits, _ and $ that does not start with a digit`);
+    return { type, aliases: [] };
+  }
+  const { text, aliases } = typeOf(schema);
+  return { type: text, aliases: [...aliases].map(([name, alias]) => `type ${name} = ${alias};`) };
+};
+
 /** The declarations and the entry of the function for a schema, and the functions that text calls. */
-const write = (schema: Node): { body: string; hooks: readonly unknown[] } => {
+const write = (schema: Node, options: EmitOptions): { body: string; hooks: readonly unknown[] } => {
   const emitter: Emitter = { lines: [], named: new Map(), points: null, multiple: null, template: null, same: null, hooks: [] };
   const entry = test(emitter, schema, 'v');
-  return { body: `${emitter.lines.join('\n')}\nreturn (v) => ${entry};`, hooks: emitter.hooks };
+  const typescript = options.typescript === true;
+  const lines = annotated(`${emitter.lines.join('\n')}\n`, typescript);
+  // The entry is a call or an inline test, which no annotation is in: only the declarations carry them.
+  if (!typescript) return { body: `${lines}return (v) => ${entry};`, hooks: emitter.hooks };
+  // The guard's type goes in after the marks are read: it holds the schema's keys and literals, which may hold one.
+  const { type, aliases } = guarded(schema, options);
+  return { body: `${aliases.map((alias) => `${alias}\n`).join('')}${lines}return (v: any): v is ${type} => ${entry};`, hooks: emitter.hooks };
 };
 
 /**
  * JavaScript for a function `(value) => boolean` that answers what `check(schema, value)` answers.
- * It is one expression, so `export const isOrder = ${emit(Order)};` is a module.
+ * It is one expression, so `export const isOrder = ${emit(Order)};` is a module. With
+ * `{ typescript: true }` it is TypeScript for the guard `(value: unknown) => value is T` instead, so
+ * a `.ts` module that holds it type-checks under `strict`, and narrows where it is called.
  *
  * A schema that names a function (a custom type, a refinement, a class to be an instance of, or a
  * format with a test) has no such text: text cannot hold a function. `emitWith` is for those.
  */
-const emit = <T>(schema: Schema<T, unknown>): string => {
-  const { body, hooks } = write(schema);
+const emit = <T>(schema: Schema<T, unknown>, options: EmitOptions = {}): Source<Guard<T>> => {
+  const { body, hooks } = write(schema, options);
   if (hooks.length > 0) {
     throw new TypeError('cannot emit a schema that names a function as text alone: a custom type, a refinement, a class, or a format with a test. fix: give the format a pattern, or use `emitWith` and hand its hooks to the text');
   }
@@ -500,12 +545,13 @@ const emit = <T>(schema: Schema<T, unknown>): string => {
 };
 
 /**
- * The same, for any schema: JavaScript for a function that takes the schema's own functions, in
- * `hooks`, and returns the `(value) => boolean`. `./jit` is what calls it.
+ * The same, for any schema: source for a function that takes the schema's own functions, in
+ * `hooks`, and returns the guard. `./jit` is what calls it.
  */
-const emitWith = <T>(schema: Schema<T, unknown>): { source: string; hooks: readonly unknown[] } => {
-  const { body, hooks } = write(schema);
-  return { source: `(h) => {\n${body}\n}`, hooks };
+const emitWith = <T>(schema: Schema<T, unknown>, options: EmitOptions = {}): { source: Source<(hooks: readonly unknown[]) => Guard<T>>; hooks: readonly unknown[] } => {
+  const { body, hooks } = write(schema, options);
+  return { source: `(h${options.typescript === true ? ': any' : ''}) => {\n${body}\n}`, hooks };
 };
 
-export { emit, emitWith };
+export { emit, type EmitOptions, emitWith, type Guard, type Source };
+export { typeOf, type TypeText } from './emit-type.js';
