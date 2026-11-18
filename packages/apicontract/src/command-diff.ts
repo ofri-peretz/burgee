@@ -83,7 +83,7 @@ const HASH_DIGITS = 8;
 
 const LEVEL: Readonly<Record<Verdict, string>> = { breaking: 'error', unknown: 'warning', 'non-breaking': 'note' };
 
-const where = (finding: Finding): string => [finding.payload, finding.pointer].filter((part) => part !== undefined && part !== '').join(' ');
+const where = (finding: Finding): string => [finding.payload ?? '', finding.pointer].filter((part) => part !== '').join(' ');
 
 const show = (value: unknown): string => (value === undefined ? '-' : JSON.stringify(value));
 

@@ -62,10 +62,10 @@ const ANNOTATIONS: ReadonlySet<string> = new Set([
   'xml',
 ]);
 
-/** Lower bounds, raising one narrows; upper bounds, raising one widens. */
+/** Each bound and whether raising it widens: lower bounds narrow when raised, upper bounds widen. */
 const BOUNDS = [
-  ...(['minimum', 'exclusiveMinimum', 'minLength', 'minItems', 'minProperties'] as const).map((keyword) => [keyword, 'narrows'] as const),
-  ...(['maximum', 'exclusiveMaximum', 'maxLength', 'maxItems', 'maxProperties'] as const).map((keyword) => [keyword, 'widens'] as const),
+  ...(['minimum', 'exclusiveMinimum', 'minLength', 'minItems', 'minProperties'] as const).map((keyword) => [keyword, false] as const),
+  ...(['maximum', 'exclusiveMaximum', 'maxLength', 'maxItems', 'maxProperties'] as const).map((keyword) => [keyword, true] as const),
 ];
 /** Keywords whose containment is decidable only for presence: adding one narrows, a new value is unknown. */
 const PREDICATES = ['pattern', 'format'] as const;
@@ -164,7 +164,7 @@ const compareValues = (pointer: string, a: Dict, b: Dict): Change[] => {
 };
 
 const compareBounds = (pointer: string, a: Dict, b: Dict): Change[] =>
-  BOUNDS.flatMap(([keyword, raising]) => {
+  BOUNDS.flatMap(([keyword, raisingWidens]) => {
     const before = a[keyword];
     const after = b[keyword];
     if (before === after) return [];
@@ -175,7 +175,7 @@ const compareBounds = (pointer: string, a: Dict, b: Dict): Change[] =>
     if (typeof before !== 'number' || typeof after !== 'number') return [at(where, before, after)(`${keyword}-changed`, 'unknown')];
     // Stryker disable next-line EqualityOperator: equivalent, equal bounds returned above
     const up = after > before;
-    return [at(where, before, after)(`${keyword}-${up ? 'increased' : 'decreased'}`, up === (raising === 'widens') ? 'widens' : 'narrows')];
+    return [at(where, before, after)(`${keyword}-${up ? 'increased' : 'decreased'}`, up === raisingWidens ? 'widens' : 'narrows')];
   });
 
 const comparePredicates = (pointer: string, a: Dict, b: Dict): Change[] =>

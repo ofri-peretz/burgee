@@ -190,6 +190,11 @@ describe('other families, on hand-built contracts', () => {
     ]);
   });
 
+  it('pairs a renamed operation with the one at its route, not the first one left', () => {
+    const result = compareContracts(contract([op('x', [], '#/paths/~1a/get')]), contract([op('y', [], '#/paths/~1b/get'), op('z', [], '#/paths/~1a/get')]));
+    expect(rows(result.findings)).toEqual([['non-breaking', 'endpoint-added', 'y', '', '']]);
+  });
+
   it('an operation whose id changed and whose source is no route is removed and added', () => {
     const result = compareContracts(contract([op('a', [])]), contract([op('b', [])]));
     expect(rows(result.findings)).toEqual([

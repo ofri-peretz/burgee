@@ -48,6 +48,7 @@ export interface CompareOptions {
 }
 
 /** The order findings are listed in. */
+// Stryker disable next-line StringLiteral: equivalent for the first, which `indexOf` ranks first whether found (0) or not (-1)
 const SEVERITY: readonly Verdict[] = ['breaking', 'unknown', 'non-breaking'];
 
 /** `get /pets/{}` from `#/paths/~1pets~1{id}/get`: what an operation is when its id changes. Path parameter names do not count. */
