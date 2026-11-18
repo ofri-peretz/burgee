@@ -1,0 +1,193 @@
+/**
+ * What every generated controller calls: coercion of path, query and header strings, validation
+ * of the request and the response, and RFC 9457 Problem Details for a request the contract refuses.
+ */
+
+/** What a reply offers: Express's `Response` and Fastify's `FastifyReply` both do. */
+export interface Reply {
+  status(code: number): unknown;
+  header(name: string, value: string): unknown;
+}
+
+/** A validator the `validator` target generated. */
+export type Check = (value: unknown) => boolean;
+
+/** One error in a Problem Details answer: where in the request, and what is wrong there. */
+export interface ProblemError {
+  readonly pointer: string;
+  readonly detail: string;
+}
+
+/** RFC 9457 Problem Details, answered as `application/problem+json`. */
+export interface ProblemDetails {
+  readonly type: string;
+  readonly title: string;
+  readonly status: number;
+  readonly detail: string;
+  readonly errors?: readonly ProblemError[];
+}
+
+/** One part of the request, and the validator the contract gives it. */
+export interface Field {
+  readonly pointer: string;
+  readonly value: unknown;
+  readonly required: boolean;
+  readonly check: Check;
+}
+
+/** A declared response: its media type and validator, both absent when it has no content. */
+export interface Declared {
+  readonly media?: string;
+  readonly check?: Check;
+}
+
+/** What a handler returns. */
+export interface Output {
+  readonly status: number;
+  readonly body?: unknown;
+  readonly headers?: Readonly<Record<string, string>>;
+}
+
+const number = (value: unknown): unknown => {
+  if (typeof value !== 'string' || value.trim() === '') return value;
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? value : parsed;
+};
+
+const boolean = (value: unknown): unknown => {
+  if (value === 'true') return true;
+  return value === 'false' ? false : value;
+};
+
+/** A string from the URL or a header as the contract types it: `number`, `boolean`, `string`, or a list of one (`number[]`). */
+export const coerce = (value: unknown, kind: string): unknown => {
+  if (value === undefined) return undefined;
+  if (kind.endsWith('[]')) return (Array.isArray(value) ? value : [value]).map((item) => coerce(item, kind.slice(0, -2)));
+  if (kind === 'number') return number(value);
+  return kind === 'boolean' ? boolean(value) : value;
+};
+
+/** Every part of the request the contract refuses: a missing required part, or a value its validator rejects. */
+export const invalid = (fields: readonly Field[]): ProblemError[] =>
+  fields.flatMap((field): ProblemError[] => {
+    if (field.value === undefined) return field.required ? [{ pointer: field.pointer, detail: 'is required' }] : [];
+    return field.check(field.value) ? [] : [{ pointer: field.pointer, detail: 'does not match the contract' }];
+  });
+
+/** Answer Problem Details. */
+export const problem = (reply: Reply, status: number, title: string, detail: string, errors?: readonly ProblemError[]): ProblemDetails => {
+  reply.status(status);
+  reply.header('content-type', 'application/problem+json');
+  return { type: 'about:blank', title, status, detail, ...(errors === undefined ? {} : { errors }) };
+};
+
+/** The declared response a status answers under: its own code, then its range (`4XX`), then `default`. */
+export const declared = (responses: Readonly<Record<string, Declared>>, status: number): Declared | undefined =>
+  responses[String(status)] ?? responses[`${String(status).charAt(0)}XX`] ?? responses.default;
+
+/** Send what a handler returned. One the contract does not declare is not sent: the client gets a 500. */
+export const send = (reply: Reply, output: Output, responses: Readonly<Record<string, Declared>>): unknown => {
+  const response = declared(responses, output.status);
+  if (response === undefined || (response.check !== undefined && !response.check(output.body))) {
+    return problem(reply, 500, 'Internal Server Error', `The handler answered ${String(output.status)} with a response the contract does not declare.`);
+  }
+  reply.status(output.status);
+  if (response.media !== undefined) reply.header('content-type', response.media);
+  for (const [name, value] of Object.entries(output.headers ?? {})) reply.header(name, value);
+  return output.body;
+};
+
+/** The methods a route table lists, as Hono, Fastify and Express name them. */
+export type Method = 'get' | 'put' | 'post' | 'delete' | 'options' | 'head' | 'patch';
+
+/** One path, query or header parameter: where it is read, how its string is coerced, and its validator. */
+export interface Param {
+  readonly part: 'path' | 'query' | 'header';
+  /** The name the spec gives it: its key in the input. */
+  readonly name: string;
+  /** Its key in what the framework hands over: lower case for a header, the route segment's name for a path parameter. */
+  readonly key: string;
+  readonly kind: string;
+  readonly required: boolean;
+  readonly check: Check;
+}
+
+/** The body a route reads: its media type and its validator. */
+export interface Body {
+  readonly media: string;
+  readonly required: boolean;
+  readonly check: Check;
+}
+
+/** One row of a route table: the handler it calls, where it is served, what it reads, and what it may answer. */
+export interface Route<Handlers> {
+  readonly operation: keyof Handlers;
+  readonly method: Method;
+  /** As the framework reads it, e.g. `/pets/:petId`. */
+  readonly path: string;
+  readonly params: readonly Param[];
+  readonly body?: Body;
+  readonly responses: Readonly<Record<string, Declared>>;
+}
+
+/** A request as the framework hands it over: each part by key, and the body as text or as a parser left it. */
+export interface Incoming {
+  readonly path: Readonly<Record<string, unknown>>;
+  readonly query: Readonly<Record<string, unknown>>;
+  readonly header: Readonly<Record<string, unknown>>;
+  readonly body: unknown;
+}
+
+/** What the framework sends: the status, the headers, and the body as the wire carries it. */
+export interface Answer {
+  readonly status: number;
+  readonly headers: Readonly<Record<string, string>>;
+  readonly body: string | undefined;
+}
+
+const json = (media: string): boolean => media === 'application/json' || media.endsWith('+json');
+
+/** A parameter as its kind types it; a repeated one is a list only when the parameter is one. */
+const read = (value: unknown, kind: string): unknown => coerce(!kind.endsWith('[]') && Array.isArray(value) ? value[0] : value, kind);
+
+/** A body given as text, parsed: JSON for a JSON media type, the text itself otherwise, nothing when empty. One a parser already read is kept. */
+const parse = (body: unknown, media: string): unknown => {
+  if (typeof body !== 'string') return body;
+  if (body === '') return undefined;
+  return json(media) ? JSON.parse(body) : body;
+};
+
+/** A body as the wire carries it: none without a content type, JSON for a JSON one or for a value that is not text, else the text. */
+const wire = (media: string | undefined, body: unknown): string | undefined => {
+  if (media === undefined || body === undefined) return undefined;
+  return json(media) || typeof body !== 'string' ? JSON.stringify(body) : body;
+};
+
+/** Answer one request: read and check it, call the handler, and send what it answers only when the contract declares it. */
+export const handle = async <Handlers>(route: Route<Handlers>, handlers: Handlers, request: Incoming): Promise<Answer> => {
+  const headers: Record<string, string> = {};
+  let status = 500;
+  const reply: Reply = {
+    status: (code) => (status = code),
+    header: (name, value) => (headers[name] = value),
+  };
+  const answer = (body: unknown): Answer => ({ status, headers, body: wire(headers['content-type'], body) });
+  const input: Record<string, unknown> = {};
+  const fields = route.params.map((param): Field => {
+    const value = read(request[param.part][param.key], param.kind);
+    input[param.part] = { ...(input[param.part] as object | undefined), [param.name]: value };
+    return { pointer: `/${param.part}/${param.name}`, value, required: param.required, check: param.check };
+  });
+  if (route.body !== undefined) {
+    try {
+      input.body = parse(request.body, route.body.media);
+    } catch {
+      return answer(problem(reply, 400, 'Bad Request', 'The request does not match the contract.', [{ pointer: '/body', detail: 'is not JSON' }]));
+    }
+    fields.push({ pointer: '/body', value: input.body, required: route.body.required, check: route.body.check });
+  }
+  const errors = invalid(fields);
+  if (errors.length > 0) return answer(problem(reply, 400, 'Bad Request', 'The request does not match the contract.', errors));
+  const handler = handlers[route.operation] as unknown as (input: unknown) => Output | Promise<Output>;
+  return answer(send(reply, await handler.call(handlers, input), route.responses));
+};

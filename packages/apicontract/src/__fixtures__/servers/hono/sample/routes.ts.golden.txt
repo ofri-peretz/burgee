@@ -1,0 +1,101 @@
+import { type Env, type Hono } from 'hono';
+
+import { handle, type Route } from './contract-runtime.js';
+import { type paths } from "./types.js";
+import { operations as validators } from "./validators.js";
+
+type CreatePetOperation = paths["/pets"]["post"];
+
+/** What `createPet` receives: POST /pets. */
+export interface CreatePetInput {
+  readonly body: NonNullable<CreatePetOperation["requestBody"]>["content"]["application/json"];
+}
+
+/** What `createPet` answers: one member per response the spec declares. */
+export type CreatePetOutput =
+  | { readonly status: 201; readonly body: CreatePetOperation["responses"][201]["content"]["application/json"]; readonly headers?: Readonly<Record<string, string>> }
+  | { readonly status: 400; readonly body: CreatePetOperation["responses"][400]["content"]["application/problem+json"]; readonly headers?: Readonly<Record<string, string>> };
+
+type GetPetsOperation = paths["/pets"]["get"];
+
+/** What `getPets` receives: GET /pets. */
+export interface GetPetsInput {
+  readonly query: NonNullable<GetPetsOperation["parameters"]["query"]>;
+}
+
+/** What `getPets` answers: one member per response the spec declares. */
+export type GetPetsOutput =
+  | { readonly status: 200; readonly body: GetPetsOperation["responses"][200]["content"]["application/json"]; readonly headers?: Readonly<Record<string, string>> };
+
+type GetPetOperation = paths["/pets/{petId}"]["get"];
+
+/** What `getPet` receives: GET /pets/{petId}. */
+export interface GetPetInput {
+  readonly path: NonNullable<GetPetOperation["parameters"]["path"]>;
+}
+
+/** What `getPet` answers: one member per response the spec declares. */
+export type GetPetOutput =
+  | { readonly status: 200; readonly body: GetPetOperation["responses"][200]["content"]["application/json"]; readonly headers?: Readonly<Record<string, string>> }
+  | { readonly status: 404; readonly body?: undefined; readonly headers?: Readonly<Record<string, string>> };
+
+/**
+ * One method per operation; `handlers.ts` implements it. A new operation in the spec is a new
+ * member here, so `handlers.ts` stops compiling until it has one.
+ */
+export interface Handlers {
+  /** POST /pets. */
+  createPet(input: CreatePetInput): CreatePetOutput | Promise<CreatePetOutput>;
+  /** GET /pets. */
+  getPets(input: GetPetsInput): GetPetsOutput | Promise<GetPetsOutput>;
+  /** GET /pets/{petId}. */
+  getPet(input: GetPetInput): GetPetOutput | Promise<GetPetOutput>;
+}
+
+/** Every route, as Hono reads it: the handler it calls, what it reads and checks, and what it may answer. */
+export const routes: readonly Route<Handlers>[] = [
+  {
+    operation: "createPet",
+    method: "post",
+    path: "/pets",
+    params: [],
+    body: { media: "application/json", required: true, check: validators["createPet"]["body:application/json"] },
+    responses: {
+      "201": { media: "application/json", check: validators["createPet"]["response:201:application/json"] },
+      "400": { media: "application/problem+json", check: validators["createPet"]["response:400:application/problem+json"] },
+    },
+  },
+  {
+    operation: "getPets",
+    method: "get",
+    path: "/pets",
+    params: [
+      { part: "query", name: "limit", key: "limit", kind: "number", required: false, check: validators["get /pets"]["param:query:limit"] },
+    ],
+    responses: {
+      "200": { media: "application/json", check: validators["get /pets"]["response:200:application/json"] },
+    },
+  },
+  {
+    operation: "getPet",
+    method: "get",
+    path: "/pets/:petId",
+    params: [
+      { part: "path", name: "petId", key: "petId", kind: "number", required: true, check: validators["getPet"]["param:path:petId"] },
+    ],
+    responses: {
+      "200": { media: "application/json", check: validators["getPet"]["response:200:application/json"] },
+      "404": {},
+    },
+  },
+];
+
+/** Register every route on `app`: each reads and checks the request, calls its handler, and checks what it answers. */
+export const registerRoutes = <E extends Env>(app: Hono<E>, handlers: Handlers): void => {
+  for (const route of routes) {
+    app.on(route.method, route.path, async (c) => {
+      const answer = await handle(route, handlers, { path: c.req.param(), query: c.req.queries(), header: c.req.header(), body: route.body === undefined ? undefined : await c.req.text() });
+      return new Response(answer.body ?? null, { status: answer.status, headers: answer.headers });
+    });
+  }
+};

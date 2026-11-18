@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { scratchDirs } from './__fixtures__/run/scratch-dir.js';
-import { SAMPLE_DOCUMENT } from './plugin-nest.js';
+import { SAMPLE_DOCUMENT } from './plugin-server-sample.js';
 import { gen } from './run-gen.js';
 
 const scratch = scratchDirs();

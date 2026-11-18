@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import { read } from './openapi.js';
-import { camel, classOf, fallbackName, kebab, kindOf, routesOf, stubStatus, unique } from './plugin-nest-routes.js';
+import { camel, classOf, fallbackName, kebab, kindOf, routesOf, stubStatus, unique } from './plugin-server-routes.js';
 
-const routes = (paths: unknown, extra: Record<string, unknown> = {}) => routesOf(read({ openapi: '3.1.0', paths, ...extra }));
+const routes = (paths: unknown, extra: Record<string, unknown> = {}) => routesOf(read({ openapi: '3.1.0', paths, ...extra }), 'NestJS');
 
 const ok = { '200': { description: 'ok' } };
 
@@ -65,7 +65,7 @@ describe('kindOf', () => {
 });
 
 describe('routesOf', () => {
-  it('leaves out webhooks and methods NestJS has no decorator for, with a finding each', () => {
+  it('leaves out webhooks and methods no server target routes, with a finding each', () => {
     const { controllers, findings } = routes(
       { '/a': { trace: { operationId: 'traceA', responses: ok }, additionalOperations: { COPY: { operationId: 'copyA', responses: ok } } } },
       { openapi: '3.2.0', webhooks: { ping: { post: { operationId: 'ping', responses: ok } } } },
@@ -75,8 +75,8 @@ describe('routesOf', () => {
       ['copyA', 'ping', 'traceA'].map((id) => ({
         code: 'server-operation-skipped',
         pointer: { copyA: '#/paths/~1a/additionalOperations/COPY', ping: '#/webhooks/ping/post', traceA: '#/paths/~1a/trace' }[id],
-        message: `\`${id}\` is not a route NestJS declares (a webhook, or a method it has no decorator for)`,
-        fix: 'serve it outside the generated controllers',
+        message: `\`${id}\` is not a route NestJS serves (a webhook, or a method the target does not route)`,
+        fix: 'serve it outside the generated routes',
       })),
     );
   });
@@ -126,7 +126,7 @@ describe('routesOf', () => {
         code: 'server-parameter-skipped',
         pointer: '#/paths/~1pets~1{petId}/get',
         message: '`getPet` reads cookie parameter "session", which the generated route does not pass on',
-        fix: 'read it from the request in your controller',
+        fix: 'read it from the request in your handler',
       },
     ]);
   });
@@ -162,19 +162,19 @@ describe('routesOf', () => {
         code: 'server-stream-skipped',
         pointer: '#/paths/~1upload/post',
         message: '`upload` streams response:201:application/jsonl item by item, which the generated route does not',
-        fix: 'stream it from your controller, outside the generated route',
+        fix: 'stream it from your handler, outside the generated route',
       },
       {
         code: 'server-media-type-skipped',
         pointer: '#/paths/~1upload/post',
         message: '`upload` accepts a body in text/plain is not served: the route serves one media type, JSON first',
-        fix: 'serve the other media type outside the generated controller',
+        fix: 'serve the other media type outside the generated route',
       },
       {
         code: 'server-media-type-skipped',
         pointer: '#/paths/~1upload/post',
         message: '`upload` answers 200 in text/plain is not served: the route serves one media type, JSON first',
-        fix: 'serve the other media type outside the generated controller',
+        fix: 'serve the other media type outside the generated route',
       },
     ]);
   });

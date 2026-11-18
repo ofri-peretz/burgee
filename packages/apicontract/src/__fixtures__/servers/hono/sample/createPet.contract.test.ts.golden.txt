@@ -1,0 +1,30 @@
+import assert from 'node:assert/strict';
+
+import { Hono } from 'hono';
+import { describe, it } from 'vitest';
+
+import { handlers } from './handlers.js';
+import { registerRoutes } from './routes.js';
+import { operations as validators } from "./validators.js";
+
+/** Each declared response: its validator, and whether its body is JSON. Absent for a response with no content. */
+const responses: Readonly<Record<string, { readonly check: (value: unknown) => boolean; readonly json: boolean } | undefined>> = {
+  "201": { check: validators["createPet"]["response:201:application/json"], json: true },
+  "400": { check: validators["createPet"]["response:400:application/problem+json"], json: true },
+};
+
+describe("createPet: POST /pets", () => {
+  const app = new Hono();
+  registerRoutes(app, handlers);
+
+  it('answers the example request with a response the spec declares', async () => {
+    const response = await app.request("/pets", { method: "POST", headers: {"content-type":"application/json"}, body: "{\"name\":\"Rex\"}" });
+    const status = String(response.status);
+    const key = [status, `${status.charAt(0)}XX`, 'default'].find((candidate) => candidate in responses);
+    assert.ok(key !== undefined, `the route answered ${status}, which the spec does not declare`);
+    const declared = responses[key];
+    const text = await response.text();
+    if (declared === undefined) return;
+    assert.ok(declared.check(declared.json ? JSON.parse(text) : text), `the route answered ${status} with a body the spec does not declare: ${text}`);
+  });
+});

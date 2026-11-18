@@ -1,0 +1,45 @@
+/**
+ * The document every server target samples (apicontract-servers R7), and its golden files are
+ * written from: a GET with a path parameter, a POST with a body and two responses, and a GET
+ * without an `operationId`.
+ */
+export const SAMPLE_DOCUMENT = {
+  openapi: '3.1.0',
+  info: { title: 'Pets', version: '1.0.0' },
+  paths: {
+    '/pets': {
+      get: {
+        tags: ['pets'],
+        parameters: [{ name: 'limit', in: 'query', schema: { type: 'integer', minimum: 1 } }],
+        responses: { '200': { description: 'Pets', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/Pet' } }, example: [{ id: 1, name: 'Rex' }] } } } },
+      },
+      post: {
+        operationId: 'createPet',
+        tags: ['pets'],
+        requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/NewPet' }, example: { name: 'Rex' } } } },
+        responses: {
+          '201': { description: 'Created', content: { 'application/json': { schema: { $ref: '#/components/schemas/Pet' }, example: { id: 1, name: 'Rex' } } } },
+          '400': { description: 'Invalid', content: { 'application/problem+json': { schema: { $ref: '#/components/schemas/Problem' } } } },
+        },
+      },
+    },
+    '/pets/{petId}': {
+      get: {
+        operationId: 'getPet',
+        tags: ['pets'],
+        parameters: [{ name: 'petId', in: 'path', required: true, schema: { type: 'integer' }, example: 1 }],
+        responses: {
+          '200': { description: 'A pet', content: { 'application/json': { schema: { $ref: '#/components/schemas/Pet' }, example: { id: 1, name: 'Rex' } } } },
+          '404': { description: 'Not found' },
+        },
+      },
+    },
+  },
+  components: {
+    schemas: {
+      Pet: { type: 'object', required: ['id', 'name'], properties: { id: { type: 'integer' }, name: { type: 'string' } } },
+      NewPet: { type: 'object', required: ['name'], properties: { name: { type: 'string' } } },
+      Problem: { type: 'object', required: ['title', 'status'], properties: { type: { type: 'string' }, title: { type: 'string' }, status: { type: 'integer' }, detail: { type: 'string' } } },
+    },
+  },
+};
