@@ -1,6 +1,6 @@
 {
   "name": "flagstaff",
-  "version": "2.0.3",
+  "version": "2.0.4",
   "description": "CLI spinner, progress bar, boxes and tables on one terminal frame loop, with a static projection for pipes, screen readers and agents, and plugins. No dependency outside the burgee family. Drop-in alternative to ora, log-update, boxen and cli-table3.",
   "license": "MIT",
   "author": "Ofri Peretz <ofriperetzdev@gmail.com>",
@@ -168,10 +168,10 @@
     "provenance": true
   },
   "dependencies": {
-    "closeout": "^2.0.1",
-    "linegauge": "^2.2.1",
-    "paratext": "^2.0.1",
-    "roundel": "^2.0.1"
+    "closeout": "^2.0.2",
+    "linegauge": "^2.2.2",
+    "paratext": "^2.0.3",
+    "roundel": "^2.0.2"
   },
   "devDependencies": {
     "fast-check": "^4.10.2",

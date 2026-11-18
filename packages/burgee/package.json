@@ -1,6 +1,6 @@
 {
   "name": "burgee",
-  "version": "2.1.3",
+  "version": "2.1.4",
   "description": "A CLI framework built on one declaration: help, --json, --schema, MCP, completions and types are projected from it, with exit codes and fix: lines an agent acts on. No dependency outside the burgee family. Drop-in alternative to commander, yargs and meow.",
   "license": "MIT",
   "author": "Ofri Peretz <ofriperetzdev@gmail.com>",
@@ -195,10 +195,10 @@
     "provenance": true
   },
   "dependencies": {
-    "bellpull": "^2.0.1",
-    "closeout": "^2.0.1",
-    "linegauge": "^2.2.1",
-    "roundel": "^2.0.1",
+    "bellpull": "^2.0.2",
+    "closeout": "^2.0.2",
+    "linegauge": "^2.2.2",
+    "roundel": "^2.0.2",
     "seniority": "^2.0.2"
   },
   "devDependencies": {

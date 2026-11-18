@@ -1,6 +1,6 @@
 {
   "name": "linegauge",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "description": "String width: measures, wraps, truncates and slices styled terminal text, grapheme-correct, the same on a terminal, a pipe or --json. Zero dependencies. Drop-in alternative to string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line.",
   "license": "MIT",
   "author": "Ofri Peretz <ofriperetzdev@gmail.com>",
