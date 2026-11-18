@@ -1,6 +1,6 @@
 ---
 title: flagstaff
-description: "CLI spinner, progress bar, boxes and tables on one terminal frame loop, with a static projection for pipes, screen readers and agents, and a plugin host. No dependency outside the burgee family. Drop-in alternative to ora, log-update, boxen and cli-table3."
+description: "CLI spinner, progress bar, boxes and tables on one terminal frame loop, with a static projection for pipes, screen readers and agents, and plugins. No dependency outside the burgee family. Drop-in alternative to ora, log-update, boxen and cli-table3."
 ---
 
 **flagstaff** is a terminal frame loop: it hoists a component, holds it, changes it and

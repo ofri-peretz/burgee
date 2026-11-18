@@ -1,6 +1,6 @@
 ---
 title: bellpull
-description: "Child process execution: runs a subprocess, resolves the executable it names, and returns one structured result every caller can read: a line for a person, a --json envelope or an agent event. Zero dependencies. Drop-in alternative to cross-spawn and which."
+description: "Child process execution: runs a subprocess, resolves the executable it names, and returns one structured result for every caller: a line for a person, a --json envelope or an agent event. Zero dependencies. Drop-in alternative to cross-spawn and which."
 ---
 
 **bellpull** runs a subprocess, resolves the executable it names, and returns one structured
@@ -204,7 +204,7 @@ Graded by the incumbent's own test suite:
 | `execa` | 0 / 1360 |
 | `which` | 5 / 5 |
 
-Weight, installed and tree-inclusive: **98,091 bytes** against **765,553** for the incumbents it replaces — a ratio of **0.1281** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
+Weight, installed and tree-inclusive: **98,086 bytes** against **765,553** for the incumbents it replaces — a ratio of **0.1281** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## For agents
 
