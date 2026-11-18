@@ -9,7 +9,7 @@
  */
 import { type ContractFinding } from './core/model.js';
 import { escape, finding, isStandard, type Json, loadModule } from './extract-standard.js';
-import { type Extractor, type Options, type Plugin } from './host.js';
+import { type Extractor, type ExtractorResult, type Options, type Plugin } from './host.js';
 import { docsOf, exported, namesOf, openapiPath, type Route, type RouteResponse, toOpenApi, withFindings, WRITER_OPTIONS } from './plugin-extract-openapi.js';
 
 /** `c.noBody()`: a route or response without a body. */
@@ -82,7 +82,7 @@ export const contractOf = (namespace: Json, wanted: unknown): Json => {
   return found;
 };
 
-export const extractTsRest = (namespace: Json, options: Options): Json => {
+export const extractTsRest = (namespace: Json, options: Options): ExtractorResult => {
   const { routes, findings } = routesOf(contractOf(namespace, options.export));
   return withFindings(toOpenApi(routes, namesOf(namespace), options), findings);
 };

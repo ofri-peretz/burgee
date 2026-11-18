@@ -35,6 +35,8 @@ describe("getPet: GET /pets/{petId}", () => {
     const declared = responses[key];
     const text = await response.text();
     if (declared === undefined) return;
-    assert.ok(declared.check(declared.json ? JSON.parse(text) : text), `the route answered ${status} with a body the spec does not declare: ${text}`);
+    // Malformed JSON is a body the spec does not declare: it fails the assertion below, with its text.
+    const body: unknown = declared.json ? (() => { try { return JSON.parse(text) as unknown; } catch { return text; } })() : text;
+    assert.ok(declared.check(body), `the route answered ${status} with a body the spec does not declare: ${text}`);
   });
 });

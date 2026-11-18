@@ -82,7 +82,13 @@ export interface ExtractorSample {
   readonly document: unknown;
 }
 
-/** Code → spec (spec.md R-TE2): reads the user's code, named by its options, and returns a document. */
+/** What an extractor may return when it has something to report besides the document: what the document could not say. */
+export interface ExtractorResult {
+  readonly document: unknown;
+  readonly findings: readonly ContractFinding[];
+}
+
+/** Code → spec (spec.md R-TE2): reads the user's code, named by its options, and returns a document, or `{ document, findings }`. */
 export interface Extractor {
   readonly description: string;
   readonly options?: Readonly<Record<string, unknown>>;
@@ -127,6 +133,15 @@ const text = (value: unknown): value is string => typeof value === 'string' && v
 export const resultOf = (value: unknown): { files: unknown; findings: readonly ContractFinding[] } => {
   if (!isRecord(value) || !('files' in value)) return { files: value, findings: [] };
   return { files: value.files, findings: Array.isArray(value.findings) ? (value.findings as ContractFinding[]) : [] };
+};
+
+/**
+ * An extractor's return value, with the document and the findings apart. Only an object carrying
+ * both keys is a result: a spec may well have a `document` key of its own.
+ */
+export const documentOf = (value: unknown): { document: unknown; findings: readonly ContractFinding[] } => {
+  if (!isRecord(value) || !('document' in value) || !('findings' in value)) return { document: value, findings: [] };
+  return { document: value.document, findings: Array.isArray(value.findings) ? (value.findings as ContractFinding[]) : [] };
 };
 
 /**
@@ -345,10 +360,10 @@ const compare = (generator: string, first: Rendered, second: Rendered, declared:
 // The owner is part of what a file is: the same bytes under another owner is a different result.
 const render = (files: readonly GeneratedFile[]): Rendered => new Map(files.map((file) => [file.path, `${file.owner}\n${file.content}`]));
 
-// An extractor returns a document, not files: two runs must agree, and with the sample, as data.
+// An extractor returns a document, not files: two runs must agree, and with the sample, as data. Its findings are not part of the sample.
 const checkExtractor = async ([name, extractor]: [string, Extractor]): Promise<Finding[]> => {
-  const first = canonical(await extractor.run(extractor.sample.options));
-  const second = canonical(await extractor.run(extractor.sample.options));
+  const first = canonical(documentOf(await extractor.run(extractor.sample.options)).document);
+  const second = canonical(documentOf(await extractor.run(extractor.sample.options)).document);
   if (second !== first) return [{ generator: name, path: 'sample.document', problem: 'not deterministic', fix: FIXES['not deterministic'] }];
   if (first === canonical(extractor.sample.document)) return [];
   return [{ generator: name, path: 'sample.document', problem: 'different', fix: 'update `sample.document` to what `run(sample.options)` returns, or fix `run`' }];

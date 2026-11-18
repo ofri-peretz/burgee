@@ -21,11 +21,11 @@ const hostWithTypes = () => {
 };
 
 describe('the types plugin', () => {
-  it('is a plugin the host accepts, named `types`, with one generator that reads OpenAPI', () => {
+  it('is a plugin the host accepts, named `types`, with one generator that reads OpenAPI 3 and Swagger 2.0', () => {
     expect(() => validate(plugin)).not.toThrow();
     expect(plugin.name).toBe('types');
     expect(Object.keys(plugin.generators ?? {})).toEqual(['types']);
-    expect(plugin.generators?.types?.inputs).toEqual(['openapi']);
+    expect(plugin.generators?.types?.inputs).toEqual(['openapi', 'swagger2']);
     expect(plugin.generators?.types?.description).toMatch(/openapi-typescript 7\.13\.0/u);
   });
 
@@ -54,10 +54,23 @@ describe('the types plugin', () => {
     expect(file?.content).toContain('export enum ');
   });
 
+  it('writes types for a Swagger 2.0 document, through its OpenAPI 3.1 form', async () => {
+    const swagger = {
+      swagger: '2.0',
+      info: { title: 'pets', version: '1' },
+      paths: { '/pets/{id}': { get: { operationId: 'getPet', parameters: [{ name: 'id', in: 'path', required: true, type: 'integer' }], responses: { '200': { description: 'ok', schema: { $ref: '#/definitions/Pet' } } } } } },
+      definitions: { Pet: { type: 'object', properties: { name: { type: 'string', 'x-nullable': true } } } },
+    };
+    const [file] = await hostWithTypes().generate('types', swagger);
+    expect(file?.content).toContain('name?: string | null;');
+    expect(file?.content).toContain('id: number;');
+    expect(file?.content).toContain('"application/json": components["schemas"]["Pet"];');
+  });
+
   it('refuses a document that is not OpenAPI, with a fix', async () => {
     const refusal = (await hostWithTypes()
       .generate('types', { $schema: 'https://json-schema.org/draft/2020-12/schema', type: 'object' })
       .catch((cause: unknown) => cause)) as Error;
-    expect(refusal.message).toMatch(/fix: pass one of: openapi;/u);
+    expect(refusal.message).toMatch(/fix: pass one of: openapi, swagger2;/u);
   });
 });

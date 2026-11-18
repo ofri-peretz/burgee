@@ -93,6 +93,7 @@ describe('contract-runtime.ts', () => {
     const empty = reply();
     expect(runtime.send(empty, { status: 204 }, { '204': {} })).toBeUndefined();
     expect(empty.calls).toEqual(['status 204']);
+    expect(runtime.send(reply(), { status: 204, body: 'extra' }, { '204': {} })).toMatchObject({ status: 500, detail: 'The handler answered 204 with a response the contract does not declare.' });
     const wrong = reply();
     expect(runtime.send(wrong, { status: 200, body: 'bad' }, { '200': json })).toEqual({
       type: 'about:blank',
@@ -170,7 +171,10 @@ describe('contract-runtime.ts for a route table', () => {
   });
 
   it('sends no body without content, text as itself, and a 500 for an answer the contract does not declare', async () => {
-    expect(await router.handle(route, handlers({ status: 204, body: 'ignored' }), request())).toEqual({ status: 204, headers: {}, body: undefined });
+    expect(await router.handle(route, handlers({ status: 204 }), request())).toEqual({ status: 204, headers: {}, body: undefined });
+    const extra = await router.handle(route, handlers({ status: 204, body: 'extra' }), request());
+    expect(extra.status).toBe(500);
+    expect(extra.headers).toEqual({ 'content-type': 'application/problem+json' });
     expect(await router.handle(route, handlers({ status: 418, body: 'short and stout' }), request())).toEqual({ status: 418, headers: { 'content-type': 'text/plain' }, body: 'short and stout' });
     expect((await router.handle(route, handlers({ status: 418, body: { a: 1 } }), request())).body).toBe('{"a":1}');
     expect((await router.handle(route, handlers({ status: 418 }), request())).body).toBeUndefined();

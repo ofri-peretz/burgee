@@ -87,6 +87,13 @@ describe('extract', () => {
     expect(error).toMatchObject({ code: 'USAGE', message });
   });
 
+  it('reports the findings an extractor returns beside the document, and keeps them out of the spec', async () => {
+    const root = project({ options: { findings: true } });
+    const report = await extract({ cwd: root, from: 'schemas' });
+    expect(report.findings).toEqual([{ code: 'type-only', pointer: '/health', message: 'health has no schema', fix: 'give it one', target: 'extract' }]);
+    expect(readFileSync(join(root, 'spec.json'), 'utf8')).toBe(spec('extracted'));
+  });
+
   it('refuses an extractor that returns no document', async () => {
     const root = project({ options: { empty: true } });
     expect((await failure(extract({ cwd: root, from: 'schemas' }))).message).toBe('the extractor "schemas" returned no document. fix: return the spec object from `run(options)`');
@@ -104,6 +111,14 @@ describe('apicontract extract, through burgee', () => {
     expect(r.code).toBe(ExitCode.OK);
     expect(r.json).toMatchObject({ ok: true, data: { changed: true, changes: 2 } });
     expect(existsSync(join(root, 'x.json'))).toBe(false);
+  });
+
+  it('reports the findings in the --json envelope and in the text', async () => {
+    const config = join(project({ options: { findings: true } }), 'apicontract.config.json');
+    const json = await runBurgee(program, { argv: ['extract', '--json', '--dry-run', '--from', 'schemas', '--config', config] });
+    expect(json.json).toMatchObject({ ok: true, data: { findings: [{ code: 'type-only', pointer: '/health', target: 'extract' }] } });
+    const text = await runBurgee(program, { argv: ['extract', '--dry-run', '--from', 'schemas', '--config', config] });
+    expect(text.stdout).toContain('health has no schema');
   });
 
   it('writes with the working folder as the project when --config is not given, and flags pass through', async () => {

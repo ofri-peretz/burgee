@@ -88,7 +88,8 @@ export interface operations {
 
 const types: Generator = {
   description: 'TypeScript types for every path, operation and schema, as openapi-typescript 7.13.0 writes them',
-  inputs: ['openapi'],
+  // A Swagger 2.0 document reaches the generator as the OpenAPI 3.1 form `input-swagger2.ts` converts it to.
+  inputs: ['openapi', 'swagger2'],
   sample: { document, files: [{ path: TYPES_FILE, owner: 'generated', content: SAMPLE_TYPES }] },
   run: (contract, options: Options) => [{ path: TYPES_FILE, owner: 'generated', content: generate(contract.document, options as GenerateOptions) }],
 };

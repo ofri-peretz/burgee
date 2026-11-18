@@ -4,7 +4,7 @@
  * hide another. The shared definition of done they check is `.sdlc/intents/apicontract/program.md`.
  */
 import { type ContractFinding } from './core/model.js';
-import { type Extractor, type Finding, type GeneratedFile, type Generator, type Host, resultOf, validate, validateFiles } from './host.js';
+import { documentOf, type Extractor, type Finding, type GeneratedFile, type Generator, type Host, resultOf, validate, validateFiles } from './host.js';
 import { unsafe } from './testing-owner.js';
 
 export const RULES = ['schema', 'sample', 'deterministic', 'regeneration', 'roundtrip', 'fix-lines', 'paths'] as const;
@@ -177,7 +177,7 @@ export const roundtrip = async (host: Host, generators: readonly (readonly [stri
     const where = `generator "${name}"`;
     try {
       const files = validateFiles(resultOf(await generator.run(host.read(generator.sample.document), generator.sample.options ?? {})).files, where);
-      const extracted = await extractor.run({ ...extractor.sample.options, files });
+      const extracted = documentOf(await extractor.run({ ...extractor.sample.options, files })).document;
       if (shape(host, extracted) === shape(host, generator.sample.document)) return [];
       return [{ rule: 'roundtrip', where, message: 'extracting what it generated does not give back the sample contract', fix: 'make the extractor read every operation and payload the generator writes' }];
     } catch (error) {

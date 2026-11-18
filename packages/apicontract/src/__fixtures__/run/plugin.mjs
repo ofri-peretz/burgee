@@ -47,7 +47,12 @@ export const plugin = {
     schemas: {
       description: 'A spec with the title it is given, for the tests',
       sample: { options: {}, document: { openapi: '3.1.0', info: { title: 'extracted', version: '1' }, paths: {} } },
-      run: (options) => (options.empty === true ? undefined : { openapi: '3.1.0', info: { title: options.title ?? 'extracted', version: '1' }, paths: {} }),
+      run: (options) => {
+        if (options.empty === true) return undefined;
+        const document = { openapi: '3.1.0', info: { title: options.title ?? 'extracted', version: '1' }, paths: {} };
+        // `findings`: what the spec could not say, beside it, as a generator returns `{ files, findings }`.
+        return options.findings === true ? { document, findings: [{ code: 'type-only', pointer: '/health', message: 'health has no schema', fix: 'give it one' }] } : document;
+      },
     },
   },
 };
