@@ -71,4 +71,10 @@ What the code does where this design was silent or wrong; each is held by a test
   The config is optional for `extract`. Only `.json` output is written: there is no YAML writer in the package.
 - **`host.run`** returns `{ files, findings }` (reader findings first), and **`host.extractor(name)`** resolves like
   `host.generator`; `gen` reports findings per target instead of dropping them.
+- **An extractor reports findings too** (gap `A-20261118-extractor-findings-channel`, 2026-11-18). `Extractor.run` may
+  return `{ document, findings }`, as a generator may return `{ files, findings }`; `documentOf` in `host.ts` splits it
+  beside `resultOf` (only an object with both keys is a result, since a spec may carry a `document` key of its own).
+  `extract` writes the document and hands the findings to `commit` under the target `extract`, so they appear in the
+  text output and in the `--json` envelope's `data.findings` exactly as `gen`'s do. `checkPlugin` and the `roundtrip`
+  rule compare the document part only.
 - **No `cwd` in a burgee handler**, so the commands read `process.cwd()`; tests pass `--config` or stub `process.cwd`.

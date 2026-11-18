@@ -167,7 +167,9 @@ describe('arrays', () => {
 
 describe('compositions', () => {
   it('compares branches in place when there are as many', () => {
-    expect(diff({ oneOf: [{ type: 'string' }] }, { oneOf: [{ type: 'string', minLength: 1 }] })).toEqual([['minLength-set', '/oneOf/0/minLength', undefined, 1, 'narrows']]);
+    expect(diff({ oneOf: [{ type: 'string' }, { type: 'integer', minimum: 0 }] }, { oneOf: [{ type: 'string', minLength: 1 }, { type: 'integer', minimum: 0 }] })).toEqual([
+      ['minLength-set', '/oneOf/0/minLength', undefined, 1, 'narrows'],
+    ]);
   });
 
   it.each([
@@ -175,12 +177,13 @@ describe('compositions', () => {
     ['anyOf', 'any-of', 'widens', 'narrows'],
     ['allOf', 'all-of', 'narrows', 'widens'],
   ])('a %s branch added %s… is %s, removed is %s', (keyword, name, adding, removing) => {
-    const a = { [keyword]: [{ type: 'string' }, { type: 'integer' }] };
-    const b = { [keyword]: [{ type: 'integer' }, { type: 'boolean' }, { type: 'null' }] };
+    // Each branch with a keyword of its own, so the union is no bare type list.
+    const a = { [keyword]: [{ type: 'string', minLength: 1 }, { type: 'integer', minimum: 0 }] };
+    const b = { [keyword]: [{ type: 'integer', minimum: 0 }, { type: 'boolean', $comment: 'b' }, { type: 'null', $comment: 'n' }] };
     expect(diff(a, b)).toEqual([
-      [`${name}-removed`, `/${keyword}/0`, { type: 'string' }, undefined, removing],
-      [`${name}-added`, `/${keyword}/1`, undefined, { type: 'boolean' }, adding],
-      [`${name}-added`, `/${keyword}/2`, undefined, { type: 'null' }, adding],
+      [`${name}-removed`, `/${keyword}/0`, { type: 'string', minLength: 1 }, undefined, removing],
+      [`${name}-added`, `/${keyword}/1`, undefined, { type: 'boolean', $comment: 'b' }, adding],
+      [`${name}-added`, `/${keyword}/2`, undefined, { type: 'null', $comment: 'n' }, adding],
     ]);
   });
 
@@ -202,7 +205,7 @@ describe('compositions', () => {
 
   it('ignores a composition keyword that is not an array', () => {
     expect(diff({ anyOf: 'x' }, { anyOf: 'x' })).toEqual([]);
-    expect(diff({ allOf: 'x' }, { allOf: [{}] })).toEqual([['all-of-added', '/allOf/0', undefined, {}, 'narrows']]);
+    expect(diff({ allOf: 'x' }, { allOf: [{ $ref: 'other.json' }] })).toEqual([['all-of-added', '/allOf/0', undefined, { $ref: 'other.json' }, 'narrows']]);
   });
 });
 

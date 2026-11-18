@@ -16,7 +16,7 @@ import { standardJson } from 'validator/json-schema';
 import { type ContractFinding } from './core/model.js';
 import { stable } from './extract-normalise.js';
 import { escape, finding, isRecord, isStandard, type Json, loadModule, type Place, placeAt, relocate, type Side, sideOf, toJsonSchema } from './extract-standard.js';
-import { type Extractor, type Options, type Plugin } from './host.js';
+import { type Extractor, type ExtractorResult, type Options, type Plugin } from './host.js';
 
 /** Where the schemas live, as a reference spells it. */
 const BASE = '#/components/schemas/';
@@ -310,11 +310,8 @@ export const operationsOf = (namespace: Json, wanted: unknown): { routes: Route[
   return { routes, findings };
 };
 
-/** Findings are kept in the document: the extractor host has no other place for them. */
-export const withFindings = (written: Written, more: readonly ContractFinding[]): Json => {
-  const findings = [...more, ...written.findings];
-  return findings.length === 0 ? written.document : { ...written.document, 'x-findings': findings };
-};
+/** The document and every finding beside it, the reader's first: what the spec could not say is not part of the spec. */
+export const withFindings = (written: Written, more: readonly ContractFinding[]): ExtractorResult => ({ document: written.document, findings: [...more, ...written.findings] });
 
 /** The options every extractor that writes OpenAPI through {@link toOpenApi} takes. */
 export const WRITER_OPTIONS = {
@@ -324,7 +321,7 @@ export const WRITER_OPTIONS = {
   responseSide: { type: 'string', description: '"output" (default): responses as the schema hands them out; "input": as a client parses them' },
 } as const;
 
-export const extractOpenApi = (namespace: Json, options: Options): Json => {
+export const extractOpenApi = (namespace: Json, options: Options): ExtractorResult => {
   const { routes, findings } = operationsOf(namespace, options.export);
   return withFindings(toOpenApi(routes, namesOf(namespace), options), findings);
 };

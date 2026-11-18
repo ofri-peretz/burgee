@@ -19,11 +19,11 @@ const generate = (spec: unknown): Record<string, unknown> =>
   Object.fromEntries(Object.entries((spec as Spec).$defs).map(([name, schema]) => [name, standardJson(fromJsonSchema({ ...schema, $defs: (spec as Spec).$defs }).schema)]));
 
 /** The extractor half: R3 on the module the generator made. */
-const extract = (module: Record<string, unknown>): unknown => extractSchemas(module, {});
+const extract = (module: Record<string, unknown>): unknown => extractSchemas(module, {}).document;
 
 describe('the round trip through the validator and the standard-schema extractor (R-RT)', () => {
   it('gives back every Standard Schema fixture of the validator, equal', async () => {
-    const spec = extractSchemas({ Owner, Pet }, {});
+    const spec = extractSchemas({ Owner, Pet }, {}).document;
     const result = await roundtrip(spec, generate, extract);
     expect(result.diff).toEqual([]);
     expect(result.equal).toBe(true);
@@ -48,16 +48,17 @@ describe('the round trip through the validator and the standard-schema extractor
   });
 
   /**
-   * The same corpus classified by `ac-diff`. A verdict other than non-breaking on a rewrite that
-   * validates the same values (`type: null` as `const: null`, an enum as `anyOf` of `const`, a
-   * format as its pattern) is the classifier's to refine (its own lane): read 2026-11-18.
+   * The same corpus classified by `ac-diff`: every rewrite the validator makes validates the same
+   * values (`type: null` as `const: null`, an enum as `anyOf` of `const`, a format as its pattern, a
+   * tuple as `anyOf` of its lengths), so none is a break. Read 2026-11-18: 1 / 5 before
+   * `diff-normalise.ts`, 5 / 5 after (gap A-20261118-diff-false-breaking-equivalent-rewrites).
    */
   it.each([
-    ['scalars', 'breaking'],
+    ['scalars', 'non-breaking'],
     ['objects', 'non-breaking'],
-    ['collections', 'breaking'],
-    ['choices', 'breaking'],
-    ['formats', 'breaking'],
+    ['collections', 'non-breaking'],
+    ['choices', 'non-breaking'],
+    ['formats', 'non-breaking'],
   ])('classifies the round trip of %s as %s', async (name, verdict) => {
     const host = createHost();
     host.register({ name: 'apicontract', adapters: builtinAdapters });

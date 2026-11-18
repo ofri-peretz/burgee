@@ -59,6 +59,11 @@ Where the design was wrong or silent, and what was done:
   and reports no findings. Every extractor here puts its findings in the document's root
   `x-findings` (an extension key both JSON Schema and OpenAPI allow) rather than dropping them.
   The spine should give `Extractor.run` a `{ document, findings }` return, as `Generator` has.
+  **Closed 2026-11-18** (gap `A-20261118-extractor-findings-channel`, branch
+  `integrate/extractor-findings`): an extractor may return `{ document, findings }`; the three
+  extractors here (`standard-schema`, `openapi-from-schemas`, `ts-rest`) always do, and no longer
+  write `x-findings`. Their samples are the document alone: `checkPlugin` compares the document
+  part, so a finding never makes a sample stale.
 - **A schema library writes a document of its own**, with `$defs` and `$ref: "#"` (Zod's recursion
   and `.meta({ id })`). `relocate` moves those `$defs` to the extracted document's `$defs` or
   `components.schemas` and rewrites every reference; a clashing name is renamed with a finding.

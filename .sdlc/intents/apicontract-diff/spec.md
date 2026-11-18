@@ -52,6 +52,31 @@ reviewer at Deploy should accept or send back.
   keyword clashes (the same intersection), else the target moves under `allOf`. Cycles stop on
   the pair of references open on the path. `readOnly` properties are skipped in directions the
   server receives, `writeOnly` in those it sends: that is the only use of `direction` here.
+- **R1, equivalent rewrites** `src/diff-normalise.ts` (gap
+  [`A-20261118-diff-false-breaking-equivalent-rewrites`](../../gaps/A-20261118-diff-false-breaking-equivalent-rewrites.md)).
+  Both sides, and every followed `$ref` target, are written in one spelling before the keyword
+  walk: `{ not: {} }` as `false`; a value list naming every value of `null` or `boolean` as that
+  type (`const: null` is `type: null`); `anyOf` of bare types as one type list, of bare value lists
+  as one `enum`, of tuples of each length m..n as one tuple with `minItems: m` (`oneOf` likewise,
+  only where no value can match two branches); `allOf` and a one-branch `anyOf`/`oneOf` merged into
+  the parent unless a keyword is set two ways, a part has a `$ref`, or a keyword would be moved
+  apart from one it reads (`properties`/`additionalProperties`, `prefixItems`/`items`, `contains`,
+  `if`/`then`/`else`, `unevaluated*`); a `pattern` that is the validator's pattern for a JSON Schema
+  format (date, date-time, time, duration, email, hostname, ipv4, ipv6, uuid) as that format, which
+  is what `format` means in this family. Against a peer that declares a type, an untyped value list
+  is read as the types of its values; against a peer that lists values, a `null`/`boolean` type as
+  its values. **Departure:** a `$ref` with sibling keywords now always goes under `allOf` and is
+  merged back by the rule above; the old flat merge put `additionalProperties` beside a target's
+  `properties` it cannot see. `Change.pointer` and `before`/`after` now point into the normalised
+  form (a merged `allOf` branch's change reads at the parent).
+  **Reading, 2026-11-18** (the extract lane's five-document corpus through the validator and back,
+  `compareContracts`): **1 / 5 non-breaking before, 5 / 5 after.** The four were `type: null` as
+  `const: null` (scalars); an `allOf` split of one array schema and a tuple as `anyOf` of its
+  lengths with `items: { not: {} }` (collections); an enum as `allOf` of its type and `anyOf` of
+  `const`, and `anyOf` with `const: null` (choices); a format as its pattern (formats). Each shape
+  and a near miss that narrows are tests in `diff-normalise.test.ts`; the `compat.qnt` trace
+  property is unchanged and green. Not read: the corpus lane's full corpus (D3), which has no
+  documents on main yet.
 - **R2** `src/diff-classify.ts`. **Departure:** `Change.effect` has a fourth value, `neutral`:
   an optional property (or parameter) declared or dropped where undeclared ones are allowed. Under
   pure set semantics that narrows a request, which would make every new optional request
