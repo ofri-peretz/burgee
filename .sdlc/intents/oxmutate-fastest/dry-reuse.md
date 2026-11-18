@@ -1,7 +1,7 @@
 # Design note — roadmap `3.3`: keep the dry run's results between runs
 
 Intent: [`intent.md`](./intent.md) · Roadmap: [`roadmap.md`](./roadmap.md) · **Written:**
-2026-11-18, by the session building `oxmutate-fastest`. **Status: proposed, not accepted.** It
+2026-11-18, by the session building `oxmutate-fastest`. **Status: accepted** ([`D-20261118-oxmutate-dry-reuse-design-accepted`](../../decisions/D-20261118-oxmutate-dry-reuse-design-accepted.md)). It
 changes which tests' coverage a run trusts, so it needs the owner's acceptance before any of it is
 built (`AI_NATIVE_SDLC.md`, Design → Build).
 
