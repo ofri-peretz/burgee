@@ -152,6 +152,7 @@ describe('contract-runtime.ts', () => {
     const empty = reply();
     expect(runtime.send(empty, { status: 204 }, { '204': {} })).toBeUndefined();
     expect(empty.calls).toEqual(['status 204']);
+    expect(runtime.send(reply(), { status: 204, body: 'extra' }, { '204': {} })).toMatchObject({ status: 500, detail: 'The handler answered 204 with a response the contract does not declare.' });
     const wrong = reply();
     expect(runtime.send(wrong, { status: 200, body: 'bad' }, { '200': json })).toEqual({
       type: 'about:blank',
