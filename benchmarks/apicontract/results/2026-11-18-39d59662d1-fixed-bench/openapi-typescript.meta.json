@@ -5,8 +5,8 @@
     "typescript@5.9.3"
   ],
   "family": "openapi",
-  "source": null,
-  "sample": 100,
+  "source": "stripe,github,twilio,kubernetes",
+  "sample": null,
   "seed": 1,
   "typescripts": {
     "ts59": "5.9.3",
@@ -14,5 +14,5 @@
     "ts70": "7.0.2"
   },
   "node": "v24.13.0",
-  "date": "2026-11-18T11:45:54.501Z"
+  "date": "2026-11-18T13:08:25.585Z"
 }

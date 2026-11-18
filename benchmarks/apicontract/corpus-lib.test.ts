@@ -120,6 +120,18 @@ describe('type-check attribution', () => {
     expect([...filesWithErrors(output, '/w/out')]).toEqual(['3/types.ts', '7/types.gen.ts']);
   });
 
+  it('reads a path tsc printed relative to the real working directory, as macOS gives it for /var', () => {
+    // The 2026-11-18 readings counted every document as type-checked: tsc ran in /private/var/…/out
+    // and printed ../../…/var/…/out/36/types.ts, which matched no folder, so no error was attributed.
+    const root = '/var/folders/x/T/run/out';
+    const real = '/private/var/folders/x/T/run/out';
+    const output = '../../../../../../../../var/folders/x/T/run/out/36/types.ts(150,22): error TS2304: Cannot find name';
+    expect([...filesWithErrors(output, root, real)]).toEqual(['36/types.ts']);
+    expect([...filesWithErrors('/private/var/folders/x/T/run/out/7/t.ts(1,1): error TS1: x', root, real)]).toEqual(['7/t.ts']);
+    expect([...filesWithErrors('C:\\w\\out\\5\\t.ts(1,1): error TS1: x', 'C:/w/out')]).toEqual(['5/t.ts']);
+    expect([...filesWithErrors('/elsewhere/a.ts(1,1): error TS1: x', root, real)]).toEqual(['/elsewhere/a.ts']);
+  });
+
   it('errorLine picks the Error line out of a banner and a stack', () => {
     expect(errorLine('✨ openapi-typescript 7.13.0\nfile:///x/redoc.mjs:95\n  throw …\nError: Unsupported Swagger version: 2.x.\n    at f')).toBe('Error: Unsupported Swagger version: 2.x.');
     expect(errorLine('\u001B[31m✘ bad input\u001B[39m')).toBe('✘ bad input');
