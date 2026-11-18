@@ -1,7 +1,7 @@
 ---
 id: A-20261118-run-gen-test-pins-builtin-list
 section: A
-status: open
+status: closed
 source: 'lane ac-agents, 2026-11-18: packages/apicontract/src/run-gen.test.ts "refuses a generator the plugins do not provide, listing the ones they do"'
 done_when: 'the run-gen test derives the expected generator names from builtins (plugins.ts) instead of pinning "types", and a lane that adds a built-in plugin pushes without touching it'
 ---
