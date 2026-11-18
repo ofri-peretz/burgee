@@ -333,13 +333,15 @@ const shapeOf = (reader: Reader, schema: Json, rest: AnySchema | false | null, p
   const named = schema['properties'] ?? {};
   if (!isJson(named)) invalid(path, `"properties" is ${shown(named)}, not an object`);
   const required = new Set(schema['required'] === undefined ? [] : namesAt(schema['required'], path, 'required'));
-  const shape: Record<string, AnySchema> = {};
+  // No prototype: a key named "__proto__" (from `properties` or `required`) is one more key, not a
+  // write that replaces the shape's prototype.
+  const shape = Object.create(null) as Record<string, AnySchema>;
   for (const [key, member] of Object.entries(named)) {
     const field = read(reader, member, `${path}/properties${token(key)}`) as AnySchema;
     shape[key] = required.has(key) ? field : optional(field);
   }
   const other = rest === false ? never() : (rest ?? unknown());
-  // eslint-disable-next-line conventions/consistent-existence-index-check -- own keys only: the shape is built here, and a key named "toString" is one more key
+  // eslint-disable-next-line conventions/consistent-existence-index-check, secure-coding/detect-object-injection -- own keys only: the shape is built here, and a key named "toString" is one more key; it has no prototype, so "__proto__" is too (detect-object-injection FP ofri-peretz/eslint#1573)
   for (const key of required) if (!Object.hasOwn(shape, key)) shape[key] = other;
   return shape;
 };
