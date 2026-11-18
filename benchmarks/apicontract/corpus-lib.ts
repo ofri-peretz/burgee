@@ -198,6 +198,8 @@ export interface ToolSummary {
   readonly typecheck: Record<TsKey, Share>;
   /** Generated and type-checked under every TypeScript: the row a user would call "works". */
   readonly usable: Share;
+  /** Usable, or not generated with an error that names its own fix: a refusal the user can act on, not a crash or bad output. */
+  readonly handled: Share;
   readonly roundtrip: Share;
   readonly medianMs: number | null;
   readonly p90Ms: number | null;
@@ -206,6 +208,12 @@ export interface ToolSummary {
 const share = (values: readonly (boolean | null)[]): Share => ({ passed: values.filter((v) => v === true).length, of: values.filter((v) => v !== null).length });
 
 const P90 = 0.9;
+
+/** Generated, and type-checked under every TypeScript. */
+const usable = (r: Row): boolean => r.generate && Object.values(r.typecheck).every((v) => v === true);
+
+/** Wrote nothing and said why with a `fix:` (core/resolve.ts): the document is broken, and the tool said how. */
+export const refused = (r: Row): boolean => !r.generate && r.error !== null && /\bfix: \S/.test(r.error);
 
 /** R6: the jsonl rows of one tool folded into its line of the summary. Unmeasured cells stay out of the denominator. */
 export function foldTool(tool: string, rows: readonly Row[]): ToolSummary {
@@ -218,14 +226,12 @@ export function foldTool(tool: string, rows: readonly Row[]): ToolSummary {
     generate: share(rows.map((r) => r.generate)),
     typecheck: Object.fromEntries(keys.map((k) => [k, share(rows.map((r) => (r.generate ? r.typecheck[k] : false)))])) as Record<TsKey, Share>,
     usable: share(rows.map((r) => r.generate && keys.every((k) => r.typecheck[k] === true))),
+    handled: share(rows.map((r) => usable(r) || refused(r))),
     roundtrip: share(rows.map((r) => r.roundtrip)),
     medianMs: median(ms),
     p90Ms: ms.length === 0 ? null : (ms[Math.min(ms.length - 1, Math.floor(ms.length * P90))] ?? null),
   };
 }
-
-/** Generated, and type-checked under every TypeScript. */
-const usable = (r: Row): boolean => r.generate && Object.values(r.typecheck).every((v) => v === true);
 
 /** Documents where one tool is usable and another is not, both ways: the losing rows the intent asks to publish. */
 export function disagreements(a: readonly Row[], b: readonly Row[]): { onlyA: string[]; onlyB: string[] } {
@@ -263,11 +269,12 @@ export function renderSummary({ run, tools, rows, subject, listed = LISTED }: Su
     '',
     'One row per tool over the same sampled documents. A share counts only the documents where the step was reached and measured;',
     '"read" is ours alone (an incumbent reads and generates in one step). "Usable" = generated and type-checked under TS 5.9, 6.0 and 7.0.',
+    '"Usable or refused" adds the documents where nothing was written and the error names its fix (`fix: …`), the same rule for every tool.',
     '',
-    '| Tool | Docs | Read | Generate | TS 5.9 | TS 6.0 | TS 7.0 | Usable | Median ms | p90 ms |',
-    '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+    '| Tool | Docs | Read | Generate | TS 5.9 | TS 6.0 | TS 7.0 | Usable | Usable or refused | Median ms | p90 ms |',
+    '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
     ...tools.map((t) =>
-      `| ${t.tool} | ${t.documents} | ${pct(t.read)} | ${pct(t.generate)} | ${pct(t.typecheck.ts59)} | ${pct(t.typecheck.ts60)} | ${pct(t.typecheck.ts70)} | ${pct(t.usable)} | ${t.medianMs ?? '—'} | ${t.p90Ms ?? '—'} |`,
+      `| ${t.tool} | ${t.documents} | ${pct(t.read)} | ${pct(t.generate)} | ${pct(t.typecheck.ts59)} | ${pct(t.typecheck.ts60)} | ${pct(t.typecheck.ts70)} | ${pct(t.usable)} | ${pct(t.handled)} | ${t.medianMs ?? '—'} | ${t.p90Ms ?? '—'} |`,
     ),
   ];
   const mine = subject === undefined ? undefined : rows[subject];
