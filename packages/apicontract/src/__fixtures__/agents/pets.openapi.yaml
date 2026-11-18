@@ -1,0 +1,73 @@
+openapi: 3.1.0
+info:
+  title: Pets
+  version: '1'
+  description: A pet store, for the agents lane's tests.
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      summary: List pets
+      tags: [pets]
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer }
+      responses:
+        '200':
+          description: The pets
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Pet' }
+    post:
+      operationId: createPet
+      description: Adds a pet to the store.
+      tags: [pets, admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Pet' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Pet' }
+  /pets/{petId}:
+    parameters:
+      - name: petId
+        in: path
+        required: true
+        schema: { type: string }
+    delete:
+      operationId: deletePet
+      responses:
+        '204':
+          description: Deleted
+  /tree:
+    get:
+      operationId: getTree
+      responses:
+        '200':
+          description: A tree
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Node' }
+components:
+  schemas:
+    Pet:
+      type: object
+      required: [id]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        owner: { $ref: 'https://example.com/owner.json' }
+    Node:
+      type: object
+      properties:
+        children:
+          type: array
+          items: { $ref: '#/components/schemas/Node' }
