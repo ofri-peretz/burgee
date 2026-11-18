@@ -10,6 +10,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { command, diff, type GitReader, noGit, toSarif, toText } from './command-diff.js';
 import { type Contract, type Payload } from './core/model.js';
 import { compareContracts } from './diff-contract.js';
+
 import { program } from './index.js';
 
 const FIXTURES = fileURLToPath(new URL('__fixtures__/diff/', import.meta.url));
