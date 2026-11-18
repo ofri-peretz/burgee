@@ -325,6 +325,7 @@ describe('a key Object.prototype has counts only as an own key', () => {
 
   it('takes an optional one that is only inherited as absent, and still refuses what is no object', () => {
     expect(check(Optional, {})).toBe(true);
+    expect(check(Optional, { toString: undefined })).toBe(true);
     expect([null, undefined, [], 'x', 1].map((value) => check(Optional, value))).toEqual([false, false, false, false, false]);
     expect(issues(Optional, {})).toEqual([]);
     expect(parse(Optional, {})).toEqual({ ok: true, value: {} });

@@ -57,6 +57,7 @@ const objectCheck = (keys: readonly string[], closed: boolean): Check => {
 };
 
 /** Whether `issues` and `parse` must read this object node's keys as own keys. */
+// Stryker disable next-line ConditionalExpression: equivalent, reading every node's keys as own keys reads any key not Object.prototype's exactly as `value[key]` and `in` do; only the speed differs
 const readsOwn = (schema: Node): boolean => schema.check === isOwnObject || schema.check === isOwnClosed;
 
 export { holds, isOwnClosed, memberOf, objectCheck, readsOwn };
