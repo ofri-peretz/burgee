@@ -43,7 +43,8 @@ describe('the validator plugin', () => {
       { operation: 'listTrees', symbol: 'ListTreesResponse200' },
     ]);
     const content = file?.content ?? '';
-    expect(content.startsWith("// @ts-nocheck -- the code is written by the validator package's emitter, whose functions take untyped parameters\n\n/**\n * `createOrder` body:application/json (request).\n */\nexport const CreateOrderBody: (value: unknown) => boolean = (() => {")).toBe(true);
+    expect(content).not.toContain('@ts-nocheck');
+    expect(content).toMatch(/^export type CreateOrderBody = \{ .*;\nexport type CreateOrderBody_0 = \{ "value": number; "children"\?: CreateOrderBody_0\[\] \| undefined \};\n\/\*\*\n \* `createOrder` body:application\/json \(request\)\.\n \*\/\nexport const CreateOrderBody: \(value: unknown\) => value is CreateOrderBody = \(\(\) => \{\n/u);
     expect(content).toContain('/**\n * `listTrees` param:query:depth (request, optional).\n */');
     expect(content).toContain('/**\n * `createOrder` response:201:application/json (response).\n */');
     expect(content.endsWith('export const operations = {\n  "createOrder": {\n    "body:application/json": CreateOrderBody,\n    "response:201:application/json": CreateOrderResponse201,\n  },\n  "listTrees": {\n    "param:query:depth": ListTreesParamQueryDepth,\n    "response:200:application/json": ListTreesResponse200,\n  },\n} as const;\n')).toBe(true);
@@ -71,9 +72,9 @@ describe('the validator plugin', () => {
     const document = { $schema: 'https://json-schema.org/draft/2020-12/schema', title: 'Pattern', type: 'string', format: 'regex' };
     const { files, findings } = await host().run('validator', document);
     const content = files[0]?.content ?? '';
-    expect(content).toContain("// @ts-nocheck -- the code is written by the validator package's emitter, whose functions take untyped parameters\nimport { check } from 'validator';\nimport { fromJsonSchema } from 'validator/json-schema';\n\n");
+    expect(content.startsWith("import { check } from 'validator';\nimport { fromJsonSchema } from 'validator/json-schema';\n\n")).toBe(true);
     expect(content).toContain(
-      'const PatternValueSchema = fromJsonSchema({"$schema":"https://json-schema.org/draft/2020-12/schema","title":"Pattern","type":"string","format":"regex"}).schema;\n/**\n * `Pattern` value (request).\n *\n * Checked at run time: the schema names a format that is a function.\n */\nexport const PatternValue: (value: unknown) => boolean = (value) => check(PatternValueSchema, value);',
+      'const PatternValueSchema = fromJsonSchema({"$schema":"https://json-schema.org/draft/2020-12/schema","title":"Pattern","type":"string","format":"regex"}).schema;\nexport type PatternValue = string;\n/**\n * `Pattern` value (request).\n *\n * Checked at run time: the schema names a format that is a function.\n */\nexport const PatternValue: (value: unknown) => value is PatternValue = (value): value is PatternValue => check(PatternValueSchema, value);',
     );
     expect(findings).toEqual([
       {
@@ -96,7 +97,8 @@ describe('the validator plugin', () => {
     const document = { title: 'T', type: 'string', format: 'regex', $defs: { Plain: { type: 'integer' } } };
     const content = (await host().run('validator', document)).files[0]?.content ?? '';
     expect(content.match(/^import /gmu)).toHaveLength(2);
-    expect(content).toContain('export const PlainValue: (value: unknown) => boolean = (() => {');
+    expect(content).toContain('export type PlainValue = number;\n/**');
+    expect(content).toContain('export const PlainValue: (value: unknown) => value is PlainValue = (() => {');
     const module = await load(content, scratch('apicontract-mixed-'), 'mixed');
     expect([(module.PlainValue as Check)(1), (module.TValue as Check)('(')]).toEqual([true, false]);
   });

@@ -65,9 +65,15 @@ run-time door), `plugin-validator-names.ts` (R1, R6). Fixtures in `src/__fixture
 
 Where the design was wrong or silent:
 
-- The emitter returns `(value) => boolean`, not a type guard, and its parameters are untyped. The
-  module starts with `// @ts-nocheck` and declares each validator `(value: unknown) => boolean`;
-  the inferred TypeScript type the intent asks for is not generated yet.
+- The emitter returned `(value) => boolean`, not a type guard, with untyped parameters, so the
+  module started with `// @ts-nocheck`. Closed 2026-11-18 (gap A-20261118-validator-emit-untyped):
+  each validator is now `export const <Name>: (value: unknown) => value is <Name>`, with
+  `export type <Name>` (and `<Name>_<n>` for a schema that names itself) written beside it from
+  `typeOf`, and `emit(schema, { typescript: true, type: name })` writes the body. No `@ts-nocheck`;
+  `plugin-validator-types.test.ts` type-checks the corpus, the sample and both door shapes under
+  `strict` with TypeScript 5.9, 6.0 and 7.0, and checks that a validator narrows. The `json-schema`
+  target's `recheck.ts` still writes untyped validators under `@ts-nocheck` (`typed` is opt-in in
+  `validatorCode`): typing it is a one-line change in `plugin-json-schema.ts`, outside this lane.
 - OpenAI's every-key-required rule makes an optional key arrive as `null`, which the full schema
   refuses. The re-check's doc comment and a finding say so; stripping those `null`s before the
   re-check is not generated yet.

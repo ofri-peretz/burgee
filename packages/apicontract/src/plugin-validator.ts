@@ -30,7 +30,7 @@ export const generateValidators = (contract: Contract): GeneratorResult => {
   for (const { name, operation, payload } of named) {
     const where = { label: name, at: operation.source };
     const built = build(contract.document, payload.schema, { draft: '2020-12', refs: 'keep', source, ...where });
-    const code = validatorCode(name, built.schema, { ...where, doc: [`\`${operation.id}\` ${payload.name} (${payload.direction}${payload.required ? '' : ', optional'}).`] });
+    const code = validatorCode(name, built.schema, { ...where, typed: true, doc: [`\`${operation.id}\` ${payload.name} (${payload.direction}${payload.required ? '' : ', optional'}).`] });
     findings.push(...built.findings, ...code.findings);
     codes.push(code);
   }
@@ -68,29 +68,29 @@ const document = {
   components: { schemas: { Pet: { type: 'object', required: ['id'], properties: { id: { type: 'string' } } } } },
 };
 
-const SAMPLE = `// @ts-nocheck -- the code is written by the validator package's emitter, whose functions take untyped parameters
-
+const SAMPLE = `export type ListPetsParamQueryLimit = number;
 /**
  * \`listPets\` param:query:limit (request, optional).
  */
-export const ListPetsParamQueryLimit: (value: unknown) => boolean = (() => {
+export const ListPetsParamQueryLimit: (value: unknown) => value is ListPetsParamQueryLimit = (() => {
 
-return (v) => typeof v === "number" && v >= 1 && v <= 1.7976931348623157e+308 && Number.isInteger(v);
+return (v: any): v is ListPetsParamQueryLimit => typeof v === "number" && v >= 1 && v <= 1.7976931348623157e+308 && Number.isInteger(v);
 })();
 
+export type ListPetsResponse200 = { "id": string }[];
 /**
  * \`listPets\` response:200:application/json (response).
  */
-export const ListPetsResponse200: (value: unknown) => boolean = (() => {
-const f0 = (v) => typeof v === "object" && v !== null && !Array.isArray(v)
+export const ListPetsResponse200: (value: unknown) => value is ListPetsResponse200 = (() => {
+const f0 = (v: any): boolean => typeof v === "object" && v !== null && !Array.isArray(v)
   && (typeof v["id"] === "string");
-const g0 = (v) => f0(v);
-const f2 = (v) => {
+const g0 = (v: any): boolean => f0(v);
+const f2 = (v: any): boolean => {
   if (!Array.isArray(v)) return false;
   for (let i = 0; i < v.length; i++) if (!(g0(v[i]))) return false;
   return true;
 };
-return (v) => f2(v);
+return (v: any): v is ListPetsResponse200 => f2(v);
 })();
 
 /**
