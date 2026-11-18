@@ -58,6 +58,7 @@ describe('colonPath', () => {
     expect(colonPath('/a/b?')).toBeUndefined();
     expect(colonPath('/a/{}')).toBeUndefined();
     expect(colonPath('/a/{b}}')).toBeUndefined();
+    expect(colonPath('/a{b}')).toBeUndefined();
   });
 });
 

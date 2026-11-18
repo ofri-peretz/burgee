@@ -86,6 +86,12 @@ describe('the nest plugin', () => {
     ]);
   });
 
+  it('names NestJS in a finding for an operation it does not route', () => {
+    expect(run(read({ openapi: '3.1.0', paths: { '/a': { trace: { operationId: 'a', responses: {} } } } }), {}).findings[0]?.message).toBe(
+      '`a` is not a route NestJS serves (a webhook, or a method the target does not route)',
+    );
+  });
+
   it('writes only the runtime for a spec without routes', () => {
     expect(run(read({ openapi: '3.1.0', paths: {} }), {}).files.map((file) => file.path)).toEqual(['contract-runtime.ts']);
   });

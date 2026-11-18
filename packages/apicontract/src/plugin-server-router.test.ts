@@ -126,12 +126,12 @@ describe('runRouter', () => {
     const ok = { '200': { description: 'ok' } };
     const { files } = runRouter(
       HONO,
-      spec({ '/pets/{id}': { get: { operationId: 'a', responses: ok } }, '/pets/mine': { get: { operationId: 'b', responses: ok } }, '/pets': { get: { operationId: 'c', responses: ok }, put: { operationId: 'd', responses: ok } }, '/pets/{id}/x': { get: { operationId: 'e', responses: ok } } }),
+      spec({ '/pets/{id}': { get: { operationId: 'a', responses: ok } }, '/pets/mine': { get: { operationId: 'b', responses: ok } }, '/pets': { get: { operationId: 'c', responses: ok }, put: { operationId: 'd', responses: ok } }, '/pets/{id}/x': { get: { operationId: 'e', responses: ok } }, '/pets/~mine': { get: { operationId: 'f', responses: ok } } }),
       {},
     );
     const routes = files.find((file) => file.path === 'routes.ts')?.content ?? '';
-    expect([...routes.matchAll(/ {4}path: "([^"]+)",/gu)].map((match) => match[1])).toEqual(['/pets', '/pets', '/pets/mine', '/pets/:id', '/pets/:id/x']);
-    expect([...routes.matchAll(/ {4}operation: "([^"]+)",/gu)].map((match) => match[1])).toEqual(['c', 'd', 'b', 'a', 'e']);
+    expect([...routes.matchAll(/ {4}path: "([^"]+)",/gu)].map((match) => match[1])).toEqual(['/pets', '/pets', '/pets/mine', '/pets/~mine', '/pets/:id', '/pets/:id/x']);
+    expect([...routes.matchAll(/ {4}operation: "([^"]+)",/gu)].map((match) => match[1])).toEqual(['c', 'd', 'b', 'f', 'a', 'e']);
   });
 });
 
@@ -186,6 +186,14 @@ describe('routesFile and handlersFile', () => {
     expect(routesFile(HONO, [{ route: { ...route, responses: [{ status: '200', content: { media: 'text/plain', payload: 'p', example: 'x' } }] }, path: '/a' }], OPTIONS)).toContain(
       'import { operations as validators }',
     );
+  });
+
+  it('imports the validators for one parameter alone, when any one route checks something, and not for a response without content', () => {
+    const route = { id: 'a', method: 'get', path: '/a', source: '#', name: 'a', handler: 'handleA', params: [], responses: [{ status: '204' }] };
+    expect(routesFile(HONO, [{ route, path: '/a' }], OPTIONS)).not.toContain('validators');
+    const param = { name: 'q', part: 'query' as const, payload: 'param:query:q', required: false, kind: 'string', example: 'x' };
+    expect(routesFile(HONO, [{ route: { ...route, params: [param] }, path: '/a' }], OPTIONS)).toContain('import { operations as validators }');
+    expect(routesFile(HONO, [{ route, path: '/a' }, { route: { ...route, name: 'b', params: [param] }, path: '/a' }], OPTIONS)).toContain('import { operations as validators }');
   });
 
   it('writes one stub per operation, a blank line between them', () => {

@@ -41,12 +41,10 @@ interface Served {
 }
 
 /** Static segments before parameters: `/pets/mine` is registered before `/pets/{petId}`, so a router that tries routes in order reaches it. */
-const specificity = (path: string): string => path.replaceAll(/\{[^}]*\}/gu, '\uFFFF');
-const bySpecificity = (a: Served, b: Served): number => {
-  const [left, right] = [specificity(a.route.path), specificity(b.route.path)];
-  if (left === right) return 0;
-  return left < right ? -1 : 1;
-};
+const specificity = (served: Served): string => served.route.path.replaceAll(/\{[^}]*\}/gu, '\uFFFF');
+/** The routes by specificity, sorted by UTF-16 code unit, each key's routes in the spec's order. */
+const bySpecificity = (served: readonly Served[]): Served[] =>
+  [...new Set(served.map((entry) => specificity(entry)))].toSorted().flatMap((key) => served.filter((entry) => specificity(entry) === key));
 
 /** One row of the route table. */
 const row = (served: Served): string[] => {
@@ -142,7 +140,7 @@ export const runRouter = (framework: Framework, contract: Contract, options: Opt
       });
     } else served.push({ route, path });
   }
-  const table = served.toSorted(bySpecificity);
+  const table = bySpecificity(served);
   const routes = table.map(({ route }) => route);
   const files: GeneratedFile[] = [
     { path: 'contract-runtime.ts', owner: 'generated', content: ROUTER_RUNTIME },
