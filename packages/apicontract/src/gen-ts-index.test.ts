@@ -2198,11 +2198,11 @@ describe('generate', () => {
   it('refuses a document whose local references lead nowhere, naming the last and then the others', () => {
     const given = {
       openapi: '3.1',
-      components: { schemas: { Pet: { type: 'object', properties: { category: { $ref: '#/components/schemas/Gone' }, type: { $ref: '#/components/schemas/Also' } } } } },
+      components: { schemas: { Pet: { type: 'object', properties: { category: { $ref: '#/components/schemas/Gone' }, kind: { $ref: '#/a' }, type: { $ref: '#/components/schemas/Also' } } } } },
     };
     expect(() => generate(given)).toThrow(
       new GenerateError(
-        "Can't resolve $ref at #/components/schemas/Pet/properties/type (and at #/components/schemas/Pet/properties/category).",
+        "Can't resolve $ref at #/components/schemas/Pet/properties/type (and at #/components/schemas/Pet/properties/category, #/components/schemas/Pet/properties/kind).",
         'point each `$ref` at a member the document has, or bundle the files it names into one document first',
       ),
     );
@@ -2224,6 +2224,8 @@ describe('generate', () => {
           D: { $ref: '#/components/schemas/toString' },
           E: { $ref: 7 },
           F: { $ref: '#/components/schemas/A/$ref/0' },
+          G: { $ref: '#/components/schemas/H/x' },
+          H: null,
         },
       },
     };
@@ -2231,6 +2233,7 @@ describe('generate', () => {
       '#/paths/~1a/get/parameters/1',
       '#/components/schemas/D',
       '#/components/schemas/F',
+      '#/components/schemas/G',
     ]);
   });
 

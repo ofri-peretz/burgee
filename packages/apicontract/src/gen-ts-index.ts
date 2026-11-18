@@ -173,7 +173,7 @@ export const generate = (root: unknown, options: GenerateOptions = {}): string =
   const ctx = createContext(copy, options, scanDiscriminators(copy));
   const body = printFile(documentStatements(copy, ctx));
   // Upstream writes the injected statements first, then the document's.
-  return typeof options.inject === 'string' && options.inject !== '' ? `${options.inject.trimEnd()}\n${body}` : body;
+  return typeof ctx.inject === 'string' && ctx.inject !== '' ? `${ctx.inject.trimEnd()}\n${body}` : body;
 };
 
 export {

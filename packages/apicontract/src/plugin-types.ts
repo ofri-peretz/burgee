@@ -12,31 +12,30 @@ import { type Generator, type Options, type Plugin } from './host.js';
 /** The file the target writes, relative to the output folder. */
 export const TYPES_FILE = 'types.ts';
 
-/** The sample: one path, one parameter, one response and the schema it names. */
+/** The sample: one operation, one required query parameter, one response and the schema it names. */
 const document = {
   openapi: '3.1.0',
-  info: { title: 'Pets', version: '1.0.0' },
   paths: {
-    '/pets/{id}': {
+    '/pets': {
       get: {
-        operationId: 'getPet',
-        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
-        responses: { '200': { description: 'A pet', content: { 'application/json': { schema: { $ref: '#/components/schemas/Pet' } } } } },
+        operationId: 'listPets',
+        parameters: [{ name: 'limit', in: 'query', required: true, schema: { type: 'integer' } }],
+        responses: { '200': { description: 'Pets', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/Pet' } } } } } },
       },
     },
   },
-  components: { schemas: { Pet: { type: 'object', required: ['id'], properties: { id: { type: 'string' }, name: { type: 'string' } } } } },
+  components: { schemas: { Pet: { required: ['id'], properties: { id: { type: 'string' }, name: { type: 'string' } } } } },
 };
 
 const SAMPLE_TYPES = `export interface paths {
-    "/pets/{id}": {
+    "/pets": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["getPet"];
+        get: operations["listPets"];
         put?: never;
         post?: never;
         delete?: never;
@@ -62,24 +61,24 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    getPet: {
+    listPets: {
         parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
+            query: {
+                limit: number;
             };
+            header?: never;
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description A pet */
+            /** @description Pets */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Pet"];
+                    "application/json": components["schemas"]["Pet"][];
                 };
             };
         };
