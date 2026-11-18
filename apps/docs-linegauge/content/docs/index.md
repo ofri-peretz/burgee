@@ -1,6 +1,6 @@
 ---
 title: linegauge
-description: "String width: measures, wraps, truncates and slices styled terminal text, grapheme-correct over Intl.Segmenter, with the same result on a terminal, a pipe or --json. Zero dependencies. Drop-in alternative to string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line."
+description: "String width: measures, wraps, truncates and slices styled terminal text, grapheme-correct, the same on a terminal, a pipe or --json. Zero dependencies. Drop-in alternative to string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line."
 ---
 
 **linegauge** measures, wraps, truncates and slices styled terminal text without the edge

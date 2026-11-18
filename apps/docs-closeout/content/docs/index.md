@@ -1,6 +1,6 @@
 ---
 title: closeout
-description: "Exit hook: runs every exit handler exactly once on every path out of the process, restores the terminal, and holds shutdown to a deadline so it cannot hang. Zero dependencies. Drop-in alternative to signal-exit, exit-hook, restore-cursor, cli-cursor and onetime."
+description: "Exit hook: runs every exit handler exactly once on every path out of the process, restores the terminal, and holds shutdown to a deadline. Zero dependencies. Drop-in alternative to signal-exit, exit-hook, restore-cursor, cli-cursor and onetime."
 ---
 
 **closeout** runs every exit handler exactly once, on every path out of the process, restores

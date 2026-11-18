@@ -39,6 +39,25 @@ describe("each description's first eight words carry its primary phrase", () => 
   });
 });
 
+/**
+ * The npm registry truncates a package's `description` to 255 characters: what it stores and
+ * serves is the first 255, cut wherever that lands. Measured on 2026-11-18 against the
+ * 2026-11-15 release (`https://registry.npmjs.org/<pkg>/latest`, `.description`): 8 of 11
+ * descriptions were longer — bellpull 257, burgee 258, closeout 262, controlroom 284, flagstaff
+ * 256, linegauge 286, paratext 259, roundel 281 — and each was published cut mid-word, burgee's
+ * ending "Drop-in alternative to commander, yargs and me". The cut falls in the migration
+ * clause, so it drops the incumbents the "<incumbent> alternative" searches need, and success
+ * criterion 3 (`npm view <pkg> description` matches the repository) cannot hold.
+ */
+const NPM_DESCRIPTION_LIMIT = 255;
+
+describe("each description fits npm's 255 characters, so it is published whole", () => {
+  it.each([...DESCRIPTIONS.keys()])('%s', (pkg) => {
+    const description = DESCRIPTIONS.get(pkg) ?? '';
+    expect(description.length, `${pkg}'s description is ${String(description.length)} characters; npm keeps the first ${String(NPM_DESCRIPTION_LIMIT)}: "…${description.slice(NPM_DESCRIPTION_LIMIT - 40, NPM_DESCRIPTION_LIMIT)}"`).toBeLessThanOrEqual(NPM_DESCRIPTION_LIMIT);
+  });
+});
+
 describe('a primary phrase names no incumbent (positioning R7)', () => {
   it.each(Object.entries(PHRASES))('%s', (_pkg, { primary }) => {
     expect(named(primary)).toEqual([]);

@@ -1,6 +1,6 @@
 ---
 title: paratext
-description: "Terminal hyperlinks, inline images, the window title, the clipboard, notifications and the bell, each with a static fallback for a terminal, pipe or agent that cannot show it. Zero dependencies. Drop-in alternative to ansi-escapes, terminal-link and term-img."
+description: "Terminal hyperlinks, inline images, the window title, clipboard, notifications and the bell, each with a static fallback for a terminal, pipe or agent that cannot show it. Zero dependencies. Drop-in alternative to ansi-escapes, terminal-link and term-img."
 ---
 
 **paratext** owns everything around terminal output that is not the output: hyperlinks,

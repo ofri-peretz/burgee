@@ -95,6 +95,14 @@ Today's descriptions open with what the package does in our own words ("Runs a s
    wording.
 3. After the next release, `npm view <pkg> description` matches the repository for every
    changed package.
+
+   > **2026-11-18: failed on the 2026-11-15 release.** The registry truncates a `description`
+   > to 255 characters, and 8 of the 11 were longer (bellpull 257, burgee 258, closeout 262,
+   > controlroom 284, flagstaff 256, linegauge 286, paratext 259, roundel 281), so each was
+   > published cut mid-word inside the migration clause — burgee's ends "Drop-in alternative to
+   > commander, yargs and me". `npm-search-opening-lock` now holds every description to 255,
+   > the eight first sentences were shortened (every incumbent kept), and criterion 3 is read
+   > again after the next release.
 4. **Maintain control:** `npx tsx scripts/npm-search-rank.ts --check` is run once the search
    index shows the new descriptions, and the reading is committed under `.sdlc/research/`.
    **Target: top 10 for each primary phrase.** The design-stage prediction (spec,
