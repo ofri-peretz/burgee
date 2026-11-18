@@ -1,0 +1,28 @@
+import { http, HttpResponse } from 'msw';
+
+import { type Scenario, scenarios } from './scenarios.js';
+
+const routes = {
+  "getPet": ["get", "*/pets/:petId"],
+} as const;
+
+type Scenarios = typeof scenarios;
+
+/** A scenario as a response. */
+const reply = (scenario: Scenario): Response => {
+  if (scenario.body === undefined) return new HttpResponse(null, { status: scenario.status });
+  const type = scenario.contentType ?? "application/json";
+  const text = /[/+]json(?:;|$)/u.test(type) ? JSON.stringify(scenario.body) : String(scenario.body);
+  return new HttpResponse(text, { status: scenario.status, headers: { "content-type": type } });
+};
+
+/** The handler answering `operation` with the scenario for `status`, e.g. `server.use(handler("getPet", "404"))`. */
+export const handler = <O extends keyof Scenarios>(operation: O, status: keyof Scenarios[O]) => {
+  const [method, path] = routes[operation];
+  return http[method](path, () => reply(scenarios[operation][status] as Scenario));
+};
+
+/** One handler per operation, answering with its first 2xx scenario. */
+export const handlers = [
+  handler("getPet", "200"),
+];

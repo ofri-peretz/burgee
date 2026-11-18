@@ -1,4 +1,56 @@
-/** Stub created by PLAN.md 6.0. Lane `ac-clients` replaces this file; see .sdlc/LANES.md. */
-import { type Plugin } from './host.js';
+/**
+ * The built-in `msw` target (apicontract-clients R5): `scenarios.ts`, a response for every declared
+ * status of every operation, and `handlers.ts`, MSW handlers answering from it. Values come from the
+ * spec's `example`, then `examples[0]`, then a seeded synthesis over the schema, which is reported
+ * as a finding. It reads routes the way the `fetch` target does, so the mocks answer what the client asks.
+ *
+ * The bodies carry no header: the writer adds it.
+ */
+import { type Contract } from './core/model.js';
+import { type Generator, type GeneratorResult, type Plugin } from './host.js';
+import { read } from './openapi.js';
+import { routesOf } from './plugin-fetch-routes.js';
+import { handlersFile, scenariosFile, scenariosOf } from './plugin-msw-files.js';
 
-export const plugin: Plugin | undefined = undefined;
+export const HANDLERS_FILE = 'handlers.ts';
+export const SCENARIOS_FILE = 'scenarios.ts';
+
+const run = (contract: Contract): GeneratorResult => {
+  const { routes, findings } = routesOf(contract);
+  const built = scenariosOf(routes, contract.document);
+  const symbols = routes.map((route) => ({ operation: route.id, symbol: route.id }));
+  return {
+    files: [
+      { path: HANDLERS_FILE, owner: 'generated', content: handlersFile(routes), symbols },
+      { path: SCENARIOS_FILE, owner: 'generated', content: scenariosFile(built), symbols },
+    ],
+    findings: [...findings, ...built.findings],
+  };
+};
+
+/** The sample: one operation, one response with an example and one synthesised from its schema. */
+const document = {
+  openapi: '3.1.0',
+  info: { title: 'Pets', version: '1' },
+  paths: {
+    '/pets/{petId}': {
+      get: {
+        operationId: 'getPet',
+        parameters: [{ name: 'petId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: {
+          '200': { description: 'The pet', content: { 'application/json': { schema: { type: 'object' }, example: { id: 'p1', name: 'Rex' } } } },
+          '404': { description: 'No such pet', content: { 'application/json': { schema: { type: 'object', required: ['message'], properties: { message: { type: 'string' } } } } } },
+        },
+      },
+    },
+  },
+};
+
+const msw: Generator = {
+  description: 'MSW handlers and a scenario for every declared response, from the spec’s examples or a seeded synthesis',
+  inputs: ['openapi'],
+  sample: { document, files: run(read(document)).files },
+  run,
+};
+
+export const plugin: Plugin = { name: 'msw', generators: { msw } };

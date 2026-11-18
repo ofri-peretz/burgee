@@ -1,0 +1,14 @@
+/** One response for a declared status: what a mock answers with. */
+export interface Scenario {
+  readonly status: number;
+  readonly contentType?: string;
+  readonly body?: unknown;
+}
+
+/** Every operation's scenarios, by operation id and the status as the spec writes it. */
+export const scenarios = {
+  "getPet": {
+    "200": {"status":200,"contentType":"application/json","body":{"id":"p1","name":"Rex"}},
+    "404": {"status":404,"contentType":"application/json","body":{"message":"hotel"}},
+  },
+} as const satisfies Readonly<Record<string, Readonly<Record<string, Scenario>>>>;
