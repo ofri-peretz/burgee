@@ -1,3 +1,5 @@
+import { isClosed } from './check.js';
+import { isOwnClosed, objectCheck } from './inherited.js';
 import { enumOf, type Flat, type Node, type ObjectFull, type ObjectOf, type Out, type Same, type Schema, type Shape } from './schema.js';
 
 /**
@@ -29,7 +31,9 @@ const entriesOf = (schema: Node, verb: string): Entry[] => {
 const reshaped = <S>(schema: Node, entries: readonly Entry[]): S => {
   const keys = entries.map(([key]) => key);
   const fields = entries.map(([, field]) => field);
-  return Object.freeze({ ...schema, keys, fields, values: schema.values === null ? null : new Set(keys) }) as S;
+  // The new keys decide, as `object` decides, whether they are read as own keys (inherited.ts).
+  const check = objectCheck(keys, schema.check === isClosed || schema.check === isOwnClosed);
+  return Object.freeze({ ...schema, check, keys, fields, values: schema.values === null ? null : new Set(keys) }) as S;
 };
 
 /** Only the named keys. A name the schema does not have is no key of the result. */

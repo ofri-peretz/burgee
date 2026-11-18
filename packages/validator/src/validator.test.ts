@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
+import { emit } from './emit.js';
+
 import {
   type AnySchema,
   array,
@@ -14,7 +16,12 @@ import {
   literal,
   number,
   object,
+  exactOptional,
+  extend,
   optional,
+  pick,
+  recordOf,
+  parse,
   type Schema,
   string,
 } from './index.js';
@@ -292,5 +299,90 @@ describe('check and issues agree', () => {
     }
     expect(paths.length * PROBES.length).toBe(500);
     expect(refused).toBeGreaterThan(400);
+  });
+});
+
+// #1620: a key Object.prototype has (`__proto__`, `toString`, `constructor`) is a value's only
+// when it is its own. Read as `value[key]`, `{}` held each of them through its prototype.
+describe('a key Object.prototype has counts only as an own key', () => {
+  const Required = object({ ['__proto__']: string(), toString: string() });
+  const Optional = object({ ['__proto__']: optional(string()), toString: optional(string()), constructor: optional(string()) });
+  const own = JSON.parse('{"__proto__": "x", "toString": "y"}') as unknown;
+
+  it('refuses a required one that is only inherited, on every path', () => {
+    expect(check(Required, {})).toBe(false);
+    expect(issues(Required, {}).map((i) => [i.path, i.keyword])).toEqual([
+      ['/__proto__', 'required'],
+      ['/toString', 'required'],
+    ]);
+    expect(parse(Required, {}).ok).toBe(false);
+  });
+
+  it('accepts one the value holds as its own', () => {
+    expect(check(Required, own)).toBe(true);
+    expect(issues(Required, own)).toEqual([]);
+    expect(parse(Required, own)).toEqual({ ok: true, value: own });
+  });
+
+  it('takes an optional one that is only inherited as absent, and still refuses what is no object', () => {
+    expect(check(Optional, {})).toBe(true);
+    expect(check(Optional, { toString: undefined })).toBe(true);
+    expect([null, undefined, [], 'x', 1].map((value) => check(Optional, value))).toEqual([false, false, false, false, false]);
+    expect(issues(Optional, {})).toEqual([]);
+    expect(parse(Optional, {})).toEqual({ ok: true, value: {} });
+  });
+
+  it('holds on a compiled check, and on a shape derived from the object', () => {
+    // eslint-disable-next-line node-security/detect-eval-with-expression -- The emitted text is the subject under test
+    const compiled = new Function(`return ${emit(Required)}`)() as (value: unknown) => boolean;
+    expect([compiled({}), compiled(own)]).toEqual([false, true]);
+    const derived = extend(object({}), { ['__proto__']: string() });
+    expect([check(derived, {}), check(derived, JSON.parse('{"__proto__": "x"}'))]).toEqual([false, true]);
+  });
+
+  it('holds on a closed shape: strict, a schema for the rest, and recordOf', () => {
+    const own2 = JSON.parse('{"__proto__": "x", "toString": "y", "a": 1}') as unknown;
+    const Strict = object({ ['__proto__']: string(), toString: string() }, { unknown: 'strict' });
+    expect([check(Strict, {}), check(Strict, own), check(Strict, own2)]).toEqual([false, true, false]);
+    const Rest = object({ toString: string() }, { unknown: number() });
+    expect([check(Rest, {}), check(Rest, JSON.parse('{"toString": "y", "a": 1}')), check(Rest, JSON.parse('{"toString": "y", "a": "1"}'))]).toEqual([false, true, false]);
+    const Keys = recordOf(['constructor'], string());
+    expect([check(Keys, {}), check(Keys, JSON.parse('{"constructor": "c"}')), check(Keys, JSON.parse('{"constructor": "c", "b": "d"}'))]).toEqual([false, true, false]);
+    expect(issues(Strict, {}).map((i) => [i.path, i.keyword])).toEqual([
+      ['/__proto__', 'required'],
+      ['/toString', 'required'],
+    ]);
+    expect(parse(Strict, own)).toEqual({ ok: true, value: own });
+  });
+
+  it('takes an exact-optional one as absent only when it is not own, and not undefined', () => {
+    const Exact = object({ toString: exactOptional(string()) });
+    expect([check(Exact, {}), check(Exact, { toString: undefined }), check(Exact, JSON.parse('{"toString": "y"}'))]).toEqual([true, false, true]);
+    expect(issues(Exact, { toString: undefined }).map((i) => i.keyword)).toEqual(['undefined']);
+    expect(issues(Exact, {})).toEqual([]);
+    const Mixed = object({ toString: optional(string()), a: exactOptional(string()) });
+    expect([check(Mixed, {}), check(Mixed, { a: undefined }), check(Mixed, { a: 'x' })]).toEqual([true, false, true]);
+    expect(issues(Mixed, { a: undefined }).map((i) => [i.path, i.keyword])).toEqual([['/a', 'undefined']]);
+    // eslint-disable-next-line node-security/detect-eval-with-expression -- The emitted text is the subject under test
+    const compiled = new Function(`return ${emit(Exact)}`)() as (value: unknown) => boolean;
+    expect([compiled({}), compiled({ toString: undefined }), compiled(JSON.parse('{"toString": "y"}'))]).toEqual([true, false, true]);
+  });
+
+  it('is decided again for a derived shape, which keeps a closed one closed', () => {
+    const Wide = object({ ['__proto__']: string(), a: string() }, { unknown: 'strict' });
+    const Narrow = pick(Wide, ['a']);
+    expect([check(Narrow, { a: 'x' }), check(Narrow, { a: 'x', b: 1 })]).toEqual([true, false]);
+    const Back = extend(Narrow, { toString: string() });
+    expect([check(Back, { a: 'x' }), check(Back, JSON.parse('{"a": "x", "toString": "y"}'))]).toEqual([false, true]);
+    expect(check(pick(object({ toString: string() }), ['toString']), {})).toBe(false);
+  });
+
+  it('still reads a getter a class puts on its prototype', () => {
+    class Named {
+      get name(): string {
+        return 'n';
+      }
+    }
+    expect(check(object({ name: string() }), new Named())).toBe(true);
   });
 });

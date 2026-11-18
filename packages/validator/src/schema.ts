@@ -45,6 +45,7 @@ import {
   isUnion,
   isUnique,
 } from './check.js';
+import { objectCheck } from './inherited.js';
 import { ALONE, AWAITED_MAP, AWAITED_RULE, BEFORE, BIGINT, CONTAINING, COUNTED, CUSTOM, DATE, EVERY, FALLBACK, INSTANCE, LATER, MAP, MAPPED, NAN, NEVER, NULLABLE, NULLISH, ONE, PIPED, RECORD, REFINED, SET, TESTED, TUPLE, TYPE, UNION, UNIQUE, UNKNOWN, WORDED } from './own.js';
 import { compile, describe, type Part as TemplatePart } from './template.js';
 
@@ -611,7 +612,7 @@ export const record = <V, O, K extends string = string>(value: Schema<V, O>, opt
 
 /** A record with exactly these keys, every one of them there, each value matching one schema: a closed object, written once. */
 export const recordOf = <const K extends string, V, O>(keys: readonly K[], value: Schema<V, O>): Schema<Record<K, V>, [O] extends [Same] ? Same : Record<K, O>> =>
-  node('object', isClosed, { keys: [...keys], fields: keys.map(() => value), values: new Set(keys), unknown: 'strict' });
+  node('object', objectCheck(keys, true), { keys: [...keys], fields: keys.map(() => value), values: new Set(keys), unknown: 'strict' });
 
 export interface OptionalOptions<T> {
   /**
@@ -675,10 +676,11 @@ export const object: ObjectBuilder = (shape: Shape, options: ObjectOptions<Unkno
   const { unknown: mode = 'keep' } = options;
   const keys = Object.keys(shape);
   const fields = Object.values(shape);
-  if (mode === 'keep') return node('object', isObject, { keys, fields });
+  // A shape naming one of Object.prototype's keys reads it as an own key (inherited.ts, #1620).
+  if (mode === 'keep') return node('object', objectCheck(keys, false), { keys, fields });
   const values = new Set(keys);
-  if (mode === 'strip') return node('object', isObject, { keys, fields, values, unknown: mode });
-  return node('object', isClosed, mode === 'strict' ? { keys, fields, values, unknown: mode } : { keys, fields, values, item: mode });
+  if (mode === 'strip') return node('object', objectCheck(keys, false), { keys, fields, values, unknown: mode });
+  return node('object', objectCheck(keys, true), mode === 'strict' ? { keys, fields, values, unknown: mode } : { keys, fields, values, item: mode });
 };
 
 type Cases = Readonly<Record<string, AnySchema>>;

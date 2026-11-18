@@ -1,3 +1,4 @@
+import { memberOf, readsOwn } from './inherited.js';
 import { issues } from './issues.js';
 import { isMembers, items, noKind, note, type Notes, rebuilt, same } from './own.js';
 import { type Filler, type Issue, type IssueOptions, type Node, type Out, type Pass, type Schema } from './schema.js';
@@ -53,8 +54,9 @@ const object = (schema: Node, value: unknown, pass: Pass): unknown => {
   if (!isMembers(value)) return value;
   const fields = schema.fields as readonly Node[];
   const notes: Notes = { changed: new Map(), pass };
+  const own = readsOwn(schema);
   for (const [index, key] of (schema.keys as readonly string[]).entries()) {
-    const member = value[key];
+    const member = own ? memberOf(value, key) : value[key];
     // After `check`, a named key that is `undefined` is one its schema never saw: the key was allowed to be absent. No transform is owed it.
     if (!pass.late || member !== undefined) note(notes, key, fields[index] as Node, member);
   }
