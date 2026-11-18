@@ -1,17 +1,31 @@
-# apicontract corpus — 2026-11-18-023c145ebb
+# apicontract corpus — 2026-11-18-39d59662d1-fixed
 
 One row per tool over the same sampled documents. A share counts only the documents where the step was reached and measured;
 "read" is ours alone (an incumbent reads and generates in one step). "Usable" = generated and type-checked under TS 5.9, 6.0 and 7.0.
 
 | Tool | Docs | Read | Generate | TS 5.9 | TS 6.0 | TS 7.0 | Usable | Median ms | p90 ms |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| ours:types | 100 | 100.0% (100/100) | 50.0% (50/100) | 50.0% (50/100) | 50.0% (50/100) | 50.0% (50/100) | 50.0% (50/100) | 124 | 205 |
-| hey-api | 100 | — | 92.0% (92/100) | 92.0% (92/100) | 92.0% (92/100) | 92.0% (92/100) | 92.0% (92/100) | 562 | 637 |
-| openapi-typescript | 100 | — | 50.0% (50/100) | 50.0% (50/100) | 50.0% (50/100) | 50.0% (50/100) | 50.0% (50/100) | 414 | 519 |
+| ours:types | 100 | 100.0% (100/100) | 100.0% (100/100) | 91.0% (91/100) | 91.0% (91/100) | 91.0% (91/100) | 91.0% (91/100) | 165 | 203 |
+| hey-api | 100 | — | 92.0% (92/100) | 92.0% (92/100) | 92.0% (92/100) | 92.0% (92/100) | 92.0% (92/100) | 587 | 759 |
+| openapi-typescript | 100 | — | 50.0% (50/100) | 49.0% (49/100) | 49.0% (49/100) | 49.0% (49/100) | 49.0% (49/100) | 578 | 681 |
 
 ## ours:types vs hey-api
 
-Usable for hey-api only (where we lose): 42
+Usable for hey-api only (where we lose): 1
+
+- `apis-guru:APIs/surevoip.co.uk/9dcb0dc8/openapi.yaml`
+
+Usable for ours:types only: 0
+
+- none
+
+## ours:types vs openapi-typescript
+
+Usable for openapi-typescript only (where we lose): 0
+
+- none
+
+Usable for ours:types only: 42
 
 - `apis-guru:APIs/amadeus.com/amadeus-flight-inspiration-search/1.0.6/swagger.yaml`
 - `apis-guru:APIs/azure.com/apimanagement-apimapis/2018-06-01-preview/swagger.yaml`
@@ -40,29 +54,15 @@ Usable for hey-api only (where we lose): 42
 - `apis-guru:APIs/azure.com/network-virtualNetworkGateway/2018-04-01/swagger.yaml`
 - … and 17 more (see the jsonl)
 
-Usable for ours:types only: 0
-
-- none
-
-## ours:types vs openapi-typescript
-
-Usable for openapi-typescript only (where we lose): 0
-
-- none
-
-Usable for ours:types only: 0
-
-- none
-
 ## Most frequent errors
 
 ### ours:types
 
-- 50 × `no input format recognises this document. fix: pass one of: openapi; or install the plugin that reads it`
+- none
 
 ### hey-api
 
-- 8 × `exit 0, no output`
+- 8 × `[Job 1] ❌ Input file not found:`
 
 ### openapi-typescript
 

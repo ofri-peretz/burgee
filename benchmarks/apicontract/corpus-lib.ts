@@ -3,6 +3,7 @@
  * file's shape, seeded sampling, tsc diagnostics attribution and the summary fold. Nothing here
  * touches the network, the disk or a subprocess, so `corpus-lib.test.ts` covers all of it.
  */
+import { posix } from 'node:path';
 
 /** The contract formats the corpus holds. MCP has none pinned yet: no server publishes a snapshot. */
 export type Family = 'openapi' | 'asyncapi' | 'jsonschema' | 'mcp';
@@ -138,15 +139,26 @@ export interface Row {
   readonly error: string | null;
 }
 
-/** `tsc --pretty false` prints `file(line,col): error TS…`; this returns the files that have one. */
-export function filesWithErrors(output: string, root: string): Set<string> {
+/**
+ * `tsc --pretty false` prints `file(line,col): error TS…`; this returns the files that have one,
+ * relative to `root`. tsc prints a path relative to its working directory as the operating system
+ * resolves it (`realRoot`), so on macOS, where `/var` is `/private/var`, a file under the root comes
+ * out as `../../…/var/folders/…/3/types.ts`. Each path is resolved against `realRoot` first and then
+ * read relative to whichever spelling of the root it falls under. A path outside both is kept as
+ * printed, so it can never be mistaken for a document's folder.
+ */
+export function filesWithErrors(output: string, root: string, realRoot: string = root): Set<string> {
   const files = new Set<string>();
+  const bases = [...new Set([realRoot, root].map((base) => posix.normalize(base.replaceAll('\\', '/')).replace(/\/$/, '')))];
   for (const line of output.split('\n')) {
     const match = /^(.+?)\(\d+,\d+\): error TS\d+/.exec(line.trim());
     const found = match?.[1];
     if (found === undefined) continue;
     const file = found.replaceAll('\\', '/');
-    files.add(file.startsWith(root) ? file.slice(root.length).replace(/^\//, '') : file);
+    // A drive letter (`C:/`) is absolute on Windows, where tsc prints one.
+    const absolute = file.startsWith('/') || /^[A-Za-z]:\//.test(file) ? posix.normalize(file) : posix.join(bases[0] as string, file);
+    const base = bases.find((b) => absolute.startsWith(`${b}/`));
+    files.add(base === undefined ? found : absolute.slice(base.length + 1));
   }
   return files;
 }

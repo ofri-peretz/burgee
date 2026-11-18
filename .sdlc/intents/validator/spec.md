@@ -104,7 +104,7 @@ One private package, `packages/validator`, until the name is chosen.
 | Entry | Holds | Needed by |
 | :-- | :-- | :-- |
 | `.` | Builders, `check`, `issues`, `Schema<T>`, `Infer` | Everyone |
-| `./emit` | `emit(schema)`: a node to ESM source | `apicontract gen validator`, `./jit` |
+| `./emit` | `emit(schema)`: a node to ESM source, or with `{ typescript: true }` a typed guard; `typeOf(schema)`: the type as text | `apicontract gen validator`, `./jit` |
 | `./jit` | `compile(schema)`: `emit` through `new Function` | Servers that opt in |
 | `./json-schema` | A node to JSON Schema and back, with findings | `apicontract gen json-schema`, extract |
 | `./zod` | The Zod-shaped façade | Teams migrating |
@@ -158,3 +158,33 @@ async refinement comes into scope, that changes.
 - A public name, a publish, or any claim in a README, until the intent's rows are read.
 - Async validation and streaming, until someone asks.
 - Forms, fake data and other things built on a schema: they are plugins or other packages, later.
+
+## As built, 2026-11-18: the tuple round trip, and typed emit
+
+- **The tuple round trip settles** (gap A-20261118-validator-tuple-roundtrip-grows). `toJsonSchema`
+  writes a tuple as `prefixItems`, `items: false` and its length as `minItems`. `fromJsonSchema`
+  read `prefixItems` as "these items if they are there", a union of a tuple for each shorter length,
+  ignored `minItems` while doing so (then added it back as an `allOf`), and read `items: false` as a
+  rest of `never`, written back as `{ "not": {} }`. Each pass wrapped the last in one more union,
+  and each shorter tuple grew again on the next. The reader now builds only the lengths the bounds
+  allow, adds a bound only where a member does not already keep it, reads `items: false` as a closed
+  tuple, and `{ "type": "array", "maxItems": 0 }` as the empty tuple. Every tuple shape in the tests,
+  in both drafts, is written back exactly as it was written (`round-trip.test.ts`); 225 documents a draft of
+  first items, rest and bounds are read as an oracle says and settle after one pass. The test fails
+  23 of its 25 cases on the old reader.
+- **Typed emit** (gap A-20261118-validator-emit-untyped). `typeOf(schema, prefix)` in `emit-type.ts`
+  writes, from the node, the type `Infer` gives from the builder, kind by kind; a schema that names
+  itself gets an alias `<prefix>_<n>`. Where the caller states the type (`custom`, `instanceOf`, a
+  template), the text is as wide as the node can say and never narrower, so a guard never claims
+  what it did not check. `emit(schema, { typescript: true })` writes the same checks with every
+  parameter typed and the entry `(v: any): v is T`; `type: name` names a type declared beside the
+  text instead. The annotations are marked `«…»` in the emitter's templates and cut for JavaScript;
+  `literal` escapes both marks, so no value of a schema is read as one. `emit` and `emitWith` are
+  typed `Source<Guard<T>>`, a string that says in the type system what it evaluates to, which `./jit`
+  reads. `emit-type.test.ts` has `tsc` hold `typeOf` to `Infer` on 61 schemas of every kind, and
+  type-checks the typed text of each.
+- **Throughput unchanged.** The JavaScript `emit` writes is byte-for-byte what it wrote before (the
+  bench order schema's text compared). `baseline.ts`'s runner on the bench schema, before and after,
+  same machine, 3 rounds alternated, load average 8 to 10: `oursEmitted` 18.90 M valid/s and 15.45 M
+  invalid/s before, 18.65 M and 15.35 M after (0.99 and 0.99); `ours` (interpreted, unchanged code)
+  4.47 M and 4.42 M before, 4.32 M and 4.27 M after. A ratio within noise, not an absolute.

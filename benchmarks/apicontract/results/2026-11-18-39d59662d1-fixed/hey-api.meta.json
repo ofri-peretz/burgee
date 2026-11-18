@@ -1,11 +1,12 @@
 {
-  "tool": "ours:types",
+  "tool": "hey-api",
   "packages": [
-    "file:packages/apicontract"
+    "@hey-api/openapi-ts@0.99.0",
+    "typescript@5.9.3"
   ],
   "family": "openapi",
-  "source": "stripe,github,twilio,kubernetes",
-  "sample": null,
+  "source": null,
+  "sample": 100,
   "seed": 1,
   "typescripts": {
     "ts59": "5.9.3",
@@ -13,5 +14,5 @@
     "ts70": "7.0.2"
   },
   "node": "v24.13.0",
-  "date": "2026-11-18T11:50:03.342Z"
+  "date": "2026-11-18T13:09:34.059Z"
 }

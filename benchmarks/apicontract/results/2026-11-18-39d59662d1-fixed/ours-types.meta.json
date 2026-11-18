@@ -1,8 +1,7 @@
 {
-  "tool": "hey-api",
+  "tool": "ours:types",
   "packages": [
-    "@hey-api/openapi-ts@0.99.0",
-    "typescript@5.9.3"
+    "file:packages/apicontract"
   ],
   "family": "openapi",
   "source": null,
@@ -14,5 +13,5 @@
     "ts70": "7.0.2"
   },
   "node": "v24.13.0",
-  "date": "2026-11-18T11:49:36.920Z"
+  "date": "2026-11-18T13:05:49.868Z"
 }

@@ -1,8 +1,7 @@
 {
-  "tool": "openapi-typescript",
+  "tool": "ours:types",
   "packages": [
-    "openapi-typescript@7.13.0",
-    "typescript@5.9.3"
+    "file:packages/apicontract"
   ],
   "family": "openapi",
   "source": "stripe,github,twilio,kubernetes",
@@ -14,5 +13,5 @@
     "ts70": "7.0.2"
   },
   "node": "v24.13.0",
-  "date": "2026-11-18T11:51:19.444Z"
+  "date": "2026-11-18T13:06:16.713Z"
 }
