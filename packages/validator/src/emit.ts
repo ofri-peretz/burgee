@@ -520,10 +520,11 @@ const write = (schema: Node, options: EmitOptions): { body: string; hooks: reado
   const entry = test(emitter, schema, 'v');
   const typescript = options.typescript === true;
   const lines = annotated(`${emitter.lines.join('\n')}\n`, typescript);
-  if (!typescript) return { body: `${lines}return (v) => ${annotated(entry, false)};`, hooks: emitter.hooks };
+  // The entry is a call or an inline test, which no annotation is in: only the declarations carry them.
+  if (!typescript) return { body: `${lines}return (v) => ${entry};`, hooks: emitter.hooks };
   // The guard's type goes in after the marks are read: it holds the schema's keys and literals, which may hold one.
   const { type, aliases } = guarded(schema, options);
-  return { body: `${aliases.map((alias) => `${alias}\n`).join('')}${lines}return (v: any): v is ${type} => ${annotated(entry, true)};`, hooks: emitter.hooks };
+  return { body: `${aliases.map((alias) => `${alias}\n`).join('')}${lines}return (v: any): v is ${type} => ${entry};`, hooks: emitter.hooks };
 };
 
 /**

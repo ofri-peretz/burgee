@@ -261,13 +261,14 @@ interface Bounds {
  * The tuples for first items that bind only the items that are there: one for each length the
  * bounds allow short of all of them, and one for all of them and what comes after.
  */
-const prefixed = (prefix: readonly AnySchema[], rest: AnySchema | null, bounds: Bounds): Node => {
+const prefixed = (prefix: readonly AnySchema[], rest: AnySchema | undefined, bounds: Bounds): Node => {
   const [min, max] = [bounds.min ?? 0, bounds.max ?? Number.POSITIVE_INFINITY];
-  const full = rest === null ? tuple(prefix) : tuple(prefix, { rest });
+  // No rest is a closed tuple: `tuple` leaves out an option that is `undefined`.
+  const full = tuple(prefix, given({ rest }) as { rest: AnySchema });
   const shorter = prefix.map((_, length) => length).filter((length) => length >= min && length <= max).map((length) => tuple(prefix.slice(0, length)));
   const one = shorter.length === 0 ? full : union([...shorter, full]);
   // The shorter tuples are each inside the bounds; the full one is when its lengths, from its own to its longest, are.
-  const longest = rest === null ? prefix.length : Number.POSITIVE_INFINITY;
+  const longest = rest === undefined ? prefix.length : Number.POSITIVE_INFINITY;
   return min <= prefix.length && max >= longest ? one : intersection([one as AnySchema, array(unknown(), given(bounds))]);
 };
 
@@ -284,7 +285,7 @@ const itemsOf = (reader: Reader, schema: Json, path: string, bounds: Bounds): No
   }
   const prefix = first.map((item, index) => read(reader, item, `${path}/${listed}/${String(index)}`) as AnySchema);
   // No item after the first ones is a closed tuple, not one whose rest is `never`, which would be written back as `{ "not": {} }`.
-  if (after === false) return prefixed(prefix, null, bounds);
+  if (after === false) return prefixed(prefix, undefined, bounds);
   return prefixed(prefix, (after === undefined ? unknown() : read(reader, after, `${path}/${restKey}`)) as AnySchema, bounds);
 };
 

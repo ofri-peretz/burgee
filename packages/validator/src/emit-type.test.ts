@@ -8,7 +8,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 
 import { TYPED } from './__fixtures__/typed.js';
 import { emit, emitWith, typeOf } from './emit.js';
-import { type AnySchema, array, lazy, literal, type Node, nullable, number, object, record, type Schema, string, union } from './schema.js';
+import { type AnySchema, array, discriminated, enumOf, intersection, lazy, literal, type Node, nullable, nullish, number, object, oneOf, optional, record, type Schema, string, union } from './schema.js';
 
 /**
  * `typeOf` says from the node what `Infer` says from the builder (gap
@@ -92,12 +92,23 @@ describe('typeOf', () => {
     expect(typeOf(TYPED.shape.schema).text).toBe('{ "id": string; "odd key"?: number | undefined; "exact"?: boolean; "maybe"?: string | null | undefined; "anything"?: unknown }');
     expect(typeOf(TYPED.word.schema).text).toBe(String.raw`"a\"\u003c\u002fb\u003e"`);
     expect(typeOf(literal(Number.NaN)).text).toBe('number');
+    expect(typeOf({ ...literal(1), value: {} } as Node).text).toBe('unknown');
+    expect(typeOf(array(intersection([object({ a: string() }), object({ b: number() })]))).text).toBe('({ "a": string } & { "b": number })[]');
+    expect(typeOf(intersection([string(), union([literal('a'), literal('b')])])).text).toBe('string & ("a" | "b")');
+    expect(typeOf(object({ k: optional(union([literal(undefined), string()])) })).text).toBe('{ "k"?: undefined | string | undefined }');
+    expect(typeOf(object({ k: optional(union([string(), literal(undefined)])) })).text).toBe('{ "k"?: string | undefined }');
+    expect(typeOf(object({})).text).toBe('{}');
+    expect(typeOf(TYPED.restOnly.schema).text).toBe('Readonly<Record<string, number>>');
+    expect(typeOf(nullable(union([string(), number()]))).text).toBe('string | number | null');
+    expect(typeOf(nullish(TYPED.fn.schema)).text).toBe('((...args: never[]) => unknown) | null | undefined');
+    expect([enumOf([]), discriminated('k', {}), oneOf([]), union([])].map((schema) => typeOf(schema).text)).toEqual(['never', 'never', 'never', 'never']);
     expect(['string', 'number', 'bigint', 'boolean', 'undefined', 'object', 'xml'].map((value) => typeOf({ ...TYPED.sym.schema, value } as Node).text)).toEqual(['string', 'number', 'bigint', 'boolean', 'undefined', 'object | null', 'unknown']);
   });
 
   it('refuses a node of no kind, and a prefix that is no name', () => {
     expect(() => typeOf({ ...string(), kind: 'constructor' } as unknown as Node)).toThrow('cannot write the type of a node of the kind "constructor": there is no such kind. fix: build the schema with the builders');
     expect(() => typeOf({ ...string(), kind: 5 } as unknown as Node)).toThrow('cannot write the type of a node of the kind a value of the type number: there is no such kind');
+    expect(() => typeOf({ ...string(), kind: { toString: () => 'string' } } as unknown as Node)).toThrow('cannot write the type of a node of the kind a value of the type object');
     expect(() => typeOf(string(), '1x')).toThrow('cannot name the aliases of a type "1x": it is not an identifier. fix: give a name of letters, digits, _ and $ that does not start with a digit');
   });
 });
@@ -116,7 +127,16 @@ describe('emit, typed', () => {
     expect(emit(string(), { typescript: true, type: 'Name' })).toBe('(() => {\n\nreturn (v: any): v is Name => typeof v === "string";\n})()');
     expect(emitWith(string(), { typescript: true }).source).toBe('(h: any) => {\n\nreturn (v: any): v is string => typeof v === "string";\n}');
     expect(() => emit(string(), { typescript: true, type: 'a b' })).toThrow('cannot name the type of a guard "a b": it is not an identifier. fix: give a name of letters, digits, _ and $ that does not start with a digit');
+    expect(() => emit(string(), { typescript: true, type: { toString: () => 'Name' } as unknown as string })).toThrow('cannot name the type of a guard a value of the type object');
     expect(() => emit(string(), { typescript: true, type: 5 as unknown as string })).toThrow('cannot name the type of a guard a value of the type number');
+  });
+
+  it('declares the aliases of a schema that names itself inside the text, one to a line', () => {
+    interface List {
+      readonly next: List | null;
+    }
+    const Linked: Schema<List> = object({ next: nullable(lazy(() => Linked)) });
+    expect(emit(lazy(() => Linked), { typescript: true }).startsWith('(() => {\ntype T_0 = { "next": T_0 | null };\nconst ')).toBe(true);
   });
 
   it('keeps the marks of an annotation that a value of the schema holds, as a value', () => {

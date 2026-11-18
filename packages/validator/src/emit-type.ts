@@ -29,6 +29,7 @@ const IDENTIFIER = /^[A-Za-z_$][\w$]*$/u;
 const FUNCTION = 0;
 const UNION = 1;
 const BOTH = 2;
+// Stryker disable next-line NumericLiteral: equivalent, only the order of the four levels is read, and any number above BOTH keeps it
 const TIGHT = 3;
 
 interface Text {
@@ -79,7 +80,9 @@ const literalOf = (value: unknown): string => {
   if (typeof value === 'string') return quoted(value);
   if (typeof value === 'bigint') return `${String(value)}n`;
   if (typeof value === 'number') return Number.isFinite(value) ? String(value) : 'number';
-  return value === null || typeof value === 'boolean' ? String(value) : 'undefined';
+  if (value === undefined) return 'undefined';
+  // A literal a builder makes is one of these; one built by hand that holds anything else is said to be nothing narrower than `unknown`.
+  return value === null || typeof value === 'boolean' ? String(value) : 'unknown';
 };
 
 /** What `typeof` names, as the type of the values it names. */
@@ -108,7 +111,7 @@ const object = (typer: Typer, schema: Node): Text => {
   const shape = tight(keys.length === 0 ? '{}' : `{ ${keys.map((key, index) => field(typer, key, fields[index] as Node)).join('; ')} }`);
   if (schema.item === null) return shape;
   const rest = tight(`Readonly<Record<string, ${type(typer, schema.item).text}>>`);
-  return keys.length === 0 ? rest : joined([shape, rest], ' & ', 'unknown');
+  return keys.length === 0 ? rest : { text: `${shape.text} & ${rest.text}`, level: BOTH };
 };
 
 const record = (typer: Typer, schema: Node): Text => {
@@ -133,6 +136,7 @@ const later = (typer: Typer, schema: Node): Text => {
   const name = typer.names.get(target);
   if (name !== undefined) return tight(name);
   const known = typer.done.get(target);
+  // Stryker disable next-line ConditionalExpression: equivalent, the text is written again and is the same; this is what saves writing a shared schema's text once per use
   if (known !== undefined) return known;
   if (typer.open.has(target)) {
     const alias = `${typer.prefix}_${String(typer.names.size)}`;
@@ -141,9 +145,11 @@ const later = (typer: Typer, schema: Node): Text => {
   }
   typer.open.add(target);
   const text = type(typer, target);
+  // Stryker disable next-line CallExpression: equivalent, a target written to the end is in `done` or `names` from here on, both read before `open` is
   typer.open.delete(target);
   const alias = typer.names.get(target);
   if (alias === undefined) {
+    // Stryker disable next-line CallExpression: equivalent, the cache `known` reads; without it the same text is written again
     typer.done.set(target, text);
     return text;
   }
@@ -169,8 +175,8 @@ const WRITERS: Readonly<Record<Kind, (typer: Typer, schema: Node) => Text>> = {
   never: () => tight('never'),
   record,
   tuple,
-  nullable: (typer, schema) => joined([inner(typer, schema), tight('null')], ' | ', 'never'),
-  nullish: (typer, schema) => joined([inner(typer, schema), tight('null'), tight('undefined')], ' | ', 'never'),
+  nullable: (typer, schema) => ({ text: `${at(inner(typer, schema), UNION)} | null`, level: UNION }),
+  nullish: (typer, schema) => ({ text: `${at(inner(typer, schema), UNION)} | null | undefined`, level: UNION }),
   union: (typer, schema) => joined(members(typer, schema), ' | ', 'never'),
   intersection: (typer, schema) => joined(members(typer, schema), ' & ', 'unknown'),
   lazy: later,
