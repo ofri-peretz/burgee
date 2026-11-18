@@ -6,7 +6,7 @@ import { ajvCheck, load } from './__fixtures__/validate/harness.js';
 import { checkPlugin, createHost, validate } from './host.js';
 import { builtinAdapters } from './inputs.js';
 import { plugin as jsonSchema } from './plugin-json-schema.js';
-import { comment } from './plugin-validator-code.js';
+import { comment, DOOR_IMPORTS, moduleOf, UNTYPED, validatorCode } from './plugin-validator-code.js';
 import { INPUTS, plugin, VALIDATORS_FILE } from './plugin-validator.js';
 import { builtins } from './plugins.js';
 
@@ -101,6 +101,16 @@ describe('the validator plugin', () => {
     expect(content).toContain('export const PlainValue: (value: unknown) => value is PlainValue = (() => {');
     const module = await load(content, scratch('apicontract-mixed-'), 'mixed');
     expect([(module.PlainValue as Check)(1), (module.TValue as Check)('(')]).toEqual([true, false]);
+  });
+
+  it('writes an untyped validator, as the json-schema re-check asks, under @ts-nocheck', () => {
+    const where = { label: 'A', at: '#', doc: ['a'] };
+    const untyped = validatorCode('A', { type: 'string', format: 'regex' }, where);
+    const typed = validatorCode('B', { type: 'integer' }, { ...where, typed: true });
+    expect([untyped.typed, typed.typed]).toEqual([false, true]);
+    expect(untyped.text).toBe('const ASchema = fromJsonSchema({"type":"string","format":"regex"}).schema;\n/**\n * a\n *\n * Checked at run time: the schema names a format that is a function.\n */\nexport const A: (value: unknown) => boolean = (value) => check(ASchema, value);');
+    expect(moduleOf([typed, untyped]).startsWith(`${UNTYPED}\n${DOOR_IMPORTS}\n\nexport type B = number;\n`)).toBe(true);
+    expect(moduleOf([typed]).startsWith('export type B = number;\n')).toBe(true);
   });
 
   it('writes a doc comment that nothing in it can end early', () => {
