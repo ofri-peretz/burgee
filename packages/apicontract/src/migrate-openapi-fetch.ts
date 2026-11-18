@@ -27,13 +27,29 @@ const specifier = (file: string, client: string, text: string): string => {
   return relative.startsWith('.') ? relative : `./${relative}`;
 };
 
+const TYPE_ARGUMENTS = /<[^>(]*>\(/uy;
+
+/** `name<…>(` as `name(`: the type arguments openapi-fetch's `createClient` takes and the generated one does not. */
+const dropTypeArguments = (text: string, name: string): string => {
+  let result = '';
+  let from = 0;
+  for (let at = text.indexOf(`${name}<`); at !== -1; at = text.indexOf(`${name}<`, at + 1)) {
+    TYPE_ARGUMENTS.lastIndex = at + name.length;
+    const match = TYPE_ARGUMENTS.exec(text);
+    if (match === null || /[\w$]/u.test(text.charAt(at - 1))) continue;
+    result += `${text.slice(from, at + name.length)}(`;
+    from = at + name.length + match[0].length;
+  }
+  return result + text.slice(from);
+};
+
 /** One source file: its edit, if any, and a finding for everything left to do by hand. */
 const rewrite = (path: string, before: string, client: string): { edit?: Edit; findings: ContractFinding[] } => {
   const findings: ContractFinding[] = [];
   let after = before;
   for (const [statement, name = '', quote = '"'] of before.matchAll(DEFAULT_IMPORT)) {
     after = after.replace(statement, `import { ${name === 'createClient' ? name : `createClient as ${name}`} } from ${quote}${specifier(path, client, before)}${quote}`);
-    after = after.replaceAll(new RegExp(`(?<![\\w$])${name.replaceAll('$', '\\$')}<[^>(]*>\\(`, 'gu'), `${name}(`);
+    after = dropTypeArguments(after, name);
   }
   for (const left of after.matchAll(ANY_IMPORT)) {
     findings.push(finding('import-not-rewritten', `${path}#L${String(lineOf(after, left.index))}`, 'this import of openapi-fetch is not a default `createClient` import', 'import `createClient` from the generated client instead; it has one method per operation'));

@@ -11,19 +11,19 @@ import { isUnreadable, type Literal, readExport } from './migrate-literal.js';
 import { type Config, editScripts, finding, type Files, type Migrate, scripts, type Target } from './migrate-shared.js';
 
 /** Hey API plugin → our generator. */
-const MAPPED: Readonly<Record<string, string>> = {
-  '@hey-api/typescript': 'types',
-  '@hey-api/sdk': 'fetch',
-  '@hey-api/client-fetch': 'fetch',
-  '@hey-api/schemas': 'json-schema',
-  '@tanstack/react-query': 'tanstack-query',
-  swr: 'swr',
-  msw: 'msw',
-  fastify: 'fastify',
-  hono: 'hono',
-  nest: 'nest',
-  express: 'express',
-};
+const MAPPED: ReadonlyMap<string, string> = new Map([
+  ['@hey-api/typescript', 'types'],
+  ['@hey-api/sdk', 'fetch'],
+  ['@hey-api/client-fetch', 'fetch'],
+  ['@hey-api/schemas', 'json-schema'],
+  ['@tanstack/react-query', 'tanstack-query'],
+  ['swr', 'swr'],
+  ['msw', 'msw'],
+  ['fastify', 'fastify'],
+  ['hono', 'hono'],
+  ['nest', 'nest'],
+  ['express', 'express'],
+]);
 
 /** Validator plugins: they become our `validator` target, which is not their library. */
 const VALIDATORS = new Set(['zod', 'valibot', 'arktype', 'joi', 'yup', 'typebox', 'superstruct', 'ajv']);
@@ -60,7 +60,7 @@ const pathOf = (value: Literal, pointer: string, findings: ContractFinding[], wh
 
 /** Each plugin as a target, or a finding. */
 const plugins = (list: readonly Literal[], output: string, findings: ContractFinding[]): Record<string, Target> => {
-  const targets: Record<string, Target> = {};
+  const targets = new Map<string, Target>();
   list.forEach((entry, index) => {
     const pointer = `${POINTER}#/plugins/${String(index)}`;
     let name: Literal = entry;
@@ -73,7 +73,7 @@ const plugins = (list: readonly Literal[], output: string, findings: ContractFin
       findings.push(unreadable(pointer, entry));
       return;
     }
-    const generator = MAPPED[name] ?? (VALIDATORS.has(name) ? 'validator' : undefined);
+    const generator = MAPPED.get(name) ?? (VALIDATORS.has(name) ? 'validator' : undefined);
     if (generator === undefined) {
       findings.push(finding('plugin-dropped', pointer, `the \`${name}\` plugin has no apicontract target`, 'keep Hey API for it, or write the plugin: `apicontract plugin new`'));
       return;
@@ -81,36 +81,36 @@ const plugins = (list: readonly Literal[], output: string, findings: ContractFin
     if (VALIDATORS.has(name)) {
       findings.push(finding('plugin-translated', pointer, `\`${name}\` schemas become the \`validator\` target, apicontract's own validators, not ${name}'s`, `import the validators from the \`validator\` target's output, or keep Hey API for ${name}`));
     }
-    targets[generator] = { generator, out: output };
+    targets.set(generator, { generator, out: output });
   });
-  return targets;
+  return Object.fromEntries(targets);
 };
 
 /** The CLI form, `openapi-ts -i <input> -o <output> -c <client>`, as the config it stands for. */
 const fromFlags = (args: readonly string[]): Record<string, Literal> => {
-  const config: Record<string, Literal> = {};
+  const config = new Map<string, Literal>();
   const list: string[] = [];
   for (let index = 0; index < args.length; index += 1) {
     const flag = args[index] as string;
     const value = args[index + 1] ?? '';
-    if (flag === '-i' || flag === '--input') config.input = value;
-    else if (flag === '-o' || flag === '--output') config.output = value;
+    if (flag === '-i' || flag === '--input') config.set('input', value);
+    else if (flag === '-o' || flag === '--output') config.set('output', value);
     else if (flag === '-c' || flag === '--client' || flag === '-p' || flag === '--plugins') list.push(...value.split(','));
     else {
-      config[flag] = flag;
+      config.set(flag, flag);
       continue;
     }
     index += 1;
   }
-  if (list.length > 0) config.plugins = [...DEFAULT_PLUGINS, ...list];
-  return config;
+  if (list.length > 0) config.set('plugins', [...DEFAULT_PLUGINS, ...list]);
+  return Object.fromEntries(config);
 };
 
 const BINARY = /^(\s*)(?:npx\s+)?(?:@hey-api\/)?openapi-ts(?:\s|$)/u;
 
 /** The scripts that run Hey API, rewritten, and the flags of the first. */
 const fromScripts = (files: Files): { replaced: Record<string, string>; args: string[] | undefined } => {
-  const replaced: Record<string, string> = {};
+  const replaced = new Map<string, string>();
   let args: string[] | undefined;
   for (const [name, command] of Object.entries(scripts(files))) {
     const parts = command.split(/(\s*(?:&&|\|\||;)\s*)/u);
@@ -123,9 +123,9 @@ const fromScripts = (files: Files): { replaced: Record<string, string>; args: st
         .filter((word) => word !== '' && word !== '\\');
       return `${found[1] as string}apicontract gen`;
     });
-    if (rewritten.join('') !== command) replaced[name] = rewritten.join('');
+    if (rewritten.join('') !== command) replaced.set(name, rewritten.join(''));
   }
-  return { replaced, args };
+  return { replaced: Object.fromEntries(replaced), args };
 };
 
 /** One Hey API config object as ours. */
@@ -153,7 +153,8 @@ const convert = (value: Literal, findings: ContractFinding[]): Config | undefine
 export const migrate: Migrate = (configText, files) => {
   const findings: ContractFinding[] = [];
   const { replaced, args } = fromScripts(files);
-  let value: Literal = configText === undefined ? (args === undefined ? undefined : fromFlags(args)) : readExport(configText);
+  const flags = args === undefined ? undefined : fromFlags(args);
+  let value: Literal = configText === undefined ? flags : readExport(configText);
   if (Array.isArray(value)) {
     const [first, ...rest] = value as Literal[];
     rest.forEach((_other, index) => findings.push(finding('second-input', `${POINTER}#/${String(index + 1)}`, 'a second config, and one apicontract.config.json reads one input', 'write a second apicontract.config.json for it in its own folder')));

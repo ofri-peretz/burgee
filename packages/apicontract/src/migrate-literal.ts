@@ -18,9 +18,12 @@ export type Literal = null | undefined | boolean | number | string | Unreadable 
 export const isUnreadable = (value: unknown): value is Unreadable =>
   typeof value === 'object' && value !== null && !Array.isArray(value) && Object.keys(value).length === 1 && typeof (value as { unreadable?: unknown }).unreadable === 'string';
 
-const OPEN: Readonly<Record<string, string>> = { '(': ')', '[': ']', '{': '}' };
-const WORDS: Readonly<Record<string, Literal>> = { true: true, false: false, null: null, undefined };
-const NUMBER = /^-?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/iu;
+const WORDS: ReadonlyMap<string, Literal> = new Map<string, Literal>([
+  ['true', true],
+  ['false', false],
+  ['null', null],
+  ['undefined', undefined],
+]);
 
 class Reader {
   private at = 0;
@@ -61,7 +64,7 @@ class Reader {
         this.at = this.endOfString(this.at);
         continue;
       }
-      if (char in OPEN) depth += 1;
+      if (/[([{]/u.test(char)) depth += 1;
       else if (/[)\]}]/u.test(char)) depth -= 1;
       this.at += 1;
     }
@@ -129,11 +132,12 @@ class Reader {
     const word = /^-?[\w$.]+/u.exec(this.source.slice(this.at))?.[0] ?? '';
     const after = this.source.slice(this.at + word.length).trimStart().charAt(0);
     if (/[,)\]}]/u.test(after) || after === '' || after === ';') {
-      if (Object.hasOwn(WORDS, word)) {
+      if (WORDS.has(word)) {
         this.at += word.length;
-        return WORDS[word];
+        return WORDS.get(word);
       }
-      if (NUMBER.test(word)) {
+      // `word` is digits, letters, `$`, `_` and dots: `Number` reads exactly the numeric literals among them.
+      if (word !== '' && !Number.isNaN(Number(word))) {
         this.at += word.length;
         return Number(word);
       }

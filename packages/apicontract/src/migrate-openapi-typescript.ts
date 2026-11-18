@@ -35,7 +35,10 @@ const CARRIED = new Set([
   'read-write-markers',
 ]);
 
-const ALIASES: Readonly<Record<string, string>> = { '-o': '--output', '-t': '--export-type' };
+const ALIASES: ReadonlyMap<string, string> = new Map([
+  ['-o', '--output'],
+  ['-t', '--export-type'],
+]);
 
 /** Words that run a package's binary, dropped with it. */
 const RUNNERS = new Set(['npx', 'bunx', 'pnpx', 'pnpm', 'yarn', 'npm', 'exec', 'dlx']);
@@ -55,19 +58,22 @@ interface Run {
 /** A command line as words, quotes removed. */
 const words = (command: string): string[] => [...command.matchAll(/"([^"]*)"|'([^']*)'|(\S+)/gu)].map((match) => match[1] ?? match[2] ?? (match[3] as string));
 
-const flagValue = (value: string | undefined): unknown => (value === undefined ? true : value === 'true' ? true : value === 'false' ? false : value);
+const flagValue = (value: string | undefined): unknown => {
+  if (value === undefined || value === 'true') return true;
+  return value === 'false' ? false : value;
+};
 
 /** Read the words after `openapi-typescript`. */
 const parseArgs = (args: readonly string[], pointer: string): { run: Run; check: boolean } => {
   let input: string | undefined;
   let out: string | undefined;
   let check = false;
-  const options: Record<string, unknown> = {};
+  const options = new Map<string, unknown>();
   const findings: ContractFinding[] = [];
   for (let index = 0; index < args.length; index += 1) {
     const word = args[index] as string;
     const [rawName = '', inline] = word.split('=', 2) as [string, string | undefined];
-    const name = ALIASES[rawName] ?? rawName;
+    const name = ALIASES.get(rawName) ?? rawName;
     const next = (): string | undefined => {
       if (inline !== undefined) return inline;
       index += 1;
@@ -76,20 +82,20 @@ const parseArgs = (args: readonly string[], pointer: string): { run: Run; check:
     if (name === '>') out = next();
     else if (name === '--output') out = next();
     else if (name === '--check') check = true;
-    else if (name.startsWith('--') && CARRIED.has(name.slice(2))) options[camel(name.slice(2))] = flagValue(inline);
+    else if (name.startsWith('--') && CARRIED.has(name.slice(2))) options.set(camel(name.slice(2)), flagValue(inline));
     else if (name === '--redocly') {
       findings.push(finding('option-dropped', pointer, `\`--redocly ${String(next())}\` names a config this migration did not read`, 'move its `apis` into `redocly.yaml` at the project root and run the migration again'));
     } else if (name.startsWith('-')) {
       findings.push(finding('option-dropped', pointer, `\`${word}\` is not an openapi-typescript flag apicontract carries`, 'remove it; `apicontract gen --help` lists what the types target takes'));
     } else input ??= word;
   }
-  return { run: { input, out, options, pointer, findings }, check };
+  return { run: { input, out, options: Object.fromEntries(options), pointer, findings }, check };
 };
 
 /** Every openapi-typescript run in the scripts, and each script rewritten to `apicontract gen`. */
 const fromScripts = (files: Files): { runs: Run[]; replaced: Record<string, string> } => {
   const runs: Run[] = [];
-  const replaced: Record<string, string> = {};
+  const replaced = new Map<string, string>();
   for (const [name, command] of Object.entries(scripts(files))) {
     const parts = command.split(/(\s*(?:&&|\|\||;|\|)\s*)/u);
     let changed = false;
@@ -104,12 +110,27 @@ const fromScripts = (files: Files): { runs: Run[]; replaced: Record<string, stri
       while (first > 0 && RUNNERS.has(list[first - 1] as string)) first -= 1;
       return [...list.slice(0, first), 'apicontract', 'gen', ...(check ? ['--check'] : [])].join(' ');
     });
-    if (changed) replaced[name] = rewritten.join('');
+    if (changed) replaced.set(name, rewritten.join(''));
   }
-  return { runs, replaced };
+  return { runs, replaced: Object.fromEntries(replaced) };
 };
 
 const isDict = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/** One `redocly.yaml` api, when it has an `x-openapi-ts` block. */
+const fromApi = (name: string, api: unknown): Run[] => {
+  const pointer = `redocly.yaml#/apis/${name}`;
+  if (!isDict(api) || !isDict(api['x-openapi-ts'])) return [];
+  const { output, ...flags } = api['x-openapi-ts'];
+  const options = new Map<string, unknown>();
+  const dropped: ContractFinding[] = [];
+  for (const [flag, value] of Object.entries(flags)) {
+    const kebab = flag.replaceAll(/[A-Z]/gu, (letter) => `-${letter.toLowerCase()}`);
+    if (CARRIED.has(kebab)) options.set(camel(kebab), value);
+    else dropped.push(finding('option-dropped', `${pointer}/x-openapi-ts/${flag}`, `\`${flag}\` is not an openapi-typescript option apicontract carries`, 'remove it; `apicontract gen --help` lists what the types target takes'));
+  }
+  return [{ input: typeof api.root === 'string' ? api.root : undefined, out: typeof output === 'string' ? output : undefined, options: Object.fromEntries(options), pointer, findings: dropped }];
+};
 
 /** Every `redocly.yaml` api with an `x-openapi-ts` block, and a finding for each setting left behind. */
 const fromRedocly = (text: string): { runs: Run[]; findings: ContractFinding[] } => {
@@ -124,20 +145,7 @@ const fromRedocly = (text: string): { runs: Run[]; findings: ContractFinding[] }
   for (const key of Object.keys(root).filter((name) => name !== 'apis')) {
     findings.push(finding('option-dropped', `redocly.yaml#/${key}`, `\`${key}\` configures Redocly, not the types`, 'keep redocly.yaml for `redocly lint`; apicontract does not read it'));
   }
-  const runs: Run[] = [];
-  for (const [name, api] of Object.entries(isDict(root.apis) ? root.apis : {})) {
-    const pointer = `redocly.yaml#/apis/${name}`;
-    if (!isDict(api) || !isDict(api['x-openapi-ts'])) continue;
-    const { output, ...flags } = api['x-openapi-ts'];
-    const options: Record<string, unknown> = {};
-    const dropped: ContractFinding[] = [];
-    for (const [flag, value] of Object.entries(flags)) {
-      const kebab = flag.replaceAll(/[A-Z]/gu, (letter) => `-${letter.toLowerCase()}`);
-      if (CARRIED.has(kebab)) options[camel(kebab)] = value;
-      else dropped.push(finding('option-dropped', `${pointer}/x-openapi-ts/${flag}`, `\`${flag}\` is not an openapi-typescript option apicontract carries`, 'remove it; `apicontract gen --help` lists what the types target takes'));
-    }
-    runs.push({ input: typeof api.root === 'string' ? api.root : undefined, out: typeof output === 'string' ? output : undefined, options, pointer, findings: dropped });
-  }
+  const runs = Object.entries(isDict(root.apis) ? root.apis : {}).flatMap(([name, api]) => fromApi(name, api));
   return { runs, findings };
 };
 
@@ -152,7 +160,7 @@ const assemble = (runs: readonly Run[]): { config: Config | undefined; findings:
   if (/^https?:\/\//u.test(input)) {
     findings.push(finding('remote-input', 'apicontract.config.json#/input', `${input} is fetched over the network, and apicontract reads local files`, 'download the document into the project and point `input` at it'));
   }
-  const targets: Record<string, Target> = {};
+  const targets = new Map<string, Target>();
   // A run with no input of its own (`npx openapi-typescript` beside redocly.yaml) runs the apis, read above.
   for (const run of runs.filter((one) => one.input !== undefined)) {
     if (run.input !== input) {
@@ -162,10 +170,10 @@ const assemble = (runs: readonly Run[]): { config: Config | undefined; findings:
     if (run.out === undefined) {
       findings.push(finding('stdout-output', run.pointer, 'openapi-typescript printed to stdout, and apicontract writes a file', `the target writes ${STDOUT_OUT}: change \`out\` to where the types belong`));
     }
-    const name = Object.keys(targets).length === 0 ? 'types' : `types-${String(Object.keys(targets).length + 1)}`;
-    targets[name] = { generator: 'types', out: run.out ?? STDOUT_OUT, options: { compat: 'openapi-typescript', ...run.options } };
+    const name = targets.size === 0 ? 'types' : `types-${String(targets.size + 1)}`;
+    targets.set(name, { generator: 'types', out: run.out ?? STDOUT_OUT, options: { compat: 'openapi-typescript', ...run.options } });
   }
-  return { config: { input, targets }, findings };
+  return { config: { input, targets: Object.fromEntries(targets) }, findings };
 };
 
 export const migrate: Migrate = (configText, files) => {

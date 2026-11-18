@@ -39,17 +39,17 @@ describe('the documented examples', () => {
   });
 });
 
-describe('imports', () => {
-  const files = (text: string, path = 'src/deep/api.ts') => ({ 'package.json': packageJson, [path]: text });
+const files = (text: string, path = 'src/deep/api.ts') => ({ 'package.json': packageJson, [path]: text });
 
+describe('imports', () => {
   it('keeps a local name, single quotes, and the `.js` style of the file', () => {
     const text = "import makeClient from 'openapi-fetch';\nimport { x } from '../x.js';\nconst a = makeClient<paths, 'application/json'>({});\n";
     expect(migrate(undefined, files(text)).edits[1]?.after).toBe("import { createClient as makeClient } from '../lib/api/client.js';\nimport { x } from '../x.js';\nconst a = makeClient({});\n");
   });
 
   it('reads a `$` in a local name as itself', () => {
-    const text = "import $c from 'openapi-fetch';\nconst a = $c<paths>({});\nconst b = x$c<paths>({});\n";
-    expect(migrate(undefined, files(text)).edits[1]?.after).toBe("import { createClient as $c } from '../lib/api/client';\nconst a = $c({});\nconst b = x$c<paths>({});\n");
+    const text = "import $c from 'openapi-fetch';\nconst a = $c<paths>({});\nconst b = x$c<paths>({});\nconst c = $c<a(b)>;\nconst d = $c<paths>({});\n";
+    expect(migrate(undefined, files(text)).edits[1]?.after).toBe("import { createClient as $c } from '../lib/api/client';\nconst a = $c({});\nconst b = x$c<paths>({});\nconst c = $c<a(b)>;\nconst d = $c({});\n");
   });
 
   it('reports a dynamic import and a require', () => {
