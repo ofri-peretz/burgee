@@ -6,7 +6,7 @@
  */
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { resolve } from 'node:path';
 
 import { defineCommand, ExitCode } from 'burgee';
 import { parse as parseYaml } from 'seniority/yaml';
@@ -138,7 +138,8 @@ const writeChangeset = (cwd: string, pkg: string, comparison: Comparison, labels
   if (comparison.findings.length === 0) return undefined;
   const body = comparison.findings.filter((finding) => finding.verdict !== 'non-breaking').map((finding) => `- ${finding.verdict}: \`${finding.id}\` in ${finding.operation} ${where(finding)}`);
   const text = [`---`, `'${pkg}': ${BUMP[comparison.verdict]}`, `---`, '', `Contract changes from ${old} to ${nu}: ${comparison.verdict}.`, ...(body.length > 0 ? ['', ...body] : []), ''].join('\n');
-  const file = join('.changeset', `apicontract-diff-${createHash('sha256').update(text).digest('hex').slice(0, HASH_DIGITS)}.md`);
+  // Forward slashes on every platform: the path is reported, and `resolve` reads it on Windows too.
+  const file = `.changeset/apicontract-diff-${createHash('sha256').update(text).digest('hex').slice(0, HASH_DIGITS)}.md`;
   mkdirSync(resolve(cwd, '.changeset'), { recursive: true });
   writeFileSync(resolve(cwd, file), text);
   return file;
