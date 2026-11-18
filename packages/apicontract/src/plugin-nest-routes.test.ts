@@ -262,6 +262,8 @@ describe('routesOf', () => {
     const [route] = controllers[0]?.routes ?? [];
     expect(route?.body?.example).toBeNull();
     expect(route?.params.map((param) => param.name)).toEqual(['a:b']);
+    const empty = routes({ '/a': { get: { operationId: 'a', responses: { '200': { description: 'a', content: { 'application/json': null } } } } } });
+    expect(empty.controllers[0]?.routes[0]?.responses[0]?.content?.example).toBeNull();
   });
 
   it('stops following a reference that names itself', () => {
