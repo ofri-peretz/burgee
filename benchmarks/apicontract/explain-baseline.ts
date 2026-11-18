@@ -28,7 +28,6 @@ function lookUp(root: Json, pointer: string): Json {
 
 function inline(root: Json, node: Json, open: ReadonlySet<string>, depth = 0): Json {
   if (depth > MAX_DEPTH) return node;
-  // eslint-disable-next-line secure-coding/no-unchecked-loop-condition -- bounded by MAX_DEPTH on the line above
   if (Array.isArray(node)) return node.map((item) => inline(root, item, open, depth + 1));
   if (node === null || typeof node !== 'object') return node;
   const ref = node['$ref'];

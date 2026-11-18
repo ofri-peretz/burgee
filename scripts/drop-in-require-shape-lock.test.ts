@@ -66,7 +66,7 @@ const PAIRS: readonly (readonly [string, string])[] = [
 /** What `require()` returns, or `undefined` when the specifier is not installed here. */
 function required(specifier: string): unknown {
   try {
-    // eslint-disable-next-line import-next/no-dynamic-require, import-next/no-commonjs, node-security/no-dynamic-require, node-security/no-dynamic-dependency-loading -- a CommonJS require() is the thing under test, and every specifier is a constant in PAIRS above
+    // eslint-disable-next-line import-next/no-dynamic-require, node-security/no-dynamic-require, node-security/no-dynamic-dependency-loading -- a CommonJS require() is the thing under test, and every specifier is a constant in PAIRS above
     return require(specifier) as unknown;
   } catch {
     return undefined;

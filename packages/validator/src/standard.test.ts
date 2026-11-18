@@ -1,7 +1,8 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
-import { array, check, issues, number, object, optional, parse, refineAsync, type Schema, string, transform, transformAsync } from './index.js';
 import { standard, standardAsync, type StandardResult, VENDOR } from './standard.js';
+
+import { array, check, issues, number, object, optional, parse, refineAsync, type Schema, string, transform, transformAsync } from './index.js';
 
 /**
  * Wave 3: Standard Schema. The cases are the ones the competitors' probes hold zod, valibot and

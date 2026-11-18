@@ -126,7 +126,6 @@ export async function resolvePrompts<O extends PromptableOption>({ options, valu
 
     // Asked one at a time on purpose: a person answers in sequence, and asking the second
     // question before the first is answered would interleave two prompts on one terminal.
-    // eslint-disable-next-line reliability/no-await-in-loop -- see above
     const answer: Asked = await ask(prompt, io);
     if (!answer.ok) {
       // `flag` carries its own dashes, so for a flag this is the catalog's `cancelled at --{option}`

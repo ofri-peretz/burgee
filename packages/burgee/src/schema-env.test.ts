@@ -11,8 +11,9 @@ import { PassThrough } from 'node:stream';
 
 import { describe, expect, it } from 'vitest';
 
-import { defineCommand, defineProgram, execute } from './index.js';
 import { MCP_PROTOCOL_VERSION, serveMcp } from './mcp-entry.js';
+
+import { defineCommand, defineProgram, execute } from './index.js';
 
 const program = defineProgram({
   name: 'app',

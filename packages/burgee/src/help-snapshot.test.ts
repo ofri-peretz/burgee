@@ -29,10 +29,11 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { discard } from './__fixtures__/scratch-dir.js';
 import { SHELLS } from './completions.js';
 import { renderHelp } from './help-entry.js';
-import { defineCommand, defineProgram, ExitCode, runCommand } from './index.js';
 import { type CommandNode, type Manifest } from './manifest.js';
 import { adviceOf, completionNode, EXIT_ADVICE, exitRows, producibleExits } from './root-help.js';
 import { listed } from './usage.js';
+
+import { defineCommand, defineProgram, ExitCode, runCommand } from './index.js';
 
 const ok = (): string => 'ok';
 

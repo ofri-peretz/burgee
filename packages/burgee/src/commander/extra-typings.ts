@@ -39,7 +39,7 @@
 // runtime and take extra-typings' generic declarations.
 export * from '../commander.js';
 
-/* eslint-disable conventions/no-commented-code, import-next/no-deprecated -- a port: upstream's declarations and comments are carried as written, and the deprecated members are commander's own, declared because extra-typings declares them. */
+/* eslint-disable conventions/no-commented-code -- a port: upstream's declarations and comments are carried as written. */
 
 // eslint complains about {} as a type, but hard to be more accurate.
 

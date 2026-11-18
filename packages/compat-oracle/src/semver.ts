@@ -106,6 +106,7 @@ const ORDERED: Record<string, (order: number) => boolean> = {
 function satisfiesComparator(v: Version, c: Comparator): boolean {
   if (c.operator === '^') return satisfiesCaret(v, c);
   if (c.operator === '~') return satisfiesTilde(v, c);
+  // eslint-disable-next-line secure-coding/detect-object-injection -- FP ofri-peretz/eslint#1547: a call through a module-built const table, keyed by its own key type
   const ordered = ORDERED[c.operator];
   if (ordered !== undefined) return ordered(compareVersions(v, c.version));
   return satisfiesExact(v, c);

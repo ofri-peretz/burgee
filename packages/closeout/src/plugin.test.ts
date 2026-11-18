@@ -20,8 +20,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { SHOW_CURSOR } from './cursor.js';
-import { install, type ProcessLike } from './index.js';
 import { attach, contributions, PluginError, register, registered, reset, validate } from './plugin.js';
+
+import { install, type ProcessLike } from './index.js';
 
 type Listener = (...args: never[]) => void;
 

@@ -32,9 +32,10 @@ import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 
 import { discard } from './__fixtures__/scratch-dir.js';
 import { Command } from './commander.js';
-import { AuthError, defineCommand, defineProgram, ExitCode } from './index.js';
 import { runBurgee } from './testing.js';
 import yargs from './yargs.js';
+
+import { AuthError, defineCommand, defineProgram, ExitCode } from './index.js';
 
 /** One way a handler fails, and what it must settle to: the E1 code, the message, and the façades' word for it. */
 interface Case {

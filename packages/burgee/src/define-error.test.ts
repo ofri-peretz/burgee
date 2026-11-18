@@ -10,8 +10,9 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { defineCommand, defineError, defineProgram, ExitCode } from './index.js';
 import { runBurgee } from './testing.js';
+
+import { defineCommand, defineError, defineProgram, ExitCode } from './index.js';
 
 const QuotaError = defineError({ name: 'QuotaError', code: 10 });
 class DailyQuotaError extends QuotaError {}

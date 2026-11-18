@@ -9,8 +9,9 @@ import React from 'react';
 import { describe, expect, it } from 'vitest';
 
 import { calculateLayout, defaults, type FlexNode, type FlexStyle } from './flex.js';
-import { Box, renderToString, Text } from './index.js';
 import { InkPeerError, INSTALL, loadPeer } from './peers.js';
+
+import { Box, renderToString, Text } from './index.js';
 
 const h = React.createElement;
 

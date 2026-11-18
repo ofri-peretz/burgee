@@ -21,6 +21,7 @@ import { describe, expect, it } from 'vitest';
 
 import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { configLayers } from './config-layers.js';
+
 import { defineCommand, defineProgram, execute } from './index.js';
 
 type Source = 'flag' | 'env' | 'config' | 'package' | 'default';

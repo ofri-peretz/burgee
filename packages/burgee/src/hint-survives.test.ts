@@ -22,9 +22,10 @@
 import { describe, expect, it } from 'vitest';
 
 import { defineError } from './define-error.js';
-import { AuthError, defineCommand, defineProgram, UsageError } from './index.js';
 import { definePlugin } from './plugin.js';
 import { runBurgee } from './testing.js';
+
+import { AuthError, defineCommand, defineProgram, UsageError } from './index.js';
 
 const QuotaError = defineError({ name: 'QuotaError', code: 97, description: 'the quota is spent' });
 

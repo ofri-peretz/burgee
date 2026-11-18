@@ -10,8 +10,9 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { AuthError, defineCommand, defineProgram, ExitCode } from './index.js';
 import { runBurgee } from './testing.js';
+
+import { AuthError, defineCommand, defineProgram, ExitCode } from './index.js';
 
 const program = defineProgram({
   name: 'e6',

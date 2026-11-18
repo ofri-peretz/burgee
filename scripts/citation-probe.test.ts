@@ -44,6 +44,7 @@ function stubClaude(body: string): Stub {
   const dir = scratchDir('stub-claude-');
   const bin = join(dir, 'claude');
   const log = join(dir, 'calls.log');
+  // eslint-disable-next-line node-security/require-storage-encryption -- FP ofri-peretz/eslint#1548: writes a fake `claude` stub script, not a credential
   writeFileSync(bin, `#!/bin/sh\nprintf '%s|key=%s\\n' "$*" "\${ANTHROPIC_API_KEY:-}" >> '${log}'\n${body}\n`);
   chmodSync(bin, EXECUTABLE);
   return { bin, calls: () => (existsSync(log) ? readFileSync(log, 'utf8').split('\n').filter((l) => l !== '') : []) };

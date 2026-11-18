@@ -80,6 +80,8 @@ describe('options with no config file', () => {
   });
 });
 
+const group = async (value: unknown): Promise<number> => (await loadOptions(project({ 'oxmutate.config.json': { static: { group: value } } }))).staticGroup;
+
 describe('options from a config file', () => {
   it('read every key oxmutate uses', async () => {
     const config = {
@@ -187,7 +189,6 @@ describe('options from a config file', () => {
   });
 
   it('static.group is a whole number of at least one; anything else arms each static mutant alone', async () => {
-    const group = async (value: unknown): Promise<number> => (await loadOptions(project({ 'oxmutate.config.json': { static: { group: value } } }))).staticGroup;
     expect(await group(25)).toBe(25);
     expect(await group(2)).toBe(2);
     expect(await group(2.9)).toBe(2);
