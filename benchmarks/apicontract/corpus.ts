@@ -15,7 +15,7 @@
  * start-up. Type-checking runs once per compiler over every output, and each error is attributed
  * to the document whose folder it is in.
  */
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -156,7 +156,7 @@ function typecheck(work: string, outs: readonly string[]): Map<TsKey, Set<string
       env: { ...process.env, NODE_OPTIONS: `--max-old-space-size=${TSC_HEAP_MB}` },
     });
     const output = `${ran.stdout}\n${ran.stderr}`;
-    const failing = filesWithErrors(output, work);
+    const failing = filesWithErrors(output, work, realpathSync(work));
     // A non-zero exit with no attributable error is a compiler crash, not a verdict on any document.
     if (ran.status !== 0 && failing.size === 0) {
       process.stderr.write(`tsc ${version} exited ${ran.status} without a diagnostic: ${firstLine(output)}\n`);
