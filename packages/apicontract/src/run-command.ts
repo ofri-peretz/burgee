@@ -15,6 +15,13 @@ const writing = {
   config: { type: 'string', description: 'the config file (default: apicontract.config.json, .mjs or .ts in this folder)', placeholder: 'path' },
 } as const;
 
+/**
+ * The folder the user ran the command in, as a path every `node:path` `resolve` turns into the
+ * working directory. The process itself is named only by the program's bin (process-reference lock).
+ */
+// Stryker disable next-line StringLiteral: equivalent, `resolve('', name)` and `resolve('.', name)` are both the working directory
+const HERE = '.';
+
 export const genCommand = defineCommand({
   name: 'gen',
   description: 'Code from a spec, one plugin per target: TypeScript types, validators, NestJS modules',
@@ -24,7 +31,7 @@ export const genCommand = defineCommand({
     target: { type: 'string', multiple: true, description: 'run only this target (repeatable)', placeholder: 'name' },
   },
   run: async ({ options }) =>
-    gen({ cwd: process.cwd(), config: options.config, targets: options.target, check: options.check, dryRun: options.dryRun, force: options.force }),
+    gen({ cwd: HERE, config: options.config, targets: options.target, check: options.check, dryRun: options.dryRun, force: options.force }),
 });
 
 export const extractCommand = defineCommand({
@@ -37,5 +44,5 @@ export const extractCommand = defineCommand({
     out: { type: 'string', description: 'the spec file to write (default: spec.json)', placeholder: 'file' },
   },
   run: async ({ options }) =>
-    extract({ cwd: process.cwd(), config: options.config, from: options.from, out: options.out, check: options.check, dryRun: options.dryRun, force: options.force }),
+    extract({ cwd: HERE, config: options.config, from: options.from, out: options.out, check: options.check, dryRun: options.dryRun, force: options.force }),
 });
