@@ -1,5 +1,11 @@
 # paratext
 
+## 2.0.3
+
+### Patch Changes
+
+- [#1647](https://github.com/ofri-peretz/burgee/pull/1647) [`055e0a2`](https://github.com/ofri-peretz/burgee/commit/055e0a2a639dc9770145d9e1a881c254e8925ace) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The npm description fits in npm's 255 characters, so it is published whole. Before, npm cut it mid-word and dropped the end of the "Drop-in alternative to …" list.
+
 ## 2.0.2
 
 ### Patch Changes

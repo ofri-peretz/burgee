@@ -3,6 +3,17 @@ title: Changelog
 description: "Every release of burgee, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 2.1.4
+
+### Patch Changes
+
+- [#1647](https://github.com/ofri-peretz/burgee/pull/1647) [`055e0a2`](https://github.com/ofri-peretz/burgee/commit/055e0a2a639dc9770145d9e1a881c254e8925ace) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The npm description fits in npm's 255 characters, so it is published whole. Before, npm cut it mid-word and dropped the end of the "Drop-in alternative to …" list.
+- Updated dependencies [[`055e0a2`](https://github.com/ofri-peretz/burgee/commit/055e0a2a639dc9770145d9e1a881c254e8925ace)]:
+  - bellpull@2.0.2
+  - closeout@2.0.2
+  - linegauge@2.2.2
+  - roundel@2.0.2
+
 ## 2.1.3
 
 ### Patch Changes
