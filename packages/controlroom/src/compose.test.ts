@@ -83,8 +83,9 @@ describe('fit — from an offset (controlroom-scroll-pane R3)', () => {
   });
 });
 
+const log = (lines = tall) => ({ log: { component: text, state: lines.join('\n') } });
+
 describe('compose — a scrolled pane (controlroom-scroll-pane R1, R4, R6, S1–S3)', () => {
-  const log = (lines = tall) => ({ log: { component: text, state: lines.join('\n') } });
   const size = { columns: 10, rows: 20, t: 0, live: true };
 
   it('R1 — a pane with no entry is pinned to its bottom', () => {

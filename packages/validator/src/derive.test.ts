@@ -2,6 +2,7 @@ import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import { verdicts } from './__fixtures__/readers.js';
 import { emit } from './emit.js';
+
 import {
   type AnySchema,
   array,

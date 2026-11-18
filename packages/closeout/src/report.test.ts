@@ -16,8 +16,9 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { reportToEvent, reportToJson, timeoutMessage } from './index.js';
 import { EXIT_PATHS, toReport, type ShutdownReport } from './report.js';
+
+import { reportToEvent, reportToJson, timeoutMessage } from './index.js';
 
 const report = (over: Partial<ShutdownReport> = {}): ShutdownReport => ({
   path: 'signal',

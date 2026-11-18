@@ -41,6 +41,14 @@ export class OpenApiError extends Error {
 export const detect = (document: unknown): boolean =>
   isDict(document) && typeof document.openapi === 'string' && document.openapi.startsWith('3.');
 
+/** The payloads a parameter-less holder (a body or a response) carries, one per media type. */
+const content = (holder: Dict, prefix: string, direction: Direction, required: boolean): Payload[] => {
+  const types = Object.entries(dict(holder.content));
+  // A response or a body with no content still says something: nothing is sent.
+  if (types.length === 0) return [{ name: prefix, direction, schema: false, required }];
+  return types.map(([type, media]) => ({ name: `${prefix}:${type}`, direction, schema: schemaOf(dict(media)), required }));
+};
+
 /** Read an OpenAPI 3.x document into the model. */
 export const read = (document: unknown): Contract => {
   if (isDict(document) && typeof document.swagger === 'string') {
@@ -60,13 +68,6 @@ export const read = (document: unknown): Contract => {
       node = pointerGet(root, node.$ref);
     }
     return dict(node);
-  };
-
-  const content = (holder: Dict, prefix: string, direction: Direction, required: boolean): Payload[] => {
-    const types = Object.entries(dict(holder.content));
-    // A response or a body with no content still says something: nothing is sent.
-    if (types.length === 0) return [{ name: prefix, direction, schema: false, required }];
-    return types.map(([type, media]) => ({ name: `${prefix}:${type}`, direction, schema: schemaOf(dict(media)), required }));
   };
 
   const operation = ({ id, source, declared, shared }: Declared, sends: Direction, receives: Direction): Operation => {

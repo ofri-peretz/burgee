@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { kindOf } from './error-kinds.js';
+
 import { ExitCode, isExitCode } from './index.js';
 
 // E1 lock: the contract in spec.md, pinned. A changed number here is a breaking

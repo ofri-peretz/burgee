@@ -84,6 +84,13 @@ describe('B4 weight — the "lighter than what it replaces" ratio gate', () => {
 /** The bar the claim on one record asserts. */
 const at = (variant: string, metric: string): number | undefined => CLAIMS.find((c) => c.from.variant === variant && c.from.metric === metric)?.test.max;
 
+const why = (id: string): string[] => {
+  const pair = PAIRS.find((p) => p.id === id) as EntryPair;
+  return pairRecords(pair, measuredAt(1), measuredAt(1))
+    .filter((r) => r.metric.startsWith('installed-') && r.metric.endsWith('-ratio'))
+    .map((r) => r.gate?.why ?? '');
+};
+
 describe('controlroom R14 — W1 to W4 are gated at 1.0×', () => {
   const ink = PAIRS.find((p) => p.id === 'controlroom/ink') as (typeof PAIRS)[number];
   const root = PAIRS.find((p) => p.id === 'controlroom') as (typeof PAIRS)[number];
@@ -114,12 +121,6 @@ describe('controlroom R14 — W1 to W4 are gated at 1.0×', () => {
   });
 
   it('says whose bar each installed gate is, so the discovery-chain row does not cite controlroom W2', () => {
-    const why = (id: string): string[] => {
-      const pair = PAIRS.find((p) => p.id === id) as EntryPair;
-      return pairRecords(pair, measuredAt(1), measuredAt(1))
-        .filter((r) => r.metric.startsWith('installed-') && r.metric.endsWith('-ratio'))
-        .map((r) => r.gate?.why ?? '');
-    };
     expect(why('controlroom/ink')).toEqual([expect.stringMatching(/^controlroom W2: /), expect.stringMatching(/^controlroom W2: /)]);
     expect(why('seniority/discovery-chain')).toEqual([expect.stringMatching(/^seniority criterion 4: /), expect.stringMatching(/^seniority criterion 4: /)]);
   });

@@ -12,11 +12,12 @@ import { PassThrough } from 'node:stream';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import { renderCompletion } from './completions.js';
-import { defineCommand, defineProgram, execute, ExitCode } from './index.js';
 import { Manifest } from './manifest.js';
 import { argvOf } from './mcp.js';
 import { schemaOf } from './schema-entry.js';
 import { runBurgee } from './testing.js';
+
+import { defineCommand, defineProgram, execute, ExitCode } from './index.js';
 
 const deploy = defineCommand({
   name: 'deploy',

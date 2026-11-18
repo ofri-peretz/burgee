@@ -21,8 +21,9 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { install, SIGNALS, type ProcessLike } from './index.js';
 import { type ShutdownReport } from './report.js';
+
+import { install, SIGNALS, type ProcessLike } from './index.js';
 
 type Listener = (...args: never[]) => void;
 

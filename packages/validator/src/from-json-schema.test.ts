@@ -24,6 +24,9 @@ const refusal = (path: string, what: string): string => `cannot read the JSON Sc
 
 const refused = (document: unknown, options?: ImportOptions): (() => unknown) => () => fromJsonSchema(document, options);
 
+/** The keys an object schema was built with. */
+const keysOf = (schema: AnySchema): unknown => (schema as unknown as { keys: string[] }).keys;
+
 const DRAFT_07 = 'http://json-schema.org/draft-07/schema#';
 
 describe('formats', () => {
@@ -110,6 +113,12 @@ describe('refusals', () => {
 });
 
 describe('the shape of what is read', () => {
+  it('reads a key named "__proto__" as a key, not as the shape\'s prototype', () => {
+    expect(keysOf(read({ type: 'object', required: ['__proto__'] }))).toEqual(['__proto__']);
+    const typed = JSON.parse('{"type": "object", "properties": {"__proto__": {"type": "number"}}}') as unknown;
+    expect(keysOf(read(typed))).toEqual(['__proto__']);
+  });
+
   it('adds nothing for what the document does not say', () => {
     expect(read({ type: 'string' })).toStrictEqual(string());
     expect(read({ type: 'string', allOf: [true] })).toStrictEqual(string());

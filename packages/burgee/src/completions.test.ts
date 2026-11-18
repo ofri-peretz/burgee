@@ -8,8 +8,9 @@
 import { describe, expect, it } from 'vitest';
 
 import { renderCompletion, renderFigSpec, SHELLS } from './completions.js';
-import { defineCommand, defineProgram } from './index.js';
 import { runBurgee } from './testing.js';
+
+import { defineCommand, defineProgram } from './index.js';
 
 const SENTINEL = 'HANDLER-RAN';
 const program = defineProgram({

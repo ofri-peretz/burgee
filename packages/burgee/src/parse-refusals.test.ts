@@ -9,8 +9,9 @@
 import { describe, expect, it } from 'vitest';
 
 import { runCommand } from './execute.js';
-import { defineCommand, defineProgram, ExitCode } from './index.js';
 import { type Plugin } from './plugin.js';
+
+import { defineCommand, defineProgram, ExitCode } from './index.js';
 
 const seen: unknown[] = [];
 

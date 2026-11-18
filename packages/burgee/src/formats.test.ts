@@ -17,9 +17,10 @@
 import { describe, expect, it } from 'vitest';
 
 import { formatsOf, tsvOf } from './formats.js';
-import { defineCommand, defineProgram, ExitCode } from './index.js';
 import { definePlugin, type Plugin, PluginError } from './plugin.js';
 import { runBurgee } from './testing.js';
+
+import { defineCommand, defineProgram, ExitCode } from './index.js';
 
 const TSV = '--format=tsv';
 
@@ -177,13 +178,13 @@ describe('formats are registered on the plugin object (RF)', () => {
 
 const render = (): string => '';
 
-describe('a format is checked where it is first used, under the family’s code', () => {
-  const run = async (plugin: Record<string, unknown>): Promise<{ code: number; stderr: string }> => {
-    const p = defineProgram({ name: 'p', commands: [defineCommand({ name: 'ls', effects: 'read_only', run: () => [] })] });
-    p.use({ name: 'bad', contract: 1, ...plugin } as Plugin);
-    return await runBurgee(p, { argv: ['ls', '--format=tsv'] });
-  };
+const run = async (plugin: Record<string, unknown>): Promise<{ code: number; stderr: string }> => {
+  const p = defineProgram({ name: 'p', commands: [defineCommand({ name: 'ls', effects: 'read_only', run: () => [] })] });
+  p.use({ name: 'bad', contract: 1, ...plugin } as Plugin);
+  return await runBurgee(p, { argv: ['ls', '--format=tsv'] });
+};
 
+describe('a format is checked where it is first used, under the family’s code', () => {
   const NAME_FIX = 'name it in lower-case letters, digits and dashes, starting with a letter: it is typed as --format=<name>';
   const SHAPE_FIX = "`rows: { render: (value) => string, description: '…' }`";
   const TAKEN_FIX = 'rename it — one name, one format';

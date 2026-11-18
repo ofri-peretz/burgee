@@ -33,9 +33,10 @@ import { describe, expect, it } from 'vitest';
 import { renderFigSpec } from './completions.js';
 import { ExitCode } from './exit-code.js';
 import { renderHelp } from './help.js';
-import { defineCommand, defineProgram } from './index.js';
 import { schemaOf } from './schema.js';
 import { runBurgee } from './testing.js';
+
+import { defineCommand, defineProgram } from './index.js';
 
 /**
  * One command carrying both spellings, so every surface below reads the same declaration.

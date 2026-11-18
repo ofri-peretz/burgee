@@ -470,6 +470,7 @@ function test(emitter: Emitter, schema: Node, ref: string): string {
   if (typeof schema.kind !== 'string' || !Object.hasOwn(WRITERS, schema.kind)) {
     throw new TypeError(`cannot emit a node of the kind ${shown(schema.kind)}: there is no such kind. fix: build the schema with the builders`);
   }
+  // eslint-disable-next-line secure-coding/detect-object-injection -- FP ofri-peretz/eslint#1547: a call through a module-built const table, after an Object.hasOwn guard
   return WRITERS[schema.kind](emitter, schema, ref);
 }
 

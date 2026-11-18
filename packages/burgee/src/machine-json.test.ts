@@ -14,10 +14,11 @@
 import { describe, expect, it } from 'vitest';
 
 import { Command } from './commander.js';
-import { defineCommand, defineProgram } from './index.js';
 import { machineJson } from './schema.js';
 import { runBurgee } from './testing.js';
 import yargs, { type Argv } from './yargs.js';
+
+import { defineCommand, defineProgram } from './index.js';
 
 const JSON_PRETTY = '--format=json-pretty';
 

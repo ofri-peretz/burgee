@@ -219,29 +219,30 @@ tasks:
 | 40539828491 | `2026-10-27-72e3551-dispatch-40539828491-ci.json` | 2026-10-27 16:58 | 1.327 | 1.37 | 14/15 |
 | 41640378964 | `2026-11-03-29fc969-weekly-ci.json` | 2026-11-03 13:20 | 1.469 | 1.382 | 13/15 |
 | 42827543371 | `2026-11-10-1350444-weekly-ci.json` | 2026-11-10 14:03 | 0.398 | 0.566 | 15/15 |
+| 44107968753 | `2026-11-17-965243c-weekly-ci.json` | 2026-11-17 15:09 | 0.436 | 0.596 | 15/15 |
 
-Every MCP session in all six readings connected to the server. The four failed sessions all hit
+Every MCP session in all seven readings connected to the server. The four failed sessions all hit
 the turn limit on diagnose-provenance.
 
-The tokens ratio over these 6 readings has a median of 1.218, from 0.398 to 1.469. The turns ratio
-over these 6 readings has a median of 1.205, from 0.566 to 1.382. With an even count, the median is
-the midpoint of the middle two readings. **On these three tasks, the agent spent more tokens and
-took more turns over MCP than over the CLI, in four of the six readings. In the other two, MCP cost
-less: 0.992 and 0.398 for tokens, 0.948 and 0.566 for turns.** The claim `cli-vs-mcp-tokens` ("an
+The tokens ratio over these 7 readings has a median of 1.108, from 0.398 to 1.469. The turns ratio
+over these 7 readings has a median of 1.081, from 0.566 to 1.382. With an odd count, the median is
+the middle reading. **On these three tasks, the agent spent more tokens and took more turns over
+MCP than over the CLI in four of the seven readings. In the other three, MCP cost less: 0.992,
+0.398 and 0.436 for tokens, 0.948, 0.566 and 0.596 for turns.** The claim `cli-vs-mcp-tokens` ("an
 agent spends no more tokens through burgee's CLI than through its MCP server") reads its verdict
-from the median, 1.218, and is met. The range is the other half of that sentence. The newest
-reading came in at 0.398, far below every reading before it, and readings of B1's CLI ratio have
-swung from 0.49 to 0.995 between runs, so six readings are not a settled number.
+from the median, 1.108, and is met. The range is the other half of that sentence. The two newest
+readings came in at 0.398 and 0.436, far below every reading before them, and readings of B1's CLI
+ratio have swung from 0.49 to 0.995 between runs, so seven readings are not a settled number.
 
-Per task, over every session of the six readings (30 per arm per task): the median, and the
-lowest and highest session, in tokens and in turns. A median here is the 15th of 30 sessions in
+Per task, over every session of the seven readings (35 per arm per task): the median, and the
+lowest and highest session, in tokens and in turns. A median here is the 18th of 35 sessions in
 order, the suite's nearest-rank rule:
 
 | task | CLI tokens | MCP tokens | CLI turns | MCP turns |
 | :-- | --: | --: | --: | --: |
-| diagnose-provenance | 109839 (54386 to 201729) | 131308 (15570 to 360415) | 5 (4 to 11) | 6 (2 to 16) |
-| discover-subcommand | 64108 (32352 to 107422) | 63682 (15218 to 63817) | 3 (2 to 5) | 3 (2 to 3) |
-| structured-output | 42113 (20961 to 63836) | 63680 (15299 to 63973) | 2 (2 to 3) | 3 (2 to 3) |
+| diagnose-provenance | 109809 (46899 to 201729) | 109390 (15570 to 360415) | 5 (4 to 11) | 6 (2 to 16) |
+| discover-subcommand | 64099 (20886 to 107422) | 63666 (15218 to 63817) | 3 (2 to 5) | 3 (2 to 3) |
+| structured-output | 42105 (20898 to 63836) | 63675 (15299 to 63973) | 2 (2 to 3) | 3 (2 to 3) |
 
 The first five readings show where the difference came from. No MCP session in them used fewer
 than 63,575 tokens, on any task, and a CLI session on structured-output used as few as 42,035. The
@@ -251,12 +252,12 @@ CLI agent reads help before it acts, the two arms were level. diagnose-provenanc
 and it is where the arms spread most. The MCP arm's sessions there ran from 3 to 16 turns, and all
 four of its failures were there.
 
-The 2026-11-10 reading does not fit that pattern. Every one of its 15 MCP sessions took 2 turns and
-15,218 to 15,859 tokens, a quarter of the 63,575 floor before it. Its CLI sessions used 20,961 to
-57,227 tokens, where no earlier CLI session used fewer than 41,949. Its file records the same model
-and the same pinned `claude` as the five before it, so nothing committed here says why the sessions
-got cheaper, and one reading does not say whether it will last. Every lowest token count in the
-table above, and the MCP arm's lowest turn count, 2, is from that reading.
+The 2026-11-10 and 2026-11-17 readings do not fit that pattern. Their 30 MCP sessions took 2 or 3
+turns and 15,218 to 24,240 tokens, at most 38% of the 63,575 floor before them. Their CLI sessions
+used 20,886 to 57,227 tokens, where no earlier CLI session used fewer than 41,949. Both files record
+the same model and the same pinned `claude` as the five before them, so nothing committed here says
+why the sessions got cheaper, and two readings do not say whether it will last. Every lowest token
+count in the table above, and the MCP arm's lowest turn count, 2, is from one of those two readings.
 
 The rows, both medians and ranges, and every per-task cell are checked against the committed
 results files by `scripts/agent-page-lock.test.ts`. A dispatched reading's run id is in its file

@@ -11,8 +11,9 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { defineCommand, defineProgram } from './index.js';
 import { runBurgee } from './testing.js';
+
+import { defineCommand, defineProgram } from './index.js';
 
 let ran = 0;
 const repo = { name: 'burgee', stars: 12, private: false };

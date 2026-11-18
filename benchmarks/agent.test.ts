@@ -182,6 +182,7 @@ describe.skipIf(!isPosix())('isolation from the machine it runs on', () => {
     const bin = join(dir, 'claude');
     // Answers with its own argv, so the assertion reads what was actually spawned. It reports
     // tokens, as a run a model answered does: zero usage and no model is a run that never ran.
+    // eslint-disable-next-line node-security/require-storage-encryption -- FP ofri-peretz/eslint#1548: writes a fake `claude` stub script, not a credential
     writeFileSync(bin, `#!/bin/sh\nprintf '{"type":"result","is_error":false,"num_turns":1,"usage":{"input_tokens":10,"output_tokens":5},"result":"%s"}' "$*"\n`);
     chmodSync(bin, EXECUTABLE);
     const argv = attempt(bin).result;
@@ -282,6 +283,7 @@ describe.skipIf(!isPosix())('the environment the measured tool runs in', () => {
     const bin = join(dir, 'claude');
     // Answers with the variables it was given, so the assertion reads the real spawn (with
     // tokens, as a run a model answered reports; see `neverRan`).
+    // eslint-disable-next-line node-security/require-storage-encryption -- FP ofri-peretz/eslint#1548: writes a fake `claude` stub script, not a credential
     writeFileSync(bin, `#!/bin/sh\nprintf '{"type":"result","is_error":false,"num_turns":1,"usage":{"input_tokens":10,"output_tokens":5},"result":"CI=%s GHA=%s tool=%s"}' "$CI" "$GITHUB_ACTIONS" "$(command -v demo)"\n`);
     chmodSync(bin, EXECUTABLE);
     const workdir = scratchDir('bench-work-');
@@ -709,6 +711,7 @@ function argvClaude(): { bin: string; seen: string; argv: () => string[] } {
   const bin = join(dir, 'claude');
   const seen = join(dir, 'mcp-config-seen.json');
   const argvFile = join(dir, 'argv');
+  // eslint-disable-next-line node-security/require-storage-encryption -- FP ofri-peretz/eslint#1548: writes a fake `claude` stub script, not a credential
   writeFileSync(
     bin,
     `#!/bin/sh\nif [ "$1" = --version ]; then echo '9.9.9 (Claude Code)'; exit 0; fi\nprintf '%s\\n' "$@" > "${argvFile}"\n${INIT_CONNECTED}prev=''\nfor a in "$@"; do if [ "$prev" = --mcp-config ]; then cp "$a" "${seen}"; fi; prev="$a"; done\nprintf '{"type":"result","is_error":false,"num_turns":2,"usage":{"input_tokens":500,"output_tokens":100},"result":"ada %s"}' "$*"\n`,
@@ -856,6 +859,7 @@ describe.skipIf(!isPosix())('R2 — a `burgee-mcp` variant', () => {
 function mcpOnlyFailingClaude(): string {
   const dir = scratchDir('stub-claude-mcpfail-');
   const bin = join(dir, 'claude');
+  // eslint-disable-next-line node-security/require-storage-encryption -- FP ofri-peretz/eslint#1548: writes a fake `claude` stub script, not a credential
   writeFileSync(
     bin,
     `#!/bin/sh\nif [ "$1" = --version ]; then echo '9.9.9 (Claude Code)'; exit 0; fi\ncase "$*" in *--mcp-config*) printf '{"type":"result","is_error":true,"num_turns":1,"usage":{},"result":"MCP server failed to start"}'; exit 1;; esac\nprintf '{"type":"result","is_error":false,"num_turns":2,"usage":{"input_tokens":500,"output_tokens":100},"result":"ada"}'\n`,
@@ -1083,6 +1087,9 @@ describe.skipIf(!isPosix())('the arm never runs without its server', () => {
 /** One reading's `burgee-mcp ÷ burgee` ratio, the shape a landed results file carries. */
 const reading = (ratio: number, i: number): Reading => ({ file: `2026-10-${String(13 + 7 * i).padStart(2, '0')}-abc${String(i)}def-weekly-ci.json`, ratio });
 
+/** A landed results file's body: one `burgee-mcp ÷ burgee` ratio record. */
+const resultsFile = (ratio: number): string => JSON.stringify({ records: [{ axis: 'agent', variant: 'burgee-mcp ÷ burgee', metric: 'mcp-tokens-total-ratio', median: ratio }] });
+
 describe('R3 — medians and ranges, never one run', () => {
   // `burgee` ran three tasks; only `p` and `q` map to MCP, so `r` must never enter the ratio.
   const cli = [a('p', 2, true), a('p', 4, true), a('p', 3, true), a('q', 6, true), a('q', 8, true), a('r', 40, true), a('r', 50, true)];
@@ -1153,9 +1160,8 @@ describe('R3 — medians and ranges, never one run', () => {
 
   it('reads earlier readings from landed CI results files, and only those', () => {
     const dir = scratchDir('agent-results-');
-    const file = (ratio: number): string => JSON.stringify({ records: [{ axis: 'agent', variant: 'burgee-mcp ÷ burgee', metric: 'mcp-tokens-total-ratio', median: ratio }] });
-    writeFileSync(join(dir, '2026-10-13-aaaaaaa-weekly-ci.json'), file(0.9));
-    writeFileSync(join(dir, '2026-10-14-bbbbbbb-local.json'), file(0.1));
+    writeFileSync(join(dir, '2026-10-13-aaaaaaa-weekly-ci.json'), resultsFile(0.9));
+    writeFileSync(join(dir, '2026-10-14-bbbbbbb-local.json'), resultsFile(0.1));
     writeFileSync(join(dir, '2026-10-15-ccccccc-ci.json'), JSON.stringify({ records: [] }));
     expect(priorReadings(dir)).toEqual([{ file: '2026-10-13-aaaaaaa-weekly-ci.json', ratio: 0.9 }]);
   });
@@ -1164,16 +1170,15 @@ describe('R3 — medians and ranges, never one run', () => {
   // `<date>-<sha>-dispatch-<run id>-ci.json`, and counts exactly as a weekly one does.
   it('counts an owner-dispatched reading, named by its run id, and nothing that only looks like one', () => {
     const dir = scratchDir('agent-results-');
-    const file = (ratio: number): string => JSON.stringify({ records: [{ axis: 'agent', variant: 'burgee-mcp ÷ burgee', metric: 'mcp-tokens-total-ratio', median: ratio }] });
-    writeFileSync(join(dir, '2026-10-27-4c336da-weekly-ci.json'), file(1.108));
-    writeFileSync(join(dir, '2026-10-27-ddddddd-dispatch-40500000001-ci.json'), file(0.95));
-    writeFileSync(join(dir, '2026-10-27-ddddddd-dispatch-ci.json'), file(0.1));
-    writeFileSync(join(dir, '2026-10-27-ddddddd-dispatch-x1-ci.json'), file(0.2));
-    writeFileSync(join(dir, '2026-10-27-ddddddd-dispatch-40500000001-local.json'), file(0.3));
-    writeFileSync(join(dir, 'x2026-10-27-ddddddd-dispatch-40500000002-ci.json'), file(0.4));
-    writeFileSync(join(dir, '2026-10-27-ddddddd-dispatch-40500000003-ci.json.orig'), file(0.5));
+    writeFileSync(join(dir, '2026-10-27-4c336da-weekly-ci.json'), resultsFile(1.108));
+    writeFileSync(join(dir, '2026-10-27-ddddddd-dispatch-40500000001-ci.json'), resultsFile(0.95));
+    writeFileSync(join(dir, '2026-10-27-ddddddd-dispatch-ci.json'), resultsFile(0.1));
+    writeFileSync(join(dir, '2026-10-27-ddddddd-dispatch-x1-ci.json'), resultsFile(0.2));
+    writeFileSync(join(dir, '2026-10-27-ddddddd-dispatch-40500000001-local.json'), resultsFile(0.3));
+    writeFileSync(join(dir, 'x2026-10-27-ddddddd-dispatch-40500000002-ci.json'), resultsFile(0.4));
+    writeFileSync(join(dir, '2026-10-27-ddddddd-dispatch-40500000003-ci.json.orig'), resultsFile(0.5));
     // A push reading's name still counts when it carries the ratio, as it always did.
-    writeFileSync(join(dir, '2026-10-12-eeeeeee-ci.json'), file(0.8));
+    writeFileSync(join(dir, '2026-10-12-eeeeeee-ci.json'), resultsFile(0.8));
     expect(priorReadings(dir)).toEqual([
       { file: '2026-10-12-eeeeeee-ci.json', ratio: 0.8 },
       { file: '2026-10-27-4c336da-weekly-ci.json', ratio: 1.108 },

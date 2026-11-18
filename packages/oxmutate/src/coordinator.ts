@@ -324,6 +324,9 @@ function scoreOf(mutants: MutantResult[]): RunResult['score'] {
   return { detected, undetected: scored.length - detected, total: scored.length, mutationScore: percent(detected, scored.length), covered: percent(detected, scored.length - noCoverage) };
 }
 
+/** The mutants a test's coverage record reaches, as one comparable key. */
+const keys = (cov: Record<string, number> | undefined): string => Object.keys(cov ?? {}).sort().join(',');
+
 export async function run(options: Options): Promise<RunResult> {
   const wall0 = performance.now();
   const { root } = options;
@@ -472,7 +475,6 @@ export async function run(options: Options): Promise<RunResult> {
       const flaky = new Set<string>();
       if (options.flakyReruns > 0) {
         const second = await dryRun();
-        const keys = (cov: Record<string, number> | undefined): string => Object.keys(cov ?? {}).sort().join(',');
         const again = new Map(second.tests.map((t) => [t.id, t]));
         for (const t of dry.tests) {
           const b = again.get(t.id);

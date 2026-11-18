@@ -1500,8 +1500,15 @@ export interface Baseline {
  * directory gives each lane its own file and the merge is textual.
  */
 export function readBaseline(path: string): Baseline {
-  if (!existsSync(path)) return {};
-  if (!statSync(path).isDirectory()) return JSON.parse(readFileSync(path, 'utf8')) as Baseline;
+  // Read, then learn from the failure what the path was: checking first is a race (CWE-367).
+  try {
+    // Stryker disable next-line StringLiteral: without an encoding readFileSync returns a Buffer, and JSON.parse reads a Buffer as UTF-8 text, so the result is the same
+    return JSON.parse(readFileSync(path, 'utf8')) as Baseline;
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === 'ENOENT') return {};
+    if (code !== 'EISDIR') throw error;
+  }
   // Built through `fromEntries` rather than assigned key by key: the key is a filename, and
   // assigning a filename into an object literal is how `__proto__.json` would become a
   // prototype write. `fromEntries` has no such path.

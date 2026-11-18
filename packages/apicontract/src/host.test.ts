@@ -347,3 +347,58 @@ describe('what 6.0 added for the lanes', () => {
     expect(await checkPlugin({ name: 'no-adapters', generators })).toEqual([]);
   });
 });
+
+describe('what the spine (6.1) added', () => {
+  const finding = { code: 'keyword-dropped', pointer: '/paths', message: 'dropped', fix: 'nothing to do' };
+  const readerFinding = { code: 'construct-translated', pointer: '/info', message: 'translated', fix: 'nothing to do' };
+  const extractor = { description: 'Reads schemas', sample: { options: {}, document: {} }, run: () => ({ openapi: '3.1.0' }) };
+
+  it('accepts files that name the symbols they declare per operation', () => {
+    const files = file({ symbols: [{ operation: 'listPets', symbol: 'ListPets' }] });
+    expect(validateFiles(files, 'x')).toBe(files);
+    expect(validateFiles(file({ symbols: [] }), 'x')).toHaveLength(1);
+  });
+
+  it.each<[string, unknown]>([
+    ['not a list', { operation: 'a', symbol: 'A' }],
+    ['an entry that is not an object', ['A']],
+    ['an entry with no operation', [{ symbol: 'A' }]],
+    ['an entry with an empty operation', [{ operation: '', symbol: 'A' }]],
+    ['an entry with no symbol', [{ operation: 'a' }]],
+    ['an entry with an empty symbol', [{ operation: 'a', symbol: '' }]],
+  ])('refuses symbols that are %s', (_, symbols) => {
+    expect(refusal(() => validateFiles(file({ symbols }), 'x')).message).toBe(
+      'x returned "a.ts" with malformed symbols. fix: each symbol is `{ operation, symbol }`, both non-empty strings',
+    );
+  });
+
+  it('runs a generator and keeps what the reader and the generator report, reader first', async () => {
+    const host = createHost();
+    const reading = { ...openapi, read: (d: unknown) => ({ ...openapi.read(d), findings: [readerFinding] }) };
+    host.register({ name: 'demo', adapters: { openapi: reading }, generators: { list: generator({ run: (c, o) => ({ files: list(c, o), findings: [finding] }) }) } });
+    expect(await host.run('list', document, { prefix: '> ' })).toEqual({ files: [{ path: 'operations.txt', owner: 'generated', content: '> listPets\n' }], findings: [readerFinding, finding] });
+  });
+
+  it('runs a generator with no options and a reader with no findings', async () => {
+    const host = createHost();
+    host.register(plugin());
+    expect(await host.run('list', document)).toEqual({ files: [{ path: 'operations.txt', owner: 'generated', content: 'listPets\n' }], findings: [] });
+    await expect(host.run('list', document)).resolves.toBeDefined();
+    host.register({ name: 'bad', generators: { list: generator({ run: () => [{ path: '../x', content: '', owner: 'user' }] }) } });
+    await expect(host.run('list', document)).rejects.toThrow('generator "list" returned the path "../x"');
+  });
+
+  it('finds an extractor by name, the later plugin winning, and ignores inherited names', () => {
+    const host = createHost();
+    const later = { ...extractor, description: 'Later' };
+    host.register({ name: 'a', extractors: { schemas: extractor } });
+    host.register({ name: 'b', generators: {} });
+    host.register({ name: 'c', extractors: { schemas: later, routes: extractor } });
+    expect(host.extractor('schemas')).toBe(later);
+    expect(refusal(() => host.extractor('toString')).message).toBe(
+      'no extractor is named "toString". fix: use one of: routes, schemas; or install the plugin that provides it and add it to `plugins`',
+    );
+    expect(refusal(() => host.extractor('nope')).code).toBe('E_NO_CONTRIBUTION');
+    expect(refusal(() => createHost().extractor('x')).fix).toBe('use one of: none; or install the plugin that provides it and add it to `plugins`');
+  });
+});

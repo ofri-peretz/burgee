@@ -45,6 +45,8 @@ export interface GenerateOptions {
   readonly generatePathParams?: boolean;
   /** Wrap `readOnly`/`writeOnly` properties in `$Read<>`/`$Write<>`. */
   readonly readWriteMarkers?: boolean;
+  /** TypeScript written above the generated types, as given: upstream parses and re-prints it. */
+  readonly inject?: string;
 }
 
 export interface Discriminator {
@@ -111,6 +113,7 @@ export const DEFAULTS: Required<GenerateOptions> = {
   makePathsEnum: false,
   generatePathParams: false,
   readWriteMarkers: false,
+  inject: '',
 };
 
 /** A context for `document` with every option at its default unless given. */

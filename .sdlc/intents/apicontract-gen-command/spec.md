@@ -49,3 +49,26 @@ generator overwriting user code. `npm run ci:local` before the push.
 ## Out of scope
 
 Watch mode. Remote specs over HTTP (a later `--input https://…` reads through bellpull, if asked).
+
+## Found at build, 2026-11-18
+
+What the code does where this design was silent or wrong; each is held by a test in `src/run-*.test.ts`.
+
+- **JSON has no comments, so it has no header.** `run-header.ts` writes the header for `.ts/.tsx/.mts/.cts/.js/.jsx/.mjs/.cjs`
+  (`//`), `.yaml/.yml` (`#`) and `.md` (`<!-- -->`); any other file is written as its body alone, and its body hash is
+  recorded in `apicontract.map.json` instead. R7's map therefore has a third key, `files: { [path]: { target, sha } }`,
+  which is also what R5 reads to know a file is apicontract's to delete.
+- **Symbols need a field.** `GeneratedFile` gains optional `symbols: { operation, symbol }[]` (validated by
+  `validateFiles`); the map is built from it. A generator that omits it still has its files hashed and deleted safely.
+- **`changed` is a boolean.** burgee refuses an `idempotent` command whose result lacks `changed: true | false` (N7), so the
+  report carries `changed` (boolean) and `changes` (the count the intent calls "0 changed").
+- **No adapter exits 3, not 2.** R3 said 2; R-A2 says an unreadable spec is `3` CONFIG, and the host's `PluginError` already
+  maps there. Unknown `--target` and a missing `--from` are the `2` USAGE cases.
+- **Adapter order is the host's.** R3 said "first adapter in registration order"; the host resolves later-wins, like a
+  generator name, and `gen` goes through the host rather than a second rule.
+- **Overlays are refused, not ignored, while `input-overlay.ts` is a stub**: a config listing `overlays` exits 3 with a fix.
+- **`extract` takes its defaults from a config key** `extract: { from, out, options }`; the flags override `from` and `out`.
+  The config is optional for `extract`. Only `.json` output is written: there is no YAML writer in the package.
+- **`host.run`** returns `{ files, findings }` (reader findings first), and **`host.extractor(name)`** resolves like
+  `host.generator`; `gen` reports findings per target instead of dropping them.
+- **No `cwd` in a burgee handler**, so the commands read `process.cwd()`; tests pass `--config` or stub `process.cwd`.

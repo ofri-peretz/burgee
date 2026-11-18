@@ -262,6 +262,7 @@ export function audit(theme: Theme = {}): ThemeFinding[] {
   const ground = theme.ground ?? INK;
   const required = floors(theme.conformance).TEXT;
   return TOKENS.flatMap((name) => {
+    // eslint-disable-next-line secure-coding/detect-object-injection -- FP ofri-peretz/eslint#1547: a call through a module-built const table, keyed by its own key type
     const style = theme[name] ?? DEFAULTS[name](ground);
     if (typeof style !== 'string') return [];
     const [r, g, b] = channels(style).map((v) => Math.round(v * SRGB_MAX)) as [number, number, number];
@@ -287,6 +288,7 @@ export function fly(theme: Theme, rt: Runtime, opts?: ModeOptions): void {
   const ground = theme.ground ?? INK;
   // One floor, read once, used by the check and by the search. See `Theme.conformance`.
   const floor = floors(theme.conformance).TEXT;
+  // eslint-disable-next-line secure-coding/detect-object-injection -- FP ofri-peretz/eslint#1547: a call through a module-built const table, keyed by its own key type
   const styles = TOKENS.map((name) => [name, theme[name] ?? DEFAULTS[name](ground)] as const);
   // One judgement, two callers: `audit()` decides what passes and this decides what to do
   // about it, so a theme can never be refused by `fly()` and reported clean by `audit()`.
