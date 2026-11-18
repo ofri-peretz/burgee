@@ -180,11 +180,14 @@ const object = (emitter: Emitter, schema: Node): string => {
   const fields = schema.fields as readonly Node[];
   const tests = (schema.keys as readonly string[]).map((key, index) => {
     const field = fields[index] as Node;
-    const ref = `v[${literal(key)}]`;
+    // A key Object.prototype has counts only as an own key, as `check` reads it (#1620); decided here, so other keys pay nothing.
+    const inherited = key in Object.prototype;
+    const ref = inherited ? `(Object.hasOwn(v, ${literal(key)}) ? v[${literal(key)}] : undefined)` : `v[${literal(key)}]`;
     const inner = test(emitter, field, ref);
     if (field.optional === true) return `(${ref} === undefined || (${inner}))`;
     // An exact key: `undefined` only because the key is absent, as `check` asks with `in`.
-    if (field.optional !== false) return `(${ref} === undefined ? !(${literal(key)} in v) : (${inner}))`;
+    const present = inherited ? `Object.hasOwn(v, ${literal(key)})` : `(${literal(key)} in v)`;
+    if (field.optional !== false) return `(${ref} === undefined ? !${present} : (${inner}))`;
     return mayPassUndefined(field) ? `(${ref} !== undefined && (${inner}))` : `(${inner})`;
   });
   if (schema.unknown === 'strict' || schema.item !== null) tests.push(`${declare(emitter, 'f', extras(emitter, schema))}(v)`);

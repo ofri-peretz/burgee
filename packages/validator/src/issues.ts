@@ -1,4 +1,5 @@
 import { isMultiple, matches, points } from './check.js';
+import { holds, memberOf, readsOwn } from './inherited.js';
 import { full, isMembers as isRecord, named, noKind, token } from './own.js';
 import { type Issue, type IssueOptions, type Miss, type Node, type Reader, type Schema, type Walk } from './schema.js';
 
@@ -111,14 +112,15 @@ const object = (walk: Walk, schema: Node, got: unknown, path: string): void => {
     return;
   }
   const fields = schema.fields as readonly Node[];
+  const own = readsOwn(schema);
   for (const [index, key] of (schema.keys as readonly string[]).entries()) {
     const field = fields[index] as Node;
-    const value = got[key];
+    const value = own ? memberOf(got, key) : got[key];
     if (value !== undefined) visit(walk, field, value, path + token(key));
     // As `check` asks it: an optional key may be `undefined`, a required one may not, and any other is exact.
     else if (field.optional === true || full(walk)) continue;
     else if (field.optional === false) add(walk, { path: path + token(key), keyword: 'required', expected: 'a value', got: value, fix: `add "${key}"` });
-    else if (key in got) add(walk, { path: path + token(key), keyword: 'undefined', expected: 'a value, or no key at all', got: value, fix: `remove "${key}", or give it a value` });
+    else if (own ? holds(got, key) : key in got) add(walk, { path: path + token(key), keyword: 'undefined', expected: 'a value, or no key at all', got: value, fix: `remove "${key}", or give it a value` });
   }
   extras(walk, schema, got, path);
 };

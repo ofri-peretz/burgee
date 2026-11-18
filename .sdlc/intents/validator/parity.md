@@ -318,7 +318,7 @@ reversed by the owner; `semantics.md` has the probe behind every row.
 | :-: | :-- | :-- | :-- |
 | 1 | Unknown keys | Allowed and left alone; `strict` rejects; `strip` exists only on the parse path | Nobody rejects by default; passing through allocates nothing (spec R6) |
 | 2 | `undefined` for an optional key | The same as absent; an exact-optional is a separate builder | Five of six agree |
-| 3 | A key on the prototype | Satisfies a required field | All six agree |
+| 3 | A key on the prototype | Satisfies a required field, except a name `Object.prototype` has (`__proto__`, `toString`, `constructor`…), which counts only as an own key (amended 2026-11-18, #1620) | All six agree on a class's prototype. On `Object.prototype`'s names, reading `{}` as holding them made a required `__proto__` pass on any object; only a shape naming one pays for the check, and `check` runs at main's speed on any other |
 | 4 | String length unit | **Code points**, changed from UTF-16 units | It is what JSON Schema's `maxLength` means and what zod and ajv do; both of our front doors need it |
 | 5 | Integers | Any integer-valued double; `safe` is an option | JSON Schema's meaning; the Zod façade turns `safe` on |
 | 6 | `Infinity` | Rejected | zod, typebox and ajv agree; JSON has no such number |
