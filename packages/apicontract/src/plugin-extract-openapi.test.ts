@@ -15,7 +15,10 @@ type Doc = Record<string, any>;
 
 const host = createHost();
 host.register(plugin);
-const run = async (options: Record<string, unknown>): Promise<Doc> => (await host.extractor('openapi-from-schemas').run(options)) as Doc;
+/** What the extractor returns: the document, and its findings beside it. */
+const result = async (options: Record<string, unknown>): Promise<{ document: Doc; findings: unknown[] }> =>
+  (await host.extractor('openapi-from-schemas').run(options)) as { document: Doc; findings: unknown[] };
+const run = async (options: Record<string, unknown>): Promise<Doc> => (await result(options)).document;
 
 /** The grade: the paths of both documents, references resolved, in comparison form, without the operation ids zod-to-openapi was not given. */
 const graded = (document: unknown): unknown => {
@@ -45,7 +48,8 @@ describe('the openapi-from-schemas extractor', () => {
 
   it('imports a module path whose exports are the operations', async () => {
     const path = fileURLToPath(new URL('__fixtures__/extract/operations.ts', import.meta.url));
-    const document = await run({ module: path, title: 'Pets', version: '2.0.0' });
+    const { document, findings } = await result({ module: path, title: 'Pets', version: '2.0.0' });
+    expect(findings).toEqual([]);
     expect(document.info).toEqual({ title: 'Pets', version: '2.0.0' });
     expect(Object.keys(document.paths)).toEqual(['/pets', '/pets/{id}']);
     expect(Object.keys(document.paths['/pets'])).toEqual(['get', 'post']);
@@ -57,12 +61,12 @@ describe('the openapi-from-schemas extractor', () => {
   describe("graded on zod-to-openapi's own examples (B2)", () => {
     const expected = { readme: expectedReadme, example: expectedExample };
     it.each([['readme'], ['example']] as const)('%s: the same paths, read as the client reads a response', (name) => {
-      const ours = extractOpenApi({ User, readme, example }, { export: name, responseSide: 'input' });
+      const ours = extractOpenApi({ User, readme, example }, { export: name, responseSide: 'input' }).document;
       expect(graded(ours)).toEqual(graded(expected[name]));
     });
 
     it.each([['readme'], ['example']] as const)("%s: as the server hands a response out, the one difference is Zod's own: an object's output has no other keys", (name) => {
-      const ours = extractOpenApi({ User, readme, example }, { export: name });
+      const ours = extractOpenApi({ User, readme, example }, { export: name }).document as Doc;
       const user = (ours.components as Doc).schemas.User as Doc;
       expect(user.additionalProperties).toBe(false);
       delete user.additionalProperties;
@@ -278,8 +282,9 @@ describe('toOpenApi', () => {
 });
 
 describe('extractOpenApi', () => {
-  it('puts the findings of the map and of the writer in the document, the map first', () => {
-    const document = extractOpenApi({ api: { a: { method: 'get', path: '/', responses: { 500: 1 }, input: 'x' } } }, { export: 'api' });
-    expect((document['x-findings'] as { code: string }[]).map((found) => found.code)).toEqual(['unknown-response', 'not-a-standard-schema']);
+  it('returns the findings of the map and of the writer beside the document, the map first', () => {
+    const { document, findings } = extractOpenApi({ api: { a: { method: 'get', path: '/', responses: { 500: 1 }, input: 'x' } } }, { export: 'api' });
+    expect(findings.map((found) => found.code)).toEqual(['unknown-response', 'not-a-standard-schema']);
+    expect(document).not.toHaveProperty('x-findings');
   });
 });

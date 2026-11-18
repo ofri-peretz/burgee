@@ -12,7 +12,10 @@ type Doc = Record<string, any>;
 
 const host = createHost();
 host.register(plugin);
-const run = async (options: Record<string, unknown>): Promise<Doc> => (await host.extractor('ts-rest').run(options)) as Doc;
+/** What the extractor returns: the document, and its findings beside it. */
+const result = async (options: Record<string, unknown>): Promise<{ document: Doc; findings: unknown[] }> =>
+  (await host.extractor('ts-rest').run(options)) as { document: Doc; findings: unknown[] };
+const run = async (options: Record<string, unknown>): Promise<Doc> => (await result(options)).document;
 const FIXTURE = fileURLToPath(new URL('__fixtures__/extract/ts-rest-contract.ts', import.meta.url));
 
 describe('the ts-rest extractor', () => {
@@ -26,7 +29,7 @@ describe('the ts-rest extractor', () => {
   });
 
   it("reads ts-rest's README contract, and says its c.type<T>() response has no schema", async () => {
-    const document = await run({ module: FIXTURE, export: 'readme' });
+    const { document, findings } = await result({ module: FIXTURE, export: 'readme' });
     expect(document.paths['/posts'].get).toEqual({
       operationId: 'getPosts',
       parameters: [
@@ -36,7 +39,8 @@ describe('the ts-rest extractor', () => {
       ],
       responses: { '200': { description: 'OK' } },
     });
-    expect(document['x-findings']).toEqual([
+    expect(document).not.toHaveProperty('x-findings');
+    expect(findings).toEqual([
       {
         code: 'type-only',
         pointer: '/getPosts/responses/200',
@@ -47,8 +51,8 @@ describe('the ts-rest extractor', () => {
   });
 
   it('reads a nested router: ids by key path, :params, c.noBody(), other media types, exported schemas by name', async () => {
-    const document = await run({ module: { blog, Post }, export: 'blog' });
-    expect(document).not.toHaveProperty('x-findings');
+    const { document, findings } = await result({ module: { blog, Post }, export: 'blog' });
+    expect(findings).toEqual([]);
     expect(Object.keys(document.paths)).toEqual(['/files', '/posts', '/posts/{id}']);
     const posts = document.paths['/posts/{id}'];
     expect(posts.get.operationId).toBe('posts.getPost');
@@ -69,14 +73,14 @@ describe('the ts-rest extractor', () => {
   });
 
   it('reports a body or a response that is not a schema, c.noBody() nor c.type<T>()', async () => {
-    const document = await run({
+    const { document, findings } = await result({
       module: { r: { method: 'POST', path: '/', body: 'text', responses: { 200: { contentType: 'text/plain', body: Symbol('ContractPlainType') }, 500: 3 } } },
     });
-    const odd = await run({
+    const odd = await result({
       module: { r: { method: 'POST', path: '/', body: { description: 'ContractNoBody' }, responses: { 400: {}, 401: new (class { readonly contentType = 'text/plain'; readonly body = z.string(); })() } } },
     });
-    expect((odd['x-findings'] as { pointer: string }[]).map((found) => found.pointer)).toEqual(['/r/responses/400', '/r/responses/401', '/r/body']);
-    expect(document['x-findings']).toEqual([
+    expect((odd.findings as { pointer: string }[]).map((found) => found.pointer)).toEqual(['/r/responses/400', '/r/responses/401', '/r/body']);
+    expect(findings).toEqual([
       { code: 'type-only', pointer: '/r/responses/200/body', message: 'the 200 response is `c.type<T>()`, which has no schema at run time, so OpenAPI gets no schema for it', fix: 'give it a Standard Schema (a Zod 4 schema, for one) in place of `c.type<T>()`' },
       { code: 'unknown-body', pointer: '/r/responses/500', message: 'the 500 response is neither a schema, `c.noBody()` nor `c.type<T>()`', fix: 'give a Standard Schema, or `c.noBody()`' },
       { code: 'unknown-body', pointer: '/r/body', message: "r's body is neither a schema, `c.noBody()` nor `c.type<T>()`", fix: 'give a Standard Schema, or `c.noBody()`' },

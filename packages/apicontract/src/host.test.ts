@@ -5,6 +5,7 @@ import {
   checkPlugin,
   CONTRACT,
   createHost,
+  documentOf,
   type GeneratedFile,
   type Generator,
   type Plugin,
@@ -340,6 +341,24 @@ describe('what 6.0 added for the lanes', () => {
     let seen: unknown;
     await checkPlugin({ name: 'x', extractors: { schemas: { description: 'd', sample: { options, document: 1 }, run: (o: unknown) => ((seen = o), 1) } } });
     expect(seen).toBe(options);
+  });
+
+  it('lets an extractor return its document with findings, and takes a document without them as is', () => {
+    expect(documentOf({ document: { openapi: '3.1.0' }, findings: [finding] })).toEqual({ document: { openapi: '3.1.0' }, findings: [finding] });
+    expect(documentOf({ document: 1, findings: 'not a list' })).toEqual({ document: 1, findings: [] });
+    expect(documentOf({ openapi: '3.1.0' })).toEqual({ document: { openapi: '3.1.0' }, findings: [] });
+    // A spec may have a `document` key of its own: only both keys make a result.
+    expect(documentOf({ document: 1 })).toEqual({ document: { document: 1 }, findings: [] });
+    expect(documentOf({ findings: [] })).toEqual({ document: { findings: [] }, findings: [] });
+    expect(documentOf(null)).toEqual({ document: null, findings: [] });
+    expect(documentOf([1])).toEqual({ document: [1], findings: [] });
+  });
+
+  it('checks an extractor that returns findings by its document only', async () => {
+    expect(await checkExtractor(() => ({ document: { a: 1, b: [2] }, findings: [finding] }))).toEqual([]);
+    let calls = 0;
+    expect(await checkExtractor(() => ({ document: { a: 1, b: [2] }, findings: [{ ...finding, message: String((calls += 1)) }] }))).toEqual([]);
+    expect(await checkExtractor(() => ({ document: { a: 2, b: [2] }, findings: [] }))).toEqual([expect.objectContaining({ problem: 'different' })]);
   });
 
   it('checks a plugin that carries no adapter, by the built-in formats', async () => {
