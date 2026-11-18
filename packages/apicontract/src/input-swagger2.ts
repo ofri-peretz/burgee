@@ -359,6 +359,15 @@ const securitySchemeOf = (scheme: unknown): Dict => {
 /** A 2.0 pointer into an operation's response schema: in 3.1 that schema sits under `content/<media type>`. */
 const RESPONSE_SCHEMA_REF = /^(#\/paths\/.+\/responses\/[^/]+)\/schema(\/.*)?$/u;
 
+/** What a local pointer names, or `undefined`: own members only, and never a throw. */
+const memberAt = (document: unknown, pointer: string): unknown =>
+  pointer
+    .slice('#/'.length)
+    .split('/')
+    .map((part) => decodeURIComponent(part).replaceAll('~1', '/').replaceAll('~0', '~'))
+    // eslint-disable-next-line conventions/consistent-existence-index-check -- own members only, as `core/resolve.ts` reads a pointer
+    .reduce<unknown>((node, key) => (isDict(node) && Object.hasOwn(node, key) ? node[key] : undefined), document);
+
 /**
  * Rewrite every `$ref` into a response's 2.0 `schema` to the same schema in the converted `content`
  * (bethmardutho's `#/paths/~1word~1{id}/get/responses/200/schema/…`, 2026-11-18 corpus). One whose
@@ -375,14 +384,8 @@ const repointResponseRefs = (node: unknown, document: Dict, report: Report, at =
   if (match !== null) {
     const response = match[1] as string;
     const rest = match[2] ?? '';
-    let content: unknown;
-    try {
-      content = pointerGet(document, `${response}/content`);
-      // Stryker disable next-line BlockStatement: equivalent, `content` is still undefined when the pointer leads nowhere
-    } catch {
-      content = undefined;
-    }
-    const [mediaType] = Object.keys(dict(content));
+    const content = dict(memberAt(document, `${response}/content`));
+    const [mediaType] = Object.keys(content);
     if (mediaType !== undefined) {
       const moved = `${response}/content/${token(mediaType)}/schema${rest}`;
       report('ref-response-schema', `${at}/$ref`, `\`${String(node.$ref)}\` is written as \`${moved}\``, 'nothing to do: OpenAPI 3 keeps a response schema under its media type');
