@@ -111,7 +111,7 @@ const PRINTERS: Readonly<Record<TypeNode['kind'], Printer>> = {
 
 /** A type, its continuation lines indented to `level`. The first line carries no indentation. */
 export function printType(type: TypeNode, level: number): string {
-   
+  // eslint-disable-next-line secure-coding/detect-object-injection -- FP ofri-peretz/eslint#1547: a call through a module-built const table, keyed by its own key type
   return PRINTERS[type.kind](type, level);
 }
 

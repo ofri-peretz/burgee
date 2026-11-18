@@ -21,6 +21,10 @@ const cases: { file: string; description: string; schema: unknown }[] = readdirS
     (JSON.parse(readFileSync(new URL(file, FIXTURES), 'utf8')) as { tests: Case[] }).tests.map(({ description, schema }) => ({ file, description, schema })),
   );
 
+
+/** The id the reader gives a document's root schema. */
+const rootId = (document: object): string | undefined => read(document).operations[0]?.id;
+
 describe('detect', () => {
   it('recognises a schema by its top-level keywords', () => {
     for (const schema of [
@@ -78,11 +82,10 @@ describe('read', () => {
   });
 
   it("names the root by its `$id`, draft-04's `id`, its `title`, or `schema`", () => {
-    const id = (document: object): string | undefined => read(document).operations[0]?.id;
-    expect(id({ $id: 'https://example.com/a', id: 'b', title: 'c' })).toBe('https://example.com/a');
-    expect(id({ $id: 1, id: 'b', title: 'c' })).toBe('b');
-    expect(id({ id: 1, title: 'c' })).toBe('c');
-    expect(id({ title: 1 })).toBe('schema');
+    expect(rootId({ $id: 'https://example.com/a', id: 'b', title: 'c' })).toBe('https://example.com/a');
+    expect(rootId({ $id: 1, id: 'b', title: 'c' })).toBe('b');
+    expect(rootId({ id: 1, title: 'c' })).toBe('c');
+    expect(rootId({ title: 1 })).toBe('schema');
   });
 
   it('reads a boolean schema', () => {
