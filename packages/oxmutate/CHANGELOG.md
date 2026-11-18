@@ -1,5 +1,11 @@
 # oxmutate
 
+## 2.6.2
+
+### Patch Changes
+
+- [#1611](https://github.com/ofri-peretz/burgee/pull/1611) [`82238a6`](https://github.com/ofri-peretz/burgee/commit/82238a6ae78ff694f60bb38ea5945622f6a06cf0) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The Stryker JSON report keeps a source file named `__proto__` as a file entry. It was assigned into a plain object, which set the report object's prototype instead of adding the file.
+
 ## 2.6.1
 
 ### Patch Changes
