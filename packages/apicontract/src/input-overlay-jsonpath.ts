@@ -104,7 +104,8 @@ const createParser = (path: string) => {
     if (take('*')) return { kind: 'wildcard' };
     if (!NAME_FIRST.test(path.charAt(at))) fail('a name is expected after `.`');
     const start = at;
-    while (at < path.length && NAME_REST.test(path.charAt(at))) at += 1;
+    // Past the end, `charAt` is `''`, which no name character matches.
+    while (NAME_REST.test(path.charAt(at))) at += 1;
     return { kind: 'name', name: path.slice(start, at) };
   };
 
@@ -149,7 +150,6 @@ const createParser = (path: string) => {
   };
 
   const query = (): Query | undefined => {
-    blank();
     const root = path.charAt(at);
     if (root !== '$' && root !== '@') return undefined;
     at += 1;
@@ -177,6 +177,7 @@ const createParser = (path: string) => {
 
   const operand = (): Operand => {
     const found = query();
+    // Stryker disable next-line StringLiteral: equivalent, `valueOf` reads anything that is not a literal as a query
     return found === undefined ? literal() : { kind: 'query', query: found };
   };
 
@@ -184,8 +185,8 @@ const createParser = (path: string) => {
     blank();
     if (take('!')) return { kind: 'not', operand: basic() };
     if (take('(')) {
+      // `expression` ends past any blank: the `&&`/`||` loop looks for its next operator.
       const inner = expression();
-      blank();
       if (!take(')')) fail('a `)` is expected');
       return inner;
     }
@@ -281,11 +282,11 @@ const select = (node: Node, selector: Selector, test: (expression: Expression, c
       return isObject(node.value) ? all.filter(({ key }) => key === selector.name) : [];
     }
     case 'index': {
-      if (!Array.isArray(node.value)) return [];
-      const index = selector.index < 0 ? node.value.length + selector.index : selector.index;
+      // An object's members are keyed by strings, so a number selects none of them.
+      const index = selector.index < 0 ? all.length + selector.index : selector.index;
       return all.filter(({ key }) => key === index);
     }
-    default: {
+    case 'filter': {
       return all.filter((child) => test(selector.test, child));
     }
   }
@@ -306,6 +307,7 @@ const createEvaluator = (document: Json) => {
   const valueOf = (operand: Operand, current: Node): Json | typeof NOTHING => {
     if (operand.kind === 'literal') return operand.value;
     const nodes = run(operand.query, current);
+    // Stryker disable next-line OptionalChaining: equivalent, the length is checked
     return nodes.length === 1 ? nodes[0]?.value : NOTHING;
   };
 
@@ -323,7 +325,7 @@ const createEvaluator = (document: Json) => {
       case 'exists': {
         return run(expression.query, current).length > 0;
       }
-      default: {
+      case 'compare': {
         return compare(expression.op, valueOf(expression.left, current), valueOf(expression.right, current));
       }
     }

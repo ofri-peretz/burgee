@@ -48,8 +48,8 @@ export const detect = (document: unknown): boolean => isDict(document) && typeof
 const merge = (target: Dict, update: Dict, at: string): void => {
   for (const [key, value] of Object.entries(update)) {
     const where = `${at}.${key}`;
-    // eslint-disable-next-line conventions/consistent-existence-index-check -- own members only: an inherited `toString` is not one
-    const current = Object.hasOwn(target, key) ? Object.getOwnPropertyDescriptor(target, key)?.value : undefined;
+    // An own member only: an inherited `toString` is not one.
+    const current: unknown = Object.getOwnPropertyDescriptor(target, key)?.value;
     if (current === undefined) setMember(target, key, structuredClone(value));
     else if (isPrimitive(current) && isPrimitive(value)) setMember(target, key, value);
     else if (Array.isArray(current) && Array.isArray(value)) current.push(...structuredClone(value));
@@ -84,13 +84,16 @@ const updateEach = (nodes: readonly Node[], update: unknown, target: string, doc
   }
 };
 
-/** Remove each node from the object or array that holds it; array items last first, so indexes stay true. */
+/** Remove each node from the object or array that holds it; an array's items last first, so each index stays true. */
 const removeEach = (nodes: readonly Node[], target: string): void => {
-  const ordered = nodes.toSorted((a, b) => (typeof a.key === 'number' && typeof b.key === 'number' ? b.key - a.key : 0));
-  for (const node of ordered) {
-    if (Array.isArray(node.parent)) node.parent.splice(node.key as number, 1);
+  const items = new Map<unknown[], Set<number>>();
+  for (const node of nodes) {
+    if (Array.isArray(node.parent)) items.set(node.parent, new Set([...(items.get(node.parent) ?? []), node.key as number]));
     else if (node.parent === undefined) throw new OverlayError(`\`${target}\` selects the whole document, which cannot be removed`, 'remove its members instead, e.g. `$.paths`');
     else Reflect.deleteProperty(node.parent, node.key as string);
+  }
+  for (const [list, indexes] of items) {
+    for (const index of [...indexes].toSorted((a, b) => b - a)) list.splice(index, 1);
   }
 };
 
@@ -107,8 +110,11 @@ const resolveAction = (overlay: Dict, action: unknown, at: string): Dict => {
   } catch {
     throw new OverlayError(`\`${at}.$ref\` names \`${action.$ref}\`, which the overlay does not define`, 'define it under `components.actions`');
   }
+  if (!isDict(reusable) || (reusable.fields !== undefined && !isDict(reusable.fields))) {
+    throw new OverlayError(`\`${action.$ref}\` is not a reusable action`, 'write it as `{ fields: { update | copy | remove } }`');
+  }
   const { $ref: _ref, ...own } = action;
-  return { ...(isDict(reusable) && isDict(reusable.fields) ? reusable.fields : {}), ...own };
+  return { ...(reusable.fields as Dict | undefined), ...own };
 };
 
 /** Run one action on `result.value`; what it reports goes to `findings`. */
@@ -138,6 +144,7 @@ const run = (action: Dict, index: number, result: { value: unknown }, findings: 
   }
   const sources = query(result.value, action.copy);
   if (sources.length !== 1) throw new OverlayError(`\`${at}.copy\` selects ${String(sources.length)} nodes`, 'copy from a query that selects exactly one node');
+  // Stryker disable next-line OptionalChaining: equivalent, the length is checked
   updateEach(nodes, sources[0]?.value, action.target, result);
 };
 

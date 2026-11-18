@@ -52,6 +52,17 @@ describe('update', () => {
       findings: [],
     });
     expect(document.info.title).toBe('a');
+    expect(Object.keys((result.document as { info: object }).info)).toEqual(['title', 'tags', 'contact', 'keep', 'empty', 'added']);
+    // Each member is an ordinary one: the result is the caller's to change.
+    expect(Object.getOwnPropertyDescriptor((result.document as { info: object }).info, 'added')).toStrictEqual({ value: { z: 1 }, writable: true, enumerable: true, configurable: true });
+  });
+
+  it('adds members that a later action can replace and remove', () => {
+    const result = apply({ info: {} }, overlay({ target: '$.info', update: { x: 1 } }, { target: '$.info', update: { x: 2 } }, { target: '$.info.x', remove: true }));
+    expect(result.document).toStrictEqual({ info: {} });
+    expect(apply({ info: {} }, overlay({ target: '$.info', update: { x: 1 } }, { target: '$.info.x', update: 2 }, { target: '$.info.x', update: 3 })).document).toStrictEqual({
+      info: { x: 3 },
+    });
   });
 
   it('appends to an array: a list item by item, anything else as one item', () => {
@@ -99,6 +110,10 @@ describe('remove', () => {
     const result = apply(document, overlay({ target: "$.servers[?@.d == 'Dev']", remove: true }, { target: '$.info.drop', remove: true }));
     expect(result.document).toStrictEqual({ servers: [{ d: 'Prod' }], info: { title: 'a' } });
     expect(apply({ list: [0, 1, 2, 3] }, overlay({ target: '$.list[0,2]', remove: true })).document).toStrictEqual({ list: [1, 3] });
+    expect(apply({ list: [0, 1, 2, 3] }, overlay({ target: '$.list[3,1]', remove: true })).document).toStrictEqual({ list: [0, 2] });
+    // A node selected twice is removed once.
+    expect(apply({ list: [0, 1, 2] }, overlay({ target: '$.list[1,1]', remove: true })).document).toStrictEqual({ list: [0, 2] });
+    expect(apply({ a: [0, 1], b: [0, 1] }, overlay({ target: '$.*[1]', remove: true })).document).toStrictEqual({ a: [0], b: [0] });
   });
 
   it('ignores an update beside `remove: true`, and refuses to remove the whole document', () => {
@@ -163,6 +178,14 @@ describe('reusable actions (1.2)', () => {
     const result = apply({ info: {}, paths: { a: { get: {} } } }, value);
     expect(result.document).toStrictEqual({ info: { x: 1, y: 2 }, paths: { a: { get: { tags: ['t'] } } } });
     expect(result.findings.map(({ code }) => code)).toStrictEqual(['action-without-effect']);
+  });
+
+  it('refuses a reference to something that is not a reusable action', () => {
+    for (const reusable of ['x', { fields: 'x' }]) {
+      expect(refusal(() => apply({}, { ...overlay({ $ref: '#/components/actions/bad', target: '$' }), components: { actions: { bad: reusable } } }))).toBe(
+        'cannot apply the overlay: `#/components/actions/bad` is not a reusable action. fix: write it as `{ fields: { update | copy | remove } }`',
+      );
+    }
   });
 
   it('refuses a reference outside components.actions, or to nothing', () => {

@@ -45,6 +45,10 @@ describe('selectors', () => {
     expect(values("$.info['title', 'x-a-b' ]")).toEqual(['Pets', 1]);
     expect(values('$.servers[0, 2].weight')).toEqual([1, 2]);
     expect(values('$.nothing')).toEqual([null]);
+    const list = { list: Array.from({ length: 12 }, (_, index) => index) };
+    expect(query(list, '$.list[11]').map(({ value }) => value)).toEqual([11]);
+    expect(query(list, '$.list[-12]').map(({ value }) => value)).toEqual([0]);
+    expect(values('$.info[-1]')).toEqual([]);
   });
 
   it('selects nothing where the value has no such member or item', () => {
@@ -89,6 +93,16 @@ describe('filters', () => {
     expect(values("$.servers[?@.weight >= 'x'].url")).toEqual([]);
   });
 
+  it('reads every form of number literal', () => {
+    const numbers = { n: [1.25, 10, 100, 1e12, -3] };
+    const select = (path: string): unknown[] => query(numbers, path).map(({ value }) => value);
+    expect(select('$.n[?@ == 1.25]')).toEqual([1.25]);
+    expect(select('$.n[?@ == 10]')).toEqual([10]);
+    expect(select('$.n[?@ == 1e+2]')).toEqual([100]);
+    expect(select('$.n[?@ == 1E12]')).toEqual([1e12]);
+    expect(select('$.n[?@ == -3]')).toEqual([-3]);
+  });
+
   it('compares literals: strings either quote, numbers, true, false and null', () => {
     expect(values('$.servers[?@.description == "Prod"].weight')).toEqual([3]);
     expect(values('$.servers[?@.weight == 3].url')).toEqual(['https://prod']);
@@ -101,17 +115,24 @@ describe('filters', () => {
   });
 
   it('compares whole values: arrays and objects are equal when their members are', () => {
-    const data = { list: [{ a: [1, { b: 2 }] }, { a: [1, { b: 3 }] }, { a: [1] }, { a: { b: 2 } }, { a: { c: 2 } }], ref: [1, { b: 2 }], obj: { b: 2 } };
+    const data = {
+      list: [{ a: [1, { b: 2 }] }, { a: [1, { b: 3 }] }, { a: [1] }, { a: { b: 2 } }, { a: { c: 2 } }, { a: { b: 2, c: 9 } }],
+      ref: [1, { b: 2 }],
+      obj: { b: 2 },
+      wider: { b: 2, c: 3 },
+    };
     expect(query(data, '$.list[?@.a == $.ref]').map(({ key }) => key)).toEqual([0]);
     expect(query(data, '$.list[?@.a == $.obj]').map(({ key }) => key)).toEqual([3]);
-    expect(query(data, '$.list[?@.a != $.ref]').map(({ key }) => key)).toEqual([1, 2, 3, 4]);
+    // Every member, on both sides: `{ b: 2 }` is not `{ b: 2, c: 3 }`, nor is `{ b: 2, c: 9 }`.
+    expect(query(data, '$.list[?@.a == $.wider]').map(({ key }) => key)).toEqual([]);
+    expect(query(data, '$.list[?@.a != $.ref]').map(({ key }) => key)).toEqual([1, 2, 3, 4, 5]);
   });
 
   it('tests existence, and treats a query that selects nothing, or many, as Nothing', () => {
     expect(values('$.servers[?@.description].url')).toEqual(['https://dev', 'https://prod']);
     expect(values('$.servers[?!@.description].url')).toEqual(['https://edge']);
     expect(values('$.servers[?@.missing == @.other].url')).toEqual(['https://dev', 'https://prod', 'https://edge']);
-    expect(values('$.servers[?@.* == 1].url')).toEqual([]);
+    expect(values("$.servers[?@.* == 'https://dev'].url")).toEqual([]);
     expect(values('$.servers[?@.missing == null].url')).toEqual([]);
     expect(values('$.servers[?$.info.title == "Pets"].weight')).toEqual([1, 3, 2]);
   });
@@ -123,6 +144,11 @@ describe('filters', () => {
     expect(values("$.servers[?(@.weight == 1 || @.weight == 3) && @.description == 'Prod'].url")).toEqual(['https://prod']);
     expect(values('$.servers[?!(@.weight > 1)].url')).toEqual(['https://dev']);
     expect(values("$.servers[? @.weight==2 ].url")).toEqual(['https://edge']);
+    expect(values('$.servers[? !@.description].url')).toEqual(['https://edge']);
+    expect(values('$.servers[? ( @.weight == 1 ) ].url')).toEqual(['https://dev']);
+    expect(values("$.servers[?@.weight > 0 && @.url && @.description == 'Prod' ].url")).toEqual(['https://prod']);
+    expect(values("$.servers[?@.weight > 0 && @.weight < 9 && @.description == 'Prod'].url")).toEqual(['https://prod']);
+    expect(values('$.servers[?@.weight == 5 || @.weight == 4 || @.weight == 1 ].url')).toEqual(['https://dev']);
   });
 });
 
@@ -145,7 +171,9 @@ describe('what it does not read, each refused with a fix', () => {
     expect(refusal('$.servers[?(@.a == 1]')).toContain('a `)` is expected at character 20');
     expect(refusal('$.')).toContain('a name is expected after `.` at character 2');
     expect(refusal('$.1')).toContain('a name is expected after `.` at character 2');
-    expect(refusal('$.servers[x]')).toContain('`x` is not a selector at character 10');
+    expect(refusal('$.servers[x1]')).toBe('cannot read the JSONPath `$.servers[x1]`: `x` is not a selector at character 10. fix: write the query as RFC 9535 describes it');
+    expect(refusal('$.1a')).toContain('a name is expected after `.` at character 2');
+    expect(refusal('$.servers[?@.a == ~length(@)]')).toContain('a value or a query is expected at character 18');
     expect(refusal('$.servers[?@.a == ]')).toContain('a value or a query is expected at character 18');
     expect(refusal('$.info x')).toContain('`x` is not read at character 7');
   });
