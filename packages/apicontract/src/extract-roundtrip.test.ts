@@ -48,16 +48,17 @@ describe('the round trip through the validator and the standard-schema extractor
   });
 
   /**
-   * The same corpus classified by `ac-diff`. A verdict other than non-breaking on a rewrite that
-   * validates the same values (`type: null` as `const: null`, an enum as `anyOf` of `const`, a
-   * format as its pattern) is the classifier's to refine (its own lane): read 2026-11-18.
+   * The same corpus classified by `ac-diff`: every rewrite the validator makes validates the same
+   * values (`type: null` as `const: null`, an enum as `anyOf` of `const`, a format as its pattern, a
+   * tuple as `anyOf` of its lengths), so none is a break. Read 2026-11-18: 1 / 5 before
+   * `diff-normalise.ts`, 5 / 5 after (gap A-20261118-diff-false-breaking-equivalent-rewrites).
    */
   it.each([
-    ['scalars', 'breaking'],
+    ['scalars', 'non-breaking'],
     ['objects', 'non-breaking'],
-    ['collections', 'breaking'],
-    ['choices', 'breaking'],
-    ['formats', 'breaking'],
+    ['collections', 'non-breaking'],
+    ['choices', 'non-breaking'],
+    ['formats', 'non-breaking'],
   ])('classifies the round trip of %s as %s', async (name, verdict) => {
     const host = createHost();
     host.register({ name: 'apicontract', adapters: builtinAdapters });

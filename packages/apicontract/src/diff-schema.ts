@@ -10,6 +10,7 @@
  */
 import { type Direction, type JsonSchema } from './core/model.js';
 import { pointerGet } from './core/resolve.js';
+import { canonical, has, isDict, normalise, typeOfValue, valuesOfTypes } from './diff-normalise.js';
 
 export type Effect = 'widens' | 'narrows' | 'unknown' | 'neutral';
 
@@ -30,11 +31,6 @@ export interface Documents {
 }
 
 type Dict = Readonly<Record<string, unknown>>;
-
-const isDict = (value: unknown): value is Dict => typeof value === 'object' && value !== null && !Array.isArray(value);
-
-// eslint-disable-next-line conventions/consistent-existence-index-check -- Own members only: a property named `toString` is not one every object declares
-const has = (value: Dict, key: string): boolean => Object.hasOwn(value, key);
 
 /** Directions whose receiver is the server: there a `readOnly` property is never sent. */
 const SERVER_RECEIVES: ReadonlySet<Direction> = new Set(['request', 'subscribe', 'tool-call', 'argv']);
@@ -91,10 +87,6 @@ const HANDLED: ReadonlySet<string> = new Set([
   'prefixItems',
 ]);
 
-/** A value's text with object keys sorted, so two equal values compare equal however they were written. */
-export const canonical = (value: unknown): string =>
-  JSON.stringify(value, (_key, node: unknown) => (isDict(node) ? Object.fromEntries(Object.keys(node).sort().map((key) => [key, node[key]])) : node));
-
 const token = (key: string): string => key.replaceAll('~', '~0').replaceAll('/', '~1');
 
 /** `true` is the empty schema; `false` stays `false`. */
@@ -128,9 +120,18 @@ const typesOf = (schema: Dict): string[] | undefined => {
 /** Whether `types` admits `type`: `number` admits every integer. */
 const admits = (types: readonly string[], type: string): boolean => types.includes(type) || (type === 'integer' && types.includes('number'));
 
+/** The types a value list's members have: what an untyped `enum` is read as against a typed peer. */
+const typesOfValues = (schema: Dict): string[] | undefined => {
+  const values = valuesOf(schema);
+  return values === undefined ? undefined : [...new Set(values.map((value) => typeOfValue(value)))];
+};
+
+/** `schema`'s types, or, against a peer that declares some, the types of the values it lists. */
+const typesAgainst = (schema: Dict, peer: Dict): string[] | undefined => typesOf(schema) ?? (typesOf(peer) === undefined ? undefined : typesOfValues(schema));
+
 const compareTypes = (pointer: string, a: Dict, b: Dict): Change[] => {
-  const before = typesOf(a);
-  const after = typesOf(b);
+  const before = typesAgainst(a, b);
+  const after = typesAgainst(b, a);
   const set = presence('type', pointer, before, after);
   if (set !== undefined) return set;
   const change = at(pointer, before, after);
@@ -150,9 +151,15 @@ const valuesOf = (schema: Dict): unknown[] | undefined => {
   return Array.isArray(schema.enum) ? schema.enum : undefined;
 };
 
+/** `schema`'s values, or, against a peer that lists some, every value of its type when it has few (`null`, `boolean`). */
+const valuesAgainst = (schema: Dict, peer: Dict): unknown[] | undefined => {
+  const types = typesOf(schema);
+  return valuesOf(schema) ?? (valuesOf(peer) === undefined || types === undefined ? undefined : valuesOfTypes(types));
+};
+
 const compareValues = (pointer: string, a: Dict, b: Dict): Change[] => {
-  const before = valuesOf(a);
-  const after = valuesOf(b);
+  const before = valuesAgainst(a, b);
+  const after = valuesAgainst(b, a);
   const set = presence('enum', pointer, before, after);
   if (set !== undefined) return set;
   const kept = (after as unknown[]).map((value) => canonical(value));
@@ -294,15 +301,15 @@ const compareCompositions = (walk: Walk, pointer: string, { a, b }: Sides): Chan
   });
 
 /**
- * A `$ref` replaced by its target. Keywords beside it apply too: merged in when none is also the
- * target's, which is the same intersection, else with the target moved under `allOf`.
+ * A `$ref` replaced by its target, normalised. Keywords beside it apply too: merged in when none is
+ * also the target's, which is the same intersection, else with the target moved under `allOf`.
  */
-const follow = (schema: Dict, document: unknown): Dict | false => {
+const follow = (schema: Dict, document: unknown): unknown => {
   const { $ref: ref, ...siblings } = schema;
   const target = asDict(pointerGet(document, String(ref)));
   if (target === false) return false;
-  if (Object.keys(siblings).every((key) => !has(target, key))) return { ...target, ...siblings };
-  return { ...siblings, allOf: [target, ...arrayOf(siblings.allOf)] };
+  if (Object.keys(siblings).every((key) => !has(target, key))) return normalise({ ...target, ...siblings });
+  return normalise({ ...siblings, allOf: [target, ...arrayOf(siblings.allOf)] });
 };
 
 const local = (schema: unknown): schema is Dict => isDict(schema) && typeof schema.$ref === 'string' && schema.$ref.startsWith('#');
@@ -346,4 +353,6 @@ function compare(walk: Walk, pointer: string, a: unknown, b: unknown): Change[] 
  * Pure: the same pair gives the same list, in keyword order.
  */
 export const compareSchemas = (a: JsonSchema, b: JsonSchema, direction: Direction, documents: Documents = {}): Change[] =>
-  compare({ direction, documents, open: new Set() }, '', a, b);
+  compare({ direction, documents, open: new Set() }, '', normalise(a), normalise(b));
+
+export { canonical } from './diff-normalise.js';
