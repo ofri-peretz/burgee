@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 import { ExitCode } from 'burgee';
 import { runBurgee } from 'burgee/testing';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { command } from './command-plugin.js';
 import { program } from './index.js';
@@ -46,14 +46,13 @@ describe('`apicontract plugin new`', () => {
 
   it('writes into the current directory without --out', async () => {
     const out = join(directory, 'cwd');
-    const before = process.cwd();
-    await runBurgee(program, { argv: ['plugin', 'new', 'here', '--out', out, '--json'] });
-    process.chdir(out);
+    const cwd = vi.spyOn(process, 'cwd').mockReturnValue(out);
     try {
       const r = await runBurgee(program, { argv: ['plugin', 'new', 'here', '--json'] });
-      expect(data(r)).toMatchObject({ unchanged: ['plugin-here.ts', 'plugin-here.test.ts', 'README.md'] });
+      expect(data(r)).toMatchObject({ written: ['plugin-here.ts', 'plugin-here.test.ts', 'README.md'] });
+      expect(readFileSync(join(out, 'README.md'), 'utf8')).toBe(scaffold('here', 'generator')[2]?.content);
     } finally {
-      process.chdir(before);
+      cwd.mockRestore();
     }
   });
 
