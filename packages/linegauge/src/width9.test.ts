@@ -13,10 +13,11 @@
  */
 import { afterEach, describe, expect, it } from 'vitest';
 
-import width, { lineCount, measure } from './index.js';
 import { overrides, register, setOverrides } from './plugin.js';
 import { slice } from './slice.js';
 import widthV8 from './v8.js';
+
+import width, { lineCount, measure } from './index.js';
 
 afterEach(() => {
   for (const name of [...overrides().keys()]) setOverrides(name, {});

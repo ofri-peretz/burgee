@@ -14,13 +14,14 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
 
 import { discard } from './__fixtures__/scratch-dir.js';
-import { defineCommand, defineError, defineProgram, ExitCode, type RunContext, runCommand } from './index.js';
 import { Manifest, type OptionSpec } from './manifest.js';
 import { program as burgee } from './program.js';
 import { producibleExits } from './root-help.js';
 import { binDirOf } from './skill-files.js';
 import { DESCRIPTION_MAX, NAME_MAX, renderAgents, renderSkill, skillName } from './skill.js';
 import { shellLine } from './unknown-option.js';
+
+import { defineCommand, defineError, defineProgram, ExitCode, type RunContext, runCommand } from './index.js';
 
 const ok = (): string => 'ok';
 

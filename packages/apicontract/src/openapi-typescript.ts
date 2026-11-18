@@ -4,9 +4,10 @@
  *
  * Two differences from the incumbent, both forced by having no compiler. `openapiTS` resolves to
  * the generated text, not to compiler nodes, and `astToString` hands that text back; and the
- * options that take or return compiler nodes (`transform`, `postTransform`, `transformProperty`,
- * `inject`) are refused with a `fix:` line. Documents are read from this machine only: a remote
- * address is refused rather than fetched, and `$ref`s to other files are not bundled.
+ * options that take or return compiler nodes (`transform`, `postTransform`, `transformProperty`)
+ * are refused with a `fix:` line; `inject` is text, so it is written as given rather than
+ * re-printed. Documents are read from this machine only: a remote address is refused rather than
+ * fetched, and `$ref`s to other files are not bundled.
  */
 import { readFileSync } from 'node:fs';
 import { Readable } from 'node:stream';
@@ -14,7 +15,7 @@ import { text as textOf } from 'node:stream/consumers';
 
 import { parse as parseYaml } from 'seniority/yaml';
 
-import { generate, type GenerateOptions } from './gen-ts-index.js';
+import { generate, type GenerateOptions, unresolvedRefs } from './gen-ts-index.js';
 
 /** What `openapiTS` reads: a parsed document, YAML or JSON text, a `file:` address, or a stream of text. */
 export type Source = string | URL | Buffer | Readable | object;
@@ -45,7 +46,10 @@ export default async function openapiTS(source: Source, options: GenerateOptions
   if ((source as unknown) === undefined || source === null || source === '') {
     throw new Error('Empty schema.\nfix: pass a document, its YAML or JSON text, or a `file:` URL');
   }
-  return generate(await read(source), options);
+  const document = await read(source);
+  // Upstream prints every reference it cannot resolve, then throws on the last.
+  for (const at of unresolvedRefs(document)) console.error(`✘ Can't resolve $ref at ${at}`);
+  return generate(document, options);
 }
 
 export {

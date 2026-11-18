@@ -579,9 +579,11 @@ export function pages(packages: readonly string[] = REFERENCED): Map<string, str
   return out;
 }
 
+/** Every file under `dir`, as repo-relative paths. */
+const walk = (dir: string): string[] => (existsSync(join(REPO_ROOT, dir)) ? readdirSync(join(REPO_ROOT, dir), { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(`${dir}/${e.name}`) : [`${dir}/${e.name}`])) : []);
+
 /** Files under an owned `api/` directory that this script no longer writes. */
 export function orphans(owned: ReadonlyMap<string, string>, packages: readonly string[] = REFERENCED): string[] {
-  const walk = (dir: string): string[] => (existsSync(join(REPO_ROOT, dir)) ? readdirSync(join(REPO_ROOT, dir), { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(`${dir}/${e.name}`) : [`${dir}/${e.name}`])) : []);
   return packages.flatMap((pkg) => {
     const app = siteForPackage(pkg);
     return app === undefined ? [] : walk(`${app.dir}/content/docs/api`).filter((path) => !owned.has(path));

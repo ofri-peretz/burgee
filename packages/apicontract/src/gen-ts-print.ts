@@ -111,6 +111,7 @@ const PRINTERS: Readonly<Record<TypeNode['kind'], Printer>> = {
 
 /** A type, its continuation lines indented to `level`. The first line carries no indentation. */
 export function printType(type: TypeNode, level: number): string {
+   
   return PRINTERS[type.kind](type, level);
 }
 

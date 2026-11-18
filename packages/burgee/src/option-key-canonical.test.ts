@@ -15,10 +15,11 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { checkDefinition, defineCommand, defineProgram } from './index.js';
 import { camel, kebab } from './names.js';
 import { program } from './program.js';
 import { runBurgee } from './testing.js';
+
+import { checkDefinition, defineCommand, defineProgram } from './index.js';
 
 /** The invariant: a key survives the round trip the engine actually performs on it. */
 const canonical = (key: string): boolean => camel(kebab(key)) === key;

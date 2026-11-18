@@ -10,11 +10,12 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { Command } from './commander.js';
 import { renderCompletion, renderFigSpec } from './completions.js';
-import { defineCommand, defineProgram, execute, run } from './index.js';
 import { annotationsOf, MCP_PROTOCOL_VERSION, serveMcp, toolsOf } from './mcp-entry.js';
 import { argvOf, SUPPORTED_REVISIONS } from './mcp.js';
 import { inputSchemaOf, Manifest, schemaOf } from './schema-entry.js';
 import { runBurgee } from './testing.js';
+
+import { defineCommand, defineProgram, execute, run } from './index.js';
 
 const program = defineProgram({
   name: 'app',

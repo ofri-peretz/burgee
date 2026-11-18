@@ -5,6 +5,10 @@ import { describe, expect, expectTypeOf, it } from 'vitest';
 import { verdict, verdicts } from './__fixtures__/readers.js';
 import { emit } from './emit.js';
 import { base64url, cuid, cuid2, duration, emoji, json, jwt, nanoid, regex, ulid, uuidVersion, type UuidVersion } from './formats.js';
+import { compile } from './jit.js';
+import { fromJsonSchema, standardJson, toJsonSchema } from './json-schema.js';
+import { standard } from './standard.js';
+
 import {
   type AnySchema,
   array,
@@ -48,9 +52,6 @@ import {
   unknown,
   type Format,
 } from './index.js';
-import { compile } from './jit.js';
-import { fromJsonSchema, standardJson, toJsonSchema } from './json-schema.js';
-import { standard } from './standard.js';
 
 /**
  * Wave 4: the features two of the five competitors have (parity.md). The values each accepts and

@@ -46,6 +46,9 @@ const LAYOUT = {
   ],
 };
 
+/** The status line: empty and calm with no label, running with one. */
+const status = (screen, label) => screen.update('status', label === undefined ? { text: '', status: 'ok' } : { text: label, status: 'running' });
+
 /** Run the chat over `rt`, and resolve when the user leaves or the piped input ends. */
 export function run(rt, argv = []) {
   return new Promise((resolve) => {
@@ -61,7 +64,6 @@ export function run(rt, argv = []) {
       screen.close();
       resolve();
     };
-    const status = (screen, label) => screen.update('status', label === undefined ? { text: '', status: 'ok' } : { text: label, status: 'running' });
 
     const stream = (screen, reply) => {
       busy = true;

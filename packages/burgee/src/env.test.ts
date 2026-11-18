@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { scratchDirs } from './__fixtures__/scratch-dir.js';
+
 import { defineCommand, defineProgram, execute, type RunOptions } from './index.js';
 
 const scratch = scratchDirs();

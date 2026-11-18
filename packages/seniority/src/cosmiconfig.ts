@@ -300,7 +300,6 @@ export class Explorer extends ExplorerBase {
     if (!(await isDirectoryAsync(dir.path))) return undefined;
     for (const filepath of this.getSearchPlacesForDir(dir, globalConfigSearchPlaces)) {
       try {
-        // eslint-disable-next-line reliability/no-await-in-loop -- The search places are an ORDERED list and the first hit wins (R1). Reading them concurrently would load files the order says are never reached — a `.js` config that runs as a side effect of being imported, on a path the search would have stopped short of — and would report the wrong one in a directory holding two.
         const result = await this.readConfiguration(filepath);
         if (result !== null && !(result.isEmpty === true && this.config.ignoreEmptySearchPlaces)) return result;
       } catch (error) {

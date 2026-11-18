@@ -23,11 +23,13 @@ const DEFAULT_SURVIVORS_SHOWN = 10;
 
 /** `mutation-testing-report-schema` 2, the format Stryker writes (`jsonReporter`). */
 export function strykerReport(r: RunResult): object {
-  const files: Record<string, { language: string; source: string; mutants: object[] }> = {};
+  // A Map, made an object by `fromEntries`: the keys are source file names, and
+  // `files['__proto__'] = …` on a plain object would set its prototype instead of adding a file.
+  const files = new Map<string, { language: string; source: string; mutants: object[] }>();
   for (const [file, source] of Object.entries(r.sources)) {
     const mutants = r.mutants.filter((m) => m.file === file);
     if (!mutants.length) continue;
-    files[file] = {
+    files.set(file, {
       language: /\.(ts|tsx|mts|cts)$/.test(file) ? 'typescript' : 'javascript',
       source,
       mutants: mutants.map((m) => ({
@@ -42,7 +44,7 @@ export function strykerReport(r: RunResult): object {
         testsCompleted: m.testsCompleted,
         static: m.static ?? false,
       })),
-    };
+    });
   }
   const testFiles = new Map<string, { tests: { id: string; name: string }[] }>();
   for (const t of r.tests) {
@@ -55,7 +57,7 @@ export function strykerReport(r: RunResult): object {
     schemaVersion: '2',
     thresholds: { high: r.options.thresholds.high, low: r.options.thresholds.low },
     projectRoot: r.root,
-    files,
+    files: Object.fromEntries(files),
     testFiles: Object.fromEntries(testFiles),
     framework: { name: 'oxmutate', version: VERSION, branding: { homepageUrl: 'https://www.npmjs.com/package/oxmutate' } },
     'x-oxmutate': { stats: r.stats, score: r.score, unusedConfig: r.options.unused, frozenOracle: r.frozen, specOracles: r.spec },

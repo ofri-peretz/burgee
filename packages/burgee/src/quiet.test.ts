@@ -9,8 +9,9 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { defineCommand, defineProgram, runCommand } from './index.js';
 import { type RunContext } from './manifest.js';
+
+import { defineCommand, defineProgram, runCommand } from './index.js';
 
 /** What a progress line does: it draws on stderr unless the runtime it was handed is quiet. */
 const draw = (ctx: Pick<RunContext, 'runtime'>, line: string, err: (s: string) => void): void => {

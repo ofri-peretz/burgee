@@ -190,7 +190,6 @@ export async function ask(prompt: BoundPrompt | PromptSpec, io: Io): Promise<Ask
     io.writer.write(question);
     // A prompt is a conversation: the next question depends on the last answer, which is
     // what sequential means. Promise.all() would ask all five at once and read none.
-    // eslint-disable-next-line reliability/no-await-in-loop -- see above
     const line = await io.reader.line({ hidden: prompt.kind === 'password' });
     if (line === undefined) return CANCELLED;
 

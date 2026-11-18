@@ -19,8 +19,9 @@ import { describe, expect, it } from 'vitest';
 
 import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { renderCompletion, SHELLS } from './completions.js';
-import { defineCommand, defineProgram } from './index.js';
 import { runBurgee } from './testing.js';
+
+import { defineCommand, defineProgram } from './index.js';
 
 const scratch = scratchDirs();
 

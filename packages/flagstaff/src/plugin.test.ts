@@ -29,6 +29,8 @@ const nyan = { frames: ['≋', '≈', '~'], interval: 80, static: '~nyan~' };
 
 const source = (file: string): string => readFileSync(resolve(src, file), 'utf8').replaceAll('\r\n', '\n');
 
+const keys = (o: object | undefined): string[] => Object.keys(o ?? {}).sort();
+
 describe('R3 · the built-ins are a plugin like any other', () => {
   it('registered through register(), visible in the registry', () => {
     expect(registered().plugins).toContain('flagstaff');
@@ -59,7 +61,6 @@ describe('R3 · the built-ins are a plugin like any other', () => {
     // static import order that avoids it is the one an import sorter would rewrite.
     const { builtins } = await import('./builtins.js');
     const r = registered();
-    const keys = (o: object | undefined): string[] => Object.keys(o ?? {}).sort();
     expect(r.plugins).toEqual(['flagstaff']);
     expect([...r.glyphs.keys()].sort()).toEqual(keys(builtins.glyphs));
     expect([...r.spinners.keys()].sort()).toEqual(keys(builtins.spinners));

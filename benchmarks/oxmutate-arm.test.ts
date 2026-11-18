@@ -28,6 +28,7 @@ function argvClaude(cost = 0.25): { bin: string; marks: string } {
   const dir = scratchDir('stub-claude-ox-');
   const bin = join(dir, 'claude');
   const marks = join(dir, 'runs');
+  // eslint-disable-next-line node-security/require-storage-encryption -- FP ofri-peretz/eslint#1548: writes a fake `claude` stub script, not a credential
   writeFileSync(
     bin,
     `#!/bin/sh\nif [ "$1" = --version ]; then echo '9.9.9 (Claude Code)'; exit 0; fi\necho run >> "${marks}"\nprintf '{"type":"result","is_error":false,"num_turns":2,"total_cost_usd":${String(cost)},"usage":{"input_tokens":500,"output_tokens":100},"result":"%s"}' "$*"\n`,

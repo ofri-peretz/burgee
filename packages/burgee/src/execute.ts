@@ -716,7 +716,6 @@ export async function execute(manifest: Manifest, opts: RunOptions & { root?: st
   };
   // The parse hook's promise goes in unawaited, so a hook that rejects is reported like any refusal.
   let next: string[] | Promise<string[]> | void = manifest.declares('parse') ? manifest.parse([...typed]) : typed;
-  // eslint-disable-next-line reliability/no-await-in-loop -- each pass runs the line the one before it handed back, so none can start before the last has refused
   while (next) next = await pass(next);
 }
 

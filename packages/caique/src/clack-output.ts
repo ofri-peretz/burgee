@@ -412,7 +412,6 @@ export const tasks = async (list: Task[], opts?: CommonOptions): Promise<void> =
   for (const item of list.filter((task) => task.enabled !== false)) {
     const spin = spinner(opts);
     spin.start(item.title);
-    // eslint-disable-next-line reliability/no-await-in-loop -- tasks run one after another by definition; each spinner ends before the next starts
     const result = await item.task(spin.message);
     spin.stop(typeof result === 'string' && result !== '' ? result : item.title);
   }
@@ -438,7 +437,6 @@ export const group = async <T>(prompts: PromptGroup<T>, opts?: PromptGroupOption
   const results = new Map<string, unknown>();
   const soFar = (): never => Object.fromEntries(results) as never;
   for (const [name, ask] of Object.entries(prompts) as [string, (opts: { results: never }) => Promise<unknown> | undefined][]) {
-    // eslint-disable-next-line reliability/no-await-in-loop -- each prompt is handed the answers before it, so they cannot run at once
     const answer = await ask({ results: soFar() });
     const cancelledHere = typeof opts?.onCancel === 'function' && isCancel(answer);
     results.set(name, cancelledHere ? 'canceled' : answer);

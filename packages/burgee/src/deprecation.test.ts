@@ -6,8 +6,9 @@
 import { describe, expect, it } from 'vitest';
 
 import { renderHelp } from './help.js';
-import { defineCommand } from './index.js';
 import { Manifest } from './manifest.js';
+
+import { defineCommand } from './index.js';
 
 const run = (): undefined => undefined;
 

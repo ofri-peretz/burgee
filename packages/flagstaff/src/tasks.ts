@@ -39,6 +39,7 @@ export function tasks({ spinner = 'dots' }: TasksOptions = {}): Component<TasksS
   const style = lookupSpinner(spinner);
 
   const symbol = (status: TaskStatus, t: number): string => {
+    // eslint-disable-next-line secure-coding/detect-object-injection -- FP ofri-peretz/eslint#1547: a call through a module-built const table, keyed by its own key type
     if (settled(status)) return PAINT[status](glyph(status));
     // The `pending` glyph, a space unless a plugin replaces it (`◻`, say): until 2026-10-05 a
     // literal here, the one mark in the list no plugin could reach (controlroom R3).
@@ -55,6 +56,7 @@ export function tasks({ spinner = 'dots' }: TasksOptions = {}): Component<TasksS
     static: (state) =>
       state.tasks
         .filter((task) => settled(task.status ?? 'pending'))
+        // eslint-disable-next-line secure-coding/detect-object-injection -- FP ofri-peretz/eslint#1547: a call through a module-built const table, keyed by its own key type
         .map((task) => `${PAINT[task.status as 'ok'](glyph(task.status as 'ok'))} ${task.title}`)
         .join('\n'),
     frame: (t, state) =>

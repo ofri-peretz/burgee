@@ -63,12 +63,13 @@ interface Written {
   failures: { file: string; shape: string }[];
 }
 
+const branches = (node: ts.Node): ts.Node[] => (ts.isConditionalExpression(node) ? [...branches(node.whenTrue), ...branches(node.whenFalse)] : [node]);
+
 function read(): Written {
   const all = new Set<string>();
   const failures: Written['failures'] = [];
   for (const file of WRITERS) {
     const source = ts.createSourceFile(file, readFileSync(new URL(file, import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
-    const branches = (node: ts.Node): ts.Node[] => (ts.isConditionalExpression(node) ? [...branches(node.whenTrue), ...branches(node.whenFalse)] : [node]);
     const failure = (node: ts.Node): void => {
       for (const branch of branches(node)) {
         const shape = shapeOf(branch);

@@ -14,9 +14,10 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { defineCommand, defineProgram } from './index.js';
 import { PREDICATE, schemaOf } from './schema.js';
 import { runBurgee } from './testing.js';
+
+import { defineCommand, defineProgram } from './index.js';
 
 const program = defineProgram({
   name: 'app',

@@ -1060,4 +1060,10 @@ describe('the baseline on disk', () => {
     writeFileSync(file, JSON.stringify({ chalk: { reference: 58, passed: 58, rate: 1 } }));
     expect(readBaseline(file)).toEqual({ chalk: { reference: 58, passed: 58, rate: 1 } });
   });
+
+  it('says a corrupt baseline file is corrupt, rather than reading it as a directory', () => {
+    const file = join(vendorDir, 'corrupt.json');
+    writeFileSync(file, '{ not json');
+    expect(() => readBaseline(file)).toThrow(SyntaxError);
+  });
 });

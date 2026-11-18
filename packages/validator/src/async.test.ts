@@ -1,6 +1,10 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import { emit } from './emit.js';
+import { compile } from './jit.js';
+import { toJsonSchema } from './json-schema.js';
+import { AWAITED_MAP, AWAITED_RULE } from './own.js';
+
 import {
   type AnySchema,
   array,
@@ -32,9 +36,6 @@ import {
   union,
   unknown,
 } from './index.js';
-import { compile } from './jit.js';
-import { toJsonSchema } from './json-schema.js';
-import { AWAITED_MAP, AWAITED_RULE } from './own.js';
 
 /**
  * Wave 3: a rule and a map that are awaited, and the parse that awaits them. The values are the

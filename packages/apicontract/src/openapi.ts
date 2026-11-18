@@ -48,6 +48,22 @@ export class OpenApiError extends Error {
 export const detect = (document: unknown): boolean =>
   isDict(document) && typeof document.openapi === 'string' && document.openapi.startsWith('3.');
 
+/** The payloads a parameter-less holder (a body or a response) carries, one per media type. */
+const content = (holder: Dict, prefix: string, direction: Direction, required: boolean): Payload[] => {
+  const types = Object.entries(dict(holder.content));
+  // A response or a body with no content still says something: nothing is sent.
+  if (types.length === 0) return [{ name: prefix, direction, schema: false, required }];
+  // 3.2's `itemSchema` describes each item of a stream (`text/event-stream`, `application/jsonl`):
+  // one more payload, `…:item`. The whole body is a payload too when a `schema` describes it.
+  return types.flatMap(([type, media]) => {
+    const declared = dict(media);
+    const name = `${prefix}:${type}`;
+    const whole: Payload[] = declared.itemSchema === undefined || declared.schema !== undefined ? [{ name, direction, schema: schemaOf(declared), required }] : [];
+    const items: Payload[] = declared.itemSchema === undefined ? [] : [{ name: `${name}:item`, direction, schema: declared.itemSchema as JsonSchema, required }];
+    return [...whole, ...items];
+  });
+};
+
 /** Read an OpenAPI 3.x document into the model. */
 export const read = (document: unknown): Contract => {
   if (isDict(document) && typeof document.swagger === 'string') {
@@ -67,21 +83,6 @@ export const read = (document: unknown): Contract => {
       node = pointerGet(root, node.$ref);
     }
     return dict(node);
-  };
-
-  const content = (holder: Dict, prefix: string, direction: Direction, required: boolean): Payload[] => {
-    const types = Object.entries(dict(holder.content));
-    // A response or a body with no content still says something: nothing is sent.
-    if (types.length === 0) return [{ name: prefix, direction, schema: false, required }];
-    // 3.2's `itemSchema` describes each item of a stream (`text/event-stream`, `application/jsonl`):
-    // one more payload, `…:item`. The whole body is a payload too when a `schema` describes it.
-    return types.flatMap(([type, media]) => {
-      const declared = dict(media);
-      const name = `${prefix}:${type}`;
-      const whole: Payload[] = declared.itemSchema === undefined || declared.schema !== undefined ? [{ name, direction, schema: schemaOf(declared), required }] : [];
-      const items: Payload[] = declared.itemSchema === undefined ? [] : [{ name: `${name}:item`, direction, schema: declared.itemSchema as JsonSchema, required }];
-      return [...whole, ...items];
-    });
   };
 
   const operation = ({ id, source, declared, shared }: Declared, sends: Direction, receives: Direction): Operation => {

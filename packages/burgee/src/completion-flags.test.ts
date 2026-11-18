@@ -25,8 +25,9 @@ import { describe, expect, it } from 'vitest';
 
 import { Command } from './commander.js';
 import { renderCompletion, SHELLS } from './completions.js';
-import { defineCommand, defineProgram, ExitCode } from './index.js';
 import { runBurgee } from './testing.js';
+
+import { defineCommand, defineProgram, ExitCode } from './index.js';
 
 const program = defineProgram({
   name: 'app',

@@ -15,6 +15,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { assertDeadline, DeadlineError, DEFAULT_DEADLINE, startDeadline } from './deadline.js';
+
 import { createRegistry, install } from './index.js';
 
 /** Timers that keep this process alive — an unref'd one is not listed. */

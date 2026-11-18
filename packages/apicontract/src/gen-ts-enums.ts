@@ -39,9 +39,10 @@ const SCALARS: Readonly<Record<string, (value: never) => TypeNode>> = {
 
 /** The type of exactly one value: a `const`, or one member of an `enum`. */
 export function literalType(value: unknown): TypeNode {
+   
   const scalar = SCALARS[typeof value];
   if (scalar !== undefined) return scalar(value as never);
-  // eslint-disable-next-line secure-coding/no-unchecked-loop-condition -- the recursion is as deep as the JSON value it reads
+  // eslint-disable-next-line secure-coding/no-unchecked-loop-condition -- bounded by the literal: an `enum` member or a `const` is a finite JSON value, one level of recursion per level of nesting
   if (Array.isArray(value)) return value.length === 0 ? array(NEVER) : tuple(value.map((item) => literalType(item)));
   if (typeof value === 'object' && value !== null) return objectLiteral(value);
   return value === null ? NULL : UNKNOWN;

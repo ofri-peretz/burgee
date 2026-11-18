@@ -117,19 +117,14 @@ const OFF = {
   operability: {},
   reliability: {},
   "react-a11y": {},
-  "react-features": {},
-  "browser-security": {},
-  "lambda-security": {
-    // Documented FPs, fixed upstream in ofri-peretz/eslint#1150: the
-    // plugin's Lambda gate read `handler = handler || noop` in
-    // packages/burgee/src/yargs/command.ts as a handler export, and
-    // no-missing-authorization-check read `Object.create` as a data operation.
-    // Remove both on the next eslint-plugin-lambda-security release.
-    "no-missing-authorization-check":
-      "FP: gate + Object.create, fixed upstream, awaiting release",
-    "no-error-swallowing":
-      "FP: gate admits a file with no Lambda code, fixed upstream, awaiting release",
+  "react-features": {
+    // Every app compiles JSX with the automatic runtime (Next.js), so no file needs a
+    // `React` binding; this rule is for the classic runtime. 2.0 reports one error per
+    // JSX file here (189) and offers no project-level runtime switch: ofri-peretz/eslint#1550.
+    "react-in-jsx-scope": "classic-runtime rule; every app uses the automatic runtime",
   },
+  "browser-security": {},
+  "lambda-security": {},
 };
 
 const OPTIONS = {
@@ -1286,5 +1281,14 @@ export default [
       "secure-coding/no-unchecked-loop-condition": "off",
       "conventions/no-magic-numbers": "off",
     },
+  },
+  {
+    // The `ink` shim each Ink example installs as `"ink": "file:./ink"`: one line,
+    // `export * from 'controlroom/ink'`, so ink-spinner's and ink-text-input's peer on `ink`
+    // is met without a second ink. controlroom is a dependency of the example that owns the
+    // shim; declaring it again in the shim's own manifest would add a second install path
+    // for the very package the drop-in exists to make the only one.
+    files: ["examples/*/ink/index.js"],
+    rules: { "import-next/no-extraneous-dependencies": "off" },
   },
 ];
