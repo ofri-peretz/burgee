@@ -212,6 +212,12 @@ const P90 = 0.9;
 /** Generated, and type-checked under every TypeScript. */
 const usable = (r: Row): boolean => r.generate && Object.values(r.typecheck).every((v) => v === true);
 
+/** `usable`, but `null` when a compiler never reached the output (a crashed batch): unmeasured, not failed. */
+function usableOrUnmeasured(r: Row): boolean | null {
+  if (!r.generate) return false;
+  return Object.values(r.typecheck).includes(null) ? null : usable(r);
+}
+
 /** Wrote nothing and said why with a `fix:` (core/resolve.ts): the document is broken, and the tool said how. */
 export const refused = (r: Row): boolean => !r.generate && r.error !== null && /\bfix: \S/.test(r.error);
 
@@ -225,8 +231,8 @@ export function foldTool(tool: string, rows: readonly Row[]): ToolSummary {
     read: share(rows.map((r) => r.read)),
     generate: share(rows.map((r) => r.generate)),
     typecheck: Object.fromEntries(keys.map((k) => [k, share(rows.map((r) => (r.generate ? r.typecheck[k] : false)))])) as Record<TsKey, Share>,
-    usable: share(rows.map((r) => r.generate && keys.every((k) => r.typecheck[k] === true))),
-    handled: share(rows.map((r) => usable(r) || refused(r))),
+    usable: share(rows.map(usableOrUnmeasured)),
+    handled: share(rows.map((r) => (refused(r) ? true : usableOrUnmeasured(r)))),
     roundtrip: share(rows.map((r) => r.roundtrip)),
     medianMs: median(ms),
     p90Ms: ms.length === 0 ? null : (ms[Math.min(ms.length - 1, Math.floor(ms.length * P90))] ?? null),

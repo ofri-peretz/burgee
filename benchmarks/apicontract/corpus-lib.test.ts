@@ -174,6 +174,13 @@ describe('summary folding', () => {
     expect(renderSummary({ run: 'r', tools: [foldTool('ours', [refusal])], rows: {} })).toContain('| 0.0% (0/1) | 100.0% (1/1) |');
   });
 
+  it('leaves a row a crashed compiler never reached out of usable, rather than failing it', () => {
+    const unmeasured = row('v', 'ours', { typecheck: { ts59: null, ts60: null, ts70: true } });
+    const folded = foldTool('ours', [unmeasured, row('w', 'ours')]);
+    expect(folded.usable).toEqual({ passed: 1, of: 1 });
+    expect(folded.handled).toEqual({ passed: 1, of: 1 });
+  });
+
   it('median handles empty, odd and even', () => {
     expect(median([])).toBeNull();
     expect(median([3, 1, 2])).toBe(2);
