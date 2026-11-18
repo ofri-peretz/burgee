@@ -83,8 +83,9 @@ reviewer at Deploy should accept or send back.
   `git show` to run. Spawning a subprocess is bellpull's job (`scripts/inline-implementation-lock.test.ts`)
   and apicontract does not depend on bellpull; adding it is a `package.json` + lockfile edit,
   the integrator's. `diff()` takes a `GitReader`, tested with a fake; wiring bellpull's `run` in
-  is one line once the dependency exists. MCP snapshots read through `inputs.ts`, so they work as
-  soon as the `mcp` adapter (PR #1621) lands; until then only OpenAPI documents are detected.
+  is one line once the dependency exists. Every side reads through `inputs.ts`'s built-in adapters, so
+  OpenAPI, Swagger 2.0, AsyncAPI, MCP snapshots and JSON Schema are all diffed; the command's
+  tests read an MCP `tools/list` snapshot and a JSON Schema pair end to end.
 - **R5** text grouped by operation, `--json` (burgee envelope: verdict, summary, findings sorted
   by verdict then location), `--sarif` (SARIF 2.1.0 as the text output, and under `data.sarif`),
   `--changeset <package>` (`.changeset/apicontract-diff-<sha8>.md`; breaking or unknown → major,
@@ -100,5 +101,5 @@ reviewer at Deploy should accept or send back.
 ### Not done here
 
 The D1–D5 readings (corpus lane), the unannounced MCP break in ten servers' histories (SC10), `diff --since <ref>`, `compat.qnt` in
-`models.yml`, and reading MCP snapshots, JSON Schema and AsyncAPI end to end (adapters in #1621;
-the engine is tested on hand-built contracts in those directions).
+`models.yml`, and an AsyncAPI document diffed end to end (the engine is tested on hand-built
+publish/subscribe contracts).

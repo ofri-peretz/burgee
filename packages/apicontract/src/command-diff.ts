@@ -70,7 +70,6 @@ const read = (spec: string, cwd: string, git: GitReader): Side_ => {
   }
   const found = Object.entries(builtinAdapters).find(([, adapter]) => adapter.detect(document));
   if (found === undefined) {
-    // Stryker disable next-line StringLiteral: equivalent while `openapi` is the only built-in adapter on main
     throw new Error(`no input format reads ${spec}. fix: pass a document one of these reads: ${Object.keys(builtinAdapters).join(', ')}`);
   }
   return { label: spec, file, contract: found[1].read(document) };

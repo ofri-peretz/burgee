@@ -31,6 +31,9 @@ const scratch = (files: Record<string, string>): string => {
 const spec = (extra: string): string =>
   `openapi: 3.1.0\ninfo: { title: t, version: '1' }\npaths:\n  /a:\n    get:\n      operationId: a\n      responses:\n        '200':\n          content:\n            application/json:\n              schema: { type: object${extra} }\n`;
 
+const tools = (query: object) => JSON.stringify({ tools: [{ name: 'search', inputSchema: { type: 'object', properties: { query } } }] });
+const schema = (extra: string) => `$schema: https://json-schema.org/draft/2020-12/schema\ntype: object\nproperties:\n  id: { type: string${extra} }\n`;
+
 describe('apicontract diff, through burgee', () => {
   // burgee's first run loads its renderers lazily; paying that here keeps each case under 5 s.
   beforeAll(async () => {
@@ -121,6 +124,17 @@ describe('diff', () => {
     );
   });
 
+  it('diffs an MCP tools/list snapshot: a narrower input breaks callers, under our ids', () => {
+    const dir = scratch({ 'old.json': tools({ type: 'string' }), 'new.json': tools({ type: 'string', maxLength: 64 }) });
+    const data = diff({ cwd: dir, old: 'old.json', new: 'new.json' });
+    expect(data).toMatchObject({ verdict: 'breaking', findings: [{ id: 'ac-maxLength-set', operation: 'search', payload: 'arguments', direction: 'tool-call' }] });
+  });
+
+  it('diffs two JSON Schema documents', () => {
+    const dir = scratch({ 'old.yaml': schema(''), 'new.yaml': schema(', format: uuid') });
+    expect(diff({ cwd: dir, old: 'old.yaml', new: 'new.yaml' })).toMatchObject({ verdict: 'breaking', findings: [{ id: 'ac-format-set', pointer: '/properties/id/format' }] });
+  });
+
   it('reads a git:<ref>:<path> side through the git reader, from cwd', () => {
     const calls: unknown[] = [];
     const git: GitReader = (ref, path, cwd) => {
@@ -141,11 +155,12 @@ describe('diff', () => {
   });
 
   it('refuses what it cannot parse or read, with a fix line', () => {
-    const dir = scratch({ 'bad.yaml': 'a: [', 'other.yaml': 'swagger: "2.0"\n', 'plain.yaml': 'just: data\n' });
+    const dir = scratch({ 'bad.yaml': 'a: [', 'plain.yaml': 'just: data\n' });
     expect(() => diff({ cwd: dir, old: 'bad.yaml', new: 'bad.yaml' })).toThrow(/^cannot parse bad\.yaml: [\s\S]+\. fix: pass a JSON or YAML document$/);
     expect(() => diff({ cwd: dir, old: 'bad.yaml', new: 'bad.yaml' })).toThrow(expect.objectContaining({ cause: expect.any(Error) }));
-    expect(() => diff({ cwd: dir, old: 'plain.yaml', new: 'plain.yaml' })).toThrow('no input format reads plain.yaml. fix: pass a document one of these reads: openapi');
-    expect(() => diff({ cwd: dir, old: 'other.yaml', new: 'plain.yaml' })).toThrow('no input format reads other.yaml');
+    expect(() => diff({ cwd: dir, old: 'plain.yaml', new: 'plain.yaml' })).toThrow(
+      'no input format reads plain.yaml. fix: pass a document one of these reads: openapi, swagger2, asyncapi, mcp, jsonschema',
+    );
   });
 
   it('writes a changeset whose bump follows the verdict, named by its content', () => {

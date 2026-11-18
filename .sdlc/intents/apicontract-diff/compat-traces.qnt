@@ -33,4 +33,11 @@ module compatTraces {
 
   action init = pick
   action step = pick
+
+  // `models.yml` runs every model with `--invariant=safety`: compat.qnt's laws, which hold on the
+  // versions `C::choose` draws beside each pair, and FULL being BACKWARD and FORWARD on the pair.
+  val safety = all {
+    C::safety,
+    verdict.full == (verdict.backward and verdict.forward),
+  }
 }
