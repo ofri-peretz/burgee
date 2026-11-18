@@ -19,11 +19,11 @@ const generate = (spec: unknown): Record<string, unknown> =>
   Object.fromEntries(Object.entries((spec as Spec).$defs).map(([name, schema]) => [name, standardJson(fromJsonSchema({ ...schema, $defs: (spec as Spec).$defs }).schema)]));
 
 /** The extractor half: R3 on the module the generator made. */
-const extract = (module: Record<string, unknown>): unknown => extractSchemas(module, {});
+const extract = (module: Record<string, unknown>): unknown => extractSchemas(module, {}).document;
 
 describe('the round trip through the validator and the standard-schema extractor (R-RT)', () => {
   it('gives back every Standard Schema fixture of the validator, equal', async () => {
-    const spec = extractSchemas({ Owner, Pet }, {});
+    const spec = extractSchemas({ Owner, Pet }, {}).document;
     const result = await roundtrip(spec, generate, extract);
     expect(result.diff).toEqual([]);
     expect(result.equal).toBe(true);

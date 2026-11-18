@@ -3,20 +3,17 @@
  * as one JSON Schema document with a `$defs` entry per export.
  *
  * Any value implementing Standard JSON Schema is read the same way, so one extractor covers every
- * conforming library. A value that does not is reported, by library, in the document's
- * `x-findings`: the extractor host has no other place to put a finding, and dropping the schema
- * without a word is the one thing an extractor must not do.
+ * conforming library. A value that does not is reported, by library, as a finding beside the
+ * document (`{ document, findings }`): dropping the schema without a word is the one thing an
+ * extractor must not do, and the finding is not the user's spec, so it stays out of it.
  */
 import { optional, number, object, string } from 'validator';
 import { standardJson } from 'validator/json-schema';
 
 import { definitions, escape, isStandard, type Json, loadModule, placeAt, relocate, sideOf, toJsonSchema } from './extract-standard.js';
-import { type Extractor, type Options, type Plugin } from './host.js';
+import { type Extractor, type ExtractorResult, type Options, type Plugin } from './host.js';
 
 export const DIALECT = 'https://json-schema.org/draft/2020-12/schema';
-
-/** The key the findings are kept under, at the root of the document. */
-export const FINDINGS = 'x-findings';
 
 /** Every export, by name, that is a schema; or the one named, whatever it is. */
 export const exportsOf = (namespace: Json, wanted: unknown): string[] => {
@@ -27,8 +24,8 @@ export const exportsOf = (namespace: Json, wanted: unknown): string[] => {
   return [wanted as string];
 };
 
-/** The document for some exports of a module already loaded. */
-export const extractSchemas = (namespace: Json, options: Options): Json => {
+/** The document for some exports of a module already loaded, and what it could not read. */
+export const extractSchemas = (namespace: Json, options: Options): ExtractorResult => {
   const side = sideOf(options.side);
   const place = placeAt('#/$defs/');
   for (const name of exportsOf(namespace, options.export)) {
@@ -36,7 +33,7 @@ export const extractSchemas = (namespace: Json, options: Options): Json => {
     if ('finding' in result) place.findings.push(result.finding);
     else place.defs.set(name, relocate(result.schema, name, place));
   }
-  return { $schema: DIALECT, $defs: definitions(place), ...(place.findings.length === 0 ? {} : { [FINDINGS]: place.findings }) };
+  return { document: { $schema: DIALECT, $defs: definitions(place) }, findings: place.findings };
 };
 
 const Pet = standardJson(object({ id: number(), name: optional(string()) }));

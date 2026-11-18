@@ -1,9 +1,11 @@
 /**
  * `apicontract extract` (apicontract-gen-command R9): run an extractor on the user's code and write
- * the spec it returns through the same {@link commit} as `gen`, as one generated JSON file.
+ * the spec it returns through the same {@link commit} as `gen`, as one generated JSON file. What the
+ * spec could not say comes back as findings beside it, reported as `gen` reports a generator's.
  */
 import { join } from 'node:path';
 
+import { documentOf } from './host.js';
 import { commit, type Report } from './run-commit.js';
 import { type Config, loadConfig, relativePath, UsageError, validateConfig } from './run-config.js';
 import { loadPlugins } from './run-load.js';
@@ -31,8 +33,8 @@ export const extract = async (options: ExtractOptions): Promise<Report> => {
   const out = relativePath(options.out ?? config.extract.out ?? 'spec.json');
   if (out === undefined || !out.endsWith('.json')) throw new UsageError('--out must be a .json file inside the project. fix: pass --out spec.json');
   const host = await loadPlugins(config);
-  const document = (await host.extractor(from).run(config.extract.options)) as unknown;
+  const { document, findings } = documentOf(await host.extractor(from).run(config.extract.options));
   const content = JSON.stringify(document, undefined, 2) as string | undefined;
   if (content === undefined) throw new Error(`the extractor "${from}" returned no document. fix: return the spec object from \`run(options)\``);
-  return commit({ root: config.root, command: 'apicontract extract', produced: [{ target: 'extract', files: [{ path: out, content: `${content}\n`, owner: 'generated' }] }], findings: [], check: options.check, dryRun: options.dryRun, force: options.force });
+  return commit({ root: config.root, command: 'apicontract extract', produced: [{ target: 'extract', files: [{ path: out, content: `${content}\n`, owner: 'generated' }] }], findings: findings.map((finding) => ({ ...finding, target: 'extract' })), check: options.check, dryRun: options.dryRun, force: options.force });
 };
