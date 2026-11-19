@@ -111,8 +111,9 @@ container's own `node_modules`:
    The install runs only when the lockfile, the image or the install command changed. This is the
    only step with the network unless `network` says otherwise.
 2. **Run.** `setup`, then the project's own oxmutate, with **no network** by default.
-3. **Copy back.** The reports and the incremental file are copied to the host through a stopped
-   container (`<engine> cp`), so the engine can be local or remote, Docker or Podman.
+3. **Copy back.** Each report and the incremental file is copied to the host with `<engine> cp`
+   from a container created on the volume and never started, so the engine can be local or remote,
+   Docker or Podman, and no archive is unpacked on the host.
 4. With `ephemeral`, the volume is removed: nothing stays behind.
 
 Every container drops all capabilities, cannot gain one (`no-new-privileges`), is removed when it

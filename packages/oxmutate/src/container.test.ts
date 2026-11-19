@@ -86,8 +86,6 @@ const HARDENED = ['--cap-drop=ALL', '--security-opt=no-new-privileges', '--label
 
 /** A container's script, line by line. */
 const script = (args: readonly string[]): string[] => args.at(-1)!.split('\n');
-/** The script of a create or run whose script is last but for `sh` and the kept files (the copy back). */
-const backScript = (args: readonly string[]): string => args[args.indexOf('-c') + 1]!;
 
 describe('the container plan', () => {
   const input = { rel: 'packages/a', argv: ['run', "it's"], key: 'k1', install: 'npm ci', volume: 'vol', keep: ['packages/a/reports/m.json'] };
@@ -98,7 +96,7 @@ describe('the container plan', () => {
     expect(plan.drop).toEqual(['volume', 'rm', '-f', 'vol']);
     expect(plan.sync.slice(0, -1)).toEqual(['create', '--rm', ...HARDENED, '-v', 'vol:/w', '-w', '/w', DEFAULTS.image, 'sh', '-c']);
     expect(plan.run.slice(0, -1)).toEqual(['run', '--rm', '--init', '--network=none', ...HARDENED, '-v', 'vol:/w', '-w', '/w', '-e', 'OXMUTATE_CONTAINER=inside', DEFAULTS.image, 'sh', '-c']);
-    expect(plan.back.slice(0, 13)).toEqual(['create', '--network=none', ...HARDENED, '-v', 'vol:/w', '-w', '/w/src', DEFAULTS.image, 'sh', '-c']);
+    expect(plan.back).toEqual(['create', '--network=none', ...HARDENED, '-v', 'vol:/w', DEFAULTS.image, 'true']);
   });
 
   it('gives every container every option set, and the run alone its network and runArgs', () => {
@@ -142,12 +140,6 @@ describe('the container plan', () => {
     expect(plan.sync.at(-1)).not.toContain('in.tar');
   });
 
-  it('copies back only the kept files that exist', () => {
-    const { back } = containerPlan(DEFAULTS, input);
-    expect(backScript(back)).toBe('rm -f /w/out.tar; for f; do [ -e "$f" ] && printf "%s\\n" "$f"; done > /w/keep.list; if [ -s /w/keep.list ]; then tar -cf /w/out.tar -T /w/keep.list; fi');
-    expect(back.slice(-2)).toEqual(['sh', 'packages/a/reports/m.json']);
-  });
-
   it('prunes what the host deleted since the last sync, and nothing else', () => {
     const dir = realpathSync(mkdtempSync(path.join(tmpdir(), 'oxmutate-prune-')));
     made.push(dir);
@@ -181,7 +173,7 @@ function repo(files: Record<string, string>): string {
 }
 
 interface Call { cmd: string; args: readonly string[]; o: RunOptions }
-interface Outcome { code?: number | null; syncCode?: number; backCode?: number; out?: string; outFails?: boolean; fail?: Error; tarFails?: boolean; createFails?: boolean; cpFails?: boolean }
+interface Outcome { code?: number | null; syncCode?: number; backFails?: boolean; out?: string; outFails?: boolean; fail?: Error; tarFails?: boolean; createFails?: boolean; cpFails?: boolean }
 
 type Answer = { code: number | null; stdout: string; stderr: string };
 const answer = (code: number | null, stdout = ''): Answer => ({ code, stdout, stderr: code === 0 ? '' : ' engine said no \n' });
@@ -215,14 +207,14 @@ function fake(result: Outcome) {
   };
   const handlers: Record<string, (rest: string[]) => Answer> = {
     create: (rest) => {
-      if (result.createFails) return answer(1);
+      if (result.createFails || (result.backFails && rest.at(-1) === 'true')) return answer(1);
       const id = `c${String(scripts.size + 1)}`;
       scripts.set(id, rest[rest.indexOf('-c') + 1] ?? '');
       return answer(0, `${id}\n`);
     },
     // A container side is `<id>:<path>`; a Windows host path has a colon too (`C:\\…`).
     cp: ([from = '', to = '']) => (/^c\d+:/u.test(from) ? copyOut(to) : copyIn(from)),
-    start: (rest) => answer(isSync(rest.at(-1) ?? '') ? (result.syncCode ?? 0) : (result.backCode ?? 0)),
+    start: (rest) => answer(isSync(rest.at(-1) ?? '') ? (result.syncCode ?? 0) : 0),
     run: () => answer('code' in result ? (result.code ?? null) : 0),
   };
   const spawn = async (cmd: string, args: readonly string[], o: RunOptions) => {
@@ -349,20 +341,20 @@ describe('running in the container', () => {
     expect(f.scripts.get('c1')).toContain('then npm install;');
   });
 
-  it('copies the kept files back through a stopped container, removes it, and sends the host’s copy of them in', async () => {
+  it('copies each kept file back from a container never started, removes it, and sends the host’s copy of them in', async () => {
     const top = repo({ 'package.json': '{}', '.gitignore': 'reports\n', 'reports/inc.json': 'host' });
-    const from = repo({ 'reports/inc.json': 'from the container' });
-    spawnSync('tar', ['-cf', 'out.tar', 'reports/inc.json'], { cwd: from });
-    const f = fake({ out: path.join(from, 'out.tar') });
-    expect(await runInContainer({ ...C, install: '' }, { root: top, keep: [path.join(top, 'reports/inc.json'), '/elsewhere/x'] }, [], { spawn: f.spawn })).toBe(0);
-    expect(f.verbs()).toEqual(['volume create', 'create', 'cp', 'start', 'run', 'create', 'start', 'cp', 'rm']);
+    const from = repo({ 'inc.json': 'from the container' });
+    const f = fake({ out: path.join(from, 'inc.json') });
+    expect(await runInContainer({ ...C, install: '' }, { root: top, keep: [path.join(top, 'reports/inc.json'), path.join(top, 'reports/new/m.json')] }, [], { spawn: f.spawn })).toBe(0);
+    expect(f.verbs()).toEqual(['volume create', 'create', 'cp', 'start', 'run', 'create', 'cp', 'cp', 'rm']);
     expect(f.sent()).toContain('reports/inc.json');
     expect(f.scripts.get('c1')).not.toContain('installed');
-    const [, , , , , back, , out, rm] = f.ofEngine();
-    expect(back!.args.slice(-2)).toEqual(['sh', 'reports/inc.json']);
-    expect(out!.args.slice(0, 2)).toEqual(['cp', 'c2:/w/out.tar']);
-    expect(rm!.args).toEqual(['rm', '-f', 'c2']);
+    const outs = f.ofEngine().filter((c) => c.args[0] === 'cp' && c.args[1]!.startsWith('c2:')).map((c) => c.args[1]);
+    expect(outs.toSorted()).toEqual(['c2:/w/src/reports/inc.json', 'c2:/w/src/reports/new/m.json']);
+    expect(f.ofEngine().at(-1)!.args).toEqual(['rm', '-f', 'c2']);
     expect(readFileSync(path.join(top, 'reports/inc.json'), 'utf8')).toBe('from the container');
+    // A kept file in a directory the host does not have yet gets it.
+    expect(readFileSync(path.join(top, 'reports/new/m.json'), 'utf8')).toBe('from the container');
   });
 
   it('finds the kept files of a project below the root, whatever spelling of its path the host gives', async () => {
@@ -372,7 +364,7 @@ describe('running in the container', () => {
     const f = fake({});
     await runInContainer(C, { root: spelled, keep: [path.join(spelled, 'reports/m.json')] }, [], { spawn: f.spawn });
     expect(f.sent()).toContain('packages/a/reports/m.json');
-    expect(f.ofEngine().find((c) => c.args.includes('create') && c.args.includes('--network=none'))!.args.at(-1)).toBe('packages/a/reports/m.json');
+    expect(f.ofEngine().filter((c) => c.args[0] === 'cp').map((c) => c.args[1]).at(-1)).toBe('c2:/w/src/packages/a/reports/m.json');
     expect(f.ofEngine().find((c) => c.args[0] === 'run')!.args.at(-1)).toContain("cd '/w/src/packages/a'");
   });
 
@@ -381,22 +373,22 @@ describe('running in the container', () => {
     const f = fake({});
     const elsewhere = process.platform === 'win32' ? 'Z:\\elsewhere\\r.json' : '/elsewhere/r.json';
     await runInContainer(C, { root: path.join(top, 'packages/a'), keep: [elsewhere, path.join(top, 'r.json')] }, [], { spawn: f.spawn });
-    expect(f.ofEngine().find((c) => c.args.includes('create') && c.args.includes('--network=none'))!.args.slice(-2)).toEqual(['sh', 'r.json']);
+    expect(f.ofEngine().filter((c) => c.args[0] === 'cp' && c.args[1]!.startsWith('c2:')).map((c) => c.args[1])).toEqual(['c2:/w/src/r.json']);
   });
 
-  it('extracts nothing when the copy out fails, still removes the container, and copies back nothing when nothing is kept', async () => {
+  it('writes nothing when a kept file did not come back, still removes the container, and copies back nothing when nothing is kept', async () => {
     const top = repo({ 'package.json': '{}' });
     const f = fake({ outFails: true });
     expect(await runInContainer(C, { root: top, keep: [path.join(top, 'reports/none.json')] }, [], { spawn: f.spawn })).toBe(0);
-    expect(f.verbs().slice(-4)).toEqual(['create', 'start', 'cp', 'rm']);
+    expect(f.verbs().slice(-3)).toEqual(['create', 'cp', 'rm']);
+    expect(existsSync(path.join(top, 'reports'))).toBe(false);
     expect(f.calls.filter((c) => c.cmd === 'tar').map((c) => c.args[0])).toEqual(['-cf']);
     const none = fake({});
     await runInContainer(C, { root: top, keep: [] }, [], { spawn: none.spawn });
     expect(none.verbs()).not.toContain('rm');
-    // A copy back whose packing failed is not copied out, and is still removed.
-    const unpacked = fake({ backCode: 1, out: '/nonexistent' });
-    await runInContainer(C, { root: top, keep: [path.join(top, 'r.json')] }, [], { spawn: unpacked.spawn });
-    expect(unpacked.verbs().slice(-3)).toEqual(['create', 'start', 'rm']);
+    const lost = fake({ backFails: true });
+    await expect(runInContainer(C, { root: top, keep: [path.join(top, 'r.json')] }, [], { spawn: lost.spawn })).rejects.toThrow("the container could not be created: engine said no. fix: check container.image and the engine's own error");
+    expect(lost.verbs()).not.toContain('rm');
   });
 
   it('with ephemeral, removes the volume after the run, and after a failed one', async () => {

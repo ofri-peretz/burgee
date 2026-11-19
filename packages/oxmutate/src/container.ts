@@ -8,7 +8,8 @@
  *   1. sync: the source is put into the volume (files the host deleted are deleted there), and the
  *      install runs when its key changed. The only step with the network unless `network` says so.
  *   2. run: `setup`, then oxmutate, with no network by default.
- *   3. copy back: the reports and the incremental file are packed and copied to the host.
+ *   3. copy back: each kept file (the reports, the incremental file) is copied to the host with
+ *      `<engine> cp` from a container created on the volume and never started.
  *   4. with `ephemeral`, the volume is removed.
  * Every container drops all capabilities, cannot gain one (`no-new-privileges`), is labelled
  * `dev.oxmutate=1` and is removed after it ends. `platform`, `user`, `runtime` (a sandbox such as
@@ -16,7 +17,7 @@
  * `args` passes anything else to each, `runArgs` to the run's alone.
  */
 import { createHash } from 'node:crypto';
-import { existsSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -210,7 +211,7 @@ export function containerPlan(c: Container, p: PlanInput): { volume: string[]; s
     volume: ['volume', 'create', '--label', 'dev.oxmutate=1', p.volume],
     sync: ['create', '--rm', ...common(c), ...volume, '-w', WORK, c.image, 'sh', '-c', sync],
     run: ['run', '--rm', '--init', `--network=${c.network}`, ...common(c), ...volume, '-w', WORK, '-e', `${INSIDE}=inside`, ...c.runArgs, c.image, 'sh', '-c', run],
-    back: ['create', '--network=none', ...common(c), ...volume, '-w', SRC, c.image, 'sh', '-c', `rm -f ${WORK}/out.tar; for f; do [ -e "$f" ] && printf "%s\\n" "$f"; done > ${WORK}/keep.list; if [ -s ${WORK}/keep.list ]; then tar -cf ${WORK}/out.tar -T ${WORK}/keep.list; fi`, 'sh', ...p.keep],
+    back: ['create', '--network=none', ...common(c), ...volume, c.image, 'true'],
     drop: ['volume', 'rm', '-f', p.volume],
   };
 }
@@ -281,15 +282,26 @@ function installKey(c: Container, top: string, install: string, lock: string | u
   return hash.digest('hex');
 }
 
-/** Copies the kept files back to the host, through a stopped container. */
-async function copyBack({ engine, spawn, back, io, top }: { engine: Engine; spawn: Spawn; back: readonly string[]; io: string; top: string }): Promise<void> {
-  const packed = await startWith(engine, back, undefined);
+/**
+ * Copies each kept file back to the host from a container created on the volume and never started.
+ * One `<engine> cp` per file, into the host's own temporary directory first, so a file the run did
+ * not write leaves nothing behind, not even its directory. No tar runs on the host.
+ */
+async function copyBack({ engine, back, keep, io, top }: { engine: Engine; back: readonly string[]; keep: readonly string[]; io: string; top: string }): Promise<void> {
+  const made = await engine(back);
+  if (made.code !== 0) throw new Error(`the container could not be created: ${made.stderr.trim()}. fix: check container.image and the engine's own error`);
+  const id = made.stdout.trim();
   try {
-    if (packed.code === 0 && (await engine(['cp', `${packed.id}:${WORK}/out.tar`, path.join(io, 'out.tar')])).code === 0) {
-      await spawn('tar', ['-xf', 'out.tar', '-C', top], { cwd: io, runtime: ambientRuntime(), timeout: 0 });
-    }
+    await Promise.all(
+      keep.map(async (file, i) => {
+        const staged = path.join(io, `kept-${String(i)}`);
+        if ((await engine(['cp', `${id}:${SRC}/${file}`, staged])).code !== 0) return;
+        mkdirSync(path.dirname(path.join(top, file)), { recursive: true });
+        copyFileSync(staged, path.join(top, file));
+      }),
+    );
   } finally {
-    await engine(['rm', '-f', packed.id]);
+    await engine(['rm', '-f', id]);
   }
 }
 
@@ -326,7 +338,7 @@ export async function runInContainer(c: Container, o: { root: string; keep: read
       const synced = await startWith(engine, plan.sync, source.file, { stdio: 'inherit' });
       if (synced.code !== 0) throw new Error(`the sync into the container or its install failed (exit ${String(synced.code)}); its output is above. fix: set container.install, or container.image to one with what the install needs`);
       const ran = await engine(plan.run, { stdio: 'inherit' });
-      if (keep.length > 0) await copyBack({ engine, spawn, back: plan.back, io, top });
+      if (keep.length > 0) await copyBack({ engine, back: plan.back, keep, io, top });
       return ran.code ?? 1;
     } finally {
       if (c.ephemeral) await engine(plan.drop);
