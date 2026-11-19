@@ -10,11 +10,12 @@ import path from 'node:path';
 import { defineCommand, defineProgram, ExitCode } from 'burgee';
 
 import { DEFAULT_IDLE_TIMEOUT_MS, loadOptions, type Options } from './config.js';
+import { INSIDE, runInContainer, withFlags } from './container.js';
 import { InstrumentFault, run, type MutantResult, type RunResult } from './coordinator.js';
 import { frozenOracle } from './frozen.js';
 import { parseShard } from './lanes.js';
 import { describe, textSummary, VERSION, writeReports } from './reports.js';
-import { cwd, stderr } from './runtime.js';
+import { argv, cwd, env, stderr } from './runtime.js';
 
 const TEXT = Symbol.for('burgee.text');
 
@@ -106,6 +107,25 @@ function overridesFrom(o: Record<string, unknown>, root: string): Partial<Option
   return overrides;
 }
 
+/**
+ * With `container` set (and not already inside one), the run happens there, and this exits with
+ * its code, or CONFIG when it could not start. Otherwise it returns, and the run happens here.
+ */
+function inContainer(options: Options, o: Record<string, unknown>, root: string, exit: (code: number) => void): void {
+  const container = env[INSIDE] === 'inside' ? undefined : withFlags(options.container, o);
+  if (!container) return;
+  const reports: [string, string][] = [['json', options.jsonReport], ['sarif', options.sarifReport], ['html', options.htmlReport]];
+  const keep = [...(options.incremental ? [options.incrementalFile] : []), ...reports.filter(([r]) => options.reporters.includes(r)).map(([, f]) => f)];
+  let code: number;
+  try {
+    code = runInContainer(container, { root, keep, since: options.since, frozenOracle: options.frozenOracle }, argv.slice(2));
+  } catch (e) {
+    stderr.write(`oxmutate: ${(e as Error).message}\n`);
+    code = ExitCode.CONFIG;
+  }
+  exit(code);
+}
+
 const runCommand = defineCommand({
   name: 'run',
   description: 'Mutation-test the project in the current directory',
@@ -138,12 +158,15 @@ const runCommand = defineCommand({
     break: { type: 'number', description: 'exit 1 when the mutation score is below this' },
     reportDir: { type: 'string', description: 'write mutation.json, mutation.sarif and mutation.html here instead of the configured paths' },
     config: { type: 'string', description: 'an oxmutate config file (JSON or JS) instead of oxmutate.config.*' },
+    container: { type: 'boolean', description: 'run inside a container oxmutate starts, on a copy of the repository (container.*; --no-container turns a configured one off)' },
+    containerImage: { type: 'string', description: 'the image for --container (default node:<this Node major>-bookworm-slim); implies --container' },
   },
   run: async ({ options, exit }) => {
     const root = cwd();
     const o = options as Record<string, unknown>;
     const options_ = await loadOptions(root, overridesFrom(o, root), typeof o['config'] === 'string' ? o['config'] : undefined);
     if (typeof o['break'] === 'number') options_.thresholds.break = o['break'];
+    inContainer(options_, o, root, exit);
     let result: RunResult;
     try {
       result = await run(options_);
