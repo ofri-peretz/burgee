@@ -15,7 +15,7 @@
  * reason, and the ratchet file only moves up.
  */
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -36,11 +36,14 @@ import {
   RATCHETS_FILE,
   type RatchetsDoc,
   record,
+  removeWrapper,
   type ReportMutant,
   SKIPPED_TESTS,
   summarise,
+  writeWrapper,
 } from './mutation.js';
 import { decisionNumber } from './ratchet-steps.js';
+import { scratchDirs } from './scratch-dir.js';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PACKAGES = readdirSync(join(REPO_ROOT, 'packages'), { withFileTypes: true })
@@ -338,5 +341,22 @@ describe('the lane report', () => {
 
   it('passes when every mutant is detected', () => {
     expect(changedReport(specs, [{ pkg: 'roundel', ok: true, summary: { ...summary, survived: 0, undetected: [] }, minutes: 0.1 }]).at(-1)).toMatch(/^✅/u);
+  });
+});
+
+describe('the verdict cache outlives a lane run (roadmap 3.2)', () => {
+  const scratch = scratchDirs();
+
+  it('removes the generated vitest config and keeps the incremental file', () => {
+    const packageDir = scratch('mutation-wrapper-');
+    const first = writeWrapper(packageDir, []);
+    writeFileSync(first.incrementalFile, '{"version":1,"mutants":{}}');
+    removeWrapper(first);
+    expect(existsSync(first.vitestConfig)).toBe(false);
+    expect(existsSync(first.incrementalFile)).toBe(true);
+    // The next run reads it from the same place.
+    const second = writeWrapper(packageDir, []);
+    expect(second.incrementalFile).toBe(first.incrementalFile);
+    expect(readFileSync(second.incrementalFile, 'utf8')).toBe('{"version":1,"mutants":{}}');
   });
 });

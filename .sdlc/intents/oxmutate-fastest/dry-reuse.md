@@ -26,8 +26,8 @@ on three packages before anything is built.**
 each on `validator` (median 46.9%), `paratext` (64.3%) and `oxmutate` (21.0%), ranging from 11.2%
 to 71.0%. The readings, the command and the load at each start are in
 [`oxmutate-dry-share-2026-11.md`](../../research/oxmutate-dry-share-2026-11.md). All nine were cold
-runs: the lane deletes its incremental file after each run, so with verdict reuse working, the dry
-run's share of a repeat push would be higher, not lower.
+runs: the lane deleted its incremental file after each run (fixed 2026-11-18, roadmap `3.2`), so with
+verdict reuse working, the dry run's share of a repeat push would be higher, not lower.
 
 ## The proposal
 
