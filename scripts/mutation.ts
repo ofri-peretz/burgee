@@ -401,6 +401,33 @@ function restore(packageDir: string, before: ReadonlyMap<string, string>): strin
   return changed.map(([f]) => f);
 }
 
+export interface Wrapper {
+  /** `<package>/.mutation/`, gitignored. */
+  dir: string;
+  /** The generated vitest config, rewritten for every run. */
+  vitestConfig: string;
+  /** oxmutate's verdict cache (roadmap 3.2), which outlives the run. */
+  incrementalFile: string;
+}
+
+/** Write the run's vitest config into `<package>/.mutation/`. */
+export function writeWrapper(packageDir: string, skipped: readonly string[]): Wrapper {
+  const dir = path.join(packageDir, WRAPPER_DIR);
+  const w = { dir, vitestConfig: path.join(dir, 'vitest.config.ts'), incrementalFile: path.join(dir, 'oxmutate-incremental.json') };
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(w.vitestConfig, wrapperConfig(packageDir, skipped));
+  return w;
+}
+
+/**
+ * Remove what a run generated, and keep the verdict cache for the next run. Removing the whole
+ * directory threw the cache away, so every lane run started cold and reused nothing. The cache
+ * guards its own staleness (fingerprint, 1-in-20 audit, #1467); this only lets it be read.
+ */
+export function removeWrapper(w: Wrapper): void {
+  rmSync(w.vitestConfig, { force: true });
+}
+
 /** Stryker over `mutate` in one package. `budgetMs` kills it, and the run reports why. */
 export function runPackage(pkg: string, mutate: readonly string[], o: { concurrency: number; timeoutMS: number; dryRunTimeoutMinutes: number; budgetMs?: number; engine?: Engine }): PackageRun {
   const engine = o.engine ?? 'stryker';
@@ -409,13 +436,11 @@ export function runPackage(pkg: string, mutate: readonly string[], o: { concurre
   const work = mkdtempSync(path.join(tmpdir(), `mutation-${pkg}-`));
   const reportFile = path.join(work, 'report.json');
   const configFile = path.join(work, 'stryker.config.json');
-  const wrapperDir = path.join(packageDir, WRAPPER_DIR);
-  const vitestConfig = path.join(wrapperDir, 'vitest.config.ts');
-  mkdirSync(wrapperDir, { recursive: true });
-  writeFileSync(vitestConfig, wrapperConfig(packageDir, Object.keys(SKIPPED_TESTS[pkg] ?? {})));
+  const wrapper = writeWrapper(packageDir, Object.keys(SKIPPED_TESTS[pkg] ?? {}));
+  const { vitestConfig } = wrapper;
   // oxmutate reads the same keys from a config of its own; it never writes the sources, so the
   // snapshot below only ever finds Stryker's leftovers.
-  const config = engine === 'oxmutate' ? oxmutateConfig({ ...o, vitestConfig, mutate, reportFile, incrementalFile: path.join(wrapperDir, 'oxmutate-incremental.json') }) : strykerConfig({ ...o, vitestConfig, mutate, reportFile });
+  const config = engine === 'oxmutate' ? oxmutateConfig({ ...o, vitestConfig, mutate, reportFile, incrementalFile: wrapper.incrementalFile }) : strykerConfig({ ...o, vitestConfig, mutate, reportFile });
   writeFileSync(configFile, JSON.stringify(config, null, 2));
   const before = snapshot(packageDir, mutate);
   const started = Date.now();
@@ -446,7 +471,7 @@ export function runPackage(pkg: string, mutate: readonly string[], o: { concurre
     return result(undefined, summary);
   } finally {
     rmSync(work, { recursive: true, force: true });
-    rmSync(wrapperDir, { recursive: true, force: true });
+    removeWrapper(wrapper);
   }
 }
 

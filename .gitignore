@@ -45,7 +45,7 @@ packages/compat-oracle/.grade-*/
 .oxmutate-tmp/
 # Stryker's vitest runner writes its setup file into the package it runs in.
 stryker-setup-*.js
-# scripts/mutation.ts writes each run's vitest config here, inside the package, and removes it.
+# scripts/mutation.ts writes each run's vitest config here, inside the package, and removes it; oxmutate's verdict cache (oxmutate-incremental.json) stays for the next run.
 .mutation/
 
 # A test cleanup that could not rename its tree into the OS temporary directory leaves it beside the original (scratch-dir.ts discard()) until its detached rm ends.
