@@ -86,6 +86,7 @@ export function merge(fresh: DryResult, kept: Record<string, DryEntry>): DryResu
 /** Each test's id, state and the mutants it reached, then the file collection's: what the verdicts are planned from. */
 function shape(tests: readonly DryTest[], perTest: Hits, file: string): string {
   const covered = (id: string): string => Object.keys(perTest[id] ?? {}).sort().join(',');
+  // Stryker disable next-line StringLiteral: a test is `<Vitest's id>:<one-word state>:<ids>`, so no two lists run together alike without the separator
   return [...tests.map((t) => `${t.id}:${t.state}:${covered(t.id)}`).sort(), `${FILE_KEY}:${covered(`${FILE_KEY}${file}`)}`].join('|');
 }
 

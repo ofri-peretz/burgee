@@ -195,6 +195,9 @@ describe('a mutant described for a reader', () => {
 const many = (k: number): MutantResult[] => Array.from({ length: k }, (_, i) => mutant({ status: 'Survived', start: { line: i + 1, column: 1 } }));
 const listed = (t: string): string[] => t.split('\n').filter((l) => l.startsWith('  src/a.ts:'));
 
+/** The summary's phase line, given what the dry run kept. */
+const dryRunLine = async (dryReuse: { kept: number; audited: number; disagreed: number } | undefined): Promise<string | undefined> => textSummary(await run({ stats: stats({ dryReuse }) })).split('\n').find((l) => l.includes('dry run'));
+
 describe('the terminal summary', () => {
   it('after a dry run only: the tests that passed and the mutants they reach', async () => {
     const r = await run({
@@ -234,6 +237,12 @@ describe('the terminal summary', () => {
         '',
       ].join('\n'),
     );
+  });
+
+  it('says how many test files kept their dry run, and nothing when none did', async () => {
+    expect(await dryRunLine({ kept: 3, audited: 1, disagreed: 0 })).toContain('· dry run 1.3 s (3 test files kept) ·');
+    expect(await dryRunLine({ kept: 0, audited: 0, disagreed: 0 })).toContain('· dry run 1.3 s · mutants');
+    expect(await dryRunLine(undefined)).toContain('· dry run 1.3 s · mutants');
   });
 
   it('names the first paths the disk guard put back, and what to do when the tests write them', async () => {
