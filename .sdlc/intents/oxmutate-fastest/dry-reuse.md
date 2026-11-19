@@ -22,6 +22,13 @@ What it costs varies with the package. Two readings from the changed-lines lane 
 The roadmap's "half of a small run" came from one package on 2026-11-12. **Step 1 below measures it
 on three packages before anything is built.**
 
+**Step 1 result, 2026-11-18: median 46.9%, so the work continues to step 2.** Nine lane runs, three
+each on `validator` (median 46.9%), `paratext` (64.3%) and `oxmutate` (21.0%), ranging from 11.2%
+to 71.0%. The readings, the command and the load at each start are in
+[`oxmutate-dry-share-2026-11.md`](../../research/oxmutate-dry-share-2026-11.md). All nine were cold
+runs: the lane deletes its incremental file after each run, so with verdict reuse working, the dry
+run's share of a repeat push would be higher, not lower.
+
 ## The proposal
 
 Keep each test file's dry-run results in the incremental file (`.mutation/oxmutate-incremental.json`
@@ -60,7 +67,7 @@ in the lane), keyed by what they depend on, and run only the files whose key cha
 ## Order of work
 
 1. **Measure:** dry-run share of the lane run on `validator`, `paratext` and `oxmutate`, three pushes
-   each. Stop here if the median share is under 25%.
+   each. Stop here if the median share is under 25%. **Done 2026-11-18: 46.9%, continue.**
 2. **Build it** behind `incremental`, with no new option. Fixtures:
    - a kept file must run again after its source, its test, its mutated ranges, or the config
      change;
