@@ -195,7 +195,8 @@ export async function runInContainer(c: Container, o: { root: string; keep: read
   const io = ioDir();
   try {
     writeFileSync(path.join(io, 'files'), files.join('\0'));
-    const tar = await spawn('tar', ['-cf', path.join(io, 'in.tar'), ...tarFlags(host), '--null', '-T', path.join(io, 'files')], { cwd: top, runtime, timeout: 0 });
+    // The archive is named relative to `io`: GNU tar (Git Bash's on Windows) reads `C:/…` as a remote host.
+    const tar = await spawn('tar', ['-cf', 'in.tar', ...tarFlags(host), '-C', top, '--null', '-T', path.join(io, 'files')], { cwd: io, runtime, timeout: 0 });
     if (tar.code !== 0) throw new Error(`tar could not pack ${top}: ${tar.stderr.trim()}`);
     const lock = LOCKS.find((f) => existsSync(path.join(top, f)));
     const install = c.install ?? defaultInstall(lock);
@@ -209,7 +210,7 @@ export async function runInContainer(c: Container, o: { root: string; keep: read
     if (synced.code !== 0) throw new Error(`the copy into the container or its install failed (exit ${String(synced.code)}); its output is above. fix: set container.install, or container.image to one with what the install needs`);
     const ran = await step(spawn, c, plan.run, { stdio: 'inherit' });
     if (keep.length > 0 && (await step(spawn, c, plan.back, {})).code === 0 && existsSync(path.join(io, 'out.tar'))) {
-      await spawn('tar', ['-xf', path.join(io, 'out.tar')], { cwd: top, runtime, timeout: 0 });
+      await spawn('tar', ['-xf', 'out.tar', '-C', top], { cwd: io, runtime, timeout: 0 });
     }
     return ran.code ?? 1;
   } finally {

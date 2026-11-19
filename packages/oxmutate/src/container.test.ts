@@ -166,7 +166,7 @@ function fake(result: { code?: number | null; syncCode?: number; out?: string; f
     const mount = args.find((a) => a.endsWith(':/io'));
     if (mount) io = mount.slice(0, -':/io'.length);
     if (phase === 'sync') {
-      sent = spawnSync('tar', ['-tf', path.join(io, 'in.tar')], { encoding: 'utf8' }).stdout.split('\n').filter(Boolean).toSorted();
+      sent = spawnSync('tar', ['-tf', 'in.tar'], { cwd: io, encoding: 'utf8' }).stdout.split('\n').filter(Boolean).toSorted();
       packed = readFileSync(path.join(io, 'in.tar'), 'latin1');
       ioMode = statSync(io).mode & 0o777;
       return { code: result.syncCode ?? 0, stdout: '', stderr: '' };
@@ -201,7 +201,8 @@ describe('running in the container', () => {
     expect(path.dirname(f.io())).toBe(path.join(process.env['XDG_CACHE_HOME'] || path.join(homedir(), '.cache'), 'oxmutate'));
     expect(path.basename(f.io())).toMatch(/^io-/u);
     expect(existsSync(f.io())).toBe(false);
-    expect(f.calls.find((c) => c.cmd === 'tar')!.args).toEqual(['-cf', path.join(f.io(), 'in.tar'), ...tarFlags(process.platform), '--null', '-T', path.join(f.io(), 'files')]);
+    expect(f.calls.find((c) => c.cmd === 'tar')!.args).toEqual(['-cf', 'in.tar', ...tarFlags(process.platform), '-C', top, '--null', '-T', path.join(f.io(), 'files')]);
+    expect(f.calls.find((c) => c.cmd === 'tar')!.o.cwd).toBe(f.io());
   });
 
   it('puts the archives in a private cache directory, in a run directory the container may write', async () => {
@@ -272,7 +273,7 @@ describe('running in the container', () => {
   it('copies the kept files back, and sends the host’s copy of them in', async () => {
     const top = repo({ 'package.json': '{}', '.gitignore': 'reports\n', 'reports/inc.json': 'host' });
     const from = repo({ 'reports/inc.json': 'from the container' });
-    spawnSync('tar', ['-cf', path.join(from, 'out.tar'), 'reports/inc.json'], { cwd: from });
+    spawnSync('tar', ['-cf', 'out.tar', 'reports/inc.json'], { cwd: from });
     const f = fake({ out: path.join(from, 'out.tar') });
     expect(await runInContainer({ ...C, install: '' }, { root: top, keep: [path.join(top, 'reports/inc.json'), '/elsewhere/x'] }, [], { spawn: f.spawn })).toBe(0);
     expect(f.sent()).toContain('reports/inc.json');
