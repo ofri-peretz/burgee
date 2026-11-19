@@ -128,6 +128,7 @@ to run still starts and passes in one step. `npm run lint:workflows` holds the l
 
 | Workflow | Role |
 | :-- | :-- |
+| [`auto-merge.yml`](./auto-merge.yml) | Every PR from a branch of this repo (`pull_request_target`, never checks out the PR): arms `--auto --squash` on open, reopen and ready-for-review. Leaves drafts, `chore(release)` PRs (merging publishes to npm), held PRs (hold, do-not-merge, wip), forks and Dependabot to a person or to `dependabot-automerge.yml`, and turns off an auto-merge it armed when a PR goes back to draft or is retitled `chore(release)`. The required checks still gate the merge |
 | [`dependabot-automerge.yml`](./dependabot-automerge.yml) | Dependabot PRs (`pull_request_target`, never checks out the PR): turns on `--auto --squash` only when every updated dependency is a semver patch or minor and none is `direct:production` (GitHub Actions bumps are exempt from that type test). The required checks still gate the merge. On a push that makes the PR stop qualifying, it turns off the auto-merge it had turned on. Uses the release credential chain, else `GITHUB_TOKEN` with a warning |
 
 ## Coverage
