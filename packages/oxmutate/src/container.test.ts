@@ -1,14 +1,18 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
+import { run, type RunOptions } from 'bellpull';
 import { afterAll, describe, expect, it } from 'vitest';
 
 import { discard } from './__fixtures__/scratch-dir.js';
 import { type Container, containerOf, containerPlan, defaultInstall, INSIDE, runInContainer, withFlags } from './container.js';
 import { nodeMajor } from './runtime.js';
+
+/** The environment without git's own variables: lefthook's pre-push exports `GIT_DIR`, and a scratch `git init` must not inherit it (scripts/git-env-lock.test.ts). */
+const withoutGit = (): NodeJS.ProcessEnv => Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')));
 
 const made: string[] = [];
 afterAll(() => discard(...made));
@@ -60,11 +64,11 @@ describe('the container setting', () => {
 });
 
 describe('the container plan', () => {
-  const input = { rel: 'packages/a', argv: ['run', "it's"], key: 'k1', install: 'npm ci', volume: 'vol', keep: ['packages/a/reports/m.json'] };
+  const input = { rel: 'packages/a', argv: ['run', "it's"], key: 'k1', install: 'npm ci', volume: 'vol', io: '/tmp/io', keep: ['packages/a/reports/m.json'] };
 
   it('mounts the volume, marks the run inside, and puts every setting before the image', () => {
     const { run } = containerPlan({ ...DEFAULTS, cpus: 3, memory: '4g', env: ['CI'], args: ['--network=none'] }, input);
-    expect(run.slice(0, -1)).toEqual(['run', '--rm', '-i', '--init', '-v', 'vol:/w', '-w', '/w', '-e', `${INSIDE}=inside`, '--cpus', '3', '--memory', '4g', '-e', 'CI', '--network=none', DEFAULTS.image, 'sh', '-c']);
+    expect(run.slice(0, -1)).toEqual(['run', '--rm', '--init', '-v', 'vol:/w', '-v', '/tmp/io:/io', '-w', '/w', '-e', `${INSIDE}=inside`, '--cpus', '3', '--memory', '4g', '-e', 'CI', '--network=none', DEFAULTS.image, 'sh', '-c']);
     expect(containerPlan(DEFAULTS, input).run).not.toContain('--cpus');
     expect(containerPlan(DEFAULTS, input).run).not.toContain('--memory');
   });
@@ -74,7 +78,7 @@ describe('the container plan', () => {
     expect(script.split('\n')).toEqual([
       'set -e',
       'mkdir -p /w/src && cd /w/src',
-      'tar -xvf - > /w/manifest.new',
+      'tar -xvf /io/in.tar > /w/manifest.new',
       expect.stringMatching(/^node -e '.*' \/w\/manifest \/w\/manifest\.new$/),
       'mv /w/manifest.new /w/manifest',
       `if [ "$(cat /w/installed 2>/dev/null)" != 'k1' ]; then npm ci; echo 'k1' > /w/installed; fi`,
@@ -88,7 +92,7 @@ describe('the container plan', () => {
   });
 
   it('copies back only the kept files that exist', () => {
-    expect(containerPlan(DEFAULTS, input).back).toEqual(['run', '--rm', '-v', 'vol:/w', '-w', '/w/src', DEFAULTS.image, 'sh', '-c', 'for f; do [ -e "$f" ] && printf "%s\\n" "$f"; done | tar -cf - -T -', 'sh', 'packages/a/reports/m.json']);
+    expect(containerPlan(DEFAULTS, input).back).toEqual(['run', '--rm', '-v', 'vol:/w', '-v', '/tmp/io:/io', '-w', '/w/src', DEFAULTS.image, 'sh', '-c', 'for f; do [ -e "$f" ] && printf "%s\\n" "$f"; done > /io/keep.list; if [ -s /io/keep.list ]; then tar -cf /io/out.tar -T /io/keep.list; fi', 'sh', 'packages/a/reports/m.json']);
   });
 
   it('prunes what the host deleted since the last sync, and nothing else', () => {
@@ -106,76 +110,91 @@ describe('the container plan', () => {
   });
 });
 
+function repo(files: Record<string, string>): string {
+  const dir = realpathSync(mkdtempSync(path.join(tmpdir(), 'oxmutate-container-')));
+  made.push(dir);
+  for (const [f, text] of Object.entries(files)) {
+    mkdirSync(path.dirname(path.join(dir, f)), { recursive: true });
+    writeFileSync(path.join(dir, f), text);
+  }
+  spawnSync('git', ['init', '-q'], { cwd: dir, env: withoutGit() });
+  spawnSync('git', ['add', '-A'], { cwd: dir, env: withoutGit() });
+  return dir;
+}
+interface Call { args: readonly string[]; sent: string[] }
+/**
+ * The real git and tar (bellpull's run, GIT_* left out); the engine is recorded: it lists what
+ * the run was sent, and answers the copy back with `out`, a tar file, when given one.
+ */
+function fake(result: { code: number | null; out?: string; fail?: Error }) {
+  const calls: Call[] = [];
+  const spawn = async (cmd: string, args: readonly string[], o: RunOptions) => {
+    if (cmd !== 'engine') return run(cmd, args, { ...o, env: { ...withoutGit(), ...o.env } });
+    if (result.fail) throw result.fail;
+    const io = args[args.indexOf('-v', args.indexOf('-v') + 1) + 1]!.replace(/:\/io$/u, '');
+    const sent = existsSync(path.join(io, 'in.tar')) && args.includes('--init') ? spawnSync('tar', ['-tf', path.join(io, 'in.tar')], { encoding: 'utf8' }).stdout.split('\n').filter(Boolean).toSorted() : [];
+    if (!args.includes('--init') && result.out) copyFileSync(result.out, path.join(io, 'out.tar'));
+    calls.push({ args, sent });
+    return { code: result.code, stdout: '', stderr: '' };
+  };
+  return { calls, spawn };
+}
+
 describe('running in the container', () => {
-  const clean = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('GIT_')));
-  function repo(files: Record<string, string>): string {
-    const dir = realpathSync(mkdtempSync(path.join(tmpdir(), 'oxmutate-container-')));
-    made.push(dir);
-    for (const [f, text] of Object.entries(files)) {
-      mkdirSync(path.dirname(path.join(dir, f)), { recursive: true });
-      writeFileSync(path.join(dir, f), text);
-    }
-    spawnSync('git', ['init', '-q'], { cwd: dir, env: clean });
-    spawnSync('git', ['add', '-A'], { cwd: dir, env: clean });
-    return dir;
-  }
-  /** The real git and tar, with GIT_* left out (pre-push exports GIT_DIR); the engine is recorded. */
-  function fake(result: { status: number | null; stdout?: Buffer; error?: Error }) {
-    const calls: { args: readonly string[]; input?: unknown }[] = [];
-    const spawn = (cmd: string, args: readonly string[], o: Parameters<typeof spawnSync>[2]) => {
-      if (cmd !== 'engine') return spawnSync(cmd, args, { ...o, env: { ...clean, ...(o?.env as object) } });
-      calls.push({ args, input: (o as { input?: unknown }).input });
-      return { status: result.status, stdout: result.stdout ?? Buffer.alloc(0), stderr: '', error: result.error };
-    };
-    return { calls, spawn };
-  }
   const C = { ...DEFAULTS, engine: 'engine' };
 
-  it('sends the git files on stdin, runs in the project, and returns the container’s exit code', () => {
+  it('sends the git files, runs in the project, and returns the container’s exit code', async () => {
     const top = repo({ 'package-lock.json': '{}', 'packages/a/src/x.ts': 'x', '.gitignore': 'dist\n', 'packages/a/dist/y.js': 'y' });
-    const { calls, spawn } = fake({ status: 3 });
-    expect(runInContainer(C, { root: path.join(top, 'packages/a'), keep: [] }, ['run'], spawn)).toBe(3);
+    const { calls, spawn } = fake({ code: 3 });
+    expect(await runInContainer(C, { root: path.join(top, 'packages/a'), keep: [] }, ['run'], spawn)).toBe(3);
     expect(calls).toHaveLength(1);
-    const listed = spawnSync('tar', ['-tf', '-'], { input: calls[0]!.input as Buffer, encoding: 'utf8' }).stdout.split('\n').filter(Boolean).toSorted();
-    expect(listed).toEqual(['.gitignore', 'package-lock.json', 'packages/a/src/x.ts']);
+    expect(calls[0]!.sent).toEqual(['.gitignore', 'package-lock.json', 'packages/a/src/x.ts']);
     const script = calls[0]!.args.at(-1)!;
     expect(script).toContain('then npm ci;');
     expect(script).toContain("cd '/w/src/packages/a'");
     expect(calls[0]!.args).toContain(`oxmutate-${createHash('sha256').update(top).digest('hex').slice(0, 12)}:/w`);
   });
 
-  it('installs again only when the lockfile changes', () => {
+  it('installs again only when the lockfile changes', async () => {
     const top = repo({ 'yarn.lock': 'a' });
-    const key = (): string => {
-      const { calls, spawn } = fake({ status: 0 });
-      runInContainer({ ...C, volume: 'v' }, { root: top, keep: [] }, [], spawn);
+    const key = async (): Promise<string> => {
+      const { calls, spawn } = fake({ code: 0 });
+      await runInContainer({ ...C, volume: 'v' }, { root: top, keep: [] }, [], spawn);
       expect(calls[0]!.args).toContain('v:/w');
-      return /!= '([0-9a-f]+)'/.exec(calls[0]!.args.at(-1)!)![1]!;
+      return /!= '([0-9a-f]+)'/u.exec(calls[0]!.args.at(-1)!)![1]!;
     };
-    const first = key();
-    expect(key()).toBe(first);
+    const first = await key();
+    expect(await key()).toBe(first);
     writeFileSync(path.join(top, 'yarn.lock'), 'b');
-    expect(key()).not.toBe(first);
+    expect(await key()).not.toBe(first);
   });
 
-  it('copies the kept files back, and sends the host’s copy of them in', () => {
+  it('copies the kept files back, and sends the host’s copy of them in', async () => {
     const top = repo({ 'package.json': '{}', '.gitignore': 'reports\n', 'reports/inc.json': 'host' });
-    const out = spawnSync('tar', ['-cf', '-', 'reports/inc.json'], { cwd: repo({ 'reports/inc.json': 'from the container' }) }).stdout;
-    const { calls, spawn } = fake({ status: 0, stdout: out });
-    expect(runInContainer({ ...C, install: '' }, { root: top, keep: [path.join(top, 'reports/inc.json'), '/elsewhere/x'] }, [], spawn)).toBe(0);
-    const sent = spawnSync('tar', ['-tf', '-'], { input: calls[0]!.input as Buffer, encoding: 'utf8' }).stdout;
-    expect(sent).toContain('reports/inc.json');
+    const from = repo({ 'reports/inc.json': 'from the container' });
+    spawnSync('tar', ['-cf', path.join(from, 'out.tar'), 'reports/inc.json'], { cwd: from });
+    const { calls, spawn } = fake({ code: 0, out: path.join(from, 'out.tar') });
+    expect(await runInContainer({ ...C, install: '' }, { root: top, keep: [path.join(top, 'reports/inc.json'), '/elsewhere/x'] }, [], spawn)).toBe(0);
+    expect(calls[0]!.sent).toContain('reports/inc.json');
     expect(calls[0]!.args.at(-1)).not.toContain('installed');
     expect(calls[1]!.args.slice(-2)).toEqual(['sh', 'reports/inc.json']);
     expect(readFileSync(path.join(top, 'reports/inc.json'), 'utf8')).toBe('from the container');
   });
 
-  it('says what to do when it cannot run', () => {
+  it('copies nothing back when the copy finds no file, and asks for none when nothing is kept', async () => {
+    const top = repo({ 'package.json': '{}' });
+    const { calls, spawn } = fake({ code: 0 });
+    expect(await runInContainer(C, { root: top, keep: [path.join(top, 'reports/none.json')] }, [], spawn)).toBe(0);
+    expect(calls).toHaveLength(2);
+    expect(existsSync(path.join(top, 'reports'))).toBe(false);
+  });
+
+  it('says what to do when it cannot run', async () => {
     const top = repo({});
-    expect(() => runInContainer(C, { root: top, keep: [], since: 'main' }, [], fake({ status: 0 }).spawn)).toThrow('fix: run them with --no-container');
-    expect(() => runInContainer(C, { root: top, keep: [], frozenOracle: 'main' }, [], fake({ status: 0 }).spawn)).toThrow('--since and --frozen-oracle');
-    expect(() => runInContainer(C, { root: tmpdir(), keep: [] }, [], fake({ status: 0 }).spawn)).toThrow('is in none. fix: git init');
-    expect(() => runInContainer(C, { root: top, keep: [] }, [], fake({ status: null, error: new Error('spawn engine ENOENT') }).spawn)).toThrow('engine did not start (spawn engine ENOENT). fix: install and start Docker or Podman');
-    expect(runInContainer(C, { root: top, keep: [] }, [], fake({ status: null }).spawn)).toBe(1);
+    await expect(runInContainer(C, { root: top, keep: [], since: 'main' }, [], fake({ code: 0 }).spawn)).rejects.toThrow('fix: run them with --no-container');
+    await expect(runInContainer(C, { root: top, keep: [], frozenOracle: 'main' }, [], fake({ code: 0 }).spawn)).rejects.toThrow('--since and --frozen-oracle');
+    await expect(runInContainer(C, { root: tmpdir(), keep: [] }, [], fake({ code: 0 }).spawn)).rejects.toThrow('is in none. fix: git init');
+    await expect(runInContainer(C, { root: top, keep: [] }, [], fake({ code: null, fail: new Error('engine: not found') }).spawn)).rejects.toThrow('engine did not start (engine: not found). fix: install and start Docker or Podman');
+    expect(await runInContainer(C, { root: top, keep: [] }, [], fake({ code: null }).spawn)).toBe(1);
   });
 });

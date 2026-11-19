@@ -111,14 +111,14 @@ function overridesFrom(o: Record<string, unknown>, root: string): Partial<Option
  * With `container` set (and not already inside one), the run happens there, and this exits with
  * its code, or CONFIG when it could not start. Otherwise it returns, and the run happens here.
  */
-function inContainer(options: Options, o: Record<string, unknown>, root: string, exit: (code: number) => void): void {
+async function inContainer(options: Options, o: Record<string, unknown>, root: string, exit: (code: number) => void): Promise<void> {
   const container = env[INSIDE] === 'inside' ? undefined : withFlags(options.container, o);
   if (!container) return;
   const reports: [string, string][] = [['json', options.jsonReport], ['sarif', options.sarifReport], ['html', options.htmlReport]];
   const keep = [...(options.incremental ? [options.incrementalFile] : []), ...reports.filter(([r]) => options.reporters.includes(r)).map(([, f]) => f)];
   let code: number;
   try {
-    code = runInContainer(container, { root, keep, since: options.since, frozenOracle: options.frozenOracle }, argv.slice(2));
+    code = await runInContainer(container, { root, keep, since: options.since, frozenOracle: options.frozenOracle }, argv.slice(2));
   } catch (e) {
     stderr.write(`oxmutate: ${(e as Error).message}\n`);
     code = ExitCode.CONFIG;
@@ -166,7 +166,7 @@ const runCommand = defineCommand({
     const o = options as Record<string, unknown>;
     const options_ = await loadOptions(root, overridesFrom(o, root), typeof o['config'] === 'string' ? o['config'] : undefined);
     if (typeof o['break'] === 'number') options_.thresholds.break = o['break'];
-    inContainer(options_, o, root, exit);
+    await inContainer(options_, o, root, exit);
     let result: RunResult;
     try {
       result = await run(options_);
