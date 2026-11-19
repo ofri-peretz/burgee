@@ -9,7 +9,7 @@
 
 **Status:** approved (2026-11-13, [`D-20261113-apicontract-build-go-ahead`](../../decisions/D-20261113-apicontract-build-go-ahead.md); design: [`spec.md`](./spec.md)) · **Opened:** `2026-11-11` · **Owner:** `@ofri-peretz`
 
-**Proposed name, not accepted and not reserved:** `loadline` — the line painted on a ship's hull
+**Name: `loadline`** (accepted 2026-11-19, [`D-20261119-validator-name-loadline`](../../decisions/D-20261119-validator-name-loadline.md); used from the first publish) — the line painted on a ship's hull
 that marks how far it may be loaded; what is over the line does not sail. Read 2026-11-11
 (`curl https://registry.npmjs.org/<name>`): `loadline`, `load-line` and `loadlines` are free on npm;
 the `@loadline` scope belongs to someone else. Also free: `scantling`, `leadline`, `truemark`,
