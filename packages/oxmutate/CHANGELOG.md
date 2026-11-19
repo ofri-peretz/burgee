@@ -1,5 +1,24 @@
 # oxmutate
 
+## 2.9.0
+
+### Minor Changes
+
+- [#1658](https://github.com/ofri-peretz/burgee/pull/1658) [`e37823b`](https://github.com/ofri-peretz/burgee/commit/e37823b57164c57d6b402f28bf19314cd2a31db0) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `container` runs with the host a black box: nothing of the host is mounted (the source goes in and
+  the reports come out through `<engine> cp`), so the engine may be remote (`host`, `context`) or
+  Podman. `source: 'git'` has the container fetch `HEAD`'s commit, so the host reads no project file.
+  New keys: `context`, `host`, `source`, `remote`, `ephemeral`, `runtime`, `readOnly`, `user`,
+  `platform`, `pull`, `pidsLimit` and `runArgs`. The oxmutate inside no longer receives the container
+  flags, so it may be an older version.
+
+- [#1658](https://github.com/ofri-peretz/burgee/pull/1658) [`e37823b`](https://github.com/ofri-peretz/burgee/commit/e37823b57164c57d6b402f28bf19314cd2a31db0) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `container`: run the mutation testing of any repository inside containers oxmutate starts,
+  isolated from the host. `container: true` takes every default, a string names the image, and the
+  full form sets the engine (docker, podman), image, network, install, setup, volume, cpus, memory,
+  env, extra `run` arguments and the command. The repository's git files are synced into a named
+  volume that keeps its own `node_modules` between runs; the run has no network by default; every
+  container drops all capabilities and is labelled `dev.oxmutate`. The reports and the incremental
+  file come back to the host. `--container`, `--container-image` and `--no-container` set it per run.
+
 ## 2.8.0
 
 ### Minor Changes
