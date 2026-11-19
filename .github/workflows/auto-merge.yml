@@ -1,0 +1,87 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Auto-merge
+
+run-name: "Auto-merge · PR #${{ github.event.pull_request.number }}"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Auto-merge is on by default: every PR from a branch of this repo is armed with
+# `--auto --squash` when it opens or leaves draft. The owner asked for it on
+# 2026-11-18 ("enable by default auto-merge").
+#
+# It merges nothing itself. `--auto` hands the PR to branch protection, so the
+# required checks (`Quality Gate`, `Quality (Full) Gate`, `review`) decide when it lands.
+#
+# Left for a person:
+# - a draft;
+# - a `chore(release)` PR, because merging it publishes to npm (a title edited into
+#   one has the auto-merge this workflow armed turned off again);
+# - a PR labelled hold, do-not-merge or wip when it opens (no label trigger: a label
+#   added later is for the person who arms it to see, see pr-trigger-lock);
+# - a fork's PR;
+# - Dependabot's PRs, which dependabot-automerge.yml decides.
+#
+# `pull_request_target`, so a fork cannot get a write token through it. It never checks
+# out or runs the PR's code; it reads the event and calls `gh` against the PR's URL.
+# Credential: the release chain, as in dependabot-automerge.yml. A merge that
+# GITHUB_TOKEN's auto-merge performs raises no runs on main.
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, reopened, ready_for_review, edited]
+
+concurrency:
+  group: auto-merge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  automerge:
+    name: Arm auto-merge
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository
+      && github.event.pull_request.user.login != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write # `gh pr merge --auto` under the github.token fallback
+      pull-requests: write
+    env:
+      HAS_APP_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY != '' }}
+    steps:
+      - name: Mint the release App's token
+        id: app
+        if: vars.RELEASE_APP_ID != '' && env.HAS_APP_KEY == 'true'
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Arm, or leave for a person
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token || secrets.RELEASE_BOT_PAT || github.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          TITLE: ${{ github.event.pull_request.title }}
+          DRAFT: ${{ github.event.pull_request.draft }}
+        run: |
+          set -euo pipefail
+          case "$TITLE" in "chore(release)"*) RELEASE=true ;; *) RELEASE=false ;; esac
+          # Fail closed: labels that cannot be read count as held.
+          HELD=$(gh pr view "$PR_URL" --json labels --jq '[.labels[].name]|any(.=="hold" or .=="do-not-merge" or .=="wip")') || HELD=true
+          if [ "$HELD" = true ]; then
+            echo "Held (hold, do-not-merge or wip, or labels unreadable); left for a person." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "${DRAFT:-}" = true ] || [ "${RELEASE:-}" = true ]; then
+            # Only undo what a bot armed; a person who armed it made that call.
+            if [ "$(gh pr view "$PR_URL" --json autoMergeRequest --jq '.autoMergeRequest.enabledBy.is_bot == true')" = true ]; then
+              gh pr merge --disable-auto "$PR_URL"
+            fi
+            echo "Left for a person (draft=${DRAFT:-}, release=${RELEASE:-})." >> "$GITHUB_STEP_SUMMARY"
+          else
+            gh pr merge --auto --squash "$PR_URL"
+            echo "Auto-merge armed; the required checks decide when it lands." >> "$GITHUB_STEP_SUMMARY"
+          fi
