@@ -10,7 +10,7 @@ import path from 'node:path';
 import { defineCommand, defineProgram, ExitCode } from 'burgee';
 
 import { DEFAULT_IDLE_TIMEOUT_MS, loadOptions, type Options } from './config.js';
-import { INSIDE, runInContainer, withFlags } from './container.js';
+import { INSIDE, runInContainer, withFlags, withoutContainerFlags } from './container.js';
 import { InstrumentFault, run, type MutantResult, type RunResult } from './coordinator.js';
 import { frozenOracle } from './frozen.js';
 import { parseShard } from './lanes.js';
@@ -118,7 +118,7 @@ async function inContainer(options: Options, o: Record<string, unknown>, root: s
   const keep = [...(options.incremental ? [options.incrementalFile] : []), ...reports.filter(([r]) => options.reporters.includes(r)).map(([, f]) => f)];
   let code: number;
   try {
-    code = await runInContainer(container, { root, keep, since: options.since, frozenOracle: options.frozenOracle }, argv.slice(2));
+    code = await runInContainer(container, { root, keep, since: options.since, frozenOracle: options.frozenOracle }, withoutContainerFlags(argv.slice(2)));
   } catch (e) {
     stderr.write(`oxmutate: ${(e as Error).message}\n`);
     code = ExitCode.CONFIG;
