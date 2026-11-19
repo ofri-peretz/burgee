@@ -215,8 +215,11 @@ describe('running in the container', () => {
       await runInContainer(C, { root: repo({ 'package.json': '{}' }), keep: [] }, [], { spawn: f.spawn });
       expect(path.dirname(f.io())).toBe(path.join(cache, 'oxmutate'));
       expect(path.basename(f.io())).toMatch(/^io-\w{6}$/u);
-      expect(statSync(path.join(cache, 'oxmutate')).mode & 0o777).toBe(0o700);
-      expect(f.ioMode()).toBe(0o777);
+      // Windows has no POSIX mode bits to check.
+      if (process.platform !== 'win32') {
+        expect(statSync(path.join(cache, 'oxmutate')).mode & 0o777).toBe(0o700);
+        expect(f.ioMode()).toBe(0o777);
+      }
     } finally {
       if (was === undefined) delete process.env['XDG_CACHE_HOME'];
       else process.env['XDG_CACHE_HOME'] = was;
