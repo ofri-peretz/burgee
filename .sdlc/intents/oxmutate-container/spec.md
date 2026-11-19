@@ -43,6 +43,16 @@ exposed few of Docker's options; this is what replaced it.
 | `source: 'git'`, full image, then warm          |    0 | 9 s, 1 s      |
 | Podman, install, then warm                      |    0 | 14 s, 2 s     |
 
+## Rejected
+
+- **A host directory mounted at `/io`** (the first version in #1658): Docker Desktop and Podman
+  machines share only some host paths, a remote daemon none, and it is the host's filesystem in the
+  container. `<engine> cp` replaced it.
+- **Streaming the archive over stdin**: `bellpull`, which every subprocess goes through, takes no
+  stdin and decodes stdout as text. A tar file and `<engine> cp` need neither.
+- **An oxmutate image of our own**: the project's own oxmutate, from its lockfile, decides; an image
+  would be a second version to keep in step and a service to run.
+
 ## Not covered
 
 - gVisor (`runtime: 'runsc'`) is passed through but was not run: it is not installed here.

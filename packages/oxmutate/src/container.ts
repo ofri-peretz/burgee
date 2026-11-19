@@ -127,9 +127,10 @@ export function withFlags(c: Container | undefined, o: Record<string, unknown>):
  */
 export function withoutContainerFlags(argv: readonly string[]): string[] {
   const out: string[] = [];
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i] ?? '';
-    if (a === '--container-image') i++;
+  let value = false;
+  for (const a of argv) {
+    if (value) value = false;
+    else if (a === '--container-image') value = true;
     else if (!/^--(?:no-)?container(?:$|-image=)/u.test(a)) out.push(a);
   }
   return out;

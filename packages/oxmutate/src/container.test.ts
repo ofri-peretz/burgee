@@ -63,7 +63,7 @@ describe('the container setting', () => {
   });
 
   it('hands the oxmutate inside its arguments without the container flags', () => {
-    expect(withoutContainerFlags(['run', '--container', '--container-image', 'node:24', '--json', '--no-container', '--container-image=x', '--containerish', '--concurrency', '2'])).toEqual(['run', '--json', '--containerish', '--concurrency', '2']);
+    expect(withoutContainerFlags(['run', '--container', '--container-image', 'node:24', '--json', '--no-container', '--container-image=x', '--containerish', 'x--container', '--concurrency', '2'])).toEqual(['run', '--json', '--containerish', 'x--container', '--concurrency', '2']);
   });
 
   it('installs as the lockfile asks', () => {
@@ -75,7 +75,8 @@ describe('the container setting', () => {
   });
 
   it('talks to the engine the context or the host names', () => {
-    expect(engineOf(DEFAULTS)).toEqual({ global: [], env: {} });
+    expect(engineOf(DEFAULTS)).toStrictEqual({ global: [], env: {} });
+    expect(engineOf({ ...DEFAULTS, engine: 'podman-remote', context: 'box' }).global).toEqual(['--connection', 'box']);
     expect(engineOf({ ...DEFAULTS, context: 'box', host: 'ssh://u@box' })).toEqual({ global: ['--context', 'box'], env: { DOCKER_HOST: 'ssh://u@box' } });
     expect(engineOf({ ...DEFAULTS, engine: '/opt/homebrew/bin/podman', context: 'box', host: 'ssh://u@box' })).toEqual({ global: ['--connection', 'box'], env: { CONTAINER_HOST: 'ssh://u@box' } });
   });
@@ -97,7 +98,7 @@ describe('the container plan', () => {
     expect(plan.drop).toEqual(['volume', 'rm', '-f', 'vol']);
     expect(plan.sync.slice(0, -1)).toEqual(['create', '--rm', ...HARDENED, '-v', 'vol:/w', '-w', '/w', DEFAULTS.image, 'sh', '-c']);
     expect(plan.run.slice(0, -1)).toEqual(['run', '--rm', '--init', '--network=none', ...HARDENED, '-v', 'vol:/w', '-w', '/w', '-e', 'OXMUTATE_CONTAINER=inside', DEFAULTS.image, 'sh', '-c']);
-    expect(plan.back.slice(0, 11)).toEqual(['create', '--network=none', ...HARDENED, '-v', 'vol:/w', '-w', '/w/src', DEFAULTS.image]);
+    expect(plan.back.slice(0, 13)).toEqual(['create', '--network=none', ...HARDENED, '-v', 'vol:/w', '-w', '/w/src', DEFAULTS.image, 'sh', '-c']);
   });
 
   it('gives every container every option set, and the run alone its network and runArgs', () => {
@@ -180,7 +181,7 @@ function repo(files: Record<string, string>): string {
 }
 
 interface Call { cmd: string; args: readonly string[]; o: RunOptions }
-interface Outcome { code?: number | null; syncCode?: number; out?: string; outFails?: boolean; fail?: Error; tarFails?: boolean; createFails?: boolean; cpFails?: boolean }
+interface Outcome { code?: number | null; syncCode?: number; backCode?: number; out?: string; outFails?: boolean; fail?: Error; tarFails?: boolean; createFails?: boolean; cpFails?: boolean }
 
 type Answer = { code: number | null; stdout: string; stderr: string };
 const answer = (code: number | null, stdout = ''): Answer => ({ code, stdout, stderr: code === 0 ? '' : ' engine said no \n' });
@@ -220,7 +221,7 @@ function fake(result: Outcome) {
       return answer(0, `${id}\n`);
     },
     cp: ([from = '', to = '']) => (from.includes(':') ? copyOut(to) : copyIn(from)),
-    start: (rest) => answer(isSync(rest.at(-1) ?? '') ? (result.syncCode ?? 0) : 0),
+    start: (rest) => answer(isSync(rest.at(-1) ?? '') ? (result.syncCode ?? 0) : (result.backCode ?? 0)),
     run: () => answer('code' in result ? (result.code ?? null) : 0),
   };
   const spawn = async (cmd: string, args: readonly string[], o: RunOptions) => {
@@ -372,6 +373,10 @@ describe('running in the container', () => {
     const none = fake({});
     await runInContainer(C, { root: top, keep: [] }, [], { spawn: none.spawn });
     expect(none.verbs()).not.toContain('rm');
+    // A copy back whose packing failed is not copied out, and is still removed.
+    const unpacked = fake({ backCode: 1, out: '/nonexistent' });
+    await runInContainer(C, { root: top, keep: [path.join(top, 'r.json')] }, [], { spawn: unpacked.spawn });
+    expect(unpacked.verbs().slice(-3)).toEqual(['create', 'start', 'rm']);
   });
 
   it('with ephemeral, removes the volume after the run, and after a failed one', async () => {
