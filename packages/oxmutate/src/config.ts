@@ -252,7 +252,7 @@ export interface MutateConfig {
 }
 
 /** The Vite (and Vite+) config files, in the order Vite and Vitest look for them. */
-const VITE_CONFIGS = ['vite.config', 'vitest.config'].flatMap((base) => ['.ts', '.mts', '.cts', '.js', '.mjs', '.cjs'].map((ext) => `${base}${ext}`));
+export const VITE_CONFIGS = ['vite.config', 'vitest.config'].flatMap((base) => ['.ts', '.mts', '.cts', '.js', '.mjs', '.cjs'].map((ext) => `${base}${ext}`));
 
 /**
  * The `mutate` block of the project's Vite config — the Vite+ shape, one file for test, lint, fmt

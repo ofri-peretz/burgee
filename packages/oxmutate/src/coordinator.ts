@@ -19,9 +19,10 @@ import { ambientRuntime, run as spawn } from 'bellpull';
 import { checkSurvivors } from './checker.js';
 import type { Unit } from './child.js';
 import { runCommandMutants } from './command-runner.js';
-import { IGNORE_STATIC_REASON, STATIC_BUDGET_REASON, disables, type Options } from './config.js';
+import { IGNORE_STATIC_REASON, STATIC_BUDGET_REASON, VITE_CONFIGS, disables, type Options } from './config.js';
 import { rangeDisables } from './directives.js';
 import { guardDisk, isClean, type DiskChange } from './diskguard.js';
+import { agrees, entriesOf, keepable, merge, type DryCache, type DryEntry, type DryResult } from './dry-reuse.js';
 import { globToRegExp, matchFiles } from './files.js';
 import type { FrozenOracle } from './frozen.js';
 import { createGovernor } from './governor.js';
@@ -107,6 +108,8 @@ export interface RunStats {
    * its value. A mutant whose value is untracked, or read while a module loaded, counts its loaders.
    */
   staticReaders?: { mutants: number; loaderTests: number; readerTests: number; fellBack: number; dryRunMs: number; auditSampled?: number; auditDisagreed?: number } | undefined;
+  /** `incremental` (roadmap 3.3): test files whose dry-run results were kept, run anyway to check them, and of those, how many disagreed (and made the whole dry run run again). */
+  dryReuse?: { kept: number; audited: number; disagreed: number } | undefined;
   /** The first few paths those writes touched, so a suite's own scratch in a tracked folder can be told from a mutant's write. */
   diskWritePaths: string[];
   /** Survivors of the warm run that a whole-file re-run killed (cross-test effects). */
@@ -428,14 +431,37 @@ export async function run(options: Options): Promise<RunResult> {
     }
 
     // ── 2. Dry run, twice (the second only to find nondeterministic tests) ────────────────────
+    const fileHashes = new Map<string, string>();
+    const fileHash = (abs: string): string => {
+      let h = fileHashes.get(abs);
+      if (h === undefined) {
+        h = existsSync(abs) ? sha(readFileSync(abs, 'utf8')) : 'missing';
+        fileHashes.set(abs, h);
+      }
+      return h;
+    };
+    const envKey = sha(JSON.stringify({ oxmutate: VERSION, node: process.version, lock: lockfileHash(root), options: verdictOptions(options) }));
+    type Cached = { fp: string; status: Status; killedBy?: string[] | undefined; testsCompleted?: number | undefined };
+    const stored = options.incremental && existsSync(options.incrementalFile) ? (JSON.parse(readFileSync(options.incrementalFile, 'utf8')) as { mutants?: Record<string, Cached>; dry?: DryCache }) : undefined;
+    // Roadmap 3.3: a test file's dry run is kept under a key of everything it depends on: the verdict
+    // key's environment, the Vitest config and package.json, and each module of its graph with its
+    // content and the ids of the mutants instrumented in it this run. The test file is in its own
+    // graph, so its content is in the key too (and a deleted one reads as missing).
+    const idsIn = new Map<string, string[]>();
+    for (const m of mutants) {
+      const abs = path.join(root, m.file);
+      (idsIn.get(abs) ?? idsIn.set(abs, []).get(abs))?.push(m.id);
+    }
+    const configKey = [...VITE_CONFIGS, 'package.json'].map((f) => path.join(root, f)).filter((f) => existsSync(f)).map((f) => `${f}=${fileHash(f)}`).join(':');
+    const dryKeyOf = (_file: string, modules: readonly string[]): string => sha([envKey, configKey, ...[...modules].sort().map((f) => `${f}=${fileHash(f)}=${(idsIn.get(f) ?? []).join(',')}`)].join(':'));
     // Spec oracles' traces, generated once; servers inherit where they are (spec.ts reads it).
     const traceDirs: Record<string, string> = {};
     for (const oracle of options.specOracles) traceDirs[oracle.name] = await tracesFor(oracle, root, work);
     if (options.specOracles.length) env[SPEC_TRACES_ENV] = JSON.stringify(traceDirs);
     const dryPool = createPool({ root, vitestConfig: options.vitestConfig, workers: options.concurrency, instrumentedMap: mapFile, nodeArgs: options.testRunnerNodeArgs }, 1, { workDir: work, tag: 'dry', lifecycle: options.workers });
     pools.push(dryPool);
-    const dryRun = async (trackReads = false): Promise<{ tests: (TestInfo & { state: string })[]; perTest: Record<string, Record<string, number>>; static: Record<string, number>; runOnce: string[]; modules: Record<string, string[]>; reads: { static: Record<string, number>; perTest: Record<string, Record<string, number>> } }> => {
-      const unit: Unit = { mode: 'dry', files: [], results: fileFor('dry', 'jsonl'), progress: fileFor('dry', 'progress'), ...(trackReads && { trackReads: true }) };
+    const dryRun = async (trackReads = false, skip: readonly string[] = []): Promise<DryResult> => {
+      const unit: Unit = { mode: 'dry', files: [], results: fileFor('dry', 'jsonl'), progress: fileFor('dry', 'progress'), ...(trackReads && { trackReads: true }), ...(skip.length > 0 && { skip: [...skip] }) };
       let failure: UnitOutcome | undefined;
       let overBudget = false;
       await dryPool.drain([unit], () => options.dryRunTimeoutMinutes * MS_PER_MINUTE, (_, o) => {
@@ -466,7 +492,22 @@ export async function run(options: Options): Promise<RunResult> {
     };
     progress.phase('dry run');
     const d0 = performance.now();
-    const dry = await dryRun();
+    // OXMUTATE_DRY_AUDIT: `all` audits every kept file, `none` none (tests that count kept files).
+    const dryAudit = env['OXMUTATE_DRY_AUDIT'];
+    let { kept, audited: dryAudited } = keepable(stored?.dry, dryKeyOf, () => dryAudit === 'all' || (dryAudit !== 'none' && Math.random() < AUDIT_SHARE));
+    let fresh = await dryRun(false, Object.keys(kept));
+    // Kept files are believed only while every audited one agrees, and while no hit escapes a file
+    // (a setup file's, which no kept file can account for): otherwise the whole suite runs again.
+    const disagreed = Object.entries(dryAudited).filter(([file, entry]) => !agrees(fresh, file, entry)).length;
+    if (stored?.dry) {
+      if (Object.keys(kept).length > 0 && (disagreed > 0 || Object.keys(fresh.static).length > 0)) {
+        kept = {};
+        fresh = await dryRun();
+      }
+      stats.dryReuse = { kept: Object.keys(kept).length, audited: Object.keys(dryAudited).length, disagreed };
+    }
+    const keptFiles = Object.keys(kept);
+    const dry = merge(fresh, kept);
     stats.dryRunMs = performance.now() - d0;
     // `static.readers: 'report'`: the same suite once more with reads tracked, before the flaky check
     // takes the dry pool. Its verdicts are not used; a test that fails only here (a Proxy it did not
@@ -477,7 +518,9 @@ export async function run(options: Options): Promise<RunResult> {
     const trackReads = options.staticReaders !== 'off' && [...trackedSources].some((source) => loaders(source) > 1);
     const r0 = performance.now();
     if (trackReads) progress.phase('dry run with reads tracked (static.readers)');
-    const tracking = trackReads ? await dryRun(true) : undefined;
+    // Kept files' reads, when every one has them; otherwise the tracked run covers the whole suite.
+    const trackedRun = async (): Promise<DryResult> => (Object.values(kept).every((e: DryEntry) => e.reads !== undefined) ? merge(await dryRun(true, keptFiles), kept) : dryRun(true));
+    const tracking = trackReads ? await trackedRun() : undefined;
     const readersDryRunMs = performance.now() - r0;
     const failing = dry.tests.filter((t) => t.state === 'fail');
     if (failing.length) throw new InstrumentFault(`${String(failing.length)} test(s) fail with no mutant active, so no verdict can be trusted: ${failing.slice(0, 5).map((t) => t.name).join('; ')}. fix: make the suite pass first`);
@@ -488,9 +531,12 @@ export async function run(options: Options): Promise<RunResult> {
     const findFlakyTests = async (): Promise<Set<string>> => {
       const flaky = new Set<string>();
       if (options.flakyReruns > 0) {
-        const second = await dryRun();
+        const second = await dryRun(false, keptFiles);
         const again = new Map(second.tests.map((t) => [t.id, t]));
         for (const t of dry.tests) {
+          // A kept file's tests did not run again: their flakiness is the kept run's.
+          if (kept[t.file]?.flaky.includes(t.id)) flaky.add(t.id);
+          if (kept[t.file]) continue;
           const b = again.get(t.id);
           if (!b || b.state !== t.state || keys(dry.perTest[t.id]) !== keys(second.perTest[t.id])) flaky.add(t.id);
         }
@@ -558,31 +604,19 @@ export async function run(options: Options): Promise<RunResult> {
     }
 
     // ── 3. Incremental reuse ──────────────────────────────────────────────────────────────────
-    const fileHashes = new Map<string, string>();
-    const fileHash = (abs: string): string => {
-      let h = fileHashes.get(abs);
-      if (h === undefined) {
-        h = existsSync(abs) ? sha(readFileSync(abs, 'utf8')) : 'missing';
-        fileHashes.set(abs, h);
-      }
-      return h;
-    };
     // A reused verdict must be one this run would reach: the mutated source, every test file that
     // runs it (a static mutant's are the files that load its module), every project file those tests
     // evaluated (their module graph from the dry run), and what decides a verdict besides the code
     // (oxmutate's version, Node's, the lockfile, the options). Before, only the source and the covering
     // test files counted, and a static mutant's fingerprint was its source alone.
-    const envKey = sha(JSON.stringify({ oxmutate: VERSION, node: process.version, lock: lockfileHash(root), options: verdictOptions(options) }));
     const fingerprint = (m: MutantResult): string => {
       const testFiles = new Set([...m.coveredBy.map((t) => testInfo.get(t)?.file ?? ''), ...(staticFiles.get(m.id) ?? [])]);
       const graph = new Set([...testFiles].flatMap((f) => dry.modules[f] ?? []).filter((f) => !testFiles.has(f) && f !== path.join(root, m.file)));
       return sha([envKey, sha(sources[m.file] ?? ''), ...[...testFiles].sort().map(fileHash), '|', ...[...graph].sort().map((f) => `${f}=${fileHash(f)}`)].join(':'));
     };
-    type Cached = { fp: string; status: Status; killedBy?: string[] | undefined; testsCompleted?: number | undefined };
     /** Cached verdicts this run decided afresh to check the cache by, and what the cache said. */
     const audited = new Map<string, Status>();
-    const cache: Record<string, Cached> =
-      options.incremental && existsSync(options.incrementalFile) ? (JSON.parse(readFileSync(options.incrementalFile, 'utf8')) as { mutants: Record<string, Cached> }).mutants : {};
+    const cache: Record<string, Cached> = stored?.mutants ?? {};
     for (const m of mutants) {
       if (m.status === 'Ignored' || (!m.static && m.coveredBy.length === 0)) continue;
       const hit = cache[m.id];
@@ -1217,7 +1251,7 @@ export async function run(options: Options): Promise<RunResult> {
       for (const m of mutants) {
         if (['Killed', 'Survived', 'Timeout'].includes(m.status) && !m.flaky) next[m.id] = { fp: fingerprint(m), status: m.status, killedBy: m.killedBy, testsCompleted: m.testsCompleted };
       }
-      writeFileSync(options.incrementalFile, JSON.stringify({ version: 1, mutants: next }));
+      writeFileSync(options.incrementalFile, JSON.stringify({ version: 1, mutants: next, dry: entriesOf(dry, dryKeyOf, flakyTests, tracking?.reads.perTest) }));
     }
     const spec = options.specOracles.map((oracle) => {
       const dir = traceDirs[oracle.name] ?? '';

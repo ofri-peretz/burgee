@@ -1,7 +1,7 @@
 # Design note — roadmap `3.3`: keep the dry run's results between runs
 
 Intent: [`intent.md`](./intent.md) · Roadmap: [`roadmap.md`](./roadmap.md) · **Written:**
-2026-11-18, by the session building `oxmutate-fastest`. **Status: accepted** ([`D-20261118-oxmutate-dry-reuse-design-accepted`](../../decisions/D-20261118-oxmutate-dry-reuse-design-accepted.md)). It
+2026-11-18, by the session building `oxmutate-fastest`. **Status: built** ([`D-20261118-oxmutate-dry-reuse-design-accepted`](../../decisions/D-20261118-oxmutate-dry-reuse-design-accepted.md)). It
 changes which tests' coverage a run trusts, so it needs the owner's acceptance before any of it is
 built (`AI_NATIVE_SDLC.md`, Design → Build).
 
@@ -28,6 +28,21 @@ to 71.0%. The readings, the command and the load at each start are in
 [`oxmutate-dry-share-2026-11.md`](../../research/oxmutate-dry-share-2026-11.md). All nine were cold
 runs: the lane deleted its incremental file after each run (fixed 2026-11-18, roadmap `3.2`), so with
 verdict reuse working, the dry run's share of a repeat push would be higher, not lower.
+
+## Step 2, built; step 3, checked (2026-11-18)
+
+- **Built** behind `incremental` (`dry-reuse.ts`, `coordinator.ts`, `child.ts`), as proposed, with
+  one change: the test file's own hash is not a separate term of the key. A test file is in its own
+  module graph, so its content is already there, and removing the term made no fixture fail.
+- **Each guard fails a fixture without it** (`e2e.test.ts`, "keeps a test file's dry run …"):
+  without the module contents the source step fails, without the mutant ids the ranges step,
+  without the config the config step, without the audit the audit step.
+  `OXMUTATE_DRY_AUDIT=all|none` makes the audit deterministic for that test.
+- **Verdicts with kept dry runs:** six of step 1's PR replays, run twice, the verdict cache emptied
+  between the runs and the dry cache kept: every undetected set equal. The dry run went from
+  4.8 to 1.1 s (`validator`), 14.4 to 0.3 s (`paratext`) and 12.7–22.5 to 1.8–1.9 s (`oxmutate`).
+- **A/B against main** (`bench/ab.mjs`, the published 2.7.0, whose source is main's, against this
+  build, two rounds): 1,525 mutants over the ten fixtures and `paratext`, 0 differ, 0 unstable.
 
 ## The proposal
 

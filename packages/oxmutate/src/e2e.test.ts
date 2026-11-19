@@ -735,6 +735,54 @@ it.skipIf(!native || !existsSync(bin))('decides a mutant afresh when a module it
   }
 }, 90_000);
 
+// Roadmap 3.3: under `incremental` a test file's dry run is kept while nothing it depends on
+// changed. Each change below must send the file it touches back to the dry run, and only that one;
+// a change the key cannot see (a file read through fs) must be caught by the audit.
+it.skipIf(!native || !existsSync(bin) || !nightly)('keeps a test file\'s dry run until its source, its test, its mutants or the config change', async () => {
+  const fixture = path.join(pkg, 'test/fixtures/dry-reuse');
+  const dir = mkdtempSync(path.join(pkg, 'test/fixtures/.dry-reuse-'));
+  // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the built package under test, present only after a build; the test is skipped without it
+  const api = (await import(path.join(pkg, 'dist/index.js'))) as typeof import('./index.js');
+  try {
+    for (const f of ['package.json', 'oxmutate.config.json', 'vitest.config.mjs', 'src/double.ts', 'src/label.ts', 'src/double.spec.ts', 'src/label.spec.ts', 'src/mode.txt']) {
+      mkdirSync(path.dirname(path.join(dir, f)), { recursive: true });
+      writeFileSync(path.join(dir, f), readFileSync(path.join(fixture, f)));
+    }
+    const run = async (overrides: Partial<Parameters<typeof api.loadOptions>[1]> = {}): Promise<Awaited<ReturnType<typeof api.run>>> => api.run(await api.loadOptions(dir, { reporters: [], ...overrides }, path.join(dir, 'oxmutate.config.json')));
+    const verdicts = (r: Awaited<ReturnType<typeof api.run>>): string[] => r.mutants.map((m) => `${m.file}:${String(m.start.line)}:${String(m.start.column)}:${m.mutatorName}:${m.status}`).sort();
+    const edit = (f: string, text: string): void => writeFileSync(path.join(dir, f), text);
+    // The 1-in-20 audit would make the counts below random; it has a step of its own at the end.
+    process.env['OXMUTATE_DRY_AUDIT'] = 'none';
+    const first = await run();
+    expect(first.stats.dryReuse).toBeUndefined();
+    const second = await run();
+    expect(second.stats.dryReuse?.kept).toBe(2);
+    expect(verdicts(second)).toEqual(verdicts(first));
+    // A source the file loads, with its mutants unchanged.
+    edit('src/double.ts', `${readFileSync(path.join(fixture, 'src/double.ts'), 'utf8')}// changed\n`);
+    expect((await run()).stats.dryReuse?.kept).toBe(1);
+    // The test file itself (in its own module graph).
+    edit('src/double.spec.ts', `${readFileSync(path.join(fixture, 'src/double.spec.ts'), 'utf8')}\nit('doubles zero', () => {\n  expect(double(0)).toBe(0);\n});\n`);
+    expect((await run()).stats.dryReuse?.kept).toBe(1);
+    // The mutants instrumented in a module of its graph.
+    expect((await run({ mutate: ['src/double.ts', 'src/label.ts:1:0-1:30'] })).stats.dryReuse?.kept).toBe(1);
+    // The Vitest config.
+    edit('vitest.config.mjs', `${readFileSync(path.join(fixture, 'vitest.config.mjs'), 'utf8')}// changed\n`);
+    expect((await run()).stats.dryReuse?.kept).toBe(0);
+    expect((await run()).stats.dryReuse?.kept).toBe(2);
+    // Read through fs, outside every key: the audit runs the kept file, sees its test reach nothing
+    // now, and runs the whole suite again. Kept, label's mutants would still count its test as covering them.
+    edit('src/mode.txt', 'skip\n');
+    process.env['OXMUTATE_DRY_AUDIT'] = 'all';
+    const audited = await run();
+    expect(audited.stats.dryReuse).toMatchObject({ kept: 0, disagreed: 1 });
+    expect(audited.mutants.filter((m) => m.file === 'src/label.ts').flatMap((m) => m.coveredBy)).toEqual([]);
+  } finally {
+    delete process.env['OXMUTATE_DRY_AUDIT'];
+    discard(dir);
+  }
+}, 180_000);
+
 // A range directive, `disable all` with a reason down to `restore all`, turns mutants off between
 // the two lines, as Stryker does. Before, oxmutate read only `disable next-line` and graded every mutant in a range:
 // 116 in compat-oracle's hosts.ts, rows graded in another process (sc8-profile.md).

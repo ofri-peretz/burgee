@@ -52,6 +52,8 @@ export interface Unit {
   hitLimits?: Record<string, number> | undefined;
   /** `dry`: report which tests read each tracked static value (`static.readers`, roadmap 2.4). */
   trackReads?: boolean | undefined;
+  /** `dry`: test files whose results the coordinator kept (roadmap 3.3): every other file the config includes runs. */
+  skip?: string[] | undefined;
 }
 
 // The coordinator is gone (finished, crashed or killed): nothing will read this server's results,
@@ -76,6 +78,8 @@ env[BEAT_ENV] = beatFile(path.dirname(config.instrumentedMap), pid);
 const vitestNode = (await import(resolveEsm('vitest/node', config.root))) as {
   createVitest: (mode: string, options: Record<string, unknown>, viteOverrides?: Record<string, unknown>) => Promise<{
     start(files?: string[]): Promise<unknown>;
+    globTestSpecifications(): Promise<{ moduleId: string }[]>;
+    runTestSpecifications(specs: { moduleId: string }[], allTestsRun?: boolean): Promise<unknown>;
     close(): Promise<void>;
     config: { bail: number };
     projects: { config: { runner?: string; isolate?: boolean } }[];
@@ -160,6 +164,14 @@ async function runIsolated(unit: Unit): Promise<void> {
   writeFileSync(unit.progress, '');
 }
 
+/** A dry run of every file the config includes but these, kept by the coordinator (roadmap 3.3). */
+async function runAllBut(kept: readonly string[]): Promise<void> {
+  const skip = new Set(kept);
+  const specs = (await vitest.globTestSpecifications()).filter((s) => !skip.has(s.moduleId));
+  // Every file kept: nothing to run, and an empty list would not mean "none" to Vitest.
+  if (specs.length > 0) await vitest.runTestSpecifications(specs, false);
+}
+
 async function runUnit(unit: Unit): Promise<void> {
   // Workers copy the environment when they start, so each run sees the unit's settings
   // (verified across re-runs of one instance, 2026-10-26).
@@ -176,12 +188,15 @@ async function runUnit(unit: Unit): Promise<void> {
   if (unit.hitLimits) env['OXMUTATE_HIT_LIMITS'] = JSON.stringify(unit.hitLimits);
   else delete env['OXMUTATE_HIT_LIMITS'];
   delete env[ACTIVE_MUTANT_ENV];
-  if (unit.mode === 'isolated') await runIsolated(unit);
-  else {
-    // A dry run names itself in the progress file, so the watchdog holds it to its budget.
-    if (unit.mode === 'dry') writeFileSync(unit.progress, `dry ${String(Date.now())}\n`);
-    await vitest.start(unit.files.length ? unit.files : undefined);
-  }
+  await (unit.mode === 'isolated' ? runIsolated(unit) : runFiles(unit));
+}
+
+/** A unit's files, or every file the config includes (less a dry run's kept ones). */
+async function runFiles(unit: Unit): Promise<void> {
+  // A dry run names itself in the progress file, so the watchdog holds it to its budget.
+  if (unit.mode === 'dry') writeFileSync(unit.progress, `dry ${String(Date.now())}\n`);
+  if (unit.skip?.length) await runAllBut(unit.skip);
+  else await vitest.start(unit.files.length ? unit.files : undefined);
 }
 
 /** How long `close` waits for `vitest.close()` before the server exits regardless. */
