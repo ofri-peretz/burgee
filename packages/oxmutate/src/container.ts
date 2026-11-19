@@ -16,7 +16,7 @@
  * `args` passes anything else to each, `runArgs` to the run's alone.
  */
 import { createHash } from 'node:crypto';
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -301,8 +301,11 @@ export async function runInContainer(c: Container, o: { root: string; keep: read
   if (o.since !== undefined || o.frozenOracle !== undefined) throw new Error('--since and --frozen-oracle read git history, and the container gets the files without it. fix: run them with --no-container');
   const git = await spawn('git', ['rev-parse', '--show-toplevel'], { cwd: o.root, runtime: ambientRuntime() });
   if (git.code !== 0) throw new Error(`container copies the git repository the project is in, and ${o.root} is in none. fix: git init, or run with --no-container`);
-  const top = git.stdout.trim();
-  const keep = o.keep.map((f) => path.relative(top, f).split(path.sep).join('/')).filter((f) => !f.startsWith('..'));
+  // Both resolved the same way: on Windows git answers `C:/Users/runneradmin/…` where Node has
+  // `C:\\Users\\RUNNER~1\\…`, and paths compared across the two never match.
+  const top = realpathSync.native(git.stdout.trim());
+  const rel = path.relative(top, realpathSync.native(o.root)).split(path.sep).join('/');
+  const keep = o.keep.map((f) => path.posix.join(rel, path.relative(o.root, f).split(path.sep).join('/'))).filter((f) => !f.startsWith('..'));
   const io = mkdtempSync(path.join(tmpdir(), 'oxmutate-io-'));
   const engine = engineRunner(spawn, c);
   try {
@@ -310,7 +313,7 @@ export async function runInContainer(c: Container, o: { root: string; keep: read
     const lock = LOCKS.find((f) => existsSync(path.join(top, f)));
     const install = c.install ?? defaultInstall(lock);
     const volume = c.volume ?? `oxmutate-${createHash('sha256').update(top).digest('hex').slice(0, VOLUME_HASH_CHARS)}`;
-    const plan = containerPlan(c, { rel: path.relative(top, o.root).split(path.sep).join('/'), argv, key: installKey(c, top, install, lock), install, volume, keep, fetch: source.fetch });
+    const plan = containerPlan(c, { rel, argv, key: installKey(c, top, install, lock), install, volume, keep, fetch: source.fetch });
     await engine(plan.volume);
     try {
       const synced = await startWith(engine, plan.sync, source.file, { stdio: 'inherit' });

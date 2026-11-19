@@ -251,7 +251,7 @@ describe('running in the container', () => {
     expect(f.verbs()).toEqual(['volume create', 'create', 'cp', 'start', 'run']);
     expect(f.sent()).toEqual(['.gitignore', 'package-lock.json', 'packages/a/src/x.ts']);
     const [volume, , cp, start, ran] = f.ofEngine();
-    const name = `oxmutate-${createHash('sha256').update(top).digest('hex').slice(0, 12)}`;
+    const name = `oxmutate-${createHash('sha256').update(realpathSync.native(top)).digest('hex').slice(0, 12)}`;
     expect(volume!.args.at(-1)).toBe(name);
     expect(cp!.args).toEqual(['cp', path.join(f.io(), 'in.tar'), 'c1:/w/in.tar']);
     expect(start!.args).toEqual(['start', '-a', 'c1']);
@@ -265,7 +265,7 @@ describe('running in the container', () => {
     expect(path.basename(f.io())).toMatch(/^oxmutate-io-/u);
     expect(existsSync(f.io())).toBe(false);
     expect(f.ofEngine().flatMap((c) => c.args).filter((a) => a.includes(f.io()))).toEqual([path.join(f.io(), 'in.tar')]);
-    expect(f.calls.find((c) => c.cmd === 'tar')!.args).toEqual(['-cf', 'in.tar', ...tarFlags(process.platform), '-C', top, '--null', '-T', path.join(f.io(), 'files')]);
+    expect(f.calls.find((c) => c.cmd === 'tar')!.args).toEqual(['-cf', 'in.tar', ...tarFlags(process.platform), '-C', realpathSync.native(top), '--null', '-T', path.join(f.io(), 'files')]);
     expect(f.calls.find((c) => c.cmd === 'tar')!.o.cwd).toBe(f.io());
   });
 
@@ -365,6 +365,17 @@ describe('running in the container', () => {
     expect(readFileSync(path.join(top, 'reports/inc.json'), 'utf8')).toBe('from the container');
   });
 
+  it('finds the kept files of a project below the root, whatever spelling of its path the host gives', async () => {
+    const top = repo({ 'package.json': '{}', '.gitignore': 'reports\n', 'packages/a/reports/m.json': 'host' });
+    // macOS's tmpdir is a symlink (/var -> /private/var), as Windows' is a short name (RUNNER~1): git answers the real path.
+    const spelled = path.join(tmpdir(), path.basename(top), 'packages/a');
+    const f = fake({});
+    await runInContainer(C, { root: spelled, keep: [path.join(spelled, 'reports/m.json')] }, [], { spawn: f.spawn });
+    expect(f.sent()).toContain('packages/a/reports/m.json');
+    expect(f.ofEngine().find((c) => c.args.includes('create') && c.args.includes('--network=none'))!.args.at(-1)).toBe('packages/a/reports/m.json');
+    expect(f.ofEngine().find((c) => c.args[0] === 'run')!.args.at(-1)).toContain("cd '/w/src/packages/a'");
+  });
+
   it('extracts nothing when the copy out fails, still removes the container, and copies back nothing when nothing is kept', async () => {
     const top = repo({ 'package.json': '{}' });
     const f = fake({ outFails: true });
@@ -408,7 +419,7 @@ describe('running in the container', () => {
     await expect(runInContainer(C, { root: top, keep: [], since: 'main' }, [], { spawn: fake({}).spawn })).rejects.toThrow('fix: run them with --no-container');
     await expect(runInContainer(C, { root: top, keep: [], frozenOracle: 'main' }, [], { spawn: fake({}).spawn })).rejects.toThrow('--since and --frozen-oracle');
     await expect(runInContainer(C, { root: tmpdir(), keep: [] }, [], { spawn: fake({}).spawn })).rejects.toThrow('is in none. fix: git init');
-    await expect(runInContainer(C, { root: top, keep: [] }, [], { spawn: fake({ tarFails: true }).spawn })).rejects.toThrow(`tar could not pack ${top}: tar: cannot open`);
+    await expect(runInContainer(C, { root: top, keep: [] }, [], { spawn: fake({ tarFails: true }).spawn })).rejects.toThrow(`tar could not pack ${realpathSync.native(top)}: tar: cannot open`);
     await expect(runInContainer(C, { root: top, keep: [] }, [], { spawn: fake({ fail: new Error('engine: not found') }).spawn })).rejects.toThrow('engine did not start (engine: not found). fix: install and start Docker or Podman');
     expect(await runInContainer(C, { root: top, keep: [] }, [], { spawn: fake({ code: null }).spawn })).toBe(1);
   });
