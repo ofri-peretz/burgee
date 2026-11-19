@@ -176,6 +176,14 @@ describe('bundle', () => {
     expect(paths['/b/{id}']).toEqual({ description: 'shared', get: { responses: { '204': { description: 'ok' } } } });
   });
 
+  it('writes a Swagger 2 header in place without the fields beside its `$ref`; only a path item keeps them', () => {
+    const root = scratch('apicontract-bundle-');
+    writeFileSync(join(root, 'h.yaml'), 'H:\n  type: string\n');
+    const document = { swagger: '2.0', paths: { '/a': { get: { responses: { '200': { description: 'ok', headers: { X: { $ref: './h.yaml#/H', description: 'beside' } } } } } } } };
+    const { paths } = bundle(document, join(root, 'swagger.yaml')) as { paths: Record<string, any> };
+    expect(paths['/a'].get.responses['200'].headers.X).toEqual({ type: 'string' });
+  });
+
   it('writes a schema in place without the fields beside its `$ref`', () => {
     const root = scratch('apicontract-bundle-');
     writeFileSync(join(root, 'part.yaml'), 'Item:\n  get:\n    responses:\n      "200":\n        description: ok\n        content:\n          application/json:\n            schema:\n              $ref: "#/S"\nS:\n  type: string\n');
