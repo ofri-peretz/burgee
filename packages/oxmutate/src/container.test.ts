@@ -220,7 +220,8 @@ function fake(result: Outcome) {
       scripts.set(id, rest[rest.indexOf('-c') + 1] ?? '');
       return answer(0, `${id}\n`);
     },
-    cp: ([from = '', to = '']) => (from.includes(':') ? copyOut(to) : copyIn(from)),
+    // A container side is `<id>:<path>`; a Windows host path has a colon too (`C:\\…`).
+    cp: ([from = '', to = '']) => (/^c\d+:/u.test(from) ? copyOut(to) : copyIn(from)),
     start: (rest) => answer(isSync(rest.at(-1) ?? '') ? (result.syncCode ?? 0) : (result.backCode ?? 0)),
     run: () => answer('code' in result ? (result.code ?? null) : 0),
   };
