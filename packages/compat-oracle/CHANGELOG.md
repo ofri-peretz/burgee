@@ -1,5 +1,11 @@
 # compat-oracle
 
+## 0.3.22
+
+### Patch Changes
+
+- [#1652](https://github.com/ofri-peretz/burgee/pull/1652) [`0da82d3`](https://github.com/ofri-peretz/burgee/commit/0da82d31cf340fe94f959649942ca913a69a521d) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - openapi-typescript 7.13.0 is a host, `planned` and not claimed: its suite is vendored at the release tag, and a host may now say its published internals carry another extension (`dist/x.mjs` for the `src/x.js` a test imports).
+
 ## 0.3.21
 
 ### Patch Changes
