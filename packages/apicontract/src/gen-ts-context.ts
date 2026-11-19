@@ -1,6 +1,6 @@
 /** The options a run is generated under, and the state the transforms share while it runs. */
 import { type EnumStatement, type Statement } from './gen-ts-ast.js';
-import { resolveRef } from './gen-ts-ref.js';
+import { lastRef, resolveRef } from './gen-ts-ref.js';
 import { type NameState, newNameState } from './gen-ts-text.js';
 
 /** openapi-typescript's data-only options, under the same names and defaults. */
@@ -67,6 +67,8 @@ export interface Context extends Required<GenerateOptions> {
   readonly injectFooter: Statement[];
   /** What a `$ref` points at, or `undefined`. */
   readonly resolve: (ref: string) => unknown;
+  /** The reference a chain of `$ref`s starting at `ref` ends on. */
+  readonly lastRef: (ref: string) => string;
 }
 
 /** Where a transform stands: the pointer of the node it was handed, and the run it belongs to. */
@@ -131,5 +133,6 @@ export const createContext = (
     discriminators,
     injectFooter: [],
     resolve: (ref) => resolveRef(document, ref),
+    lastRef: (ref) => lastRef(document, ref),
   };
 };
