@@ -376,6 +376,14 @@ describe('running in the container', () => {
     expect(f.ofEngine().find((c) => c.args[0] === 'run')!.args.at(-1)).toContain("cd '/w/src/packages/a'");
   });
 
+  it('keeps no file outside the repository, on another drive included', async () => {
+    const top = repo({ 'package.json': '{}', 'packages/a/x.ts': '' });
+    const f = fake({});
+    const elsewhere = process.platform === 'win32' ? 'Z:\\elsewhere\\r.json' : '/elsewhere/r.json';
+    await runInContainer(C, { root: path.join(top, 'packages/a'), keep: [elsewhere, path.join(top, 'r.json')] }, [], { spawn: f.spawn });
+    expect(f.ofEngine().find((c) => c.args.includes('create') && c.args.includes('--network=none'))!.args.slice(-2)).toEqual(['sh', 'r.json']);
+  });
+
   it('extracts nothing when the copy out fails, still removes the container, and copies back nothing when nothing is kept', async () => {
     const top = repo({ 'package.json': '{}' });
     const f = fake({ outFails: true });

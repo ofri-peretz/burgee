@@ -305,7 +305,13 @@ export async function runInContainer(c: Container, o: { root: string; keep: read
   // `C:\\Users\\RUNNER~1\\…`, and paths compared across the two never match.
   const top = realpathSync.native(git.stdout.trim());
   const rel = path.relative(top, realpathSync.native(o.root)).split(path.sep).join('/');
-  const keep = o.keep.map((f) => path.posix.join(rel, path.relative(o.root, f).split(path.sep).join('/'))).filter((f) => !f.startsWith('..'));
+  // A kept file on another drive has no relative path (Windows answers it absolute): it is not in the repository.
+  const keep = o.keep
+    .map((f) => path.relative(o.root, f))
+    // Stryker disable next-line all: path.relative answers an absolute path only across Windows drives; the Windows CI leg runs the test that needs it
+    .filter((f) => !path.isAbsolute(f))
+    .map((f) => path.posix.join(rel, f.split(path.sep).join('/')))
+    .filter((f) => !f.startsWith('..'));
   const io = mkdtempSync(path.join(tmpdir(), 'oxmutate-io-'));
   const engine = engineRunner(spawn, c);
   try {
