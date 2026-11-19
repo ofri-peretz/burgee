@@ -197,7 +197,7 @@ function fake(result: Outcome) {
   const isSync = (id: string): boolean => /manifest|git fetch/u.test(scripts.get(id) ?? '');
   const copyIn = (from: string): Answer => {
     copiedFrom = from;
-    sent = spawnSync('tar', ['-tf', path.basename(from)], { cwd: path.dirname(from), encoding: 'utf8' }).stdout.split('\n').filter(Boolean).toSorted();
+    sent = spawnSync('tar', ['-tf', path.basename(from)], { cwd: path.dirname(from), encoding: 'utf8' }).stdout.split(/\r?\n/u).filter(Boolean).toSorted();
     return answer(result.cpFails ? 1 : 0);
   };
   const copyOut = (to: string): Answer => {
