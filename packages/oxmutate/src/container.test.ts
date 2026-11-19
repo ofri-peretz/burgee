@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -156,6 +156,7 @@ function fake(result: { code?: number | null; syncCode?: number; out?: string; f
   let io = '';
   let sent: string[] = [];
   let packed = '';
+  let ioMode = 0;
   const spawn = async (cmd: string, args: readonly string[], o: RunOptions) => {
     const phase = cmd === 'engine' ? phaseOf(args) : cmd;
     calls.push({ cmd, args, o, phase });
@@ -167,13 +168,14 @@ function fake(result: { code?: number | null; syncCode?: number; out?: string; f
     if (phase === 'sync') {
       sent = spawnSync('tar', ['-tf', path.join(io, 'in.tar')], { encoding: 'utf8' }).stdout.split('\n').filter(Boolean).toSorted();
       packed = readFileSync(path.join(io, 'in.tar'), 'latin1');
+      ioMode = statSync(io).mode & 0o777;
       return { code: result.syncCode ?? 0, stdout: '', stderr: '' };
     }
     if (phase === 'back' && result.out) copyFileSync(result.out, path.join(io, 'out.tar'));
     return { code: phase === 'run' && 'code' in result ? (result.code ?? null) : 0, stdout: '', stderr: '' };
   };
   const of = (phase: string): Call[] => calls.filter((c) => c.phase === phase);
-  return { calls, spawn, of, io: () => io, sent: () => sent, packed: () => packed };
+  return { calls, spawn, of, io: () => io, sent: () => sent, packed: () => packed, ioMode: () => ioMode };
 }
 
 /** The install key in a sync's script. */
@@ -200,6 +202,24 @@ describe('running in the container', () => {
     expect(path.basename(f.io())).toMatch(/^io-/u);
     expect(existsSync(f.io())).toBe(false);
     expect(f.calls.find((c) => c.cmd === 'tar')!.args).toEqual(['-cf', path.join(f.io(), 'in.tar'), ...tarFlags(process.platform), '--null', '-T', path.join(f.io(), 'files')]);
+  });
+
+  it('puts the archives in a private cache directory, in a run directory the container may write', async () => {
+    const cache = realpathSync(mkdtempSync(path.join(tmpdir(), 'oxmutate-xdg-')));
+    made.push(cache);
+    const was = process.env['XDG_CACHE_HOME'];
+    process.env['XDG_CACHE_HOME'] = cache;
+    try {
+      const f = fake({});
+      await runInContainer(C, { root: repo({ 'package.json': '{}' }), keep: [] }, [], { spawn: f.spawn });
+      expect(path.dirname(f.io())).toBe(path.join(cache, 'oxmutate'));
+      expect(path.basename(f.io())).toMatch(/^io-\w{6}$/u);
+      expect(statSync(path.join(cache, 'oxmutate')).mode & 0o777).toBe(0o700);
+      expect(f.ioMode()).toBe(0o777);
+    } finally {
+      if (was === undefined) delete process.env['XDG_CACHE_HOME'];
+      else process.env['XDG_CACHE_HOME'] = was;
+    }
   });
 
   it('packs the flags of the host it runs on', async () => {
