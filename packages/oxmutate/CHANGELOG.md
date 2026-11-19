@@ -1,5 +1,14 @@
 # oxmutate
 
+## 2.8.0
+
+### Minor Changes
+
+- [#1659](https://github.com/ofri-peretz/burgee/pull/1659) [`fe9807b`](https://github.com/ofri-peretz/burgee/commit/fe9807b2a3a5ca2026eb5cfd95b3385361dff8b3) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `incremental` keeps each test file's dry run too (roadmap 3.3): a run dry-runs only the test files
+  whose module graph, mutants or Vitest config changed, and merges the rest from the incremental file.
+  One kept file in twenty is run anyway and must agree, or the whole dry run runs again. The summary
+  says how many test files were kept.
+
 ## 2.7.0
 
 ### Minor Changes
