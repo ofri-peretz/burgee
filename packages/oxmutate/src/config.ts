@@ -9,6 +9,7 @@ import { availableParallelism } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+import { type Container, containerOf } from './container.js';
 import { MAX_LOAD_PER_CORE } from './governor.js';
 import { type IgnoreRule } from './native.js';
 import { resolveEsm } from './resolve.js';
@@ -150,6 +151,8 @@ export interface Options {
   specOracles: SpecOracle[];
   /** `testRunner: 'command'`: run this command per mutant instead of the warm Vitest runner. */
   commandRunner?: string | undefined;
+  /** Run inside a container oxmutate starts (container.ts). */
+  container?: Container | undefined;
 }
 
 const NOT_NEEDED: Record<string, string> = {
@@ -249,6 +252,8 @@ export interface MutateConfig {
   /** Formal models replayed against each mutant (`quint` or `itf` traces). */
   specOracles?: SpecOracle[];
   strykerCompat?: boolean;
+  /** Run inside a container oxmutate starts: `true`, an image name, or the full form (container.ts). */
+  container?: boolean | string | Partial<Container>;
 }
 
 /** The Vite (and Vite+) config files, in the order Vite and Vitest look for them. */
@@ -339,6 +344,7 @@ export async function loadOptions(root: string, overrides: Partial<Options> = {}
     tsconfigFile: (raw['tsconfigFile'] as string | undefined) ?? 'tsconfig.json',
     typeChecker: typeof raw['typeChecker'] === 'string' ? raw['typeChecker'] : undefined,
     commandRunner: raw['testRunner'] === 'command' ? ((raw['commandRunner'] as { command?: string } | undefined)?.command ?? 'npm test') : undefined,
+    container: containerOf(raw['container']),
     warnUnused: raw['warnings'] !== false && (raw['warnings'] as { unknownOptions?: boolean } | undefined)?.unknownOptions !== false,
     ...overrides,
   };

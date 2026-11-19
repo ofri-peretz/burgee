@@ -323,6 +323,13 @@ describe('Stryker keys oxmutate does not use', () => {
   });
 });
 
+describe('the container key', () => {
+  it('is read from oxmutate.config, and is off without it', async () => {
+    expect((await loadOptions(project({ 'oxmutate.config.json': { container: 'node:24-alpine' } }))).container?.image).toBe('node:24-alpine');
+    expect((await loadOptions(project({ 'oxmutate.config.json': {} }))).container).toBeUndefined();
+  });
+});
+
 describe('disable comments, Stryker syntax', () => {
   it('apply to the next line, for the named mutators, with the reason kept', () => {
     const src = 'a\n// Stryker disable next-line EqualityOperator,ConditionalExpression: boundary is checked by the caller\nif (x < 1) {}\n';
