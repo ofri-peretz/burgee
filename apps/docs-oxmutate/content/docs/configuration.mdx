@@ -95,33 +95,50 @@ directory, whatever the config says.
 
 ## In a container
 
-`container` runs the whole run inside a container that oxmutate starts, isolated from the host:
-the project's git files are copied into a named volume, the container installs its own
-`node_modules` there, and only the reports and the incremental file come back to the host.
+`container` runs the mutation testing of any repository inside containers oxmutate starts,
+isolated from the host:
 
 ```json
 { "container": true }
 ```
 
+or, for one run, `oxmutate run --container`. A run goes through three containers, each removed
+when it ends:
+
+1. **Sync.** The repository's git files (tracked, and untracked ones git does not ignore) are copied
+   into a named volume, and files deleted on the host are deleted there. The install runs only when
+   the lockfile, the image or the install command changed, so `node_modules` stays in the volume
+   between runs. This container has the network, for the install.
+2. **Run.** `setup`, then oxmutate. **No network** by default: a test reaches nothing outside its
+   container.
+3. **Copy back.** The reports and the incremental file come back to the host.
+
+Every container runs with all capabilities dropped and `no-new-privileges`, and the containers and
+the volume carry the label `dev.oxmutate=1`. The copy goes through a private directory under
+`$XDG_CACHE_HOME/oxmutate` (else `~/.cache/oxmutate`), which Docker Desktop and Podman machines
+both share.
+
 `true` takes every default; a string names the image (`"container": "node:24-alpine"`). The full
-form sets any key, and `args` passes anything else to `<engine> run` as it is:
+form sets any key, and `args` passes anything else to each `<engine> run`:
 
 | Key       | Default                                      | What it does                                                                        |
 | :-------- | :------------------------------------------- | :---------------------------------------------------------------------------------- |
-| `engine`  | `docker`                                     | The container CLI: `docker`, `podman`, or any that takes `run --rm -i -v`           |
-| `image`   | `node:<the host's Node major>-bookworm-slim` | The image; it needs `sh`, `tar` and `node`                                          |
+| `engine`  | `docker`                                     | The container CLI: `docker`, `podman`, or any that takes the same `run`             |
+| `image`   | `node:<the host's Node major>-bookworm-slim` | The image; it needs `sh`, `tar` and `node`. Pin it by digest for a repeatable run   |
+| `network` | `none`                                       | The run's `--network`; the install always has the engine's default network          |
 | `install` | from the lockfile (`npm ci`, pnpm, yarn)     | Runs when the lockfile, the image or this command changes; `false` installs nothing |
-| `setup`   | none                                         | Runs before every run, after the install: a build the tests need                    |
+| `setup`   | none                                         | Runs in the run's container before oxmutate: a build the tests need                 |
 | `volume`  | `oxmutate-<hash of the repository path>`     | The named volume that keeps the copy and its `node_modules` between runs            |
 | `cpus`    | the engine's                                 | `--cpus`                                                                            |
 | `memory`  | the engine's                                 | `--memory`                                                                          |
 | `env`     | `[]`                                         | `NAME` passes the host's value, `NAME=value` sets one                               |
-| `args`    | `[]`                                         | More `<engine> run` arguments, verbatim (`["--network=none"]`)                      |
-| `command` | `npx --no oxmutate`                          | oxmutate inside the container                                                       |
+| `args`    | `[]`                                         | More `<engine> run` arguments, verbatim (`["--pids-limit=512"]`)                    |
+| `command` | `npx --no oxmutate`                          | oxmutate inside the container: the project's own                                    |
 
-The copy is the repository's tracked and untracked files that git does not ignore, so a sibling
-package's build output needs `setup`. `--since` and `--frozen-oracle` read git history, which the
-copy does not carry; run them with `--no-container`.
+`--container-image <image>` sets the image for one run, and `--no-container` runs on the host
+whatever the config says. `--since` and `--frozen-oracle` read git history, which the copy does not
+carry; run them with `--no-container`. To remove every volume oxmutate made:
+`docker volume prune --filter label=dev.oxmutate=1`.
 
 ## Stryker's keys oxmutate does not use
 

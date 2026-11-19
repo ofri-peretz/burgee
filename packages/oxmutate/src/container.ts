@@ -3,16 +3,24 @@
  * project's git files are copied into a named volume that also keeps the container's own
  * `node_modules` between runs (installed again only when the lockfile, the image or the install
  * command changes). At the end the reports and the incremental file are copied back to the host.
- * The copy goes in and the kept files come out as tar files in a host temporary directory the
- * container mounts at `/io`; Docker Desktop shares the system temporary directory by default.
+ *
+ * Three containers, each removed when it ends, each with every capability dropped and no way to
+ * gain one (`--cap-drop=ALL`, `no-new-privileges`), each labelled `dev.oxmutate`:
+ *   1. sync: the copy is unpacked into the volume (files the host deleted are deleted there), and
+ *      the install runs when its key changed. It has the network, for the install.
+ *   2. run: `setup`, then oxmutate. No network unless `network` says so: a test reaches nothing
+ *      outside the container.
+ *   3. copy back: the kept files are packed for the host.
+ * The archives go through a directory under the user's cache (`$XDG_CACHE_HOME`, else `~/.cache`)
+ * mounted at `/io`: Docker Desktop and Podman machines both share the home directory.
  *
  * `container: true` takes every default, `container: '<image>'` names the image, and the object
- * form sets any of `engine`, `image`, `install`, `setup`, `volume`, `cpus`, `memory`, `env`,
- * `args` and `command`. `args` goes to `<engine> run` verbatim, for anything not named here.
+ * form sets any of `engine`, `image`, `network`, `install`, `setup`, `volume`, `cpus`, `memory`,
+ * `env`, `args` and `command`. `args` goes to each `<engine> run` verbatim, for anything else.
  */
 import { createHash } from 'node:crypto';
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import path from 'node:path';
 
 import { ambientRuntime, run, type Result, type RunOptions } from 'bellpull';
@@ -25,6 +33,8 @@ export interface Container {
   engine: string;
   /** Default: `node:<the host's Node major>-bookworm-slim`. */
   image: string;
+  /** The run's network (`--network`). Default `none`; the install always has the engine's default. */
+  network: string;
   /** Run when the lockfile, image or this command changed. Undefined: chosen by the lockfile; `''`: none. */
   install?: string | undefined;
   /** Run before every run, after the install (a build the tests need). */
@@ -47,7 +57,7 @@ const WORK = '/w';
 const SRC = `${WORK}/src`;
 /** Hex characters of the repository path's hash in the default volume name. */
 const VOLUME_HASH_CHARS = 12;
-const KEYS = new Set(['engine', 'image', 'install', 'setup', 'volume', 'cpus', 'memory', 'env', 'args', 'command']);
+const KEYS = new Set(['engine', 'image', 'network', 'install', 'setup', 'volume', 'cpus', 'memory', 'env', 'args', 'command']);
 export const LOCKS = ['package-lock.json', 'npm-shrinkwrap.json', 'pnpm-lock.yaml', 'yarn.lock'];
 
 // Stryker disable next-line ConditionalExpression: containerOf returns before this for null, so the null check never decides
@@ -56,7 +66,7 @@ const isRecord = (v: unknown): v is Record<string, unknown> => v !== null && typ
 /** The config value, resolved: `true`, an image name, or an object; `false` or nothing is no container. */
 export function containerOf(raw: unknown): Container | undefined {
   if (raw === undefined || raw === null || raw === false) return undefined;
-  const base: Container = { engine: 'docker', image: `node:${nodeMajor}-bookworm-slim`, env: [], args: [], command: 'npx --no oxmutate' };
+  const base: Container = { engine: 'docker', image: `node:${nodeMajor}-bookworm-slim`, network: 'none', env: [], args: [], command: 'npx --no oxmutate' };
   if (raw === true) return base;
   if (typeof raw === 'string') return { ...base, image: raw };
   if (!isRecord(raw)) throw new Error(`container must be true, an image name or an object, not ${JSON.stringify(raw)}. fix: container: true`);
@@ -68,6 +78,7 @@ export function containerOf(raw: unknown): Container | undefined {
   return {
     engine: str('engine') ?? base.engine,
     image: str('image') ?? base.image,
+    network: str('network') ?? base.network,
     install: c['install'] === false ? '' : str('install'),
     setup: str('setup'),
     volume: str('volume'),
@@ -114,40 +125,65 @@ export interface PlanInput {
   keep: readonly string[];
 }
 
-/** The `<engine>` arguments of the run and of the copy back. */
-export function containerPlan(c: Container, p: PlanInput): { run: string[]; back: string[] } {
-  const script = [
+/** What every container oxmutate starts gets: no capability, no way to gain one, and a label to find it by. */
+const HARDENED = ['--rm', '--cap-drop=ALL', '--security-opt=no-new-privileges', '--label', 'dev.oxmutate=1'];
+
+/** The `<engine>` arguments of the volume, the sync, the run and the copy back. */
+export function containerPlan(c: Container, p: PlanInput): { volume: string[]; sync: string[]; run: string[]; back: string[] } {
+  const sync = [
     'set -e',
     `mkdir -p ${SRC} && cd ${SRC}`,
-    `tar -xvf /io/in.tar > ${WORK}/manifest.new`,
+    // -o: the files are the container user's, whoever owned them on the host (no CAP_CHOWN here).
+    `tar -xovf /io/in.tar > ${WORK}/manifest.new`,
     `node -e ${quote(PRUNE)} ${WORK}/manifest ${WORK}/manifest.new`,
     `mv ${WORK}/manifest.new ${WORK}/manifest`,
     ...(p.install ? [`if [ "$(cat ${WORK}/installed 2>/dev/null)" != ${quote(p.key)} ]; then ${p.install}; echo ${quote(p.key)} > ${WORK}/installed; fi`] : []),
-    ...(c.setup ? [c.setup] : []),
-    `cd ${quote(path.posix.join(SRC, p.rel))}`,
-    `exec ${c.command} ${p.argv.map(quote).join(' ')}`,
   ].join('\n');
-  const mounts = ['-v', `${p.volume}:${WORK}`, '-v', `${p.io}:/io`];
+  const run = ['set -e', ...(c.setup ? [c.setup] : []), `cd ${quote(path.posix.join(SRC, p.rel))}`, `exec ${c.command} ${p.argv.map(quote).join(' ')}`].join('\n');
+  const volume = ['-v', `${p.volume}:${WORK}`];
+  const io = ['-v', `${p.io}:/io`];
+  const limits = [...(c.cpus === undefined ? [] : ['--cpus', String(c.cpus)]), ...(c.memory === undefined ? [] : ['--memory', c.memory]), ...c.env.flatMap((e) => ['-e', e]), ...c.args];
   return {
-    run: [
-      'run', '--rm', '--init', ...mounts, '-w', WORK, '-e', `${INSIDE}=inside`,
-      ...(c.cpus === undefined ? [] : ['--cpus', String(c.cpus)]),
-      ...(c.memory === undefined ? [] : ['--memory', c.memory]),
-      ...c.env.flatMap((e) => ['-e', e]),
-      ...c.args,
-      c.image, 'sh', '-c', script,
-    ],
-    back: ['run', '--rm', ...mounts, '-w', SRC, c.image, 'sh', '-c', 'for f; do [ -e "$f" ] && printf "%s\\n" "$f"; done > /io/keep.list; if [ -s /io/keep.list ]; then tar -cf /io/out.tar -T /io/keep.list; fi', 'sh', ...p.keep],
+    volume: ['volume', 'create', '--label', 'dev.oxmutate=1', p.volume],
+    sync: ['run', ...HARDENED, ...volume, ...io, '-w', WORK, ...limits, c.image, 'sh', '-c', sync],
+    run: ['run', ...HARDENED, '--init', `--network=${c.network}`, ...volume, '-w', WORK, '-e', `${INSIDE}=inside`, ...limits, c.image, 'sh', '-c', run],
+    back: ['run', ...HARDENED, '--network=none', ...volume, ...io, '-w', SRC, c.image, 'sh', '-c', 'for f; do [ -e "$f" ] && printf "%s\\n" "$f"; done > /io/keep.list; if [ -s /io/keep.list ]; then tar -cf /io/out.tar -T /io/keep.list; fi', 'sh', ...p.keep],
   };
 }
 
 type Spawn = (cmd: string, args: readonly string[], o: RunOptions) => Promise<Pick<Result, 'code' | 'stdout' | 'stderr'>>;
 
+/** macOS tar writes extended attributes as `._` files and as headers Linux tar warns about; GNU tar has neither flag but the second. */
+export const tarFlags = (host: string): string[] => (host === 'darwin' ? ['--no-mac-metadata', '--no-xattrs'] : ['--no-xattrs']);
+
+/** The cache directory is the user's alone; the run's directory inside it is writable by the container's user too. */
+const PRIVATE_MODE = 0o700;
+const SHARED_MODE = 0o777;
+
+/** A directory the container can mount: under the user's cache, which every engine shares. */
+function ioDir(): string {
+  const parent = path.join(env['XDG_CACHE_HOME'] || path.join(homedir(), '.cache'), 'oxmutate');
+  mkdirSync(parent, { recursive: true, mode: PRIVATE_MODE });
+  const io = mkdtempSync(path.join(parent, 'io-'));
+  // The container's user is not the host's: it must write out.tar here. The parent stays private.
+  chmodSync(io, SHARED_MODE);
+  return io;
+}
+
+/** Runs an engine step, with the fix line when the engine itself is missing. */
+async function step(spawn: Spawn, c: Container, args: readonly string[], o: Omit<RunOptions, 'runtime'>): Promise<Pick<Result, 'code' | 'stdout' | 'stderr'>> {
+  try {
+    return await spawn(c.engine, args, { ...o, runtime: ambientRuntime(), timeout: 0 });
+  } catch (e) {
+    throw new Error(`${c.engine} did not start (${(e as Error).message}). fix: install and start Docker or Podman, or set container.engine`);
+  }
+}
+
 /**
  * Runs `argv` (oxmutate's own, after the binary) inside the container and returns its exit code.
  * `keep`: absolute paths to copy back (the reports, the incremental file).
  */
-export async function runInContainer(c: Container, o: { root: string; keep: readonly string[]; since?: string | undefined; frozenOracle?: string | undefined }, argv: readonly string[], spawn: Spawn = run): Promise<number> {
+export async function runInContainer(c: Container, o: { root: string; keep: readonly string[]; since?: string | undefined; frozenOracle?: string | undefined }, argv: readonly string[], { spawn = run, host = platform }: { spawn?: Spawn; host?: string } = {}): Promise<number> {
   if (o.since !== undefined || o.frozenOracle !== undefined) throw new Error('--since and --frozen-oracle read git history, and the container gets the files without it. fix: run them with --no-container');
   const runtime = ambientRuntime();
   const git = await spawn('git', ['rev-parse', '--show-toplevel'], { cwd: o.root, runtime });
@@ -156,26 +192,23 @@ export async function runInContainer(c: Container, o: { root: string; keep: read
   const keep = o.keep.map((f) => path.relative(top, f).split(path.sep).join('/')).filter((f) => !f.startsWith('..'));
   const listed = (await spawn('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], { cwd: top, runtime, timeout: 0 })).stdout.split('\0');
   const files = [...new Set([...listed, ...keep])].filter((f) => f !== '' && existsSync(path.join(top, f)));
-  const io = mkdtempSync(path.join(tmpdir(), 'oxmutate-io-'));
+  const io = ioDir();
   try {
     writeFileSync(path.join(io, 'files'), files.join('\0'));
-    // macOS tar would add its metadata as `._` files and extended headers Linux tar warns about.
-    const mac = platform === 'darwin' ? ['--no-mac-metadata', '--no-xattrs'] : [];
-    const tar = await spawn('tar', ['-cf', path.join(io, 'in.tar'), ...mac, '--null', '-T', path.join(io, 'files')], { cwd: top, runtime, timeout: 0, env: { ...env, COPYFILE_DISABLE: '1' } });
+    const tar = await spawn('tar', ['-cf', path.join(io, 'in.tar'), ...tarFlags(host), '--null', '-T', path.join(io, 'files')], { cwd: top, runtime, timeout: 0 });
     if (tar.code !== 0) throw new Error(`tar could not pack ${top}: ${tar.stderr.trim()}`);
     const lock = LOCKS.find((f) => existsSync(path.join(top, f)));
     const install = c.install ?? defaultInstall(lock);
     const manifest = [lock, 'package.json'].find((f) => f !== undefined && existsSync(path.join(top, f)));
-    const key = createHash('sha256').update(`${c.image}\0${install}\0`).update(manifest ? readFileSync(path.join(top, manifest)) : '').digest('hex');
+    const hash = createHash('sha256').update(`${c.image}\0${install}\0`);
+    if (manifest) hash.update(readFileSync(path.join(top, manifest)));
     const volume = c.volume ?? `oxmutate-${createHash('sha256').update(top).digest('hex').slice(0, VOLUME_HASH_CHARS)}`;
-    const plan = containerPlan(c, { rel: path.relative(top, o.root).split(path.sep).join('/'), argv, key, install, volume, io, keep });
-    let ran: Awaited<ReturnType<Spawn>>;
-    try {
-      ran = await spawn(c.engine, plan.run, { runtime, stdio: 'inherit', timeout: 0 });
-    } catch (e) {
-      throw new Error(`${c.engine} did not start (${(e as Error).message}). fix: install and start Docker or Podman, or set container.engine`);
-    }
-    if (keep.length > 0 && (await spawn(c.engine, plan.back, { runtime, timeout: 0 })).code === 0 && existsSync(path.join(io, 'out.tar'))) {
+    const plan = containerPlan(c, { rel: path.relative(top, o.root).split(path.sep).join('/'), argv, key: hash.digest('hex'), install, volume, io, keep });
+    await step(spawn, c, plan.volume, {});
+    const synced = await step(spawn, c, plan.sync, { stdio: 'inherit' });
+    if (synced.code !== 0) throw new Error(`the copy into the container or its install failed (exit ${String(synced.code)}); its output is above. fix: set container.install, or container.image to one with what the install needs`);
+    const ran = await step(spawn, c, plan.run, { stdio: 'inherit' });
+    if (keep.length > 0 && (await step(spawn, c, plan.back, {})).code === 0 && existsSync(path.join(io, 'out.tar'))) {
       await spawn('tar', ['-xf', path.join(io, 'out.tar')], { cwd: top, runtime, timeout: 0 });
     }
     return ran.code ?? 1;

@@ -42,7 +42,7 @@ export const cwd = (): string => process.cwd();
 export const stderr = process.stderr;
 export const exit = (code: number): never => process.exit(code);
 export const platform = process.platform;
-export const nodeMajor = process.versions.node.split('.')[0] ?? '22';
+export const nodeMajor = process.versions.node.slice(0, process.versions.node.indexOf('.'));
 /**
  * Servers lead their own process group where the OS has them, so a kill takes the processes their
  * tests spawned with them: a SIGKILLed server's children were re-parented to launchd and lived on
