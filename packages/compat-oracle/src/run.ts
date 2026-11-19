@@ -483,10 +483,13 @@ export function internalShimFrom(host: Host, { target, installed, rel }: { targe
 /**
  * The path the published package carries an internal module at: `src/x.js` is `build/x.js`
  * for a host that declares `publishedInternalDir: 'build'`, and unchanged for every other.
+ * A host that also declares `publishedInternalExtension: '.mjs'` ships it as `dist/x.mjs`.
  */
 function publishedAs(host: Host, rel: string): string {
   const own = `${host.internalDir ?? 'lib'}/`;
-  return host.publishedInternalDir !== undefined && rel.startsWith(own) ? `${host.publishedInternalDir}/${rel.slice(own.length)}` : rel;
+  if (host.publishedInternalDir === undefined || !rel.startsWith(own)) return rel;
+  const moved = `${host.publishedInternalDir}/${rel.slice(own.length)}`;
+  return host.publishedInternalExtension === undefined ? moved : moved.replace(/\.js$/, host.publishedInternalExtension);
 }
 
 function writeInternalShims(host: Host, { hostDir, target, internals, packageType }: { hostDir: string; target: string; internals: string[]; packageType: string }): void {

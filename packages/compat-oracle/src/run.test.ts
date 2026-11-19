@@ -228,6 +228,41 @@ describe('a control run’s internal shim', () => {
       writeFileSync(join(installed, 'build', 'elsewhere.js'), '');
       expect(internalShimFrom(ink, { target: 'ink', installed, rel: 'lib/elsewhere.js' })).toBe('@clack/prompts');
     });
+
+    // openapi-typescript's tests import `../../src/transform/x.js` and the tarball carries `dist/transform/x.mjs`.
+    it('points at the compiled file under the extension the package publishes, when the host declares one', () => {
+      const unbuilt = { ...ink, publishedInternalExtension: '.mjs' };
+      writeFileSync(join(installed, 'build', 'transform.mjs'), 'export default 1;\n');
+      expect(internalShimFrom(unbuilt, { target: 'ink', installed, rel: 'src/transform.js' })).toBe(join(installed, 'build', 'transform.mjs'));
+      expect(internalShimFrom(ink, { target: 'ink', installed, rel: 'src/transform.js' }), 'undeclared, the `.js` name is the only one looked for').toBe('@clack/prompts');
+    });
+
+    it('leaves a path alone for a host that publishes its internals where its tests find them, and one outside the internal folder', () => {
+      const { publishedInternalDir: _moved, ...whereTestsFindThem } = ink;
+      const asWritten = { ...whereTestsFindThem, publishedInternalExtension: '.mjs' };
+      mkdirSync(join(installed, 'src'), { recursive: true });
+      writeFileSync(join(installed, 'src', 'plain.js'), 'export default 1;\n');
+      expect(internalShimFrom(asWritten, { target: 'ink', installed, rel: 'src/plain.js' })).toBe(join(installed, 'src', 'plain.js'));
+      const unbuilt = { ...ink, publishedInternalExtension: '.mjs' };
+      mkdirSync(join(installed, 'other'), { recursive: true });
+      writeFileSync(join(installed, 'other', 'plain.js'), 'export default 1;\n');
+      expect(internalShimFrom(unbuilt, { target: 'ink', installed, rel: 'other/plain.js' })).toBe(join(installed, 'other', 'plain.js'));      // The as-written path is tried first, so the rule only shows where it is missing: a file at the
+      // place a blind move would compute must not be mistaken for the module.
+      mkdirSync(join(installed, 'build', 'r'), { recursive: true });
+      writeFileSync(join(installed, 'build', 'r', 'gone.js'), 'export default 1;\n');
+      expect(internalShimFrom(ink, { target: 'ink', installed, rel: 'other/gone.js' })).toBe('@clack/prompts');
+      mkdirSync(join(installed, 'undefined'), { recursive: true });
+      writeFileSync(join(installed, 'undefined', 'gone.js'), 'export default 1;\n');
+      expect(internalShimFrom(whereTestsFindThem, { target: 'ink', installed, rel: 'src/gone.js' })).toBe('@clack/prompts');
+    });
+
+    it('changes only a trailing `.js`, so a path that only contains one is left as written', () => {
+      const unbuilt = { ...ink, publishedInternalExtension: '.mjs' };
+      mkdirSync(join(installed, 'build', 'a.js'), { recursive: true });
+      writeFileSync(join(installed, 'build', 'a.js', 'index.json'), '{}');
+      writeFileSync(join(installed, 'build', 'a.mjs'), '');
+      expect(internalShimFrom(unbuilt, { target: 'ink', installed, rel: 'src/a.js/index.json' })).toBe(join(installed, 'build', 'a.js', 'index.json'));
+    });
   });
 });
 
