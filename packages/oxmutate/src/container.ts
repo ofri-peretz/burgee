@@ -224,7 +224,7 @@ export interface PlanInput {
   /** `source: 'git'`: what to fetch, and from where. */
   fetch?: { remote: string; commit: string } | undefined;
   /** `source: 'copy'`: what this sync sends. */
-  sync?: SyncPlan | undefined;
+  sync?: Sending | undefined;
   bases?: readonly Base[] | undefined;
 }
 
@@ -241,8 +241,7 @@ const removals = (files: readonly string[]): string[] => {
 };
 
 /** How the copy gets into the volume: whole (unpacked, then pruned to the host's listing), or a delta on the volume last synced. */
-function copySteps(sync: SyncPlan): string[] {
-  if (sync.mode === 'skip') return [];
+function copySteps(sync: Sending): string[] {
   const unpack = [`[ ! -f ${WORK}/in.tar ] || tar -xovf ${WORK}/in.tar >/dev/null`, `rm -f ${WORK}/in.tar`];
   if (sync.mode === 'whole') {
     // -o: the files are the container user's, whoever owned them on the host (no CAP_CHOWN here).
@@ -385,6 +384,9 @@ async function startWith(engine: Engine, create: readonly string[], files: reado
   return { code: started.code, id };
 }
 
+/** A sync that sends something (a skip starts no sync container). */
+export type Sending = Exclude<SyncPlan, { mode: 'skip' }>;
+
 interface Host {
   spawn: Spawn;
   top: string;
@@ -392,8 +394,6 @@ interface Host {
   host: string;
 }
 
-/** A sync that sends something (a skip starts no sync container). */
-type Sending = Exclude<SyncPlan, { mode: 'skip' }>;
 
 /** The files the copy source sends: a tar of `send`, the listing for a whole sync, and each base's tree. */
 async function pack({ spawn, top, io, host }: Host, sync: Sending, listing: readonly string[], bases: readonly Base[]): Promise<[string, string][]> {
@@ -473,7 +473,7 @@ async function listed(spawn: Spawn, top: string, keep: readonly string[]): Promi
  * Syncs the volume: the copy's delta (or all of it, when the volume is not the one last synced),
  * or the commit to fetch. Records what was sent once the sync succeeded.
  */
-async function syncVolume(h: Host & { engine: Engine; c: Container; plan: (sync: SyncPlan | undefined) => ReturnType<typeof containerPlan>; key: string; volume: string; keep: readonly string[]; bases: readonly Base[] }): Promise<void> {
+async function syncVolume(h: Host & { engine: Engine; c: Container; plan: (sync: Sending | undefined) => ReturnType<typeof containerPlan>; key: string; volume: string; keep: readonly string[]; bases: readonly Base[] }): Promise<void> {
   const { engine, c, key, volume, bases } = h;
   if (c.source === 'git') {
     const synced = await startWith(engine, h.plan(undefined).sync, [], { stdio: 'inherit' });
@@ -551,7 +551,7 @@ export async function runInContainer(
     const key = installKey(runnable, top, install, lock);
     const volume = runnable.volume ?? `oxmutate-${createHash('sha256').update(top).digest('hex').slice(0, VOLUME_HASH_CHARS)}`;
     const fetch = runnable.source === 'git' ? await fetchOf(spawn, runnable, top) : undefined;
-    const plan = (sync: SyncPlan | undefined): ReturnType<typeof containerPlan> => containerPlan(runnable, { rel, argv: withoutContainerFlags(argv, tags), key, install, volume, keep, fetch, sync, bases });
+    const plan = (sync: Sending | undefined): ReturnType<typeof containerPlan> => containerPlan(runnable, { rel, argv: withoutContainerFlags(argv, tags), key, install, volume, keep, fetch, sync, bases });
     const steps = plan(undefined);
     for (const v of steps.volumes) {
       // eslint-disable-next-line reliability/no-await-in-loop -- the run's volume and the shared cache, in order

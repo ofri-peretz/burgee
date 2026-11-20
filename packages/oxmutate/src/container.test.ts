@@ -800,6 +800,17 @@ describe('two runs on one volume', () => {
     expect(f.ofEngine().find((c) => c.args.includes('ps'))!.args).toEqual(['ps', '-q', '--filter', 'label=dev.oxmutate.volume=v']);
   });
 
+  it('says it waits before the first wait, and only then', async () => {
+    const events: string[] = [];
+    vi.spyOn(process.stderr, 'write').mockImplementation(() => {
+      events.push('said');
+      return true;
+    });
+    const top = repo({ 'package.json': '{}' });
+    await runInContainer(C, { root: top, keep: [] }, [], { spawn: fake({ busy: 3 }).spawn, wait: async () => void events.push('wait') });
+    expect(events).toEqual(['said', 'wait', 'wait', 'wait']);
+  });
+
   it('gives up after ten minutes of waiting, before syncing', async () => {
     vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
     const top = repo({ 'package.json': '{}' });

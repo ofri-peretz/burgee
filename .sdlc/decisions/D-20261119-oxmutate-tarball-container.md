@@ -20,3 +20,7 @@ host run held the endpoint scanner at 384–445% CPU and the container run left 
 
 **Reversible.** One figure in `.sdlc/bands/artifact-size-baseline.json`. The 10% allowance now runs
 from the new figure.
+
+**Rebased 2026-11-20.** #1667 moved main's figure to 74,763 / 258,454 while this branch was open.
+78,423 / 271,416 stays, since it also covers what the branch added later: the volume lock and the
+daemon message.
