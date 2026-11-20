@@ -741,7 +741,10 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
       try {
         vi.resetModules();
         const [file] = await collectTests([filepath], this);
-        const bodies = armed !== undefined && staticTests?.[armed] ? new Set(staticTests[armed]) : undefined;
+        // A confirmation runs only its covering tests' bodies, so its canary asks only whether those still
+        // pass unarmed: every body of the file made the canary the larger part of pathe's confirmations
+        // (150 re-collections, each running `exploits`' 65,500-character globs, 2026-11-20).
+        const bodies = staticTests ? new Set(armed !== undefined ? (staticTests[armed] ?? []) : Object.values(staticTests).flat()) : undefined;
         const result = file ? await runCollected(file, runnable, bodies) : { failed: [filepath], ran: 0 };
         await settle();
         if (unhandled > before && result.failed.length === 0) result.failed.push(filepath);
