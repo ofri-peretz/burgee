@@ -963,10 +963,10 @@ it.skipIf(!native || !existsSync(bin) || !nightly)('keeps a survivor whose confi
 // survivors, which a confirmation that ran the non-covering test's body would kill.
 describe.skipIf(!native || !existsSync(bin) || !nightly)('survivor confirmation in a live worker', () => {
   type Confirmed = { verdicts: string[]; reasons: (string | undefined)[]; stats: { survivorsOverturned: number; confirmLive: number; isolatedByCause: { confirm: number }; isolatedStages?: { stage: string; mutants: number; ms: number; peak: number }[] } };
-  const confirmRun = (env: Record<string, string> = {}): Confirmed => {
+  const confirmRun = (env: Record<string, string> = {}, args: string[] = []): Confirmed => {
     const dir = path.join(pkg, 'test/fixtures/cross-test');
     const reportDir = mkdtempSync(path.join(tmpdir(), 'oxmutate-cross-test-'));
-    execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: dir, stdio: 'pipe', env: { ...process.env, ...env } });
+    execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json', ...args], { cwd: dir, stdio: 'pipe', env: { ...process.env, ...env } });
     const report = JSON.parse(readFileSync(path.join(reportDir, 'mutation.json'), 'utf8')) as { files: Record<string, { mutants: (ReportMutant & { statusReason?: string })[] }>; 'x-oxmutate': { stats: Confirmed['stats'] } };
     rmSync(reportDir, { recursive: true, force: true });
     const mutants = (report.files['src/store.ts']?.mutants ?? []).filter((m) => m.status !== 'Ignored');
@@ -989,14 +989,24 @@ describe.skipIf(!native || !existsSync(bin) || !nightly)('survivor confirmation 
     expect(live.stats.isolatedByCause.confirm).toBe(0);
   });
 
+  it('spreads the confirmations over the pool: two workers run them side by side, with the same verdicts', () => {
+    // One file's confirmations were one unit of up to 25 mutants, so a pool of 8 ran them on one worker
+    // (pathe: 103 confirmations, 5 units, about 110 s of its isolated phase, 2026-11-20).
+    const one = confirmRun();
+    const two = confirmRun({}, ['--concurrency', '2']);
+    expect(one.stats.isolatedStages).toEqual([{ stage: 'live-confirm', mutants: one.stats.confirmLive, ms: expect.any(Number) as number, peak: 1 }]);
+    expect(two.stats.isolatedStages).toEqual([{ stage: 'live-confirm', mutants: one.stats.confirmLive, ms: expect.any(Number) as number, peak: 2 }]);
+    expect(two.verdicts).toEqual(one.verdicts);
+  });
+
   it('gives the verdicts of the fresh-worker path, which OXMUTATE_ISOLATE_CONFIRM=1 still takes', () => {
     const live = confirmRun();
     const fresh = confirmRun({ OXMUTATE_ISOLATE_CONFIRM: '1' });
     expect(live.verdicts).toEqual(fresh.verdicts);
     expect(fresh.stats.confirmLive).toBe(0);
     expect(fresh.stats.isolatedByCause.confirm).toBe(live.stats.confirmLive);
-    // The isolated phase names its stages: a live confirmation has none, a fresh one has its own.
-    expect(live.stats.isolatedStages).toBeUndefined();
+    // The isolated phase names its stages: a live confirmation is its own stage, a fresh one is another.
+    expect(live.stats.isolatedStages?.map((x) => x.stage)).toEqual(['live-confirm']);
     expect(fresh.stats.isolatedStages).toEqual([{ stage: 'confirm', mutants: live.stats.confirmLive, ms: expect.any(Number) as number, peak: 1 }]);
   });
 });

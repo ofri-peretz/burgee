@@ -263,7 +263,7 @@ const verdictOptions = (o: Options): unknown => ({
  * (2026-10-30). Smaller stays better for a pollution restart, which re-runs the rest of a unit.
  */
 /** The stages of the isolated phase: static fallbacks and stragglers, watchdog re-runs, survivor confirmations and their re-checks, flaky re-runs. */
-export type IsolatedStage = 'first' | 'rerun' | 'confirm' | 'recheck' | 'flaky';
+export type IsolatedStage = 'first' | 'rerun' | 'live-confirm' | 'confirm' | 'recheck' | 'flaky';
 const UNIT_PAIRS = 400;
 /** Characters of a static fallback's reason kept as a counter key in the report. */
 const FALLBACK_WHY_CHARS = 160;
@@ -999,13 +999,19 @@ export async function run(options: Options): Promise<RunResult> {
       const verdicts = new Map<string, Verdict>();
       if (items.length === 0) return { verdicts, undecided: [] };
       const STATIC_BATCH = 25;
-      /** Units of up to STATIC_BATCH mutants per test file, for the files each mutant gets this round. */
+      const liveStart = performance.now();
+      pool.stats.peak = 0;
+      /** Units per test file, for the files each mutant gets this round: at most STATIC_BATCH mutants each, and enough of them to keep every worker busy. */
       const unitsFor = (filesOf: (m: MutantResult) => string[], grouped = false): Unit[] => {
         const byFile = new Map<string, string[]>();
         for (const m of items) for (const f of filesOf(m)) (byFile.get(f) ?? byFile.set(f, []).get(f))?.push(m.id);
+        // A confirmation is a whole re-collection of a file per mutant, so it is the work worth spreading:
+        // pathe's 103 confirmations were 5 units of 25 for 8 workers, 110 s of the isolated phase. Each
+        // file gets enough units to keep its share of the workers busy.
+        const batchOf = (n: number): number => (confirm ? Math.max(1, Math.min(STATIC_BATCH, Math.ceil(n / Math.max(1, Math.ceil(options.concurrency / byFile.size))))) : STATIC_BATCH);
         return [...byFile].flatMap(([file, ids]) =>
-          Array.from({ length: Math.ceil(ids.length / STATIC_BATCH) }, (_, i): Unit => {
-            const mine = ids.slice(i * STATIC_BATCH, (i + 1) * STATIC_BATCH);
+          Array.from({ length: Math.ceil(ids.length / batchOf(ids.length)) }, (_, i): Unit => {
+            const mine = ids.slice(i * batchOf(ids.length), (i + 1) * batchOf(ids.length));
             // A confirmation runs the bodies of the mutant's covering tests in this file, as its isolated run would.
             const tests = (id: string): string[] => (byId.get(id)?.coveredBy ?? []).filter((t) => testInfo.get(t)?.file === file);
             return {
@@ -1082,6 +1088,7 @@ export async function run(options: Options): Promise<RunResult> {
       // compat-oracle's hosts.ts cost 389 s that way, sc8-profile.md §6). The first round stays one
       // mutant at a time: that is where the kills are, and a kill splits a group.
       for (const [i, round] of rounds.entries()) await staticPool.drain(unitsFor(round, i > 0), (_, id) => isolatedCapped(id, 2), afterStatic, { prepare: keepUndecided });
+      if (confirm) (stats.isolatedStages ??= []).push({ stage: 'live-confirm', mutants: items.length, ms: performance.now() - liveStart, peak: pool.stats.peak });
       const undecided: MutantResult[] = [];
       for (const m of items) {
         const k = killed.get(m.id);
