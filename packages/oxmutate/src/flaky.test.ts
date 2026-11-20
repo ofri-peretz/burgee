@@ -43,4 +43,9 @@ describe('the mutants a flaky test could have decided, which are re-run', () => 
     expect(flakyCandidates([m], flaky, fileOf)).toEqual([]);
     expect(flakyCandidates([{ ...m, coveredBy: ['flaky'] }], new Set(), fileOf)).toEqual([]);
   });
+
+  it('keeps a Killed mutant that names no killer', () => {
+    const m: Mutant = { id: 'a', status: 'Killed', coveredBy: ['flaky'] };
+    expect(ids(flakyCandidates([m], flaky, fileOf))).toEqual(['a']);
+  });
 });

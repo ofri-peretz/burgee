@@ -21,6 +21,7 @@ export function flakyCandidates<M extends Reran>(
   flakyTests: ReadonlySet<string>,
   fileOf: (test: string) => string | undefined,
 ): M[] {
+  // Stryker disable next-line ConditionalExpression: with no flaky test the filter below finds none too; the early return only skips building `touched`
   if (flakyTests.size === 0) return [];
   const touched = new Set([...flakyTests].map(fileOf));
   const steady = (test: string): boolean => {
@@ -30,6 +31,7 @@ export function flakyCandidates<M extends Reran>(
   return mutants.filter(
     (m) =>
       m.coveredBy.some((t) => flakyTests.has(t)) &&
+      // Stryker disable next-line ArrayDeclaration: any one-element list names a test `fileOf` does not know, which is not steady, as `[]` is not
       !(m.status === 'Killed' && (m.killedBy ?? []).some(steady)),
   );
 }
