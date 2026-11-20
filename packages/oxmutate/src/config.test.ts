@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { afterAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { discard } from './__fixtures__/scratch-dir.js';
 import { disables, loadOptions, type Options } from './config.js';
@@ -324,6 +324,26 @@ describe('Stryker keys oxmutate does not use', () => {
 });
 
 describe('the container key', () => {
+  // The machine default reaches no case unless the case sets it.
+  const saved = { OXMUTATE_CONTAINER: process.env['OXMUTATE_CONTAINER'], XDG_CONFIG_HOME: process.env['XDG_CONFIG_HOME'] };
+  beforeEach(() => {
+    delete process.env['OXMUTATE_CONTAINER'];
+    process.env['XDG_CONFIG_HOME'] = project();
+  });
+  afterEach(() => {
+    for (const [k, v] of Object.entries(saved)) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+  });
+
+  it('takes the machine default when the project sets none, and the project’s own, false included, over it', async () => {
+    process.env['OXMUTATE_CONTAINER'] = '1';
+    expect((await loadOptions(project({ 'oxmutate.config.json': {} }))).container?.engine).toBe('docker');
+    expect((await loadOptions(project({ 'oxmutate.config.json': { container: false } }))).container).toBeUndefined();
+    expect((await loadOptions(project({ 'oxmutate.config.json': { container: 'node:24-alpine' } }))).container?.image).toBe('node:24-alpine');
+  });
+
   it('is read from oxmutate.config, and is off without it', async () => {
     expect((await loadOptions(project({ 'oxmutate.config.json': { container: 'node:24-alpine' } }))).container?.image).toBe('node:24-alpine');
     expect((await loadOptions(project({ 'oxmutate.config.json': {} }))).container).toBeUndefined();

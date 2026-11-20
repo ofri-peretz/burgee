@@ -372,6 +372,9 @@ export function oxmutateConfig(o: RunOptions): Record<string, unknown> {
     // A push after the first re-decides only what changed: a verdict is reused when its source, its
     // tests and their module graph are unchanged (fingerprint), and one in twenty reused is re-run.
     ...(o.incrementalFile && { incremental: true, incrementalFile: o.incrementalFile }),
+    // The lane runs this checkout's own oxmutate, built here: a machine-wide container default
+    // (OXMUTATE_CONTAINER) would send it to a container that has neither the build nor the native core.
+    container: false,
   };
 }
 

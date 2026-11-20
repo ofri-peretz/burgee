@@ -10,7 +10,7 @@ import path from 'node:path';
 import { defineCommand, defineProgram, ExitCode } from 'burgee';
 
 import { DEFAULT_IDLE_TIMEOUT_MS, loadOptions, type Options } from './config.js';
-import { INSIDE, runInContainer, withFlags, withoutContainerFlags } from './container.js';
+import { containerDefaults, INSIDE, pruneContainers, runInContainer, withFlags } from './container.js';
 import { InstrumentFault, run, type MutantResult, type RunResult } from './coordinator.js';
 import { frozenOracle } from './frozen.js';
 import { parseShard } from './lanes.js';
@@ -118,7 +118,7 @@ async function inContainer(options: Options, o: Record<string, unknown>, root: s
   const keep = [...(options.incremental ? [options.incrementalFile] : []), ...reports.filter(([r]) => options.reporters.includes(r)).map(([, f]) => f)];
   let code: number;
   try {
-    code = await runInContainer(container, { root, keep, since: options.since, frozenOracle: options.frozenOracle }, withoutContainerFlags(argv.slice(2)));
+    code = await runInContainer(container, { root, keep, since: options.since, frozenOracle: options.frozenOracle }, argv.slice(2));
   } catch (e) {
     stderr.write(`oxmutate: ${(e as Error).message}\n`);
     code = ExitCode.CONFIG;
@@ -202,6 +202,23 @@ const runCommand = defineCommand({
   },
 });
 
+const pruneCommand = defineCommand({
+  name: 'prune',
+  description: "Remove every container and volume container mode made, and the host's records of what it synced",
+  effects: 'idempotent',
+  examples: [{ command: 'oxmutate prune', description: 'start the next container run from nothing: it installs again' }],
+  options: { config: { type: 'string', description: 'an oxmutate config file whose container.engine, context and host to use' } },
+  run: async ({ options }) => {
+    const o = options as Record<string, unknown>;
+    const root = cwd();
+    const c = (await loadOptions(root, {}, typeof o['config'] === 'string' ? o['config'] : undefined)).container ?? containerDefaults();
+    const { containers, volumes } = await pruneContainers(c);
+    const data: Record<string | symbol, unknown> = { changed: containers.length + volumes.length > 0, containers, volumes };
+    data[TEXT] = () => `removed ${String(volumes.length)} volume(s) and ${String(containers.length)} container(s)${volumes.length ? `: ${volumes.join(', ')}` : ''}`;
+    return data;
+  },
+});
+
 const survivorsCommand = defineCommand({
   name: 'survivors',
   description: 'List the survivors of the last run, one record per mutant, each with a fix line',
@@ -227,5 +244,5 @@ export const program = defineProgram({
   name: 'oxmutate',
   version: VERSION,
   description: 'Mutation testing on the oxc engine: Stryker-compatible, built for CI and coding agents',
-  commands: [runCommand, survivorsCommand],
+  commands: [runCommand, survivorsCommand, pruneCommand],
 });
