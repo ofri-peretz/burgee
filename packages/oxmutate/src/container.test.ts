@@ -839,6 +839,12 @@ describe('what the install gets', () => {
     const none = fake({});
     await runInContainer(C, { root: top, keep: [] }, [], { spawn: none.spawn });
     expect(syncArgs(none).join(' ')).not.toContain('/tmp/oxmutate');
+    // Nothing forwarded is nothing at all: the cache's last variable is followed by the work directory.
+    for (const f of [none, off]) {
+      const args = syncArgs(f);
+      expect(args[args.indexOf('-w') - 1]).toBe('YARN_CACHE_FOLDER=/cache/yarn');
+      expect(f.copied.toSorted()).toEqual(['c1:/w/in.tar', 'c1:/w/listing']);
+    }
   });
 
   it('forwards nothing to a remote engine unless registryAuth says so, and says how once', async () => {
@@ -872,9 +878,14 @@ describe('what the install gets', () => {
     const f = fake({});
     await runInContainer({ ...C, include: ['.env.test', '**/*.fixture.json'] }, { root: top, keep: [] }, [], { spawn: f.spawn });
     expect(f.sent).toEqual([['.env.test', '.gitignore', 'deep/b.fixture.json', 'package.json', 'top.fixture.json']]);
+    const one = fake({});
+    await runInContainer({ ...C, include: ['.env.test'] }, { root: top, keep: [] }, [], { spawn: one.spawn });
+    expect(one.sent).toEqual([['.env.test', '.gitignore', 'package.json']]);
+    // A file git does not track yet, and does not ignore, is sent without include.
+    writeFileSync(path.join(top, 'new.ts'), 'n');
     const plain = fake({});
     await runInContainer(C, { root: top, keep: [] }, [], { spawn: plain.spawn });
-    expect(plain.sent).toEqual([['.gitignore', 'package.json']]);
+    expect(plain.sent).toEqual([['.gitignore', 'new.ts', 'package.json']]);
   });
 
   it('installs Yarn 2 and later with --immutable, by .yarnrc.yml or packageManager', async () => {
@@ -888,6 +899,7 @@ describe('what the install gets', () => {
     expect(await installOf({ 'yarn.lock': '', '.yarnrc.yml': 'nodeLinker: node-modules\n' })).toBe(berry);
     expect(await installOf({ 'yarn.lock': '', 'package.json': '{ "packageManager": "yarn@4.5.0" }' })).toBe(berry);
     expect(await installOf({ 'yarn.lock': '', 'package.json': '{"packageManager":"yarn@10.0.0"}' })).toBe(berry);
+    expect(await installOf({ 'yarn.lock': '', 'package.json': '{ "packageManager" : "yarn@3.8.0" }' })).toBe(berry);
     expect(await installOf({ 'yarn.lock': '', 'package.json': '{"packageManager":"yarn@1.22.22"}' })).toBe('corepack enable && yarn install --frozen-lockfile');
     expect(await installOf({ 'package-lock.json': '{}', 'package.json': '{"packageManager":"npm@10.0.0"}' })).toBe('npm ci');
   });

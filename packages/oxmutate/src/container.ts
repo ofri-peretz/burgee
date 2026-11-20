@@ -504,11 +504,9 @@ function registryAuth(io: string): { files: [string, string][]; create: string[]
   const yarnrc = path.join(homedir(), '.yarnrc.yml');
   const files: [string, string][] = [];
   const create: string[] = [];
-  let text = '';
   if (existsSync(npmrc)) {
     files.push([npmrc, NPMRC]);
     create.push('-e', `npm_config_userconfig=${NPMRC}`);
-    text += readFileSync(npmrc, 'utf8');
   }
   if (existsSync(yarnrc)) {
     // Yarn reads `.yarnrc.yml` from HOME and no variable names it, so the sync gets a HOME of its own holding it.
@@ -516,10 +514,10 @@ function registryAuth(io: string): { files: [string, string][]; create: string[]
     copyFileSync(yarnrc, path.join(io, 'home', '.yarnrc.yml'));
     files.push([path.join(io, 'home'), AUTH_HOME]);
     create.push('-e', `HOME=${AUTH_HOME}`);
-    text += readFileSync(yarnrc, 'utf8');
   }
-  const names = [...new Set([...text.matchAll(/\$\{(\w+)\}/gu)].map((m) => m[1]))];
-  return { files, create: [...create, ...names.flatMap((n) => ['-e', String(n)])] };
+  // Each `${NAME}` either file names, read as text (a Buffer has no matchAll), passed from the host's environment.
+  const named = [npmrc, yarnrc].filter((f) => existsSync(f)).flatMap((f) => [...readFileSync(f, 'utf8').matchAll(/\$\{(\w+)\}/gu)].map((m) => String(m[1])));
+  return { files, create: [...create, ...[...new Set(named)].flatMap((n) => ['-e', n])] };
 }
 
 /**
@@ -639,6 +637,7 @@ function installOf(c: Container, top: string, io: string): { install: string; ke
 function isBerry(top: string): boolean {
   if (existsSync(path.join(top, '.yarnrc.yml'))) return true;
   const manifest = path.join(top, 'package.json');
+  // Stryker disable next-line StringLiteral: RegExp#test reads a Buffer as its UTF-8 text, so the encoding changes nothing
   return existsSync(manifest) && /"packageManager"\s*:\s*"yarn@(?:[2-9]|[1-9]\d)/u.test(readFileSync(manifest, 'utf8'));
 }
 
