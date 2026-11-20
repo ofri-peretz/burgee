@@ -122,6 +122,37 @@ to about 15 (1, 6, 7), dry 4, outside 6: **about 85 s, 2.8x on `pathe` and about
 than lever 3's estimate. If the stage timings show the isolated phase is mostly serial stages,
 lever 7 is the cheapest large saving and goes first.
 
+### What the measurements found (2026-11-20)
+
+pathe, container mode, one round each, alternating, `OXMUTATE_ISOLATE_CONFIRM=1` so confirmation is the
+same everywhere; load 30 to 60. The 2.9.0 runs swing by 25% by themselves (217 to 287 s), so a release
+inside that band has not moved.
+
+| Build                                 |             Wall |        Isolated |
+| :------------------------------------ | ---------------: | --------------: |
+| 2.9.0 (five clean or near-clean runs) | 217.4 to 286.7 s | 80.4 to 159.4 s |
+| 2.10.0 (#1668)                        |          258.3 s |         125.4 s |
+| 2.10.1 (#1670)                        |          252.2 s |          94.4 s |
+| 2.12.0                                |          271.5 s |         136.2 s |
+
+No release regresses with confirmation held fresh. The regression of 2.10.0 on pathe was the live
+confirmation itself. The same build, live against fresh, alternating:
+
+|               |                                pathe live |                       pathe fresh |      ufo live |     ufo fresh |
+| :------------ | ----------------------------------------: | --------------------------------: | ------------: | ------------: |
+| Confirm stage | 57.7 s and 60.0 s for 122 and 130 mutants | 21.7 s and 26.7 s for 119 and 120 | 1.2 s for 100 | 3.9 s for 100 |
+| Wall          |                       360.7 s and 338.2 s |               280.5 s and 311.9 s |        14.0 s |        17.7 s |
+
+Live took 0.47 s a confirmation on pathe against 0.18 s fresh: one file, `glob.spec.ts`, cost 2.4 s a
+mutant live (186 s of unit time for 61 mutants) against 0.05 s in the other three. A probe that timed
+the file's unarmed re-collection did not see it (the re-collection averaged under 750 ms); the cost is in
+the armed run and the per-unit start. Removing the worker's own unarmed run of the file (it decided
+nothing and ran every body once per unit) did not close the gap. Decision, pre-committed by the
+coordinator: live is not faster than fresh on pathe, so **fresh is the default and live is
+`OXMUTATE_LIVE_CONFIRM=1`**; ufo gives up about 3.7 s. The 3x path therefore does not come from
+confirmation on pathe; it comes from levers 2, 3 and 6 above, and the serial 3x stages (36 to 38 s each
+for two to four mutants, present in 2.9.0 too).
+
 ### Order
 
 1. `isolatedStages` and `staticFallbacks` in the report (this branch): the measurement the rest needs.

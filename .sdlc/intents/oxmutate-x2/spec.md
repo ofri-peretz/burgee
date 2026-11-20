@@ -32,7 +32,9 @@ would have to read twice: a timeout (hit limit or deadlock) and a kill only by a
 own timeout (`slow`). The `RERUN_SLACK` recheck, `statusReason` and `survivorsOverturned` are
 unchanged, and a static unit's `static.budgetMs` does not apply to confirmations.
 
-`OXMUTATE_ISOLATE_CONFIRM=1` sends every confirmation to `runIsolated`, as 2.9.0 did.
+Confirmation goes to `runIsolated`, as 2.9.0 did, unless `OXMUTATE_LIVE_CONFIRM=1` asks for the live path
+(2026-11-20: live is the opt-in, because on pathe it took 57.7 s for 122 confirmations against 21.7 s for
+119 fresh, and on ufo 1.2 s against 3.9 s for 100; see the intent's Path to 3x).
 
 ## Why the verdicts are the same
 
@@ -84,8 +86,8 @@ caught. None of the bench targets or fixtures uses `test.extend`.
 - `confirm.qnt`: `confirmLive` holds `safety`; `confirmLiveAllBodies` (no test filter) and
   `confirmLiveUnguarded` (no guards) violate it (`models.yml`).
 - `e2e.test.ts` › survivor confirmation in a live worker: the cross-test mutant is Killed with the
-  cross-test reason and `survivorsOverturned` 1, every confirmation live; the same verdicts as
-  `OXMUTATE_ISOLATE_CONFIRM=1`. With confirmation skipped (`survivors = []`) the first case fails on
+  cross-test reason and `survivorsOverturned` 1, every confirmation live; the same verdicts without
+  `OXMUTATE_LIVE_CONFIRM=1`. With confirmation skipped (`survivors = []`) the first case fails on
   `20:BlockStatement:Survived`.
 - `collected.test.ts`: each feature `runCollected` does not model is refused.
 - `bench/ab.mjs` against 2.9.0, and `bench/container.mjs --compare` against a baseline re-run.

@@ -114,6 +114,8 @@ export interface RunStats {
   staticFallbacks?: Record<string, number> | undefined;
   /** The isolated phase, stage by stage, in the order they ran: how many mutants, how long, and the most units running at once. */
   isolatedStages?: { stage: IsolatedStage; mutants: number; ms: number; peak: number }[] | undefined;
+  /** Live confirmation (6b) by test file: the mutants it ran there, in how many units, the unit time (summed over workers), and the unarmed re-collections. */
+  liveConfirmByFile?: Record<string, { mutants: number; units: number; ms: number; recollections: number }> | undefined;
   staticReaders?: { mutants: number; loaderTests: number; readerTests: number; fellBack: number; dryRunMs: number; auditSampled?: number; auditDisagreed?: number } | undefined;
   /** `incremental` (roadmap 3.3): test files whose dry-run results were kept, run anyway to check them, and of those, how many disagreed (and made the whole dry run run again). */
   dryReuse?: { kept: number; audited: number; disagreed: number } | undefined;
@@ -1001,27 +1003,27 @@ export async function run(options: Options): Promise<RunResult> {
       const STATIC_BATCH = 25;
       const liveStart = performance.now();
       pool.stats.peak = 0;
-      /** Units per test file, for the files each mutant gets this round: at most STATIC_BATCH mutants each, and enough of them to keep every worker busy. */
+      /** One unit: these mutants in this test file. */
+      const unitOf = (file: string, mine: string[], grouped: boolean): Unit => {
+        // A confirmation runs the bodies of the mutant's covering tests in this file, as its isolated run would.
+        const tests = (id: string): string[] => (byId.get(id)?.coveredBy ?? []).filter((t) => testInfo.get(t)?.file === file);
+        return {
+          mode: 'static', files: [file], results: fileFor('static', 'jsonl'), progress: fileFor('static', 'progress'), staticIds: mine,
+          ...(confirm && { staticTests: Object.fromEntries(mine.map((id) => [id, tests(id)])) }),
+          ...(grouped && !confirm && options.staticGroup > 1 ? { staticGroups: disjointGroups(mine.map((id) => byId.get(id) as MutantResult), options.staticGroup) } : {}),
+          hitLimits: Object.fromEntries(mine.map((id) => [id, hitLimitOf(id)])),
+        };
+      };
+      /** Units per test file, for the files each mutant gets this round: at most STATIC_BATCH mutants each, and for a confirmation enough of them to keep every worker busy. */
       const unitsFor = (filesOf: (m: MutantResult) => string[], grouped = false): Unit[] => {
         const byFile = new Map<string, string[]>();
         for (const m of items) for (const f of filesOf(m)) (byFile.get(f) ?? byFile.set(f, []).get(f))?.push(m.id);
-        // A confirmation is a whole re-collection of a file per mutant, so it is the work worth spreading:
-        // pathe's 103 confirmations were 5 units of 25 for 8 workers, 110 s of the isolated phase. Each
-        // file gets enough units to keep its share of the workers busy.
-        const batchOf = (n: number): number => (confirm ? Math.max(1, Math.min(STATIC_BATCH, Math.ceil(n / Math.max(1, Math.ceil(options.concurrency / byFile.size))))) : STATIC_BATCH);
-        return [...byFile].flatMap(([file, ids]) =>
-          Array.from({ length: Math.ceil(ids.length / batchOf(ids.length)) }, (_, i): Unit => {
-            const mine = ids.slice(i * batchOf(ids.length), (i + 1) * batchOf(ids.length));
-            // A confirmation runs the bodies of the mutant's covering tests in this file, as its isolated run would.
-            const tests = (id: string): string[] => (byId.get(id)?.coveredBy ?? []).filter((t) => testInfo.get(t)?.file === file);
-            return {
-              mode: 'static', files: [file], results: fileFor('static', 'jsonl'), progress: fileFor('static', 'progress'), staticIds: mine,
-              ...(confirm && { staticTests: Object.fromEntries(mine.map((id) => [id, tests(id)])) }),
-              ...(grouped && !confirm && options.staticGroup > 1 ? { staticGroups: disjointGroups(mine.map((id) => byId.get(id) as MutantResult), options.staticGroup) } : {}),
-              hitLimits: Object.fromEntries(mine.map((id) => [id, hitLimitOf(id)])),
-            };
-          }),
-        );
+        return [...byFile].flatMap(([file, ids]) => {
+          // A confirmation is a whole re-collection of a file per mutant, so it is the work worth spreading
+          // (pathe's 103 confirmations were 5 units of 25 for 8 workers).
+          const batch = confirm ? Math.max(1, Math.min(STATIC_BATCH, Math.ceil(ids.length / Math.max(1, Math.ceil(options.concurrency / byFile.size))))) : STATIC_BATCH;
+          return Array.from({ length: Math.ceil(ids.length / batch) }, (_, i) => unitOf(file, ids.slice(i * batch, (i + 1) * batch), grouped));
+        });
       };
       const killed = new Map<string, { killedBy: string[]; ran: number }>();
       /** Decided by the hit-count limit: a runaway, Timeout like a warm one. */
@@ -1033,7 +1035,14 @@ export async function run(options: Options): Promise<RunResult> {
       const afterStatic = (unit: Unit, outcome: UnitOutcome): Unit[] => {
         const file = unit.files[0] ?? '';
         const decided = new Set<string>();
+        const mine = confirm ? ((stats.liveConfirmByFile ??= {})[file] ??= { mutants: 0, units: 0, ms: 0, recollections: 0 }) : undefined;
+        if (mine) {
+          mine.mutants += unit.staticIds?.length ?? 0;
+          mine.units++;
+          mine.ms += outcome.ms ?? 0;
+        }
         for (const r of readRecords(unit.results)) {
+          if (r.type === 'recollection' && mine) mine.recollections++;
           if (r.type === 'recollection') stats.staticRecollections++;
           if (r.type === 'static-group') {
             stats.staticGroupRuns++;
@@ -1234,15 +1243,16 @@ export async function run(options: Options): Promise<RunResult> {
     // A survivor with one covering test is not re-run: confirmation runs only covering tests, so there
     // is no later test for its leftover state to reach, and the warm run already armed that test
     // through its hooks from clean state (.sdlc/intents/oxmutate/confirm.qnt).
-    // Each confirmation runs in a live worker first (confirm.qnt `LIVE`): the mutant armed from the
-    // file's collection, the modules re-evaluated under it, only its covering tests' bodies run, in
-    // file order, with every test's hooks, file by file until one kills it: what its isolated run
-    // does, at ~0.5 ms a re-evaluation where a fresh worker per (mutant, file) cost 80-110 ms (ufo:
-    // 100 confirmations, 11.3 of 17.0 s in isolated runs, none overturned, 2026-11-19). The guards are
-    // the static path's (staticwarm.qnt); what they hand back, and every timeout or slow kill, runs
-    // isolated as before. OXMUTATE_ISOLATE_CONFIRM=1 sends every confirmation to a fresh worker.
+    // A confirmation runs in a fresh worker (the isolated path), and with OXMUTATE_LIVE_CONFIRM=1 in a
+    // live one first (confirm.qnt `LIVE`): the mutant armed from the file's collection, the modules
+    // re-evaluated under it, only its covering tests' bodies run, in file order, with every test's
+    // hooks, file by file until one kills it: what its isolated run does. The guards are the static
+    // path's (staticwarm.qnt); what they hand back, and every timeout or slow kill, runs isolated.
+    // Live is the opt-in because it is not faster everywhere (2026-11-20, one build, alternating): ufo's
+    // 100 confirmations took 1.2 s live against 3.9 s fresh, pathe's 122 took 57.7 s live against 21.7 s
+    // fresh (0.47 s a mutant against 0.18; the run took 360.7 s against 280.5 s).
     const survivors = toRun.filter((m) => m.status === 'Survived' && new Set(m.coveredBy).size > 1);
-    const live = env['OXMUTATE_ISOLATE_CONFIRM'] ? { verdicts: new Map<string, Verdict>(), undecided: survivors } : await decideLive(survivors, filesFor, true);
+    const live = env['OXMUTATE_LIVE_CONFIRM'] ? await decideLive(survivors, filesFor, true) : { verdicts: new Map<string, Verdict>(), undecided: survivors };
     stats.confirmLive += live.verdicts.size;
     stats.isolatedByCause.confirm += live.undecided.length;
     const confirmed = new Map([...live.verdicts, ...(await runIsolated(live.undecided, 'confirm'))]);

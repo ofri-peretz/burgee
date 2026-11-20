@@ -944,7 +944,7 @@ it.skipIf(!native || !existsSync(bin) || !nightly)('keeps a survivor whose confi
   rmSync(reportDir, { recursive: true, force: true });
   mkdirSync(reportDir, { recursive: true });
   // The fresh-worker path, whose watchdog this checks: the fixture stalls only when armed through the environment.
-  execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: dir, stdio: 'pipe', env: { ...process.env, OXMUTATE_ISOLATE_CONFIRM: '1' } });
+  execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: dir, stdio: 'pipe', env: { ...process.env, OXMUTATE_LIVE_CONFIRM: '' } });
   const report = JSON.parse(readFileSync(path.join(reportDir, 'mutation.json'), 'utf8')) as {
     files: Record<string, { mutants: ReportMutant[] }>;
     'x-oxmutate': { stats: { survivorsOverturned: number; watchdogKills: number } };
@@ -963,10 +963,10 @@ it.skipIf(!native || !existsSync(bin) || !nightly)('keeps a survivor whose confi
 // survivors, which a confirmation that ran the non-covering test's body would kill.
 describe.skipIf(!native || !existsSync(bin) || !nightly)('survivor confirmation in a live worker', () => {
   type Confirmed = { verdicts: string[]; reasons: (string | undefined)[]; stats: { survivorsOverturned: number; confirmLive: number; isolatedByCause: { confirm: number }; isolatedStages?: { stage: string; mutants: number; ms: number; peak: number }[] } };
-  const confirmRun = (env: Record<string, string> = {}, args: string[] = []): Confirmed => {
+  const confirmRun = (env: Record<string, string> = {}, args: string[] = [], optIn = true): Confirmed => {
     const dir = path.join(pkg, 'test/fixtures/cross-test');
     const reportDir = mkdtempSync(path.join(tmpdir(), 'oxmutate-cross-test-'));
-    execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json', ...args], { cwd: dir, stdio: 'pipe', env: { ...process.env, ...env } });
+    execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json', ...args], { cwd: dir, stdio: 'pipe', env: optIn ? { ...process.env, OXMUTATE_LIVE_CONFIRM: '1', ...env } : Object.fromEntries(Object.entries({ ...process.env, ...env }).filter(([k]) => k !== 'OXMUTATE_LIVE_CONFIRM')) });
     const report = JSON.parse(readFileSync(path.join(reportDir, 'mutation.json'), 'utf8')) as { files: Record<string, { mutants: (ReportMutant & { statusReason?: string })[] }>; 'x-oxmutate': { stats: Confirmed['stats'] } };
     rmSync(reportDir, { recursive: true, force: true });
     const mutants = (report.files['src/store.ts']?.mutants ?? []).filter((m) => m.status !== 'Ignored');
@@ -989,15 +989,25 @@ describe.skipIf(!native || !existsSync(bin) || !nightly)('survivor confirmation 
     expect(live.stats.isolatedByCause.confirm).toBe(0);
   });
 
-  it('spreads the confirmations over the pool: two workers run them side by side, with the same verdicts', () => {
+  it('spreads a file\'s confirmations over the pool, with the same verdicts', () => {
     // One file's confirmations were one unit of up to 25 mutants, so a pool of 8 ran them on one worker
-    // (pathe: 103 confirmations, 5 units, about 110 s of its isolated phase, 2026-11-20).
-    const one = confirmRun();
-    const two = confirmRun({}, ['--concurrency', '2']);
-    expect(one.stats.isolatedStages).toEqual([{ stage: 'live-confirm', mutants: one.stats.confirmLive, ms: expect.any(Number) as number, peak: 1 }]);
-    expect(two.stats.isolatedStages).toEqual([{ stage: 'live-confirm', mutants: one.stats.confirmLive, ms: expect.any(Number) as number, peak: 2 }]);
-    expect(two.verdicts).toEqual(one.verdicts);
-  });
+    // (pathe: 103 confirmations, 5 units, 2026-11-20). Eleven survivors on two workers are two units.
+    const dir = path.join(pkg, 'test/fixtures/confirm-spread');
+    const runIn = (args: string[]): { units: number; statuses: string[] } => {
+      const reportDir = mkdtempSync(path.join(tmpdir(), 'oxmutate-confirm-spread-'));
+      execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json', ...args], { cwd: dir, stdio: 'pipe', env: { ...process.env, OXMUTATE_LIVE_CONFIRM: '1' } });
+      const report = JSON.parse(readFileSync(path.join(reportDir, 'mutation.json'), 'utf8')) as { files: Record<string, { mutants: ReportMutant[] }>; 'x-oxmutate': { stats: { liveConfirmByFile: Record<string, { mutants: number; units: number }> } } };
+      rmSync(reportDir, { recursive: true, force: true });
+      const [only] = Object.values(report['x-oxmutate'].stats.liveConfirmByFile);
+      expect(only?.mutants).toBe(11);
+      return { units: only?.units ?? 0, statuses: Object.values(report.files).flatMap((x) => x.mutants.map((m) => `${String(m.location.start.line)}:${m.mutatorName}:${m.status}`)) };
+    };
+    const two = runIn([]);
+    const one = runIn(['--concurrency', '1']);
+    expect(two.units).toBe(2);
+    expect(one.units).toBe(1);
+    expect(two.statuses).toEqual(one.statuses);
+  }, 60_000);
 
   it('runs only the covering tests in a live confirmation, and none in the worker\'s own run of the file', () => {
     // A confirmation runs its covering tests' bodies armed; the canary that follows it ran every body
@@ -1012,9 +1022,9 @@ describe.skipIf(!native || !existsSync(bin) || !nightly)('survivor confirmation 
     rmSync(dir, { recursive: true, force: true });
   });
 
-  it('gives the verdicts of the fresh-worker path, which OXMUTATE_ISOLATE_CONFIRM=1 still takes', () => {
+  it('gives the same verdicts live (OXMUTATE_LIVE_CONFIRM=1) and in fresh workers, the default', () => {
     const live = confirmRun();
-    const fresh = confirmRun({ OXMUTATE_ISOLATE_CONFIRM: '1' });
+    const fresh = confirmRun({}, [], false);
     expect(live.verdicts).toEqual(fresh.verdicts);
     expect(fresh.stats.confirmLive).toBe(0);
     expect(fresh.stats.isolatedByCause.confirm).toBe(live.stats.confirmLive);

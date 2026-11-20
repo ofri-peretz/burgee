@@ -16,20 +16,20 @@ oxc, not affiliated with the oxc project.
 
 ## Why oxmutate
 
-| | Stryker 10 | oxmutate 1.0 |
-| :-- | :-- | :-- |
-| Mutant set | 17 mutator families | the same 17, the same mutants (720 of 720 on es-toolkit), plus `NumericLiteral` (0 → 1, 1 → 0, n → n + 1): +6.6% mutants on burgee/paratext, 19 of them survivors Stryker cannot report. `--stryker-compat` gives Stryker's set exactly |
-| Verdicts | — | the same as Stryker's on 99.9% of mutants ([measured](#compatibility)) |
-| Instrumentation | Babel, file by file | Rust on oxc, every file in parallel: 720 mutants in 35 ms |
-| Test runs | a Vitest run per mutant | each covering test re-run per mutant inside a warm Vitest worker |
-| Config | `stryker.config.*` | your `stryker.config.*` unchanged, or a `mutate` block in `vite.config.ts` |
-| A mutant that leaves state behind | judges the next mutants by it | canary; the context restarts clean |
-| A slow machine | timeouts read as kills | a stop is re-run at 3x before it is a timeout |
-| Static mutants | skipped with `ignoreStatic`, else the whole suite per mutant | scored, against the files that load them |
-| Pull requests | your own script | `--since <ref>`, SARIF annotations, `--frozen-oracle` |
-| A change that weakens its tests | not seen | `--frozen-oracle` exits 1 and names each mutant |
-| Coding agents | read the JSON report | `survivors --json` (326 bytes a survivor against 4,094), `--mcp` |
-| Formal methods | — | spec oracles: Quint or any ITF traces as a second verdict |
+|                                   | Stryker 10                                                   | oxmutate 1.0                                                                                                                                                                                                                            |
+| :-------------------------------- | :----------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Mutant set                        | 17 mutator families                                          | the same 17, the same mutants (720 of 720 on es-toolkit), plus `NumericLiteral` (0 → 1, 1 → 0, n → n + 1): +6.6% mutants on burgee/paratext, 19 of them survivors Stryker cannot report. `--stryker-compat` gives Stryker's set exactly |
+| Verdicts                          | —                                                            | the same as Stryker's on 99.9% of mutants ([measured](#compatibility))                                                                                                                                                                  |
+| Instrumentation                   | Babel, file by file                                          | Rust on oxc, every file in parallel: 720 mutants in 35 ms                                                                                                                                                                               |
+| Test runs                         | a Vitest run per mutant                                      | each covering test re-run per mutant inside a warm Vitest worker                                                                                                                                                                        |
+| Config                            | `stryker.config.*`                                           | your `stryker.config.*` unchanged, or a `mutate` block in `vite.config.ts`                                                                                                                                                              |
+| A mutant that leaves state behind | judges the next mutants by it                                | canary; the context restarts clean                                                                                                                                                                                                      |
+| A slow machine                    | timeouts read as kills                                       | a stop is re-run at 3x before it is a timeout                                                                                                                                                                                           |
+| Static mutants                    | skipped with `ignoreStatic`, else the whole suite per mutant | scored, against the files that load them                                                                                                                                                                                                |
+| Pull requests                     | your own script                                              | `--since <ref>`, SARIF annotations, `--frozen-oracle`                                                                                                                                                                                   |
+| A change that weakens its tests   | not seen                                                     | `--frozen-oracle` exits 1 and names each mutant                                                                                                                                                                                         |
+| Coding agents                     | read the JSON report                                         | `survivors --json` (326 bytes a survivor against 4,094), `--mcp`                                                                                                                                                                        |
+| Formal methods                    | —                                                            | spec oracles: Quint or any ITF traces as a second verdict                                                                                                                                                                               |
 
 ## Install
 
@@ -52,15 +52,18 @@ npm install oxmutate
 ```
 
 ```js
-import { writeFileSync } from 'node:fs';
-import { loadOptions } from 'oxmutate';
+import { writeFileSync } from "node:fs";
+import { loadOptions } from "oxmutate";
 
 // The Stryker config a project already has, written here so the program runs anywhere.
-writeFileSync('stryker.config.json', JSON.stringify({
-  mutate: ['src/**/*.ts', '!src/**/*.test.ts'],
-  thresholds: { high: 90, low: 70, break: 80 },
-  coverageAnalysis: 'perTest',
-}));
+writeFileSync(
+  "stryker.config.json",
+  JSON.stringify({
+    mutate: ["src/**/*.ts", "!src/**/*.test.ts"],
+    thresholds: { high: 90, low: 70, break: 80 },
+    coverageAnalysis: "perTest",
+  }),
+);
 
 const options = await loadOptions(process.cwd());
 console.log(options.mutate);
@@ -88,15 +91,15 @@ reads its settings from a `mutate` block there, beside `test`:
 // vite.config.ts
 /// <reference types="vitest/config" />
 /// <reference types="oxmutate/vite" /> // adds `mutate` to the config's type
-import { defineConfig } from 'vite'; // or 'vite-plus'
+import { defineConfig } from "vite"; // or 'vite-plus'
 
 export default defineConfig({
-  test: { include: ['src/**/*.test.ts'] },
+  test: { include: ["src/**/*.test.ts"] },
   mutate: {
-    include: ['src/**/*.ts', '!src/**/*.test.ts'],
+    include: ["src/**/*.ts", "!src/**/*.test.ts"],
     thresholds: { high: 90, low: 70, break: 80 },
-    reporters: ['clear-text', 'html', 'sarif'],
-    ignore: [{ call: 'console.*', reason: 'log text is not behaviour' }],
+    reporters: ["clear-text", "html", "sarif"],
+    ignore: [{ call: "console.*", reason: "log text is not behaviour" }],
   },
 });
 ```
@@ -173,16 +176,16 @@ setting a value inside the worker that already has the tests loaded.
 
 ## How it stays correct
 
-| Guard | What it catches |
-| :-- | :-- |
-| The dry run must pass | A suite that fails with no mutant armed scores nothing (exit 3). Counting coverage slows the dry run, so its tests get 3x their `testTimeout` and `hookTimeout` there; mutant runs keep the project's own |
-| Re-parse | Every instrumented file is parsed again before it runs; one that does not parse stops the run (exit 3) instead of scoring a broken file |
-| Canary | The unmutated test must still pass after mutants run in a context, with its `beforeEach`/`afterEach` hooks re-run around every run, file-level ones included; if a mutant left a cache, a registry or a fixture behind, the context restarts and the suspect verdicts run again. A kill that follows unchecked runs is checked at once and decided again from clean state, so no kill rests on another mutant's leftovers |
-| Survivor confirmation | A survivor is re-run with the mutant armed across its covering tests in one file, as Stryker arms it, so a mutant that only fails across tests is killed. It runs in a live worker, as static mutants do, with the same guards; whatever they cannot vouch for, and every timeout, goes to a fresh worker (`OXMUTATE_ISOLATE_CONFIRM=1` sends all of them there) |
-| Watchdog | A synchronous runaway is stopped and its server replaced; the stop is re-run at 3x the budget before it is reported as a timeout. A stop whose worker was idle inside a test body (its event loop still turning, by a heartbeat, and its server under 25% of a core) is a hang, not a slow test: it is a Timeout as it stands, the way Stryker scores it, with no 3x re-run |
-| Static mutants | Code that runs at import is decided in a live worker: the mutant is armed, the module registry reset and the test file collected again, against the files that load it. A file whose collection changes globals, `process.env` or a built-in prototype, or a mutant that leaves a trace, goes back to a fresh worker per mutant (`OXMUTATE_ISOLATE_STATIC=1` sends all of them there) |
-| Flaky tests | Tests that behave differently across two dry runs have their mutants re-run, except one a steady test in another file killed; a verdict that changes is reported `flaky` |
-| No orphans | Every Vitest server exits when its run does, killed or not |
+| Guard                 | What it catches                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| :-------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The dry run must pass | A suite that fails with no mutant armed scores nothing (exit 3). Counting coverage slows the dry run, so its tests get 3x their `testTimeout` and `hookTimeout` there; mutant runs keep the project's own                                                                                                                                                                                                                                                                                                                     |
+| Re-parse              | Every instrumented file is parsed again before it runs; one that does not parse stops the run (exit 3) instead of scoring a broken file                                                                                                                                                                                                                                                                                                                                                                                       |
+| Canary                | The unmutated test must still pass after mutants run in a context, with its `beforeEach`/`afterEach` hooks re-run around every run, file-level ones included; if a mutant left a cache, a registry or a fixture behind, the context restarts and the suspect verdicts run again. A kill that follows unchecked runs is checked at once and decided again from clean state, so no kill rests on another mutant's leftovers                                                                                                     |
+| Survivor confirmation | A survivor is re-run with the mutant armed across its covering tests in one file, as Stryker arms it, so a mutant that only fails across tests is killed. It runs in a fresh worker; `OXMUTATE_LIVE_CONFIRM=1` runs it in a live worker first, as static mutants do, with the same guards, which pays where a project has many cheap survivors (ufo: 1.2 s against 3.9 s) and costs where a file's tests are slow (pathe: 58 s against 22 s); whatever the guards cannot vouch for, and every timeout, goes to a fresh worker |
+| Watchdog              | A synchronous runaway is stopped and its server replaced; the stop is re-run at 3x the budget before it is reported as a timeout. A stop whose worker was idle inside a test body (its event loop still turning, by a heartbeat, and its server under 25% of a core) is a hang, not a slow test: it is a Timeout as it stands, the way Stryker scores it, with no 3x re-run                                                                                                                                                   |
+| Static mutants        | Code that runs at import is decided in a live worker: the mutant is armed, the module registry reset and the test file collected again, against the files that load it. A file whose collection changes globals, `process.env` or a built-in prototype, or a mutant that leaves a trace, goes back to a fresh worker per mutant (`OXMUTATE_ISOLATE_STATIC=1` sends all of them there)                                                                                                                                         |
+| Flaky tests           | Tests that behave differently across two dry runs have their mutants re-run, except one a steady test in another file killed; a verdict that changes is reported `flaky`                                                                                                                                                                                                                                                                                                                                                      |
+| No orphans            | Every Vitest server exits when its run does, killed or not                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 
 ## Migrating
 
@@ -226,11 +229,11 @@ verdict per mutant. So the comparison is verdict agreement: the same project, sc
 Measured on 2026-10-27
 ([`m1-results.md`](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/intents/oxmutate/m1-results.md)):
 
-| Subject | Mutants | Same verdict as Stryker |
-| :-- | --: | --: |
-| es-toolkit `src/array` | 720 | 99.58–100% ¹ |
-| burgee/paratext | 1,332 | 99.92% |
-| burgee/controlroom | 997 | 99.90% |
+| Subject                | Mutants | Same verdict as Stryker |
+| :--------------------- | ------: | ----------------------: |
+| es-toolkit `src/array` |     720 |            99.58–100% ¹ |
+| burgee/paratext        |   1,332 |                  99.92% |
+| burgee/controlroom     |     997 |                  99.90% |
 
 ¹ From an earlier build of the same day, before that document's fixes; it is re-measured on the
 CI lane before it is quoted as a result.
@@ -243,11 +246,11 @@ no Stryker verdict to compare.
 [burgee.interlace.tools/docs/benchmarks](https://burgee.interlace.tools/docs/benchmarks)). Medians of 3
 head-to-head runs (`bench/burgee-pair.mts`, concurrency 4, one tool after the other, load 6–19, 2026-10-30):
 
-| Subject | Stryker 10 | oxmutate | Wall | CPU | Tests a mutant |
-| :-- | --: | --: | --: | --: | --: |
-| burgee/paratext | 108.3 s | 19.0 s | 5.70x | 5.92x | 31.7 → 16.8 |
-| burgee/controlroom | 63.4 s | 45.6 s | 1.39x | 2.55x | 7.3 → 9.2 |
-| oxmutate itself (Stryker's mutant set) | 508 s | 334 s | 1.52x | — | — |
+| Subject                                | Stryker 10 | oxmutate |  Wall |   CPU | Tests a mutant |
+| :------------------------------------- | ---------: | -------: | ----: | ----: | -------------: |
+| burgee/paratext                        |    108.3 s |   19.0 s | 5.70x | 5.92x |    31.7 → 16.8 |
+| burgee/controlroom                     |     63.4 s |   45.6 s | 1.39x | 2.55x |      7.3 → 9.2 |
+| oxmutate itself (Stryker's mutant set) |      508 s |    334 s | 1.52x |     — |              — |
 
 The ceiling depends on the suite as much as the tool: controlroom's own `vitest run` takes ~8 s and
 every fresh worker imports React and Ink, so even zero overhead would make it ~6x. The figures to
@@ -314,12 +317,12 @@ Stryker's options: `ignore` (calls whose subtrees are not mutated), `specOracles
 
 ## API
 
-| Import | What it gives you |
-| :-- | :-- |
-| `oxmutate` | `run()` and `loadOptions()`, the run's result types and `MutateConfig`, `strykerReport()`, `sarifReport()` and `textSummary()`, and the CI-lane helpers `changedLines()`, `parseShard()` and `shardOf()` |
-| `oxmutate/vite` | types only: the `mutate` block on Vite's `UserConfig` |
-| `oxmutate/spec` | `loadTraces()`, `readTrace()` and `decode()`: what a spec-oracle replay test imports |
-| `oxmutate/runner` | the Vitest runner oxmutate starts inside each Vitest worker; Vitest loads it, a program does not |
+| Import            | What it gives you                                                                                                                                                                                        |
+| :---------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `oxmutate`        | `run()` and `loadOptions()`, the run's result types and `MutateConfig`, `strykerReport()`, `sarifReport()` and `textSummary()`, and the CI-lane helpers `changedLines()`, `parseShard()` and `shardOf()` |
+| `oxmutate/vite`   | types only: the `mutate` block on Vite's `UserConfig`                                                                                                                                                    |
+| `oxmutate/spec`   | `loadTraces()`, `readTrace()` and `decode()`: what a spec-oracle replay test imports                                                                                                                     |
+| `oxmutate/runner` | the Vitest runner oxmutate starts inside each Vitest worker; Vitest loads it, a program does not                                                                                                         |
 
 The `oxmutate` bin is that API, declared once on burgee.
 
@@ -354,19 +357,19 @@ each release carries SLSA provenance, which `npm view <package> dist.attestation
 [`trusted-publishing-lock`](https://github.com/ofri-peretz/burgee/blob/main/scripts/trusted-publishing-lock.test.ts)
 keeps both true.
 
-| Package | What it is | Migrates from |
-| :-- | :-- | :-- |
-| [burgee](https://burgee.interlace.tools/docs/packages/burgee) | The CLI framework: one declaration, every surface | commander, yargs and meow |
-| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk, colorette, kleur, picocolors, supports-color and yoctocolors |
-| [flagstaff](https://flagstaff.interlace.tools/docs) | The frame loop: spinners, progress, boxes and tables | ora, log-update, boxen and cli-table3 |
-| [caique](https://caique.interlace.tools/docs) | Prompts that are flags first, and never hang | @inquirer/core |
-| [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line |
-| [paratext](https://paratext.interlace.tools/docs) | Hyperlinks, images, title, clipboard and notifications | ansi-escapes, terminal-link and term-img |
-| [seniority](https://seniority.interlace.tools/docs) | Configuration precedence and discovery, with provenance | cosmiconfig, lilconfig, dotenv and rc |
-| [closeout](https://closeout.interlace.tools/docs) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook, restore-cursor, cli-cursor and onetime |
-| [bellpull](https://bellpull.interlace.tools/docs) | Subprocesses, and which executable actually ran | cross-spawn and which |
-| [controlroom](https://controlroom.interlace.tools/docs) | Keyboard-driven terminal screens, inline or full-screen | ink |
-| **oxmutate** (this package) | Mutation testing on the oxc engine, inside your own Vitest | Stryker |
+| Package                                                       | What it is                                                 | Migrates from                                                                 |
+| :------------------------------------------------------------ | :--------------------------------------------------------- | :---------------------------------------------------------------------------- |
+| [burgee](https://burgee.interlace.tools/docs/packages/burgee) | The CLI framework: one declaration, every surface          | commander, yargs and meow                                                     |
+| [roundel](https://roundel.interlace.tools/docs)               | Colour: one output policy, semantic tokens, a theme        | chalk, colorette, kleur, picocolors, supports-color and yoctocolors           |
+| [flagstaff](https://flagstaff.interlace.tools/docs)           | The frame loop: spinners, progress, boxes and tables       | ora, log-update, boxen and cli-table3                                         |
+| [caique](https://caique.interlace.tools/docs)                 | Prompts that are flags first, and never hang               | @inquirer/core                                                                |
+| [linegauge](https://linegauge.interlace.tools/docs)           | Measuring, wrapping, truncating and slicing styled text    | string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line |
+| [paratext](https://paratext.interlace.tools/docs)             | Hyperlinks, images, title, clipboard and notifications     | ansi-escapes, terminal-link and term-img                                      |
+| [seniority](https://seniority.interlace.tools/docs)           | Configuration precedence and discovery, with provenance    | cosmiconfig, lilconfig, dotenv and rc                                         |
+| [closeout](https://closeout.interlace.tools/docs)             | Exit handlers, terminal restore and a bounded shutdown     | signal-exit, exit-hook, restore-cursor, cli-cursor and onetime                |
+| [bellpull](https://bellpull.interlace.tools/docs)             | Subprocesses, and which executable actually ran            | cross-spawn and which                                                         |
+| [controlroom](https://controlroom.interlace.tools/docs)       | Keyboard-driven terminal screens, inline or full-screen    | ink                                                                           |
+| **oxmutate** (this package)                                   | Mutation testing on the oxc engine, inside your own Vitest | Stryker                                                                       |
 
 Every migration guide, and the family-wide [compatibility](https://burgee.interlace.tools/docs/compatibility)
 and [benchmarks](https://burgee.interlace.tools/docs/benchmarks) pages, are on
