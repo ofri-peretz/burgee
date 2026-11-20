@@ -4,7 +4,8 @@
 //
 //   node packages/oxmutate/bench/container.mjs --candidate <oxmutate.tgz> --label <name>
 //        with any of --targets ufo,pathe,defu,gen · --rounds 3 · --out <dir> · --host <dist/bin.js>
-//        · --env NAME=value (repeatable: set in the container, e.g. OXMUTATE_LIVE_CONFIRM=1)
+//        · --env NAME=value (repeatable: set in the container, e.g. OXMUTATE_LIVE_CONFIRM=1; the
+//        fresh-worker reference sets OXMUTATE_ISOLATE_ALL, _ISOLATE_STATIC and _ISOLATE_POLLUTION to 1)
 //
 // Each target is a repository pinned to a commit, cloned once under ~/.cache/oxmutate-bench. The
 // candidate tarball goes into the repository as an untracked file, so container mode sends it in,
@@ -13,6 +14,9 @@
 // run of a target only warms its volume and is not counted. Every run's report is kept, and the
 // summary is written to <out>/<label>.json: per target, the median wall and phases, and a digest
 // of every verdict, so two builds are compared on time and on quality (`--compare a.json b.json`).
+// A verdict that differs from the baseline is accepted only when a fresh worker gives it too:
+// `--compare a.json b.json --fresh ref.json` lists every differing row with the reference's verdict
+// for it (oxmutate-x2 intent, 2026-11-20), and exits 1 for any row the reference does not confirm.
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -150,10 +154,35 @@ function bench() {
   writeFileSync(path.join(out, `${label}.json`), `${JSON.stringify(summary, null, 2)}\n`);
 }
 
+/** A digest row as its key and verdict: `file:line:col:mutator:replacement` and `Killed|Survived|...`. */
+const split = (row) => {
+  const at = row.lastIndexOf('=');
+  return [row.slice(0, at), row.slice(at + 1)];
+};
+
+/** Each differing row, with the verdict a fresh worker gives that mutant: proven when they agree. Returns the unproven count. */
+function prove(changed, before, freshRows) {
+  const reference = new Map(freshRows.map(split));
+  const was = new Map(before.map(split));
+  let unproven = 0;
+  for (const row of changed) {
+    const [key, verdict] = split(row);
+    const ref = reference.get(key);
+    if (ref !== verdict) unproven++;
+    console.log(`  ${ref === verdict ? 'proven' : 'UNPROVEN'}  ${key}: ${was.get(key) ?? 'absent'} -> ${verdict}; fresh worker: ${ref ?? 'no row'}`);
+  }
+  return unproven;
+}
+
+const provenLine = (unproven) => (unproven ? `${unproven} differing verdicts the fresh worker does not give` : "every differing verdict is a fresh worker's");
+
 function compare() {
   const i = args.indexOf('--compare');
   const [a, b] = [args[i + 1], args[i + 2]].map((f) => JSON.parse(readFileSync(f, 'utf8')));
+  const freshFile = opt('fresh', '');
+  const fresh = freshFile ? JSON.parse(readFileSync(freshFile, 'utf8')) : undefined;
   let differ = 0;
+  let unproven = 0;
   let wa = 0;
   let wb = 0;
   for (const name of Object.keys(a.targets)) {
@@ -166,12 +195,15 @@ function compare() {
     const before = new Set(x.rows);
     const changed = y.rows.filter((r) => !before.has(r));
     differ += changed.length;
+    unproven += fresh ? prove(changed, x.rows, fresh.targets[name]?.rows ?? []) : 0;
     wa += x.wallMs;
     wb += y.wallMs;
     console.log(`${name}: ${(x.wallMs / MS_PER_S).toFixed(1)} s -> ${(y.wallMs / MS_PER_S).toFixed(1)} s (${(x.wallMs / y.wallMs).toFixed(2)}x) · verdicts ${changed.length ? `${changed.length} differ: ${changed.slice(0, DIFFERENCES_SHOWN).join('; ')}` : 'equal'}`);
   }
   console.log(`total: ${(wa / MS_PER_S).toFixed(1)} s -> ${(wb / MS_PER_S).toFixed(1)} s (${(wa / wb).toFixed(2)}x) · ${differ ? `${differ} verdicts differ` : 'every verdict equal'}`);
-  process.exitCode = differ ? 1 : 0;
+  if (fresh) console.log(provenLine(unproven));
+  const failing = fresh ? unproven : differ;
+  process.exitCode = failing ? 1 : 0;
 }
 
 if (args.includes('--compare')) compare();

@@ -144,16 +144,33 @@ Residual, as staticwarm.qnt's and confirm.qnt's: an in-place change to an object
 collection which the unmutated test does not read. A fresh worker is not free of it either, so no
 verdict is worse than the restart's by it; `bench/ab.mjs` and the corpus digests are the check.
 
-## Not this: warm state that hides a mutant
+## Not pollution: warm state that hides a mutant (part 2)
 
 A memo a canary or an earlier mutant filled hides a later mutant that changes what the memo computes
 (`pathe`'s `_cache` again): its run reads the cached value and survives, where a cold worker kills it.
-No canary fails, so this is not pollution and recovery does not touch it. The verdict then depends on
-the mutant's place in its unit, which is what flips `src/_glob.ts:279:20` and `:316:43` between runs on
-2.9.0 too, and what makes `:178:59` (a regex flag with no effect) read Killed once. Fixture
-`pollution-guard`'s `memo()` shows it: only the first of its mutants in a worker is cold. Fixing it
-needs a registry reset before each armed run, which is the static path's cost per pair; that is a
-separate decision (see the report that came with this change).
+No canary fails, so recovery does not touch it. The verdict depends on the mutant's place in its unit,
+which is what flips `src/_glob.ts:279:20` and `:316:43` between runs on 2.9.0 too, and what makes
+`:178:59` (a regex flag with no effect) read Killed once. Fixture `memo-hides` shows it: only the first
+of its mutants in a worker is cold.
+
+**No cheap detector exists.** Tried first: a Survived whose armed run never executed the mutated code
+(`hitCount` 0). It catches `n * 3 + 1`'s mutants and misses `if (hit !== undefined)`'s: the condition is
+evaluated on every call, so the code is reached, and the memo hides the mutant through the value it
+returns. The dry run's per-test hit counts are no better (equal counts either way). So the rule is by
+position, which is every survivor: the warm run armed it after other runs in the same module instance.
+
+**What changes.** Every warm survivor is confirmed from cold modules, not only those with two covering
+tests (`confirm.qnt`: `MEMO` and `hidden`; `confirmSkipSingle`, the old rule, violates `safety`). The
+confirmation is #1668's live path (the mutant armed, the registry reset, the file collected again, only
+the covering tests' bodies), so it is cold per mutant; a guard that refuses, and every timeout, goes to a
+fresh worker as before. An overturned one carries the reason "killed on cold modules: ...". New stat
+`staleSurvivors`: the survivors confirmed only because of this rule. `OXMUTATE_TRUST_WARM_SURVIVORS=1`
+restores the old rule. Cost: one live confirmation per single-test survivor (~0.5 ms to re-evaluate
+modules plus the test), measured on the bench.
+
+**Acceptance.** `OXMUTATE_ISOLATE_ALL=1` runs each covered mutant armed from process start, Vitest
+running its covering files normally: the reference. A verdict that differs from 2.9.0 is accepted when
+the reference gives it too (`bench/container.mjs --compare ... --fresh`).
 
 ## Checks
 
@@ -165,5 +182,8 @@ separate decision (see the report that came with this change).
   `pollution-guard` (a global the reset leaves: restarts, and `OXMUTATE_RECOVER_WITHOUT=guard` reads
   `29:17 NumericLiteral` Survived instead of Killed); `pollution-global` (leftovers the reset does not
   clear: restarts, and `OXMUTATE_RECOVER_WITHOUT=prove` reads reset()'s mutants Killed).
+- `e2e.test.ts` › warm state that hides a mutant: fixture `memo-hides`' four `n * 3 + 1` mutants and the
+  `hit !== undefined` ones read as a fresh worker (`OXMUTATE_ISOLATE_ALL=1`) reads them, in whatever
+  position; with `OXMUTATE_TRUST_WARM_SURVIVORS=1` the four are Survived.
 - `records.test.ts`: a `recovered` record drops only the suspects' verdicts written before it.
 - `bench/ab.mjs` against 2.9.0, and `bench/container.mjs --compare` on `pathe`, alternating, owed.

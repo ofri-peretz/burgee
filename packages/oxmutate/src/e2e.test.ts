@@ -1089,7 +1089,8 @@ describe.skipIf(!native || !existsSync(bin) || !nightly)('pollution recovered in
     expect(live.stats.pollutionRestarts).toBeGreaterThan(0);
     expect(live.stats.pollutionRecovered).toBeGreaterThan(0);
     // recover.qnt `noGuard`: with the comparison dropped it is hidden, and reported Survived.
-    const unguarded = pollutionRun('pollution-guard', 'src/gate.ts', { OXMUTATE_RECOVER_WITHOUT: 'guard' });
+    // The warm survivors are trusted here: the confirmation from cold modules would otherwise correct that very verdict.
+    const unguarded = pollutionRun('pollution-guard', 'src/gate.ts', { OXMUTATE_RECOVER_WITHOUT: 'guard', OXMUTATE_TRUST_WARM_SURVIVORS: '1' });
     expect(unguarded.verdicts).toContain('29:17:NumericLiteral:Survived');
     expect(unguarded.stats.pollutionRestarts).toBe(0);
   });
@@ -1106,6 +1107,37 @@ describe.skipIf(!native || !existsSync(bin) || !nightly)('pollution recovered in
     // recover.qnt `noProve`: one reset() mutant's leftovers then kill the next.
     const unproved = pollutionRun('pollution-global', 'src/shelf.ts', { OXMUTATE_RECOVER_WITHOUT: 'prove' });
     expect(unproved.verdicts.filter((v) => /^(16|17):/.test(v)).some((v) => v.endsWith(':Killed'))).toBe(true);
+  });
+});
+
+// Warm state that hides a mutant (confirm.qnt, MEMO): a memo an earlier run filled serves the code a later
+// mutant changes, so it survives warm and is killed in a fresh worker. Its verdict must not depend on its
+// place in its unit: every survivor is confirmed from cold modules, and the verdicts are a fresh worker's
+// (OXMUTATE_ISOLATE_ALL=1 runs each covered mutant armed from process start, as Stryker does).
+describe.skipIf(!native || !existsSync(bin) || !nightly)('warm state that hides a mutant', () => {
+  type Run = { verdicts: string[]; stats: { staleSurvivors: number } };
+  const memoRun = (env: Record<string, string> = {}): Run => {
+    const dir = path.join(pkg, 'test/fixtures/memo-hides');
+    const reportDir = mkdtempSync(path.join(tmpdir(), 'oxmutate-memo-hides-'));
+    execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: dir, stdio: 'pipe', env: { ...process.env, ...env } });
+    const report = JSON.parse(readFileSync(path.join(reportDir, 'mutation.json'), 'utf8')) as { files: Record<string, { mutants: ReportMutant[] }>; 'x-oxmutate': { stats: Run['stats'] } };
+    rmSync(reportDir, { recursive: true, force: true });
+    return { verdicts: (report.files['src/memo.ts']?.mutants ?? []).map((m) => `${String(m.location.start.line)}:${String(m.location.start.column ?? 0)}:${m.mutatorName}:${m.status}`), stats: report['x-oxmutate'].stats };
+  };
+
+  it('gives every mutant of a memoized computation the verdict of a fresh worker, wherever it sits in its unit', () => {
+    const warm = memoRun();
+    const fresh = memoRun({ OXMUTATE_ISOLATE_ALL: '1', OXMUTATE_ISOLATE_CONFIRM: '1', OXMUTATE_ISOLATE_STATIC: '1' });
+    expect(warm.verdicts).toEqual(fresh.verdicts);
+    // The four mutants of `n * 3 + 1`, the first run cold and the rest not, are all killed.
+    expect(warm.verdicts.filter((v) => v.startsWith('10:') && v.endsWith(':Killed')).length).toBe(4);
+    expect(warm.stats.staleSurvivors).toBeGreaterThan(0);
+  });
+
+  it('reports them Survived when the warm survivors are trusted, as 2.10 did: the check is what kills them', () => {
+    const trusted = memoRun({ OXMUTATE_TRUST_WARM_SURVIVORS: '1' });
+    expect(trusted.verdicts.filter((v) => v.startsWith('10:')).every((v) => v.endsWith(':Survived'))).toBe(true);
+    expect(trusted.stats.staleSurvivors).toBe(0);
   });
 });
 

@@ -31,6 +31,7 @@ const stats = (s: Partial<RunStats> = {}): RunStats => ({
   warmArmedMs: 0,
   isolatedByCause: { static: 0, stopped: 0, unfinished: 0, rerun: 0, confirm: 0, flaky: 0 },
   confirmLive: 0,
+  staleSurvivors: 0,
   watchdogKills: 0,
   idleStalls: 0,
   crashes: 0,

@@ -35,6 +35,14 @@ fast enough to run on every push.
   corpus digest (`bench/container.mjs --compare`) equal.
 - Measured, not asserted: every claim in a PR carries the numbers, the machine's load and the
   commit; noise is handled by alternating builds and medians.
+- **A verdict that differs from 2.9.0 is accepted only when a fresh worker gives it** (the owner's
+  coordinator, 2026-11-20). 2.9.0 is itself non-deterministic on some rows (pathe `_glob.ts:178:59`,
+  `:279:20`, `:316:43`: a memo hides a mutant that a cold worker kills), so the reference is the
+  mutant's verdict from a fresh worker, not the old digest: `OXMUTATE_ISOLATE_ALL=1` (with
+  `OXMUTATE_ISOLATE_CONFIRM=1`, `OXMUTATE_ISOLATE_STATIC=1`, `OXMUTATE_ISOLATE_POLLUTION=1`) runs each
+  covered mutant armed from process start. `bench/container.mjs --compare a.json b.json --fresh
+  ref.json` lists every differing row with its fresh-worker verdict and exits 1 for any it does not
+  confirm; the PR carries that list.
 - The repository's rules hold: no new dependency, every changed line held by a test (the pre-push
   mutation gate), a fix proven by a check that fails without it.
 

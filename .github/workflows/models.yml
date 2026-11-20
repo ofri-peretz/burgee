@@ -242,7 +242,7 @@ jobs:
           for s in confirm confirmAll confirmLive; do
             $QUINT run "$m" --main="$s" --invariant=safety --max-steps=10 --max-samples=20000 >/dev/null
           done
-          for inv in "confirm neverCross" "confirmLiveAllBodies safety" "confirmLiveUnguarded safety"; do
+          for inv in "confirm neverCross" "confirmSkipSingle safety" "confirmLiveAllBodies safety" "confirmLiveUnguarded safety"; do
             set -- $inv
             if $QUINT run "$m" --main="$1" --invariant="$2" --max-steps=10 --max-samples=20000 >/dev/null; then
               echo "::error::confirm.qnt: $2 holds under $1 — the model no longer shows what it was written to show"
