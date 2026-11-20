@@ -564,6 +564,49 @@ describe.skipIf(!native || !existsSync(bin))('Stryker options the run honours', 
   });
 });
 
+// The dry run is slower than the project's own run (it counts coverage per test), and a test near
+// its timeout failed there alone: unjs/pathe's run stopped at "1 test(s) fail with no mutant active"
+// (2026-11-19). Its tests get 3x their timeouts in the dry run (child.ts DRY_TIMEOUT_SCALE).
+it.skipIf(!native || !existsSync(bin))('a test that overruns its timeout only in the dry run passes it, and its mutants are scored', () => {
+  const dir = path.join(pkg, 'test/fixtures/dry-timeout');
+  try {
+    const r = runWith(dir, {});
+    expect(r.status, r.out).toBe(0);
+    const mutants = (JSON.parse(readFileSync(path.join(r.reports, 'mutation.json'), 'utf8')) as { files: Record<string, { mutants: ReportMutant[] }> }).files['src/label.ts']?.mutants ?? [];
+    expect(mutants.length).toBeGreaterThan(0);
+    expect(mutants.map((m) => m.status)).toEqual(mutants.map(() => 'Killed'));
+  } finally {
+    discard(path.join(dir, 'reports'));
+  }
+});
+
+// Flaky re-runs are for verdicts a flaky test could have decided. A mutant a steady test in another
+// file killed fails the same way on every re-run, so it is not re-run (coordinator.ts flakyCandidates).
+it.skipIf(!native || !existsSync(bin) || !nightly)('re-runs the mutants only a flaky test killed, not those a steady test killed', () => {
+  const dir = path.join(pkg, 'test/fixtures/flaky-scope');
+  mkdirSync(path.join(dir, 'reports'), { recursive: true });
+  const reports = mkdtempSync(path.join(dir, 'reports', 'case-'));
+  try {
+    const r = spawnSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reports, '--reporter', 'json'], { cwd: dir, encoding: 'utf8', env: { ...process.env, OXMUTATE_FLAKY_COUNTER: path.join(reports, 'runs') } });
+    expect(r.status, `${r.stdout}${r.stderr}`).toBe(0);
+    const report = JSON.parse(readFileSync(path.join(reports, 'mutation.json'), 'utf8')) as {
+      files: Record<string, { mutants: ReportMutant[] }>;
+      'x-oxmutate': { stats: { flakyTests: number; isolatedByCause: { flaky: number } } };
+    };
+    const mutants = report.files['src/calc.ts']?.mutants ?? [];
+    const inAdd = mutants.filter((m) => m.location.start.line <= 4); // `add`, lines 2-4: killed by steady.spec.ts
+    const inSub = mutants.filter((m) => m.location.start.line >= 7 && m.location.start.line <= 9); // `sub`: killed only by the flaky test
+    expect(report['x-oxmutate'].stats.flakyTests).toBe(1);
+    expect(inAdd.length).toBeGreaterThan(0);
+    expect(inSub.length).toBeGreaterThan(0);
+    expect([...inAdd, ...inSub].map((m) => m.status)).toEqual([...inAdd, ...inSub].map(() => 'Killed'));
+    // flakyReruns is 2: each `sub` mutant twice, and no `add` mutant (the build before re-ran both).
+    expect(report['x-oxmutate'].stats.isolatedByCause.flaky).toBe(2 * inSub.length);
+  } finally {
+    discard(path.join(dir, 'reports'));
+  }
+}, 60_000);
+
 describe.skipIf(!native || !existsSync(bin) || !nightly)('the frozen oracle (R14, SC10)', () => {
   const registry = path.join(pkg, 'test/fixtures/registry');
   // A git repository of its own, inside the fixture's ignored reports/, so Vitest still resolves.
