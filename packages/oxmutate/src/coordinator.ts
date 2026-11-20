@@ -24,6 +24,7 @@ import { rangeDisables } from './directives.js';
 import { guardDisk, isClean, type DiskChange } from './diskguard.js';
 import { agrees, entriesOf, keepable, merge, type DryCache, type DryEntry, type DryResult } from './dry-reuse.js';
 import { globToRegExp, matchFiles } from './files.js';
+import { flakyCandidates } from './flaky.js';
 import type { FrozenOracle } from './frozen.js';
 import { createGovernor } from './governor.js';
 import { changedLines, parseMutateSpec, shardOf, touches, withinRange, type MutateRange } from './lanes.js';
@@ -205,6 +206,8 @@ interface ChildRecord {
   /** `dry` with `trackReads`: the tracked static values each test (or each file's collection) read. */
   reads?: { static: Record<string, number>; perTest: Record<string, Record<string, number>> };
   fileErrors?: { file: string; error: string }[];
+  /** `dry`: suites whose own hook failed, so Vitest skipped their tests (runner.ts). */
+  hookErrors?: { file: string; suite: string; error: string }[];
   /** `dry`: unhandled rejections and uncaught errors the unmutated suite raised (runner.ts). */
   unhandled?: number;
   /** `dry`: test files whose tests run once per collection (runner.ts `runOnce`). */
@@ -307,27 +310,6 @@ export function disjointGroups(mutants: readonly MutantResult[], size: number): 
     else groups.push([m]);
   }
   return groups.map((g) => g.map((m) => m.id));
-}
-
-/**
- * The mutants a flaky test could have decided, which step 7 re-runs: every one a flaky test covers,
- * except a Killed one with a killer the flakiness cannot reach. Such a killer is a test that is not
- * flaky (the same state and coverage across two dry runs) and shares its file with no flaky test:
- * Vitest gives each test file a context of its own, so only a test of the same file, run before it
- * and leaving state behind, could have made its failure depend on chance. Its re-run fails the same
- * way, and a re-run only ever marks a verdict `flaky`, so it cannot change one. On unjs/pathe 416 of
- * 786 isolated runs were flaky re-runs, for one slow test (2026-11-19). Still re-run: survivors,
- * Timeouts (a stop is a time, which a slow neighbour moves), and kills whose killers are all flaky,
- * share a file with a flaky test, or are not tests (a file id, when a hook or the import failed).
- */
-export function flakyCandidates<M extends Pick<MutantResult, 'status' | 'coveredBy' | 'killedBy'>>(mutants: readonly M[], flakyTests: ReadonlySet<string>, fileOf: (test: string) => string | undefined): M[] {
-  if (flakyTests.size === 0) return [];
-  const touched = new Set([...flakyTests].map(fileOf));
-  const steady = (test: string): boolean => {
-    const file = fileOf(test);
-    return file !== undefined && !flakyTests.has(test) && !touched.has(file);
-  };
-  return mutants.filter((m) => m.coveredBy.some((t) => flakyTests.has(t)) && !(m.status === 'Killed' && (m.killedBy ?? []).some(steady)));
 }
 
 /** How many times its isolated budget a busy stop gets on its re-run. */
@@ -507,6 +489,10 @@ export async function run(options: Options): Promise<RunResult> {
       const fileErrors = recs.flatMap((r) => r.fileErrors ?? []);
       if (fileErrors.length) {
         throw new InstrumentFault(`${String(fileErrors.length)} test file(s) failed to load during the dry run, so their tests would be missing from every verdict: ${fileErrors.slice(0, 3).map((e) => `${path.relative(root, e.file)}: ${e.error}`).join('; ')}`);
+      }
+      const hookErrors = recs.flatMap((r) => r.hookErrors ?? []);
+      if (hookErrors.length) {
+        throw new InstrumentFault(`${String(hookErrors.length)} beforeAll/afterAll hook(s) failed with no mutant active, so the tests under them never ran and their mutants would be NoCoverage: ${hookErrors.slice(0, 3).map((e) => `${path.relative(root, e.file)}: ${e.error}`).join('; ')}. fix: make the hook pass in the dry run (raise hookTimeout, or fix the hook) first`);
       }
       // A mutant that raises one is Killed (runner.ts), so a suite that raises one unmutated would kill every mutant it covers.
       const unhandled = recs.reduce((n, r) => n + (r.unhandled ?? 0), 0);
@@ -780,6 +766,8 @@ export async function run(options: Options): Promise<RunResult> {
       return [makeUnit(entry.file, pick(true), entry.depth + 1), makeUnit(entry.file, pick(false), entry.depth + 1)];
     };
     const runaways = new Set<string>();
+    /** Of them, the stops that read busy (heartbeat.ts): a loop or a slow test, not an idle wait. */
+    const busyStops = new Set<string>();
     const crashedIds = new Set<string>();
     // Dependencies inlined here too, so the static phase (5b) reuses these servers instead of starting its own.
     const governor = createGovernor(options.maxLoad);
@@ -801,7 +789,10 @@ export async function run(options: Options): Promise<RunResult> {
       if (wasPolluted) stats.pollutionRestarts++;
       if (!outcome.killedFor && !outcome.crashed && !wasPolluted) return [];
       const bad = outcome.killedFor ?? outcome.crashedFor;
-      if (outcome.killedFor) runaways.add(outcome.killedFor);
+      if (outcome.killedFor) {
+        runaways.add(outcome.killedFor);
+        if (outcome.stall !== 'idle') busyStops.add(outcome.killedFor);
+      }
       else if (bad) crashedIds.add(bad);
       // The rest of the unit: pairs not yet run, mutants not yet decided, into a fresh context.
       const ran = new Set(recs.filter((r) => r.type === 'mutant').map((r) => `${r.id ?? ''}|${r.test ?? ''}`));
@@ -1104,7 +1095,7 @@ export async function run(options: Options): Promise<RunResult> {
       }
       return undecided;
     };
-    const runIsolated = async (items: MutantResult[], slack = 1): Promise<Map<string, Verdict>> => {
+    const runIsolated = async (items: MutantResult[], slack: number | ((id: string) => number) = 1): Promise<Map<string, Verdict>> => {
       const verdicts = new Map<string, Verdict>();
       if (items.length === 0) return verdicts;
       const mk = (batch: MutantResult[]): Unit => ({ mode: 'isolated', files: [], results: fileFor('iso', 'jsonl'), progress: fileFor('iso', 'progress'), batch: batch.map((m) => ({ id: m.id, files: filesFor(m), tests: m.static ? undefined : m.coveredBy, hitLimit: hitLimitOf(m.id) })) });
@@ -1122,7 +1113,7 @@ export async function run(options: Options): Promise<RunResult> {
       stats.isolatedRuns += items.length;
       await pool.drain(
         units,
-        (_, id) => isolatedCapped(id, slack),
+        (_, id) => isolatedCapped(id, typeof slack === 'number' ? slack : slack(id)),
         (unit, outcome) => {
           // Vitest reports per test file: a mutant is killed if any of its files failed.
           for (const rec of readRecords(unit.results)) {
@@ -1167,7 +1158,12 @@ export async function run(options: Options): Promise<RunResult> {
     isolatedQueue.push(...staticBack);
     progress.phase(`isolated runs (static mutants and stragglers: ${String(isolatedQueue.length)})`);
     const i0 = performance.now();
-    const first = await runIsolated(isolatedQueue);
+    // A mutant the warm run already stopped busy gets its 3x here at once: its re-run would be the third
+    // look, and a stop at 1x only buys the 3x it is going to get. A loop with no switch in it (ufo's
+    // punycode.ts `u`, 2026-11-20) cost a stop at 1x, 2.3 s, before the 3x that decided it, 6.9 s.
+    // The verdict is the one the 3x run gives, as before; an idle warm stop still runs at 1x, where
+    // an idle stop is final.
+    const first = await runIsolated(isolatedQueue, (id) => (busyStops.has(id) ? RERUN_SLACK : 1));
     // A watchdog stop on a loaded machine is a slow test, not a runaway: 31 of them on one
     // burgee/paratext run while the load average sat at 40, all Survived for Stryker (2026-10-27).
     // Each stop gets one more run with 3x the budget; only one that is stopped again is a Timeout.
@@ -1179,7 +1175,7 @@ export async function run(options: Options): Promise<RunResult> {
     // it, not the watchdog. On compat-oracle's `hosts.ts`, with the load average at 45 to 120, 8 of 15
     // static mutants were Killed this way by tests that clone repositories, and survive a quiet run
     // (sc8-profile.md §6, A-20261112-oxmutate-test-timeout-kill). One more run decides it.
-    const stopped = isolatedQueue.filter((m) => (first.get(m.id)?.status === 'Timeout' && !first.get(m.id)?.idle) || slowKill(first.get(m.id)));
+    const stopped = isolatedQueue.filter((m) => (first.get(m.id)?.status === 'Timeout' && !first.get(m.id)?.idle && !busyStops.has(m.id)) || slowKill(first.get(m.id)));
     stats.isolatedByCause.rerun += stopped.length;
     const again = await runIsolated(stopped, RERUN_SLACK);
     for (const m of stopped) {

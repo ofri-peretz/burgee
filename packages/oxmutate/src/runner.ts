@@ -44,7 +44,7 @@ type AnyTask = {
   /** A file task's own path. */
   filepath?: string;
   suite?: AnyTask | undefined;
-  result?: { state?: string; duration?: number };
+  result?: { state?: string; duration?: number; errors?: { message?: string }[] };
   tasks?: AnyTask[] | undefined;
   mode?: string;
   context?: unknown;
@@ -890,14 +890,23 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
         for (const c of t.tasks ?? []) visit(c, file);
       };
       const fileErrors: { file: string; error: string }[] = [];
+      // A suite whose own hook failed (`beforeAll` timed out or threw) carries the error itself; a suite with a failing test only a state.
+      // Vitest skips every test under it, so without this the dry run is silent about tests that never ran.
+      const hookErrors: { file: string; suite: string; error: string }[] = [];
+      const hooks = (t: AnyTask, file: string): void => {
+        const first = t.type === 'test' ? undefined : t.result?.errors?.[0];
+        if (first && t.result?.state === 'fail' && t.tasks?.length) hookErrors.push({ file, suite: t.name, error: (first.message ?? 'failed').split('\n')[0]?.slice(0, FILE_ERROR_CHARS) ?? 'failed' });
+        for (const c of t.tasks ?? []) hooks(c, file);
+      };
       for (const f of files) {
         const filepath = (f.file?.filepath ?? f.filepath) as string;
         visit(f, filepath);
+        hooks(f, filepath);
         // A file that fails to collect has no failing test to show for it: report the file.
         const result = f.result as { state?: string; errors?: { message?: string }[] } | undefined;
         if (result?.state === 'fail' && !f.tasks?.length) fileErrors.push({ file: filepath, error: (result.errors?.[0]?.message ?? 'failed to collect').slice(0, FILE_ERROR_CHARS) });
       }
-      emit({ type: 'dry', tests, coverage: ns.mutantCoverage, reads: ns.readCoverage, fileErrors, runOnce: [...runOnce], modules: Object.fromEntries(dryModules), unhandled });
+      emit({ type: 'dry', tests, coverage: ns.mutantCoverage, reads: ns.readCoverage, fileErrors, hookErrors, runOnce: [...runOnce], modules: Object.fromEntries(dryModules), unhandled });
     } else if (mode === 'isolated') {
       const failed: string[] = [];
       let ran = 0;
