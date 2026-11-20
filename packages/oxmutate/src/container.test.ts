@@ -12,6 +12,13 @@ import { MAX_DELETES, planSync, PRUNE, readState, signatures, syncDir, type Sync
 import { type Container, containerDefaults, containerOf, containerPlan, defaultInstall, engineOf, machineDefault, pruneContainers, RESYNC, runInContainer, tarFlags, withFlags, withoutContainerFlags, withRuntime } from './container.js';
 import { nodeMajor } from './runtime.js';
 
+// The home directory a case may move (os.homedir() does not follow HOME inside every test runner).
+const home = vi.hoisted((): { dir: string | undefined } => ({ dir: undefined }));
+vi.mock('node:os', async (original) => {
+  const os = await original<typeof import('node:os')>();
+  return { ...os, homedir: (): string => home.dir ?? os.homedir() };
+});
+
 /** The environment without git's own variables: lefthook's pre-push exports `GIT_DIR`, and a scratch `git init` must not inherit it (scripts/git-env-lock.test.ts). */
 const withoutGit = (): NodeJS.ProcessEnv => Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')));
 
@@ -100,22 +107,16 @@ describe('the container setting', () => {
   });
 
   it('reads the machine default from ~/.config when XDG_CONFIG_HOME is unset or empty', () => {
-    const home = scratch('oxmutate-home-');
-    const saved = { HOME: process.env['HOME'], USERPROFILE: process.env['USERPROFILE'] };
+    home.dir = scratch('oxmutate-home-');
     try {
-      process.env['HOME'] = home;
-      process.env['USERPROFILE'] = home;
       delete process.env['XDG_CONFIG_HOME'];
-      mkdirSync(path.join(home, '.config', 'oxmutate'), { recursive: true });
-      writeFileSync(path.join(home, '.config', 'oxmutate', 'config.json'), JSON.stringify({ container: 'node:24-alpine' }));
+      mkdirSync(path.join(home.dir, '.config', 'oxmutate'), { recursive: true });
+      writeFileSync(path.join(home.dir, '.config', 'oxmutate', 'config.json'), JSON.stringify({ container: 'node:24-alpine' }));
       expect(machineDefault()).toBe('node:24-alpine');
       process.env['XDG_CONFIG_HOME'] = '';
       expect(machineDefault()).toBe('node:24-alpine');
     } finally {
-      for (const [k, v] of Object.entries(saved)) {
-        if (v === undefined) delete process.env[k];
-        else process.env[k] = v;
-      }
+      home.dir = undefined;
     }
   });
 
