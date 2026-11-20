@@ -78,6 +78,7 @@ export const NIGHTLY_ONLY: Readonly<Record<string, string>> = {
   [`${E2E} > runs a run-once test file (ESLint's RuleTester) from fresh collections, with no restart`]: `${MUTATION_RUN}; unmeasured`,
   [`${E2E} > static mutants keep their fresh-worker verdicts > an import-time constant decides its mutants; an unread one survives`]: `${MUTATION_RUN}, every static mutant in a fresh worker; 6.9 s`,
   [`${E2E} > static mutants keep their fresh-worker verdicts > a global set at import does not carry one mutant value into the next`]: `${MUTATION_RUN}, every static mutant in a fresh worker; 9.3 s`,
+  [`${E2E} > runs a mutant the warm run stopped busy once, at 3x, not at 1x and again at 3x`]: `${MUTATION_RUN}, whose fixture loops for ever on purpose so the watchdog's 3x stop is what decides; 12.6 s`,
   [`${E2E} > confirms a watchdog stop with 3x the budget before reporting a timeout`]: `${MUTATION_RUN}, whose fixture stalls 8 s twice on purpose so the 3x confirmation is what decides; 14.6 s`,
   [`${E2E} > the frozen oracle (R14, SC10) > reports the mutants a change stopped detecting when it weakens a test, and exits 1`]: `${MUTATION_RUN}, twice: the frozen base and the change; 9.7 s`,
   [`${E2E} > the frozen oracle (R14, SC10) > reports no drop when a change only adds a test`]: `${MUTATION_RUN}, twice: the frozen base and the change; 7.7 s`,

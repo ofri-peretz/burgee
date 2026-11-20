@@ -478,6 +478,30 @@ it.skipIf(!native || !existsSync(bin) || !nightly)('confirms a watchdog stop wit
   expect(report['x-oxmutate'].stats.idleStalls).toBe(0);
 }, 90_000);
 
+// A mutant that loops with no switch in the loop (no hit count can stop it) is stopped by the watchdog in
+// the warm run. That stop was then run isolated at 1x, stopped again, and run at 3x: ufo's punycode.ts
+// spent 2.3 s of its 9.2 on the 1x run (2026-11-20). The warm stop is the first look, so the isolated
+// run gets the 3x at once: the verdict is the same Timeout, one isolated run is spent, not two.
+it.skipIf(!native || !existsSync(bin) || !nightly)('runs a mutant the warm run stopped busy once, at 3x, not at 1x and again at 3x', () => {
+  const dir = path.join(pkg, 'test/fixtures/runaway');
+  try {
+    const r = runWith(dir, {});
+    expect(r.status, r.out).toBe(0);
+    const report = JSON.parse(readFileSync(path.join(r.reports, 'mutation.json'), 'utf8')) as {
+      files: Record<string, { mutants: ReportMutant[] }>;
+      'x-oxmutate': { stats: { isolatedRuns: number; isolatedByCause: { stopped: number; rerun: number } } };
+    };
+    const mutants = report.files['src/drain.ts']?.mutants ?? [];
+    // `step = 0` never lets the loop end; `left += step` is stopped by the hit limit, the loop reading `step` each time.
+    expect(mutants.filter((m) => m.status === 'Timeout').map((m) => m.replacement)).toEqual(['0', 'left += step']);
+    expect(mutants.filter((m) => m.status !== 'Timeout' && m.status !== 'Killed')).toEqual([]);
+    expect(report['x-oxmutate'].stats.isolatedByCause).toMatchObject({ stopped: 1, rerun: 0 });
+    expect(report['x-oxmutate'].stats.isolatedRuns).toBe(1);
+  } finally {
+    discard(path.join(dir, 'reports'));
+  }
+}, 180_000);
+
 /** The CLI on a fixture with extra config keys, through a config file written for the run. */
 const runWith = (dir: string, extra: Record<string, unknown>): { status: number | null; out: string; reports: string } => {
   const base = JSON.parse(readFileSync(path.join(dir, 'oxmutate.config.json'), 'utf8')) as Record<string, unknown>;
@@ -580,8 +604,25 @@ it.skipIf(!native || !existsSync(bin))('a test that overruns its timeout only in
   }
 });
 
+// A `beforeAll` that times out or throws in the dry run makes Vitest skip its tests, so no test covers
+// the code and every mutant is NoCoverage with the run passing (found on 2.9.0, 2026-11-19). The dry
+// run fails like a failing test does, naming the hook's file and the fix.
+it.skipIf(!native || !existsSync(bin))('fails the dry run, naming the file, when a beforeAll hook times out or throws', () => {
+  const dir = path.join(pkg, 'test/fixtures/dry-hook');
+  try {
+    const r = runWith(dir, {});
+    expect(r.status, r.out).not.toBe(0);
+    expect(r.out).toContain('2 beforeAll/afterAll hook(s) failed with no mutant active');
+    expect(r.out).toContain('src/slow-hook.spec.ts: Hook timed out');
+    expect(r.out).toContain('src/throwing-hook.spec.ts: fixture cannot start');
+    expect(r.out).toContain('fix: make the hook pass in the dry run');
+  } finally {
+    discard(path.join(dir, 'reports'));
+  }
+});
+
 // Flaky re-runs are for verdicts a flaky test could have decided. A mutant a steady test in another
-// file killed fails the same way on every re-run, so it is not re-run (coordinator.ts flakyCandidates).
+// file killed fails the same way on every re-run, so it is not re-run (flaky.ts).
 it.skipIf(!native || !existsSync(bin) || !nightly)('re-runs the mutants only a flaky test killed, not those a steady test killed', () => {
   const dir = path.join(pkg, 'test/fixtures/flaky-scope');
   mkdirSync(path.join(dir, 'reports'), { recursive: true });

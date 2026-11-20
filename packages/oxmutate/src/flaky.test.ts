@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { flakyCandidates, type MutantResult } from './coordinator.js';
+import { flakyCandidates, type Reran } from './flaky.js';
 
-type Mutant = Pick<MutantResult, 'status' | 'coveredBy' | 'killedBy'> & { id: string };
+type Mutant = Reran & { id: string };
 
 // Test id → its file. `flaky` and `neighbour` share a file; `steady` has one of its own.
 const files: Record<string, string> = { flaky: '/t/flaky.spec.ts', neighbour: '/t/flaky.spec.ts', steady: '/t/steady.spec.ts', other: '/t/other.spec.ts' };
