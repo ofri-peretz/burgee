@@ -9,7 +9,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vites
 
 import { discard } from './__fixtures__/scratch-dir.js';
 import { MAX_DELETES, planSync, PRUNE, readState, signatures, syncDir, type SyncPlan, writeState } from './container-sync.js';
-import { type Container, containerDefaults, containerOf, containerPlan, defaultInstall, engineOf, machineDefault, pruneContainers, RESYNC, runInContainer, tarFlags, withFlags, withoutContainerFlags, withRuntime } from './container.js';
+import { type Container, containerDefaults, containerOf, containerPlan, defaultInstall, engineOf, machineDefault, pruneContainers, RESYNC, runInContainer, tarFlags, VERSION, withFlags, withoutContainerFlags, withRuntime } from './container.js';
 import { nodeMajor } from './runtime.js';
 
 // The home directory a case may move (os.homedir() does not follow HOME inside every test runner).
@@ -33,20 +33,29 @@ const scratch = (prefix: string): string => {
 
 // Every case gets its own cache and config home, so the host's sync records and a machine default
 // of the developer running the suite reach none of them.
-const saved = { cache: process.env['XDG_CACHE_HOME'], config: process.env['XDG_CONFIG_HOME'], container: process.env['OXMUTATE_CONTAINER'] };
+// So is the home directory and npm's user config (npm run sets npm_config_userconfig): the
+// developer's own ~/.npmrc and ~/.yarnrc.yml are never forwarded by a case.
+const saved = { cache: process.env['XDG_CACHE_HOME'], config: process.env['XDG_CONFIG_HOME'], container: process.env['OXMUTATE_CONTAINER'], userconfig: process.env['npm_config_userconfig'] };
 beforeEach(() => {
   process.env['XDG_CACHE_HOME'] = scratch('oxmutate-cache-');
   process.env['XDG_CONFIG_HOME'] = scratch('oxmutate-config-');
   delete process.env['OXMUTATE_CONTAINER'];
+  delete process.env['npm_config_userconfig'];
+  home.dir = scratch('oxmutate-home-');
 });
 afterEach(() => {
-  for (const [key, name] of [['cache', 'XDG_CACHE_HOME'], ['config', 'XDG_CONFIG_HOME'], ['container', 'OXMUTATE_CONTAINER']] as const) {
+  for (const [key, name] of [['cache', 'XDG_CACHE_HOME'], ['config', 'XDG_CONFIG_HOME'], ['container', 'OXMUTATE_CONTAINER'], ['userconfig', 'npm_config_userconfig']] as const) {
     if (saved[key] === undefined) delete process.env[name];
     else process.env[name] = saved[key];
   }
+  home.dir = undefined;
 });
 
-const DEFAULTS: Container = { engine: 'docker', image: `node:${nodeMajor}-bookworm-slim`, network: 'none', source: 'copy', cache: 'oxmutate-cache', ephemeral: false, readOnly: false, env: [], args: [], runArgs: [], command: 'npx --no oxmutate' };
+const DEFAULTS: Container = { engine: 'docker', image: `node:${nodeMajor}-bookworm-slim`, network: 'none', source: 'copy', cache: 'oxmutate-cache', ephemeral: false, readOnly: false, env: [], installEnv: [], include: [], args: [], runArgs: [] };
+/** The defaults with the project's own oxmutate as the command, so a script has no install of oxmutate in it. */
+const NPX: Container = { ...DEFAULTS, command: 'npx --no oxmutate' };
+/** The version the container installs when the command is unset: this package's. */
+const OWN = (JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }).version;
 
 describe('the container setting', () => {
   it('is off when unset or false, and every default with true', () => {
@@ -62,17 +71,17 @@ describe('the container setting', () => {
     const full = {
       engine: 'podman', image: 'i', network: 'bridge', source: 'git', remote: 'https://example.com/r.git', install: 'pnpm i', setup: 'npm run build', volume: 'v', cache: 'c', ephemeral: true,
       context: 'box', host: 'ssh://u@box', platform: 'linux/amd64', user: '1000:1000', runtime: 'runsc', readOnly: true, pull: 'always', pidsLimit: 512, cpus: 4, memory: '6g',
-      env: ['CI', 'A=1'], args: ['--ulimit=nofile=1024'], runArgs: ['--shm-size=1g'], command: 'node dist/bin.js',
+      env: ['CI', 'A=1'], installEnv: ['NODE_AUTH_TOKEN'], registryAuth: false, include: ['.env.test'], args: ['--ulimit=nofile=1024'], runArgs: ['--shm-size=1g'], command: 'node dist/bin.js',
     };
     expect(containerOf(full)).toEqual(full);
     expect(containerOf({ install: false, cache: false })).toEqual({ ...DEFAULTS, install: '', cache: false });
     expect(containerOf({})).toEqual(DEFAULTS);
-    expect(containerOf({ cpus: '4', pidsLimit: '9', env: 'CI', engine: 5, image: false, readOnly: 'yes', ephemeral: 1, cache: 3 })).toEqual(DEFAULTS);
+    expect(containerOf({ cpus: '4', pidsLimit: '9', env: 'CI', engine: 5, image: false, readOnly: 'yes', ephemeral: 1, cache: 3, installEnv: 'X', include: '.env', registryAuth: 'yes' })).toEqual(DEFAULTS);
     expect(containerOf({ source: 'copy' })).toEqual(DEFAULTS);
   });
 
   it('refuses a key it does not know, a source it does not know, and a value of the wrong kind, with the fix', () => {
-    expect(() => containerOf({ imgae: 'x', cpu: 1 })).toThrow('container has no key imgae, cpu. fix: use engine, image, network, remote, install, setup, volume, context, host, platform, user, runtime, pull, memory, command, source, cache, ephemeral, readOnly, pidsLimit, cpus, env, args, runArgs; anything else goes in container.args');
+    expect(() => containerOf({ imgae: 'x', cpu: 1 })).toThrow('container has no key imgae, cpu. fix: use engine, image, network, remote, install, setup, volume, context, host, platform, user, runtime, pull, memory, command, source, cache, ephemeral, readOnly, pidsLimit, cpus, env, installEnv, registryAuth, include, args, runArgs; anything else goes in container.args');
     expect(() => containerOf({ source: 'svn' })).toThrow(`container.source is 'copy' or 'git', not "svn"`);
     expect(() => containerOf(3)).toThrow('container must be true, an image name or an object, not 3. fix: container: true');
     expect(() => containerOf(['x'])).toThrow('not ["x"]');
@@ -107,17 +116,13 @@ describe('the container setting', () => {
   });
 
   it('reads the machine default from ~/.config when XDG_CONFIG_HOME is unset or empty', () => {
-    home.dir = scratch('oxmutate-home-');
-    try {
-      delete process.env['XDG_CONFIG_HOME'];
-      mkdirSync(path.join(home.dir, '.config', 'oxmutate'), { recursive: true });
-      writeFileSync(path.join(home.dir, '.config', 'oxmutate', 'config.json'), JSON.stringify({ container: 'node:24-alpine' }));
-      expect(machineDefault()).toBe('node:24-alpine');
-      process.env['XDG_CONFIG_HOME'] = '';
-      expect(machineDefault()).toBe('node:24-alpine');
-    } finally {
-      home.dir = undefined;
-    }
+    const dir = home.dir!;
+    delete process.env['XDG_CONFIG_HOME'];
+    mkdirSync(path.join(dir, '.config', 'oxmutate'), { recursive: true });
+    writeFileSync(path.join(dir, '.config', 'oxmutate', 'config.json'), JSON.stringify({ container: 'node:24-alpine' }));
+    expect(machineDefault()).toBe('node:24-alpine');
+    process.env['XDG_CONFIG_HOME'] = '';
+    expect(machineDefault()).toBe('node:24-alpine');
   });
 
   it('hands the oxmutate inside its arguments without the container flags, and each ref as its tag', () => {
@@ -135,6 +140,7 @@ describe('the container setting', () => {
     expect(defaultInstall('pnpm-lock.yaml')).toBe('corepack enable && pnpm install --frozen-lockfile');
     expect(defaultInstall('yarn.lock')).toBe('corepack enable && yarn install --frozen-lockfile');
     expect(defaultInstall(undefined)).toBe('npm install');
+    expect(defaultInstall('yarn.lock', true)).toBe('corepack enable && yarn install --immutable');
   });
 
   it('talks to the engine the context or the host names', () => {
@@ -268,13 +274,13 @@ describe('the container plan', () => {
   const whole: SyncPlan = { mode: 'whole', token: 'T', send: ['a'] };
 
   it('labels the volumes, hardens every container, shares the package caches with the sync alone, and mounts nothing of the host', () => {
-    const plan = containerPlan(DEFAULTS, input);
+    const plan = containerPlan(NPX, input);
     expect(plan.volumes).toEqual([['volume', 'create', '--label', 'dev.oxmutate=1', 'vol'], ['volume', 'create', '--label', 'dev.oxmutate=1', 'oxmutate-cache']]);
     expect(plan.drop).toEqual(['volume', 'rm', '-f', 'vol']);
     expect(plan.sync.slice(0, -1)).toEqual(['create', '--rm', ...HARDENED, ...VOL, ...CACHE, '-w', '/w', DEFAULTS.image, 'sh', '-c']);
     expect(plan.run.slice(0, -1)).toEqual(['run', '--rm', '--init', '--network=none', ...HARDENED, ...VOL, '-w', '/w', '-e', 'OXMUTATE_CONTAINER=inside', DEFAULTS.image, 'sh', '-c']);
     expect(plan.back).toEqual(['create', '--network=none', ...HARDENED, ...VOL, DEFAULTS.image, 'true']);
-    const uncached = containerPlan({ ...DEFAULTS, cache: false }, input);
+    const uncached = containerPlan({ ...NPX, cache: false }, input);
     expect(uncached.volumes).toEqual([['volume', 'create', '--label', 'dev.oxmutate=1', 'vol']]);
     expect(uncached.sync.slice(0, -1)).toEqual(['create', '--rm', ...HARDENED, ...VOL, '-w', '/w', DEFAULTS.image, 'sh', '-c']);
   });
@@ -288,11 +294,11 @@ describe('the container plan', () => {
     expect(plan.run.slice(3, 4 + HARDENED.length + all.length)).toEqual(['--network=bridge', ...HARDENED, ...all]);
     expect(plan.run.slice(-5, -3)).toEqual(['--shm-size=1g', c.image]);
     expect(plan.sync).not.toContain('--shm-size=1g');
-    expect(containerPlan({ ...DEFAULTS, runtime: 'default' }, input).sync).not.toContain('--runtime');
+    expect(containerPlan({ ...NPX, runtime: 'default' }, input).sync).not.toContain('--runtime');
   });
 
   it('syncs a whole copy, pruned to the listing, and installs when the key changed; the run sets up and runs oxmutate in the project', () => {
-    const plan = containerPlan({ ...DEFAULTS, setup: 'npm run build' }, { ...input, sync: whole });
+    const plan = containerPlan({ ...NPX, setup: 'npm run build' }, { ...input, sync: whole });
     expect(script(plan.sync)).toEqual([
       'set -e',
       'mkdir -p /w/src && cd /w/src',
@@ -304,14 +310,14 @@ describe('the container plan', () => {
       ...INSTALL,
     ]);
     expect(script(plan.run)).toEqual(['set -e', 'npm run build', "cd '/w/src/packages/a'", String.raw`exec npx --no oxmutate 'run' 'it'\''s'`]);
-    const bare = containerPlan(DEFAULTS, { ...input, install: '', rel: '' });
+    const bare = containerPlan(NPX, { ...input, install: '', rel: '' });
     expect(script(bare.sync)).toEqual(['set -e', 'mkdir -p /w/src && cd /w/src']);
     expect(script(bare.run)).toEqual(['set -e', "cd '/w/src'", String.raw`exec npx --no oxmutate 'run' 'it'\''s'`]);
   });
 
   it('applies a delta only to the volume it was computed for, and removes what the host deleted', () => {
     const deleted = Array.from({ length: 51 }, (_, i) => `d${String(i)}`);
-    const lines = script(containerPlan(DEFAULTS, { ...input, install: '', sync: { mode: 'delta', token: 'T', send: ['a'], deleted } }).sync);
+    const lines = script(containerPlan(NPX, { ...input, install: '', sync: { mode: 'delta', token: 'T', send: ['a'], deleted } }).sync);
     expect(lines.slice(2, 5)).toEqual([
       `[ "$(cat /w/synced 2>/dev/null)" = 'T' ] || { echo 'oxmutate: the volume is not the one last synced; sending the whole repository' >&2; exit ${String(RESYNC)}; }`,
       '[ ! -f /w/in.tar ] || tar -xovf /w/in.tar >/dev/null',
@@ -319,12 +325,12 @@ describe('the container plan', () => {
     ]);
     expect(lines.slice(5)).toEqual([`rm -f -- ${deleted.slice(0, 50).map((f) => `'${f}'`).join(' ')}`, "rm -f -- 'd50'"]);
     expect(RESYNC).toBe(75);
-    const lineCount = (n: number): number => script(containerPlan(DEFAULTS, { ...input, install: '', sync: { mode: 'delta', token: 'T', send: [], deleted: Array.from({ length: n }, (_, i) => `d${String(i)}`) } }).sync).filter((l) => l.startsWith('rm -f --')).length;
+    const lineCount = (n: number): number => script(containerPlan(NPX, { ...input, install: '', sync: { mode: 'delta', token: 'T', send: [], deleted: Array.from({ length: n }, (_, i) => `d${String(i)}`) } }).sync).filter((l) => l.startsWith('rm -f --')).length;
     expect([lineCount(0), lineCount(50)]).toEqual([0, 1]);
   });
 
   it('keeps the install guard whole when the install command has a comment', () => {
-    const lines = script(containerPlan(DEFAULTS, { ...input, install: 'npm ci # note', sync: whole }).sync);
+    const lines = script(containerPlan(NPX, { ...input, install: 'npm ci # note', sync: whole }).sync);
     expect(lines.slice(-3)).toEqual([`if [ "$(cat /w/installed 2>/dev/null)" != 'k1' ]; then`, 'npm ci # note', "echo 'k1' > /w/installed; fi"]);
     if (spawnSync('sh', ['-c', 'true']).status === 0) {
       const file = path.join(scratch('oxmutate-sh-'), 'sync.sh');
@@ -335,7 +341,7 @@ describe('the container plan', () => {
 
   it('turns each ref the run names into a commit and a tag inside, and stages the source so a diff sees new files', () => {
     const bases = [{ ref: 'origin/main', commit: 'abc', tag: 'oxmutate-base-0' }];
-    const lines = script(containerPlan(DEFAULTS, { ...input, install: '', sync: whole, bases }).sync);
+    const lines = script(containerPlan(NPX, { ...input, install: '', sync: whole, bases }).sync);
     expect(lines.slice(7)).toEqual([
       `command -v git >/dev/null || { echo 'oxmutate: --since or --frozen-oracle in a container needs git in the image. fix: container.image node:${nodeMajor}' >&2; exit 3; }`,
       'rm -rf /w/base-0 && mkdir -p /w/base-0 && tar -xof /w/base-0.tar -C /w/base-0 && rm -f /w/base-0.tar',
@@ -349,7 +355,7 @@ describe('the container plan', () => {
 
   it('fetches the commit instead with source git, each base as a tag first, keeping node_modules and the kept files', () => {
     const bases = [{ ref: 'origin/main', commit: 'b0', tag: 'oxmutate-base-0' }];
-    const plan = containerPlan(DEFAULTS, { ...input, fetch: { remote: 'https://example.com/r.git', commit: 'abc123' }, bases });
+    const plan = containerPlan(NPX, { ...input, fetch: { remote: 'https://example.com/r.git', commit: 'abc123' }, bases });
     expect(script(plan.sync).slice(2, 12)).toEqual([
       `command -v git >/dev/null || { echo 'oxmutate: source git needs git in the image. fix: container.image node:${nodeMajor}' >&2; exit 3; }`,
       '[ -d .git ] || git init -q',
@@ -360,6 +366,31 @@ describe('the container plan', () => {
       "git clean -q -fdx -e 'node_modules' -e 'packages/a/reports/m.json'",
       ...INSTALL,
     ]);
+  });
+
+  it('installs the host’s own oxmutate into the volume once, outside the source, and runs it, unless the command is set', () => {
+    const plan = containerPlan(DEFAULTS, { ...input, sync: whole });
+    expect(script(plan.sync).at(-1)).toBe(
+      `[ -x /w/.oxmutate/${OWN}/node_modules/.bin/oxmutate ] || npm install --no-save --no-audit --no-fund --prefix /w/.oxmutate/${OWN} oxmutate@${OWN} || { echo 'oxmutate: the container could not install oxmutate@${OWN} from the registry. fix: set container.command to an oxmutate the image or the project has, and container.install to an install that needs no network' >&2; exit 5; }`,
+    );
+    expect(script(plan.run).at(-1)).toBe(String.raw`exec /w/.oxmutate/${OWN}/node_modules/.bin/oxmutate 'run' 'it'\''s'`);
+    expect(VERSION).toBe(OWN);
+    if (spawnSync('sh', ['-c', 'true']).status === 0) {
+      const file = path.join(scratch('oxmutate-sh-'), 'sync.sh');
+      writeFileSync(file, plan.sync.at(-1)!);
+      expect(spawnSync('sh', ['-n', file], { encoding: 'utf8' })).toMatchObject({ status: 0, stderr: '' });
+    }
+    expect(script(containerPlan(NPX, { ...input, sync: whole }).sync).join('\n')).not.toContain('.oxmutate');
+  });
+
+  it('gives installEnv and the forwarded auth to the sync container alone, never to the run or the copy back', () => {
+    const auth = ['-e', 'npm_config_userconfig=/tmp/oxmutate-npmrc', '-e', 'NODE_AUTH_TOKEN'];
+    const plan = containerPlan({ ...NPX, cache: false, installEnv: ['NPM_TOKEN', 'A=1'], env: ['CI'] }, { ...input, auth });
+    expect(plan.sync.slice(0, -4)).toEqual(['create', '--rm', ...HARDENED, '-e', 'CI', ...VOL, '-e', 'NPM_TOKEN', '-e', 'A=1', ...auth, '-w', '/w']);
+    for (const args of [plan.run, plan.back]) {
+      expect(args).toContain('CI');
+      for (const secret of ['NPM_TOKEN', 'A=1', 'NODE_AUTH_TOKEN', 'npm_config_userconfig=/tmp/oxmutate-npmrc']) expect(args).not.toContain(secret);
+    }
   });
 
   it('packs without macOS metadata on macOS, and with only what GNU tar knows elsewhere', () => {
@@ -418,12 +449,15 @@ function fake(result: Outcome) {
   /** Each host file copied in, by its name, and each whole sync's listing as the container reads it. */
   const froms: string[] = [];
   const listings: string[] = [];
+  /** The `.yarnrc.yml` of each HOME the sync container got. */
+  const homes: string[] = [];
   let busy = result.busy ?? 0;
   const isSync = (id: string): boolean => (scripts.get(id) ?? '') !== '';
   const copyIn = (from: string, to: string): Answer => {
     copied.push(to);
     froms.push(path.basename(from));
     if (path.basename(from) === 'listing') listings.push(readFileSync(from, 'utf8'));
+    if (path.basename(from) === 'home') homes.push(readFileSync(path.join(from, '.yarnrc.yml'), 'utf8'));
     if (path.basename(from) === 'in.tar') sent.push(spawnSync('tar', ['-tf', 'in.tar'], { cwd: path.dirname(from), encoding: 'utf8' }).stdout.split(/\r?\n/u).filter(Boolean).toSorted());
     return answer(result.cpFails ? 1 : 0);
   };
@@ -469,14 +503,18 @@ function fake(result: Outcome) {
     const tar = calls.find((c) => c.cmd === 'tar');
     return typeof tar?.o.cwd === 'string' ? tar.o.cwd : '';
   };
-  return { calls, spawn, ofEngine, verbs: () => verbs, scripts, sent, copied, froms, listings, io };
+  return { calls, spawn, ofEngine, verbs: () => verbs, scripts, sent, copied, froms, listings, homes, io };
 }
+
+/** The run container's arguments, and the sync container's (the first created). */
+const runArgs = (f: ReturnType<typeof fake>): readonly string[] => f.ofEngine().find((c) => c.args[0] === 'run')!.args;
+const syncArgs = (f: ReturnType<typeof fake>): readonly string[] => f.ofEngine().find((c) => c.args[0] === 'create')!.args;
 
 /** The install key in a sync's script. */
 const keyOf = (s: string): string => /!= '([0-9a-f]+)'/u.exec(s)![1]!;
 
 describe('running in the container', () => {
-  const C = { ...DEFAULTS, engine: 'engine' };
+  const C = { ...NPX, engine: 'engine' };
 
   it('creates the volumes, sends the git files, syncs, runs in the project, and returns the run’s exit code', async () => {
     const top = repo({ 'package-lock.json': '{}', 'packages/a/src/x.ts': 'x', '.gitignore': 'dist\n', 'packages/a/dist/y.js': 'y' });
@@ -756,8 +794,131 @@ describe('running in the container', () => {
   });
 });
 
+describe('what the install gets', () => {
+  const C = { ...NPX, engine: 'engine' };
+  afterEach(() => void vi.restoreAllMocks());
+
+  it('forwards the host’s ~/.npmrc and ~/.yarnrc.yml to the sync, with each variable they name, and none of it to the run', async () => {
+    const said = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    const dir = home.dir!;
+    // eslint-disable-next-line node-security/require-storage-encryption -- a fixture npmrc that names a variable, no secret in it
+    writeFileSync(path.join(dir, '.npmrc'), '//npm.example.com/:_authToken=${NODE_AUTH_TOKEN}\n@acme:registry=${ACME_REGISTRY}\nalways=${NODE_AUTH_TOKEN}\n');
+    // eslint-disable-next-line node-security/require-storage-encryption -- a fixture yarnrc that names a variable, no secret in it
+    writeFileSync(path.join(dir, '.yarnrc.yml'), 'npmAuthToken: "${YARN_TOKEN}"\n');
+    const top = repo({ 'package.json': '{}' });
+    const f = fake({});
+    await runInContainer(C, { root: top, keep: [] }, [], { spawn: f.spawn });
+    const copies = f.ofEngine().filter((c) => c.args[0] === 'cp').map((c) => [path.basename(c.args[1]!), c.args[2]]);
+    expect(copies).toContainEqual(['.npmrc', 'c1:/tmp/oxmutate-npmrc']);
+    expect(copies).toContainEqual(['home', 'c1:/tmp/oxmutate-home']);
+    expect(f.ofEngine().find((c) => c.args[0] === 'cp' && c.args[2] === 'c1:/tmp/oxmutate-npmrc')!.args[1]).toBe(path.join(dir, '.npmrc'));
+    expect(f.homes).toEqual(['npmAuthToken: "${YARN_TOKEN}"\n']);
+    const auth = ['-e', 'npm_config_userconfig=/tmp/oxmutate-npmrc', '-e', 'HOME=/tmp/oxmutate-home', '-e', 'NODE_AUTH_TOKEN', '-e', 'ACME_REGISTRY', '-e', 'YARN_TOKEN'];
+    expect(syncArgs(f).join(' ')).toContain(auth.join(' '));
+    for (const secret of auth.filter((a) => a !== '-e')) expect(runArgs(f)).not.toContain(secret);
+    expect(runArgs(f).join(' ')).not.toContain('oxmutate-npmrc');
+    expect(said).not.toHaveBeenCalled();
+  });
+
+  it('takes the npm user config npm names, and forwards nothing when there is none or registryAuth is false', async () => {
+    const top = repo({ 'package.json': '{}' });
+    const other = path.join(scratch('oxmutate-rc-'), 'npmrc');
+    writeFileSync(other, 'registry=https://r.example.com/\n');
+    writeFileSync(path.join(home.dir!, '.npmrc'), 'x=${NOT_THIS}\n');
+    process.env['npm_config_userconfig'] = other;
+    const f = fake({});
+    await runInContainer(C, { root: top, keep: [] }, [], { spawn: f.spawn });
+    expect(f.ofEngine().find((c) => c.args[2] === 'c1:/tmp/oxmutate-npmrc')!.args[1]).toBe(other);
+    expect(syncArgs(f)).not.toContain('NOT_THIS');
+    const off = fake({});
+    await runInContainer({ ...C, registryAuth: false }, { root: top, keep: [] }, [], { spawn: off.spawn });
+    expect(syncArgs(off).join(' ')).not.toContain('oxmutate-npmrc');
+    expect(off.copied).not.toContain('c1:/tmp/oxmutate-npmrc');
+    delete process.env['npm_config_userconfig'];
+    rmSync(path.join(home.dir!, '.npmrc'));
+    const none = fake({});
+    await runInContainer(C, { root: top, keep: [] }, [], { spawn: none.spawn });
+    expect(syncArgs(none).join(' ')).not.toContain('/tmp/oxmutate');
+    // Nothing forwarded is nothing at all: the cache's last variable is followed by the work directory.
+    for (const f of [none, off]) {
+      const args = syncArgs(f);
+      expect(args[args.indexOf('-w') - 1]).toBe('YARN_CACHE_FOLDER=/cache/yarn');
+      expect(f.copied.toSorted()).toEqual(['c1:/w/in.tar', 'c1:/w/listing']);
+    }
+  });
+
+  it('forwards nothing to a remote engine unless registryAuth says so, and says how once', async () => {
+    const said = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    writeFileSync(path.join(home.dir!, '.npmrc'), 'a=b\n');
+    const top = repo({ 'package.json': '{}' });
+    const remote = fake({});
+    await runInContainer({ ...C, host: 'ssh://u@box' }, { root: top, keep: [] }, [], { spawn: remote.spawn });
+    expect(remote.copied).not.toContain('c1:/tmp/oxmutate-npmrc');
+    expect(said.mock.calls).toEqual([['oxmutate: ~/.npmrc and ~/.yarnrc.yml are not forwarded to a remote engine (container.host). fix: set container.registryAuth: true to forward them to the install\n']]);
+    said.mockClear();
+    const asked = fake({});
+    await runInContainer({ ...C, host: 'ssh://u@box', registryAuth: true }, { root: top, keep: [] }, [], { spawn: asked.spawn });
+    expect(asked.copied).toContain('c1:/tmp/oxmutate-npmrc');
+    await runInContainer({ ...C, host: 'ssh://u@box', registryAuth: false }, { root: top, keep: [] }, [], { spawn: fake({}).spawn });
+    expect(said).not.toHaveBeenCalled();
+  });
+
+  it('forwards the auth to a source git sync too', async () => {
+    writeFileSync(path.join(home.dir!, '.npmrc'), 'a=b\n');
+    const top = repo({ 'package.json': '{}' });
+    commit(top);
+    spawnSync('git', ['remote', 'add', 'origin', 'https://example.com/o.git'], { cwd: top, env: withoutGit() });
+    const f = fake({});
+    await runInContainer({ ...C, source: 'git' }, { root: top, keep: [] }, [], { spawn: f.spawn });
+    expect(f.copied).toEqual(['c1:/tmp/oxmutate-npmrc']);
+  });
+
+  it('sends the ignored files include names, by path or glob, and no other ignored file', async () => {
+    const top = repo({ '.gitignore': '.env.test\n*.fixture.json\n*.secret\ndist\n', 'package.json': '{}', '.env.test': 'A=1', 'top.fixture.json': '{}', 'deep/b.fixture.json': '{}', 'x.secret': 's', 'dist/y.js': 'y' });
+    const f = fake({});
+    await runInContainer({ ...C, include: ['.env.test', '**/*.fixture.json'] }, { root: top, keep: [] }, [], { spawn: f.spawn });
+    expect(f.sent).toEqual([['.env.test', '.gitignore', 'deep/b.fixture.json', 'package.json', 'top.fixture.json']]);
+    const one = fake({});
+    await runInContainer({ ...C, include: ['.env.test'] }, { root: top, keep: [] }, [], { spawn: one.spawn });
+    expect(one.sent).toEqual([['.env.test', '.gitignore', 'package.json']]);
+    // A file git does not track yet, and does not ignore, is sent without include.
+    writeFileSync(path.join(top, 'new.ts'), 'n');
+    const plain = fake({});
+    await runInContainer(C, { root: top, keep: [] }, [], { spawn: plain.spawn });
+    expect(plain.sent).toEqual([['.gitignore', 'new.ts', 'package.json']]);
+  });
+
+  it('installs Yarn 2 and later with --immutable, by .yarnrc.yml or packageManager', async () => {
+    const installOf = async (files: Record<string, string>): Promise<string> => {
+      const f = fake({});
+      await runInContainer({ ...C, ephemeral: true }, { root: repo(files), keep: [] }, [], { spawn: f.spawn });
+      const lines = script(['', f.scripts.get('c1')!]);
+      return lines[lines.findIndex((l) => l.endsWith('; then')) + 1]!;
+    };
+    const berry = 'corepack enable && yarn install --immutable';
+    expect(await installOf({ 'yarn.lock': '', '.yarnrc.yml': 'nodeLinker: node-modules\n' })).toBe(berry);
+    expect(await installOf({ 'yarn.lock': '', 'package.json': '{ "packageManager": "yarn@4.5.0" }' })).toBe(berry);
+    expect(await installOf({ 'yarn.lock': '', 'package.json': '{"packageManager":"yarn@10.0.0"}' })).toBe(berry);
+    expect(await installOf({ 'yarn.lock': '', 'package.json': '{ "packageManager" : "yarn@3.8.0" }' })).toBe(berry);
+    expect(await installOf({ 'yarn.lock': '', 'package.json': '{"packageManager":"yarn@1.22.22"}' })).toBe('corepack enable && yarn install --frozen-lockfile');
+    expect(await installOf({ 'package-lock.json': '{}', 'package.json': '{"packageManager":"npm@10.0.0"}' })).toBe('npm ci');
+  });
+
+  it('refuses a bun project before syncing, unless the install is given', async () => {
+    for (const lock of ['bun.lock', 'bun.lockb']) {
+      const f = fake({});
+      // eslint-disable-next-line reliability/no-await-in-loop -- two lockfiles, each its own run
+      await expect(runInContainer(C, { root: repo({ 'package.json': '{}', [lock]: '' }), keep: [] }, [], { spawn: f.spawn })).rejects.toThrow(`${lock} is bun's, and the container installs with npm, pnpm or yarn. fix: set container.image to one with bun (such as oven/bun) and container.install (such as bun install --frozen-lockfile)`);
+      expect(f.verbs()).toEqual([]);
+    }
+    const given = fake({});
+    expect(await runInContainer({ ...C, install: 'bun install' }, { root: repo({ 'package.json': '{}', 'bun.lockb': '' }), keep: [] }, [], { spawn: given.spawn })).toBe(0);
+    expect(given.scripts.get('c1')).toContain('\nbun install\n');
+  });
+});
+
 describe('when the engine cannot run', () => {
-  const C = { ...DEFAULTS, engine: 'engine' };
+  const C = { ...NPX, engine: 'engine' };
 
   it('says the daemon is not running at the first engine call that finds it so, Docker’s and Podman’s', async () => {
     const top = repo({ 'package.json': '{}' });
@@ -785,7 +946,7 @@ describe('when the engine cannot run', () => {
 });
 
 describe('two runs on one volume', () => {
-  const C = { ...DEFAULTS, engine: 'engine', volume: 'v' };
+  const C = { ...NPX, engine: 'engine', volume: 'v' };
   afterEach(() => void vi.restoreAllMocks());
 
   it('waits while another run’s container is on the volume, says so once, then syncs', async () => {

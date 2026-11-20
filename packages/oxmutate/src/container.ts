@@ -70,14 +70,20 @@ export interface Container {
   pidsLimit?: number | undefined;
   cpus?: number | undefined;
   memory?: string | undefined;
-  /** `NAME` passes the host's value, `NAME=value` sets one. */
+  /** `NAME` passes the host's value, `NAME=value` sets one, to every container: the tests see it. */
   env: string[];
+  /** As `env`, to the sync container alone: the install sees it, the tests do not. */
+  installEnv: string[];
+  /** Forward the host's `~/.npmrc` (or `$npm_config_userconfig`) and `~/.yarnrc.yml` to the install, and each `${NAME}` they name. Unset: on, off with `host`. */
+  registryAuth?: boolean | undefined;
+  /** Files git ignores that the tests need (`.env.test`, generated fixtures): paths or globs, sent with the git files. */
+  include: string[];
   /** Extra arguments to every container, verbatim. */
   args: string[];
   /** Extra arguments to the run's container alone. */
   runArgs: string[];
-  /** oxmutate inside the container. */
-  command: string;
+  /** oxmutate inside the container. Unset: the host's own version, installed into the volume by the sync. */
+  command?: string | undefined;
 }
 
 /** Set inside the container, so the run there does not start another. */
@@ -87,12 +93,23 @@ const SRC = `${WORK}/src`;
 /** Hex characters of the repository path's hash in the default volume name. */
 const VOLUME_HASH_CHARS = 12;
 const STRINGS = ['engine', 'image', 'network', 'remote', 'install', 'setup', 'volume', 'context', 'host', 'platform', 'user', 'runtime', 'pull', 'memory', 'command'] as const;
-const KEYS = new Set<string>([...STRINGS, 'source', 'cache', 'ephemeral', 'readOnly', 'pidsLimit', 'cpus', 'env', 'args', 'runArgs']);
+const KEYS = new Set<string>([...STRINGS, 'source', 'cache', 'ephemeral', 'readOnly', 'pidsLimit', 'cpus', 'env', 'installEnv', 'registryAuth', 'include', 'args', 'runArgs']);
 /** The label each sync, run and copy-back container has: the volume it works on. */
 const VOLUME_LABEL = 'dev.oxmutate.volume';
 /** The shared package-cache volume's default name. */
 const CACHE = 'oxmutate-cache';
 export const LOCKS = ['package-lock.json', 'npm-shrinkwrap.json', 'pnpm-lock.yaml', 'yarn.lock'];
+/** Bun's lockfiles: no install is chosen for them. */
+const BUN_LOCKS = ['bun.lock', 'bun.lockb'];
+/** This package's version: the oxmutate the container installs when `command` is unset. */
+// Stryker disable next-line StringLiteral: without an encoding readFileSync answers a Buffer, and JSON.parse reads a Buffer as UTF-8 text all the same
+export const VERSION = (JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }).version;
+/** Where the sync installs that version, in the volume, outside the source. */
+const SELF = `${WORK}/.oxmutate/${VERSION}`;
+const SELF_BIN = `${SELF}/node_modules/.bin/oxmutate`;
+/** Where the sync container gets the host's npm user config, and its HOME with the host's `.yarnrc.yml`: never in the volume. */
+const NPMRC = '/tmp/oxmutate-npmrc';
+const AUTH_HOME = '/tmp/oxmutate-home';
 
 // Stryker disable next-line ConditionalExpression: containerOf returns before this for null, so the null check never decides
 const isRecord = (v: unknown): v is Record<string, unknown> => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -104,7 +121,7 @@ const cacheOf = (raw: unknown): string | false => {
 };
 
 /** Every key's default. */
-export const containerDefaults = (): Container => ({ engine: 'docker', image: `node:${nodeMajor}-bookworm-slim`, network: 'none', source: 'copy', cache: CACHE, ephemeral: false, readOnly: false, env: [], args: [], runArgs: [], command: 'npx --no oxmutate' });
+export const containerDefaults = (): Container => ({ engine: 'docker', image: `node:${nodeMajor}-bookworm-slim`, network: 'none', source: 'copy', cache: CACHE, ephemeral: false, readOnly: false, env: [], installEnv: [], include: [], args: [], runArgs: [] });
 
 /** The config value, resolved: `true`, an image name, or an object; `false` or nothing is no container. */
 export function containerOf(raw: unknown): Container | undefined {
@@ -130,6 +147,9 @@ export function containerOf(raw: unknown): Container | undefined {
     pidsLimit: number('pidsLimit'),
     cpus: number('cpus'),
     env: list('env'),
+    installEnv: list('installEnv'),
+    registryAuth: typeof raw['registryAuth'] === 'boolean' ? raw['registryAuth'] : undefined,
+    include: list('include'),
     args: list('args'),
     runArgs: list('runArgs'),
   };
@@ -190,8 +210,9 @@ export function withoutContainerFlags(argv: readonly string[], tags: ReadonlyMap
   return out;
 }
 
-/** The install command a lockfile asks for. */
-export function defaultInstall(lock: string | undefined): string {
+/** The install command a lockfile asks for; Yarn 2 and later (`berry`) installs with `--immutable`. */
+export function defaultInstall(lock: string | undefined, berry = false): string {
+  if (berry) return 'corepack enable && yarn install --immutable';
   if (lock === 'package-lock.json' || lock === 'npm-shrinkwrap.json') return 'npm ci';
   if (lock === 'pnpm-lock.yaml') return 'corepack enable && pnpm install --frozen-lockfile';
   if (lock === 'yarn.lock') return 'corepack enable && yarn install --frozen-lockfile';
@@ -225,6 +246,8 @@ export interface PlanInput {
   fetch?: { remote: string; commit: string } | undefined;
   /** `source: 'copy'`: what this sync sends. */
   sync?: Sending | undefined;
+  /** The sync container's own `create` arguments: the forwarded registry auth (`registryAuth`). */
+  auth?: readonly string[] | undefined;
   bases?: readonly Base[] | undefined;
 }
 
@@ -314,13 +337,16 @@ export function containerPlan(c: Container, p: PlanInput): { volumes: string[][]
   const source = p.fetch ? fetchSteps(p.fetch, p.keep, bases) : [...(p.sync ? copySteps(p.sync) : []), ...baseSteps(bases)];
   // The install on a line of its own: a `#` in it comments out the rest of its line, not the `fi`.
   const install = p.install ? [`if [ "$(cat ${WORK}/installed 2>/dev/null)" != ${quote(p.key)} ]; then`, p.install, `echo ${quote(p.key)} > ${WORK}/installed; fi`] : [];
-  const sync = ['set -e', `mkdir -p ${SRC} && cd ${SRC}`, ...source, ...install].join('\n');
-  const run = ['set -e', ...(c.setup ? [c.setup] : []), `cd ${quote(path.posix.join(SRC, p.rel))}`, `exec ${c.command} ${p.argv.map(quote).join(' ')}`].join('\n');
+  // The host's own oxmutate, once per version: the project need not depend on it, and it reads the argv the host wrote.
+  const self = c.command === undefined ? [`[ -x ${SELF_BIN} ] || npm install --no-save --no-audit --no-fund --prefix ${SELF} oxmutate@${VERSION} || { echo 'oxmutate: the container could not install oxmutate@${VERSION} from the registry. fix: set container.command to an oxmutate the image or the project has, and container.install to an install that needs no network' >&2; exit 5; }`] : [];
+  const sync = ['set -e', `mkdir -p ${SRC} && cd ${SRC}`, ...source, ...install, ...self].join('\n');
+  const run = ['set -e', ...(c.setup ? [c.setup] : []), `cd ${quote(path.posix.join(SRC, p.rel))}`, `exec ${c.command ?? SELF_BIN} ${p.argv.map(quote).join(' ')}`].join('\n');
   // The volume's label is how a second run on it sees this one running (`waitForVolume`).
   const volume = ['-v', `${p.volume}:${WORK}`, '--label', `${VOLUME_LABEL}=${p.volume}`];
   return {
     volumes: [label(p.volume), ...(c.cache === false ? [] : [label(c.cache)])],
-    sync: ['create', '--rm', ...common(c), ...volume, ...cacheMount(c.cache), '-w', WORK, c.image, 'sh', '-c', sync],
+    // The install's own environment and auth reach the sync container alone, never the run's.
+    sync: ['create', '--rm', ...common(c), ...volume, ...cacheMount(c.cache), ...c.installEnv.flatMap((e) => ['-e', e]), ...(p.auth ?? []), '-w', WORK, c.image, 'sh', '-c', sync],
     run: ['run', '--rm', '--init', `--network=${c.network}`, ...common(c), ...volume, '-w', WORK, '-e', `${INSIDE}=inside`, ...c.runArgs, c.image, 'sh', '-c', run],
     back: ['create', '--network=none', ...common(c), ...volume, c.image, 'true'],
     drop: ['volume', 'rm', '-f', p.volume],
@@ -435,7 +461,7 @@ async function basesOf(spawn: Spawn, top: string, refs: readonly (string | undef
 /** The install's key: the image, the command, and the lockfile (else package.json). */
 function installKey(c: Container, top: string, install: string, lock: string | undefined): string {
   const manifest = [lock, 'package.json'].find((f) => f !== undefined && existsSync(path.join(top, f)));
-  const hash = createHash('sha256').update(`${c.image}\0${install}\0`);
+  const hash = createHash('sha256').update(`${c.image}\0${install}\0${VERSION}\0`);
   if (manifest) hash.update(readFileSync(path.join(top, manifest)));
   return hash.digest('hex');
 }
@@ -464,28 +490,53 @@ async function copyBack({ engine, back, keep, io, top }: { engine: Engine; back:
 }
 
 /** The repository's git files and the kept ones, repository-relative. */
-async function listed(spawn: Spawn, top: string, keep: readonly string[]): Promise<string[]> {
-  const out = (await spawn('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], { cwd: top, runtime: ambientRuntime(), timeout: 0 })).stdout.split('\0');
-  return [...new Set([...out, ...keep])].filter((f) => f !== '');
+async function listed(spawn: Spawn, top: string, keep: readonly string[], include: readonly string[]): Promise<string[]> {
+  const files = async (args: string[]): Promise<string[]> => (await spawn('git', ['ls-files', '-z', ...args], { cwd: top, runtime: ambientRuntime(), timeout: 0 })).stdout.split('\0');
+  const out = await files(['--cached', '--others', '--exclude-standard']);
+  // `include`: the ignored files it names, as git pathspecs with glob magic (`**`, `*`, or a plain path).
+  const ignored = include.length > 0 ? await files(['--others', '--ignored', '--exclude-standard', '--', ...include.map((g) => `:(glob)${g}`)]) : [];
+  return [...new Set([...out, ...ignored, ...keep])].filter((f) => f !== '');
+}
+
+/** The registry auth the install gets: the host's npm user config and `.yarnrc.yml`, copied into the sync container, and each `${NAME}` they name. */
+function registryAuth(io: string): { files: [string, string][]; create: string[] } {
+  const npmrc = env['npm_config_userconfig'] || path.join(homedir(), '.npmrc');
+  const yarnrc = path.join(homedir(), '.yarnrc.yml');
+  const files: [string, string][] = [];
+  const create: string[] = [];
+  if (existsSync(npmrc)) {
+    files.push([npmrc, NPMRC]);
+    create.push('-e', `npm_config_userconfig=${NPMRC}`);
+  }
+  if (existsSync(yarnrc)) {
+    // Yarn reads `.yarnrc.yml` from HOME and no variable names it, so the sync gets a HOME of its own holding it.
+    mkdirSync(path.join(io, 'home'));
+    copyFileSync(yarnrc, path.join(io, 'home', '.yarnrc.yml'));
+    files.push([path.join(io, 'home'), AUTH_HOME]);
+    create.push('-e', `HOME=${AUTH_HOME}`);
+  }
+  // Each `${NAME}` either file names, read as text (a Buffer has no matchAll), passed from the host's environment.
+  const named = [npmrc, yarnrc].filter((f) => existsSync(f)).flatMap((f) => [...readFileSync(f, 'utf8').matchAll(/\$\{(\w+)\}/gu)].map((m) => String(m[1])));
+  return { files, create: [...create, ...[...new Set(named)].flatMap((n) => ['-e', n])] };
 }
 
 /**
  * Syncs the volume: the copy's delta (or all of it, when the volume is not the one last synced),
  * or the commit to fetch. Records what was sent once the sync succeeded.
  */
-async function syncVolume(h: Host & { engine: Engine; c: Container; plan: (sync: Sending | undefined) => ReturnType<typeof containerPlan>; key: string; volume: string; keep: readonly string[]; bases: readonly Base[] }): Promise<void> {
-  const { engine, c, key, volume, bases } = h;
+async function syncVolume(h: Host & { engine: Engine; c: Container; plan: (sync: Sending | undefined) => ReturnType<typeof containerPlan>; key: string; volume: string; keep: readonly string[]; bases: readonly Base[]; auth: readonly [string, string][] }): Promise<void> {
+  const { engine, c, key, volume, bases, auth } = h;
   if (c.source === 'git') {
-    const synced = await startWith(engine, h.plan(undefined).sync, [], { stdio: 'inherit' });
+    const synced = await startWith(engine, h.plan(undefined).sync, auth, { stdio: 'inherit' });
     if (synced.code !== 0) throw new Error(`the sync into the container or its install failed (exit ${String(synced.code)}); its output is above. fix: set container.install, or container.image to one with what the install needs`);
     return;
   }
-  const names = await listed(h.spawn, h.top, h.keep);
+  const names = await listed(h.spawn, h.top, h.keep, c.include);
   const now = signatures(h.top, names);
   const volumeExisted = (await engine(['volume', 'inspect', volume])).code === 0;
   let sync = planSync(now, c.ephemeral ? undefined : readState(volume), { volumeExisted, install: key, mustRun: bases.length > 0 });
   if (sync.mode !== 'skip') {
-    const send = async (s: Sending): Promise<number | null> => (await startWith(engine, h.plan(s).sync, await pack(h, s, names, bases), { stdio: 'inherit' })).code;
+    const send = async (s: Sending): Promise<number | null> => (await startWith(engine, h.plan(s).sync, [...(await pack(h, s, names, bases)), ...auth], { stdio: 'inherit' })).code;
     let code = await send(sync);
     // A volume that is not the one last synced refuses the delta: it gets everything, once.
     if (code === RESYNC && sync.mode === 'delta') {
@@ -546,12 +597,10 @@ export async function runInContainer(
     const bases = await basesOf(spawn, top, [o.since, o.frozenOracle]);
     const tags = new Map(bases.map((b) => [b.ref, b.tag]));
     const runnable = await withRuntime(c, engine);
-    const lock = LOCKS.find((f) => existsSync(path.join(top, f)));
-    const install = runnable.install ?? defaultInstall(lock);
-    const key = installKey(runnable, top, install, lock);
+    const { install, key, auth } = installOf(runnable, top, io);
     const volume = runnable.volume ?? `oxmutate-${createHash('sha256').update(top).digest('hex').slice(0, VOLUME_HASH_CHARS)}`;
     const fetch = runnable.source === 'git' ? await fetchOf(spawn, runnable, top) : undefined;
-    const plan = (sync: Sending | undefined): ReturnType<typeof containerPlan> => containerPlan(runnable, { rel, argv: withoutContainerFlags(argv, tags), key, install, volume, keep, fetch, sync, bases });
+    const plan = (sync: Sending | undefined): ReturnType<typeof containerPlan> => containerPlan(runnable, { rel, argv: withoutContainerFlags(argv, tags), key, install, volume, keep, fetch, sync, bases, auth: auth.create });
     const steps = plan(undefined);
     for (const v of steps.volumes) {
       // eslint-disable-next-line reliability/no-await-in-loop -- the run's volume and the shared cache, in order
@@ -561,7 +610,7 @@ export async function runInContainer(
     }
     await waitForVolume(engine, volume, wait);
     try {
-      await syncVolume({ spawn, top, io, host, engine, c: runnable, plan, key, volume, keep, bases });
+      await syncVolume({ spawn, top, io, host, engine, c: runnable, plan, key, volume, keep, bases, auth: auth.files });
       const ran = await engine(steps.run, { stdio: 'inherit' });
       if (keep.length > 0) await copyBack({ engine, back: steps.back, keep, io, top });
       return ran.code ?? 1;
@@ -571,6 +620,25 @@ export async function runInContainer(
   } finally {
     removeWorkDir(io);
   }
+}
+
+/** The install, its key, and the registry auth it gets; a bun project without an install refuses here, before anything is synced. */
+function installOf(c: Container, top: string, io: string): { install: string; key: string; auth: { files: [string, string][]; create: string[] } } {
+  const lock = LOCKS.find((f) => existsSync(path.join(top, f)));
+  const bun = BUN_LOCKS.find((f) => existsSync(path.join(top, f)));
+  if (c.install === undefined && bun !== undefined) throw new Error(`${bun} is bun's, and the container installs with npm, pnpm or yarn. fix: set container.image to one with bun (such as oven/bun) and container.install (such as bun install --frozen-lockfile)`);
+  const install = c.install ?? defaultInstall(lock, isBerry(top));
+  const forward = c.registryAuth ?? c.host === undefined;
+  if (c.registryAuth === undefined && !forward) stderr.write('oxmutate: ~/.npmrc and ~/.yarnrc.yml are not forwarded to a remote engine (container.host). fix: set container.registryAuth: true to forward them to the install\n');
+  return { install, key: installKey(c, top, install, lock), auth: forward ? registryAuth(io) : { files: [], create: [] } };
+}
+
+/** Yarn 2 or later: a `.yarnrc.yml`, or `packageManager` naming yarn 2+. */
+function isBerry(top: string): boolean {
+  if (existsSync(path.join(top, '.yarnrc.yml'))) return true;
+  const manifest = path.join(top, 'package.json');
+  // Stryker disable next-line StringLiteral: RegExp#test reads a Buffer as its UTF-8 text, so the encoding changes nothing
+  return existsSync(manifest) && /"packageManager"\s*:\s*"yarn@(?:[2-9]|[1-9]\d)/u.test(readFileSync(manifest, 'utf8'));
 }
 
 /** `source: 'git'`: `HEAD`'s commit, and the remote to fetch it from. */
