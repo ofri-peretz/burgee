@@ -1,5 +1,17 @@
 # oxmutate
 
+## 2.12.0
+
+### Minor Changes
+
+- [#1675](https://github.com/ofri-peretz/burgee/pull/1675) [`5b0d8b3`](https://github.com/ofri-peretz/burgee/commit/5b0d8b395367b81e56b452dbe1edb3d919ff795e) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `container` mode installs what a real project needs. The install gets the host's `~/.npmrc` (or
+  `$npm_config_userconfig`) and `~/.yarnrc.yml`, and each variable they name, while the tests see none
+  of it (`registryAuth`, off by default with a remote `host`), and `installEnv` is `env` for the install
+  alone. oxmutate need not be a dependency of the project: unless `command` is set, the container
+  installs the host's own version. `include` sends files git ignores that the tests need, such as
+  `.env.test`. Yarn 2 and later installs with `--immutable`, and a bun lockfile asks for
+  `container.image` and `container.install` instead of falling back to npm.
+
 ## 2.11.0
 
 ### Minor Changes
