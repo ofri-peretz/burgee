@@ -143,7 +143,7 @@ it.skipIf(!native || !existsSync(bin) || !nightly)('kills a mutant a beforeEach 
 // path that decides them in a live worker (.sdlc/intents/oxmutate/staticwarm.qnt) must give the same:
 // `static-const` is reached only through import-time values; `static-leak` sets a global at import
 // with `??=`, so a worker that evaluated it once would make the MODE mutant survive.
-type PhaseStats = Record<'instrumentMs' | 'dryRunMs' | 'mutationMs' | 'staticMs' | 'isolatedMs' | 'wallMs' | 'staticRecollections' | 'isolatedRuns' | 'warmUnitMs' | 'warmArmedMs', number> & { isolatedByCause: Record<string, number> };
+type PhaseStats = { staticFallbacks?: Record<string, number>; isolatedStages?: { stage: string; mutants: number; ms: number; peak: number }[] } & Record<'instrumentMs' | 'dryRunMs' | 'mutationMs' | 'staticMs' | 'isolatedMs' | 'wallMs' | 'staticRecollections' | 'isolatedRuns' | 'warmUnitMs' | 'warmArmedMs', number> & { isolatedByCause: Record<string, number> };
 
 /** A fixture's static mutants as `line:mutator:status`, and the run's stats, from a real run. */
 const staticRun = (name: string, file: string): { verdicts: string[]; stats: PhaseStats } => {
@@ -321,7 +321,13 @@ describe.skipIf(!native || !existsSync(bin) || !nightly)('static mutants keep th
   }, 60_000);
 
   it('a global set at import does not carry one mutant value into the next', () => {
-    expect(staticRun('static-leak', 'src/mode.ts').verdicts).toEqual(['4:StringLiteral:Killed', '5:AssignmentOperator:Killed']);
+    const { verdicts, stats } = staticRun('static-leak', 'src/mode.ts');
+    expect(verdicts).toEqual(['4:StringLiteral:Killed', '5:AssignmentOperator:Killed']);
+    // Each fallback to a fresh worker says why and how many mutants it sent, and the isolated phase
+    // says what it spent on them: one stage, both mutants, one unit at a time.
+    expect(stats.staticFallbacks).toEqual({ 'the file changed globals while it was collected: g:__fixtureMode': 2 });
+    expect(stats.isolatedStages).toEqual([{ stage: 'first', mutants: 2, ms: expect.any(Number) as number, peak: 1 }]);
+    expect(stats.isolatedStages?.[0]?.ms).toBeGreaterThan(0);
   }, 60_000);
 });
 
@@ -956,7 +962,7 @@ it.skipIf(!native || !existsSync(bin) || !nightly)('keeps a survivor whose confi
 // (`LIVE`) and must reach the fresh-worker path's verdicts: the cross-test kill, and touch()'s
 // survivors, which a confirmation that ran the non-covering test's body would kill.
 describe.skipIf(!native || !existsSync(bin) || !nightly)('survivor confirmation in a live worker', () => {
-  type Confirmed = { verdicts: string[]; reasons: (string | undefined)[]; stats: { survivorsOverturned: number; confirmLive: number; isolatedByCause: { confirm: number } } };
+  type Confirmed = { verdicts: string[]; reasons: (string | undefined)[]; stats: { survivorsOverturned: number; confirmLive: number; isolatedByCause: { confirm: number }; isolatedStages?: { stage: string; mutants: number; ms: number; peak: number }[] } };
   const confirmRun = (env: Record<string, string> = {}): Confirmed => {
     const dir = path.join(pkg, 'test/fixtures/cross-test');
     const reportDir = mkdtempSync(path.join(tmpdir(), 'oxmutate-cross-test-'));
@@ -989,6 +995,9 @@ describe.skipIf(!native || !existsSync(bin) || !nightly)('survivor confirmation 
     expect(live.verdicts).toEqual(fresh.verdicts);
     expect(fresh.stats.confirmLive).toBe(0);
     expect(fresh.stats.isolatedByCause.confirm).toBe(live.stats.confirmLive);
+    // The isolated phase names its stages: a live confirmation has none, a fresh one has its own.
+    expect(live.stats.isolatedStages).toBeUndefined();
+    expect(fresh.stats.isolatedStages).toEqual([{ stage: 'confirm', mutants: live.stats.confirmLive, ms: expect.any(Number) as number, peak: 1 }]);
   });
 });
 
