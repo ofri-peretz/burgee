@@ -14,7 +14,7 @@
 // of every verdict, so two builds are compared on time and on quality (`--compare a.json b.json`).
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -87,11 +87,15 @@ function runOne(name, dir, candidate, host) {
   writeFileSync(path.join(dir, 'oxmutate.config.json'), JSON.stringify({ reporters: ['json'], container: { install, command: '/w/tools/node_modules/.bin/oxmutate', network: 'none' } }));
   // Container mode sends git's files: stage the tarball, so no .gitignore of the project can drop it.
   execFileSync('git', ['add', '-f', '.oxmutate-candidate.tgz', 'oxmutate.config.json'], { cwd: dir });
+  // A run that fails before it writes a report must not be read as the previous run's.
+  const reportFile = path.join(dir, 'reports/mutation/mutation.json');
+  rmSync(reportFile, { force: true });
   const t0 = performance.now();
   const r = spawnSync(process.execPath, [host, 'run', '--container'], { cwd: dir, encoding: 'utf8', maxBuffer: OUTPUT_BYTES });
   const wallMs = performance.now() - t0;
-  const reportFile = path.join(dir, 'reports/mutation/mutation.json');
-  if (r.status !== 0 && r.status !== 1) return { wallMs, error: (r.stderr || r.stdout).split('\n').filter(Boolean).slice(-ERROR_LINES).join(' | ') };
+  const tail = () => `${r.stderr || r.stdout || ''}`.split('\n').filter(Boolean).slice(-ERROR_LINES).join(' | ');
+  if (r.status !== 0 && r.status !== 1) return { wallMs, error: tail() };
+  if (!existsSync(reportFile)) return { wallMs, error: `no report (exit ${String(r.status)}): ${tail()}` };
   const report = JSON.parse(readFileSync(reportFile, 'utf8'));
   return { wallMs, stats: report['x-oxmutate']?.stats ?? {}, digest: digest(report) };
 }
@@ -104,6 +108,11 @@ const PHASES = ['dryRunMs', 'mutationMs', 'staticMs', 'isolatedMs'];
 
 function bench() {
   const candidate = path.resolve(opt('candidate'));
+  // The container is Linux: a tarball without a Linux native core fails fast inside every run.
+  const entries = execFileSync('tar', ['-tzf', candidate], { encoding: 'utf8' }).split('\n');
+  if (!entries.some((e) => /^package\/binding\/[^/]*linux[^/]*\.node$/u.test(e))) {
+    throw new Error(`${candidate} has no binding/*linux*.node. fix: copy the Linux cores into packages/oxmutate/binding/ (from a released tarball when native/ is unchanged, or cargo build them) before npm pack`);
+  }
   const label = opt('label', 'run');
   const rounds = Number(opt('rounds', '3'));
   const out = path.resolve(opt('out', path.join(ROOT, 'results')));
