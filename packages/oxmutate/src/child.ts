@@ -84,7 +84,7 @@ const vitestNode = (await import(resolveEsm('vitest/node', config.root))) as {
     runTestSpecifications(specs: { moduleId: string }[], allTestsRun?: boolean): Promise<unknown>;
     close(): Promise<void>;
     config: { bail: number };
-    projects: { config: { runner?: string; isolate?: boolean } }[];
+    projects: { config: { runner?: string; isolate?: boolean; testTimeout?: number | undefined; hookTimeout?: number | undefined } }[];
   }>;
 };
 
@@ -122,6 +122,34 @@ const vitest = await vitestNode.createVitest(
 // recorded none (burgee, weekly run 40783405734, 2026-10-28). Each project keeps its own pool:
 // burgee's run in forks, and its process.env lock fails under threads.
 for (const project of vitest.projects) Object.assign(project.config, { runner, isolate: true });
+
+/**
+ * How many times its own `testTimeout` and `hookTimeout` a test gets in a dry run. The dry run counts
+ * every mutant switch each test reaches, per test, so the project's code runs slower there than in
+ * the project's own run: pathe's `Zeptomatch > exploits` takes 3.6 s under plain Vitest, and failed
+ * one oxmutate dry run against the 5 s default as "1 test(s) fail with no mutant active" and read as
+ * flaky in another (2026-11-19). A test that passes in the project's own run must not fail here from
+ * that alone. 3x is the slack oxmutate already gives a slow run everywhere else (the warm budget's
+ * 3x the dry-run time, a busy stop's 3x re-run).
+ *
+ * Dry runs only. No verdict comes from a dry run: it finds the tests, their coverage and their
+ * times, and a failing test in it stops the run. Mutant runs keep the project's own timeouts, so a
+ * mutant that makes a test slower than the project allows is judged exactly as before: by the
+ * test's own timeout (a slow kill, re-run once, `slowTwice` a Timeout), the watchdog's budget, the
+ * hit-count limit or the idle-stall check. None of those reads the dry run's timeout. A timeout a
+ * test sets for itself (`it(name, { timeout })`) is the author's, and is left as it is.
+ */
+const DRY_TIMEOUT_SCALE = 3;
+const ownTimeouts = vitest.projects.map((project) => ({ project, testTimeout: project.config.testTimeout, hookTimeout: project.config.hookTimeout }));
+/** A timeout of 0 or Infinity is none, and stays none. */
+const scaled = (ms: number | undefined): number | undefined => (ms !== undefined && ms > 0 && Number.isFinite(ms) ? ms * DRY_TIMEOUT_SCALE : ms);
+/** The project's timeouts, scaled for a dry run: Vitest serializes a project's config at every run. */
+function timeoutsFor(mode: Unit['mode']): void {
+  for (const own of ownTimeouts) {
+    own.project.config.testTimeout = mode === 'dry' ? scaled(own.testTimeout) : own.testTimeout;
+    own.project.config.hookTimeout = mode === 'dry' ? scaled(own.hookTimeout) : own.hookTimeout;
+  }
+}
 
 /** Has the runner recorded a kill for this mutant in this unit's results yet? */
 function killed(results: string, id: string): boolean {
@@ -192,6 +220,7 @@ async function runUnit(unit: Unit): Promise<void> {
   if (unit.hitLimits) env['OXMUTATE_HIT_LIMITS'] = JSON.stringify(unit.hitLimits);
   else delete env['OXMUTATE_HIT_LIMITS'];
   delete env[ACTIVE_MUTANT_ENV];
+  timeoutsFor(unit.mode);
   await (unit.mode === 'isolated' ? runIsolated(unit) : runFiles(unit));
 }
 

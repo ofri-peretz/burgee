@@ -309,6 +309,27 @@ export function disjointGroups(mutants: readonly MutantResult[], size: number): 
   return groups.map((g) => g.map((m) => m.id));
 }
 
+/**
+ * The mutants a flaky test could have decided, which step 7 re-runs: every one a flaky test covers,
+ * except a Killed one with a killer the flakiness cannot reach. Such a killer is a test that is not
+ * flaky (the same state and coverage across two dry runs) and shares its file with no flaky test:
+ * Vitest gives each test file a context of its own, so only a test of the same file, run before it
+ * and leaving state behind, could have made its failure depend on chance. Its re-run fails the same
+ * way, and a re-run only ever marks a verdict `flaky`, so it cannot change one. On unjs/pathe 416 of
+ * 786 isolated runs were flaky re-runs, for one slow test (2026-11-19). Still re-run: survivors,
+ * Timeouts (a stop is a time, which a slow neighbour moves), and kills whose killers are all flaky,
+ * share a file with a flaky test, or are not tests (a file id, when a hook or the import failed).
+ */
+export function flakyCandidates<M extends Pick<MutantResult, 'status' | 'coveredBy' | 'killedBy'>>(mutants: readonly M[], flakyTests: ReadonlySet<string>, fileOf: (test: string) => string | undefined): M[] {
+  if (flakyTests.size === 0) return [];
+  const touched = new Set([...flakyTests].map(fileOf));
+  const steady = (test: string): boolean => {
+    const file = fileOf(test);
+    return file !== undefined && !flakyTests.has(test) && !touched.has(file);
+  };
+  return mutants.filter((m) => m.coveredBy.some((t) => flakyTests.has(t)) && !(m.status === 'Killed' && (m.killedBy ?? []).some(steady)));
+}
+
 /** How many times its isolated budget a busy stop gets on its re-run. */
 const RERUN_SLACK = 3;
 
@@ -1242,17 +1263,18 @@ export async function run(options: Options): Promise<RunResult> {
     // ── 7. Flaky verdicts: re-run mutants whose covering tests are nondeterministic ───────────
     const flakyTests = await flakyCheck;
     stats.flakyTests = flakyTests.size;
-    const flakyCandidates = toRun.filter((m) => m.coveredBy.some((t) => flakyTests.has(t)));
-    const seen = new Map(flakyCandidates.map((m) => [m.id, new Set<string>([m.status === 'Timeout' ? 'Killed' : m.status])]));
-    for (let n = 1; n <= options.flakyReruns && flakyCandidates.length; n++) {
-      stats.isolatedByCause.flaky += flakyCandidates.length;
-      const again = await runIsolated(flakyCandidates);
-      for (const m of flakyCandidates) {
+    // A mutant a steady test killed is not re-run: its verdict did not come from the flaky test.
+    const candidates = flakyCandidates(toRun, flakyTests, (t) => testInfo.get(t)?.file);
+    const seen = new Map(candidates.map((m) => [m.id, new Set<string>([m.status === 'Timeout' ? 'Killed' : m.status])]));
+    for (let n = 1; n <= options.flakyReruns && candidates.length; n++) {
+      stats.isolatedByCause.flaky += candidates.length;
+      const again = await runIsolated(candidates);
+      for (const m of candidates) {
         const v = again.get(m.id);
         if (v) seen.get(m.id)?.add(v.status === 'Timeout' ? 'Killed' : v.status);
       }
     }
-    for (const m of flakyCandidates) {
+    for (const m of candidates) {
       const verdicts = seen.get(m.id) ?? new Set();
       if (verdicts.size > 1) {
         m.flaky = true;
