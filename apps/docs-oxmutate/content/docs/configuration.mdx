@@ -102,14 +102,20 @@ black box to the run: the host hands the source in and gets the reports back, an
 { "container": true }
 ```
 
-or, for one run, `oxmutate run --container`. Every run goes through a named volume that keeps the
-container's own `node_modules`:
+or, for one run, `oxmutate run --container`. To turn it on for every project on the machine, set
+`OXMUTATE_CONTAINER=1` (or an image name, or the object form as JSON), or put `container` in
+`~/.config/oxmutate/config.json` (`$XDG_CONFIG_HOME` first); a project's own `container`, `false`
+included, and `--no-container` win. Every run goes through a named volume that keeps the container's
+own `node_modules`:
 
 1. **Sync.** The source goes into the volume: the repository's git files as they are on the host
    (`source: "copy"`, committed or not), or the commit `HEAD` names, fetched by the container itself
-   (`source: "git"`, so the host reads no project file). Files the host deleted are deleted there.
-   The install runs only when the lockfile, the image or the install command changed. This is the
-   only step with the network unless `network` says otherwise.
+   (`source: "git"`, so the host reads no project file). After the first run only the files that
+   changed are sent, and files the host deleted are deleted there; when nothing changed there is no
+   sync at all. The install runs only when the lockfile, the image or the install command changed,
+   and the package managers' caches live in one volume every repository shares (`cache`), so a new
+   repository's first install is mostly local. This is the only step with the network unless
+   `network` says otherwise.
 2. **Run.** `setup`, then the project's own oxmutate, with **no network** by default.
 3. **Copy back.** Each report and the incremental file is copied to the host with `<engine> cp`
    from a container created on the volume and never started, so the engine can be local or remote,
@@ -117,44 +123,46 @@ container's own `node_modules`:
 4. With `ephemeral`, the volume is removed: nothing stays behind.
 
 Every container drops all capabilities, cannot gain one (`no-new-privileges`), is removed when it
-ends and is labelled `dev.oxmutate=1`, as is the volume.
+ends and is labelled `dev.oxmutate=1`, as are the volumes. When Docker has gVisor (`runsc`), the
+containers run on it: the tests get a kernel of their own instead of the host's.
 
 `true` takes every default, and a string names the image (`"container": "node:24-alpine"`). The
 full form takes any of these, and `args` (every container) or `runArgs` (the run's) pass anything
 else to the engine as it is:
 
-| Key         | Default                                      | What it does                                                                                |
-| :---------- | :------------------------------------------- | :------------------------------------------------------------------------------------------ |
-| `engine`    | `docker`                                     | The container CLI: `docker`, `podman`, or one that takes the same `create`, `cp` and `run`  |
-| `context`   | the engine's                                 | `docker --context` or `podman --connection`: which engine, local or remote                  |
-| `host`      | the engine's                                 | `DOCKER_HOST` (`CONTAINER_HOST` for Podman), such as `ssh://user@box`                       |
-| `image`     | `node:<the host's Node major>-bookworm-slim` | The image; it needs `sh`, `tar` and `node`, and `git` for `source: "git"`. Pin it by digest |
-| `source`    | `copy`                                       | `copy`: the git files as on the host. `git`: the container fetches `HEAD`'s commit          |
-| `remote`    | the `origin` remote                          | With `source: "git"`, where the container fetches from                                      |
-| `network`   | `none`                                       | The run's `--network`; the sync has the engine's default, for the install                   |
-| `install`   | from the lockfile (`npm ci`, pnpm, yarn)     | Runs when the lockfile, the image or this command changes; `false` installs nothing         |
-| `setup`     | none                                         | Runs in the run's container before oxmutate: a build the tests need                         |
-| `volume`    | `oxmutate-<hash of the repository path>`     | The named volume that keeps the source and its `node_modules` between runs                  |
-| `ephemeral` | `false`                                      | Remove the volume after the run; every run then installs                                    |
-| `runtime`   | the engine's                                 | `--runtime`, such as gVisor's `runsc` for a kernel the tests cannot reach past              |
-| `readOnly`  | `false`                                      | A read-only root filesystem, with `/tmp` a tmpfs and `HOME`                                 |
-| `user`      | the image's                                  | `--user`                                                                                    |
-| `platform`  | the engine's                                 | `--platform`, such as `linux/amd64`                                                         |
-| `pull`      | the engine's                                 | `--pull`: `always`, `missing` or `never`                                                    |
-| `pidsLimit` | the engine's                                 | `--pids-limit`                                                                              |
-| `cpus`      | the engine's                                 | `--cpus`                                                                                    |
-| `memory`    | the engine's                                 | `--memory`                                                                                  |
-| `env`       | `[]`                                         | `NAME` passes the host's value, `NAME=value` sets one                                       |
-| `args`      | `[]`                                         | More arguments to every container, verbatim (`["--ulimit=nofile=4096"]`)                    |
-| `runArgs`   | `[]`                                         | More arguments to the run's container alone (`["--shm-size=1g"]`)                           |
-| `command`   | `npx --no oxmutate`                          | oxmutate inside the container: the project's own                                            |
+| Key         | Default                                       | What it does                                                                                |
+| :---------- | :-------------------------------------------- | :------------------------------------------------------------------------------------------ |
+| `engine`    | `docker`                                      | The container CLI: `docker`, `podman`, or one that takes the same `create`, `cp` and `run`  |
+| `context`   | the engine's                                  | `docker --context` or `podman --connection`: which engine, local or remote                  |
+| `host`      | the engine's                                  | `DOCKER_HOST` (`CONTAINER_HOST` for Podman), such as `ssh://user@box`                       |
+| `image`     | `node:<the host's Node major>-bookworm-slim`  | The image; it needs `sh`, `tar` and `node`, and `git` for `source: "git"`. Pin it by digest |
+| `source`    | `copy`                                        | `copy`: the git files as on the host. `git`: the container fetches `HEAD`'s commit          |
+| `remote`    | the `origin` remote                           | With `source: "git"`, where the container fetches from                                      |
+| `network`   | `none`                                        | The run's `--network`; the sync has the engine's default, for the install                   |
+| `install`   | from the lockfile (`npm ci`, pnpm, yarn)      | Runs when the lockfile, the image or this command changes; `false` installs nothing         |
+| `setup`     | none                                          | Runs in the run's container before oxmutate: a build the tests need                         |
+| `volume`    | `oxmutate-<hash of the repository path>`      | The named volume that keeps the source and its `node_modules` between runs                  |
+| `cache`     | `oxmutate-cache`                              | The volume the install's npm, pnpm and yarn caches live in, shared; `false` for none        |
+| `ephemeral` | `false`                                       | Remove the volume after the run; every run then installs                                    |
+| `runtime`   | `runsc` when Docker has it, else the engine's | `--runtime`; `"default"` always takes the engine's                                          |
+| `readOnly`  | `false`                                       | A read-only root filesystem, with `/tmp` a tmpfs and `HOME`                                 |
+| `user`      | the image's                                   | `--user`                                                                                    |
+| `platform`  | the engine's                                  | `--platform`, such as `linux/amd64`                                                         |
+| `pull`      | the engine's                                  | `--pull`: `always`, `missing` or `never`                                                    |
+| `pidsLimit` | the engine's                                  | `--pids-limit`                                                                              |
+| `cpus`      | the engine's                                  | `--cpus`                                                                                    |
+| `memory`    | the engine's                                  | `--memory`                                                                                  |
+| `env`       | `[]`                                          | `NAME` passes the host's value, `NAME=value` sets one                                       |
+| `args`      | `[]`                                          | More arguments to every container, verbatim (`["--ulimit=nofile=4096"]`)                    |
+| `runArgs`   | `[]`                                          | More arguments to the run's container alone (`["--shm-size=1g"]`)                           |
+| `command`   | `npx --no oxmutate`                           | oxmutate inside the container: the project's own                                            |
 
 The host needs no install of the project: with the config in `oxmutate.config.json` (or `--container`
 on the command line) it reads nothing else before it hands off. `--container-image <image>` sets the
 image for one run, and `--no-container` runs on the host whatever the config says. `--since` and
-`--frozen-oracle` read git history, which the container's source does not carry; run them with
-`--no-container`. To remove every volume oxmutate made:
-`docker volume prune --all --filter label=dev.oxmutate=1` (without `--all`, Docker 23 and later prune only anonymous volumes, and oxmutate's are named).
+`--frozen-oracle` work inside: each ref they name goes in as its tree (`git archive`), and the image
+needs `git` (`node:<major>`, not `-slim`). `oxmutate prune` removes every container and volume
+oxmutate made, and the host's records of what it synced.
 
 ## Stryker's keys oxmutate does not use
 

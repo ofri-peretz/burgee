@@ -9,7 +9,7 @@ import { availableParallelism } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { type Container, containerOf } from './container.js';
+import { type Container, containerOf, machineDefault } from './container.js';
 import { MAX_LOAD_PER_CORE } from './governor.js';
 import { type IgnoreRule } from './native.js';
 import { resolveEsm } from './resolve.js';
@@ -344,7 +344,8 @@ export async function loadOptions(root: string, overrides: Partial<Options> = {}
     tsconfigFile: (raw['tsconfigFile'] as string | undefined) ?? 'tsconfig.json',
     typeChecker: typeof raw['typeChecker'] === 'string' ? raw['typeChecker'] : undefined,
     commandRunner: raw['testRunner'] === 'command' ? ((raw['commandRunner'] as { command?: string } | undefined)?.command ?? 'npm test') : undefined,
-    container: containerOf(raw['container']),
+    // The project's own setting, `false` included, wins over the machine's default.
+    container: containerOf(raw['container'] === undefined ? machineDefault() : raw['container']),
     warnUnused: raw['warnings'] !== false && (raw['warnings'] as { unknownOptions?: boolean } | undefined)?.unknownOptions !== false,
     ...overrides,
   };

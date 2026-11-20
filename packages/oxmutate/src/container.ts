@@ -13,16 +13,23 @@
  *   4. with `ephemeral`, the volume is removed.
  * Every container drops all capabilities, cannot gain one (`no-new-privileges`), is labelled
  * `dev.oxmutate=1` and is removed after it ends. `platform`, `user`, `runtime` (a sandbox such as
- * gVisor's `runsc`), `readOnly`, `pull`, `pidsLimit`, `cpus` and `memory` reach every container;
- * `args` passes anything else to each, `runArgs` to the run's alone.
+ * gVisor's `runsc`, used by default when Docker has it), `readOnly`, `pull`, `pidsLimit`, `cpus` and
+ * `memory` reach every container; `args` passes anything else to each, `runArgs` to the run's alone.
+ *
+ * The sync sends only what changed since the volume was last synced (`container-sync.ts`), and the
+ * install's package caches live in one volume every repository shares (`cache`). `--since` and
+ * `--frozen-oracle` work inside: each ref the run names goes in as its tree and becomes a tag there.
+ * `OXMUTATE_CONTAINER` or `~/.config/oxmutate/config.json` turns container mode on for every project
+ * on the machine; a project's own `container` setting, and `--no-container`, win.
  */
 import { createHash } from 'node:crypto';
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { ambientRuntime, run, type Result, type RunOptions } from 'bellpull';
 
+import { nextState, planSync, PRUNE, readState, signatures, syncDir, type SyncPlan, writeState } from './container-sync.js';
 import { env, nodeMajor, platform } from './runtime.js';
 import { removeWorkDir } from './work-dir.js';
 
@@ -51,8 +58,10 @@ export interface Container {
   host?: string | undefined;
   platform?: string | undefined;
   user?: string | undefined;
-  /** The container runtime, such as gVisor's `runsc`. */
+  /** The container runtime, such as gVisor's `runsc`. Unset: `runsc` when Docker has it, else the engine's default; `'default'`: always the engine's. */
   runtime?: string | undefined;
+  /** The volume the install's package caches live in, shared by every repository. `false`: none. */
+  cache: string | false;
   /** A read-only root filesystem; `/tmp` is a tmpfs and `HOME`. */
   readOnly: boolean;
   /** `always`, `missing` or `never` (`--pull`). */
@@ -77,14 +86,22 @@ const SRC = `${WORK}/src`;
 /** Hex characters of the repository path's hash in the default volume name. */
 const VOLUME_HASH_CHARS = 12;
 const STRINGS = ['engine', 'image', 'network', 'remote', 'install', 'setup', 'volume', 'context', 'host', 'platform', 'user', 'runtime', 'pull', 'memory', 'command'] as const;
-const KEYS = new Set<string>([...STRINGS, 'source', 'ephemeral', 'readOnly', 'pidsLimit', 'cpus', 'env', 'args', 'runArgs']);
+const KEYS = new Set<string>([...STRINGS, 'source', 'cache', 'ephemeral', 'readOnly', 'pidsLimit', 'cpus', 'env', 'args', 'runArgs']);
+/** The shared package-cache volume's default name. */
+const CACHE = 'oxmutate-cache';
 export const LOCKS = ['package-lock.json', 'npm-shrinkwrap.json', 'pnpm-lock.yaml', 'yarn.lock'];
 
 // Stryker disable next-line ConditionalExpression: containerOf returns before this for null, so the null check never decides
 const isRecord = (v: unknown): v is Record<string, unknown> => v !== null && typeof v === 'object' && !Array.isArray(v);
 
+/** `cache`: `false` (none), a volume name, or the shared default. */
+const cacheOf = (raw: unknown): string | false => {
+  if (raw === false) return false;
+  return typeof raw === 'string' ? raw : CACHE;
+};
+
 /** Every key's default. */
-export const containerDefaults = (): Container => ({ engine: 'docker', image: `node:${nodeMajor}-bookworm-slim`, network: 'none', source: 'copy', ephemeral: false, readOnly: false, env: [], args: [], runArgs: [], command: 'npx --no oxmutate' });
+export const containerDefaults = (): Container => ({ engine: 'docker', image: `node:${nodeMajor}-bookworm-slim`, network: 'none', source: 'copy', cache: CACHE, ephemeral: false, readOnly: false, env: [], args: [], runArgs: [], command: 'npx --no oxmutate' });
 
 /** The config value, resolved: `true`, an image name, or an object; `false` or nothing is no container. */
 export function containerOf(raw: unknown): Container | undefined {
@@ -104,6 +121,7 @@ export function containerOf(raw: unknown): Container | undefined {
     ...strings,
     install: raw['install'] === false ? '' : (strings['install'] as string | undefined),
     source: raw['source'] === 'git' ? 'git' : 'copy',
+    cache: cacheOf(raw['cache']),
     ephemeral: raw['ephemeral'] === true,
     readOnly: raw['readOnly'] === true,
     pidsLimit: number('pidsLimit'),
@@ -123,16 +141,46 @@ export function withFlags(c: Container | undefined, o: Record<string, unknown>):
 }
 
 /**
- * The run's own arguments without the container's: the oxmutate inside is the project's, which
- * may be a version that does not know them, and is inside already.
+ * The machine's own default, for a project that sets nothing: `OXMUTATE_CONTAINER` (`1`/`true`,
+ * `0`/`false`, an image name, or the object form as JSON), else `container` in
+ * `$XDG_CONFIG_HOME/oxmutate/config.json` (else `~/.config/oxmutate/config.json`).
  */
-export function withoutContainerFlags(argv: readonly string[]): string[] {
+export function machineDefault(): unknown {
+  const value = env[INSIDE];
+  if (value !== undefined && value !== '' && value !== 'inside') {
+    if (value === '1' || value === 'true') return true;
+    if (value === '0' || value === 'false') return false;
+    return value.trimStart().startsWith('{') ? (JSON.parse(value) as unknown) : value;
+  }
+  const file = path.join(env['XDG_CONFIG_HOME'] || path.join(homedir(), '.config'), 'oxmutate', 'config.json');
+  if (!existsSync(file)) return undefined;
+  return (JSON.parse(readFileSync(file, 'utf8')) as { container?: unknown }).container;
+}
+
+const REF_FLAGS = new Set(['--since', '--frozen-oracle']);
+
+/**
+ * The run's own arguments for the oxmutate inside: without the container's (it is the project's,
+ * which may not know them, and is inside already), and with each git ref the run names replaced by
+ * the tag that ref's tree has inside.
+ */
+export function withoutContainerFlags(argv: readonly string[], tags: ReadonlyMap<string, string> = new Map()): string[] {
   const out: string[] = [];
-  let value = false;
+  let skip = false;
+  let ref = false;
   for (const a of argv) {
-    if (value) value = false;
-    else if (a === '--container-image') value = true;
-    else if (!/^--(?:no-)?container(?:$|-image=)/u.test(a)) out.push(a);
+    if (skip) skip = false;
+    else if (ref) {
+      out.push(tags.get(a) ?? a);
+      ref = false;
+    } else if (a === '--container-image') skip = true;
+    else if (REF_FLAGS.has(a)) {
+      out.push(a);
+      ref = true;
+    } else if (/^--(?:since|frozen-oracle)=/u.test(a)) {
+      const [flag = '', value = ''] = a.split(/=(.*)/su);
+      out.push(`${flag}=${tags.get(value) ?? value}`);
+    } else if (!/^--(?:no-)?container(?:$|-image=)/u.test(a)) out.push(a);
   }
   return out;
 }
@@ -147,12 +195,20 @@ export function defaultInstall(lock: string | undefined): string {
 
 const quote = (s: string): string => `'${s.replaceAll("'", String.raw`'\''`)}'`;
 
-/** Deletes what the last sync wrote and this one did not: a file deleted on the host. */
-const PRUNE = "const fs=require('fs');const [a,b]=process.argv.slice(1);if(fs.existsSync(a)){const k=new Set(fs.readFileSync(b,'utf8').split('\\n'));for(const f of fs.readFileSync(a,'utf8').split('\\n'))if(f&&!k.has(f))fs.rmSync(f,{force:true})}";
+/** The sync script's exit when the volume is not the one the host last synced: send it whole. */
+export const RESYNC = 75;
+
+/** A git ref the run names (`--since`, `--frozen-oracle`), the commit it is, and the tag it becomes inside. */
+export interface Base {
+  ref: string;
+  commit: string;
+  tag: string;
+}
 
 export interface PlanInput {
   /** The project, relative to the repository root, `/`-separated. */
   rel: string;
+  /** The oxmutate inside's arguments, as it will get them. */
   argv: readonly string[];
   /** Changes when the install must run again. */
   key: string;
@@ -162,24 +218,63 @@ export interface PlanInput {
   keep: readonly string[];
   /** `source: 'git'`: what to fetch, and from where. */
   fetch?: { remote: string; commit: string } | undefined;
+  /** `source: 'copy'`: what this sync sends. */
+  sync?: SyncPlan | undefined;
+  bases?: readonly Base[] | undefined;
 }
 
-/** How the source gets into the volume: unpacked from what the host copied in, or fetched by commit. */
-function sourceSteps(p: PlanInput): string[] {
-  if (!p.fetch) {
-    return [
-      // -o: the files are the container user's, whoever owned them on the host (no CAP_CHOWN here).
-      `tar -xovf ${WORK}/in.tar > ${WORK}/manifest.new`,
-      `rm -f ${WORK}/in.tar`,
-      `node -e ${quote(PRUNE)} ${WORK}/manifest ${WORK}/manifest.new`,
-      `mv ${WORK}/manifest.new ${WORK}/manifest`,
-    ];
+const GIT_CHECK = (why: string): string => `command -v git >/dev/null || { echo 'oxmutate: ${why} needs git in the image. fix: container.image node:${nodeMajor}' >&2; exit 3; }`;
+
+/** Files removed per line of the sync script. */
+const REMOVALS_PER_LINE = 50;
+
+/** `rm -f -- <files>`, a bounded number to a line. */
+const removals = (files: readonly string[]): string[] => {
+  const lines: string[] = [];
+  for (let i = 0; i < files.length; i += REMOVALS_PER_LINE) lines.push(`rm -f -- ${files.slice(i, i + REMOVALS_PER_LINE).map(quote).join(' ')}`);
+  return lines;
+};
+
+/** How the copy gets into the volume: whole (unpacked, then pruned to the host's listing), or a delta on the volume last synced. */
+function copySteps(sync: SyncPlan): string[] {
+  if (sync.mode === 'skip') return [];
+  const unpack = [`[ ! -f ${WORK}/in.tar ] || tar -xovf ${WORK}/in.tar >/dev/null`, `rm -f ${WORK}/in.tar`];
+  if (sync.mode === 'whole') {
+    // -o: the files are the container user's, whoever owned them on the host (no CAP_CHOWN here).
+    return [...unpack, `node -e ${quote(PRUNE)} ${SRC} ${WORK}/listing`, `rm -f ${WORK}/listing`, `echo ${quote(sync.token)} > ${WORK}/synced`];
   }
-  const kept = ['node_modules', ...p.keep].map((f) => `-e ${quote(f)}`).join(' ');
   return [
-    `command -v git >/dev/null || { echo 'oxmutate: source git needs git in the image. fix: container.image node:${nodeMajor}, or source copy' >&2; exit 3; }`,
+    `[ "$(cat ${WORK}/synced 2>/dev/null)" = ${quote(sync.token)} ] || { echo 'oxmutate: the volume is not the one last synced; sending the whole repository' >&2; exit ${String(RESYNC)}; }`,
+    ...unpack,
+    ...removals(sync.deleted),
+  ];
+}
+
+/** Each base's tree, from the archive the host sent, as a commit and a tag; then the source's own files staged, so a diff sees new ones. */
+function baseSteps(bases: readonly Base[]): string[] {
+  if (bases.length === 0) return [];
+  return [
+    GIT_CHECK('--since or --frozen-oracle in a container'),
+    ...bases.map((_, i) => `rm -rf ${WORK}/base-${String(i)} && mkdir -p ${WORK}/base-${String(i)} && tar -xof ${WORK}/base-${String(i)}.tar -C ${WORK}/base-${String(i)} && rm -f ${WORK}/base-${String(i)}.tar`),
+    'rm -rf .git && git init -q',
+    ...bases.flatMap((b, i) => [
+      `git --work-tree=${WORK}/base-${String(i)} add -A`,
+      `git -c user.name=oxmutate -c user.email=oxmutate@localhost commit -q --allow-empty -m ${quote(b.ref)}`,
+      `git tag -f ${quote(b.tag)}`,
+    ]),
+    "git add -A -- . ':!**/node_modules'",
+  ];
+}
+
+/** How a `source: 'git'` volume gets the commit, and each base as a tag. */
+function fetchSteps(fetch: { remote: string; commit: string }, keep: readonly string[], bases: readonly Base[]): string[] {
+  const kept = ['node_modules', ...keep].map((f) => `-e ${quote(f)}`).join(' ');
+  const get = (commit: string): string => `git fetch -q --depth 1 ${quote(fetch.remote)} ${quote(commit)} || { echo 'oxmutate: the container could not fetch ${commit}. fix: push it, or set container.remote' >&2; exit 4; }`;
+  return [
+    GIT_CHECK('source git'),
     '[ -d .git ] || git init -q',
-    `git fetch -q --depth 1 ${quote(p.fetch.remote)} ${quote(p.fetch.commit)} || { echo 'oxmutate: the container could not fetch ${p.fetch.commit}. fix: push it, or set container.remote' >&2; exit 4; }`,
+    ...bases.flatMap((b) => [get(b.commit), `git tag -f ${quote(b.tag)} FETCH_HEAD`]),
+    get(fetch.commit),
     'git checkout -q -f FETCH_HEAD',
     `git clean -q -fdx ${kept}`,
   ];
@@ -191,7 +286,7 @@ function common(c: Container): string[] {
     '--cap-drop=ALL', '--security-opt=no-new-privileges', '--label', 'dev.oxmutate=1',
     ...(c.platform === undefined ? [] : ['--platform', c.platform]),
     ...(c.user === undefined ? [] : ['--user', c.user]),
-    ...(c.runtime === undefined ? [] : ['--runtime', c.runtime]),
+    ...(c.runtime === undefined || c.runtime === 'default' ? [] : ['--runtime', c.runtime]),
     ...(c.pull === undefined ? [] : [`--pull=${c.pull}`]),
     ...(c.readOnly ? ['--read-only', '--tmpfs', '/tmp:exec', '-e', 'HOME=/tmp'] : []),
     ...(c.pidsLimit === undefined ? [] : ['--pids-limit', String(c.pidsLimit)]),
@@ -202,14 +297,24 @@ function common(c: Container): string[] {
   ];
 }
 
-/** The `<engine>` arguments of each step. `sync` and `back` are created, then started; `run` is run. */
-export function containerPlan(c: Container, p: PlanInput): { volume: string[]; sync: string[]; run: string[]; back: string[]; drop: string[] } {
-  const sync = ['set -e', `mkdir -p ${SRC} && cd ${SRC}`, ...sourceSteps(p), ...(p.install ? [`if [ "$(cat ${WORK}/installed 2>/dev/null)" != ${quote(p.key)} ]; then ${p.install}; echo ${quote(p.key)} > ${WORK}/installed; fi`] : [])].join('\n');
+/** The package managers' caches, in the shared volume. */
+const cacheMount = (cache: string | false): string[] =>
+  cache === false ? [] : ['-v', `${cache}:/cache`, '-e', 'npm_config_cache=/cache/npm', '-e', 'npm_config_store_dir=/cache/pnpm', '-e', 'YARN_CACHE_FOLDER=/cache/yarn'];
+
+/** Creates a named volume, labelled as oxmutate's. */
+const label = (name: string): string[] => ['volume', 'create', '--label', 'dev.oxmutate=1', name];
+
+/** The `<engine>` arguments of each step. `sync` is created, then started; `run` is run; `back` is created and copied from. */
+export function containerPlan(c: Container, p: PlanInput): { volumes: string[][]; sync: string[]; run: string[]; back: string[]; drop: string[] } {
+  const bases = p.bases ?? [];
+  const source = p.fetch ? fetchSteps(p.fetch, p.keep, bases) : [...copySteps(p.sync ?? { mode: 'skip', token: '' }), ...baseSteps(bases)];
+  const install = p.install ? [`if [ "$(cat ${WORK}/installed 2>/dev/null)" != ${quote(p.key)} ]; then ${p.install}; echo ${quote(p.key)} > ${WORK}/installed; fi`] : [];
+  const sync = ['set -e', `mkdir -p ${SRC} && cd ${SRC}`, ...source, ...install].join('\n');
   const run = ['set -e', ...(c.setup ? [c.setup] : []), `cd ${quote(path.posix.join(SRC, p.rel))}`, `exec ${c.command} ${p.argv.map(quote).join(' ')}`].join('\n');
   const volume = ['-v', `${p.volume}:${WORK}`];
   return {
-    volume: ['volume', 'create', '--label', 'dev.oxmutate=1', p.volume],
-    sync: ['create', '--rm', ...common(c), ...volume, '-w', WORK, c.image, 'sh', '-c', sync],
+    volumes: [label(p.volume), ...(c.cache === false ? [] : [label(c.cache)])],
+    sync: ['create', '--rm', ...common(c), ...volume, ...cacheMount(c.cache), '-w', WORK, c.image, 'sh', '-c', sync],
     run: ['run', '--rm', '--init', `--network=${c.network}`, ...common(c), ...volume, '-w', WORK, '-e', `${INSIDE}=inside`, ...c.runArgs, c.image, 'sh', '-c', run],
     back: ['create', '--network=none', ...common(c), ...volume, c.image, 'true'],
     drop: ['volume', 'rm', '-f', p.volume],
@@ -243,35 +348,70 @@ function engineRunner(spawn: Spawn, c: Container) {
 
 type Engine = ReturnType<typeof engineRunner>;
 
-/** Creates a container, copies `file` (host path, container path) into it, starts it attached, and returns its exit code and id. */
-async function startWith(engine: Engine, create: readonly string[], file: readonly [string, string] | undefined, o: { stdio?: 'inherit' } = {}): Promise<{ code: number | null; id: string }> {
+/** gVisor (`runsc`) when the runtime is unset and Docker has it: a kernel of its own between the tests and the host's. */
+export async function withRuntime(c: Container, engine: Engine): Promise<Container> {
+  if (c.runtime !== undefined || !path.basename(c.engine).startsWith('docker')) return c;
+  const info = await engine(['info', '--format', '{{json .Runtimes}}']);
+  return info.code === 0 && info.stdout.includes('"runsc"') ? { ...c, runtime: 'runsc' } : c;
+}
+
+/** Creates a container, copies `files` (host path, container path) into it, starts it attached, and returns its exit code and id. */
+async function startWith(engine: Engine, create: readonly string[], files: readonly (readonly [string, string])[], o: { stdio?: 'inherit' } = {}): Promise<{ code: number | null; id: string }> {
   const made = await engine(create);
   if (made.code !== 0) throw new Error(`the container could not be created: ${made.stderr.trim()}. fix: check container.image and the engine's own error`);
   const id = made.stdout.trim();
-  if (file) {
-    const cp = await engine(['cp', file[0], `${id}:${file[1]}`]);
-    if (cp.code !== 0) throw new Error(`the copy into the container failed: ${cp.stderr.trim()}`);
+  const copied = await Promise.all(files.map(async ([from, to]) => engine(['cp', from, `${id}:${to}`])));
+  const failed = copied.find((r) => r.code !== 0);
+  if (failed) {
+    await engine(['rm', '-f', id]);
+    throw new Error(`the copy into the container failed: ${failed.stderr.trim()}`);
   }
   const started = await engine(['start', '-a', id], o.stdio ? { stdio: o.stdio } : {});
   return { code: started.code, id };
 }
 
-/** The source as the plan needs it: a tar of the git files to copy in, or a commit to fetch. */
-async function sourceOf({ spawn, c, top, keep, io, host }: { spawn: Spawn; c: Container; top: string; keep: readonly string[]; io: string; host: string }): Promise<{ file?: [string, string]; fetch?: { remote: string; commit: string } }> {
+interface Host {
+  spawn: Spawn;
+  top: string;
+  io: string;
+  host: string;
+}
+
+/** The files the copy source sends: a tar of `send`, the listing for a whole sync, and each base's tree. */
+async function pack({ spawn, top, io, host }: Host, sync: SyncPlan, listing: readonly string[], bases: readonly Base[]): Promise<[string, string][]> {
   const runtime = ambientRuntime();
-  if (c.source === 'git') {
-    const commit = (await spawn('git', ['rev-parse', 'HEAD'], { cwd: top, runtime })).stdout.trim();
-    const remote = c.remote ?? (await spawn('git', ['remote', 'get-url', 'origin'], { cwd: top, runtime })).stdout.trim();
-    if (!remote) throw new Error('source git fetches from a remote, and this repository has no origin. fix: set container.remote');
-    return { fetch: { remote, commit } };
+  const files: [string, string][] = [];
+  const send = sync.mode === 'skip' ? [] : sync.send;
+  if (send.length > 0) {
+    writeFileSync(path.join(io, 'files'), send.join('\0'));
+    // The archive is named relative to `io`: GNU tar (Git Bash's on Windows) reads `C:/…` as a remote host.
+    const tar = await spawn('tar', ['-cf', 'in.tar', ...tarFlags(host), '-C', top, '--null', '-T', path.join(io, 'files')], { cwd: io, runtime, timeout: 0 });
+    if (tar.code !== 0) throw new Error(`tar could not pack ${top}: ${tar.stderr.trim()}`);
+    files.push([path.join(io, 'in.tar'), `${WORK}/in.tar`]);
   }
-  const listed = (await spawn('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], { cwd: top, runtime, timeout: 0 })).stdout.split('\0');
-  const files = [...new Set([...listed, ...keep])].filter((f) => f !== '' && existsSync(path.join(top, f)));
-  writeFileSync(path.join(io, 'files'), files.join('\0'));
-  // The archive is named relative to `io`: GNU tar (Git Bash's on Windows) reads `C:/…` as a remote host.
-  const tar = await spawn('tar', ['-cf', 'in.tar', ...tarFlags(host), '-C', top, '--null', '-T', path.join(io, 'files')], { cwd: io, runtime, timeout: 0 });
-  if (tar.code !== 0) throw new Error(`tar could not pack ${top}: ${tar.stderr.trim()}`);
-  return { file: [path.join(io, 'in.tar'), `${WORK}/in.tar`] };
+  if (sync.mode === 'whole') {
+    writeFileSync(path.join(io, 'listing'), listing.join('\0'));
+    files.push([path.join(io, 'listing'), `${WORK}/listing`]);
+  }
+  for (const [i, b] of bases.entries()) {
+    // eslint-disable-next-line reliability/no-await-in-loop -- one archive per ref the run names: two at most, and each is git reading its own pack
+    const archived = await spawn('git', ['archive', '--format=tar', '-o', path.join(io, `base-${String(i)}.tar`), b.commit], { cwd: top, runtime, timeout: 0 });
+    if (archived.code !== 0) throw new Error(`git could not archive ${b.ref}: ${archived.stderr.trim()}`);
+    files.push([path.join(io, `base-${String(i)}.tar`), `${WORK}/base-${String(i)}.tar`]);
+  }
+  return files;
+}
+
+/** Each ref the run names, as a commit (resolved on the host) and the tag it becomes inside. */
+async function basesOf(spawn: Spawn, top: string, refs: readonly (string | undefined)[]): Promise<Base[]> {
+  const named = [...new Set(refs.filter((r): r is string => r !== undefined))];
+  return Promise.all(
+    named.map(async (ref, i) => {
+      const r = await spawn('git', ['rev-parse', '--verify', `${ref}^{commit}`], { cwd: top, runtime: ambientRuntime() });
+      if (r.code !== 0) throw new Error(`${ref} is not a commit in ${top}. fix: name a branch, tag or commit that exists, such as origin/main`);
+      return { ref, commit: r.stdout.trim(), tag: `oxmutate-base-${String(i)}` };
+    }),
+  );
 }
 
 /** The install's key: the image, the command, and the lockfile (else package.json). */
@@ -305,12 +445,46 @@ async function copyBack({ engine, back, keep, io, top }: { engine: Engine; back:
   }
 }
 
+/** The repository's git files and the kept ones, repository-relative. */
+async function listed(spawn: Spawn, top: string, keep: readonly string[]): Promise<string[]> {
+  const out = (await spawn('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], { cwd: top, runtime: ambientRuntime(), timeout: 0 })).stdout.split('\0');
+  return [...new Set([...out, ...keep])].filter((f) => f !== '');
+}
+
+/**
+ * Syncs the volume: the copy's delta (or all of it, when the volume is not the one last synced),
+ * or the commit to fetch. Records what was sent once the sync succeeded.
+ */
+async function syncVolume(h: Host & { engine: Engine; c: Container; plan: (sync: SyncPlan | undefined) => ReturnType<typeof containerPlan>; key: string; volume: string; keep: readonly string[]; bases: readonly Base[] }): Promise<void> {
+  const { engine, c, key, volume, bases } = h;
+  if (c.source === 'git') {
+    const synced = await startWith(engine, h.plan(undefined).sync, [], { stdio: 'inherit' });
+    if (synced.code !== 0) throw new Error(`the sync into the container or its install failed (exit ${String(synced.code)}); its output is above. fix: set container.install, or container.image to one with what the install needs`);
+    return;
+  }
+  const names = await listed(h.spawn, h.top, h.keep);
+  const now = signatures(h.top, names);
+  const volumeExisted = (await engine(['volume', 'inspect', volume])).code === 0;
+  let sync = planSync(now, c.ephemeral ? undefined : readState(volume), { volumeExisted, install: key, mustRun: bases.length > 0 });
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (sync.mode === 'skip') break;
+    const files = await pack(h, sync, names, bases);
+    const synced = await startWith(engine, h.plan(sync).sync, files, { stdio: 'inherit' });
+    if (synced.code === RESYNC && sync.mode === 'delta') {
+      sync = planSync(now, undefined, { volumeExisted: false, install: key, mustRun: true });
+      continue;
+    }
+    if (synced.code !== 0) throw new Error(`the sync into the container or its install failed (exit ${String(synced.code)}); its output is above. fix: set container.install, or container.image to one with what the install needs`);
+    break;
+  }
+  if (!c.ephemeral) writeState(volume, nextState(sync, key, now));
+}
+
 /**
  * Runs `argv` (oxmutate's own, after the binary) inside the container and returns its exit code.
  * `keep`: absolute paths to copy back (the reports, the incremental file).
  */
 export async function runInContainer(c: Container, o: { root: string; keep: readonly string[]; since?: string | undefined; frozenOracle?: string | undefined }, argv: readonly string[], { spawn = run, host = platform }: { spawn?: Spawn; host?: string } = {}): Promise<number> {
-  if (o.since !== undefined || o.frozenOracle !== undefined) throw new Error('--since and --frozen-oracle read git history, and the container gets the files without it. fix: run them with --no-container');
   const git = await spawn('git', ['rev-parse', '--show-toplevel'], { cwd: o.root, runtime: ambientRuntime() });
   if (git.code !== 0) throw new Error(`container copies the git repository the project is in, and ${o.root} is in none. fix: git init, or run with --no-container`);
   // Both resolved the same way: on Windows git answers `C:/Users/runneradmin/…` where Node has
@@ -328,22 +502,54 @@ export async function runInContainer(c: Container, o: { root: string; keep: read
   const io = mkdtempSync(path.join(tmpdir(), 'oxmutate-io-'));
   const engine = engineRunner(spawn, c);
   try {
-    const source = await sourceOf({ spawn, c, top, keep, io, host });
+    const bases = await basesOf(spawn, top, [o.since, o.frozenOracle]);
+    const tags = new Map(bases.map((b) => [b.ref, b.tag]));
+    const runnable = await withRuntime(c, engine);
     const lock = LOCKS.find((f) => existsSync(path.join(top, f)));
-    const install = c.install ?? defaultInstall(lock);
-    const volume = c.volume ?? `oxmutate-${createHash('sha256').update(top).digest('hex').slice(0, VOLUME_HASH_CHARS)}`;
-    const plan = containerPlan(c, { rel, argv, key: installKey(c, top, install, lock), install, volume, keep, fetch: source.fetch });
-    await engine(plan.volume);
+    const install = runnable.install ?? defaultInstall(lock);
+    const key = installKey(runnable, top, install, lock);
+    const volume = runnable.volume ?? `oxmutate-${createHash('sha256').update(top).digest('hex').slice(0, VOLUME_HASH_CHARS)}`;
+    const fetch = runnable.source === 'git' ? await fetchOf(spawn, runnable, top) : undefined;
+    const plan = (sync: SyncPlan | undefined): ReturnType<typeof containerPlan> => containerPlan(runnable, { rel, argv: withoutContainerFlags(argv, tags), key, install, volume, keep, fetch, sync, bases });
+    const steps = plan(undefined);
+    for (const v of steps.volumes) {
+      // eslint-disable-next-line reliability/no-await-in-loop -- the run's volume and the shared cache, in order
+      await engine(v);
+    }
     try {
-      const synced = await startWith(engine, plan.sync, source.file, { stdio: 'inherit' });
-      if (synced.code !== 0) throw new Error(`the sync into the container or its install failed (exit ${String(synced.code)}); its output is above. fix: set container.install, or container.image to one with what the install needs`);
-      const ran = await engine(plan.run, { stdio: 'inherit' });
-      if (keep.length > 0) await copyBack({ engine, back: plan.back, keep, io, top });
+      await syncVolume({ spawn, top, io, host, engine, c: runnable, plan, key, volume, keep, bases });
+      const ran = await engine(steps.run, { stdio: 'inherit' });
+      if (keep.length > 0) await copyBack({ engine, back: steps.back, keep, io, top });
       return ran.code ?? 1;
     } finally {
-      if (c.ephemeral) await engine(plan.drop);
+      if (runnable.ephemeral) await engine(steps.drop);
     }
   } finally {
     removeWorkDir(io);
   }
+}
+
+/** `source: 'git'`: `HEAD`'s commit, and the remote to fetch it from. */
+async function fetchOf(spawn: Spawn, c: Container, top: string): Promise<{ remote: string; commit: string }> {
+  const runtime = ambientRuntime();
+  const commit = (await spawn('git', ['rev-parse', 'HEAD'], { cwd: top, runtime })).stdout.trim();
+  const remote = c.remote ?? (await spawn('git', ['remote', 'get-url', 'origin'], { cwd: top, runtime })).stdout.trim();
+  if (!remote) throw new Error('source git fetches from a remote, and this repository has no origin. fix: set container.remote');
+  return { remote, commit };
+}
+
+/** `oxmutate prune`: every container and volume oxmutate's container mode made, and the host's sync records. */
+export async function pruneContainers(c: Container, spawn: Spawn = run): Promise<{ containers: string[]; volumes: string[] }> {
+  const engine = engineRunner(spawn, c);
+  const list = async (args: string[]): Promise<string[]> => {
+    const r = await engine(args);
+    if (r.code !== 0) throw new Error(`${c.engine} could not list what oxmutate made: ${r.stderr.trim()}. fix: start the engine, or set container.engine`);
+    return r.stdout.split(/\s+/u).filter(Boolean);
+  };
+  const containers = await list(['ps', '-aq', '--filter', 'label=dev.oxmutate=1']);
+  if (containers.length > 0) await engine(['rm', '-f', ...containers]);
+  const volumes = await list(['volume', 'ls', '-q', '--filter', 'label=dev.oxmutate=1']);
+  if (volumes.length > 0) await engine(['volume', 'rm', '-f', ...volumes]);
+  rmSync(syncDir(), { recursive: true, force: true });
+  return { containers, volumes };
 }

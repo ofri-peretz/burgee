@@ -43,6 +43,32 @@ exposed few of Docker's options; this is what replaced it.
 | `source: 'git'`, full image, then warm          |    0 | 9 s, 1 s      |
 | Podman, install, then warm                      |    0 | 14 s, 2 s     |
 
+## Second round, 2026-11-19
+
+Added after the first release, from what the 2.9.0 runs and a Sophos measurement showed (on one
+Mac, the host run held the endpoint scanner at 384–445% CPU while the same run in a container left
+it at its idle 61–160%).
+
+- **R8 — on for every project, not per project.** `OXMUTATE_CONTAINER` (or
+  `~/.config/oxmutate/config.json`) is the machine's default; a project's own `container`, `false`
+  included, wins. burgee's own changed-lines lane sets `container: false`, since it runs the
+  checkout's own build. _Check:_ "takes the machine default …"; `mutation-lock.test.ts`; measured:
+  `OXMUTATE_CONTAINER=1` ran a project that sets nothing in a container.
+- **R9 — only what changed is sent.** The host keeps, per volume, a token and each file's size and
+  modification time; a run sends the delta, a volume that is not the one last synced refuses it and
+  gets everything, and an unchanged repository has no sync container. _Check:_ "the next run sends
+  only what changed …", "sends everything again when the volume refuses the delta …"; measured: the
+  second run 1.7 s, a one-file edit a one-file delta, two deleted files gone from the volume.
+- **R10 — one package cache for every repository.** npm, pnpm and yarn caches live in the shared
+  `oxmutate-cache` volume, mounted in the sync alone. _Check:_ "labels the volumes …"; measured: a
+  second repository's first run 2.8 s against the first's 10.7 s.
+- **R11 — `--since` and `--frozen-oracle` inside.** Each ref goes in as its tree (`git archive`) and
+  becomes a tag the run names. _Check:_ "turns each ref the run names into a commit and a tag …";
+  measured: `--since HEAD` scored the 10 mutants on the changed line, a full run 50.
+- **R12 — gVisor when Docker has it**, and **`oxmutate prune`** for everything container mode made.
+  _Check:_ "runs on gVisor when Docker has it", "prune …"; measured: `prune` removed the three
+  volumes the runs above left.
+
 ## Rejected
 
 - **A host directory mounted at `/io`** (the first version in #1658): Docker Desktop and Podman
@@ -55,7 +81,7 @@ exposed few of Docker's options; this is what replaced it.
 
 ## Not covered
 
-- gVisor (`runtime: 'runsc'`) is passed through but was not run: it is not installed here.
+- gVisor is detected and passed through but was not run: it is not installed here.
 - A daemon on another machine (`host: 'ssh://…'`) is the same calls as a context; only local
   daemons were measured.
 - Private repositories under `source: 'git'` need credentials the container can use (`env`, or a

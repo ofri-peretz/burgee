@@ -309,11 +309,14 @@ describe('a changed range with no mutant in it', () => {
       dryRunTimeoutMinutes: 5,
       reporters: ['clear-text', 'json'],
       jsonReporter: { fileName: 'r.json' },
+      container: false,
     });
   });
 
   it('keeps verdicts between runs under oxmutate when given a file for them (roadmap 3.2)', () => {
     expect(oxmutateConfig({ ...o, incrementalFile: '.mutation/i.json' })).toMatchObject({ incremental: true, incrementalFile: '.mutation/i.json' });
+    // The lane runs this checkout's own build: a machine-wide OXMUTATE_CONTAINER must not send it to a container.
+    expect(oxmutateConfig(o)).toMatchObject({ container: false });
     expect(oxmutateConfig(o)).not.toHaveProperty('incremental');
   });
 
