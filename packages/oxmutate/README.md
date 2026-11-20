@@ -162,6 +162,23 @@ For the full run, `--shard i/n` splits the mutants across a matrix (a mutant's s
 its stable id, so the shards partition the run exactly and do not move when unrelated code does),
 and `--incremental` reuses every verdict whose source and covering tests did not change.
 
+## In a container
+
+`--container` runs the mutation testing inside containers oxmutate starts, with the host a black
+box to the run: the host sends the repository's git files in and gets the reports back, and mounts
+nothing. The tests run with no network.
+
+```bash
+npx oxmutate run --container
+```
+
+Turn it on for a project with `"container": true` in `oxmutate.config.json`, or for every project
+on the machine with `OXMUTATE_CONTAINER=1`. Docker and Podman both work. The first run installs the
+project's dependencies inside the container; later runs send only the files that changed and
+install again only when the lockfile does. `oxmutate prune` removes every container and volume it
+made. The keys and what each step does are in
+[the configuration docs](https://oxmutate.interlace.tools/docs/configuration#in-a-container).
+
 ## How it works
 
 ```text

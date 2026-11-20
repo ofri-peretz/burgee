@@ -26,11 +26,12 @@ import { createHash } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
+import { setTimeout as sleep } from 'node:timers/promises';
 
 import { ambientRuntime, run, type Result, type RunOptions } from 'bellpull';
 
-import { nextState, planSync, PRUNE, readState, signatures, syncDir, type SyncPlan, writeState } from './container-sync.js';
-import { env, nodeMajor, platform } from './runtime.js';
+import { nextState, planSync, PRUNE, readState, signatures, syncDir, type SyncPlan, wholeSync, writeState } from './container-sync.js';
+import { env, nodeMajor, platform, stderr } from './runtime.js';
 import { removeWorkDir } from './work-dir.js';
 
 export interface Container {
@@ -87,6 +88,8 @@ const SRC = `${WORK}/src`;
 const VOLUME_HASH_CHARS = 12;
 const STRINGS = ['engine', 'image', 'network', 'remote', 'install', 'setup', 'volume', 'context', 'host', 'platform', 'user', 'runtime', 'pull', 'memory', 'command'] as const;
 const KEYS = new Set<string>([...STRINGS, 'source', 'cache', 'ephemeral', 'readOnly', 'pidsLimit', 'cpus', 'env', 'args', 'runArgs']);
+/** The label each sync, run and copy-back container has: the volume it works on. */
+const VOLUME_LABEL = 'dev.oxmutate.volume';
 /** The shared package-cache volume's default name. */
 const CACHE = 'oxmutate-cache';
 export const LOCKS = ['package-lock.json', 'npm-shrinkwrap.json', 'pnpm-lock.yaml', 'yarn.lock'];
@@ -154,6 +157,7 @@ export function machineDefault(): unknown {
   }
   const file = path.join(env['XDG_CONFIG_HOME'] || path.join(homedir(), '.config'), 'oxmutate', 'config.json');
   if (!existsSync(file)) return undefined;
+  // Stryker disable next-line StringLiteral: without an encoding readFileSync answers a Buffer, and JSON.parse reads a Buffer as UTF-8 text all the same
   return (JSON.parse(readFileSync(file, 'utf8')) as { container?: unknown }).container;
 }
 
@@ -178,8 +182,9 @@ export function withoutContainerFlags(argv: readonly string[], tags: ReadonlyMap
       out.push(a);
       ref = true;
     } else if (/^--(?:since|frozen-oracle)=/u.test(a)) {
-      const [flag = '', value = ''] = a.split(/=(.*)/su);
-      out.push(`${flag}=${tags.get(value) ?? value}`);
+      const at = a.indexOf('=');
+      const value = a.slice(at + 1);
+      out.push(`${a.slice(0, at)}=${tags.get(value) ?? value}`);
     } else if (!/^--(?:no-)?container(?:$|-image=)/u.test(a)) out.push(a);
   }
   return out;
@@ -307,11 +312,13 @@ const label = (name: string): string[] => ['volume', 'create', '--label', 'dev.o
 /** The `<engine>` arguments of each step. `sync` is created, then started; `run` is run; `back` is created and copied from. */
 export function containerPlan(c: Container, p: PlanInput): { volumes: string[][]; sync: string[]; run: string[]; back: string[]; drop: string[] } {
   const bases = p.bases ?? [];
-  const source = p.fetch ? fetchSteps(p.fetch, p.keep, bases) : [...copySteps(p.sync ?? { mode: 'skip', token: '' }), ...baseSteps(bases)];
-  const install = p.install ? [`if [ "$(cat ${WORK}/installed 2>/dev/null)" != ${quote(p.key)} ]; then ${p.install}; echo ${quote(p.key)} > ${WORK}/installed; fi`] : [];
+  const source = p.fetch ? fetchSteps(p.fetch, p.keep, bases) : [...(p.sync ? copySteps(p.sync) : []), ...baseSteps(bases)];
+  // The install on a line of its own: a `#` in it comments out the rest of its line, not the `fi`.
+  const install = p.install ? [`if [ "$(cat ${WORK}/installed 2>/dev/null)" != ${quote(p.key)} ]; then`, p.install, `echo ${quote(p.key)} > ${WORK}/installed; fi`] : [];
   const sync = ['set -e', `mkdir -p ${SRC} && cd ${SRC}`, ...source, ...install].join('\n');
   const run = ['set -e', ...(c.setup ? [c.setup] : []), `cd ${quote(path.posix.join(SRC, p.rel))}`, `exec ${c.command} ${p.argv.map(quote).join(' ')}`].join('\n');
-  const volume = ['-v', `${p.volume}:${WORK}`];
+  // The volume's label is how a second run on it sees this one running (`waitForVolume`).
+  const volume = ['-v', `${p.volume}:${WORK}`, '--label', `${VOLUME_LABEL}=${p.volume}`];
   return {
     volumes: [label(p.volume), ...(c.cache === false ? [] : [label(c.cache)])],
     sync: ['create', '--rm', ...common(c), ...volume, ...cacheMount(c.cache), '-w', WORK, c.image, 'sh', '-c', sync],
@@ -334,15 +341,23 @@ export function engineOf(c: Container): { global: string[]; env: Record<string, 
   return { global: c.context === undefined ? [] : [flag, c.context], env: c.host === undefined ? {} : { [daemon]: c.host } };
 }
 
-/** Runs the engine, with the fix line when the engine itself is missing. */
+/** What Docker and Podman say when the CLI is there and the daemon it talks to is not. */
+const DAEMON_DOWN = ['Cannot connect to the Docker daemon', 'Is the docker daemon running', 'connection refused', 'Cannot connect to Podman'];
+
+/** Runs the engine, with the fix line when the engine itself is missing or its daemon is not running. */
 function engineRunner(spawn: Spawn, c: Container) {
   const { global, env: engineEnv } = engineOf(c);
   return async (args: readonly string[], o: { stdio?: 'inherit' } = {}): Promise<Pick<Result, 'code' | 'stdout' | 'stderr'>> => {
+    let r: Pick<Result, 'code' | 'stdout' | 'stderr'>;
     try {
-      return await spawn(c.engine, [...global, ...args], { ...o, runtime: ambientRuntime(), timeout: 0, env: { ...env, ...engineEnv } });
+      r = await spawn(c.engine, [...global, ...args], { ...o, runtime: ambientRuntime(), timeout: 0, env: { ...env, ...engineEnv } });
     } catch (e) {
       throw new Error(`${c.engine} did not start (${(e as Error).message}). fix: install and start Docker or Podman, or set container.engine`);
     }
+    if (r.code !== 0 && DAEMON_DOWN.some((said) => r.stderr.includes(said))) {
+      throw new Error(`${c.engine} is installed but its daemon is not running. fix: start Docker Desktop (or \`podman machine start\`), or set container.engine`);
+    }
+    return r;
   };
 }
 
@@ -377,11 +392,14 @@ interface Host {
   host: string;
 }
 
+/** A sync that sends something (a skip starts no sync container). */
+type Sending = Exclude<SyncPlan, { mode: 'skip' }>;
+
 /** The files the copy source sends: a tar of `send`, the listing for a whole sync, and each base's tree. */
-async function pack({ spawn, top, io, host }: Host, sync: SyncPlan, listing: readonly string[], bases: readonly Base[]): Promise<[string, string][]> {
+async function pack({ spawn, top, io, host }: Host, sync: Sending, listing: readonly string[], bases: readonly Base[]): Promise<[string, string][]> {
   const runtime = ambientRuntime();
   const files: [string, string][] = [];
-  const send = sync.mode === 'skip' ? [] : sync.send;
+  const { send } = sync;
   if (send.length > 0) {
     writeFileSync(path.join(io, 'files'), send.join('\0'));
     // The archive is named relative to `io`: GNU tar (Git Bash's on Windows) reads `C:/…` as a remote host.
@@ -466,25 +484,48 @@ async function syncVolume(h: Host & { engine: Engine; c: Container; plan: (sync:
   const now = signatures(h.top, names);
   const volumeExisted = (await engine(['volume', 'inspect', volume])).code === 0;
   let sync = planSync(now, c.ephemeral ? undefined : readState(volume), { volumeExisted, install: key, mustRun: bases.length > 0 });
-  for (let attempt = 0; attempt < 2; attempt++) {
-    if (sync.mode === 'skip') break;
-    const files = await pack(h, sync, names, bases);
-    const synced = await startWith(engine, h.plan(sync).sync, files, { stdio: 'inherit' });
-    if (synced.code === RESYNC && sync.mode === 'delta') {
-      sync = planSync(now, undefined, { volumeExisted: false, install: key, mustRun: true });
-      continue;
+  if (sync.mode !== 'skip') {
+    const send = async (s: Sending): Promise<number | null> => (await startWith(engine, h.plan(s).sync, await pack(h, s, names, bases), { stdio: 'inherit' })).code;
+    let code = await send(sync);
+    // A volume that is not the one last synced refuses the delta: it gets everything, once.
+    if (code === RESYNC && sync.mode === 'delta') {
+      sync = wholeSync(now);
+      code = await send(sync);
     }
-    if (synced.code !== 0) throw new Error(`the sync into the container or its install failed (exit ${String(synced.code)}); its output is above. fix: set container.install, or container.image to one with what the install needs`);
-    break;
+    if (code !== 0) throw new Error(`the sync into the container or its install failed (exit ${String(code)}); its output is above. fix: set container.install, or container.image to one with what the install needs`);
   }
   if (!c.ephemeral) writeState(volume, nextState(sync, key, now));
+}
+
+/** How often a run waiting for the volume asks again, and how many times before it gives up (10 minutes). */
+const BUSY_POLL_MS = 2000;
+const BUSY_POLLS = 300;
+
+/**
+ * Waits while another run's containers work on `volume`, so two runs on one repository never sync
+ * into it at once: polls `<engine> ps` for the volume's label, says once that it waits, and fails
+ * with the fix line after ten minutes.
+ */
+async function waitForVolume(engine: Engine, volume: string, wait: (ms: number) => Promise<unknown>): Promise<void> {
+  for (let poll = 0; poll < BUSY_POLLS; poll++) {
+    const running = await engine(['ps', '-q', '--filter', `label=${VOLUME_LABEL}=${volume}`]);
+    if (running.stdout.trim() === '') return;
+    if (poll === 0) stderr.write(`oxmutate: another run is using ${volume}; waiting\n`);
+    await wait(BUSY_POLL_MS);
+  }
+  throw new Error(`another run has used ${volume} for 10 minutes. fix: wait for it to end, stop it (oxmutate prune removes its containers), or set container.volume to another`);
 }
 
 /**
  * Runs `argv` (oxmutate's own, after the binary) inside the container and returns its exit code.
  * `keep`: absolute paths to copy back (the reports, the incremental file).
  */
-export async function runInContainer(c: Container, o: { root: string; keep: readonly string[]; since?: string | undefined; frozenOracle?: string | undefined }, argv: readonly string[], { spawn = run, host = platform }: { spawn?: Spawn; host?: string } = {}): Promise<number> {
+export async function runInContainer(
+  c: Container,
+  o: { root: string; keep: readonly string[]; since?: string | undefined; frozenOracle?: string | undefined },
+  argv: readonly string[],
+  { spawn = run, host = platform, wait = sleep }: { spawn?: Spawn; host?: string; wait?: (ms: number) => Promise<unknown> } = {},
+): Promise<number> {
   const git = await spawn('git', ['rev-parse', '--show-toplevel'], { cwd: o.root, runtime: ambientRuntime() });
   if (git.code !== 0) throw new Error(`container copies the git repository the project is in, and ${o.root} is in none. fix: git init, or run with --no-container`);
   // Both resolved the same way: on Windows git answers `C:/Users/runneradmin/…` where Node has
@@ -514,8 +555,11 @@ export async function runInContainer(c: Container, o: { root: string; keep: read
     const steps = plan(undefined);
     for (const v of steps.volumes) {
       // eslint-disable-next-line reliability/no-await-in-loop -- the run's volume and the shared cache, in order
-      await engine(v);
+      const made = await engine(v);
+      // Podman, unlike Docker, refuses to create a volume that exists.
+      if (made.code !== 0 && !made.stderr.includes('already exists')) throw new Error(`the volume ${String(v.at(-1))} could not be created: ${made.stderr.trim()}. fix: check the engine's own error, or set container.volume`);
     }
+    await waitForVolume(engine, volume, wait);
     try {
       await syncVolume({ spawn, top, io, host, engine, c: runnable, plan, key, volume, keep, bases });
       const ran = await engine(steps.run, { stdio: 'inherit' });
@@ -544,7 +588,7 @@ export async function pruneContainers(c: Container, spawn: Spawn = run): Promise
   const list = async (args: string[]): Promise<string[]> => {
     const r = await engine(args);
     if (r.code !== 0) throw new Error(`${c.engine} could not list what oxmutate made: ${r.stderr.trim()}. fix: start the engine, or set container.engine`);
-    return r.stdout.split(/\s+/u).filter(Boolean);
+    return r.stdout.split(/\s/u).filter(Boolean);
   };
   const containers = await list(['ps', '-aq', '--filter', 'label=dev.oxmutate=1']);
   if (containers.length > 0) await engine(['rm', '-f', ...containers]);

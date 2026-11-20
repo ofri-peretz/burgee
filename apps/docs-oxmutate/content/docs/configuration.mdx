@@ -126,6 +126,12 @@ Every container drops all capabilities, cannot gain one (`no-new-privileges`), i
 ends and is labelled `dev.oxmutate=1`, as are the volumes. When Docker has gVisor (`runsc`), the
 containers run on it: the tests get a kernel of their own instead of the host's.
 
+Each sync, run and copy-back container is also labelled with its volume
+(`dev.oxmutate.volume=<volume>`). A second run on the same repository while one is running waits
+for it (it says so once, and gives up after 10 minutes) instead of syncing into a volume in use.
+When the engine's CLI is installed and its daemon is not running, the run stops at the first call
+with that fix: start Docker Desktop, or `podman machine start`.
+
 `true` takes every default, and a string names the image (`"container": "node:24-alpine"`). The
 full form takes any of these, and `args` (every container) or `runArgs` (the run's) pass anything
 else to the engine as it is:

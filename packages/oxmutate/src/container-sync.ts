@@ -28,10 +28,15 @@ export const syncDir = (): string => path.join(env['XDG_CACHE_HOME'] || path.joi
 const stateFile = (volume: string): string => path.join(syncDir(), `${volume.replaceAll(/[^\w.-]/gu, '_')}.json`);
 
 export function readState(volume: string): SyncState | undefined {
+  const file = stateFile(volume);
+  if (!existsSync(file)) return undefined;
   try {
-    const s = JSON.parse(readFileSync(stateFile(volume), 'utf8')) as Partial<SyncState>;
+    // Stryker disable next-line StringLiteral: without an encoding readFileSync answers a Buffer, and JSON.parse reads a Buffer as UTF-8 text all the same
+    const s = JSON.parse(readFileSync(file, 'utf8')) as Partial<SyncState>;
     return typeof s.token === 'string' && typeof s.install === 'string' && s.files && typeof s.files === 'object' ? (s as SyncState) : undefined;
   } catch {
+    // A record that is not JSON (a write cut short) is removed: this sync is whole and writes a new one.
+    rmSync(file);
     return undefined;
   }
 }
@@ -39,10 +44,6 @@ export function readState(volume: string): SyncState | undefined {
 export function writeState(volume: string, state: SyncState): void {
   mkdirSync(syncDir(), { recursive: true });
   writeFileSync(stateFile(volume), JSON.stringify(state));
-}
-
-export function dropState(volume: string): void {
-  rmSync(stateFile(volume), { force: true });
 }
 
 /** Each file's `<size>:<mtimeMs>`: a stat, not a read, so the host opens none of them to compare. */
@@ -55,6 +56,9 @@ export function signatures(top: string, files: readonly string[]): Record<string
   );
 }
 
+/** Every file, to a volume that keeps nothing of an earlier sync: a new token, so no older delta applies. */
+export const wholeSync = (now: Record<string, string>): { mode: 'whole'; token: string; send: string[] } => ({ mode: 'whole', token: randomUUID(), send: Object.keys(now) });
+
 export type SyncPlan =
   | { mode: 'whole'; token: string; send: string[] }
   | { mode: 'delta'; token: string; send: string[]; deleted: string[] }
@@ -66,11 +70,11 @@ export type SyncPlan =
  * nothing changed and the install key holds.
  */
 export function planSync(now: Record<string, string>, prior: SyncState | undefined, o: { volumeExisted: boolean; install: string; mustRun: boolean }): SyncPlan {
+  if (!prior || !o.volumeExisted) return wholeSync(now);
   const all = Object.keys(now);
-  if (!prior || !o.volumeExisted) return { mode: 'whole', token: randomUUID(), send: all };
   const send = all.filter((f) => prior.files[f] !== now[f]);
   const deleted = Object.keys(prior.files).filter((f) => !(f in now));
-  if (deleted.length > MAX_DELETES) return { mode: 'whole', token: randomUUID(), send: all };
+  if (deleted.length > MAX_DELETES) return wholeSync(now);
   if (send.length === 0 && deleted.length === 0 && prior.install === o.install && !o.mustRun) return { mode: 'skip', token: prior.token };
   return { mode: 'delta', token: prior.token, send, deleted };
 }
@@ -96,6 +100,3 @@ export const PRUNE = [
 
 /** A fresh state for what was just sent. */
 export const nextState = (plan: SyncPlan, install: string, now: Record<string, string>): SyncState => ({ token: plan.token, install, files: now });
-
-/** Whether the host has any state at all (for `prune`'s report). */
-export const hasStates = (): boolean => existsSync(syncDir());

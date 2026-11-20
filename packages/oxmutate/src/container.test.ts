@@ -1,14 +1,14 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { run, type RunOptions } from 'bellpull';
-import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { discard } from './__fixtures__/scratch-dir.js';
-import { MAX_DELETES, planSync, PRUNE, readState, signatures, syncDir, type SyncPlan } from './container-sync.js';
+import { MAX_DELETES, planSync, PRUNE, readState, signatures, syncDir, type SyncPlan, writeState } from './container-sync.js';
 import { type Container, containerDefaults, containerOf, containerPlan, defaultInstall, engineOf, machineDefault, pruneContainers, RESYNC, runInContainer, tarFlags, withFlags, withoutContainerFlags, withRuntime } from './container.js';
 import { nodeMajor } from './runtime.js';
 
@@ -99,11 +99,33 @@ describe('the container setting', () => {
     expect(machineDefault()).toBeUndefined();
   });
 
+  it('reads the machine default from ~/.config when XDG_CONFIG_HOME is unset or empty', () => {
+    const home = scratch('oxmutate-home-');
+    const saved = { HOME: process.env['HOME'], USERPROFILE: process.env['USERPROFILE'] };
+    try {
+      process.env['HOME'] = home;
+      process.env['USERPROFILE'] = home;
+      delete process.env['XDG_CONFIG_HOME'];
+      mkdirSync(path.join(home, '.config', 'oxmutate'), { recursive: true });
+      writeFileSync(path.join(home, '.config', 'oxmutate', 'config.json'), JSON.stringify({ container: 'node:24-alpine' }));
+      expect(machineDefault()).toBe('node:24-alpine');
+      process.env['XDG_CONFIG_HOME'] = '';
+      expect(machineDefault()).toBe('node:24-alpine');
+    } finally {
+      for (const [k, v] of Object.entries(saved)) {
+        if (v === undefined) delete process.env[k];
+        else process.env[k] = v;
+      }
+    }
+  });
+
   it('hands the oxmutate inside its arguments without the container flags, and each ref as its tag', () => {
     expect(withoutContainerFlags(['run', '--container', '--container-image', 'node:24', '--json', '--no-container', '--container-image=x', '--containerish', 'x--container', '--concurrency', '2'])).toEqual(['run', '--json', '--containerish', 'x--container', '--concurrency', '2']);
     const tags = new Map([['origin/main', 'oxmutate-base-0'], ['v1', 'oxmutate-base-1']]);
     expect(withoutContainerFlags(['run', '--since', 'origin/main', '--frozen-oracle=v1', '--since=other', '--frozen-oracle', 'unknown'], tags)).toEqual(['run', '--since', 'oxmutate-base-0', '--frozen-oracle=oxmutate-base-1', '--since=other', '--frozen-oracle', 'unknown']);
     expect(withoutContainerFlags(['--since=a=b'], new Map([['a=b', 't']]))).toEqual(['--since=t']);
+    // The ref after a bare --frozen-oracle is its tag too; an argument that only contains the flag is not one.
+    expect(withoutContainerFlags(['--frozen-oracle', 'v1', 'x--since=v1'], tags)).toEqual(['--frozen-oracle', 'oxmutate-base-1', 'x--since=v1']);
   });
 
   it('installs as the lockfile asks', () => {
@@ -135,8 +157,13 @@ describe('the container setting', () => {
     expect((await withRuntime({ ...DEFAULTS, runtime: 'default' }, engine('"runsc"'))).runtime).toBe('default');
     expect((await withRuntime({ ...DEFAULTS, engine: 'podman' }, engine('"runsc"'))).runtime).toBeUndefined();
     expect(asked).toEqual([]);
+    // Docker on Windows is docker.exe.
+    expect((await withRuntime({ ...DEFAULTS, engine: 'docker.exe' }, engine('{"runsc":{}}'))).runtime).toBe('runsc');
   });
 });
+
+/** A record of `a` and `n` more files, each deleted since. */
+const deletedSince = (n: number): { token: string; install: string; files: Record<string, string> } => ({ token: 't', install: 'k', files: Object.fromEntries([['a', '1:1'], ...Array.from({ length: n }, (_, i) => [`f${String(i)}`, '1:1'])]) });
 
 describe('what the host sends', () => {
   it('sends everything the first time, then only what changed, and nothing when nothing did', () => {
@@ -147,6 +174,47 @@ describe('what the host sends', () => {
     // A new install key, or a run that needs the sync (refs to unpack), still syncs.
     expect(planSync({ a: '1:1', b: '2:2', gone: '3:3' }, prior, { volumeExisted: true, install: 'k2', mustRun: false })).toMatchObject({ mode: 'delta', send: [], deleted: [] });
     expect(planSync({ a: '1:1', b: '2:2', gone: '3:3' }, prior, { volumeExisted: true, install: 'k', mustRun: true })).toMatchObject({ mode: 'delta' });
+  });
+
+  it('sends a delta when files changed and none was deleted', () => {
+    const prior = { token: 't', install: 'k', files: { a: '1:1' } };
+    expect(planSync({ a: '1:2' }, prior, { volumeExisted: true, install: 'k', mustRun: false })).toEqual({ mode: 'delta', token: 't', send: ['a'], deleted: [] });
+  });
+
+  it('sends a delta of up to 500 deletions, and everything past that', () => {
+    expect(planSync({ a: '1:1' }, deletedSince(500), { volumeExisted: true, install: 'k', mustRun: false }).mode).toBe('delta');
+    expect(planSync({ a: '1:1' }, deletedSince(501), { volumeExisted: true, install: 'k', mustRun: false }).mode).toBe('whole');
+  });
+
+  it('keeps one record per volume under XDG_CACHE_HOME, else ~/.cache, its name safe for any file system', () => {
+    expect(syncDir()).toBe(path.join(process.env['XDG_CACHE_HOME']!, 'oxmutate', 'sync'));
+    const state = { token: 't', install: 'k', files: { a: '1:1' } };
+    writeState('ssh://box/a:b.c-d', state);
+    expect(readdirSync(syncDir())).toEqual(['ssh___box_a_b.c-d.json']);
+    expect(readState('ssh://box/a:b.c-d')).toEqual(state);
+    delete process.env['XDG_CACHE_HOME'];
+    expect(syncDir()).toBe(path.join(homedir(), '.cache', 'oxmutate', 'sync'));
+    process.env['XDG_CACHE_HOME'] = '';
+    expect(syncDir()).toBe(path.join(homedir(), '.cache', 'oxmutate', 'sync'));
+  });
+
+  it('ignores a record that is not one and a missing one, and removes one that is not JSON', () => {
+    expect(readState('v')).toBeUndefined();
+    mkdirSync(syncDir(), { recursive: true });
+    const file = path.join(syncDir(), 'v.json');
+    for (const bad of [{ install: 'k', files: {} }, { token: 't', files: {} }, { token: 't', install: 'k' }, { token: 't', install: 'k', files: 'x' }, { token: 1, install: 'k', files: {} }]) {
+      writeFileSync(file, JSON.stringify(bad));
+      expect(readState('v')).toBeUndefined();
+    }
+    expect(existsSync(file)).toBe(true);
+    writeFileSync(file, '{');
+    expect(readState('v')).toBeUndefined();
+    expect(existsSync(file)).toBe(false);
+    writeFileSync(file, 'null');
+    expect(readState('v')).toBeUndefined();
+    expect(existsSync(file)).toBe(false);
+    writeFileSync(file, JSON.stringify({ token: 't', install: 'k', files: {} }));
+    expect(readState('v')).toEqual({ token: 't', install: 'k', files: {} });
   });
 
   it('sends everything when the volume is new, or too much was deleted', () => {
@@ -181,10 +249,15 @@ describe('what the host sends', () => {
 });
 
 const HARDENED = ['--cap-drop=ALL', '--security-opt=no-new-privileges', '--label', 'dev.oxmutate=1'];
+/** The run's volume, and the label a second run on it sees. */
+const VOL = ['-v', 'vol:/w', '--label', 'dev.oxmutate.volume=vol'];
 const CACHE = ['-v', 'oxmutate-cache:/cache', '-e', 'npm_config_cache=/cache/npm', '-e', 'npm_config_store_dir=/cache/pnpm', '-e', 'YARN_CACHE_FOLDER=/cache/yarn'];
 
 /** The sync script's fetch of one commit from the test's remote. */
 const fetch = (sha: string): string => `git fetch -q --depth 1 'https://example.com/r.git' '${sha}' || { echo 'oxmutate: the container could not fetch ${sha}. fix: push it, or set container.remote' >&2; exit 4; }`;
+
+/** The install, guarded by its key, on a line of its own. */
+const INSTALL = [`if [ "$(cat /w/installed 2>/dev/null)" != 'k1' ]; then`, 'npm ci', "echo 'k1' > /w/installed; fi"];
 
 /** A container's script, line by line. */
 const script = (args: readonly string[]): string[] => args.at(-1)!.split('\n');
@@ -197,12 +270,12 @@ describe('the container plan', () => {
     const plan = containerPlan(DEFAULTS, input);
     expect(plan.volumes).toEqual([['volume', 'create', '--label', 'dev.oxmutate=1', 'vol'], ['volume', 'create', '--label', 'dev.oxmutate=1', 'oxmutate-cache']]);
     expect(plan.drop).toEqual(['volume', 'rm', '-f', 'vol']);
-    expect(plan.sync.slice(0, -1)).toEqual(['create', '--rm', ...HARDENED, '-v', 'vol:/w', ...CACHE, '-w', '/w', DEFAULTS.image, 'sh', '-c']);
-    expect(plan.run.slice(0, -1)).toEqual(['run', '--rm', '--init', '--network=none', ...HARDENED, '-v', 'vol:/w', '-w', '/w', '-e', 'OXMUTATE_CONTAINER=inside', DEFAULTS.image, 'sh', '-c']);
-    expect(plan.back).toEqual(['create', '--network=none', ...HARDENED, '-v', 'vol:/w', DEFAULTS.image, 'true']);
+    expect(plan.sync.slice(0, -1)).toEqual(['create', '--rm', ...HARDENED, ...VOL, ...CACHE, '-w', '/w', DEFAULTS.image, 'sh', '-c']);
+    expect(plan.run.slice(0, -1)).toEqual(['run', '--rm', '--init', '--network=none', ...HARDENED, ...VOL, '-w', '/w', '-e', 'OXMUTATE_CONTAINER=inside', DEFAULTS.image, 'sh', '-c']);
+    expect(plan.back).toEqual(['create', '--network=none', ...HARDENED, ...VOL, DEFAULTS.image, 'true']);
     const uncached = containerPlan({ ...DEFAULTS, cache: false }, input);
     expect(uncached.volumes).toEqual([['volume', 'create', '--label', 'dev.oxmutate=1', 'vol']]);
-    expect(uncached.sync).not.toContain('-e');
+    expect(uncached.sync.slice(0, -1)).toEqual(['create', '--rm', ...HARDENED, ...VOL, '-w', '/w', DEFAULTS.image, 'sh', '-c']);
   });
 
   it('gives every container every option set, and the run alone its network and runArgs', () => {
@@ -227,7 +300,7 @@ describe('the container plan', () => {
       expect.stringMatching(/^node -e '.*' \/w\/src \/w\/listing$/u),
       'rm -f /w/listing',
       "echo 'T' > /w/synced",
-      `if [ "$(cat /w/installed 2>/dev/null)" != 'k1' ]; then npm ci; echo 'k1' > /w/installed; fi`,
+      ...INSTALL,
     ]);
     expect(script(plan.run)).toEqual(['set -e', 'npm run build', "cd '/w/src/packages/a'", String.raw`exec npx --no oxmutate 'run' 'it'\''s'`]);
     const bare = containerPlan(DEFAULTS, { ...input, install: '', rel: '' });
@@ -245,6 +318,18 @@ describe('the container plan', () => {
     ]);
     expect(lines.slice(5)).toEqual([`rm -f -- ${deleted.slice(0, 50).map((f) => `'${f}'`).join(' ')}`, "rm -f -- 'd50'"]);
     expect(RESYNC).toBe(75);
+    const lineCount = (n: number): number => script(containerPlan(DEFAULTS, { ...input, install: '', sync: { mode: 'delta', token: 'T', send: [], deleted: Array.from({ length: n }, (_, i) => `d${String(i)}`) } }).sync).filter((l) => l.startsWith('rm -f --')).length;
+    expect([lineCount(0), lineCount(50)]).toEqual([0, 1]);
+  });
+
+  it('keeps the install guard whole when the install command has a comment', () => {
+    const lines = script(containerPlan(DEFAULTS, { ...input, install: 'npm ci # note', sync: whole }).sync);
+    expect(lines.slice(-3)).toEqual([`if [ "$(cat /w/installed 2>/dev/null)" != 'k1' ]; then`, 'npm ci # note', "echo 'k1' > /w/installed; fi"]);
+    if (spawnSync('sh', ['-c', 'true']).status === 0) {
+      const file = path.join(scratch('oxmutate-sh-'), 'sync.sh');
+      writeFileSync(file, lines.join('\n'));
+      expect(spawnSync('sh', ['-n', file], { encoding: 'utf8' })).toMatchObject({ status: 0, stderr: '' });
+    }
   });
 
   it('turns each ref the run names into a commit and a tag inside, and stages the source so a diff sees new files', () => {
@@ -264,7 +349,7 @@ describe('the container plan', () => {
   it('fetches the commit instead with source git, each base as a tag first, keeping node_modules and the kept files', () => {
     const bases = [{ ref: 'origin/main', commit: 'b0', tag: 'oxmutate-base-0' }];
     const plan = containerPlan(DEFAULTS, { ...input, fetch: { remote: 'https://example.com/r.git', commit: 'abc123' }, bases });
-    expect(script(plan.sync).slice(2, 10)).toEqual([
+    expect(script(plan.sync).slice(2, 12)).toEqual([
       `command -v git >/dev/null || { echo 'oxmutate: source git needs git in the image. fix: container.image node:${nodeMajor}' >&2; exit 3; }`,
       '[ -d .git ] || git init -q',
       fetch('b0'),
@@ -272,7 +357,7 @@ describe('the container plan', () => {
       fetch('abc123'),
       'git checkout -q -f FETCH_HEAD',
       "git clean -q -fdx -e 'node_modules' -e 'packages/a/reports/m.json'",
-      `if [ "$(cat /w/installed 2>/dev/null)" != 'k1' ]; then npm ci; echo 'k1' > /w/installed; fi`,
+      ...INSTALL,
     ]);
   });
 
@@ -296,7 +381,19 @@ function repo(files: Record<string, string>): string {
 const commit = (dir: string): void => void spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', 'c'], { cwd: dir, env: withoutGit() });
 
 interface Call { cmd: string; args: readonly string[]; o: RunOptions }
-interface Outcome { code?: number | null; syncCodes?: number[]; volumeExists?: boolean; info?: string; out?: string; outFails?: boolean; fail?: Error; tarFails?: boolean; createFails?: boolean; backFails?: boolean; cpFails?: boolean; listFails?: boolean }
+interface Outcome {
+  code?: number | null; syncCodes?: number[]; volumeExists?: boolean; info?: string; out?: string; outFails?: boolean; fail?: Error; tarFails?: boolean; createFails?: boolean; backFails?: boolean; cpFails?: boolean; listFails?: boolean;
+  /** `git archive` fails. */
+  archiveFails?: boolean;
+  /** `volume create` fails with this on stderr. */
+  volumeSays?: string;
+  /** Every engine call fails with this on stderr. */
+  daemonSays?: string;
+  /** How many polls of the volume's label answer that another run's container is on it. */
+  busy?: number;
+  /** What prune's listings answer. */
+  listed?: { containers: string; volumes: string };
+}
 type Answer = { code: number | null; stdout: string; stderr: string };
 const answer = (code: number | null, stdout = ''): Answer => ({ code, stdout, stderr: code === 0 ? '' : ' engine said no \n' });
 /** The engine's verb and its own arguments, without the context flag before them. */
@@ -317,9 +414,15 @@ function fake(result: Outcome) {
   const syncCodes = [...(result.syncCodes ?? [])];
   const sent: string[][] = [];
   const copied: string[] = [];
+  /** Each host file copied in, by its name, and each whole sync's listing as the container reads it. */
+  const froms: string[] = [];
+  const listings: string[] = [];
+  let busy = result.busy ?? 0;
   const isSync = (id: string): boolean => (scripts.get(id) ?? '') !== '';
   const copyIn = (from: string, to: string): Answer => {
     copied.push(to);
+    froms.push(path.basename(from));
+    if (path.basename(from) === 'listing') listings.push(readFileSync(from, 'utf8'));
     if (path.basename(from) === 'in.tar') sent.push(spawnSync('tar', ['-tf', 'in.tar'], { cwd: path.dirname(from), encoding: 'utf8' }).stdout.split(/\r?\n/u).filter(Boolean).toSorted());
     return answer(result.cpFails ? 1 : 0);
   };
@@ -341,16 +444,23 @@ function fake(result: Outcome) {
     run: () => answer('code' in result ? (result.code ?? null) : 0),
     'volume inspect': () => answer(result.volumeExists ? 0 : 1),
     info: () => answer(0, result.info ?? '{"runc":{}}'),
-    ps: () => answer(result.listFails ? 1 : 0, 'c7\nc8\n'),
-    'volume ls': () => answer(0, 'oxmutate-a\noxmutate-cache\n'),
+    // prune lists every container (`-aq`); a run asks which are running on its volume (`-q`).
+    ps: (rest) => {
+      if (rest[0] === '-aq') return answer(result.listFails ? 1 : 0, result.listed?.containers ?? 'c7\nc8\n');
+      return answer(0, busy-- > 0 ? 'c9\n' : '\n');
+    },
+    'volume ls': () => answer(0, result.listed?.volumes ?? 'oxmutate-a\noxmutate-cache\n'),
+    'volume create': () => (result.volumeSays === undefined ? answer(0) : { code: 1, stdout: '', stderr: result.volumeSays }),
   };
   const spawn = async (cmd: string, args: readonly string[], o: RunOptions) => {
     calls.push({ cmd, args, o });
     if (cmd === 'tar' && result.tarFails) return { code: 2, stdout: '', stderr: ' tar: cannot open \n' };
+    if (cmd === 'git' && args[0] === 'archive' && result.archiveFails) return { code: 128, stdout: '', stderr: ' fatal: not a tree object \n' };
     if (cmd !== 'engine') return run(cmd, args, { ...o, env: { ...withoutGit(), ...o.env } });
     if (result.fail) throw result.fail;
     const [verb, rest] = verbOf(args);
     verbs.push(verb);
+    if (result.daemonSays !== undefined) return { code: 1, stdout: '', stderr: result.daemonSays };
     return handlers[verb]?.(rest) ?? answer(0);
   };
   const ofEngine = (): Call[] => calls.filter((c) => c.cmd === 'engine');
@@ -358,7 +468,7 @@ function fake(result: Outcome) {
     const tar = calls.find((c) => c.cmd === 'tar');
     return typeof tar?.o.cwd === 'string' ? tar.o.cwd : '';
   };
-  return { calls, spawn, ofEngine, verbs: () => verbs, scripts, sent, copied, io };
+  return { calls, spawn, ofEngine, verbs: () => verbs, scripts, sent, copied, froms, listings, io };
 }
 
 /** The install key in a sync's script. */
@@ -371,13 +481,14 @@ describe('running in the container', () => {
     const top = repo({ 'package-lock.json': '{}', 'packages/a/src/x.ts': 'x', '.gitignore': 'dist\n', 'packages/a/dist/y.js': 'y' });
     const f = fake({ code: 3 });
     expect(await runInContainer(C, { root: path.join(top, 'packages/a'), keep: [] }, ['run', '--container'], { spawn: f.spawn })).toBe(3);
-    expect(f.verbs()).toEqual(['volume create', 'volume create', 'volume inspect', 'create', 'cp', 'cp', 'start', 'run']);
+    expect(f.verbs()).toEqual(['volume create', 'volume create', 'ps', 'volume inspect', 'create', 'cp', 'cp', 'start', 'run']);
     expect(f.sent).toEqual([['.gitignore', 'package-lock.json', 'packages/a/src/x.ts']]);
     expect(f.copied.toSorted()).toEqual(['c1:/w/in.tar', 'c1:/w/listing']);
+    expect(f.listings).toEqual(['.gitignore\0package-lock.json\0packages/a/src/x.ts']);
     const name = `oxmutate-${createHash('sha256').update(realpathSync.native(top)).digest('hex').slice(0, 12)}`;
     const ran = f.ofEngine().find((c) => c.args[0] === 'run')!;
     expect(f.ofEngine()[0]!.args.at(-1)).toBe(name);
-    expect(f.scripts.get('c1')).toContain('then npm ci;');
+    expect(f.scripts.get('c1')).toContain('then\nnpm ci\n');
     expect(ran.args).toContain(`${name}:/w`);
     expect(ran.args.at(-1)).toContain("cd '/w/src/packages/a'");
     expect(ran.args.at(-1)).toMatch(/exec npx --no oxmutate 'run'$/u);
@@ -404,7 +515,7 @@ describe('running in the container', () => {
     expect(delta.scripts.get('c1')).toContain("rm -f -- 'b.ts'");
     const idle = fake({ volumeExists: true });
     await runInContainer(C, { root: top, keep: [] }, [], { spawn: idle.spawn });
-    expect(idle.verbs()).toEqual(['volume create', 'volume create', 'volume inspect', 'run']);
+    expect(idle.verbs()).toEqual(['volume create', 'volume create', 'ps', 'volume inspect', 'run']);
     // A volume removed since (or another machine's) gets everything again.
     const gone = fake({ volumeExists: false });
     await runInContainer(C, { root: top, keep: [] }, [], { spawn: gone.spawn });
@@ -423,6 +534,10 @@ describe('running in the container', () => {
     writeFileSync(path.join(top, 'a.ts'), 'a3');
     await expect(runInContainer(C, { root: top, keep: [] }, [], { spawn: failing.spawn })).rejects.toThrow(`the sync into the container or its install failed (exit ${String(RESYNC)})`);
     rmSync(syncDir(), { recursive: true, force: true });
+    // A whole sync is not retried: the volume holds nothing a delta was computed for.
+    const wholeRefused = fake({ syncCodes: [RESYNC, 0] });
+    await expect(runInContainer(C, { root: top, keep: [] }, [], { spawn: wholeRefused.spawn })).rejects.toThrow(`(exit ${String(RESYNC)})`);
+    expect(wholeRefused.verbs().filter((v) => v === 'start')).toHaveLength(1);
     await runInContainer({ ...C, ephemeral: true, volume: 'eph' }, { root: top, keep: [] }, [], { spawn: fake({}).spawn });
     expect(readState('eph')).toBeUndefined();
   });
@@ -433,15 +548,44 @@ describe('running in the container', () => {
     const f = fake({});
     await runInContainer(C, { root: top, keep: [], since: 'HEAD', frozenOracle: 'HEAD' }, ['run', '--since', 'HEAD', '--frozen-oracle=HEAD'], { spawn: f.spawn });
     expect(f.copied.toSorted()).toEqual(['c1:/w/base-0.tar', 'c1:/w/in.tar', 'c1:/w/listing']);
+    expect(f.froms.toSorted()).toEqual(['base-0.tar', 'in.tar', 'listing']);
     expect(f.scripts.get('c1')).toContain("git tag -f 'oxmutate-base-0'");
     expect(f.ofEngine().find((c) => c.args[0] === 'run')!.args.at(-1)).toMatch(/'--since' 'oxmutate-base-0' '--frozen-oracle=oxmutate-base-0'$/u);
     await expect(runInContainer(C, { root: top, keep: [], since: 'no-such-ref' }, [], { spawn: fake({}).spawn })).rejects.toThrow('no-such-ref is not a commit in');
   });
 
+  it('syncs the refs in even when no file changed, and says when git cannot archive one', async () => {
+    const top = repo({ 'package.json': '{}', 'a.ts': 'a' });
+    commit(top);
+    await runInContainer(C, { root: top, keep: [] }, [], { spawn: fake({}).spawn });
+    const again = fake({ volumeExists: true });
+    await runInContainer(C, { root: top, keep: [], since: 'HEAD' }, ['--since', 'HEAD'], { spawn: again.spawn });
+    expect(again.verbs()).toContain('start');
+    expect(again.froms).toEqual(['base-0.tar']);
+    await expect(runInContainer(C, { root: top, keep: [], since: 'HEAD' }, [], { spawn: fake({ archiveFails: true }).spawn })).rejects.toThrow('git could not archive HEAD: fatal: not a tree object');
+  });
+
+  it('sends no archive when files were only deleted', async () => {
+    const top = repo({ 'package.json': '{}', 'a.ts': 'a', 'b.ts': 'b' });
+    await runInContainer(C, { root: top, keep: [] }, [], { spawn: fake({}).spawn });
+    rmSync(path.join(top, 'b.ts'));
+    spawnSync('git', ['add', '-A'], { cwd: top, env: withoutGit() });
+    const f = fake({ volumeExists: true });
+    await runInContainer(C, { root: top, keep: [] }, [], { spawn: f.spawn });
+    expect(f.verbs()).toContain('start');
+    expect(f.copied).toEqual([]);
+    expect(f.scripts.get('c1')).toContain("rm -f -- 'b.ts'");
+  });
+
   it('runs on gVisor when Docker has it', async () => {
     const top = repo({ 'package.json': '{}' });
     const f = fake({ info: '{"runsc":{}}' });
-    await runInContainer({ ...C, engine: 'docker' }, { root: top, keep: [] }, [], { spawn: async (cmd, args, o) => f.spawn(cmd === 'docker' ? 'engine' : cmd, args, o) });
+    // A call that succeeds is not read as a stopped daemon, whatever warning it prints.
+    const warned = async (cmd: string, args: readonly string[], o: RunOptions) => {
+      const r = await f.spawn(cmd === 'docker' ? 'engine' : cmd, args, o);
+      return cmd === 'docker' && r.code === 0 ? { ...r, stderr: 'WARNING: registry mirror: connection refused\n' } : r;
+    };
+    await runInContainer({ ...C, engine: 'docker' }, { root: top, keep: [] }, [], { spawn: warned });
     expect(f.verbs()[0]).toBe('info');
     expect(f.ofEngine().find((c) => c.args[0] === 'run')!.args).toContain('runsc');
   });
@@ -463,7 +607,8 @@ describe('running in the container', () => {
     const head = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: top, env: withoutGit(), encoding: 'utf8' }).stdout.trim();
     const f = fake({});
     await runInContainer({ ...C, source: 'git' }, { root: top, keep: [] }, [], { spawn: f.spawn });
-    expect(f.verbs()).toEqual(['volume create', 'volume create', 'create', 'start', 'run']);
+    expect(f.verbs()).toEqual(['volume create', 'volume create', 'ps', 'create', 'start', 'run']);
+    expect(f.ofEngine().find((c) => c.args[0] === 'start')!.o).toMatchObject({ stdio: 'inherit' });
     expect(f.calls.filter((c) => c.cmd === 'tar')).toEqual([]);
     expect(f.scripts.get('c1')).toContain(`git fetch -q --depth 1 'https://example.com/origin.git' '${head}'`);
     const g = fake({});
@@ -524,7 +669,7 @@ describe('running in the container', () => {
     expect(await key()).not.toBe(first);
     const f = fake({});
     await runInContainer(C, { root: repo({ 'x.ts': '' }), keep: [] }, [], { spawn: f.spawn });
-    expect(f.scripts.get('c1')).toContain('then npm install;');
+    expect(f.scripts.get('c1')).toContain('then\nnpm install\n');
   });
 
   it('copies each kept file back from a container never started, removes it, and sends the host’s copy of them in', async () => {
@@ -596,7 +741,7 @@ describe('running in the container', () => {
     expect(existsSync(f.io())).toBe(false);
     const copy = fake({ cpFails: true });
     await expect(runInContainer(C, { root: top, keep: [] }, [], { spawn: copy.spawn })).rejects.toThrow('the copy into the container failed: engine said no');
-    expect(copy.verbs().at(-1)).toBe('rm');
+    expect(copy.ofEngine().at(-1)!.args).toEqual(['rm', '-f', 'c1']);
     await expect(runInContainer(C, { root: top, keep: [] }, [], { spawn: fake({ createFails: true }).spawn })).rejects.toThrow("the container could not be created: engine said no. fix: check container.image and the engine's own error");
   });
 
@@ -607,6 +752,61 @@ describe('running in the container', () => {
     await expect(runInContainer(C, { root: packed, keep: [] }, [], { spawn: fake({ tarFails: true }).spawn })).rejects.toThrow(`tar could not pack ${realpathSync.native(packed)}: tar: cannot open`);
     await expect(runInContainer(C, { root: top, keep: [] }, [], { spawn: fake({ fail: new Error('engine: not found') }).spawn })).rejects.toThrow('engine did not start (engine: not found). fix: install and start Docker or Podman');
     expect(await runInContainer(C, { root: top, keep: [] }, [], { spawn: fake({ code: null }).spawn })).toBe(1);
+  });
+});
+
+describe('when the engine cannot run', () => {
+  const C = { ...DEFAULTS, engine: 'engine' };
+
+  it('says the daemon is not running at the first engine call that finds it so, Docker’s and Podman’s', async () => {
+    const top = repo({ 'package.json': '{}' });
+    const down = 'engine is installed but its daemon is not running. fix: start Docker Desktop (or `podman machine start`), or set container.engine';
+    const says = ['Cannot connect to the Docker daemon at unix:///var/run/docker.sock.', 'error during connect: Is the docker daemon running?', 'dial tcp 10.0.0.2:2376: connect: connection refused', 'Error: Cannot connect to Podman. Please verify your connection'];
+    await Promise.all(
+      says.map(async (said) => {
+        const f = fake({ daemonSays: said });
+        await expect(runInContainer(C, { root: top, keep: [] }, [], { spawn: f.spawn })).rejects.toThrow(down);
+        expect(f.verbs()).toEqual(['volume create']);
+      }),
+    );
+    await expect(pruneContainers(C, fake({ daemonSays: 'Cannot connect to Podman' }).spawn)).rejects.toThrow(down);
+  });
+
+  it('stops when the volume cannot be created, and goes on when Podman says it exists', async () => {
+    const top = repo({ 'package.json': '{}' });
+    const f = fake({ volumeSays: ' no space left on device \n' });
+    await expect(runInContainer(C, { root: top, keep: [] }, [], { spawn: f.spawn })).rejects.toThrow(/^the volume oxmutate-[0-9a-f]{12} could not be created: no space left on device\. fix: check the engine's own error, or set container\.volume$/u);
+    expect(f.verbs()).toEqual(['volume create']);
+    const podman = fake({ volumeSays: 'Error: volume with name v already exists: volume already exists' });
+    expect(await runInContainer({ ...C, volume: 'v' }, { root: top, keep: [] }, [], { spawn: podman.spawn })).toBe(0);
+    expect(podman.verbs()).toContain('run');
+  });
+});
+
+describe('two runs on one volume', () => {
+  const C = { ...DEFAULTS, engine: 'engine', volume: 'v' };
+  afterEach(() => void vi.restoreAllMocks());
+
+  it('waits while another run’s container is on the volume, says so once, then syncs', async () => {
+    const said = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    const top = repo({ 'package.json': '{}' });
+    const f = fake({ busy: 2 });
+    const waits: number[] = [];
+    expect(await runInContainer(C, { root: top, keep: [] }, [], { spawn: f.spawn, wait: async (ms) => void waits.push(ms) })).toBe(0);
+    expect(waits).toEqual([2000, 2000]);
+    expect(said.mock.calls).toEqual([['oxmutate: another run is using v; waiting\n']]);
+    expect(f.verbs().slice(0, 6)).toEqual(['volume create', 'volume create', 'ps', 'ps', 'ps', 'volume inspect']);
+    expect(f.ofEngine().find((c) => c.args.includes('ps'))!.args).toEqual(['ps', '-q', '--filter', 'label=dev.oxmutate.volume=v']);
+  });
+
+  it('gives up after ten minutes of waiting, before syncing', async () => {
+    vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    const top = repo({ 'package.json': '{}' });
+    const f = fake({ busy: 1000 });
+    let waited = 0;
+    await expect(runInContainer(C, { root: top, keep: [] }, [], { spawn: f.spawn, wait: async (ms) => void (waited += ms) })).rejects.toThrow('another run has used v for 10 minutes. fix: wait for it to end, stop it (oxmutate prune removes its containers), or set container.volume to another');
+    expect(waited).toBe(10 * 60 * 1000);
+    expect(f.verbs()).not.toContain('volume inspect');
   });
 });
 
@@ -624,5 +824,14 @@ describe('prune', () => {
     ]);
     expect(existsSync(syncDir())).toBe(false);
     await expect(pruneContainers({ ...DEFAULTS, engine: 'engine' }, fake({ listFails: true }).spawn)).rejects.toThrow('engine could not list what oxmutate made: engine said no. fix: start the engine, or set container.engine');
+  });
+
+  it('removes nothing when there is nothing, and one of each when there is one, CRLF output included', async () => {
+    const none = fake({ listed: { containers: '', volumes: '\n' } });
+    expect(await pruneContainers({ ...DEFAULTS, engine: 'engine' }, none.spawn)).toEqual({ containers: [], volumes: [] });
+    expect(none.verbs()).toEqual(['ps', 'volume ls']);
+    const one = fake({ listed: { containers: 'c7\r\n', volumes: 'oxmutate-a\r\n' } });
+    expect(await pruneContainers({ ...DEFAULTS, engine: 'engine' }, one.spawn)).toEqual({ containers: ['c7'], volumes: ['oxmutate-a'] });
+    expect(one.ofEngine().map((c) => c.args)).toEqual([['ps', '-aq', '--filter', 'label=dev.oxmutate=1'], ['rm', '-f', 'c7'], ['volume', 'ls', '-q', '--filter', 'label=dev.oxmutate=1'], ['volume', 'rm', '-f', 'oxmutate-a']]);
   });
 });
