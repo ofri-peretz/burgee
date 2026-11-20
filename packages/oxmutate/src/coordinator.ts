@@ -90,6 +90,8 @@ export interface RunStats {
   warmArmedMs: number;
   /** Isolated runs by what sent the mutant there: the parts of `isolatedRuns`. */
   isolatedByCause: { static: number; stopped: number; unfinished: number; rerun: number; confirm: number; flaky: number };
+  /** Survivors confirmed in a live worker (6b, confirm.qnt `LIVE`); those it handed back are in `isolatedByCause.confirm`. */
+  confirmLive: number;
   watchdogKills: number;
   /** Of `watchdogKills`, the stops whose worker was idle, waiting (heartbeat.ts). In an isolated run each is a Timeout as it stands. */
   idleStalls: number;
@@ -361,7 +363,7 @@ export async function run(options: Options): Promise<RunResult> {
   const { root } = options;
   const work = mkdtempSync(path.join(tmpdir(), 'oxmutate-'));
   const stats: RunStats = {
-    files: 0, mutants: 0, instrumentMs: 0, dryRunMs: 0, mutationMs: 0, staticMs: 0, staticRecollections: 0, staticGroupRuns: 0, staticGroupSplits: 0, staticAuditSampled: 0, staticAuditDisagreed: 0, isolatedMs: 0, wallMs: 0, testExecutions: 0, warmUnitMs: 0, warmArmedMs: 0, isolatedByCause: { static: 0, stopped: 0, unfinished: 0, rerun: 0, confirm: 0, flaky: 0 },
+    files: 0, mutants: 0, instrumentMs: 0, dryRunMs: 0, mutationMs: 0, staticMs: 0, staticRecollections: 0, staticGroupRuns: 0, staticGroupSplits: 0, staticAuditSampled: 0, staticAuditDisagreed: 0, isolatedMs: 0, wallMs: 0, testExecutions: 0, warmUnitMs: 0, warmArmedMs: 0, isolatedByCause: { static: 0, stopped: 0, unfinished: 0, rerun: 0, confirm: 0, flaky: 0 }, confirmLive: 0,
     watchdogKills: 0, idleStalls: 0, deadlocks: 0, crashes: 0, canaryFiles: 0, pollutionRestarts: 0, diskWrites: 0, diskWritePaths: [], auditSampled: 0, auditDisagreed: 0, survivorsOverturned: 0, timeoutsOverturned: 0, compileErrors: 0, isolatedRuns: 0, reused: 0, flakyTests: 0, flakyMutants: 0, units: 0, serversSpawned: 0, serversReleased: 0, watchdogGraced: 0, heldByLoadMs: 0,
   };
   let unitSeq = 0;
@@ -986,11 +988,15 @@ export async function run(options: Options): Promise<RunResult> {
     // for the next covering test). A static mutant runs every test of its files, because an
     // import-time change reaches tests that never execute the mutated line.
     /**
-     * Static mutants decided in live workers, one unit per (test file, batch of its static mutants),
-     * on a pool that inlines dependencies. Returns the mutants this path could not decide.
+     * Mutants decided in live workers, one unit per (test file, batch of its mutants), on a pool that
+     * inlines dependencies: static mutants (5b), and with `confirm` survivors (6b), each running only
+     * its covering tests in the file, never grouped, and handing back anything a fresh worker would
+     * have to read twice (a timeout, a kill only by a test's own timeout). Returns the verdicts it
+     * reached and the mutants it could not decide.
      */
-    const decideStaticLive = async (items: MutantResult[], filesOfMutant: (m: MutantResult) => string[] = staticFilesFor): Promise<MutantResult[]> => {
-      if (items.length === 0) return [];
+    const decideLive = async (items: MutantResult[], filesOfMutant: (m: MutantResult) => string[], confirm = false): Promise<{ verdicts: Map<string, Verdict>; undecided: MutantResult[] }> => {
+      const verdicts = new Map<string, Verdict>();
+      if (items.length === 0) return { verdicts, undecided: [] };
       const STATIC_BATCH = 25;
       /** Units of up to STATIC_BATCH mutants per test file, for the files each mutant gets this round. */
       const unitsFor = (filesOf: (m: MutantResult) => string[], grouped = false): Unit[] => {
@@ -999,9 +1005,12 @@ export async function run(options: Options): Promise<RunResult> {
         return [...byFile].flatMap(([file, ids]) =>
           Array.from({ length: Math.ceil(ids.length / STATIC_BATCH) }, (_, i): Unit => {
             const mine = ids.slice(i * STATIC_BATCH, (i + 1) * STATIC_BATCH);
+            // A confirmation runs the bodies of the mutant's covering tests in this file, as its isolated run would.
+            const tests = (id: string): string[] => (byId.get(id)?.coveredBy ?? []).filter((t) => testInfo.get(t)?.file === file);
             return {
               mode: 'static', files: [file], results: fileFor('static', 'jsonl'), progress: fileFor('static', 'progress'), staticIds: mine,
-              ...(grouped && options.staticGroup > 1 ? { staticGroups: disjointGroups(mine.map((id) => byId.get(id) as MutantResult), options.staticGroup) } : {}),
+              ...(confirm && { staticTests: Object.fromEntries(mine.map((id) => [id, tests(id)])) }),
+              ...(grouped && !confirm && options.staticGroup > 1 ? { staticGroups: disjointGroups(mine.map((id) => byId.get(id) as MutantResult), options.staticGroup) } : {}),
               hitLimits: Object.fromEntries(mine.map((id) => [id, hitLimitOf(id)])),
             };
           }),
@@ -1030,6 +1039,12 @@ export async function run(options: Options): Promise<RunResult> {
           if (r.type === 'static-fallback') for (const id of r.ids ?? []) back.add(id);
           if (r.type !== 'isolated' || !r.id) continue;
           decided.add(r.id);
+          // A confirmation the isolated path would run again (a timeout, a kill only by a test's own
+          // timeout) is run there, so the RERUN_SLACK recheck below decides it as before.
+          if (confirm && (r.timeout || r.slow)) {
+            back.add(r.id);
+            continue;
+          }
           ran.set(r.id, (ran.get(r.id) ?? 0) + (r.ran ?? 0));
           if (r.timeout) timedOut.add(r.id);
           if (r.killed || r.timeout) killed.set(r.id, { killedBy: [...(killed.get(r.id)?.killedBy ?? []), ...(r.failed ?? [])], ran: 0 });
@@ -1041,7 +1056,7 @@ export async function run(options: Options): Promise<RunResult> {
       };
       // `static.budgetMs`: no unit starts once it is spent. Units already running finish, so the
       // phase can end one unit's time past it.
-      const deadline = options.staticBudgetMs === undefined ? Infinity : performance.now() + options.staticBudgetMs;
+      const deadline = options.staticBudgetMs === undefined || confirm ? Infinity : performance.now() + options.staticBudgetMs;
       const spent = (): boolean => performance.now() >= deadline;
       const keepUndecided = (unit: Unit): boolean => {
         if (spent()) return false;
@@ -1065,18 +1080,27 @@ export async function run(options: Options): Promise<RunResult> {
       for (const m of items) {
         const k = killed.get(m.id);
         if (k) {
-          m.status = timedOut.has(m.id) && !k.killedBy.length ? 'Timeout' : 'Killed';
-          m.killedBy = [...new Set(k.killedBy)];
-          m.testsCompleted = ran.get(m.id) ?? 0;
+          verdicts.set(m.id, { status: timedOut.has(m.id) && !k.killedBy.length ? 'Timeout' : 'Killed', killedBy: [...new Set(k.killedBy)], testsCompleted: ran.get(m.id) ?? 0 });
         } else if (!back.has(m.id) && filesOfMutant(m).every((f) => passed.get(m.id)?.has(f))) {
-          m.status = 'Survived';
-          m.testsCompleted = ran.get(m.id) ?? 0;
+          verdicts.set(m.id, { status: 'Survived', testsCompleted: ran.get(m.id) ?? 0 });
         } else if (spent()) {
           // Out of time: not decided, so not scored. It does not go to a fresh worker either, which
           // would spend the time the budget was set to save.
           m.status = 'Ignored';
           m.statusReason = STATIC_BUDGET_REASON;
         } else undecided.push(m);
+      }
+      return { verdicts, undecided };
+    };
+    /** Static mutants decided live (5b): their verdicts set in place; returns the ones it could not decide. */
+    const decideStaticLive = async (items: MutantResult[], filesOfMutant: (m: MutantResult) => string[] = staticFilesFor): Promise<MutantResult[]> => {
+      const { verdicts, undecided } = await decideLive(items, filesOfMutant);
+      for (const m of items) {
+        const v = verdicts.get(m.id);
+        if (!v) continue;
+        m.status = v.status;
+        if (v.killedBy) m.killedBy = v.killedBy;
+        m.testsCompleted = v.testsCompleted;
       }
       return undecided;
     };
@@ -1189,9 +1213,18 @@ export async function run(options: Options): Promise<RunResult> {
     // A survivor with one covering test is not re-run: confirmation runs only covering tests, so there
     // is no later test for its leftover state to reach, and the warm run already armed that test
     // through its hooks from clean state (.sdlc/intents/oxmutate/confirm.qnt).
+    // Each confirmation runs in a live worker first (confirm.qnt `LIVE`): the mutant armed from the
+    // file's collection, the modules re-evaluated under it, only its covering tests' bodies run, in
+    // file order, with every test's hooks, file by file until one kills it: what its isolated run
+    // does, at ~0.5 ms a re-evaluation where a fresh worker per (mutant, file) cost 80-110 ms (ufo:
+    // 100 confirmations, 11.3 of 17.0 s in isolated runs, none overturned, 2026-11-19). The guards are
+    // the static path's (staticwarm.qnt); what they hand back, and every timeout or slow kill, runs
+    // isolated as before. OXMUTATE_ISOLATE_CONFIRM=1 sends every confirmation to a fresh worker.
     const survivors = toRun.filter((m) => m.status === 'Survived' && new Set(m.coveredBy).size > 1);
-    stats.isolatedByCause.confirm += survivors.length;
-    const confirmed = await runIsolated(survivors);
+    const live = env['OXMUTATE_ISOLATE_CONFIRM'] ? { verdicts: new Map<string, Verdict>(), undecided: survivors } : await decideLive(survivors, filesFor, true);
+    stats.confirmLive += live.verdicts.size;
+    stats.isolatedByCause.confirm += live.undecided.length;
+    const confirmed = new Map([...live.verdicts, ...(await runIsolated(live.undecided))]);
     // A timeout here is a watchdog stop like any other, and a loaded machine makes them: two
     // closeout survivors were reported killed this way while a docs build shared the machine
     // (2026-10-27). The same rule as section 6: one more run at 3x the budget before believing it.

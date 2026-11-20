@@ -48,6 +48,8 @@ export interface Unit {
   staticIds?: string[] | undefined;
   /** `static`: the same mutants as groups armed together, for a file that is not their first (`static.group`). */
   staticGroups?: string[][] | undefined;
+  /** `static`, confirming survivors: each mutant's covering tests in this file, the only bodies its run executes. */
+  staticTests?: Record<string, string[]> | undefined;
   /** `static`: each mutant's hit-count limit, past which its run is a runaway. */
   hitLimits?: Record<string, number> | undefined;
   /** `dry`: report which tests read each tracked static value (`static.readers`, roadmap 2.4). */
@@ -213,6 +215,8 @@ async function runUnit(unit: Unit): Promise<void> {
   else delete env['OXMUTATE_STATIC'];
   if (unit.staticGroups) env['OXMUTATE_STATIC_GROUPS'] = JSON.stringify(unit.staticGroups);
   else delete env['OXMUTATE_STATIC_GROUPS'];
+  if (unit.staticTests) env['OXMUTATE_STATIC_TESTS'] = JSON.stringify(unit.staticTests);
+  else delete env['OXMUTATE_STATIC_TESTS'];
   if (unit.hitLimits) env['OXMUTATE_HIT_LIMITS'] = JSON.stringify(unit.hitLimits);
   else delete env['OXMUTATE_HIT_LIMITS'];
   delete env[ACTIVE_MUTANT_ENV];

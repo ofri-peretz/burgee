@@ -18,6 +18,8 @@
  *   its tests close over modules evaluated under the mutant; they run with their hooks, then an
  *   unarmed re-collection must pass. A file whose own collection touches globals, or a mutant that
  *   leaves a trace, sends the rest of the batch back to the fresh-worker path (`static-fallback`).
+ *   The same mode confirms survivors (confirm.qnt `LIVE`): each mutant then runs only its covering
+ *   tests' bodies (`OXMUTATE_STATIC_TESTS`), as an isolated run does.
  *
  * Before each mutant the runner writes a progress line synchronously, so the coordinator can
  * attribute and kill a worker stuck in a synchronous loop that the hit counter cannot break.
@@ -27,6 +29,7 @@ import { createRequire } from 'node:module';
 import { availableParallelism, loadavg } from 'node:os';
 import path from 'node:path';
 
+import { unmodeled, type AroundHooks, type CollectedTask } from './collected.js';
 import { BEAT_ENV, markTest, realNow, startHeartbeat } from './heartbeat.js';
 import { markWriter, type MarkWriter } from './progress-file.js';
 import { isDeadlock, takeFloor, trackRpc, trackTimers, watch } from './quiescence.js';
@@ -130,6 +133,12 @@ const staticIds = mode === 'static' && env['OXMUTATE_STATIC'] ? (JSON.parse(env[
  * split until each failing mutant is found alone.
  */
 const staticGroups = mode === 'static' && env['OXMUTATE_STATIC_GROUPS'] ? (JSON.parse(env['OXMUTATE_STATIC_GROUPS']) as string[][]) : [];
+/**
+ * `static`, confirming survivors: each mutant's covering tests in this file. Only their bodies run;
+ * every other test the run includes still runs its hooks, as in an isolated run, where Vitest calls
+ * a test's hooks and the runner skips the body of a test outside `OXMUTATE_ONLY_TESTS` (runTask).
+ */
+const staticTests = mode === 'static' && env['OXMUTATE_STATIC_TESTS'] ? (JSON.parse(env['OXMUTATE_STATIC_TESTS']) as Record<string, string[]>) : undefined;
 /** One group-survived mutant in this many is run again alone; `OXMUTATE_STATIC_AUDIT=all` audits every one (the masking fixture). */
 const GROUP_AUDIT_EVERY = 20;
 const auditAll = env['OXMUTATE_STATIC_AUDIT'] === 'all';
@@ -379,16 +388,24 @@ async function afterEach(test: AnyTask, context: unknown, cleanups: Hook[]): Pro
 
 const isHitLimit = (e: unknown): boolean => e instanceof Error && /Hit count limit/.test(e.message);
 
+/** A file's around-hooks, for `unmodeled` (collected.ts). */
+const aroundHooks: AroundHooks = (suite) => statics.getSuiteHooks(suite as AnyTask) as ReturnType<AroundHooks>;
+
 /**
  * Runs a file collected outside Vitest's own run (`static` mode): each suite's beforeAll/afterAll,
  * each test with its beforeEach/afterEach chain, stopping at the first failure, which is all a
- * mutant's verdict needs.
+ * mutant's verdict needs. With `bodies`, a runnable test outside it runs its hooks and not its body.
+ * `ownTimeout`: some failure was a test's or a hook's own timeout, which a fresh worker reads as a
+ * slow test and decides again (coordinator.ts `slowKill`).
  */
-async function runCollected(file: AnyTask, runnable: Set<string>): Promise<{ failed: string[]; ran: number; error?: string }> {
+async function runCollected(file: AnyTask, runnable: Set<string>, bodies?: ReadonlySet<string>): Promise<{ failed: string[]; ran: number; error?: string; ownTimeout: boolean }> {
   const failed: string[] = [];
   let error: string | undefined;
+  let timedOut = false;
   const note = (t: AnyTask, e: unknown): void => {
-    error ??= `${fullName(t)}: ${e instanceof Error ? e.message : String(e)}`.slice(0, POLLUTION_ERROR_CHARS);
+    const message = e instanceof Error ? e.message : String(e);
+    if (OWN_TIMEOUT.test(message)) timedOut = true;
+    error ??= `${fullName(t)}: ${message}`.slice(0, POLLUTION_ERROR_CHARS);
   };
   let ran = 0;
   const runSuite = async (suite: AnyTask): Promise<void> => {
@@ -406,7 +423,7 @@ async function runCollected(file: AnyTask, runnable: Set<string>): Promise<{ fai
         const cleanups = await beforeEach(t, t.context);
         ran++;
         try {
-          await guarded(t.id, fn);
+          if (!bodies || bodies.has(t.id)) await guarded(t.id, fn);
         } catch (e) {
           if (isDeadlock(e)) deadlocked = true;
           failed.push(t.id);
@@ -426,7 +443,7 @@ async function runCollected(file: AnyTask, runnable: Set<string>): Promise<{ fai
     failed.push(file.id); // a hook threw: the file failed under the mutant, as Stryker scores it
     note(file, e);
   }
-  return { failed, ran, ...(error !== undefined && { error }) };
+  return { failed, ran, ...(error !== undefined && { error }), ownTimeout: timedOut };
 }
 
 function fullName(t: AnyTask): string {
@@ -697,18 +714,21 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
     };
     const before = pristine;
     if (!before) return fallback('no baseline');
+    const notModeled = unmodeled(suite as CollectedTask, aroundHooks);
+    if (notModeled) return fallback(`the live runner does not model this file: ${notModeled}`);
     const atCollect = snapshotDiff(before, snapshot());
     if (atCollect.length) return fallback('the file changed globals while it was collected', atCollect);
     const vitest = (await fromProject('vitest')) as { vi?: { resetModules: () => void } };
-    // `collectTests` is exported for Vitest's browser runner from an internal subpath: if a Vitest
-    // moves or drops it, the import fails and the fresh-worker path decides, as on Vitest 4.
+    // `collectTests` is exported for Vitest's browser runner from an internal subpath (Vitest 4.1
+    // and 5 both export it there): if a Vitest moves or drops it, the import fails and the
+    // fresh-worker path decides.
     const browser = (await fromProject('vitest/internal/browser').catch(() => ({}))) as {
       collectTests?: (specs: string[], runner: unknown) => Promise<AnyTask[]>;
     };
     const { collectTests } = browser;
     const { vi } = vitest;
-    if (!collectTests || !vi) return fallback('this Vitest has no public collect'); // Vitest 4: the fresh path decides
-    const evaluate = async (arm: string | readonly string[] | undefined): Promise<{ failed: string[]; ran: number; timeout: boolean; deadlock?: boolean; error?: string }> => {
+    if (!collectTests || !vi) return fallback('this Vitest has no public collect');
+    const evaluate = async (arm: string | readonly string[] | undefined): Promise<{ failed: string[]; ran: number; timeout: boolean; deadlock?: boolean; error?: string; ownTimeout?: boolean; unmodeled?: string }> => {
       // One mutant keeps its hit-count limit. A group has none: a loop one of them causes is the
       // watchdog's, and the unit then goes to the fresh-worker path.
       const armed = typeof arm === 'string' ? arm : undefined;
@@ -721,10 +741,13 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
       try {
         vi.resetModules();
         const [file] = await collectTests([filepath], this);
-        const result = file ? await runCollected(file, runnable) : { failed: [filepath], ran: 0 };
+        const bodies = armed !== undefined && staticTests?.[armed] ? new Set(staticTests[armed]) : undefined;
+        const result = file ? await runCollected(file, runnable, bodies) : { failed: [filepath], ran: 0 };
         await settle();
         if (unhandled > before && result.failed.length === 0) result.failed.push(filepath);
-        return { ...result, timeout: ranAway() || deadlocked, ...(deadlocked ? { deadlock: true } : {}) };
+        // What the tests registered while they ran (an onTestFinished handler, a context.skip()).
+        const notModeledRun = file ? unmodeled(file as CollectedTask, aroundHooks) : undefined;
+        return { ...result, timeout: ranAway() || deadlocked, ...(deadlocked ? { deadlock: true } : {}), ...(notModeledRun !== undefined && { unmodeled: notModeledRun }) };
       } finally {
         ns.activeMutant = undefined;
         ns.activeGroup = undefined;
@@ -747,13 +770,13 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
     };
     /**
      * A group survivor's verdict in this file: the group's, or its own when it is drawn for the audit
-     * and fails alone. `undefined` when its own run deadlocked.
+     * and fails alone. `undefined` when its own run deadlocked or ran what the live runner does not model.
      */
     const auditMember = async (member: string, ran: number): Promise<Awaited<ReturnType<typeof evaluate>> | undefined> => {
       const passed = { failed: [], ran, timeout: false };
       if (!audited(member)) return passed;
       const alone = await evaluate(member);
-      if (alone.deadlock) return undefined;
+      if (alone.deadlock || alone.unmodeled) return undefined;
       const hid = alone.failed.length > 0 || alone.timeout;
       emit({ type: 'static-audit', id: member, disagreed: hid });
       return hid ? alone : passed;
@@ -773,6 +796,7 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
       // A deadlocked run is still pending in this worker: tear it down. The batch, held verdicts and
       // all, goes back to the fresh-worker path, where each run has its own process.
       if (verdict.deadlock) return back('torn down: a deadlocked run is still pending in this worker');
+      if (verdict.unmodeled) return back(`the live runner does not model this file: ${verdict.unmodeled}`);
       const left = snapshotDiff(before, snapshot());
       if (left.length) return back('the mutant left a trace', left);
       if (group.length > 1) {
@@ -787,7 +811,7 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
         // run again alone at once; one that fails alone is a kill the group hid.
         for (const member of group) {
           const own = await auditMember(member, verdict.ran);
-          if (own === undefined) return back('torn down: a deadlocked run is still pending in this worker');
+          if (own === undefined) return back('the audit run deadlocked or ran what the live runner does not model');
           held.push({ id: member, verdict: own });
         }
       } else {
@@ -798,9 +822,10 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
       const unarmed = await evaluate(undefined);
       emit({ type: 'recollection' });
       if (unarmed.failed.length > 0) return back('the unarmed re-collection failed', unarmed.error ? [unarmed.error] : []);
+      if (unarmed.unmodeled) return back(`the live runner does not model this file: ${unarmed.unmodeled}`);
       const after = snapshotDiff(before, snapshot());
       if (after.length) return back('the unarmed re-collection left a trace', after);
-      for (const { id: done, verdict: v } of held) emit({ type: 'isolated', id: done, killed: v.failed.length > 0 && !v.timeout, failed: v.failed, ran: v.ran, ...(v.timeout && { timeout: true }), ...(v.deadlock && { deadlock: true }) });
+      for (const { id: done, verdict: v } of held) emit({ type: 'isolated', id: done, killed: v.failed.length > 0 && !v.timeout, failed: v.failed, ran: v.ran, ...(v.timeout && { timeout: true }), ...(v.deadlock && { deadlock: true }), ...(v.failed.length > 0 && v.ownTimeout && { slow: true }) });
       held = [];
       every = Math.min(STATIC_CANARY_MAX, every * 2);
     }

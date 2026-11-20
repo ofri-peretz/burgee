@@ -896,7 +896,8 @@ it.skipIf(!native || !existsSync(bin) || !nightly)('keeps a survivor whose confi
   const reportDir = path.join(dir, 'reports');
   rmSync(reportDir, { recursive: true, force: true });
   mkdirSync(reportDir, { recursive: true });
-  execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: dir, stdio: 'pipe' });
+  // The fresh-worker path, whose watchdog this checks: the fixture stalls only when armed through the environment.
+  execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: dir, stdio: 'pipe', env: { ...process.env, OXMUTATE_ISOLATE_CONFIRM: '1' } });
   const report = JSON.parse(readFileSync(path.join(reportDir, 'mutation.json'), 'utf8')) as {
     files: Record<string, { mutants: ReportMutant[] }>;
     'x-oxmutate': { stats: { survivorsOverturned: number; watchdogKills: number } };
@@ -908,6 +909,47 @@ it.skipIf(!native || !existsSync(bin) || !nightly)('keeps a survivor whose confi
   // With one covering test it never ran, and this case passed having checked nothing (2026-11-02).
   expect(report['x-oxmutate'].stats).toMatchObject({ survivorsOverturned: 0, watchdogKills: 1 });
 }, 90_000);
+
+// Survivor confirmation (6b, confirm.qnt): reset() emptied passes each test alone and fails the
+// second after the first, so only a run armed across the file kills it. It runs in a live worker
+// (`LIVE`) and must reach the fresh-worker path's verdicts: the cross-test kill, and touch()'s
+// survivors, which a confirmation that ran the non-covering test's body would kill.
+describe.skipIf(!native || !existsSync(bin) || !nightly)('survivor confirmation in a live worker', () => {
+  type Confirmed = { verdicts: string[]; reasons: (string | undefined)[]; stats: { survivorsOverturned: number; confirmLive: number; isolatedByCause: { confirm: number } } };
+  const confirmRun = (env: Record<string, string> = {}): Confirmed => {
+    const dir = path.join(pkg, 'test/fixtures/cross-test');
+    const reportDir = mkdtempSync(path.join(tmpdir(), 'oxmutate-cross-test-'));
+    execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: dir, stdio: 'pipe', env: { ...process.env, ...env } });
+    const report = JSON.parse(readFileSync(path.join(reportDir, 'mutation.json'), 'utf8')) as { files: Record<string, { mutants: (ReportMutant & { statusReason?: string })[] }>; 'x-oxmutate': { stats: Confirmed['stats'] } };
+    rmSync(reportDir, { recursive: true, force: true });
+    const mutants = (report.files['src/store.ts']?.mutants ?? []).filter((m) => m.status !== 'Ignored');
+    return { verdicts: mutants.map((m) => `${String(m.location.start.line)}:${m.mutatorName}:${m.status}`), reasons: mutants.map((m) => m.statusReason), stats: report['x-oxmutate'].stats };
+  };
+  const RESET_LINE = 20; // reset()'s body
+  const TOUCH_LINE = 25; // touch()'s body, to the end of the file
+
+  it('kills the cross-test mutant and keeps the survivors, with no fresh worker', () => {
+    const live = confirmRun();
+    const reset = live.verdicts.findIndex((v) => v.startsWith(`${String(RESET_LINE)}:`));
+    expect(live.verdicts[reset]).toBe(`${String(RESET_LINE)}:BlockStatement:Killed`);
+    expect(live.reasons[reset]).toBe('killed only when the mutant stays active across the whole test file (cross-test effect)');
+    const touch = live.verdicts.filter((v) => Number(v.split(':')[0]) >= TOUCH_LINE);
+    expect(touch.length).toBeGreaterThan(0);
+    expect(touch.every((v) => v.endsWith(':Survived'))).toBe(true);
+    expect(live.stats.survivorsOverturned).toBe(1);
+    // Every confirmation was decided live: reset()'s and each of touch()'s.
+    expect(live.stats.confirmLive).toBe(1 + touch.length);
+    expect(live.stats.isolatedByCause.confirm).toBe(0);
+  });
+
+  it('gives the verdicts of the fresh-worker path, which OXMUTATE_ISOLATE_CONFIRM=1 still takes', () => {
+    const live = confirmRun();
+    const fresh = confirmRun({ OXMUTATE_ISOLATE_CONFIRM: '1' });
+    expect(live.verdicts).toEqual(fresh.verdicts);
+    expect(fresh.stats.confirmLive).toBe(0);
+    expect(fresh.stats.isolatedByCause.confirm).toBe(live.stats.confirmLive);
+  });
+});
 
 describe.skipIf(!native || !existsSync(bin))("Stryker's mutate ranges", () => {
   const registry = path.join(pkg, 'test/fixtures/registry');
