@@ -1,5 +1,19 @@
 # oxmutate
 
+## 2.10.0
+
+### Minor Changes
+
+- [#1668](https://github.com/ofri-peretz/burgee/pull/1668) [`5e2a797`](https://github.com/ofri-peretz/burgee/commit/5e2a797b281b7c2b6238c68eba7f573fb04360b8) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Survivor confirmation runs in a live worker. Each survivor with two or more covering tests is still
+  re-run armed across its covering tests in each file, as Stryker runs it, but on the static path's
+  machinery: the mutant armed from the file's collection, the modules re-evaluated under it, only its
+  covering tests' bodies run (every test's hooks still run), with the same guards. Whatever the guards
+  cannot vouch for, every timeout and every kill only by a test's own timeout goes to a fresh worker as
+  before; `OXMUTATE_ISOLATE_CONFIRM=1` sends every confirmation there. The live runner now also hands a
+  file to a fresh worker when it uses what it does not run the way Vitest does (retry, repeats,
+  `test.fails`, concurrent tests, `aroundEach`/`aroundAll`, `onTestFinished`/`onTestFailed`,
+  `context.skip()`), for static mutants too. New stat: `confirmLive`.
+
 ## 2.9.1
 
 ### Patch Changes
