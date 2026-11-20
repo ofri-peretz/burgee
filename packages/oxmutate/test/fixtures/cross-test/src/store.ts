@@ -1,6 +1,6 @@
 // Stryker disable next-line all: module state; a mutant here would be static, and this fixture is about survivors
 const items: string[] = [];
-// Stryker disable next-line all: as above
+// Stryker disable next-line all: module state; a mutant here would be static, and this fixture is about survivors
 let touches = 0;
 
 export function add(item: string): void {

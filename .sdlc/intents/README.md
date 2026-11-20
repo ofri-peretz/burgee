@@ -558,6 +558,7 @@ execution order. The selection is
 | 98  | [`apicontract-kit/`](./apicontract-kit/) | **anyone's agent can add a target, anyone's team can switch in one command**: the conformance suite, `plugin new`, `migrate` from openapi-typescript, openapi-fetch, Hey API, orval | approved 2026-11-18 (D-20261118-contracts-program-go-ahead); Wave 6 of PLAN.md |
 | 99  | [`apicontract-corpus/`](./apicontract-corpus/) | **a public scoreboard on thousands of real contracts**: pinned corpus, grader beside each incumbent, consumer harness for every framework | approved 2026-11-18 (D-20261118-contracts-program-go-ahead); Wave 6 of PLAN.md |
 | 100 | [`oxmutate-container/`](./oxmutate-container/) | **mutation testing with the host a black box**: oxmutate runs a repository's mutants in hardened containers it starts, mounting nothing of the host, on any engine (local, remote, Docker, Podman), with every Docker option reachable and no network for the tests | approved |
+| 101 | [`oxmutate-x2/`](./oxmutate-x2/) | **twice as fast in container mode, every verdict the same**: survivor confirmation in live workers (WS1), scoped flaky re-runs (WS2), warm units (WS3), container overhead (WS4), measured by `bench/container.mjs` against 2.9.0 | approved |
 
 Rows 73–78 come from [`adoption-barriers-2026-10.md`](../research/adoption-barriers-2026-10.md),
 a field trial of the published `burgee migrate` on 9 CLIs we did not write, plus population

@@ -117,7 +117,9 @@ and, for speed, `bench/container.mjs --compare` numbers.
 | # | Item | Intent | State |
 | --: | :-- | :-- | :-- |
 | 1 | Confirm survivors in live workers | x2 WS1 | running |
-| 2 | Flaky re-runs scoped; dry-run limits that count instrumentation | x2 WS2 | running |
+| 2 | Flaky re-runs scoped; dry-run limits that count instrumentation | x2 WS2 | PR #1667, auto-merge; container pathe compare owed after merge |
+| 2a | A dry-run `beforeAll` that times out turns its tests' mutants NoCoverage with exit 0: make it an error naming the hook. Move `flakyCandidates` into a pure module, so the pre-push gate mutates it (`coordinator.ts` is in `TESTED_IN_ANOTHER_PROCESS`) | found by #1667 | next free slot |
+| 2b | `pathe` `_glob.ts:178:59`, `:279:20` flip Killed/Survived between full runs (warm pollution restarts), on 2.9.0 too | found by #1667 | queued |
 | 3 | Release PR: daemon message, run guard, README; then registry auth; then the four gaps above | container DoD 1, 2, 4, 6 | running |
 | 4 | Warm units: pollution handled in the worker, a worker that outlives its unit | x2 WS3, fastest `1.3`, `1.5` | queued |
 | 5 | Container overhead: sync, start-up, copy-back | x2 WS4 | queued |
@@ -137,7 +139,7 @@ missing parts are readings and floors):
 | 13 | First mutation reading for `apicontract` and `validator` (both `unmeasured` in `mutation-ratchets.json`); unblocks every "mutation floor" criterion | apicontract lanes, validator | queued |
 | 14 | `gen-command`, `kit`: coverage and mutant proofs, then "criteria met, unpublished" | apicontract-gen-command, -kit | queued |
 | 15 | Readings: `consumers.ts` runs for clients/servers (N2, N3), the agents harness (`tools/list`), the extract round trip (B1, B5), `gen validator` on bench payloads | apicontract-clients, -servers, -agents, -extract, -gen-validator | queued |
-| 16 | Corpora: ≥10 MCP snapshots, ≥20 real documents per adapter, 50 Swagger 2.0; diff agreement with oasdiff and planted breaks (D1–D3, D6) | apicontract-corpus, -inputs, -diff | queued |
+| 16 | Corpora: ≥10 MCP snapshots, ≥20 real documents per adapter, 50 Swagger 2.0; diff agreement with oasdiff and planted breaks (`D1`–`D3`, `D6`) | apicontract-corpus, -inputs, -diff | queued |
 | 17 | Types G1 (43/61 → 61/61), G2, G3 | apicontract-types, apicontract SC1 | queued |
 | 18 | Validator readings Z2, Z6, Z8–Z10, Z15, Z16; then the lagging rows Z11–Z14 | validator | queued |
 | 19 | burgee-on-oxc criteria 2–3 (refusal and build-tool measurements) | burgee-on-oxc | queued |

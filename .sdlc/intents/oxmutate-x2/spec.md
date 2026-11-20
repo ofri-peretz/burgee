@@ -65,6 +65,20 @@ down between re-collections in the live worker. A teardown that leaves the next 
 fails the unarmed re-collection and falls back; one that changes only an armed verdict is not
 caught. None of the bench targets or fixtures uses `test.extend`.
 
+## Rejected
+
+- **Grouping confirmations** (`static.group`'s groups, armed together): fewer re-collections, but two
+  mutants can hide each other's kill (`group.qnt`), and a survivor is what a person acts on.
+  Single-mutant evaluations only.
+- **Every runnable test's body, as the static path runs them**: one line less, and wrong. A test
+  that does not cover the mutant can fail with it armed after the covering tests ran
+  (`confirmLiveAllBodies` violates `safety`; fixture `cross-test` shows it).
+- **Confirming inside the warm unit** (arming across the file's covering tests in the warm worker):
+  the warm worker evaluated its modules unarmed, so state a module builds at import is the
+  unmutated one; a re-collection under the mutant is what makes the run the fresh worker's.
+- **Reading timeouts and slow kills live**: the fresh path re-runs them at `RERUN_SLACK`; deciding
+  them live would change which runs get that second look. They go back instead.
+
 ## Checks
 
 - `confirm.qnt`: `confirmLive` holds `safety`; `confirmLiveAllBodies` (no test filter) and
