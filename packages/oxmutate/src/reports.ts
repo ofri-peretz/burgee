@@ -121,6 +121,7 @@ function corrections(s: RunResult['stats']): string[] {
     s.deadlocks && `${String(s.deadlocks)} deadlock(s) called by their worker`,
     s.diskWrites && `${String(s.diskWrites)} write(s) outside the sandbox put back, their units re-run${s.diskWritePaths.length ? ` (${s.diskWritePaths.join(', ')}; if the tests themselves write there, have git ignore it)` : ''}`,
     s.pollutionRestarts && `${String(s.pollutionRestarts)} polluted context(s) restarted (in ${String(s.canaryFiles)} file(s))`,
+    s.pollutionRecovered && `${String(s.pollutionRecovered)} polluted context(s) recovered in the worker, with no restart`,
     s.flakyMutants && `${String(s.flakyMutants)} flaky verdict(s)`,
     s.survivorsOverturned && `${String(s.survivorsOverturned)} survivor(s) killed by a whole-file re-run`,
     s.timeoutsOverturned && `${String(s.timeoutsOverturned)} timeout(s) that finished given 3x the time`,

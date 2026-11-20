@@ -164,7 +164,7 @@ const NOT_NEEDED: Record<string, string> = {
   appendPlugins: 'no runtime plugin loading',
   packageManager: 'oxmutate never installs anything',
   coverageAnalysis: 'always perTest',
-  maxTestRunnerReuse: 'workers are replaced on pollution and runaways, automatically',
+  maxTestRunnerReuse: 'contexts are recovered or replaced on pollution, and workers on runaways, automatically',
   dashboard: 'the Stryker Dashboard reporter is M4 work',
   clearTextReporter: 'the summary is always printed',
   eventReporter: 'not implemented',

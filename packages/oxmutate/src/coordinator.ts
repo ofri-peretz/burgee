@@ -31,6 +31,7 @@ import { createGovernor } from './governor.js';
 import { changedLines, parseMutateSpec, shardOf, touches, withinRange, type MutateRange } from './lanes.js';
 import { native, type NativeMutant } from './native.js';
 import { startProgress } from './progress.js';
+import { withoutSuspects } from './records.js';
 import { VERSION } from './reports.js';
 import { FILE_KEY, env, stderr } from './runtime.js';
 import { createPool, type UnitOutcome } from './scheduler.js';
@@ -104,6 +105,8 @@ export interface RunStats {
   auditDisagreed: number;
   /** Contexts restarted because a mutant left state behind (the per-execution canary fired). */
   pollutionRestarts: number;
+  /** Of those events, the ones the worker recovered from itself (recover.qnt): registry reset, file collected again, no new worker. */
+  pollutionRecovered: number;
   /** Units after which the project on disk had changed (diskguard.ts): put back, and their verdicts and those of the units running beside them re-run. */
   diskWrites: number;
   /**
@@ -179,7 +182,7 @@ interface Verdict {
 }
 
 interface ChildRecord {
-  type: 'dry' | 'mutant' | 'polluted' | 'isolated' | 'static-fallback' | 'recollection' | 'static-group' | 'static-audit';
+  type: 'dry' | 'mutant' | 'polluted' | 'recovered' | 'isolated' | 'static-fallback' | 'recollection' | 'static-group' | 'static-audit';
   /** `static-group`: whether the group's run passed (all survive this file) or was split. */
   passed?: boolean;
   /** `static-audit`: a group survivor run again alone failed: the group hid a kill. */
@@ -208,7 +211,10 @@ interface ChildRecord {
   modules?: Record<string, string[]>;
   /** `isolated`: tests that ran (passed or failed) in this file run. */
   ran?: number;
-  /** `polluted`: mutants run after the first since the last clean canary; their verdicts are dropped. */
+  /**
+   * `polluted`, `recovered`: mutants run after the first since the last clean canary; their verdicts are
+   * dropped. A `recovered` record drops only the verdicts written before it: the worker runs them again after.
+   */
   suspects?: string[];
   tests?: (TestInfo & { state: string; error?: string })[];
   coverage?: { static: Record<string, number>; perTest: Record<string, Record<string, number>> };
@@ -359,7 +365,7 @@ export async function run(options: Options): Promise<RunResult> {
   const work = mkdtempSync(path.join(tmpdir(), 'oxmutate-'));
   const stats: RunStats = {
     files: 0, mutants: 0, instrumentMs: 0, dryRunMs: 0, mutationMs: 0, staticMs: 0, staticRecollections: 0, staticGroupRuns: 0, staticGroupSplits: 0, staticAuditSampled: 0, staticAuditDisagreed: 0, isolatedMs: 0, wallMs: 0, testExecutions: 0, warmUnitMs: 0, warmArmedMs: 0, isolatedByCause: { static: 0, stopped: 0, unfinished: 0, rerun: 0, confirm: 0, flaky: 0 }, confirmLive: 0,
-    watchdogKills: 0, idleStalls: 0, deadlocks: 0, crashes: 0, canaryFiles: 0, pollutionRestarts: 0, diskWrites: 0, diskWritePaths: [], auditSampled: 0, auditDisagreed: 0, survivorsOverturned: 0, timeoutsOverturned: 0, compileErrors: 0, isolatedRuns: 0, reused: 0, flakyTests: 0, flakyMutants: 0, units: 0, serversSpawned: 0, serversReleased: 0, watchdogGraced: 0, heldByLoadMs: 0,
+    watchdogKills: 0, idleStalls: 0, deadlocks: 0, crashes: 0, canaryFiles: 0, pollutionRestarts: 0, pollutionRecovered: 0, diskWrites: 0, diskWritePaths: [], auditSampled: 0, auditDisagreed: 0, survivorsOverturned: 0, timeoutsOverturned: 0, compileErrors: 0, isolatedRuns: 0, reused: 0, flakyTests: 0, flakyMutants: 0, units: 0, serversSpawned: 0, serversReleased: 0, watchdogGraced: 0, heldByLoadMs: 0,
   };
   let unitSeq = 0;
   const fileFor = (kind: string, ext: string): string => path.join(work, `${kind}-${String(unitSeq++)}.${ext}`);
@@ -801,7 +807,8 @@ export async function run(options: Options): Promise<RunResult> {
       // Verdicts a failed canary cannot vouch for are dropped; their pairs are re-queued below.
       const raw = readRecords(unit.results);
       const suspect = new Set(raw.filter((r) => r.type === 'polluted').flatMap((r) => (r.suspects ?? []).map((id) => `${id}|${r.test ?? ''}`)));
-      const recs = raw.filter((r) => !(r.type === 'mutant' && suspect.has(`${r.id ?? ''}|${r.test ?? ''}`)));
+      const recs = withoutSuspects(raw.filter((r) => !(r.type === 'mutant' && suspect.has(`${r.id ?? ''}|${r.test ?? ''}`))));
+      stats.pollutionRecovered += recs.filter((r) => r.type === 'recovered').length;
       records.push(...recs);
       const wasPolluted = recs.some((r) => r.type === 'polluted');
       if (wasPolluted) stats.pollutionRestarts++;

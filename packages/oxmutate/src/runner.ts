@@ -21,6 +21,12 @@
  *   The same mode confirms survivors (confirm.qnt `LIVE`): each mutant then runs only its covering
  *   tests' bodies (`OXMUTATE_STATIC_TESTS`), as an isolated run does.
  *
+ * In `mutant` mode a failed canary is pollution, and the unit used to go to a new worker. It now recovers
+ * in this one (`recover`, recover.qnt): the module registry is reset, the file collected again, and the
+ * mutants the canary could not vouch for run again, as in a fresh worker. Only when the globals still
+ * equal what they were at collection, and the unmutated test passes on the new collection; anything
+ * else restarts as before. `OXMUTATE_ISOLATE_POLLUTION=1` always restarts.
+ *
  * Before each mutant the runner writes a progress line synchronously, so the coordinator can
  * attribute and kill a worker stuck in a synchronous loop that the hit counter cannot break.
  */
@@ -225,8 +231,19 @@ const sameSnapshot = (a: Map<string, unknown>, b: Map<string, unknown>): boolean
 /** The state before this worker evaluated the test file: the baseline every later look compares with. */
 let pristine: Map<string, unknown> | undefined;
 
-/** Set when a mutant left state behind; the rest of this context runs no mutants. */
+/** Set when a mutant left state behind that this worker could not clear; the rest of this context runs no mutants. */
 let polluted = false;
+/** `mutant`: a failed canary is recovered from in this worker (recover.qnt); `OXMUTATE_ISOLATE_POLLUTION=1` restarts it instead. */
+const recoverInWorker = mode === 'mutant' && !env['OXMUTATE_ISOLATE_POLLUTION'];
+/**
+ * `OXMUTATE_RECOVER_WITHOUT=guard,prove` drops a check of `recover`, so a fixture can show it is needed
+ * (recover.qnt's `noGuard` and `noProve`): a recovery without them reports what a restart does not.
+ */
+const without = new Set((env['OXMUTATE_RECOVER_WITHOUT'] ?? '').split(','));
+/** `mutant`: globalThis, process.env and the built-in prototypes as the file's first test found them: what a fresh worker would have. */
+let baseline: Map<string, unknown> | undefined;
+/** `mutant`: the latest fresh collection of the file (after a recovery): every later test runs from its copy. */
+let generation: { filepath: string; file: AnyTask } | undefined;
 /** `static` mode: the most mutants decided between two unarmed re-collections (staticwarm.qnt `grouped`). */
 const STATIC_CANARY_MAX = 4;
 /** Mutants between canaries; doubles while the canary stays clean, back to 1 when it fails. */
@@ -464,7 +481,11 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
   _currentSpecification?: unknown;
   onBeforeTryTask?(test: AnyTask, options: { retry: number; repeats: number }): unknown;
   onAfterRunFiles?(files: AnyTask[]): unknown;
+  onAfterRunTask?(test: AnyTask): unknown;
 }) {
+  /** The recovery a test's canary asked for while Vitest was running it (`runTask`), to run once Vitest is done with it. */
+  private recovery: (() => Promise<void>) | undefined;
+
   /**
    * Import-time hits (static mutants) are attributed to the test file being collected, so a static
    * mutant is later re-run against the files that load its module, not the whole suite (Stryker
@@ -522,18 +543,39 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
     let run = fn;
     let context = test.context;
     let invoked = false;
-    // Once a mutant has polluted this context, no further verdict from it can be trusted: the
-    // rest of the unit is left unrun, and the coordinator re-queues it into a fresh context.
+    // Once a mutant has polluted this context that cannot be recovered from in place (`recover`), no
+    // further verdict from it can be trusted: the rest of the unit is left unrun, and the coordinator
+    // re-queues it into a fresh context.
     const spec = specTests.has(test.id);
     const done = spec ? decidedBySpec : decided;
     const ids = polluted ? [] : (plan.tests[test.id] ?? []).filter((id) => !done.has(id));
+    // What a fresh worker would hold now, for `recover` to compare with: taken by the first test with
+    // mutants, when the file is collected and nothing armed has run.
+    if (recoverInWorker && ids.length && !baseline) baseline = snapshot();
     let cleanups: Hook[] = [];
     let attempt = 0;
+    /** This test runs from the file's fresh collection (a recovery here or in an earlier test), not Vitest's own. */
+    let onFresh = false;
+    /** The canary failed while Vitest was running this test, which refuses a file collected inside it: the recovery waits for `afterTest`. */
+    let recoverLater: { cause: unknown } | undefined;
+    /** Vitest has finished this test (`onAfterRunTask`): a file can be collected, and a recovery runs at once. */
+    let afterTest = false;
     const teardown = async (): Promise<void> => {
       await guarded(current.id, () => afterEach(current, context, cleanups));
       cleanups = [];
     };
     const setup = async (): Promise<void> => {
+      // After a recovery the file's tests close over its fresh collection: from this test's first run on, so is this one.
+      if (generation && !onFresh) {
+        const copy = find(generation.file, test.id);
+        const copyFn = copy && statics.getTestFn(copy);
+        if (copy && copyFn) {
+          current = copy;
+          run = copyFn;
+          context = copy.context;
+          onFresh = true;
+        }
+      }
       // A run-once test runs from a fresh copy every time after its first; the copy's own hooks wrap it.
       if (invoked && test.file && runOnce.has(test.file.filepath)) {
         const copy = takeCopy(test);
@@ -554,11 +596,81 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
     // Mutants run since the last clean canary. The first of them started from a clean state, so its
     // verdict stands whatever the next canary says; the rest are suspects if it fails.
     let unchecked: string[] = [];
+    /** The mutants still to run in this test; a recovery puts its suspects back at the front. */
+    const queue = [...ids];
+    /** Why the last recovery was refused, for the `polluted` record: a report of where restarts still come from. */
+    let refused: string | undefined;
     /** The context is past trusting: the unchecked runs are suspects, and the rest of the unit goes to a fresh one. */
     const pollutedBy = (e: unknown): false => {
       polluted = true;
       canaryEvery = 1;
-      emit({ type: 'polluted', id: unchecked[0], suspects: unchecked.slice(1), test: test.id, file: test.file?.filepath, error: e instanceof Error ? e.message.slice(0, POLLUTION_ERROR_CHARS) : String(e) });
+      emit({ type: 'polluted', id: unchecked[0], suspects: unchecked.slice(1), test: test.id, file: test.file?.filepath, error: e instanceof Error ? e.message.slice(0, POLLUTION_ERROR_CHARS) : String(e), ...(refused && { refused }) });
+      return false;
+    };
+    /**
+     * Clear what the mutants left, in this worker (recover.qnt): check that globalThis, process.env and
+     * the built-in prototypes still equal the baseline, reset the module registry and collect the file
+     * again, check them again, and run the unmutated test on the new collection (`GUARD`, `PROVE`). The
+     * first unchecked verdict stands, as it does on a restart (it began clean); the rest are suspects, run
+     * again from clean state. False when a step does not hold: the unit then goes to a new worker as before.
+     */
+    const recoverNow = async (cause: unknown, tearDown: boolean): Promise<boolean> => {
+      const filepath = test.file?.filepath;
+      if (!baseline || !filepath) return false;
+      const refuse = (why: string): false => {
+        refused = why;
+        return false;
+      };
+      try {
+        if (tearDown) await teardown();
+        const base = baseline;
+        const changed = (): string[] => (without.has('guard') ? [] : snapshotDiff(base, snapshot()));
+        const before = changed();
+        if (before.length) return refuse(`globals changed: ${before.join(', ')}`);
+        const file = await this.recollect(filepath);
+        if (!file) return refuse('this Vitest has no public collect');
+        if (file.result?.state === 'fail') return refuse('the file failed to collect again');
+        if (hasBeforeAll(file)) return refuse('the file has a beforeAll');
+        const after = changed();
+        if (after.length) return refuse(`collecting again changed globals: ${after.join(', ')}`);
+        const copy = find(file, test.id);
+        const copyFn = copy && statics.getTestFn(copy);
+        if (!copy || !copyFn) return refuse('the test is not in the new collection');
+        const proofCleanups = await guarded(copy.id, () => beforeEach(copy, copy.context));
+        await this.retryReset(test, ++attempt);
+        try {
+          if (!without.has('prove')) await guarded(test.id, copyFn);
+        } catch (e) {
+          await afterEach(copy, copy.context, proofCleanups).catch(() => undefined);
+          return refuse(`the unmutated test fails on the new collection: ${e instanceof Error ? e.message.slice(0, POLLUTION_ERROR_CHARS) : String(e)}`);
+        }
+        current = copy;
+        run = copyFn;
+        context = copy.context;
+        cleanups = proofCleanups;
+        onFresh = true;
+        generation = { filepath, file };
+      } catch (e) {
+        return refuse(`recovery threw: ${e instanceof Error ? e.message.slice(0, POLLUTION_ERROR_CHARS) : String(e)}`);
+      }
+      const suspects = unchecked.slice(1);
+      emit({ type: 'recovered', id: unchecked[0], suspects, test: test.id, file: filepath, error: cause instanceof Error ? cause.message.slice(0, POLLUTION_ERROR_CHARS) : String(cause) });
+      for (const id of suspects) done.delete(id);
+      queue.unshift(...suspects);
+      unchecked = [];
+      canaryEvery = 1;
+      return true;
+    };
+    /** The canary failed: recover now, or once Vitest is done with this test; false when this run must stop. */
+    const recover = async (cause: unknown): Promise<boolean> => {
+      const filepath = test.file?.filepath;
+      if (!recoverInWorker) return false;
+      if (!baseline || !filepath || runOnce.has(filepath)) {
+        refused = baseline && filepath ? 'a run-once file' : 'no baseline';
+        return false;
+      }
+      if (afterTest) return recoverNow(cause, true);
+      recoverLater = { cause };
       return false;
     };
     const canary = async (): Promise<boolean> => {
@@ -576,7 +688,8 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
         canaryEvery = Math.min(MAX_CANARY_EVERY, canaryEvery * 2);
         return true;
       } catch (e) {
-        return pollutedBy(e);
+        if (await recover(e)) return true;
+        return recoverLater ? false : pollutedBy(e);
       }
     };
     // The mutant is armed through the test's own `beforeEach`, as Stryker arms it: the dry run credits
@@ -615,47 +728,88 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
       }
       return { status, ms: performance.now() - t0, ...(deadlock && { deadlock: true as const }) };
     };
-    for (const id of ids) {
-      if (done.has(id)) continue;
-      // The real clock: a test that froze it (`vi.useFakeTimers()`, never undone) made every later
-      // mutant read as running since the freeze, and the watchdog stopped it at once (caique, 2026-11-02).
-      mark(`${id} ${String(realNow())}\n`);
-      let { status, ms, deadlock } = await runArmed(id);
-      if (status === 'Polluted') break;
-      // A kill that follows unchecked runs may be one of their leftovers, which this run's own cleanup
-      // (a `finally`) then wipes, so the batch canary would pass and vouch for a wrong kill. Survivors
-      // are confirmed in isolation later; kills are checked here: a failing canary is pollution as
-      // usual (this verdict goes back with the unit), a passing one leaves the state clean to decide
-      // the mutant again from (.sdlc/intents/oxmutate/canary.qnt).
-      if (status !== 'Survived' && unchecked.length > 0) {
-        if (!(await canary())) break;
-        ({ status, ms, deadlock } = await runArmed(id));
+    const runQueue = async (): Promise<void> => {
+      for (let id = queue.shift(); id !== undefined; id = queue.shift()) {
+        if (done.has(id)) continue;
+        // The real clock: a test that froze it (`vi.useFakeTimers()`, never undone) made every later
+        // mutant read as running since the freeze, and the watchdog stopped it at once (caique, 2026-11-02).
+        mark(`${id} ${String(realNow())}\n`);
+        let { status, ms, deadlock } = await runArmed(id);
         if (status === 'Polluted') break;
+        // A kill that follows unchecked runs may be one of their leftovers, which this run's own cleanup
+        // (a `finally`) then wipes, so the batch canary would pass and vouch for a wrong kill. Survivors
+        // are confirmed in isolation later; kills are checked here: a failing canary is pollution as
+        // usual (this verdict goes back with the unit, or is run again once the context is recovered), a
+        // passing one leaves the state clean to decide the mutant again from (.sdlc/intents/oxmutate/canary.qnt).
+        if (status !== 'Survived' && unchecked.length > 0) {
+          if (!(await canary())) {
+            if (recoverLater) queue.unshift(id);
+            break;
+          }
+          ({ status, ms, deadlock } = await runArmed(id));
+          if (status === 'Polluted') break;
+        }
+        if (status !== 'Survived') done.add(id);
+        emit({ type: 'mutant', id, test: test.id, status, ms, ...(spec ? { spec: true } : {}), ...(deadlock && { deadlock: true }) });
+        unchecked.push(id);
+        // The canary: the same test, unmutated, must still pass. If it fails, a mutant left state
+        // behind (a cache, a registry, a fixture) that would decide the next verdicts. Run after every
+        // mutant at first, then every 2, 4, 8 while it stays clean: pollution is rare per test, and the
+        // canary was half of all executions (burgee/paratext, 2026-10-27).
+        // A deadlocked run is still pending in this worker, its timers and handles with it: tear the
+        // context down. The unit ends here; the verdicts no canary has vouched for since the last
+        // clean one go back with the rest of the unit to a fresh context, and Vitest drops this worker.
+        if (deadlock) {
+          pollutedBy(new Error('torn down: a deadlocked run is still pending in this worker'));
+          tornDown = true;
+          break;
+        }
+        if (unchecked.length >= canaryEvery && !(await canary())) break;
       }
-      if (status !== 'Survived') done.add(id);
-      emit({ type: 'mutant', id, test: test.id, status, ms, ...(spec ? { spec: true } : {}), ...(deadlock && { deadlock: true }) });
-      unchecked.push(id);
-      // The canary: the same test, unmutated, must still pass. If it fails, a mutant left state
-      // behind (a cache, a registry, a fixture) that would decide the next verdicts. Run after every
-      // mutant at first, then every 2, 4, 8 while it stays clean: pollution is rare per test, and the
-      // canary was half of all executions (burgee/paratext, 2026-10-27).
-      // A deadlocked run is still pending in this worker, its timers and handles with it: tear the
-      // context down. The unit ends here; the verdicts no canary has vouched for since the last
-      // clean one go back with the rest of the unit to a fresh context, and Vitest drops this worker.
-      if (deadlock) {
-        pollutedBy(new Error('torn down: a deadlocked run is still pending in this worker'));
-        tornDown = true;
-        break;
+    };
+    /** The mutants, then the closing canary, which can fail too and leave suspects to run: round again. */
+    const drive = async (): Promise<void> => {
+      do {
+        await runQueue();
+        if (tornDown || recoverLater || polluted) return;
+        await canary();
+      } while (!polluted && !recoverLater && queue.length > 0);
+    };
+    /** Vitest's own `afterEach` hooks come next, and they pair with a `beforeEach` of the collection it made. */
+    const pair = async (): Promise<void> => {
+      await teardown();
+      try {
+        cleanups = await guarded(test.id, () => beforeEach(test, test.context));
+      } finally {
+        for (const cleanup of cleanups.reverse()) await cleanup();
+        cleanups = [];
       }
-      if (unchecked.length >= canaryEvery && !(await canary())) break;
-    }
+    };
+    await drive();
     // Torn down: nothing more runs in this worker, not even the test's own unmutated run.
     if (tornDown) {
       mark('');
       return;
     }
-    if (!polluted) await canary();
+    if (recoverLater) {
+      // The test's own run is skipped: its context is the one being replaced. The rest of its mutants run once Vitest is done with it.
+      await pair();
+      this.recovery = async (): Promise<void> => {
+        const { cause } = recoverLater as { cause: unknown };
+        recoverLater = undefined;
+        afterTest = true;
+        if (await recoverNow(cause, false)) {
+          await drive();
+          if (!tornDown && !polluted) await teardown();
+        } else {
+          pollutedBy(cause);
+        }
+        mark('');
+      };
+      return;
+    }
     if (ids.length) mark('');
+    if (onFresh) return pair();
     if (attempt > 0) await fresh();
     try {
       await run();
@@ -681,12 +835,25 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
       const files = [...(this.workerState?.evaluatedModules?.fileToModulesMap?.keys() ?? [])];
       dryModules.set(suite.filepath, files.filter((f) => path.isAbsolute(f) && !f.split(path.sep).includes('node_modules')));
     }
+    if (generation && suite.filepath === generation.filepath) {
+      const { file } = generation;
+      generation = undefined;
+      await afterAllOf(file);
+    }
     const copies = suite.filepath ? collections.get(suite.filepath) : undefined;
     if (suite.filepath && copies) {
       collections.delete(suite.filepath);
       for (const copy of copies) await afterAllOf(copy);
     }
     return super.onAfterRunSuite?.(suite);
+  }
+
+  /** `mutant`: a file cannot be collected inside a running test, so the recovery a canary asked for runs here. */
+  async onAfterRunTask(test: AnyTask): Promise<unknown> {
+    const recovery = this.recovery;
+    this.recovery = undefined;
+    if (recovery) await recovery();
+    return super.onAfterRunTask?.(test);
   }
 
   async onBeforeRunSuite(suite: AnyTask): Promise<unknown> {
@@ -877,6 +1044,26 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
         files.push(file);
       }
       return true;
+    } finally {
+      if (workerState) workerState.current = was.current;
+      this._currentSpecification = was.spec;
+    }
+  }
+
+  /**
+   * The file collected again on a reset module registry (`recover`): every module it imports is
+   * evaluated afresh, as in a new worker. Collecting points Vitest's current task and spec at the new
+   * file; the running file keeps them.
+   */
+  private async recollect(filepath: string): Promise<AnyTask | undefined> {
+    const collect = await loadCollect();
+    const { vi } = (await fromProject('vitest')) as { vi?: { resetModules: () => void } };
+    if (!collect || !vi) return undefined;
+    const { workerState } = this;
+    const was = { current: workerState?.current, spec: this._currentSpecification };
+    try {
+      vi.resetModules();
+      return (await collect([filepath], this))[0];
     } finally {
       if (workerState) workerState.current = was.current;
       this._currentSpecification = was.spec;

@@ -57,7 +57,7 @@ function measure(dir) {
       'T4 static scored %': staticO.length ? round((PERCENT * scored(staticO).length) / staticO.length, 1) : null,
       'A5 bytes/survivor': Math.round(Buffer.byteLength(survivorsJson) / Math.max(1, records.length)),
       'A7 fix-line %': records.length ? round((PERCENT * records.filter((r) => typeof r.fix === 'string' && r.fix.length).length) / records.length, 1) : PERCENT,
-      corrections: { watchdogKills: stats.watchdogKills, pollutionRestarts: stats.pollutionRestarts, survivorsOverturned: stats.survivorsOverturned, flakyMutants: stats.flakyMutants },
+      corrections: { watchdogKills: stats.watchdogKills, pollutionRestarts: stats.pollutionRestarts, pollutionRecovered: stats.pollutionRecovered, survivorsOverturned: stats.survivorsOverturned, flakyMutants: stats.flakyMutants },
     },
     'T1 agreement %': agreement.agreementPct,
     speedup: round(pair.stryker.wallS / pair.oxmutate.wallS, 2),

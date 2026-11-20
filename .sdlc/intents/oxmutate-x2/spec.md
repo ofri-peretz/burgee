@@ -91,3 +91,79 @@ caught. None of the bench targets or fixtures uses `test.extend`.
   `20:BlockStatement:Survived`.
 - `collected.test.ts`: each feature `runCollected` does not model is refused.
 - `bench/ab.mjs` against 2.9.0, and `bench/container.mjs --compare` against a baseline re-run.
+
+---
+
+# Spec — `oxmutate-x2`, workstream 3 (part 1): pollution recovered in the worker
+
+**Roadmap:** [`oxmutate-fastest` `1.3`](../oxmutate-fastest/roadmap.md) · **Model:**
+[`../oxmutate/recover.qnt`](../oxmutate/recover.qnt), on [`canary.qnt`](../oxmutate/canary.qnt) and
+[`staticwarm.qnt`](../oxmutate/staticwarm.qnt)
+
+## What pollution is, and what a restart costs
+
+The warm runner runs each covering test once per mutant, and after the first mutant, then every 2, 4,
+8, runs the test unmutated (the canary). A canary that fails means a mutant left state behind that no
+verdict after it can be trusted on: a memo, a registry, a counter in a module the test file imports.
+On `pathe` it is `src/_glob.ts`'s `_cache`, a module-level `Map` of compiled globs: a mutant that
+compiles one wrongly leaves it there.
+
+The answer was a restart: the first unchecked verdict stands (it began clean), the others are dropped,
+the worker is abandoned, and the rest of the unit is re-queued in two halves (`afterUnit`). Each half
+is a new Vitest worker: a thread, the config, the runner, the test file collected, its modules
+evaluated. On `pathe` that is ~150 restarts in 745 server-seconds of which 137 are inside armed tests.
+
+## What changes
+
+The runner (`runner.ts`, `recover`) recovers in place. On a failed canary:
+
+1. The context's `afterEach` hooks run. `globalThis`, `process.env` and the built-in prototypes are
+   compared with the baseline taken when the unit's first test with mutants began (`GUARD`).
+2. `vi.resetModules()` and the file collected again (`collectTests`, the static path's machinery); the
+   same comparison again, and no `beforeAll` in the new collection.
+3. The unmutated test runs on the new collection's copy of it, with its hooks (`PROVE`).
+4. The first unchecked verdict stands; the others are dropped (a `recovered` record) and run again from
+   this clean state. Later tests of the file run from the new collection (`generation`).
+
+Any step that fails restarts as before. Vitest refuses a file collected inside a running test
+(`Calling the test function inside another test function`), so a canary that fails while its test is
+running pairs Vitest's own `afterEach` with a `beforeEach` and waits for `onAfterRunTask`; the
+recovery and the rest of that test's mutants run there. A run-once file keeps the restart.
+`OXMUTATE_ISOLATE_POLLUTION=1` restarts every time. New stat: `pollutionRecovered`.
+
+## Why the verdicts are the same
+
+The reference is the restart: a worker that holds nothing a mutant left. `recover.qnt` states what a
+mutant can leave (the module registry's state; globals the canary sees; globals it does not; state a
+registry reset does not reach) and what each step catches: the reset clears the first, `GUARD` catches
+both kinds of global, `PROVE` catches what the reset missed and the test sees. `safety`: after a
+pollution event, whichever way it went, nothing a restart would have dropped is left. It holds for the
+design; `noGuard`, `noProve` and `doNothing` violate it (`models.yml`).
+
+Residual, as staticwarm.qnt's and confirm.qnt's: an in-place change to an object that already existed at
+collection which the unmutated test does not read. A fresh worker is not free of it either, so no
+verdict is worse than the restart's by it; `bench/ab.mjs` and the corpus digests are the check.
+
+## Not this: warm state that hides a mutant
+
+A memo a canary or an earlier mutant filled hides a later mutant that changes what the memo computes
+(`pathe`'s `_cache` again): its run reads the cached value and survives, where a cold worker kills it.
+No canary fails, so this is not pollution and recovery does not touch it. The verdict then depends on
+the mutant's place in its unit, which is what flips `src/_glob.ts:279:20` and `:316:43` between runs on
+2.9.0 too, and what makes `:178:59` (a regex flag with no effect) read Killed once. Fixture
+`pollution-guard`'s `memo()` shows it: only the first of its mutants in a worker is cold. Fixing it
+needs a registry reset before each armed run, which is the static path's cost per pair; that is a
+separate decision (see the report that came with this change).
+
+## Checks
+
+- `recover.qnt`: `recover` holds `safety`; `noGuard`, `noProve`, `doNothing` violate it; both
+  witnesses (a recovery, and a fallback restart) are reachable (`models.yml`).
+- `e2e.test.ts` › pollution recovered in the worker, each against `OXMUTATE_ISOLATE_POLLUTION=1`:
+  `pollution-module` (same verdicts, no restart, fewer units, and the second test's first mutant decided
+  on the new collection: with the switch removed `22:36 ArithmeticOperator` reads Killed);
+  `pollution-guard` (a global the reset leaves: restarts, and `OXMUTATE_RECOVER_WITHOUT=guard` reads
+  `29:17 NumericLiteral` Survived instead of Killed); `pollution-global` (leftovers the reset does not
+  clear: restarts, and `OXMUTATE_RECOVER_WITHOUT=prove` reads reset()'s mutants Killed).
+- `records.test.ts`: a `recovered` record drops only the suspects' verdicts written before it.
+- `bench/ab.mjs` against 2.9.0, and `bench/container.mjs --compare` on `pathe`, alternating, owed.

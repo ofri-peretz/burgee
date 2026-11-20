@@ -42,7 +42,8 @@ interface ReportMutant {
 it.skipIf(!native || !existsSync(bin) || !nightly)('restarts a polluted context and judges later mutants from a clean state', () => {
   const reportDir = path.join(fixture, 'reports');
   rmSync(reportDir, { recursive: true, force: true });
-  execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: fixture, stdio: 'pipe' });
+  // The restart path, which OXMUTATE_ISOLATE_POLLUTION=1 keeps: the in-worker recovery has its own cases below.
+  execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: fixture, stdio: 'pipe', env: { ...process.env, OXMUTATE_ISOLATE_POLLUTION: '1' } });
   const report = JSON.parse(readFileSync(path.join(reportDir, 'mutation.json'), 'utf8')) as {
     files: Record<string, { mutants: ReportMutant[] }>;
     'x-oxmutate': { stats: { pollutionRestarts: number } };
@@ -284,8 +285,10 @@ describe.skipIf(!native || !existsSync(bin) || !nightly)('static survivors armed
   });
 
   it('cold workers start a server for each unit of ordinary mutants, with the warm verdicts', () => {
-    const warmUnits = groupRun('batch-leftover', 'src/registry.ts', ['--worker-idle-timeout', '0']);
-    const coldUnits = groupRun('batch-leftover', 'src/registry.ts', ['--cold-workers']);
+    // Pollution restarts are what split this fixture into units; recovered in place it is one, so the restart path keeps the premise.
+    const restarts = { OXMUTATE_ISOLATE_POLLUTION: '1' };
+    const warmUnits = groupRun('batch-leftover', 'src/registry.ts', ['--worker-idle-timeout', '0'], restarts);
+    const coldUnits = groupRun('batch-leftover', 'src/registry.ts', ['--cold-workers'], restarts);
     expect(coldUnits.verdicts).toEqual(warmUnits.verdicts);
     expect(coldUnits.stats['serversSpawned']).toBeGreaterThan(warmUnits.stats['serversSpawned'] ?? 0);
   });
@@ -1043,6 +1046,66 @@ describe.skipIf(!native || !existsSync(bin) || !nightly)('survivor confirmation 
     // The isolated phase names its stages: a live confirmation is its own stage, a fresh one is another.
     expect(live.stats.isolatedStages?.map((x) => x.stage)).toEqual(['live-confirm']);
     expect(fresh.stats.isolatedStages).toEqual([{ stage: 'confirm', mutants: live.stats.confirmLive, ms: expect.any(Number) as number, peak: 1 }]);
+  });
+});
+
+// Pollution handled in the worker (recover.qnt): a failed canary resets the module registry, collects the
+// file again and runs on, where a new worker was started and the unit split. The reference is the restart
+// (OXMUTATE_ISOLATE_POLLUTION=1): every verdict must be the one a fresh worker gives.
+describe.skipIf(!native || !existsSync(bin) || !nightly)('pollution recovered in the worker', () => {
+  type Stats = { pollutionRestarts: number; pollutionRecovered: number; units: number };
+  const pollutionRun = (name: string, file: string, env: Record<string, string> = {}): { verdicts: string[]; stats: Stats } => {
+    const dir = path.join(pkg, 'test/fixtures', name);
+    const reportDir = mkdtempSync(path.join(tmpdir(), `oxmutate-${name}-`));
+    execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: dir, stdio: 'pipe', env: { ...process.env, ...env } });
+    const report = JSON.parse(readFileSync(path.join(reportDir, 'mutation.json'), 'utf8')) as { files: Record<string, { mutants: ReportMutant[] }>; 'x-oxmutate': { stats: Stats } };
+    rmSync(reportDir, { recursive: true, force: true });
+    const mutants = report.files[file]?.mutants ?? [];
+    return { verdicts: mutants.map((m) => `${String(m.location.start.line)}:${String(m.location.start.column ?? 0)}:${m.mutatorName}:${m.status}`), stats: report['x-oxmutate'].stats };
+  };
+  const fresh = { OXMUTATE_ISOLATE_POLLUTION: '1' };
+
+  it('gives the verdicts a restart gives, in one worker, and runs a later test on the new collection', () => {
+    const live = pollutionRun('pollution-module', 'src/ledger.ts');
+    const restart = pollutionRun('pollution-module', 'src/ledger.ts', fresh);
+    expect(live.verdicts).toEqual(restart.verdicts);
+    expect(live.stats.pollutionRecovered).toBeGreaterThan(0);
+    expect(live.stats.pollutionRestarts).toBe(0);
+    expect(restart.stats.pollutionRecovered).toBe(0);
+    expect(restart.stats.pollutionRestarts).toBeGreaterThan(0);
+    expect(live.stats.units).toBeLessThan(restart.stats.units);
+    // reset()'s mutants survive on clean state, and so does the second test's first, whose run stands without
+    // a canary on whichever modules the test runs from: on the first collection's polluted ones it is killed.
+    expect(live.verdicts.filter((v) => /^(15|16):/.test(v)).every((v) => v.endsWith(':Survived'))).toBe(true);
+    expect(live.verdicts).toContain('22:36:ArithmeticOperator:Survived');
+  });
+
+  it('restarts when the worker\'s globals changed: a warm memo would hide the next test\'s mutant', () => {
+    const live = pollutionRun('pollution-guard', 'src/gate.ts');
+    const restart = pollutionRun('pollution-guard', 'src/gate.ts', fresh);
+    expect(live.verdicts).toEqual(restart.verdicts);
+    // The literal memo() decides is killed on the cold memo of a new worker.
+    expect(live.verdicts).toContain('29:17:NumericLiteral:Killed');
+    expect(live.stats.pollutionRestarts).toBeGreaterThan(0);
+    expect(live.stats.pollutionRecovered).toBeGreaterThan(0);
+    // recover.qnt `noGuard`: with the comparison dropped it is hidden, and reported Survived.
+    const unguarded = pollutionRun('pollution-guard', 'src/gate.ts', { OXMUTATE_RECOVER_WITHOUT: 'guard' });
+    expect(unguarded.verdicts).toContain('29:17:NumericLiteral:Survived');
+    expect(unguarded.stats.pollutionRestarts).toBe(0);
+  });
+
+  it('restarts when the unmutated test still fails on the new collection: leftovers a reset does not clear', () => {
+    const live = pollutionRun('pollution-global', 'src/shelf.ts');
+    const restart = pollutionRun('pollution-global', 'src/shelf.ts', fresh);
+    expect(live.verdicts).toEqual(restart.verdicts);
+    expect(live.stats.pollutionRecovered).toBe(0);
+    expect(live.stats.pollutionRestarts).toBeGreaterThan(0);
+    const reset = live.verdicts.filter((v) => /^(16|17):/.test(v));
+    expect(reset.length).toBeGreaterThan(0);
+    expect(reset.every((v) => v.endsWith(':Survived'))).toBe(true);
+    // recover.qnt `noProve`: one reset() mutant's leftovers then kill the next.
+    const unproved = pollutionRun('pollution-global', 'src/shelf.ts', { OXMUTATE_RECOVER_WITHOUT: 'prove' });
+    expect(unproved.verdicts.filter((v) => /^(16|17):/.test(v)).some((v) => v.endsWith(':Killed'))).toBe(true);
   });
 });
 
