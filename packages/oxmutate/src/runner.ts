@@ -497,6 +497,10 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
   async runTask(test: AnyTask & { context?: unknown }): Promise<void> {
     const fn = statics.getTestFn(test);
     if (!fn) throw new Error(`oxmutate: no function for test ${test.name}`);
+    // `static`: the verdicts are the records decideStatic wrote before the file's own run, which tells
+    // the coordinator nothing. It ran every body of the file once per unit, `exploits`' 3.6 s on pathe's
+    // `glob.spec.ts` among them.
+    if (mode === 'static' && staticIds.length > 0) return;
     if (mode !== 'mutant') {
       if (only && !only.has(test.id)) return;
       // Only a wait inside a test body can be an idle stall; collection at low CPU is a slow machine.

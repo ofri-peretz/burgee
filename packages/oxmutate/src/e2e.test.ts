@@ -999,15 +999,16 @@ describe.skipIf(!native || !existsSync(bin) || !nightly)('survivor confirmation 
     expect(two.verdicts).toEqual(one.verdicts);
   });
 
-  it('runs only the covering tests in the unarmed canary of a live confirmation', () => {
+  it('runs only the covering tests in a live confirmation, and none in the worker\'s own run of the file', () => {
     // A confirmation runs its covering tests' bodies armed; the canary that follows it ran every body
     // of the file, `exploits`' 65,500-character globs on pathe, 150 times (2026-11-20).
     const dir = mkdtempSync(path.join(tmpdir(), 'oxmutate-canary-'));
     const log = path.join(dir, 'ran.log');
     const live = confirmRun({ CANARY_LOG: log });
     expect(live.stats.confirmLive).toBeGreaterThan(0);
-    // Once: the worker's own run of the file, before any mutant. Each canary after a mutant added another, 4 in all, without the scoping.
-    expect(readFileSync(log, 'utf8')).toBe('ran\n');
+    // Never: not in the canary after a mutant (3 times without the scoping), and not in the worker's own
+    // run of the file, which decided nothing and ran every body once per unit (1 more).
+    expect(existsSync(log) ? readFileSync(log, 'utf8') : '').toBe('');
     rmSync(dir, { recursive: true, force: true });
   });
 
