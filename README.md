@@ -249,8 +249,8 @@ Every `--schema` document validates against `burgee/program-schema.json`, the JS
 package publishes, so a project can pin its CLI's surface in CI without writing its own idea of
 the shape.
 
-Six issues across nine years of the commander and yargs trackers ask for machine-readable
-command structure, and the state of the art today is a regex over `--help`
+Six issues in the yargs tracker, all still open and filed between 2017 and 2022, ask to list
+or introspect commands from code, and the state of the art today is a regex over `--help`
 ([tracker-gap-analysis.md](./.sdlc/research/tracker-gap-analysis.md)). A manifest is not a
 feature bolted on for agents — it is the thing help was rendered from in the first place.
 
