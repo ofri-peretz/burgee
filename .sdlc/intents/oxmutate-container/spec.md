@@ -68,6 +68,29 @@ it at its idle 61–160%).
 - **R12 — gVisor when Docker has it**, and **`oxmutate prune`** for everything container mode made.
   _Check:_ "runs on gVisor when Docker has it", "prune …"; measured: `prune` removed the three
   volumes the runs above left.
+- **R13 — one run on a volume at a time, and a stopped daemon named.** Each sync, run and copy-back
+  container carries `dev.oxmutate.volume=<volume>`; a second run polls for it every 2 s, says once
+  that it waits, and fails with a fix line after 10 minutes. An engine call that fails because the
+  daemon is unreachable says so. _Check:_ "two runs on one volume", "when the engine cannot run".
+- **R14 — the install gets the registry auth, the tests do not.** The host's npm user config
+  (`$npm_config_userconfig`, else `~/.npmrc`) and `~/.yarnrc.yml` are copied into the sync container
+  alone (`/tmp/oxmutate-npmrc`, and a HOME of its own at `/tmp/oxmutate-home`), never into the volume,
+  with each `${NAME}` they name passed as `-e NAME`; `installEnv` is `env` for the sync alone.
+  `registryAuth: false` turns it off; with `host` it is off unless set, and the run says so once.
+  _Check:_ "what the install gets" — the run's arguments never carry the files or the variables.
+- **R15 — oxmutate need not be a dependency.** With `command` unset the sync installs the host's own
+  version into `/w/.oxmutate/<version>` once, and the run runs it, so the inside reads the argv the
+  host wrote; the version is in the install key. Offline, the sync fails naming `container.command`
+  and `container.install`. _Check:_ "installs the host's own oxmutate …"; measured: on Docker,
+  `npm install --prefix … oxmutate@2.9.0` then `--version` printed 2.9.0, and with `--network=none`
+  the line exited 5.
+- **R16 — ignored files the tests need.** `include` names paths or globs (git pathspecs with glob
+  magic) sent with the git files although git ignores them, `.env.test` among them, which then
+  reach the tests by design. _Check:_ "sends the ignored files include names …".
+- **R17 — every package manager is chosen right or refused.** Yarn 2 and later (`.yarnrc.yml`, or
+  `packageManager: yarn@2+`) installs with `yarn install --immutable`; a bun lockfile with no
+  `install` fails before anything is synced, naming `container.image` and `container.install`.
+  _Check:_ "installs Yarn 2 and later …", "refuses a bun project …".
 
 ## Rejected
 
@@ -76,8 +99,10 @@ it at its idle 61–160%).
   container. `<engine> cp` replaced it.
 - **Streaming the archive over stdin**: `bellpull`, which every subprocess goes through, takes no
   stdin and decodes stdout as text. A tar file and `<engine> cp` need neither.
-- **An oxmutate image of our own**: the project's own oxmutate, from its lockfile, decides; an image
-  would be a second version to keep in step and a service to run.
+- **An oxmutate image of our own**: an image would be a second version to keep in step and a
+  service to run. The sync installs the host's own version from the registry instead (R15).
+- **The project's own oxmutate first, when it has one**: its version may not know a flag the host
+  wrote into the argv, so the host's version runs unless `command` says otherwise.
 
 ## Not covered
 
