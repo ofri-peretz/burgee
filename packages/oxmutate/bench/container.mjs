@@ -3,7 +3,7 @@
 // the machines it is for (a corporate laptop whose endpoint scanner makes host runs slow).
 //
 //   node packages/oxmutate/bench/container.mjs --candidate <oxmutate.tgz> --label <name>
-//        [--targets ufo,pathe,defu,gen] [--rounds 3] [--out <dir>] [--host <dist/bin.js>]
+//        with any of --targets ufo,pathe,defu,gen · --rounds 3 · --out <dir> · --host <dist/bin.js>
 //
 // Each target is a repository pinned to a commit, cloned once under ~/.cache/oxmutate-bench. The
 // candidate tarball goes into the repository as an untracked file, so container mode sends it in,
@@ -22,6 +22,14 @@ import { fileURLToPath } from 'node:url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PACKAGE = path.resolve(HERE, '..');
 const ROOT = path.join(homedir(), '.cache', 'oxmutate-bench');
+const MS_PER_S = 1000;
+/** Hex digits kept of a verdict digest, and of the candidate tarball's hash in the install line. */
+const DIGEST_HEX = 16;
+const TGZ_HEX = 12;
+/** A run's output is read only for its last lines when it leaves no report. */
+const OUTPUT_BYTES = 256 * 1024 * 1024;
+const ERROR_LINES = 4;
+const DIFFERENCES_SHOWN = 3;
 
 /** Pinned repositories: real libraries on Vitest 4, each with what it needs to install. */
 const TARGETS = {
@@ -40,6 +48,7 @@ const opt = (name, fallback) => {
 /** A generated project: n modules with branches, each with a test file, so the size is known. */
 function generate(dir, n) {
   mkdirSync(path.join(dir, 'src'), { recursive: true });
+  // eslint-disable-next-line conventions/prefer-dependency-version-strategy -- a benchmark target is pinned, so every run measures the same Vitest
   writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ name: 'bench-gen', private: true, type: 'module', devDependencies: { vitest: '4.1.9' } }));
   for (let i = 1; i <= n; i++) {
     writeFileSync(path.join(dir, `src/m${i}.ts`), `export function f${i}(a: number, b: number, flag: boolean): number {\n  if (a > b && flag) return a - b + ${i};\n  if (a === b || !flag) return a * 2 + b;\n  return Math.max(a, b) % (${i} + 1);\n}\nexport const label${i} = (s: string): string => (s.length > 3 ? \`[\${s.toUpperCase()}]\` : s + '${i}');\n`);
@@ -51,6 +60,7 @@ function generate(dir, n) {
 
 function prepare(name) {
   const t = TARGETS[name];
+  if (!t) throw new Error(`unknown target ${name}: one of ${Object.keys(TARGETS).join(', ')}`);
   const dir = path.join(ROOT, name);
   if (!existsSync(dir)) {
     mkdirSync(ROOT, { recursive: true });
@@ -66,22 +76,22 @@ function prepare(name) {
 /** Every verdict as a row; Killed and Timeout are both detections (a loaded machine moves one to the other), as in ab.mjs. */
 function digest(report) {
   const rows = Object.entries(report.files).flatMap(([f, x]) => x.mutants.map((m) => `${f}:${m.location.start.line}:${m.location.start.column}:${m.mutatorName}:${m.replacement ?? ''}=${m.status === 'Timeout' ? 'Killed' : m.status}`)).sort();
-  return { sha: createHash('sha256').update(rows.join('\n')).digest('hex').slice(0, 16), rows };
+  return { sha: createHash('sha256').update(rows.join('\n')).digest('hex').slice(0, DIGEST_HEX), rows };
 }
 
 function runOne(name, dir, candidate, host) {
   const tgz = path.join(dir, '.oxmutate-candidate.tgz');
   copyFileSync(candidate, tgz);
-  const sum = createHash('sha256').update(readFileSync(tgz)).digest('hex').slice(0, 12);
+  const sum = createHash('sha256').update(readFileSync(tgz)).digest('hex').slice(0, TGZ_HEX);
   const install = `${TARGETS[name].install} && npm i --no-save --no-audit --no-fund --prefix /w/tools /w/src/.oxmutate-candidate.tgz && : ${sum}`;
   writeFileSync(path.join(dir, 'oxmutate.config.json'), JSON.stringify({ reporters: ['json'], container: { install, command: '/w/tools/node_modules/.bin/oxmutate', network: 'none' } }));
   // Container mode sends git's files: stage the tarball, so no .gitignore of the project can drop it.
   execFileSync('git', ['add', '-f', '.oxmutate-candidate.tgz', 'oxmutate.config.json'], { cwd: dir });
   const t0 = performance.now();
-  const r = spawnSync(process.execPath, [host, 'run', '--container'], { cwd: dir, encoding: 'utf8', maxBuffer: 1 << 28 });
+  const r = spawnSync(process.execPath, [host, 'run', '--container'], { cwd: dir, encoding: 'utf8', maxBuffer: OUTPUT_BYTES });
   const wallMs = performance.now() - t0;
   const reportFile = path.join(dir, 'reports/mutation/mutation.json');
-  if (r.status !== 0 && r.status !== 1) return { wallMs, error: (r.stderr || r.stdout).split('\n').filter(Boolean).slice(-4).join(' | ') };
+  if (r.status !== 0 && r.status !== 1) return { wallMs, error: (r.stderr || r.stdout).split('\n').filter(Boolean).slice(-ERROR_LINES).join(' | ') };
   const report = JSON.parse(readFileSync(reportFile, 'utf8'));
   return { wallMs, stats: report['x-oxmutate']?.stats ?? {}, digest: digest(report) };
 }
@@ -105,6 +115,7 @@ function bench() {
     const dir = prepare(name);
     const warm = runOne(name, dir, candidate, host);
     if (warm.error) {
+      // eslint-disable-next-line secure-coding/detect-object-injection -- `name` is a key of TARGETS, which prepare() checked
       summary.targets[name] = { error: warm.error };
       console.log(`${name}: ${warm.error}`);
       continue;
@@ -112,6 +123,7 @@ function bench() {
     const runs = Array.from({ length: rounds }, () => runOne(name, dir, candidate, host));
     const ok = runs.filter((r) => !r.error);
     const shas = [...new Set(ok.map((r) => r.digest.sha))];
+    // eslint-disable-next-line secure-coding/detect-object-injection -- `name` is a key of TARGETS, which prepare() checked
     summary.targets[name] = {
       wallMs: median(ok.map((r) => r.wallMs)),
       ...Object.fromEntries(PHASES.map((p) => [p, median(ok.map((r) => r.stats[p] ?? 0))])),
@@ -123,7 +135,7 @@ function bench() {
       errors: runs.filter((r) => r.error).map((r) => r.error),
     };
     const s = summary.targets[name];
-    console.log(`${name}: wall ${(s.wallMs / 1000).toFixed(1)} s · ${PHASES.map((p) => `${p.replace('Ms', '')} ${((s[p] ?? 0) / 1000).toFixed(1)}`).join(' · ')} · ${s.mutants} mutants · ${s.digest}`);
+    console.log(`${name}: wall ${(s.wallMs / MS_PER_S).toFixed(1)} s · ${PHASES.map((p) => `${p.replace('Ms', '')} ${((s[p] ?? 0) / MS_PER_S).toFixed(1)}`).join(' · ')} · ${s.mutants} mutants · ${s.digest}`);
   }
   writeFileSync(path.join(out, `${label}.json`), `${JSON.stringify(summary, null, 2)}\n`);
 }
@@ -146,9 +158,9 @@ function compare() {
     differ += changed.length;
     wa += x.wallMs;
     wb += y.wallMs;
-    console.log(`${name}: ${(x.wallMs / 1000).toFixed(1)} s -> ${(y.wallMs / 1000).toFixed(1)} s (${(x.wallMs / y.wallMs).toFixed(2)}x) · verdicts ${changed.length ? `${changed.length} differ: ${changed.slice(0, 3).join('; ')}` : 'equal'}`);
+    console.log(`${name}: ${(x.wallMs / MS_PER_S).toFixed(1)} s -> ${(y.wallMs / MS_PER_S).toFixed(1)} s (${(x.wallMs / y.wallMs).toFixed(2)}x) · verdicts ${changed.length ? `${changed.length} differ: ${changed.slice(0, DIFFERENCES_SHOWN).join('; ')}` : 'equal'}`);
   }
-  console.log(`total: ${(wa / 1000).toFixed(1)} s -> ${(wb / 1000).toFixed(1)} s (${(wa / wb).toFixed(2)}x) · ${differ ? `${differ} verdicts differ` : 'every verdict equal'}`);
+  console.log(`total: ${(wa / MS_PER_S).toFixed(1)} s -> ${(wb / MS_PER_S).toFixed(1)} s (${(wa / wb).toFixed(2)}x) · ${differ ? `${differ} verdicts differ` : 'every verdict equal'}`);
   process.exitCode = differ ? 1 : 0;
 }
 
