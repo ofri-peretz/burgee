@@ -154,7 +154,7 @@ on the command line) it reads nothing else before it hands off. `--container-ima
 image for one run, and `--no-container` runs on the host whatever the config says. `--since` and
 `--frozen-oracle` read git history, which the container's source does not carry; run them with
 `--no-container`. To remove every volume oxmutate made:
-`docker volume prune --filter label=dev.oxmutate=1`.
+`docker volume prune --all --filter label=dev.oxmutate=1` (without `--all`, Docker 23 and later prune only anonymous volumes, and oxmutate's are named).
 
 ## Stryker's keys oxmutate does not use
 
