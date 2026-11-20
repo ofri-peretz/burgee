@@ -190,6 +190,7 @@ function whereItWent(r: RunResult): string[] {
   const c = s.isolatedByCause;
   const causes = [`static ${String(c.static)}`, `stopped ${String(c.stopped)}`, `unfinished ${String(c.unfinished)}`, `re-run ${String(c.rerun)}`, `survivors confirmed ${String(c.confirm)}`, `flaky ${String(c.flaky)}`];
   if (s.isolatedRuns > 0) lines.push(`  isolated runs: ${causes.join(' · ')}`);
+  if (s.confirmLive > 0) lines.push(`  survivors confirmed in a live worker: ${String(s.confirmLive)}, with no fresh worker each`);
   return lines;
 }
 

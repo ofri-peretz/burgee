@@ -233,6 +233,22 @@ jobs:
             echo "::error::staticwarm.qnt: safety holds under groupedNoHold — the model no longer shows why a grouped verdict is held"
             exit 1
           fi
+      # oxmutate's survivor confirmation (confirm.qnt): confirming in a live worker keeps `safety`,
+      # and running the bodies of tests that do not cover the mutant, or dropping the static path's
+      # guards, does not; warm and whole-file verdicts still differ (neverCross violated).
+      - name: oxmutate survivor confirmation — live confirmations hold, all bodies or no guards fail
+        run: |
+          m=.sdlc/intents/oxmutate/confirm.qnt
+          for s in confirm confirmAll confirmLive; do
+            $QUINT run "$m" --main="$s" --invariant=safety --max-steps=10 --max-samples=20000 >/dev/null
+          done
+          for inv in "confirm neverCross" "confirmLiveAllBodies safety" "confirmLiveUnguarded safety"; do
+            set -- $inv
+            if $QUINT run "$m" --main="$1" --invariant="$2" --max-steps=10 --max-samples=20000 >/dev/null; then
+              echo "::error::confirm.qnt: $2 holds under $1 — the model no longer shows what it was written to show"
+              exit 1
+            fi
+          done
       # oxmutate's run-once files (rerun.qnt): a fresh collection per run keeps `safety`, re-running
       # the same closure (1.2.2) does not, and pollution still restarts (neverRestarts violated).
       - name: oxmutate run-once files — fresh copies hold, reused closures still fail

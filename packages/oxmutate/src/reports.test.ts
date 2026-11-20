@@ -30,6 +30,7 @@ const stats = (s: Partial<RunStats> = {}): RunStats => ({
   warmUnitMs: 0,
   warmArmedMs: 0,
   isolatedByCause: { static: 0, stopped: 0, unfinished: 0, rerun: 0, confirm: 0, flaky: 0 },
+  confirmLive: 0,
   watchdogKills: 0,
   idleStalls: 0,
   crashes: 0,
@@ -309,6 +310,11 @@ describe('the terminal summary', () => {
     const least = textSummary(await run({ stats: stats({ warmUnitMs: 1, isolatedRuns: 1, isolatedByCause: { static: 0, stopped: 0, unfinished: 0, rerun: 0, confirm: 0, flaky: 1 } }) })).split('\n');
     expect(least[4]).toBe('  warm servers ran 0.0 s, 0.0 s of it inside test runs');
     expect(least[5]).toBe('  isolated runs: static 0 · stopped 0 · unfinished 0 · re-run 0 · survivors confirmed 0 · flaky 1');
+    // Survivors confirmed live are named apart from the fresh-worker ones; one is enough, none prints nothing.
+    const liveConfirmed = textSummary(await run({ stats: stats({ isolatedRuns: 1, confirmLive: 1, isolatedByCause: { static: 0, stopped: 0, unfinished: 0, rerun: 0, confirm: 1, flaky: 0 } }) })).split('\n');
+    expect(liveConfirmed[4]).toBe('  isolated runs: static 0 · stopped 0 · unfinished 0 · re-run 0 · survivors confirmed 1 · flaky 0');
+    expect(liveConfirmed[5]).toBe('  survivors confirmed in a live worker: 1, with no fresh worker each');
+    expect(textSummary(await run())).not.toContain('live worker');
     // Verdicts reused with none audited (a cache too small to sample): no audit clause.
     expect(textSummary(await run({ stats: stats({ reused: 3 }) })).split('\n')[4]).toBe('  corrected: 3 verdict(s) reused');
     expect(textSummary(await run())).not.toContain('corrected');
