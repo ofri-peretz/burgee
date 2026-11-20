@@ -116,9 +116,9 @@ and, for speed, `bench/container.mjs --compare` numbers.
 
 | # | Item | Intent | State |
 | --: | :-- | :-- | :-- |
-| 1 | Confirm survivors in live workers | x2 WS1 | running |
-| 2 | Flaky re-runs scoped; dry-run limits that count instrumentation | x2 WS2 | PR #1667, auto-merge; container pathe compare owed after merge |
-| 2a | A dry-run `beforeAll` that times out turns its tests' mutants NoCoverage with exit 0: make it an error naming the hook. Move `flakyCandidates` into a pure module, so the pre-push gate mutates it (`coordinator.ts` is in `TESTED_IN_ANOTHER_PROCESS`) | found by #1667 | next free slot |
+| 1 | Confirm survivors in live workers | x2 WS1 | PR #1668: 1.53x on ufo+defu+gen, every verdict equal |
+| 2 | Flaky re-runs scoped; dry-run limits that count instrumentation | x2 WS2 | merged (#1667); container pathe compare owed |
+| 2a | A dry-run `beforeAll` that times out turns its tests' mutants NoCoverage with exit 0: make it an error naming the hook. Move `flakyCandidates` into a pure module, so the pre-push gate mutates it (`coordinator.ts` is in `TESTED_IN_ANOTHER_PROCESS`) | found by #1667 | running, with ufo's watchdog stop (8.8 s of its 15 s) |
 | 2b | `pathe` `_glob.ts:178:59`, `:279:20` flip Killed/Survived between full runs (warm pollution restarts), on 2.9.0 too | found by #1667 | queued |
 | 3 | Release PR: daemon message, run guard, README; then registry auth; then the four gaps above | container DoD 1, 2, 4, 6 | running |
 | 4 | Warm units: pollution handled in the worker, a worker that outlives its unit | x2 WS3, fastest `1.3`, `1.5` | queued |
