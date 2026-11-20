@@ -1,5 +1,15 @@
 # oxmutate
 
+## 2.11.0
+
+### Minor Changes
+
+- [#1672](https://github.com/ofri-peretz/burgee/pull/1672) [`847bec0`](https://github.com/ofri-peretz/burgee/commit/847bec04cd2f7e540f0e9fac9a3c3122e6d14123) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `container` mode, further: `OXMUTATE_CONTAINER` or `~/.config/oxmutate/config.json` turns it on for
+  every project on the machine (a project's own setting wins); after the first run only changed files
+  are synced, and an unchanged repository syncs nothing; the install's npm, pnpm and yarn caches live
+  in one shared volume (`cache`); `--since` and `--frozen-oracle` work inside; the containers run on
+  gVisor when Docker has it; and `oxmutate prune` removes everything container mode made.
+
 ## 2.10.1
 
 ### Patch Changes
