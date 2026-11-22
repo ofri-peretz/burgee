@@ -16,9 +16,11 @@ import { fileURLToPath } from 'node:url';
 
 import { ExitCode } from 'burgee';
 
+import { declaredPool } from './declared-pool.js';
+import { VITEST_SAID } from './dry-failure.js';
 import { BEAT_ENV, beatFile, CPU_SAMPLE_MS } from './heartbeat.js';
 import { resolveEsm } from './resolve.js';
-import { ACTIVE_MUTANT_ENV, argv, env, exit, killGroup, pid, serverGroups } from './runtime.js';
+import { ACTIVE_MUTANT_ENV, argv, env, exit, killGroup, pid, serverGroups, stderr } from './runtime.js';
 import { instrumentedSources } from './vite-plugin.js';
 
 export interface ServerConfig {
@@ -97,7 +99,8 @@ const vitest = await vitestNode.createVitest(
     config: config.vitestConfig,
     watch: false,
     run: true,
-    pool: 'threads',
+    // Threads, which a runaway mutant is stopped in, unless the project's own config asks for another (tests that call process.chdir need forks).
+    pool: (await declaredPool(config.root, config.vitestConfig)) ?? 'threads',
     maxWorkers: config.workers,
     isolate: true,
     runner,
@@ -229,7 +232,16 @@ async function runFiles(unit: Unit): Promise<void> {
   // A dry run names itself in the progress file, so the watchdog holds it to its budget.
   if (unit.mode === 'dry') writeFileSync(unit.progress, `dry ${String(Date.now())}\n`);
   if (unit.skip?.length) await runAllBut(unit.skip);
-  else await vitest.start(unit.files.length ? unit.files : undefined);
+  else await reportErrors(await vitest.start(unit.files.length ? unit.files : undefined));
+}
+
+/** The most errors of one `start` written to stderr. */
+const MAX_VITEST_ERRORS = 3;
+
+/** Errors Vitest returned instead of throwing (a pool it could not start), for the coordinator to name when nothing ran. */
+async function reportErrors(result: unknown): Promise<void> {
+  const errors = (result as { unhandledErrors?: readonly { message?: string }[] } | undefined)?.unhandledErrors ?? [];
+  for (const e of errors.slice(0, MAX_VITEST_ERRORS)) stderr.write(`${VITEST_SAID}${(e.message ?? 'unknown').split('\n')[0] ?? ''}\n`);
 }
 
 /** How long `close` waits for `vitest.close()` before the server exits regardless. */

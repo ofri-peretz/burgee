@@ -1197,6 +1197,7 @@ export default [
       "packages/oxmutate/bench/ab.mjs",
       "packages/oxmutate/bench/burgee-pair.mts",
       "packages/oxmutate/bench/compare-reports.mjs",
+      "packages/oxmutate/bench/container-corpus.mjs",
       "packages/oxmutate/bench/container.mjs",
       "packages/oxmutate/bench/metrics.mjs",
       "packages/oxmutate/bench/spec-closeout.mts",

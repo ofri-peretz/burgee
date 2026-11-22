@@ -891,9 +891,9 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
   async onAfterRunFiles(files: AnyTask[]): Promise<unknown> {
     await settle();
     if (mode === 'dry') {
-      const tests: { id: string; file: string; name: string; state: string; ms: number }[] = [];
+      const tests: { id: string; file: string; name: string; state: string; ms: number; error?: string }[] = [];
       const visit = (t: AnyTask, file: string): void => {
-        if (t.type === 'test') tests.push({ id: t.id, file, name: fullName(t), state: t.result?.state ?? 'skip', ms: t.result?.duration ?? 0 });
+        if (t.type === 'test') tests.push({ id: t.id, file, name: fullName(t), state: t.result?.state ?? 'skip', ms: t.result?.duration ?? 0, ...(t.result?.state === 'fail' && { error: (t.result?.errors?.[0]?.message ?? 'failed').slice(0, FILE_ERROR_CHARS) }) });
         for (const c of t.tasks ?? []) visit(c, file);
       };
       const fileErrors: { file: string; error: string }[] = [];

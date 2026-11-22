@@ -23,7 +23,7 @@
  * on the machine; a project's own `container` setting, and `--no-container`, win.
  */
 import { createHash } from 'node:crypto';
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -109,6 +109,8 @@ const SELF = `${WORK}/.oxmutate/${VERSION}`;
 const SELF_BIN = `${SELF}/node_modules/.bin/oxmutate`;
 /** Where the sync container gets the host's npm user config, and its HOME with the host's `.yarnrc.yml`: never in the volume. */
 const NPMRC = '/tmp/oxmutate-npmrc';
+/** The mode the forwarded auth files are staged with. */
+const READABLE = 0o644;
 const AUTH_HOME = '/tmp/oxmutate-home';
 
 // Stryker disable next-line ConditionalExpression: containerOf returns before this for null, so the null check never decides
@@ -380,6 +382,9 @@ function engineRunner(spawn: Spawn, c: Container) {
       throw new Error(`${c.engine} did not start (${(e as Error).message}). fix: install and start Docker or Podman, or set container.engine`);
     }
     if (r.code !== 0 && DAEMON_DOWN.some((said) => r.stderr.includes(said))) {
+      // A remote daemon is not Docker Desktop: name where it was asked for, and what to check there.
+      const remote = c.host ?? c.context;
+      if (remote !== undefined) throw new Error(`${c.engine} could not reach the daemon at ${remote} (container.${c.host === undefined ? 'context' : 'host'}). fix: check that it is running and reachable from here (its address, ssh or tls), or remove it to use the local daemon`);
       throw new Error(`${c.engine} is installed but its daemon is not running. fix: start Docker Desktop (or \`podman machine start\`), or set container.engine`);
     }
     return r;
@@ -504,14 +509,20 @@ function registryAuth(io: string): { files: [string, string][]; create: string[]
   const yarnrc = path.join(homedir(), '.yarnrc.yml');
   const files: [string, string][] = [];
   const create: string[] = [];
+  // Staged world-readable in the run's own 0700 directory: the container drops every capability, so root
+  // cannot read a file another uid owns (`docker cp` keeps the host's uid), and an npmrc is mode 0600.
   if (existsSync(npmrc)) {
-    files.push([npmrc, NPMRC]);
+    const staged = path.join(io, 'npmrc');
+    copyFileSync(npmrc, staged);
+    chmodSync(staged, READABLE);
+    files.push([staged, NPMRC]);
     create.push('-e', `npm_config_userconfig=${NPMRC}`);
   }
   if (existsSync(yarnrc)) {
     // Yarn reads `.yarnrc.yml` from HOME and no variable names it, so the sync gets a HOME of its own holding it.
     mkdirSync(path.join(io, 'home'));
     copyFileSync(yarnrc, path.join(io, 'home', '.yarnrc.yml'));
+    chmodSync(path.join(io, 'home', '.yarnrc.yml'), READABLE);
     files.push([path.join(io, 'home'), AUTH_HOME]);
     create.push('-e', `HOME=${AUTH_HOME}`);
   }
@@ -528,7 +539,7 @@ async function syncVolume(h: Host & { engine: Engine; c: Container; plan: (sync:
   const { engine, c, key, volume, bases, auth } = h;
   if (c.source === 'git') {
     const synced = await startWith(engine, h.plan(undefined).sync, auth, { stdio: 'inherit' });
-    if (synced.code !== 0) throw new Error(`the sync into the container or its install failed (exit ${String(synced.code)}); its output is above. fix: set container.install, or container.image to one with what the install needs`);
+    if (synced.code !== 0) throw new Error(`${installFailed(synced.code)}`);
     return;
   }
   const names = await listed(h.spawn, h.top, h.keep, c.include);
@@ -543,10 +554,14 @@ async function syncVolume(h: Host & { engine: Engine; c: Container; plan: (sync:
       sync = wholeSync(now);
       code = await send(sync);
     }
-    if (code !== 0) throw new Error(`the sync into the container or its install failed (exit ${String(code)}); its output is above. fix: set container.install, or container.image to one with what the install needs`);
+    if (code !== 0) throw new Error(`${installFailed(code)}`);
   }
   if (!c.ephemeral) writeState(volume, nextState(sync, key, now));
 }
+
+/** The one line a failed sync or install gives: what its output above most often means, and what to set. */
+export const installFailed = (code: number | null): string =>
+  `the sync into the container or its install failed (exit ${String(code)}); its output is above. fix: for "out of date" or "frozen", update the lockfile on the host (npm, pnpm or yarn install) and commit it; for 401, 403 or 404, log in to the registry on the host (~/.npmrc, ~/.yarnrc.yml; container.installEnv for a token variable); otherwise set container.install, or container.image to one with what the install needs`;
 
 /** How often a run waiting for the volume asks again, and how many times before it gives up (10 minutes). */
 const BUSY_POLL_MS = 2000;
@@ -612,7 +627,8 @@ export async function runInContainer(
     try {
       await syncVolume({ spawn, top, io, host, engine, c: runnable, plan, key, volume, keep, bases, auth: auth.files });
       const ran = await engine(steps.run, { stdio: 'inherit' });
-      if (keep.length > 0) await copyBack({ engine, back: steps.back, keep, io, top });
+      // Exit 0 and 1 end with a report (1: a threshold missed). Any other code failed before writing one, and what the volume holds is an earlier run's.
+      if (keep.length > 0 && (ran.code === 0 || ran.code === 1)) await copyBack({ engine, back: steps.back, keep, io, top });
       return ran.code ?? 1;
     } finally {
       if (runnable.ephemeral) await engine(steps.drop);

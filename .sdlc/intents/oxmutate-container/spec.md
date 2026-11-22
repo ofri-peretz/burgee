@@ -92,6 +92,30 @@ it at its idle 61–160%).
   `install` fails before anything is synced, naming `container.image` and `container.install`.
   _Check:_ "installs Yarn 2 and later …", "refuses a bun project …".
 
+- **R18 — the forwarded auth files are readable inside.** `~/.npmrc` is mode 0600 and `docker cp`
+  keeps the host's uid; the container drops every capability, so root cannot read it
+  (`EACCES: permission denied, open '/tmp/oxmutate-npmrc'`, Yarn 1 on `dpdm`, 2026-11-20). The files
+  are staged mode 0644 in the run's own 0700 directory and copied from there. _Check:_ "stages the
+  forwarded files readable …" (fails without the chmod).
+- **R19 — a symbolic link is sent as the link.** `signatures` used `stat`, so a link to a directory
+  failed `isFile()` and a dangling link was dropped (`Current -> A` in `electron/asar`: 27 tests
+  failed in the dry run). It uses `lstat`. _Check:_ "signs a symbolic link as the file it is …".
+- **R20 — a failed run returns no report.** The volume keeps the last run's `reports/`; a run that
+  exited with anything but 0 or 1 failed before writing one, and its copy-back returned the old one
+  as fresh. _Check:_ "copies the reports back after exit 0 or 1, never after a run that failed".
+- **R21 — the project's pool is kept.** The server forced `pool: 'threads'`; a project whose Vitest
+  config asks for `forks` (tests that call `process.chdir`) failed its dry run. `declaredPool` reads
+  the config with the project's own Vite. _Check:_ `declared-pool.test.ts`, and the e2e case "keeps
+  the pool the project's Vitest config asks for" (fails with threads forced).
+- **R22 — a dry run that cannot proceed says why, and the fix.** A dry run that ran nothing names
+  what Vitest returned (a Vitest older than 4.1 raised `minThreads and maxThreads must not
+conflict`: "ran no tests" was a misreport); failing tests quote their first error; in a container,
+  a test that reached the network names `container.network`, tests that import build output the
+  checkout lacks name `container.install` and `container.include`; a failed install names the
+  lockfile and the registry login; an unreachable `container.host` or `container.context` names it
+  rather than Docker Desktop. _Check:_ `dry-failure.test.ts`, "names the remote daemon …", "stops
+  before the run when the sync … fails".
+
 ## Rejected
 
 - **A host directory mounted at `/io`** (the first version in #1658): Docker Desktop and Podman

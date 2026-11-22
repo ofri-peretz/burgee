@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -242,6 +242,14 @@ describe('what the host sends', () => {
     expect(sig['a']).toMatch(/^3:\d/u);
   });
 
+  it.skipIf(process.platform === 'win32')('signs a symbolic link as the file it is, even one to a directory or to nothing', () => {
+    const dir = scratch('oxmutate-link-');
+    mkdirSync(path.join(dir, 'A'));
+    symlinkSync('A', path.join(dir, 'Current'));
+    symlinkSync('nowhere', path.join(dir, 'dangling'));
+    expect(Object.keys(signatures(dir, ['Current', 'dangling', 'A']))).toEqual(['Current', 'dangling']);
+  });
+
   it('prunes a whole sync to the host’s listing, outside node_modules and .git', () => {
     const dir = scratch('oxmutate-prune-');
     const listing = path.join(scratch('oxmutate-listing-'), 'listing');
@@ -434,6 +442,9 @@ function verbOf(args: readonly string[]): [string, string[]] {
   return rest[0] === 'volume' ? [`volume ${rest[1] ?? ''}`, rest.slice(2)] : [rest[0] ?? '', rest.slice(1)];
 }
 
+/** The permission bits of a file's mode. */
+const MODE_BITS = 0o777;
+
 /**
  * The real git and tar (bellpull's run, GIT_* left out) unless `tarFails`. The engine is a fake
  * that keeps what each step was given: the files copied in (each tar's listing), each container's
@@ -451,13 +462,21 @@ function fake(result: Outcome) {
   const listings: string[] = [];
   /** The `.yarnrc.yml` of each HOME the sync container got. */
   const homes: string[] = [];
+  /** The npm user config as the sync container got it: its text and its mode when copied (the staging directory is gone after the run). */
+  const npmrcs: { text: string; mode: number }[] = [];
+  /** The mode of each `.yarnrc.yml` copied in. */
+  const yarnrcModes: number[] = [];
   let busy = result.busy ?? 0;
   const isSync = (id: string): boolean => (scripts.get(id) ?? '') !== '';
   const copyIn = (from: string, to: string): Answer => {
     copied.push(to);
     froms.push(path.basename(from));
     if (path.basename(from) === 'listing') listings.push(readFileSync(from, 'utf8'));
-    if (path.basename(from) === 'home') homes.push(readFileSync(path.join(from, '.yarnrc.yml'), 'utf8'));
+    if (path.basename(from) === 'home') {
+      homes.push(readFileSync(path.join(from, '.yarnrc.yml'), 'utf8'));
+      yarnrcModes.push(statSync(path.join(from, '.yarnrc.yml')).mode & MODE_BITS);
+    }
+    if (to.endsWith('/oxmutate-npmrc')) npmrcs.push({ text: readFileSync(from, 'utf8'), mode: statSync(from).mode & MODE_BITS });
     if (path.basename(from) === 'in.tar') sent.push(spawnSync('tar', ['-tf', 'in.tar'], { cwd: path.dirname(from), encoding: 'utf8' }).stdout.split(/\r?\n/u).filter(Boolean).toSorted());
     return answer(result.cpFails ? 1 : 0);
   };
@@ -503,7 +522,7 @@ function fake(result: Outcome) {
     const tar = calls.find((c) => c.cmd === 'tar');
     return typeof tar?.o.cwd === 'string' ? tar.o.cwd : '';
   };
-  return { calls, spawn, ofEngine, verbs: () => verbs, scripts, sent, copied, froms, listings, homes, io };
+  return { calls, spawn, ofEngine, verbs: () => verbs, scripts, sent, copied, froms, listings, homes, npmrcs, yarnrcModes, io };
 }
 
 /** The run container's arguments, and the sync container's (the first created). */
@@ -759,6 +778,18 @@ describe('running in the container', () => {
     await expect(runInContainer(C, { root: top, keep: [path.join(top, 'r.json')] }, [], { spawn: lost.spawn })).rejects.toThrow("the container could not be created: engine said no. fix: check container.image and the engine's own error");
   });
 
+  it('copies the reports back after exit 0 or 1, never after a run that failed: the volume then holds an earlier run’s', async () => {
+    const top = repo({ 'package.json': '{}' });
+    const keep = [path.join(top, 'reports/m.json')];
+    await Promise.all(
+      ([[0, true], [1, true], [3, false], [2, false], [null, false]] as const).map(async ([code, copiesBack]) => {
+        const f = fake({ code, out: path.join(top, 'package.json') });
+        expect(await runInContainer(C, { root: top, keep }, [], { spawn: f.spawn })).toBe(code ?? 1);
+        expect(f.ofEngine().some((c) => c.args[0] === 'cp' && c.args[1]!.startsWith('c2:'))).toBe(copiesBack);
+      }),
+    );
+  });
+
   it('with ephemeral, removes the volume after the run, and after a failed one', async () => {
     const top = repo({ 'package.json': '{}' });
     const f = fake({});
@@ -775,7 +806,10 @@ describe('running in the container', () => {
   it('stops before the run when the sync, its copy or its creation fails, and leaves no temporary directory', async () => {
     const top = repo({ 'package.json': '{}' });
     const f = fake({ syncCodes: [1] });
-    await expect(runInContainer(C, { root: top, keep: [] }, [], { spawn: f.spawn })).rejects.toThrow('the sync into the container or its install failed (exit 1); its output is above. fix: set container.install');
+    const said = await runInContainer(C, { root: top, keep: [] }, [], { spawn: f.spawn }).then(() => '', (e: Error) => e.message);
+    // One line, naming each fix a failed install most often needs: the lockfile, the registry login, the install itself.
+    expect(said).not.toContain('\n');
+    for (const part of ['install failed (exit 1); its output is above', 'update the lockfile on the host', 'commit it', 'log in to the registry on the host (~/.npmrc, ~/.yarnrc.yml; container.installEnv', 'set container.install, or container.image']) expect(said).toContain(part);
     expect(f.verbs()).not.toContain('run');
     expect(existsSync(f.io())).toBe(false);
     const copy = fake({ cpFails: true });
@@ -809,15 +843,29 @@ describe('what the install gets', () => {
     const f = fake({});
     await runInContainer(C, { root: top, keep: [] }, [], { spawn: f.spawn });
     const copies = f.ofEngine().filter((c) => c.args[0] === 'cp').map((c) => [path.basename(c.args[1]!), c.args[2]]);
-    expect(copies).toContainEqual(['.npmrc', 'c1:/tmp/oxmutate-npmrc']);
+    expect(copies).toContainEqual(['npmrc', 'c1:/tmp/oxmutate-npmrc']);
     expect(copies).toContainEqual(['home', 'c1:/tmp/oxmutate-home']);
-    expect(f.ofEngine().find((c) => c.args[0] === 'cp' && c.args[2] === 'c1:/tmp/oxmutate-npmrc')!.args[1]).toBe(path.join(dir, '.npmrc'));
+    expect(f.npmrcs.map((x) => x.text)).toEqual([readFileSync(path.join(dir, '.npmrc'), 'utf8')]);
     expect(f.homes).toEqual(['npmAuthToken: "${YARN_TOKEN}"\n']);
     const auth = ['-e', 'npm_config_userconfig=/tmp/oxmutate-npmrc', '-e', 'HOME=/tmp/oxmutate-home', '-e', 'NODE_AUTH_TOKEN', '-e', 'ACME_REGISTRY', '-e', 'YARN_TOKEN'];
     expect(syncArgs(f).join(' ')).toContain(auth.join(' '));
     for (const secret of auth.filter((a) => a !== '-e')) expect(runArgs(f)).not.toContain(secret);
     expect(runArgs(f).join(' ')).not.toContain('oxmutate-npmrc');
     expect(said).not.toHaveBeenCalled();
+  });
+
+  it.skipIf(process.platform === 'win32')('stages the forwarded files readable, whatever the host mode: the container has no capability to read another uid’s 0600 file', async () => {
+    const dir = home.dir!;
+    // eslint-disable-next-line node-security/require-storage-encryption -- a fixture npmrc that names a variable, no secret in it
+    writeFileSync(path.join(dir, '.npmrc'), '//npm.example.com/:_authToken=${NODE_AUTH_TOKEN}\n', { mode: 0o600 });
+    // eslint-disable-next-line node-security/require-storage-encryption -- a fixture yarnrc that names a variable, no secret in it
+    writeFileSync(path.join(dir, '.yarnrc.yml'), 'npmAuthToken: "${YARN_TOKEN}"\n', { mode: 0o600 });
+    const f = fake({});
+    await runInContainer(C, { root: repo({ 'package.json': '{}' }), keep: [] }, [], { spawn: f.spawn });
+    expect(f.npmrcs.map((x) => x.mode)).toEqual([0o644]);
+    expect(f.yarnrcModes).toEqual([0o644]);
+    // The host's own files are not touched.
+    expect(statSync(path.join(dir, '.npmrc')).mode & MODE_BITS).toBe(0o600);
   });
 
   it('takes the npm user config npm names, and forwards nothing when there is none or registryAuth is false', async () => {
@@ -828,7 +876,7 @@ describe('what the install gets', () => {
     process.env['npm_config_userconfig'] = other;
     const f = fake({});
     await runInContainer(C, { root: top, keep: [] }, [], { spawn: f.spawn });
-    expect(f.ofEngine().find((c) => c.args[2] === 'c1:/tmp/oxmutate-npmrc')!.args[1]).toBe(other);
+    expect(f.npmrcs.map((x) => x.text)).toEqual(['registry=https://r.example.com/\n']);
     expect(syncArgs(f)).not.toContain('NOT_THIS');
     const off = fake({});
     await runInContainer({ ...C, registryAuth: false }, { root: top, keep: [] }, [], { spawn: off.spawn });
@@ -932,6 +980,13 @@ describe('when the engine cannot run', () => {
       }),
     );
     await expect(pruneContainers(C, fake({ daemonSays: 'Cannot connect to Podman' }).spawn)).rejects.toThrow(down);
+  });
+
+  it('names the remote daemon it could not reach, the host or the context, instead of Docker Desktop', async () => {
+    const top = repo({ 'package.json': '{}' });
+    const refused = { daemonSays: 'dial tcp 127.0.0.1:1: connect: connection refused' };
+    await expect(runInContainer({ ...C, host: 'tcp://10.0.0.2:2376' }, { root: top, keep: [] }, [], { spawn: fake(refused).spawn })).rejects.toThrow('engine could not reach the daemon at tcp://10.0.0.2:2376 (container.host). fix: check that it is running and reachable from here (its address, ssh or tls), or remove it to use the local daemon');
+    await expect(runInContainer({ ...C, context: 'build-box' }, { root: top, keep: [] }, [], { spawn: fake(refused).spawn })).rejects.toThrow('engine could not reach the daemon at build-box (container.context). fix:');
   });
 
   it('stops when the volume cannot be created, and goes on when Podman says it exists', async () => {
