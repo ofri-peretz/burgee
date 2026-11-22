@@ -111,6 +111,12 @@ export interface RunStats {
    * loads each one's module (what the static phase runs), and the tests of only the files that read
    * its value. A mutant whose value is untracked, or read while a module loaded, counts its loaders.
    */
+  /** Static mutants a live worker handed back to the fresh-worker path, by the reason it gave and the keys it named. */
+  staticFallbacks?: Record<string, number> | undefined;
+  /** The isolated phase, stage by stage, in the order they ran: how many mutants, how long, and the most units running at once. */
+  isolatedStages?: { stage: IsolatedStage; mutants: number; ms: number; peak: number }[] | undefined;
+  /** Live confirmation (6b) by test file: the mutants it ran there, in how many units, the unit time (summed over workers), and the unarmed re-collections. */
+  liveConfirmByFile?: Record<string, { mutants: number; units: number; ms: number; recollections: number }> | undefined;
   staticReaders?: { mutants: number; loaderTests: number; readerTests: number; fellBack: number; dryRunMs: number; auditSampled?: number; auditDisagreed?: number } | undefined;
   /** `incremental` (roadmap 3.3): test files whose dry-run results were kept, run anyway to check them, and of those, how many disagreed (and made the whole dry run run again). */
   dryReuse?: { kept: number; audited: number; disagreed: number } | undefined;
@@ -183,6 +189,8 @@ interface ChildRecord {
   timeout?: boolean;
   /** `static-fallback`: static mutants a live worker handed back to the fresh-worker path. */
   ids?: string[];
+  reason?: string;
+  keys?: string[];
   test?: string;
   status?: 'Killed' | 'Survived' | 'Timeout';
   file?: string;
@@ -257,7 +265,11 @@ const verdictOptions = (o: Options): unknown => ({
  * cut units 172 -> 93 and wall 44 -> 39 s (paratext 39 -> 35 s), and 1000 gained nothing more
  * (2026-10-30). Smaller stays better for a pollution restart, which re-runs the rest of a unit.
  */
+/** The stages of the isolated phase: static fallbacks and stragglers, watchdog re-runs, survivor confirmations and their re-checks, flaky re-runs. */
+export type IsolatedStage = 'first' | 'rerun' | 'live-confirm' | 'confirm' | 'recheck' | 'flaky';
 const UNIT_PAIRS = 400;
+/** Characters of a static fallback's reason kept as a counter key in the report. */
+const FALLBACK_WHY_CHARS = 160;
 
 /** `static.readers: 'on'`: the survivors run again in every loading file, one in twenty, as `static.group`'s audit picks (runner.ts). */
 const READERS_AUDIT_EVERY = 20;
@@ -995,23 +1007,29 @@ export async function run(options: Options): Promise<RunResult> {
       const verdicts = new Map<string, Verdict>();
       if (items.length === 0) return { verdicts, undecided: [] };
       const STATIC_BATCH = 25;
-      /** Units of up to STATIC_BATCH mutants per test file, for the files each mutant gets this round. */
+      const liveStart = performance.now();
+      pool.stats.peak = 0;
+      /** One unit: these mutants in this test file. */
+      const unitOf = (file: string, mine: string[], grouped: boolean): Unit => {
+        // A confirmation runs the bodies of the mutant's covering tests in this file, as its isolated run would.
+        const tests = (id: string): string[] => (byId.get(id)?.coveredBy ?? []).filter((t) => testInfo.get(t)?.file === file);
+        return {
+          mode: 'static', files: [file], results: fileFor('static', 'jsonl'), progress: fileFor('static', 'progress'), staticIds: mine,
+          ...(confirm && { staticTests: Object.fromEntries(mine.map((id) => [id, tests(id)])) }),
+          ...(grouped && !confirm && options.staticGroup > 1 ? { staticGroups: disjointGroups(mine.map((id) => byId.get(id) as MutantResult), options.staticGroup) } : {}),
+          hitLimits: Object.fromEntries(mine.map((id) => [id, hitLimitOf(id)])),
+        };
+      };
+      /** Units per test file, for the files each mutant gets this round: at most STATIC_BATCH mutants each, and for a confirmation enough of them to keep every worker busy. */
       const unitsFor = (filesOf: (m: MutantResult) => string[], grouped = false): Unit[] => {
         const byFile = new Map<string, string[]>();
         for (const m of items) for (const f of filesOf(m)) (byFile.get(f) ?? byFile.set(f, []).get(f))?.push(m.id);
-        return [...byFile].flatMap(([file, ids]) =>
-          Array.from({ length: Math.ceil(ids.length / STATIC_BATCH) }, (_, i): Unit => {
-            const mine = ids.slice(i * STATIC_BATCH, (i + 1) * STATIC_BATCH);
-            // A confirmation runs the bodies of the mutant's covering tests in this file, as its isolated run would.
-            const tests = (id: string): string[] => (byId.get(id)?.coveredBy ?? []).filter((t) => testInfo.get(t)?.file === file);
-            return {
-              mode: 'static', files: [file], results: fileFor('static', 'jsonl'), progress: fileFor('static', 'progress'), staticIds: mine,
-              ...(confirm && { staticTests: Object.fromEntries(mine.map((id) => [id, tests(id)])) }),
-              ...(grouped && !confirm && options.staticGroup > 1 ? { staticGroups: disjointGroups(mine.map((id) => byId.get(id) as MutantResult), options.staticGroup) } : {}),
-              hitLimits: Object.fromEntries(mine.map((id) => [id, hitLimitOf(id)])),
-            };
-          }),
-        );
+        return [...byFile].flatMap(([file, ids]) => {
+          // A confirmation is a whole re-collection of a file per mutant, so it is the work worth spreading
+          // (pathe's 103 confirmations were 5 units of 25 for 8 workers).
+          const batch = confirm ? Math.max(1, Math.min(STATIC_BATCH, Math.ceil(ids.length / Math.max(1, Math.ceil(options.concurrency / byFile.size))))) : STATIC_BATCH;
+          return Array.from({ length: Math.ceil(ids.length / batch) }, (_, i) => unitOf(file, ids.slice(i * batch, (i + 1) * batch), grouped));
+        });
       };
       const killed = new Map<string, { killedBy: string[]; ran: number }>();
       /** Decided by the hit-count limit: a runaway, Timeout like a warm one. */
@@ -1023,7 +1041,14 @@ export async function run(options: Options): Promise<RunResult> {
       const afterStatic = (unit: Unit, outcome: UnitOutcome): Unit[] => {
         const file = unit.files[0] ?? '';
         const decided = new Set<string>();
+        const mine = confirm ? ((stats.liveConfirmByFile ??= {})[file] ??= { mutants: 0, units: 0, ms: 0, recollections: 0 }) : undefined;
+        if (mine) {
+          mine.mutants += unit.staticIds?.length ?? 0;
+          mine.units++;
+          mine.ms += outcome.ms ?? 0;
+        }
         for (const r of readRecords(unit.results)) {
+          if (r.type === 'recollection' && mine) mine.recollections++;
           if (r.type === 'recollection') stats.staticRecollections++;
           if (r.type === 'static-group') {
             stats.staticGroupRuns++;
@@ -1033,7 +1058,12 @@ export async function run(options: Options): Promise<RunResult> {
             stats.staticAuditSampled++;
             if (r.disagreed === true) stats.staticAuditDisagreed++;
           }
-          if (r.type === 'static-fallback') for (const id of r.ids ?? []) back.add(id);
+          if (r.type === 'static-fallback') {
+            const why = `${r.reason ?? 'unknown'}${r.keys?.length ? `: ${r.keys.join(', ')}` : ''}`.slice(0, FALLBACK_WHY_CHARS);
+            const counts = (stats.staticFallbacks ??= {});
+            counts[why] = (counts[why] ?? 0) + (r.ids?.length ?? 0);
+            for (const id of r.ids ?? []) back.add(id);
+          }
           if (r.type !== 'isolated' || !r.id) continue;
           decided.add(r.id);
           // A confirmation the isolated path would run again (a timeout, a kill only by a test's own
@@ -1073,6 +1103,7 @@ export async function run(options: Options): Promise<RunResult> {
       // compat-oracle's hosts.ts cost 389 s that way, sc8-profile.md §6). The first round stays one
       // mutant at a time: that is where the kills are, and a kill splits a group.
       for (const [i, round] of rounds.entries()) await staticPool.drain(unitsFor(round, i > 0), (_, id) => isolatedCapped(id, 2), afterStatic, { prepare: keepUndecided });
+      if (confirm) (stats.isolatedStages ??= []).push({ stage: 'live-confirm', mutants: items.length, ms: performance.now() - liveStart, peak: pool.stats.peak });
       const undecided: MutantResult[] = [];
       for (const m of items) {
         const k = killed.get(m.id);
@@ -1101,9 +1132,11 @@ export async function run(options: Options): Promise<RunResult> {
       }
       return undecided;
     };
-    const runIsolated = async (items: MutantResult[], slack: number | ((id: string) => number) = 1): Promise<Map<string, Verdict>> => {
+    const runIsolated = async (items: MutantResult[], stage: IsolatedStage, slack: number | ((id: string) => number) = 1): Promise<Map<string, Verdict>> => {
       const verdicts = new Map<string, Verdict>();
       if (items.length === 0) return verdicts;
+      const t0 = performance.now();
+      pool.stats.peak = 0;
       const mk = (batch: MutantResult[]): Unit => ({ mode: 'isolated', files: [], results: fileFor('iso', 'jsonl'), progress: fileFor('iso', 'progress'), batch: batch.map((m) => ({ id: m.id, files: filesFor(m), tests: m.static ? undefined : m.coveredBy, hitLimit: hitLimitOf(m.id) })) });
       // Packed by estimated cost, heaviest first into the lightest bin, and the heaviest bins run
       // first. Equal mutant counts left one unit at 8.4 s while the others finished in under 3 s on
@@ -1138,6 +1171,7 @@ export async function run(options: Options): Promise<RunResult> {
           return rest.length ? [mk(rest)] : [];
         },
       );
+      (stats.isolatedStages ??= []).push({ stage, mutants: items.length, ms: performance.now() - t0, peak: pool.stats.peak });
       for (const m of items) if (!verdicts.has(m.id)) verdicts.set(m.id, { status: 'RuntimeError' });
       return verdicts;
     };
@@ -1169,7 +1203,7 @@ export async function run(options: Options): Promise<RunResult> {
     // punycode.ts `u`, 2026-11-20) cost a stop at 1x, 2.3 s, before the 3x that decided it, 6.9 s.
     // The verdict is the one the 3x run gives, as before; an idle warm stop still runs at 1x, where
     // an idle stop is final.
-    const first = await runIsolated(isolatedQueue, (id) => (busyStops.has(id) ? RERUN_SLACK : 1));
+    const first = await runIsolated(isolatedQueue, 'first', (id) => (busyStops.has(id) ? RERUN_SLACK : 1));
     // A watchdog stop on a loaded machine is a slow test, not a runaway: 31 of them on one
     // burgee/paratext run while the load average sat at 40, all Survived for Stryker (2026-10-27).
     // Each stop gets one more run with 3x the budget; only one that is stopped again is a Timeout.
@@ -1183,7 +1217,7 @@ export async function run(options: Options): Promise<RunResult> {
     // (sc8-profile.md §6, A-20261112-oxmutate-test-timeout-kill). One more run decides it.
     const stopped = isolatedQueue.filter((m) => (first.get(m.id)?.status === 'Timeout' && !first.get(m.id)?.idle && !busyStops.has(m.id)) || slowKill(first.get(m.id)));
     stats.isolatedByCause.rerun += stopped.length;
-    const again = await runIsolated(stopped, RERUN_SLACK);
+    const again = await runIsolated(stopped, 'rerun', RERUN_SLACK);
     for (const m of stopped) {
       const v = again.get(m.id);
       if (!v || v.status === 'RuntimeError') continue;
@@ -1215,24 +1249,25 @@ export async function run(options: Options): Promise<RunResult> {
     // A survivor with one covering test is not re-run: confirmation runs only covering tests, so there
     // is no later test for its leftover state to reach, and the warm run already armed that test
     // through its hooks from clean state (.sdlc/intents/oxmutate/confirm.qnt).
-    // Each confirmation runs in a live worker first (confirm.qnt `LIVE`): the mutant armed from the
-    // file's collection, the modules re-evaluated under it, only its covering tests' bodies run, in
-    // file order, with every test's hooks, file by file until one kills it: what its isolated run
-    // does, at ~0.5 ms a re-evaluation where a fresh worker per (mutant, file) cost 80-110 ms (ufo:
-    // 100 confirmations, 11.3 of 17.0 s in isolated runs, none overturned, 2026-11-19). The guards are
-    // the static path's (staticwarm.qnt); what they hand back, and every timeout or slow kill, runs
-    // isolated as before. OXMUTATE_ISOLATE_CONFIRM=1 sends every confirmation to a fresh worker.
+    // A confirmation runs in a fresh worker (the isolated path), and with OXMUTATE_LIVE_CONFIRM=1 in a
+    // live one first (confirm.qnt `LIVE`): the mutant armed from the file's collection, the modules
+    // re-evaluated under it, only its covering tests' bodies run, in file order, with every test's
+    // hooks, file by file until one kills it: what its isolated run does. The guards are the static
+    // path's (staticwarm.qnt); what they hand back, and every timeout or slow kill, runs isolated.
+    // Live is the opt-in because it is not faster everywhere (2026-11-20, one build, alternating): ufo's
+    // 100 confirmations took 1.2 s live against 3.9 s fresh, pathe's 122 took 57.7 s live against 21.7 s
+    // fresh (0.47 s a mutant against 0.18; the run took 360.7 s against 280.5 s).
     const survivors = toRun.filter((m) => m.status === 'Survived' && new Set(m.coveredBy).size > 1);
-    const live = env['OXMUTATE_ISOLATE_CONFIRM'] ? { verdicts: new Map<string, Verdict>(), undecided: survivors } : await decideLive(survivors, filesFor, true);
+    const live = env['OXMUTATE_LIVE_CONFIRM'] ? await decideLive(survivors, filesFor, true) : { verdicts: new Map<string, Verdict>(), undecided: survivors };
     stats.confirmLive += live.verdicts.size;
     stats.isolatedByCause.confirm += live.undecided.length;
-    const confirmed = new Map([...live.verdicts, ...(await runIsolated(live.undecided))]);
+    const confirmed = new Map([...live.verdicts, ...(await runIsolated(live.undecided, 'confirm'))]);
     // A timeout here is a watchdog stop like any other, and a loaded machine makes them: two
     // closeout survivors were reported killed this way while a docs build shared the machine
     // (2026-10-27). The same rule as section 6: one more run at 3x the budget before believing it.
     const stoppedHere = survivors.filter((m) => (confirmed.get(m.id)?.status === 'Timeout' && !confirmed.get(m.id)?.idle) || slowKill(confirmed.get(m.id)));
     stats.isolatedByCause.rerun += stoppedHere.length;
-    const recheck = await runIsolated(stoppedHere, RERUN_SLACK);
+    const recheck = await runIsolated(stoppedHere, 'recheck', RERUN_SLACK);
     for (const m of stoppedHere) {
       const v = recheck.get(m.id);
       if (v) confirmed.set(m.id, slowKill(confirmed.get(m.id)) && slowKill(v) ? { status: 'Timeout', slowTwice: true, testsCompleted: v.testsCompleted } : v);
@@ -1270,7 +1305,7 @@ export async function run(options: Options): Promise<RunResult> {
     const seen = new Map(candidates.map((m) => [m.id, new Set<string>([m.status === 'Timeout' ? 'Killed' : m.status])]));
     for (let n = 1; n <= options.flakyReruns && candidates.length; n++) {
       stats.isolatedByCause.flaky += candidates.length;
-      const again = await runIsolated(candidates);
+      const again = await runIsolated(candidates, 'flaky');
       for (const m of candidates) {
         const v = again.get(m.id);
         if (v) seen.get(m.id)?.add(v.status === 'Timeout' ? 'Killed' : v.status);

@@ -497,6 +497,10 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
   async runTask(test: AnyTask & { context?: unknown }): Promise<void> {
     const fn = statics.getTestFn(test);
     if (!fn) throw new Error(`oxmutate: no function for test ${test.name}`);
+    // `static`: the verdicts are the records decideStatic wrote before the file's own run, which tells
+    // the coordinator nothing. It ran every body of the file once per unit, `exploits`' 3.6 s on pathe's
+    // `glob.spec.ts` among them.
+    if (mode === 'static' && staticIds.length > 0) return;
     if (mode !== 'mutant') {
       if (only && !only.has(test.id)) return;
       // Only a wait inside a test body can be an idle stall; collection at low CPU is a slow machine.
@@ -741,7 +745,10 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
       try {
         vi.resetModules();
         const [file] = await collectTests([filepath], this);
-        const bodies = armed !== undefined && staticTests?.[armed] ? new Set(staticTests[armed]) : undefined;
+        // A confirmation runs only its covering tests' bodies, so its canary asks only whether those still
+        // pass unarmed: every body of the file made the canary the larger part of pathe's confirmations
+        // (150 re-collections, each running `exploits`' 65,500-character globs, 2026-11-20).
+        const bodies = staticTests ? new Set(armed !== undefined ? (staticTests[armed] ?? []) : Object.values(staticTests).flat()) : undefined;
         const result = file ? await runCollected(file, runnable, bodies) : { failed: [filepath], ran: 0 };
         await settle();
         if (unhandled > before && result.failed.length === 0) result.failed.push(filepath);
