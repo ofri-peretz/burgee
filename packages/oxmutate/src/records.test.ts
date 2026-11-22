@@ -31,4 +31,18 @@ describe('withoutSuspects', () => {
     const records: Rec[] = [mutant('m1'), { type: 'recollection' }, { type: 'recovered', id: 'm1', test: 't1' }];
     expect(withoutSuspects(records)).toEqual(records);
   });
+
+  it('drops a suspect at the very start of the list, and only mutant records', () => {
+    const polluted: Rec = { type: 'polluted', id: 'm2', test: 't1' };
+    const out = withoutSuspects([mutant('m2'), polluted, recovered(['m2'])]);
+    expect(out.map((r) => r.type)).toEqual(['polluted', 'recovered']);
+  });
+
+  it('keys a record with no id or test by empty strings', () => {
+    const bare: Rec = { type: 'mutant' };
+    const noTest: Rec = { type: 'recovered', id: 'm1', suspects: [''] };
+    expect(withoutSuspects([bare, noTest]).map((r) => r.type)).toEqual(['recovered']);
+    const noSuspectTest: Rec = { type: 'recovered', suspects: ['m2'] };
+    expect(withoutSuspects([{ type: 'mutant', id: 'm2' }, noSuspectTest]).map((r) => r.type)).toEqual(['recovered']);
+  });
 });

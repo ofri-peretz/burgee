@@ -17,6 +17,7 @@ export function withoutSuspects<R extends Suspected>(records: readonly R[]): R[]
   const kept: R[] = [];
   for (const r of records) {
     if (r.type === 'recovered') {
+      // Stryker disable next-line ArrayDeclaration: a one-element list names an id no record has, as `[]` does
       const dropped = new Set((r.suspects ?? []).map((id) => `${id}|${r.test ?? ''}`));
       for (let i = kept.length - 1; i >= 0; i--) {
         const k = kept[i] as R;
