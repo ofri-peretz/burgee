@@ -242,10 +242,24 @@ jobs:
           for s in confirm confirmAll confirmLive; do
             $QUINT run "$m" --main="$s" --invariant=safety --max-steps=10 --max-samples=20000 >/dev/null
           done
-          for inv in "confirm neverCross" "confirmLiveAllBodies safety" "confirmLiveUnguarded safety"; do
+          for inv in "confirm neverCross" "confirmSkipSingle safety" "confirmLiveAllBodies safety" "confirmLiveUnguarded safety"; do
             set -- $inv
             if $QUINT run "$m" --main="$1" --invariant="$2" --max-steps=10 --max-samples=20000 >/dev/null; then
               echo "::error::confirm.qnt: $2 holds under $1 — the model no longer shows what it was written to show"
+              exit 1
+            fi
+          done
+      # oxmutate's pollution recovery (recover.qnt): resetting the registry and collecting again in
+      # the same worker keeps `safety` under both guards, and dropping either, or the reset, does not;
+      # a recovery and a fallback restart are both still reachable (the witnesses).
+      - name: oxmutate pollution recovery — guarded recovery holds, unguarded ones fail
+        run: |
+          m=.sdlc/intents/oxmutate/recover.qnt
+          $QUINT run "$m" --main=recover --invariant=safety --max-steps=30 --max-samples=20000 >/dev/null
+          for inv in "recover neverRecovers" "recover neverRestarts" "noGuard safety" "noProve safety" "doNothing safety"; do
+            set -- $inv
+            if $QUINT run "$m" --main="$1" --invariant="$2" --max-steps=30 --max-samples=20000 >/dev/null; then
+              echo "::error::recover.qnt: $2 holds under $1 — the model no longer shows what it was written to show"
               exit 1
             fi
           done

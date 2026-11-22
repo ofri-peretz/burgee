@@ -31,11 +31,15 @@ const stats = (s: Partial<RunStats> = {}): RunStats => ({
   warmArmedMs: 0,
   isolatedByCause: { static: 0, stopped: 0, unfinished: 0, rerun: 0, confirm: 0, flaky: 0 },
   confirmLive: 0,
+  staleSurvivors: 0,
   watchdogKills: 0,
   idleStalls: 0,
   crashes: 0,
   canaryFiles: 0,
   pollutionRestarts: 0,
+  pollutionRecovered: 0,
+  pollutionRefused: {},
+  pollutionRefusedFirst: {},
   survivorsOverturned: 0,
   timeoutsOverturned: 0,
   compileErrors: 0,
@@ -276,9 +280,9 @@ describe('the terminal summary', () => {
   });
 
   it('names each correction the run made, in a fixed order', async () => {
-    const r = await run({ stats: stats({ watchdogKills: 1, deadlocks: 10, diskWrites: 11, pollutionRestarts: 2, canaryFiles: 3, flakyMutants: 4, survivorsOverturned: 5, timeoutsOverturned: 6, compileErrors: 7, reused: 8, auditSampled: 12, auditDisagreed: 1, crashes: 9 }) });
+    const r = await run({ stats: stats({ watchdogKills: 1, deadlocks: 10, diskWrites: 11, pollutionRestarts: 2, pollutionRecovered: 13, canaryFiles: 3, flakyMutants: 4, survivorsOverturned: 5, timeoutsOverturned: 6, compileErrors: 7, reused: 8, auditSampled: 12, auditDisagreed: 1, crashes: 9 }) });
     expect(textSummary(r).split('\n')[4]).toBe(
-      '  corrected: 1 runaway(s) stopped · 10 deadlock(s) called by their worker · 11 write(s) outside the sandbox put back, their units re-run · 2 polluted context(s) restarted (in 3 file(s)) · 4 flaky verdict(s) · 5 survivor(s) killed by a whole-file re-run · 6 timeout(s) that finished given 3x the time · 7 survivor(s) that do not type-check, out of the score · 8 verdict(s) reused (12 audited, 1 disagreeing) · 9 worker crash(es)',
+      '  corrected: 1 runaway(s) stopped · 10 deadlock(s) called by their worker · 11 write(s) outside the sandbox put back, their units re-run · 2 polluted context(s) restarted (in 3 file(s)) · 13 polluted context(s) recovered in the worker, with no restart · 4 flaky verdict(s) · 5 survivor(s) killed by a whole-file re-run · 6 timeout(s) that finished given 3x the time · 7 survivor(s) that do not type-check, out of the score · 8 verdict(s) reused (12 audited, 1 disagreeing) · 9 worker crash(es)',
     );
     expect(textSummary(await run({ stats: stats({ crashes: 1 }) })).split('\n')[4]).toBe('  corrected: 1 worker crash(es)');
     expect(textSummary(await run({ stats: stats({ staticAuditDisagreed: 2 }) })).split('\n')[4]).toBe('  corrected: 2 kill(s) a static group hid, found by the audit');

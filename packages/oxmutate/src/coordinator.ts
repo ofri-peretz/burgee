@@ -31,6 +31,7 @@ import { createGovernor } from './governor.js';
 import { changedLines, parseMutateSpec, shardOf, touches, withinRange, type MutateRange } from './lanes.js';
 import { native, type NativeMutant } from './native.js';
 import { startProgress } from './progress.js';
+import { withoutSuspects } from './records.js';
 import { VERSION } from './reports.js';
 import { FILE_KEY, env, stderr } from './runtime.js';
 import { createPool, type UnitOutcome } from './scheduler.js';
@@ -94,6 +95,8 @@ export interface RunStats {
   isolatedByCause: { static: number; stopped: number; unfinished: number; rerun: number; confirm: number; flaky: number };
   /** Survivors confirmed in a live worker (6b, confirm.qnt `LIVE`); those it handed back are in `isolatedByCause.confirm`. */
   confirmLive: number;
+  /** Survivors confirmed on cold modules only because a memo could have hidden them: one covering test, which the warm run armed after other runs in the same module instance. */
+  staleSurvivors: number;
   watchdogKills: number;
   /** Of `watchdogKills`, the stops whose worker was idle, waiting (heartbeat.ts). In an isolated run each is a Timeout as it stands. */
   idleStalls: number;
@@ -104,6 +107,12 @@ export interface RunStats {
   auditDisagreed: number;
   /** Contexts restarted because a mutant left state behind (the per-execution canary fired). */
   pollutionRestarts: number;
+  /** Of those events, the ones the worker recovered from itself (recover.qnt): registry reset, file collected again, no new worker. */
+  pollutionRecovered: number;
+  /** Why the restarts happened: each `polluted` record's refusal (runner.ts `recover`), counted by its first words. */
+  pollutionRefused: Record<string, number>;
+  /** The first full refusal of each kind, to read what a bucket was. */
+  pollutionRefusedFirst: Record<string, string>;
   /** Units after which the project on disk had changed (diskguard.ts): put back, and their verdicts and those of the units running beside them re-run. */
   diskWrites: number;
   /**
@@ -174,12 +183,14 @@ interface Verdict {
   slow?: boolean | undefined;
   /** A Timeout from two such runs. */
   slowTwice?: boolean | undefined;
+  /** A RuntimeError because this mutant's own run took the worker down (not a verdict the run never produced). */
+  crashed?: boolean | undefined;
   /** Tests that ran across its files: Stryker's `testsCompleted`. */
   testsCompleted?: number | undefined;
 }
 
 interface ChildRecord {
-  type: 'dry' | 'mutant' | 'polluted' | 'isolated' | 'static-fallback' | 'recollection' | 'static-group' | 'static-audit';
+  type: 'dry' | 'mutant' | 'polluted' | 'recovered' | 'isolated' | 'static-fallback' | 'recollection' | 'static-group' | 'static-audit';
   /** `static-group`: whether the group's run passed (all survive this file) or was split. */
   passed?: boolean;
   /** `static-audit`: a group survivor run again alone failed: the group hid a kill. */
@@ -208,7 +219,12 @@ interface ChildRecord {
   modules?: Record<string, string[]>;
   /** `isolated`: tests that ran (passed or failed) in this file run. */
   ran?: number;
-  /** `polluted`: mutants run after the first since the last clean canary; their verdicts are dropped. */
+  /** `polluted`: why the worker could not recover in place (runner.ts `recover`); absent when none was tried. */
+  refused?: string;
+  /**
+   * `polluted`, `recovered`: mutants run after the first since the last clean canary; their verdicts are
+   * dropped. A `recovered` record drops only the verdicts written before it: the worker runs them again after.
+   */
   suspects?: string[];
   tests?: (TestInfo & { state: string; error?: string })[];
   coverage?: { static: Record<string, number>; perTest: Record<string, Record<string, number>> };
@@ -358,8 +374,8 @@ export async function run(options: Options): Promise<RunResult> {
   const { root } = options;
   const work = mkdtempSync(path.join(tmpdir(), 'oxmutate-'));
   const stats: RunStats = {
-    files: 0, mutants: 0, instrumentMs: 0, dryRunMs: 0, mutationMs: 0, staticMs: 0, staticRecollections: 0, staticGroupRuns: 0, staticGroupSplits: 0, staticAuditSampled: 0, staticAuditDisagreed: 0, isolatedMs: 0, wallMs: 0, testExecutions: 0, warmUnitMs: 0, warmArmedMs: 0, isolatedByCause: { static: 0, stopped: 0, unfinished: 0, rerun: 0, confirm: 0, flaky: 0 }, confirmLive: 0,
-    watchdogKills: 0, idleStalls: 0, deadlocks: 0, crashes: 0, canaryFiles: 0, pollutionRestarts: 0, diskWrites: 0, diskWritePaths: [], auditSampled: 0, auditDisagreed: 0, survivorsOverturned: 0, timeoutsOverturned: 0, compileErrors: 0, isolatedRuns: 0, reused: 0, flakyTests: 0, flakyMutants: 0, units: 0, serversSpawned: 0, serversReleased: 0, watchdogGraced: 0, heldByLoadMs: 0,
+    files: 0, mutants: 0, instrumentMs: 0, dryRunMs: 0, mutationMs: 0, staticMs: 0, staticRecollections: 0, staticGroupRuns: 0, staticGroupSplits: 0, staticAuditSampled: 0, staticAuditDisagreed: 0, isolatedMs: 0, wallMs: 0, testExecutions: 0, warmUnitMs: 0, warmArmedMs: 0, isolatedByCause: { static: 0, stopped: 0, unfinished: 0, rerun: 0, confirm: 0, flaky: 0 }, confirmLive: 0, staleSurvivors: 0,
+    watchdogKills: 0, idleStalls: 0, deadlocks: 0, crashes: 0, canaryFiles: 0, pollutionRestarts: 0, pollutionRecovered: 0, pollutionRefused: {}, pollutionRefusedFirst: {}, diskWrites: 0, diskWritePaths: [], auditSampled: 0, auditDisagreed: 0, survivorsOverturned: 0, timeoutsOverturned: 0, compileErrors: 0, isolatedRuns: 0, reused: 0, flakyTests: 0, flakyMutants: 0, units: 0, serversSpawned: 0, serversReleased: 0, watchdogGraced: 0, heldByLoadMs: 0,
   };
   let unitSeq = 0;
   const fileFor = (kind: string, ext: string): string => path.join(work, `${kind}-${String(unitSeq++)}.${ext}`);
@@ -801,7 +817,14 @@ export async function run(options: Options): Promise<RunResult> {
       // Verdicts a failed canary cannot vouch for are dropped; their pairs are re-queued below.
       const raw = readRecords(unit.results);
       const suspect = new Set(raw.filter((r) => r.type === 'polluted').flatMap((r) => (r.suspects ?? []).map((id) => `${id}|${r.test ?? ''}`)));
-      const recs = raw.filter((r) => !(r.type === 'mutant' && suspect.has(`${r.id ?? ''}|${r.test ?? ''}`)));
+      const recs = withoutSuspects(raw.filter((r) => !(r.type === 'mutant' && suspect.has(`${r.id ?? ''}|${r.test ?? ''}`))));
+      stats.pollutionRecovered += recs.filter((r) => r.type === 'recovered').length;
+      for (const r of recs.filter((x) => x.type === 'polluted')) {
+        const full = r.refused ?? 'no recovery tried (a deadlock, or OXMUTATE_ISOLATE_POLLUTION=1)';
+        const why = full.split(':')[0] as string;
+        stats.pollutionRefused[why] = (stats.pollutionRefused[why] ?? 0) + 1;
+        stats.pollutionRefusedFirst[why] ??= full;
+      }
       records.push(...recs);
       const wasPolluted = recs.some((r) => r.type === 'polluted');
       if (wasPolluted) stats.pollutionRestarts++;
@@ -878,6 +901,11 @@ export async function run(options: Options): Promise<RunResult> {
     for (const m of toRun) {
       const all = byMutant.get(m.id) ?? [];
       const recs = all.filter((r) => !r.spec);
+      // OXMUTATE_ISOLATE_ALL=1: no warm verdict is used; each covered mutant runs armed from process start, Vitest running its covering files normally. The reference a verdict is proven against.
+      if (env['OXMUTATE_ISOLATE_ALL'] && m.coveredBy.length > 0) {
+        isolatedQueue.push(m);
+        continue;
+      }
       const killers = recs.filter((r) => r.status === 'Killed' || r.status === 'Timeout');
       if (m.specCoveredBy) m.spec = specVerdict(m, all.filter((r) => r.spec));
       if (m.coveredBy.length === 0 && !runaways.has(m.id) && !crashedIds.has(m.id)) {
@@ -1164,7 +1192,7 @@ export async function run(options: Options): Promise<RunResult> {
             else verdicts.set(rec.id, { status: prev?.status ?? 'Survived', killedBy: prev?.killedBy, testsCompleted });
           }
           if (outcome.killedFor) verdicts.set(outcome.killedFor, { status: 'Timeout', idle: outcome.stall === 'idle' });
-          if (outcome.crashed && outcome.crashedFor) verdicts.set(outcome.crashedFor, { status: 'RuntimeError' });
+          if (outcome.crashed && outcome.crashedFor) verdicts.set(outcome.crashedFor, { status: 'RuntimeError', crashed: true });
           if (!outcome.killedFor && !outcome.crashed) return [];
           const done = new Set([...verdicts.keys()]);
           const rest = (unit.batch ?? []).filter((b) => !done.has(b.id)).map((b) => byId.get(b.id) as MutantResult);
@@ -1246,9 +1274,7 @@ export async function run(options: Options): Promise<RunResult> {
     // survives warm and is killed when armed for the whole file, the way Stryker runs it (burgee/
     // paratext plugin.ts, 2026-10-27). Survivors are what a person acts on, so each one is
     // re-run once with the mutant armed across its covering files before it is reported.
-    // A survivor with one covering test is not re-run: confirmation runs only covering tests, so there
-    // is no later test for its leftover state to reach, and the warm run already armed that test
-    // through its hooks from clean state (.sdlc/intents/oxmutate/confirm.qnt).
+    // A survivor with one covering test is re-run too, for a different reason (below, confirm.qnt `MEMO`).
     // A confirmation runs in a fresh worker (the isolated path), and with OXMUTATE_LIVE_CONFIRM=1 in a
     // live one first (confirm.qnt `LIVE`): the mutant armed from the file's collection, the modules
     // re-evaluated under it, only its covering tests' bodies run, in file order, with every test's
@@ -1257,7 +1283,16 @@ export async function run(options: Options): Promise<RunResult> {
     // Live is the opt-in because it is not faster everywhere (2026-11-20, one build, alternating): ufo's
     // 100 confirmations took 1.2 s live against 3.9 s fresh, pathe's 122 took 57.7 s live against 21.7 s
     // fresh (0.47 s a mutant against 0.18; the run took 360.7 s against 280.5 s).
-    const survivors = toRun.filter((m) => m.status === 'Survived' && new Set(m.coveredBy).size > 1);
+    // A warm survivor is confirmed from cold modules whatever its covering tests. Its armed run came after
+    // other runs in the same module instance, and a memo they filled (pathe's glob cache) hides a mutant in
+    // the code that computed the value: it survives there and is killed on the cold modules of a fresh
+    // worker, so its verdict depended on its place in its unit (src/_glob.ts:279:20, :316:43 flipped between
+    // runs of 2.9.0 on it). Neither a hit count nor the dry run's coverage can tell which ones: a mutant
+    // whose code was reached can be hidden through the value it returned. The old rule, only survivors with
+    // two covering tests, is OXMUTATE_TRUST_WARM_SURVIVORS=1.
+    const stale = new Set(env['OXMUTATE_TRUST_WARM_SURVIVORS'] ? [] : toRun.filter((m) => m.status === 'Survived' && new Set(m.coveredBy).size <= 1).map((m) => m.id));
+    const survivors = toRun.filter((m) => m.status === 'Survived' && (new Set(m.coveredBy).size > 1 || stale.has(m.id)));
+    stats.staleSurvivors = survivors.filter((m) => stale.has(m.id)).length;
     const live = env['OXMUTATE_LIVE_CONFIRM'] ? await decideLive(survivors, filesFor, true) : { verdicts: new Map<string, Verdict>(), undecided: survivors };
     stats.confirmLive += live.verdicts.size;
     stats.isolatedByCause.confirm += live.undecided.length;
@@ -1274,10 +1309,13 @@ export async function run(options: Options): Promise<RunResult> {
     }
     for (const m of survivors) {
       const v = confirmed.get(m.id);
-      if (v && v.status !== 'Survived' && v.status !== 'RuntimeError') {
+      // A confirmation that took the worker down is the mutant's own: a fresh worker gives that verdict (a memo hid it warm).
+      if (v && v.status !== 'Survived' && (v.status !== 'RuntimeError' || v.crashed)) {
         m.status = v.status;
         m.killedBy = v.killedBy;
-        m.statusReason = v.slowTwice ? timeoutReason(v) : 'killed only when the mutant stays active across the whole test file (cross-test effect)';
+        const reason = stale.has(m.id) ? 'killed on cold modules: the warm run armed it after other runs in the same module instance, and a memo they filled hid it' : 'killed only when the mutant stays active across the whole test file (cross-test effect)';
+        const timedOut = v.slowTwice ? timeoutReason(v) : reason;
+        m.statusReason = v.status === 'RuntimeError' ? 'the worker crashed while this mutant ran' : timedOut;
         stats.survivorsOverturned++;
       }
     }
