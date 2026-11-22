@@ -109,7 +109,7 @@ it at its idle 61–160%).
   the pool the project's Vitest config asks for" (fails with threads forced).
 - **R22 — a dry run that cannot proceed says why, and the fix.** A dry run that ran nothing names
   what Vitest returned (a Vitest older than 4.1 raised `minThreads and maxThreads must not
-  conflict`: "ran no tests" was a misreport); failing tests quote their first error; in a container,
+conflict`: "ran no tests" was a misreport); failing tests quote their first error; in a container,
   a test that reached the network names `container.network`, tests that import build output the
   checkout lacks name `container.install` and `container.include`; a failed install names the
   lockfile and the registry login; an unreachable `container.host` or `container.context` names it
