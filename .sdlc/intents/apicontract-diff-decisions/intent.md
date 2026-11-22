@@ -44,6 +44,25 @@ change and decision agree:
 A non-breaking change needs no marker. A marker on a non-breaking change is allowed if it names a
 decision (some teams record every enum addition), and is not counted as stale.
 
+## The rules this follows
+
+From the Snappy Agent Playbook (November 2026), adopted by the owner on 2026-11-22 for this work.
+This intent is the playbook's "Agreements between systems" concept (Contract) made checkable:
+
+- **Tools spot changes; people decide; write the decision down.** `diff` spots the change. The
+  contract's owner decides, and the decision is the `x-change` marker in the contract. `diff` never
+  decides whether a change was meant; it only checks that a decision exists and still matches.
+- **Code decides facts; people decide meaning.** The case no tool sees, a field that keeps its name
+  but changes meaning (cents to dollars), stays a reviewer's call in the `contract-change-review`
+  playbook. `diff` does not guess at it.
+- **Nobody changes the rules in the same change they're judged by.** Markers are read on the new
+  side, because they are the decision. But which markers are required (the vocabulary, the
+  `--decisions` setting) is read from the base ref's config, so a PR cannot turn the check off in
+  the change it would fail.
+- **New checks warn first.** `--decisions` reports at `warn` for one release and fails from the
+  next (see Constraints).
+- **Error messages say how to fix it.** Every new finding names the member and the marker to add.
+
 ## Why now
 
 - `diff` already sorts each change into breaking, unknown and non-breaking (`apicontract-diff`,
@@ -64,7 +83,7 @@ decision (some teams record every enum addition), and is not counted as stale.
 
 ## Constraints
 
-- **Off by default for one release.** `--decisions` turns it on; the next minor makes it the
+- **Warn first, then fail.** For one release `--decisions` reports at `warn`; the next minor makes it fail by
   default, with `--no-decisions` to opt out. Turning on a new failure silently would break every
   CI that runs `diff` today.
 - The marker vocabulary is small and documented: `x-change`, `x-sunset`, `x-replaced-by`, plus
