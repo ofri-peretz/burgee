@@ -6,19 +6,20 @@
 // version, so a candidate whose engine differs from its published version must be released first.
 //
 //   node packages/oxmutate/bench/container-corpus.mjs [--cases berry,berryOk,yarn1,workspace,berryWorkspace,needsNetwork,registry,failures]
-//        [--engine docker|podman] [--host <dist/bin.js>] [--candidate-dist <dist>] [--out <file.json>]
+//   Options: --engine docker or podman, --host (the build under test), --candidate-dist (its dist, laid
+//   over the inside oxmutate), --out (the summary file).
 //
 // berry, berryOk, yarn1, workspace, berryWorkspace, needsNetwork: a real repository pinned to a commit,
 //   run with a config of exactly {"container": true}; each says whether that must end with a report
 //   or fail in the dry run with a line naming the fix (see REPOS). `--candidate-dist` lays this build's
 //   dist over the inside oxmutate, for engine changes not yet released.
-// registry: a local Verdaccio (a container on the `oxmutate-corpus` network) holding `@corp/greeter`,
+// The registry case: a local Verdaccio (a container on the `oxmutate-corpus` network) holding `@corp/greeter`,
 //   which needs a token. The host's npm user config is a temp file naming `${NODE_AUTH_TOKEN}`; the
 //   install must succeed and the tests must see neither the token nor the file. A control run puts
 //   the token into `container.env`, and the same test must then fail.
 // failures: the one line each setup mistake prints, and whether it names a fix.
-import { createHash } from 'node:crypto';
 import { execFileSync, spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
@@ -27,7 +28,16 @@ import { fileURLToPath } from 'node:url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(homedir(), '.cache', 'oxmutate-bench', 'corpus');
 const MS_PER_S = 1000;
-const RUN_TIMEOUT_MS = 40 * 60 * MS_PER_S;
+const RUN_TIMEOUT_MINUTES = 40;
+const SECONDS_PER_MINUTE = 60;
+const RUN_TIMEOUT_MS = RUN_TIMEOUT_MINUTES * SECONDS_PER_MINUTE * MS_PER_S;
+/** Hex digits of the repository path's hash in the default volume name (container.ts). */
+const VOLUME_HASH_CHARS = 12;
+const POLL_MS = 500;
+const POLLS = 720;
+const LOG_CHARS = 500;
+const HTTP_UNAUTHORIZED = 401;
+const FETCH_TIMEOUT_MS = 10_000;
 const OUTPUT_BYTES = 256 * 1024 * 1024;
 const REGISTRY_PORT = 4873;
 const REGISTRY_NAME = 'oxmutate-corpus-registry';
@@ -92,10 +102,10 @@ function runOxmutate(cwd, config, extraArgs = [], env = {}) {
   const out = { exit: r.status, wallS: Number(wallS.toFixed(1)), stdout: r.stdout, stderr: r.stderr, last: said ?? lines.at(-1) ?? '' };
   if (existsSync(report)) {
     const files = Object.values(JSON.parse(readFileSync(report, 'utf8')).files);
-    const count = {};
-    for (const f of files) for (const m of f.mutants) count[m.status] = (count[m.status] ?? 0) + 1;
+    const count = new Map();
+    for (const f of files) for (const m of f.mutants) count.set(m.status, (count.get(m.status) ?? 0) + 1);
     out.mutants = files.reduce((n, f) => n + f.mutants.length, 0);
-    out.statuses = count;
+    out.statuses = Object.fromEntries(count);
   }
   return out;
 }
@@ -114,8 +124,11 @@ function containerConfig(extra = {}) {
 /** The project's own volume goes, so a case starts from a checkout and nothing an earlier run built in it. */
 function resetVolume(dir) {
   const top = realpathSync.native(git(dir, 'rev-parse', '--show-toplevel'));
-  spawnSync(engine, ['volume', 'rm', '-f', `oxmutate-${createHash('sha256').update(top).digest('hex').slice(0, 12)}`], { encoding: 'utf8' });
+  spawnSync(engine, ['volume', 'rm', '-f', `oxmutate-${createHash('sha256').update(top).digest('hex').slice(0, VOLUME_HASH_CHARS)}`], { encoding: 'utf8' });
 }
+
+/** A run that ended with a report: exit 0, or 1 for a missed threshold. */
+const reported = (x) => x.mutants !== undefined && [0, 1].includes(x.exit);
 
 function repoCase(name) {
   const r = REPOS[name];
@@ -124,7 +137,6 @@ function repoCase(name) {
   const cwd = path.join(dir, r.dir);
   const config = containerConfig();
   const first = runOxmutate(cwd, config);
-  const reported = (x) => x.mutants !== undefined && [0, 1].includes(x.exit);
   let ok;
   let second;
   if (r.expect === 'report') {
@@ -146,9 +158,16 @@ const sh = (cmd, a, o = {}) => spawnSync(cmd, a, { encoding: 'utf8', maxBuffer: 
 
 // ---------------------------------------------------------------- the private registry
 
+/** The host's npm user config for the registry at `h`: it names the token variable, never the value. */
+const npmrc = (h) => `@corp:registry=http://${h}:${REGISTRY_PORT}/\n//${h}:${REGISTRY_PORT}/:_authToken=\${NODE_AUTH_TOKEN}\n`;
+
+/** What the secrets test printed, from a run's output. */
+const seen = (x) => x.stdout.split('\n').find((l) => l.includes('SEEN BY THE TEST'))?.trim();
+
 async function registryCase() {
   const work = mkdtempSync(path.join(tmpdir(), 'oxmutate-registry-'));
   const conf = path.join(work, 'config.yaml');
+  // eslint-disable-next-line node-security/require-storage-encryption -- the config of a throwaway local registry, with no secret in it
   writeFileSync(conf, `storage: /verdaccio/storage\nauth:\n  htpasswd:\n    file: /verdaccio/storage/htpasswd\npackages:\n  '@corp/*':\n    access: $authenticated\n    publish: $authenticated\nlog: { type: stdout, format: pretty, level: warn }\n`);
   sh(engine, ['rm', '-f', REGISTRY_NAME]);
   sh(engine, ['network', 'create', NETWORK]);
@@ -162,18 +181,16 @@ async function registryCase() {
   const local = `http://localhost:${REGISTRY_PORT}/`;
   try {
     let ready = false;
-    for (let i = 0; i < 720 && !ready; i++) {
-      // eslint-disable-next-line no-await-in-loop -- a poll: the fallback installs Verdaccio first, which takes minutes on a loaded machine
-      ready = await fetch(`${local}-/ping`).then((r) => r.ok, () => false);
-      // eslint-disable-next-line no-await-in-loop -- a poll
-      if (!ready) await new Promise((r) => setTimeout(r, 500));
+    for (let i = 0; i < POLLS && !ready; i++) {
+      // A poll: the fallback installs Verdaccio first, which takes minutes on a loaded machine.
+      ready = await fetch(`${local}-/ping`, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) }).then((r) => r.ok, () => false);
+      if (!ready) await new Promise((r) => setTimeout(r, POLL_MS));
     }
-    if (!ready) throw new Error(`verdaccio did not answer in 6 minutes: ${sh(engine, ['logs', REGISTRY_NAME]).stdout.slice(-500)}`);
-    const made = await fetch(`${local}-/user/org.couchdb.user:ci`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: 'ci', password: 'ci-password-1', email: 'ci@oxmutate.test', type: 'user' }) });
+    if (!ready) throw new Error(`verdaccio did not answer in ${String(POLLS * POLL_MS / MS_PER_S)} s: ${sh(engine, ['logs', REGISTRY_NAME]).stdout.slice(-LOG_CHARS)}`);
+    const made = await fetch(`${local}-/user/org.couchdb.user:ci`, { method: 'PUT', signal: AbortSignal.timeout(FETCH_TIMEOUT_MS), headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: 'ci', password: 'ci-password-1', email: 'ci@oxmutate.test', type: 'user' }) });
     const token = (await made.json()).token;
     if (!token) throw new Error('verdaccio gave no token');
     // The host's npm user config, as a temp file: it names the variable, never the value.
-    const npmrc = (h) => `@corp:registry=http://${h}:${REGISTRY_PORT}/\n//${h}:${REGISTRY_PORT}/:_authToken=\${NODE_AUTH_TOKEN}\n`;
     const hostRc = path.join(work, 'npmrc-localhost');
     const dockerRc = path.join(work, 'npmrc-container');
     writeFileSync(hostRc, npmrc('localhost'));
@@ -186,7 +203,7 @@ async function registryCase() {
     writeFileSync(path.join(pkg, 'index.js'), "export const greet = (name) => `hello ${name}`;\n");
     const published = sh('npm', ['publish', '--userconfig', hostRc], { cwd: pkg, env: { ...withToken, npm_config_userconfig: hostRc } });
     if (published.status !== 0) throw new Error(`publish failed: ${published.stderr}`);
-    const anonymous = await fetch(`${local}@corp/greeter`).then((r) => r.status, (e) => `no answer: ${String(e.cause?.message ?? e)}`);
+    const anonymous = await fetch(`${local}@corp/greeter`, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) }).then((r) => r.status, (e) => `no answer: ${String(e.cause?.message ?? e)}`);
 
     const app = path.join(ROOT, 'registry-app');
     rmSync(app, { recursive: true, force: true });
@@ -229,7 +246,6 @@ async function registryCase() {
     resetVolume(app);
     // The control: the token handed to the tests on purpose must fail the secrets test.
     const control = runOxmutate(app, { container: { ...(engine === 'docker' ? {} : { engine }), cache: false, env: ['NODE_AUTH_TOKEN'] } }, [], { ...withToken, ...viaFile });
-    const seen = (x) => x.stdout.split('\n').find((l) => l.includes('SEEN BY THE TEST'))?.trim();
     return {
       case: 'registry',
       what: 'a scoped package that needs a token, on a Verdaccio container',
@@ -238,7 +254,7 @@ async function registryCase() {
       installAndRun: { ...brief(good), testSaw: seen(good) },
       controlTokenInEnv: { ...brief(control), last: control.last, testSaw: seen(control)?.replace(token, '<token>') },
       withoutToken: { ...brief(noToken), last: noToken.last },
-      ok: good.mutants !== undefined && [0, 1].includes(good.exit) && anonymous === 401 && control.mutants === undefined,
+      ok: reported(good) && anonymous === HTTP_UNAUTHORIZED && control.mutants === undefined,
     };
   } finally {
     sh(engine, ['rm', '-f', REGISTRY_NAME]);
@@ -277,11 +293,13 @@ function failureCases() {
   const b = tiny('daemon', {});
   add('Docker daemon not running', 'DOCKER_HOST=unix:///nonexistent/docker.sock (the daemon is not stopped: other work shares it)', runOxmutate(b, { container: true }, [], { DOCKER_HOST: 'unix:///nonexistent/docker.sock' }));
 
+  // eslint-disable-next-line conventions/prefer-dependency-version-strategy -- a benchmark target is pinned
   const c = tiny('install', { 'package.json': JSON.stringify({ name: 'x', private: true, type: 'module', devDependencies: { vitest: '4.1.9', '@oxmutate-corpus/does-not-exist': '1.0.0' } }) });
   add('install fails', 'a dependency no registry has', runOxmutate(c, { container: true }));
 
   const d = tiny('stale', {});
   execFileSync('npm', ['install', '--package-lock-only', '--no-audit', '--no-fund'], { cwd: d });
+  // eslint-disable-next-line conventions/prefer-dependency-version-strategy -- a benchmark target is pinned
   writeFileSync(path.join(d, 'package.json'), JSON.stringify({ name: 'x', private: true, type: 'module', devDependencies: { vitest: '4.1.9', ms: '2.1.3' } }));
   for (const x of [['add', '-A'], ['-c', 'user.name=b', '-c', 'user.email=b@b', 'commit', '-qm', 'lock']]) execFileSync('git', x, { cwd: d });
   add('lockfile out of date', 'package.json names ms, package-lock.json does not', runOxmutate(d, { container: true }));
@@ -293,11 +311,18 @@ function failureCases() {
 
 // ---------------------------------------------------------------- main
 
+/** One named case, run. */
+async function runCase(name) {
+  if (name === 'registry') return registryCase();
+  if (name === 'failures') return { case: 'failures', rows: failureCases() };
+  return repoCase(name);
+}
+
 const results = [];
 for (const name of names) {
   console.log(`== ${name}`);
-  // eslint-disable-next-line no-await-in-loop -- one case at a time: they share the machine
-  const r = name === 'registry' ? await registryCase() : name === 'failures' ? { case: 'failures', rows: failureCases() } : repoCase(name);
+  // eslint-disable-next-line reliability/no-await-in-loop -- one case at a time: they share the machine
+  const r = await runCase(name);
   console.log(JSON.stringify(r, null, 2));
   results.push(r);
 }
