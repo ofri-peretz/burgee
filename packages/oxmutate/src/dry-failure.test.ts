@@ -44,6 +44,10 @@ describe('emptyDryRun', () => {
     expect(said).toBe('the dry run ran no tests: Vitest said options.minThreads and options.maxThreads must not conflict. fix: oxmutate supports Vitest 4.1 or later (its peerDependency), and this project is on an older one: upgrade vitest');
   });
 
+  it('trims what Vitest said', () => {
+    expect(emptyDryRun(`${VITEST_SAID}  Failed to load config  \r\n`)).toBe('the dry run ran no tests: Vitest said Failed to load config. fix: check the Vitest config the run used, or set allowEmpty');
+  });
+
   it('names the config for any other Vitest error', () => {
     expect(emptyDryRun(`${VITEST_SAID}Failed to load config\n`)).toBe('the dry run ran no tests: Vitest said Failed to load config. fix: check the Vitest config the run used, or set allowEmpty');
   });

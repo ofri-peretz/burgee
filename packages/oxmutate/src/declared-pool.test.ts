@@ -19,6 +19,17 @@ describe('declaredPool', () => {
     expect(await declaredPool(path.join(fixtures, 'forks-pool'), 'vitest.config.mjs')).toBe('forks');
   });
 
+  it('loads the config as Vite does for tests: a function of command and mode sees both', async () => {
+    const dir = path.join(fixtures, 'declared-pool');
+    expect(await declaredPool(dir, 'by-mode.config.mjs')).toBe('forks');
+  });
+
+  it('is undefined for a pool that is not a name, and for a config with no test block', async () => {
+    const dir = path.join(fixtures, 'declared-pool');
+    expect(await declaredPool(dir, 'not-a-string.config.mjs')).toBeUndefined();
+    expect(await declaredPool(dir, 'no-test.config.mjs')).toBeUndefined();
+  });
+
   it('is undefined when the config names no pool, or there is no config', async () => {
     expect(await declaredPool(path.join(fixtures, 'load-error'))).toBeUndefined();
     const empty = scratch('oxmutate-pool-');
