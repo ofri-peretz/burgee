@@ -109,6 +109,8 @@ export interface RunStats {
   pollutionRestarts: number;
   /** Of those events, the ones the worker recovered from itself (recover.qnt): registry reset, file collected again, no new worker. */
   pollutionRecovered: number;
+  /** Why the restarts happened: each `polluted` record's refusal (runner.ts `recover`), counted by its first words. */
+  pollutionRefused: Record<string, number>;
   /** Units after which the project on disk had changed (diskguard.ts): put back, and their verdicts and those of the units running beside them re-run. */
   diskWrites: number;
   /**
@@ -179,6 +181,8 @@ interface Verdict {
   slow?: boolean | undefined;
   /** A Timeout from two such runs. */
   slowTwice?: boolean | undefined;
+  /** A RuntimeError because this mutant's own run took the worker down (not a verdict the run never produced). */
+  crashed?: boolean | undefined;
   /** Tests that ran across its files: Stryker's `testsCompleted`. */
   testsCompleted?: number | undefined;
 }
@@ -213,6 +217,8 @@ interface ChildRecord {
   modules?: Record<string, string[]>;
   /** `isolated`: tests that ran (passed or failed) in this file run. */
   ran?: number;
+  /** `polluted`: why the worker could not recover in place (runner.ts `recover`); absent when none was tried. */
+  refused?: string;
   /**
    * `polluted`, `recovered`: mutants run after the first since the last clean canary; their verdicts are
    * dropped. A `recovered` record drops only the verdicts written before it: the worker runs them again after.
@@ -367,7 +373,7 @@ export async function run(options: Options): Promise<RunResult> {
   const work = mkdtempSync(path.join(tmpdir(), 'oxmutate-'));
   const stats: RunStats = {
     files: 0, mutants: 0, instrumentMs: 0, dryRunMs: 0, mutationMs: 0, staticMs: 0, staticRecollections: 0, staticGroupRuns: 0, staticGroupSplits: 0, staticAuditSampled: 0, staticAuditDisagreed: 0, isolatedMs: 0, wallMs: 0, testExecutions: 0, warmUnitMs: 0, warmArmedMs: 0, isolatedByCause: { static: 0, stopped: 0, unfinished: 0, rerun: 0, confirm: 0, flaky: 0 }, confirmLive: 0, staleSurvivors: 0,
-    watchdogKills: 0, idleStalls: 0, deadlocks: 0, crashes: 0, canaryFiles: 0, pollutionRestarts: 0, pollutionRecovered: 0, diskWrites: 0, diskWritePaths: [], auditSampled: 0, auditDisagreed: 0, survivorsOverturned: 0, timeoutsOverturned: 0, compileErrors: 0, isolatedRuns: 0, reused: 0, flakyTests: 0, flakyMutants: 0, units: 0, serversSpawned: 0, serversReleased: 0, watchdogGraced: 0, heldByLoadMs: 0,
+    watchdogKills: 0, idleStalls: 0, deadlocks: 0, crashes: 0, canaryFiles: 0, pollutionRestarts: 0, pollutionRecovered: 0, pollutionRefused: {}, diskWrites: 0, diskWritePaths: [], auditSampled: 0, auditDisagreed: 0, survivorsOverturned: 0, timeoutsOverturned: 0, compileErrors: 0, isolatedRuns: 0, reused: 0, flakyTests: 0, flakyMutants: 0, units: 0, serversSpawned: 0, serversReleased: 0, watchdogGraced: 0, heldByLoadMs: 0,
   };
   let unitSeq = 0;
   const fileFor = (kind: string, ext: string): string => path.join(work, `${kind}-${String(unitSeq++)}.${ext}`);
@@ -811,6 +817,10 @@ export async function run(options: Options): Promise<RunResult> {
       const suspect = new Set(raw.filter((r) => r.type === 'polluted').flatMap((r) => (r.suspects ?? []).map((id) => `${id}|${r.test ?? ''}`)));
       const recs = withoutSuspects(raw.filter((r) => !(r.type === 'mutant' && suspect.has(`${r.id ?? ''}|${r.test ?? ''}`))));
       stats.pollutionRecovered += recs.filter((r) => r.type === 'recovered').length;
+      for (const r of recs.filter((x) => x.type === 'polluted')) {
+        const why = (r.refused ?? 'no recovery tried (a deadlock, or OXMUTATE_ISOLATE_POLLUTION=1)').split(':')[0] as string;
+        stats.pollutionRefused[why] = (stats.pollutionRefused[why] ?? 0) + 1;
+      }
       records.push(...recs);
       const wasPolluted = recs.some((r) => r.type === 'polluted');
       if (wasPolluted) stats.pollutionRestarts++;
@@ -1178,7 +1188,7 @@ export async function run(options: Options): Promise<RunResult> {
             else verdicts.set(rec.id, { status: prev?.status ?? 'Survived', killedBy: prev?.killedBy, testsCompleted });
           }
           if (outcome.killedFor) verdicts.set(outcome.killedFor, { status: 'Timeout', idle: outcome.stall === 'idle' });
-          if (outcome.crashed && outcome.crashedFor) verdicts.set(outcome.crashedFor, { status: 'RuntimeError' });
+          if (outcome.crashed && outcome.crashedFor) verdicts.set(outcome.crashedFor, { status: 'RuntimeError', crashed: true });
           if (!outcome.killedFor && !outcome.crashed) return [];
           const done = new Set([...verdicts.keys()]);
           const rest = (unit.batch ?? []).filter((b) => !done.has(b.id)).map((b) => byId.get(b.id) as MutantResult);
@@ -1295,11 +1305,13 @@ export async function run(options: Options): Promise<RunResult> {
     }
     for (const m of survivors) {
       const v = confirmed.get(m.id);
-      if (v && v.status !== 'Survived' && v.status !== 'RuntimeError') {
+      // A confirmation that took the worker down is the mutant's own: a fresh worker gives that verdict (a memo hid it warm).
+      if (v && v.status !== 'Survived' && (v.status !== 'RuntimeError' || v.crashed)) {
         m.status = v.status;
         m.killedBy = v.killedBy;
         const reason = stale.has(m.id) ? 'killed on cold modules: the warm run armed it after other runs in the same module instance, and a memo they filled hid it' : 'killed only when the mutant stays active across the whole test file (cross-test effect)';
-        m.statusReason = v.slowTwice ? timeoutReason(v) : reason;
+        const timedOut = v.slowTwice ? timeoutReason(v) : reason;
+        m.statusReason = v.status === 'RuntimeError' ? 'the worker crashed while this mutant ran' : timedOut;
         stats.survivorsOverturned++;
       }
     }

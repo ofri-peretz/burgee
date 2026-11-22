@@ -96,6 +96,7 @@ export const NIGHTLY_ONLY: Readonly<Record<string, string>> = {
   [`${E2E} > pollution recovered in the worker > restarts when the worker's globals changed: a warm memo would hide the next test's mutant`]: `${MUTATION_RUN}, three times: recovery, restarts, and recovery without its guard; unmeasured`,
   [`${E2E} > pollution recovered in the worker > restarts when the unmutated test still fails on the new collection: leftovers a reset does not clear`]: `${MUTATION_RUN}, three times: recovery, restarts, and recovery without its proof; unmeasured`,
   [`${E2E} > warm state that hides a mutant > gives every mutant of a memoized computation the verdict of a fresh worker, wherever it sits in its unit`]: `${MUTATION_RUN}, twice: warm and every mutant armed in a fresh worker; unmeasured`,
+  [`${E2E} > warm state that hides a mutant > reports a hidden mutant that takes the worker down as the RuntimeError a fresh worker gives it`]: `${MUTATION_RUN}, twice: warm and every mutant armed in a fresh worker, the mutant killing its worker; unmeasured`,
   [`${E2E} > warm state that hides a mutant > reports them Survived when the warm survivors are trusted, as 2.10 did: the check is what kills them`]: `${MUTATION_RUN}; unmeasured`,
   [`${E2E} > keeps a survivor whose confirmation run was only slow, not killed`]: `${MUTATION_RUN}, whose fixture stalls 6 s on purpose so the confirmation's 3x re-run is what decides; 5.8 s`,
   ['packages/oxmutate/src/checker.test.ts > the type checker > refuses the mutants that do not compile, with the error, and passes the ones that do']:

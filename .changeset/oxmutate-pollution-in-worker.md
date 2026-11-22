@@ -17,3 +17,5 @@ an earlier run filled (a glob cache) hid a mutant in the code that computed the 
 depended on its place in its unit. New stat `staleSurvivors`; `OXMUTATE_TRUST_WARM_SURVIVORS=1` keeps
 the old rule. `OXMUTATE_ISOLATE_ALL=1` runs every covered mutant armed from process start in a fresh
 worker, the reference a verdict is checked against.
+A confirmation whose mutant takes the worker down now makes its warm survivor a RuntimeError, as a fresh
+worker reports it. New stat `pollutionRefused`: why each remaining restart happened.

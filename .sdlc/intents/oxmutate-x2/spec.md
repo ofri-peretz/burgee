@@ -167,6 +167,11 @@ cold per mutant. An overturned one carries the reason "killed on cold modules: .
 restores the old rule. Cost: one live confirmation per single-test survivor (~0.5 ms to re-evaluate
 modules plus the test), measured on the bench.
 
+A confirmation that takes its worker down overturns a warm survivor to RuntimeError (`crashed` on the
+verdict), as a fresh worker gives it: a mutant a memo hid warm and that kills the process cold
+(`pathe` `_glob.ts:238:17`) is not a survivor. A RuntimeError for any other reason (no verdict came
+back) still leaves the survivor as it was. Fixture `memo-crash`.
+
 **Acceptance.** `OXMUTATE_ISOLATE_ALL=1` runs each covered mutant armed from process start, Vitest
 running its covering files normally: the reference. A verdict that differs from 2.9.0 is accepted when
 the reference gives it too (`bench/container.mjs --compare ... --fresh`).

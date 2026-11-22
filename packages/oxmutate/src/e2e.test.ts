@@ -1116,8 +1116,8 @@ describe.skipIf(!native || !existsSync(bin) || !nightly)('pollution recovered in
 // (OXMUTATE_ISOLATE_ALL=1 runs each covered mutant armed from process start, as Stryker does).
 describe.skipIf(!native || !existsSync(bin) || !nightly)('warm state that hides a mutant', () => {
   type Run = { verdicts: string[]; stats: { staleSurvivors: number } };
-  const memoRun = (env: Record<string, string> = {}): Run => {
-    const dir = path.join(pkg, 'test/fixtures/memo-hides');
+  const memoRun = (env: Record<string, string> = {}, fixtureName = 'memo-hides'): Run => {
+    const dir = path.join(pkg, 'test/fixtures', fixtureName);
     const reportDir = mkdtempSync(path.join(tmpdir(), 'oxmutate-memo-hides-'));
     execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: dir, stdio: 'pipe', env: { ...process.env, ...env } });
     const report = JSON.parse(readFileSync(path.join(reportDir, 'mutation.json'), 'utf8')) as { files: Record<string, { mutants: ReportMutant[] }>; 'x-oxmutate': { stats: Run['stats'] } };
@@ -1132,6 +1132,14 @@ describe.skipIf(!native || !existsSync(bin) || !nightly)('warm state that hides 
     // The four mutants of `n * 3 + 1`, the first run cold and the rest not, are all killed.
     expect(warm.verdicts.filter((v) => v.startsWith('10:') && v.endsWith(':Killed')).length).toBe(4);
     expect(warm.stats.staleSurvivors).toBeGreaterThan(0);
+  });
+
+  it('reports a hidden mutant that takes the worker down as the RuntimeError a fresh worker gives it', () => {
+    const warm = memoRun({}, 'memo-crash');
+    const fresh = memoRun({ OXMUTATE_ISOLATE_ALL: '1', OXMUTATE_ISOLATE_STATIC: '1', OXMUTATE_ISOLATE_POLLUTION: '1' }, 'memo-crash');
+    expect(warm.verdicts).toEqual(fresh.verdicts);
+    // The guard's `true` survives warm (a memo answers first) and kills the worker cold: not Survived.
+    expect(warm.verdicts).toContain('14:7:ConditionalExpression:RuntimeError');
   });
 
   it('reports them Survived when the warm survivors are trusted, as 2.10 did: the check is what kills them', () => {
