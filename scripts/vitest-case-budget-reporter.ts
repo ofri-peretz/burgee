@@ -90,7 +90,7 @@ export const NIGHTLY_ONLY: Readonly<Record<string, string>> = {
     "packages/oxmutate/src/vitest5-regression.test.ts > the Vitest 5 regression (SC7) > reproduces the defect: with Stryker 10.0.0's name filter put back, the same mutants are Survived having run no test"
   ]: `${MUTATION_RUN}, twice, the second with every mutant surviving into its confirmation run; 28.7 s`,
   [`${E2E} > survivor confirmation in a live worker > kills the cross-test mutant and keeps the survivors, with no fresh worker`]: `${MUTATION_RUN}; 2.9–4.3 s`,
-  [`${E2E} > survivor confirmation in a live worker > gives the verdicts of the fresh-worker path, which OXMUTATE_ISOLATE_CONFIRM=1 still takes`]: `${MUTATION_RUN}, twice: confirmations live and in fresh workers; 8.5 s`,
+  [`${E2E} > survivor confirmation in a live worker > gives the same verdicts live (OXMUTATE_LIVE_CONFIRM=1) and in fresh workers, the default`]: `${MUTATION_RUN}, twice: confirmations live and in fresh workers; 8.5 s`,
   [`${E2E} > keeps a survivor whose confirmation run was only slow, not killed`]: `${MUTATION_RUN}, whose fixture stalls 6 s on purpose so the confirmation's 3x re-run is what decides; 5.8 s`,
   ['packages/oxmutate/src/checker.test.ts > the type checker > refuses the mutants that do not compile, with the error, and passes the ones that do']:
     'the real TypeScript compiler, `npx tsc` once per batch, over the fixture project; 15.1 s on a contended CI runner',

@@ -210,8 +210,8 @@ export interface Pool {
     hooks?: DrainHooks,
   ): Promise<void>;
   close(): void;
-  /** `idle`: stops whose worker was idle (heartbeat.ts), of `killed`. `released`: servers closed for sitting idle (`resources.workerIdleTimeout`). `graced`: mutants given their grace in place instead of a kill. */
-  stats: { spawned: number; killed: number; idle: number; crashed: number; released: number; graced: number };
+  /** `idle`: stops whose worker was idle (heartbeat.ts), of `killed`. `released`: servers closed for sitting idle (`resources.workerIdleTimeout`). `graced`: mutants given their grace in place instead of a kill. `peak`: the most units that ran at once since it was last set to 0. */
+  stats: { spawned: number; killed: number; idle: number; crashed: number; released: number; graced: number; peak: number };
 }
 
 /**
@@ -247,7 +247,7 @@ export function createPool(config: ServerConfig, size: number, place: PoolPlace)
   const lifecycle = place.lifecycle ?? { warm: true, idleTimeoutMs: 0 };
   const configFile = path.join(workDir, `server-${tag}.json`);
   writeFileSync(configFile, JSON.stringify(config));
-  const stats = { spawned: 0, killed: 0, idle: 0, crashed: 0, released: 0, graced: 0 };
+  const stats = { spawned: 0, killed: 0, idle: 0, crashed: 0, released: 0, graced: 0, peak: 0 };
   const spawn = (): Server => {
     stats.spawned++;
     const server = new Server(configFile, config.root, config.nodeArgs ?? [], workDir);
@@ -340,6 +340,7 @@ export function createPool(config: ServerConfig, size: number, place: PoolPlace)
             }
             await place.governor?.hold(() => busy);
             busy++;
+            stats.peak = Math.max(stats.peak, busy);
             const server = await serverFor(slot);
             const outcome = await server.run(unit, (id) => budget(unit, id), grace && ((id) => grace(unit, id)));
             tally(outcome);
