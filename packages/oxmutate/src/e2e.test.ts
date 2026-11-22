@@ -1080,6 +1080,14 @@ describe.skipIf(!native || !existsSync(bin) || !nightly)('pollution recovered in
     expect(live.verdicts).toContain('22:36:ArithmeticOperator:Survived');
   });
 
+  it('recovers in place when a test left process.cwd mocked, finding Vitest from where the project was', () => {
+    const live = pollutionRun('pollution-cwd', 'src/ledger.ts');
+    const restart = pollutionRun('pollution-cwd', 'src/ledger.ts', fresh);
+    expect(live.verdicts).toEqual(restart.verdicts);
+    expect(live.stats.pollutionRecovered).toBeGreaterThan(0);
+    expect(live.stats.pollutionRestarts).toBe(0);
+  });
+
   it('restarts when the worker\'s globals changed: a warm memo would hide the next test\'s mutant', () => {
     const live = pollutionRun('pollution-guard', 'src/gate.ts');
     const restart = pollutionRun('pollution-guard', 'src/gate.ts', fresh);

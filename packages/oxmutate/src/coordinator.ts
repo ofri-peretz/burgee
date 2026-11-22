@@ -111,6 +111,8 @@ export interface RunStats {
   pollutionRecovered: number;
   /** Why the restarts happened: each `polluted` record's refusal (runner.ts `recover`), counted by its first words. */
   pollutionRefused: Record<string, number>;
+  /** The first full refusal of each kind, to read what a bucket was. */
+  pollutionRefusedFirst: Record<string, string>;
   /** Units after which the project on disk had changed (diskguard.ts): put back, and their verdicts and those of the units running beside them re-run. */
   diskWrites: number;
   /**
@@ -373,7 +375,7 @@ export async function run(options: Options): Promise<RunResult> {
   const work = mkdtempSync(path.join(tmpdir(), 'oxmutate-'));
   const stats: RunStats = {
     files: 0, mutants: 0, instrumentMs: 0, dryRunMs: 0, mutationMs: 0, staticMs: 0, staticRecollections: 0, staticGroupRuns: 0, staticGroupSplits: 0, staticAuditSampled: 0, staticAuditDisagreed: 0, isolatedMs: 0, wallMs: 0, testExecutions: 0, warmUnitMs: 0, warmArmedMs: 0, isolatedByCause: { static: 0, stopped: 0, unfinished: 0, rerun: 0, confirm: 0, flaky: 0 }, confirmLive: 0, staleSurvivors: 0,
-    watchdogKills: 0, idleStalls: 0, deadlocks: 0, crashes: 0, canaryFiles: 0, pollutionRestarts: 0, pollutionRecovered: 0, pollutionRefused: {}, diskWrites: 0, diskWritePaths: [], auditSampled: 0, auditDisagreed: 0, survivorsOverturned: 0, timeoutsOverturned: 0, compileErrors: 0, isolatedRuns: 0, reused: 0, flakyTests: 0, flakyMutants: 0, units: 0, serversSpawned: 0, serversReleased: 0, watchdogGraced: 0, heldByLoadMs: 0,
+    watchdogKills: 0, idleStalls: 0, deadlocks: 0, crashes: 0, canaryFiles: 0, pollutionRestarts: 0, pollutionRecovered: 0, pollutionRefused: {}, pollutionRefusedFirst: {}, diskWrites: 0, diskWritePaths: [], auditSampled: 0, auditDisagreed: 0, survivorsOverturned: 0, timeoutsOverturned: 0, compileErrors: 0, isolatedRuns: 0, reused: 0, flakyTests: 0, flakyMutants: 0, units: 0, serversSpawned: 0, serversReleased: 0, watchdogGraced: 0, heldByLoadMs: 0,
   };
   let unitSeq = 0;
   const fileFor = (kind: string, ext: string): string => path.join(work, `${kind}-${String(unitSeq++)}.${ext}`);
@@ -818,8 +820,10 @@ export async function run(options: Options): Promise<RunResult> {
       const recs = withoutSuspects(raw.filter((r) => !(r.type === 'mutant' && suspect.has(`${r.id ?? ''}|${r.test ?? ''}`))));
       stats.pollutionRecovered += recs.filter((r) => r.type === 'recovered').length;
       for (const r of recs.filter((x) => x.type === 'polluted')) {
-        const why = (r.refused ?? 'no recovery tried (a deadlock, or OXMUTATE_ISOLATE_POLLUTION=1)').split(':')[0] as string;
+        const full = r.refused ?? 'no recovery tried (a deadlock, or OXMUTATE_ISOLATE_POLLUTION=1)';
+        const why = full.split(':')[0] as string;
         stats.pollutionRefused[why] = (stats.pollutionRefused[why] ?? 0) + 1;
+        stats.pollutionRefusedFirst[why] ??= full;
       }
       records.push(...recs);
       const wasPolluted = recs.some((r) => r.type === 'polluted');

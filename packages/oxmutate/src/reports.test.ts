@@ -39,6 +39,7 @@ const stats = (s: Partial<RunStats> = {}): RunStats => ({
   pollutionRestarts: 0,
   pollutionRecovered: 0,
   pollutionRefused: {},
+  pollutionRefusedFirst: {},
   survivorsOverturned: 0,
   timeoutsOverturned: 0,
   compileErrors: 0,

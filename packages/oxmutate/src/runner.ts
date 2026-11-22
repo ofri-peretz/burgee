@@ -62,10 +62,17 @@ type RunnerStatics = {
 };
 
 /**
+ * The project's directory, taken when this file loads: a test that mocks `process.cwd` (or leaves it
+ * mocked) must not move where Vitest is found later, when a recovery collects the file again (24 of
+ * pathe's 116 pollution events threw on the empty path, 2026-11-22).
+ */
+const projectDir = cwd();
+
+/**
  * The project's own Vitest, never the one beside this file: two Vitest instances in one worker
  * disagree about the current test, the snapshot state and `expect`.
  */
-const fromProject = async (specifier: string, dir = cwd()): Promise<unknown> => import(resolveEsm(specifier, dir));
+const fromProject = async (specifier: string, dir = projectDir): Promise<unknown> => import(resolveEsm(specifier, dir));
 
 /** The family's refusal shape for a missing optional peer (as `controlroom/ink`'s): a code and a fix. */
 export class PeerMissingError extends Error {
@@ -93,7 +100,7 @@ async function loadBase(): Promise<{ Base: new (config: unknown) => object; stat
     return { Base: v5, statics: { getTestFn: v5.getTestFn, getSuiteHooks: v5.getSuiteHooks } };
   }
   const runners = (await fromProject('vitest/runners')) as { VitestTestRunner: new (config: unknown) => object };
-  const vitestDir = path.dirname(createRequire(path.join(cwd(), 'package.json')).resolve('vitest/package.json'));
+  const vitestDir = path.dirname(createRequire(path.join(projectDir, 'package.json')).resolve('vitest/package.json'));
   const core = (await fromProject('@vitest/runner', vitestDir)) as {
     getFn: RunnerStatics['getTestFn'];
     getHooks: RunnerStatics['getSuiteHooks'];
@@ -276,7 +283,7 @@ type Collect = (specs: string[], runner: unknown) => Promise<AnyTask[]>;
 async function findCollect(): Promise<Collect | undefined> {
   const browser = (await fromProject('vitest/internal/browser').catch(() => ({}))) as { collectTests?: Collect };
   if (browser.collectTests) return browser.collectTests;
-  const vitestDir = path.dirname(createRequire(path.join(cwd(), 'package.json')).resolve('vitest/package.json'));
+  const vitestDir = path.dirname(createRequire(path.join(projectDir, 'package.json')).resolve('vitest/package.json'));
   return ((await fromProject('@vitest/runner', vitestDir).catch(() => ({}))) as { collectTests?: Collect }).collectTests;
 }
 let collector: Promise<Collect | undefined> | undefined;
@@ -651,7 +658,7 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
         onFresh = true;
         generation = { filepath, file };
       } catch (e) {
-        return refuse(`recovery threw: ${e instanceof Error ? e.message.slice(0, POLLUTION_ERROR_CHARS) : String(e)}`);
+        return refuse(`recovery threw: ${e instanceof Error ? `${e.name}: ${e.message}`.slice(0, POLLUTION_ERROR_CHARS) : String(e)}`);
       }
       const suspects = unchecked.slice(1);
       emit({ type: 'recovered', id: unchecked[0], suspects, test: test.id, file: filepath, error: cause instanceof Error ? cause.message.slice(0, POLLUTION_ERROR_CHARS) : String(cause) });
