@@ -1,5 +1,13 @@
 # oxmutate
 
+## 2.12.1
+
+### Patch Changes
+
+- [#1689](https://github.com/ofri-peretz/burgee/pull/1689) [`91e455b`](https://github.com/ofri-peretz/burgee/commit/91e455b7354221ddd2fe728450093d9d28c2451f) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Survivor confirmation runs in fresh workers again by default; the live path of 2.10.0 is `OXMUTATE_LIVE_CONFIRM=1`. Measured on one build, live and fresh alternating (2026-11-20): on pathe the live path took 57.7 s for 122 confirmations against 21.7 s for 119 in fresh workers (the run took 360.7 s against 280.5 s), on ufo 1.2 s for 100 against 3.9 s. The live path also spreads a file's confirmations over the pool, and a static worker's own run of the file, which decided nothing, no longer runs the file's test bodies. The report gains `isolatedStages` (each stage of the isolated phase: mutants, wall time, peak concurrency), `liveConfirmByFile` and `staticFallbacks` (why static mutants went to fresh workers).
+
+- [#1689](https://github.com/ofri-peretz/burgee/pull/1689) [`91e455b`](https://github.com/ofri-peretz/burgee/commit/91e455b7354221ddd2fe728450093d9d28c2451f) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The run report's `x-oxmutate.stats` now says what the isolated phase was made of. `staticFallbacks` counts the static mutants a live worker handed back to a fresh one, by the reason it gave and the globals it named (pathe: 75 mutants, every one of them from two inline snapshots whose re-collected test has no running test to read). `isolatedStages` lists each stage of the phase (first, rerun, confirm, recheck, flaky) with its mutants, its wall time and the most units that ran at once, so a stretch on one core shows up as a stage with a peak of 1.
+
 ## 2.12.0
 
 ### Minor Changes
