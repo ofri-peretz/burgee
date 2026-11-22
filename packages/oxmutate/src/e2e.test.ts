@@ -487,6 +487,34 @@ it.skipIf(!native || !existsSync(bin) || !nightly)('confirms a watchdog stop wit
   expect(report['x-oxmutate'].stats.idleStalls).toBe(0);
 }, 90_000);
 
+// A mutant stopped at 1x gets its 3x run as soon as it is stopped, in the pool beside the rest, not
+// after the last of the first stage (pathe: two serial tails of 36 and 38 s for 2 to 5 mutants). The
+// fixture's other mutant runs 7 s, longer than the first one's stop, so the re-run is queued while the
+// first stage is still draining: `at`, when it was queued, is before that stage ended. The verdicts are
+// the serial ones: the slow test is Killed on its re-run, the other mutant is Killed.
+it.skipIf(!native || !existsSync(bin) || !nightly)('queues a stopped mutant\'s 3x run while the first stage is still running', () => {
+  const dir = path.join(pkg, 'test/fixtures/chase');
+  const reportDir = path.join(dir, 'reports');
+  rmSync(reportDir, { recursive: true, force: true });
+  mkdirSync(reportDir, { recursive: true });
+  try {
+    execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: dir, stdio: 'pipe', env: { ...process.env, OXMUTATE_ISOLATE_STATIC: '1' } });
+    const report = JSON.parse(readFileSync(path.join(reportDir, 'mutation.json'), 'utf8')) as {
+      files: Record<string, { mutants: ReportMutant[] }>;
+      'x-oxmutate': { stats: { timeoutsOverturned: number; isolatedStages: { stage: string; mutants: number; ms: number; at?: number }[] } };
+    };
+    expect(Object.values(report.files).flatMap((f) => f.mutants.map((m) => m.status))).toEqual(['Killed', 'Killed']);
+    const { timeoutsOverturned, isolatedStages } = report['x-oxmutate'].stats;
+    expect(timeoutsOverturned).toBe(1);
+    const first = isolatedStages.find((x) => x.stage === 'first');
+    const rerun = isolatedStages.find((x) => x.stage === 'rerun');
+    expect(rerun?.mutants).toBe(1);
+    expect(rerun?.at).toBeLessThan(first?.ms ?? 0);
+  } finally {
+    rmSync(reportDir, { recursive: true, force: true });
+  }
+}, 120_000);
+
 // A mutant that loops with no switch in the loop (no hit count can stop it) is stopped by the watchdog in
 // the warm run. That stop was then run isolated at 1x, stopped again, and run at 3x: ufo's punycode.ts
 // spent 2.3 s of its 9.2 on the 1x run (2026-11-20). The warm stop is the first look, so the isolated

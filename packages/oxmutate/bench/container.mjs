@@ -4,6 +4,7 @@
 //
 //   node packages/oxmutate/bench/container.mjs --candidate <oxmutate.tgz> --label <name>
 //        with any of --targets ufo,pathe,defu,gen · --rounds 3 · --out <dir> · --host <dist/bin.js>
+//        · --concurrency N (workers inside the container; default: the tool's own)
 //        · --env NAME=value (repeatable: set in the container, e.g. OXMUTATE_LIVE_CONFIRM=1; the
 //        fresh-worker reference sets OXMUTATE_ISOLATE_ALL, _ISOLATE_STATIC and _ISOLATE_POLLUTION to 1)
 //
@@ -89,7 +90,7 @@ function runOne(name, dir, candidate, host) {
   copyFileSync(candidate, tgz);
   const sum = createHash('sha256').update(readFileSync(tgz)).digest('hex').slice(0, TGZ_HEX);
   const install = `${TARGETS[name].install} && npm i --no-save --no-audit --no-fund --prefix /w/tools /w/src/.oxmutate-candidate.tgz && : ${sum}`;
-  writeFileSync(path.join(dir, 'oxmutate.config.json'), JSON.stringify({ reporters: ['json'], container: { install, command: '/w/tools/node_modules/.bin/oxmutate', network: 'none', env: args.flatMap((a, i) => (args[i - 1] === '--env' ? [a] : [])) } }));
+  writeFileSync(path.join(dir, 'oxmutate.config.json'), JSON.stringify({ reporters: ['json'], ...(opt('concurrency') ? { concurrency: Number(opt('concurrency')) } : {}), container: { install, command: '/w/tools/node_modules/.bin/oxmutate', network: 'none', env: args.flatMap((a, i) => (args[i - 1] === '--env' ? [a] : [])) } }));
   // Container mode sends git's files: stage the tarball, so no .gitignore of the project can drop it.
   execFileSync('git', ['add', '-f', '.oxmutate-candidate.tgz', 'oxmutate.config.json'], { cwd: dir });
   // A run that fails before it writes a report must not be read as the previous run's.
