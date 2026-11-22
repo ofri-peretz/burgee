@@ -12,7 +12,7 @@ export function second(): void {
 }
 
 export function third(): void {
-  c = c + 3;
+  c = c + 2;
 }
 
 export const seen = (): number => a + b + c;
