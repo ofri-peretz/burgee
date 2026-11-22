@@ -20,7 +20,7 @@ import { declaredPool } from './declared-pool.js';
 import { VITEST_SAID } from './dry-failure.js';
 import { BEAT_ENV, beatFile, CPU_SAMPLE_MS } from './heartbeat.js';
 import { resolveEsm } from './resolve.js';
-import { ACTIVE_MUTANT_ENV, argv, env, exit, killGroup, pid, serverGroups } from './runtime.js';
+import { ACTIVE_MUTANT_ENV, argv, env, exit, killGroup, pid, serverGroups, stderr } from './runtime.js';
 import { instrumentedSources } from './vite-plugin.js';
 
 export interface ServerConfig {
@@ -241,7 +241,7 @@ const MAX_VITEST_ERRORS = 3;
 /** Errors Vitest returned instead of throwing (a pool it could not start), for the coordinator to name when nothing ran. */
 async function reportErrors(result: unknown): Promise<void> {
   const errors = (result as { unhandledErrors?: readonly { message?: string }[] } | undefined)?.unhandledErrors ?? [];
-  for (const e of errors.slice(0, MAX_VITEST_ERRORS)) process.stderr.write(`${VITEST_SAID}${(e.message ?? 'unknown').split('\n')[0] ?? ''}\n`);
+  for (const e of errors.slice(0, MAX_VITEST_ERRORS)) stderr.write(`${VITEST_SAID}${(e.message ?? 'unknown').split('\n')[0] ?? ''}\n`);
 }
 
 /** How long `close` waits for `vitest.close()` before the server exits regardless. */
