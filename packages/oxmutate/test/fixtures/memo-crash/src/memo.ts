@@ -10,7 +10,7 @@ export function triple(n: number): number {
   // Stryker disable next-line all: only the guard below is under test
   if (hit !== undefined) return hit;
   // Stryker disable next-line all: only the guard below is under test
-  const value = n * 3;
+  const value = n * 3; // eslint-disable-line conventions/no-magic-numbers -- the literal is what the fixture mutates
   if (Number.isNaN(value)) process.kill(process.pid, 'SIGKILL');
   // Stryker disable next-line all: only the guard below is under test
   cache.set(n, value);

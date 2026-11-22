@@ -16,7 +16,7 @@ export function list(): string[] {
 }
 
 export function configure(loud: boolean): void {
-  if (loud) (globalThis as Memo).__fixtureMemo = 6;
+  if (loud) (globalThis as Memo).__fixtureMemo = 6; // eslint-disable-line conventions/no-magic-numbers -- the literal is what the fixture mutates
 }
 
 // One mutant is live here, the literal: on the cold memo a new worker has it is killed, on a warm one

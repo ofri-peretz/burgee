@@ -10,5 +10,5 @@ it('lists what was added', () => {
 });
 
 it('computes six', () => {
-  expect(memo()).toBe(6);
+  expect(memo()).toBe(6); // eslint-disable-line conventions/no-magic-numbers -- the literal is what the fixture mutates
 });

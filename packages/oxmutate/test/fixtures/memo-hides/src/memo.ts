@@ -7,7 +7,7 @@ const cache = new Map<number, number>();
 export function triple(n: number): number {
   const hit = cache.get(n);
   if (hit !== undefined) return hit;
-  const value = n * 3 + 1;
+  const value = n * 3 + 1; // eslint-disable-line conventions/no-magic-numbers -- the literal is what the fixture mutates
   cache.set(n, value);
   return value;
 }
