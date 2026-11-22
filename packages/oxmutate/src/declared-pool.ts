@@ -22,8 +22,8 @@ export async function declaredPool(root: string, file?: string): Promise<string 
     // Stryker disable next-line OptionalChaining: a null result or a config with no `test` throws here, and the catch below answers the same
     const pool = loaded?.config.test?.pool;
     return typeof pool === 'string' ? pool : undefined;
+  // Stryker disable next-line BlockStatement: an empty catch leaves the function to return nothing, which is undefined too
   } catch {
-    // Stryker disable next-line BlockStatement: a function that returns nothing answers undefined too
     return undefined;
   }
 }
