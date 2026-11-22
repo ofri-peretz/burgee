@@ -511,7 +511,7 @@ it.skipIf(!native || !existsSync(bin) || !nightly)('queues a stopped mutant\'s 3
     expect(rerun?.mutants).toBe(1);
     expect(rerun?.at).toBeLessThan(first?.ms ?? 0);
   } finally {
-    rmSync(reportDir, { recursive: true, force: true });
+    discard(reportDir);
   }
 }, 120_000);
 
