@@ -4,6 +4,8 @@ import { expect, it } from 'vitest';
 
 import { one } from './one.js';
 
+const STALL_MS = 8000;
+
 // The first time its mutant is armed the test stalls for 8 s, past the first isolated budget, so the
 // stop is re-run; the re-run does not stall, and the verdict is Killed.
 it('returns one', () => {
@@ -13,7 +15,7 @@ it('returns one', () => {
     const count = existsSync(marker) ? Number(readFileSync(marker, 'utf8')) : 0;
     if (count < 1) {
       writeFileSync(marker, String(count + 1));
-      const until = Date.now() + 8000;
+      const until = Date.now() + STALL_MS;
       while (Date.now() < until);
     }
   }

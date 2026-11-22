@@ -314,6 +314,8 @@ function timeoutReason(v: Verdict): string {
 
 /** A Killed that every failing test reached only by its own timeout: re-run once before it is believed. */
 const slowKill = (v: Verdict | undefined): boolean => v?.status === 'Killed' && v.slow === true;
+/** A confirmation the watchdog stopped (not an idle stop, which is final) or that was killed only by a test's own timeout: it gets one more run. */
+const stoppedConfirm = (v: Verdict | undefined): boolean => (v?.status === 'Timeout' && !v.idle) || slowKill(v);
 
 /** A source position strictly before another. */
 const before = (x: MutantResult['start'], y: MutantResult['start']): boolean => x.line < y.line || (x.line === y.line && x.column < y.column);
@@ -1186,12 +1188,13 @@ export async function run(options: Options): Promise<RunResult> {
       // A mutant `chase.when` picks gets its 3x run (`chase.into`) as a unit of its own the moment its
       // verdict is in, in the pool beside the rest, not after the last of them: the tail was 2 to 5
       // mutants on a pool of 8 (pathe: 36 to 38 s a stage). Its verdict is the 3x run's, as before.
+      const slackOf = (id: string): number => (typeof slack === 'number' ? slack : slack(id));
       const chasing = new Set<string>();
       const chasedIds = new Set<string>();
       let chaseFrom = 0;
       await pool.drain(
         units,
-        (unit, id) => isolatedCapped(id, chasing.has(unit.results) ? RERUN_SLACK : typeof slack === 'number' ? slack : slack(id)),
+        (unit, id) => isolatedCapped(id, chasing.has(unit.results) ? RERUN_SLACK : slackOf(id)),
         (unit, outcome) => {
           const chased = chasing.has(unit.results);
           const into = chased && chase ? chase.into : verdicts;
@@ -1331,7 +1334,6 @@ export async function run(options: Options): Promise<RunResult> {
     const live = env['OXMUTATE_LIVE_CONFIRM'] ? await decideLive(survivors, filesFor, true) : { verdicts: new Map<string, Verdict>(), undecided: survivors };
     stats.confirmLive += live.verdicts.size;
     stats.isolatedByCause.confirm += live.undecided.length;
-    const stoppedConfirm = (v: Verdict | undefined): boolean => (v?.status === 'Timeout' && !v.idle) || slowKill(v);
     const recheck = new Map<string, Verdict>();
     const confirmed = new Map([...live.verdicts, ...(await runIsolated(live.undecided, 'confirm', 1, { when: (_, v) => stoppedConfirm(v), into: recheck }))]);
     // A timeout here is a watchdog stop like any other, and a loaded machine makes them: two
