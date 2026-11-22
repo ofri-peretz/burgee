@@ -161,9 +161,8 @@ position, which is every survivor: the warm run armed it after other runs in the
 
 **What changes.** Every warm survivor is confirmed from cold modules, not only those with two covering
 tests (`confirm.qnt`: `MEMO` and `hidden`; `confirmSkipSingle`, the old rule, violates `safety`). The
-confirmation is #1668's live path (the mutant armed, the registry reset, the file collected again, only
-the covering tests' bodies), so it is cold per mutant; a guard that refuses, and every timeout, goes to a
-fresh worker as before. An overturned one carries the reason "killed on cold modules: ...". New stat
+confirmation is the fresh-worker path (#1689's default; `OXMUTATE_LIVE_CONFIRM=1` tries the live one first), so it is
+cold per mutant. An overturned one carries the reason "killed on cold modules: ...". New stat
 `staleSurvivors`: the survivors confirmed only because of this rule. `OXMUTATE_TRUST_WARM_SURVIVORS=1`
 restores the old rule. Cost: one live confirmation per single-test survivor (~0.5 ms to re-evaluate
 modules plus the test), measured on the bench.

@@ -1127,7 +1127,7 @@ describe.skipIf(!native || !existsSync(bin) || !nightly)('warm state that hides 
 
   it('gives every mutant of a memoized computation the verdict of a fresh worker, wherever it sits in its unit', () => {
     const warm = memoRun();
-    const fresh = memoRun({ OXMUTATE_ISOLATE_ALL: '1', OXMUTATE_ISOLATE_CONFIRM: '1', OXMUTATE_ISOLATE_STATIC: '1' });
+    const fresh = memoRun({ OXMUTATE_ISOLATE_ALL: '1', OXMUTATE_ISOLATE_STATIC: '1' });
     expect(warm.verdicts).toEqual(fresh.verdicts);
     // The four mutants of `n * 3 + 1`, the first run cold and the rest not, are all killed.
     expect(warm.verdicts.filter((v) => v.startsWith('10:') && v.endsWith(':Killed')).length).toBe(4);
