@@ -117,9 +117,9 @@ engine-side message was under test (marked †). Each row says what the case fou
 
 | DoD item | Case (repo @ commit) | Result | Found, fixed |
 | :-- | :-- | :-- | :-- |
-| Yarn 1 | `acrazing/dpdm` @ `52ac8b8` | report: 1,187 mutants, exit 0, 305 s (load 25–60) | **`EACCES` on the forwarded `~/.npmrc`** (mode 0600, no capability to read another uid's file): R18 |
-| pnpm workspace | `twoslashes/twoslash` @ `e88c870`, from `packages/twoslash-remote` | report: 295 mutants, exit 0, 35 s, then 19 s | none |
-| Yarn 2+ | `Apple-Actions/import-codesign-certs` @ `2429e2f` | report: 210 mutants, exit 0, 9.5 s, then 3.3 s | none |
+| Yarn 1 | `acrazing/dpdm` @ `52ac8b8` | report: 1,187 mutants, exit 0, 349 s then 209 s on the final build (load 25–60) | **`EACCES` on the forwarded `~/.npmrc`** (mode 0600, no capability to read another uid's file): R18 |
+| pnpm workspace | `twoslashes/twoslash` @ `e88c870`, from `packages/twoslash-remote` | report: 295 mutants, exit 0, 35 s, then 18.6 s on the final build | none |
+| Yarn 2+ | `Apple-Actions/import-codesign-certs` @ `2429e2f` | report: 210 mutants, exit 0, 8 s then 2.6 s on the final build; on Podman 12.2 s then 2.3 s, same verdicts | none |
 | Yarn 2+ whose tests need a build | `electron/asar` @ `8257ba9` | zero-config fails in the dry run with one line naming `container.install` (†); with `install: "… && yarn build"` a report, 1,237 mutants, exit 0, 1,900 s | **a symlink to a directory was not sent** (27 failures): R19; **a stale report returned after a failed run**: R20; **`pool: 'forks'` overridden by threads** (`process.chdir`): R21; its dry-run line did not name the build: R22 |
 | Yarn 2+ workspace, older Vitest | `puzzmo-com/xd-crossword-tools` @ `930437b` (Vitest 3.1) | fails with one line: "Vitest said options.minThreads and options.maxThreads must not conflict … upgrade vitest" (†) | **"the dry run ran no tests" was a misreport**; R22 |
 | Tests that call the network | `electron/get` @ `9b4a554` (its suite fails with the network on too) | fails with one line naming `container.network` (†) | the line named no fix; R22 |
@@ -142,7 +142,7 @@ oxmutate's.
 
 #### Still open
 
-- **Podman:** PODMAN_STATE.
+- **Podman:** checked on one case: `Apple-Actions/import-codesign-certs` with `container.engine: "podman"` (Podman 5.6.1, `podman machine`, arm64) gave the same 210 verdicts as Docker (120 Killed, 10 Survived, 80 NoCoverage), 12.2 s then 2.3 s. Only that case; the others ran on Docker.
 - **GitHub Actions:** blocked by `D-20261101-no-mutation-in-gha` (the owner, 2026-11-01: "No oxmutate in GHA"; every mutating step left Actions). No workflow was written. Needs the owner: either amend the decision for a container-mode smoke run, or accept item 5 as macOS and Linux locally only.
 - **Corpus on the release:** the engine-side messages (†, R20, R21, R22) run inside the container only once published; until then the corpus needs `--candidate-dist`.
 
@@ -160,7 +160,7 @@ and, for speed, `bench/container.mjs --compare` numbers.
 | 3 | Release PR: daemon message, run guard, README; then registry auth; then the four gaps above | container DoD 1, 2, 4, 6 | running |
 | 4 | Warm units: pollution handled in the worker, a worker that outlives its unit | x2 WS3, fastest `1.3`, `1.5` | queued |
 | 5 | Container overhead: sync, start-up, copy-back | x2 WS4 | queued |
-| 6 | Corpus: Yarn 2+, a workspace monorepo, a private registry (a local registry container), Bun's error; Podman; a GitHub Actions run | container DoD 1, 5; container R1–R7 | PR test/oxmutate-container-corpus: Docker cases checked on real repositories (see above); Podman PODMAN_STATE; GitHub Actions blocked by `D-20261101-no-mutation-in-gha` |
+| 6 | Corpus: Yarn 2+, a workspace monorepo, a private registry (a local registry container), Bun's error; Podman; a GitHub Actions run | container DoD 1, 5; container R1–R7 | PR test/oxmutate-container-corpus: Docker cases checked on real repositories (see above); Podman checked on one case (same verdicts as Docker); GitHub Actions blocked by `D-20261101-no-mutation-in-gha` |
 | 7 | Static: run a static mutant only where its value is read; drop mutants that compile the same | fastest `2.4`, `2.3` | queued |
 | 8 | Incremental: report reuse; keep the dry run's coverage | fastest `3.1`, `3.3` (`F5`) | queued |
 | 9 | Governor: every free core when idle; memory per worker and in total | fastest `4.2`, `4.3` (`G3`, `G4`) | queued |
