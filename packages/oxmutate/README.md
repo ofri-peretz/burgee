@@ -384,19 +384,19 @@ each release carries SLSA provenance, which `npm view <package> dist.attestation
 [`trusted-publishing-lock`](https://github.com/ofri-peretz/burgee/blob/main/scripts/trusted-publishing-lock.test.ts)
 keeps both true.
 
-| Package                                                       | What it is                                                 | Migrates from                                                                 |
-| :------------------------------------------------------------ | :--------------------------------------------------------- | :---------------------------------------------------------------------------- |
-| [burgee](https://burgee.interlace.tools/docs/packages/burgee) | The CLI framework: one declaration, every surface          | commander, yargs and meow                                                     |
-| [roundel](https://roundel.interlace.tools/docs)               | Colour: one output policy, semantic tokens, a theme        | chalk, colorette, kleur, picocolors, supports-color and yoctocolors           |
-| [flagstaff](https://flagstaff.interlace.tools/docs)           | The frame loop: spinners, progress, boxes and tables       | ora, log-update, boxen and cli-table3                                         |
-| [caique](https://caique.interlace.tools/docs)                 | Prompts that are flags first, and never hang               | @inquirer/core                                                                |
-| [linegauge](https://linegauge.interlace.tools/docs)           | Measuring, wrapping, truncating and slicing styled text    | string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line |
-| [paratext](https://paratext.interlace.tools/docs)             | Hyperlinks, images, title, clipboard and notifications     | ansi-escapes, terminal-link and term-img                                      |
-| [seniority](https://seniority.interlace.tools/docs)           | Configuration precedence and discovery, with provenance    | cosmiconfig, lilconfig, dotenv and rc                                         |
-| [closeout](https://closeout.interlace.tools/docs)             | Exit handlers, terminal restore and a bounded shutdown     | signal-exit, exit-hook, restore-cursor, cli-cursor and onetime                |
-| [bellpull](https://bellpull.interlace.tools/docs)             | Subprocesses, and which executable actually ran            | cross-spawn and which                                                         |
-| [controlroom](https://controlroom.interlace.tools/docs)       | Keyboard-driven terminal screens, inline or full-screen    | ink                                                                           |
-| **oxmutate** (this package)                                   | Mutation testing on the oxc engine, inside your own Vitest | Stryker                                                                       |
+| Package | What it is | Migrates from |
+| :-- | :-- | :-- |
+| [burgee](https://burgee.interlace.tools/docs/packages/burgee) | The CLI framework: one declaration, every surface | commander, yargs and meow |
+| [roundel](https://roundel.interlace.tools/docs) | Colour: one output policy, semantic tokens, a theme | chalk, colorette, kleur, picocolors, supports-color and yoctocolors |
+| [flagstaff](https://flagstaff.interlace.tools/docs) | The frame loop: spinners, progress, boxes and tables | ora, log-update, boxen and cli-table3 |
+| [caique](https://caique.interlace.tools/docs) | Prompts that are flags first, and never hang | @inquirer/core |
+| [linegauge](https://linegauge.interlace.tools/docs) | Measuring, wrapping, truncating and slicing styled text | string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line |
+| [paratext](https://paratext.interlace.tools/docs) | Hyperlinks, images, title, clipboard and notifications | ansi-escapes, terminal-link and term-img |
+| [seniority](https://seniority.interlace.tools/docs) | Configuration precedence and discovery, with provenance | cosmiconfig, lilconfig, dotenv and rc |
+| [closeout](https://closeout.interlace.tools/docs) | Exit handlers, terminal restore and a bounded shutdown | signal-exit, exit-hook, restore-cursor, cli-cursor and onetime |
+| [bellpull](https://bellpull.interlace.tools/docs) | Subprocesses, and which executable actually ran | cross-spawn and which |
+| [controlroom](https://controlroom.interlace.tools/docs) | Keyboard-driven terminal screens, inline or full-screen | ink |
+| **oxmutate** (this package) | Mutation testing on the oxc engine, inside your own Vitest | Stryker |
 
 Every migration guide, and the family-wide [compatibility](https://burgee.interlace.tools/docs/compatibility)
 and [benchmarks](https://burgee.interlace.tools/docs/benchmarks) pages, are on
