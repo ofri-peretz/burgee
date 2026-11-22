@@ -109,6 +109,43 @@ Packages scope, oxmutate not among its dependencies, run with `npx oxmutate@2.9.
 | Bun (`bun.lock`) | **gap**: no install chosen, the image has no Bun | next: a one-line error naming `image`/`install` |
 | Docker not running, two runs on one repo | done | release PR |
 
+### Checked on a real repository (`bench/container-corpus.mjs`, 2026-11-20, Docker Desktop, macOS)
+
+Run with `{"container": true}` and nothing else, on repositories pinned by commit. The inside
+oxmutate is the published 2.11.0; `--candidate-dist` lays this build's `dist` over it only where an
+engine-side message was under test (marked †). Each row says what the case found.
+
+| DoD item | Case (repo @ commit) | Result | Found, fixed |
+| :-- | :-- | :-- | :-- |
+| Yarn 1 | `acrazing/dpdm` @ `52ac8b8` | report: 1,187 mutants, exit 0, 305 s (load 25–60) | **`EACCES` on the forwarded `~/.npmrc`** (mode 0600, no capability to read another uid's file): R18 |
+| pnpm workspace | `twoslashes/twoslash` @ `e88c870`, from `packages/twoslash-remote` | report: 295 mutants, exit 0, 35 s, then 19 s | none |
+| Yarn 2+ | `Apple-Actions/import-codesign-certs` @ `2429e2f` | report: 210 mutants, exit 0, 9.5 s, then 3.3 s | none |
+| Yarn 2+ whose tests need a build | `electron/asar` @ `8257ba9` | zero-config fails in the dry run with one line naming `container.install` (†); with `install: "… && yarn build"` a report, 1,237 mutants, exit 0, 1,900 s | **a symlink to a directory was not sent** (27 failures): R19; **a stale report returned after a failed run**: R20; **`pool: 'forks'` overridden by threads** (`process.chdir`): R21; its dry-run line did not name the build: R22 |
+| Yarn 2+ workspace, older Vitest | `puzzmo-com/xd-crossword-tools` @ `930437b` (Vitest 3.1) | fails with one line: "Vitest said options.minThreads and options.maxThreads must not conflict … upgrade vitest" (†) | **"the dry run ran no tests" was a misreport**; R22 |
+| Tests that call the network | `electron/get` @ `9b4a554` (its suite fails with the network on too) | fails with one line naming `container.network` (†) | the line named no fix; R22 |
+| Private registry | Verdaccio on a Docker network (`oxmutate-corpus`), `@corp/greeter` needs a token; host npmrc a temp file with `${NODE_AUTH_TOKEN}` | install succeeds (shared cache off, so the token is asked for), 7 mutants, exit 0; a test that checks its `NODE_AUTH_TOKEN`, `npm_config_userconfig`, `~/.npmrc`, `/tmp/oxmutate-npmrc` and token-shaped variables passes; the control (`container.env: ["NODE_AUTH_TOKEN"]`) fails that test; without the token the install fails with the 401/403/404 line | none |
+
+Not a pass: `electron/update-electron-app` and `electron/get` fail their own suites on a plain
+`node:22` with the network on (Windows-only tests; network downloads), so neither is a case of
+oxmutate's.
+
+#### Every failure names its fix (captured 2026-11-20)
+
+| Setup | Line |
+| :-- | :-- |
+| `container.host: tcp://127.0.0.1:1` | `oxmutate: docker could not reach the daemon at tcp://127.0.0.1:1 (container.host). fix: check that it is running and reachable from here (its address, ssh or tls), or remove it to use the local daemon` (was: "daemon is not running … start Docker Desktop") |
+| daemon down (`DOCKER_HOST=unix:///nonexistent/docker.sock`; Docker itself was not stopped, others share it) | `oxmutate: docker is installed but its daemon is not running. fix: start Docker Desktop (or \`podman machine start\`), or set container.engine` |
+| install fails (a dependency no registry has) | `oxmutate: the sync into the container or its install failed (exit 1); its output is above. fix: for "out of date" or "frozen", update the lockfile on the host … commit it; for 401, 403 or 404, log in to the registry on the host …; otherwise set container.install, or container.image …` (was: "set container.install, or container.image") |
+| lockfile out of date | the same line; npm's own `npm ci` message is above it |
+| `bun.lock`, no `install` | `oxmutate: bun.lock is bun's, and the container installs with npm, pnpm or yarn. fix: set container.image to one with bun (such as oven/bun) and container.install (such as bun install --frozen-lockfile)` |
+| no space on the volume | not checked |
+
+#### Still open
+
+- **Podman:** PODMAN_STATE.
+- **GitHub Actions:** blocked by `D-20261101-no-mutation-in-gha` (the owner, 2026-11-01: "No oxmutate in GHA"; every mutating step left Actions). No workflow was written. Needs the owner: either amend the decision for a container-mode smoke run, or accept item 5 as macOS and Linux locally only.
+- **Corpus on the release:** the engine-side messages (†, R20, R21, R22) run inside the container only once published; until then the corpus needs `--candidate-dist`.
+
 ## Remaining work, in order (the owner, 2026-11-19: "implement all the remaining intents")
 
 Two heavy agents at a time (this machine's limit); each item lands as its own PR with `ab.mjs`
@@ -123,7 +160,7 @@ and, for speed, `bench/container.mjs --compare` numbers.
 | 3 | Release PR: daemon message, run guard, README; then registry auth; then the four gaps above | container DoD 1, 2, 4, 6 | running |
 | 4 | Warm units: pollution handled in the worker, a worker that outlives its unit | x2 WS3, fastest `1.3`, `1.5` | queued |
 | 5 | Container overhead: sync, start-up, copy-back | x2 WS4 | queued |
-| 6 | Corpus: Yarn 2+, a workspace monorepo, a private registry (a local registry container), Bun's error; Podman; a GitHub Actions run | container DoD 1, 5; container R1–R7 | queued |
+| 6 | Corpus: Yarn 2+, a workspace monorepo, a private registry (a local registry container), Bun's error; Podman; a GitHub Actions run | container DoD 1, 5; container R1–R7 | PR test/oxmutate-container-corpus: Docker cases checked on real repositories (see above); Podman PODMAN_STATE; GitHub Actions blocked by `D-20261101-no-mutation-in-gha` |
 | 7 | Static: run a static mutant only where its value is read; drop mutants that compile the same | fastest `2.4`, `2.3` | queued |
 | 8 | Incremental: report reuse; keep the dry run's coverage | fastest `3.1`, `3.3` (`F5`) | queued |
 | 9 | Governor: every free core when idle; memory per worker and in total | fastest `4.2`, `4.3` (`G3`, `G4`) | queued |

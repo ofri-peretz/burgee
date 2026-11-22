@@ -6,7 +6,7 @@
  * refuses to apply, and the whole repository is sent again.
  */
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
 
@@ -46,12 +46,16 @@ export function writeState(volume: string, state: SyncState): void {
   writeFileSync(stateFile(volume), JSON.stringify(state));
 }
 
-/** Each file's `<size>:<mtimeMs>`: a stat, not a read, so the host opens none of them to compare. */
+/**
+ * Each file's `<size>:<mtimeMs>`: a stat, not a read, so the host opens none of them to compare. A
+ * symbolic link is a file git tracks and the sync sends as it is, whatever it points at, so it is
+ * signed by its own stat (a link to a directory, or to nothing, is not a directory or a gap).
+ */
 export function signatures(top: string, files: readonly string[]): Record<string, string> {
   return Object.fromEntries(
     files.flatMap((f) => {
-      const s = statSync(path.join(top, f), { throwIfNoEntry: false });
-      return s?.isFile() ? [[f, `${String(s.size)}:${String(s.mtimeMs)}`]] : [];
+      const s = lstatSync(path.join(top, f), { throwIfNoEntry: false });
+      return s?.isFile() || s?.isSymbolicLink() ? [[f, `${String(s.size)}:${String(s.mtimeMs)}`]] : [];
     }),
   );
 }

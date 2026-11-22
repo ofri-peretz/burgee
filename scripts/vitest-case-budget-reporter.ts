@@ -72,6 +72,7 @@ export const NIGHTLY_ONLY: Readonly<Record<string, string>> = {
   [`${E2E} > gives a blocked warm run its 3x in place, with no server restart and the same verdicts`]: `${MUTATION_RUN}, its mutant blocking 1.2 s past its budget on purpose; 8.5 s`,
   [`${E2E} > takes the processes a test started with a server the watchdog kills`]: `${MUTATION_RUN}, through a watchdog kill and its 3x re-run, each starting a child; 20.3 s`,
   [`${E2E} > restarts a polluted context and judges later mutants from a clean state`]: `${MUTATION_RUN}; 8.2 s`,
+  [`${E2E} > keeps the pool the project’s Vitest config asks for: tests that call process.chdir run in forks`]: `${MUTATION_RUN}; unmeasured`,
   [`${E2E} > re-runs file-level beforeEach hooks between mutants, so they read as no pollution`]: `${MUTATION_RUN}; 7.1 s`,
   [`${E2E} > decides no kill on a previous mutant's leftovers that a test cleaned up in finally`]: `${MUTATION_RUN}; 11.4 s`,
   [`${E2E} > kills a mutant a beforeEach hook reaches in the warm run, with no isolated run`]: `${MUTATION_RUN}; 6.6 s`,

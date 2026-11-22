@@ -8,7 +8,7 @@ import { FILE_KEY } from './runtime.js';
 
 type Hits = Record<string, Record<string, number>>;
 /** A test as the dry run reports it (the coordinator's `TestInfo` and its state). */
-type DryTest = { id: string; file: string; name: string; ms: number; state: string };
+type DryTest = { id: string; file: string; name: string; ms: number; state: string; error?: string };
 /** Several hit maps as one; a later map's test wins, as one run's records are merged. */
 const union = (maps: readonly Hits[]): Hits => Object.fromEntries(maps.flatMap((m) => Object.entries(m)));
 

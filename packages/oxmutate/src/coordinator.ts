@@ -22,6 +22,7 @@ import { runCommandMutants } from './command-runner.js';
 import { IGNORE_STATIC_REASON, STATIC_BUDGET_REASON, VITE_CONFIGS, disables, type Options } from './config.js';
 import { rangeDisables } from './directives.js';
 import { guardDisk, isClean, type DiskChange } from './diskguard.js';
+import { dryFix, emptyDryRun, firstError } from './dry-failure.js';
 import { agrees, entriesOf, keepable, merge, type DryCache, type DryEntry, type DryResult } from './dry-reuse.js';
 import { globToRegExp, matchFiles } from './files.js';
 import { flakyCandidates } from './flaky.js';
@@ -201,7 +202,7 @@ interface ChildRecord {
   ran?: number;
   /** `polluted`: mutants run after the first since the last clean canary; their verdicts are dropped. */
   suspects?: string[];
-  tests?: (TestInfo & { state: string })[];
+  tests?: (TestInfo & { state: string; error?: string })[];
   coverage?: { static: Record<string, number>; perTest: Record<string, Record<string, number>> };
   /** `dry` with `trackReads`: the tracked static values each test (or each file's collection) read. */
   reads?: { static: Record<string, number>; perTest: Record<string, Record<string, number>> };
@@ -463,13 +464,17 @@ export async function run(options: Options): Promise<RunResult> {
     const traceDirs: Record<string, string> = {};
     for (const oracle of options.specOracles) traceDirs[oracle.name] = await tracesFor(oracle, root, work);
     if (options.specOracles.length) env[SPEC_TRACES_ENV] = JSON.stringify(traceDirs);
+    const inContainer = env['OXMUTATE_CONTAINER'] === 'inside';
     const dryPool = createPool({ root, vitestConfig: options.vitestConfig, workers: options.concurrency, instrumentedMap: mapFile, nodeArgs: options.testRunnerNodeArgs }, 1, { workDir: work, tag: 'dry', lifecycle: options.workers });
     pools.push(dryPool);
+    // The last dry server's stderr: what Vitest said when it ran nothing.
+    let serverSaid = '';
     const dryRun = async (trackReads = false, skip: readonly string[] = []): Promise<DryResult> => {
       const unit: Unit = { mode: 'dry', files: [], results: fileFor('dry', 'jsonl'), progress: fileFor('dry', 'progress'), ...(trackReads && { trackReads: true }), ...(skip.length > 0 && { skip: [...skip] }) };
       let failure: UnitOutcome | undefined;
       let overBudget = false;
       await dryPool.drain([unit], () => options.dryRunTimeoutMinutes * MS_PER_MINUTE, (_, o) => {
+        serverSaid = o.stderr;
         if (o.crashed) failure = o;
         if (o.killedFor) overBudget = true;
         return [];
@@ -488,7 +493,7 @@ export async function run(options: Options): Promise<RunResult> {
       }
       const fileErrors = recs.flatMap((r) => r.fileErrors ?? []);
       if (fileErrors.length) {
-        throw new InstrumentFault(`${String(fileErrors.length)} test file(s) failed to load during the dry run, so their tests would be missing from every verdict: ${fileErrors.slice(0, 3).map((e) => `${path.relative(root, e.file)}: ${e.error}`).join('; ')}`);
+        throw new InstrumentFault(`${String(fileErrors.length)} test file(s) failed to load during the dry run, so their tests would be missing from every verdict: ${fileErrors.slice(0, 3).map((e) => `${path.relative(root, e.file)}: ${e.error}`).join('; ')}. fix: ${dryFix(fileErrors.map((e) => e.error), inContainer, 'make the files load first')}`);
       }
       const hookErrors = recs.flatMap((r) => r.hookErrors ?? []);
       if (hookErrors.length) {
@@ -532,8 +537,9 @@ export async function run(options: Options): Promise<RunResult> {
     const tracking = trackReads ? await trackedRun() : undefined;
     const readersDryRunMs = performance.now() - r0;
     const failing = dry.tests.filter((t) => t.state === 'fail');
-    if (failing.length) throw new InstrumentFault(`${String(failing.length)} test(s) fail with no mutant active, so no verdict can be trusted: ${failing.slice(0, 5).map((t) => t.name).join('; ')}. fix: make the suite pass first`);
-    if (dry.tests.length === 0 && !options.allowEmpty) throw new InstrumentFault('the dry run ran no tests. fix: check the Vitest config the run used, or set allowEmpty');
+    const errorsOf = failing.flatMap((t) => (t.error === undefined ? [] : [t.error]));
+    if (failing.length) throw new InstrumentFault(`${String(failing.length)} test(s) fail with no mutant active, so no verdict can be trusted: ${failing.slice(0, 5).map((t) => t.name).join('; ')}.${firstError(errorsOf)} fix: ${dryFix(errorsOf, inContainer, 'make the suite pass first')}`);
+    if (dry.tests.length === 0 && !options.allowEmpty) throw new InstrumentFault(emptyDryRun(serverSaid));
 
     // The second dry run only finds nondeterministic tests, which matter at step 7: it runs beside
     // the warm phase instead of before it (6 s of a 107 s burgee/controlroom run, 2026-10-27).

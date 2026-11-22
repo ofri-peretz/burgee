@@ -514,6 +514,18 @@ const runWith = (dir: string, extra: Record<string, unknown>): { status: number 
   return { status: r.status, out: `${r.stdout}${r.stderr}`, reports };
 };
 
+it.skipIf(!native || !existsSync(bin) || !nightly)('keeps the pool the project’s Vitest config asks for: tests that call process.chdir run in forks', () => {
+  const dir = path.join(pkg, 'test/fixtures/forks-pool');
+  try {
+    // Threads would fail the dry run: "process.chdir() is not supported in workers".
+    const r = runWith(dir, {});
+    expect(r.out).not.toMatch(/fail with no mutant active/);
+    expect(r.status).toBe(0);
+  } finally {
+    discard(path.join(dir, 'reports'));
+  }
+}, 60_000);
+
 describe.skipIf(!native || !existsSync(bin))('Stryker options the run honours', () => {
   const registry = path.join(pkg, 'test/fixtures/registry');
   const spin = path.join(pkg, 'test/fixtures/spin');
