@@ -158,24 +158,30 @@ export const toolsOf = (contract: Contract, options: McpOptions): { tools: Tool[
   const findings: ContractFinding[] = [];
   const { include } = options;
   const hidden: string[] = [];
+  const hiddenBy = new Set<string>();
   const chosen = contract.operations.filter((operation) => {
     const tags = tagsOf(contract, operation);
     const named = (entry: string): boolean => (entry.startsWith('tag:') ? tags.includes(entry.slice('tag:'.length)) : entry === operation.id);
     const hiding = tags.filter((tag) => HIDDEN_TAGS.includes(tag));
     const unhidden = include?.some((entry) => entry === operation.id || hiding.some((tag) => entry === `tag:${tag}`)) === true;
     if (hiding.length > 0 && !unhidden) {
-      if (include === undefined || include.some(named)) hidden.push(operation.id);
+      if (include === undefined || include.some(named)) {
+        hidden.push(operation.id);
+        for (const tag of hiding) hiddenBy.add(tag);
+      }
       return false;
     }
     return include === undefined || include.some(named);
   });
+  // The tags that hid something, in the order HIDDEN_TAGS lists them: the ones `include` can name.
+  const tagsHiding = HIDDEN_TAGS.filter((tag) => hiddenBy.has(tag));
   if (hidden.length > 0) {
     findings.push(
       finding(
         'mcp-hidden',
         '#/paths',
-        `left out ${String(hidden.length)} operation(s) tagged ${HIDDEN_TAGS.join(' or ')}: ${hidden.join(', ')}`,
-        `name one in \`include\` (its id, or \`tag:${HIDDEN_TAGS[0] as string}\`) if an agent should call it`,
+        `left out ${String(hidden.length)} operation(s) tagged ${tagsHiding.join(' or ')}: ${hidden.join(', ')}`,
+        `name one in \`include\` (its id, or ${tagsHiding.map((tag) => `\`tag:${tag}\``).join(' or ')}) if an agent should call it`,
       ),
     );
   }

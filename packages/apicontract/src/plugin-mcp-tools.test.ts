@@ -219,16 +219,21 @@ describe('hidden tags and the budget (contractdiff-compat-depth R6)', () => {
     const result = toolsOf(tagged, stdio);
     expect(result.tools.map((tool) => tool.route.operationId)).toEqual(['listPets', 'one']);
     expect(result.findings).toEqual([
-      { code: 'mcp-hidden', pointer: '#/paths', message: 'left out 2 operation(s) tagged internal or health: health, reindex', fix: 'name one in `include` (its id, or `tag:internal`) if an agent should call it' },
+      { code: 'mcp-hidden', pointer: '#/paths', message: 'left out 2 operation(s) tagged internal or health: health, reindex', fix: 'name one in `include` (its id, or `tag:internal` or `tag:health`) if an agent should call it' },
     ]);
     expect(names({ ...stdio, include: ['tag:pets'] })).toEqual(['listPets']);
     expect(names({ ...stdio, include: ['health', 'tag:internal'] })).toEqual(['health', 'reindex']);
     expect(toolsOf(tagged, { ...stdio, include: ['one'] }).findings).toEqual([]);
     expect(toolsOf(tagged, { ...stdio, include: ['tag:pets', 'one'] }).findings).toEqual([
-      { code: 'mcp-hidden', pointer: '#/paths', message: 'left out 1 operation(s) tagged internal or health: reindex', fix: 'name one in `include` (its id, or `tag:internal`) if an agent should call it' },
+      { code: 'mcp-hidden', pointer: '#/paths', message: 'left out 1 operation(s) tagged internal: reindex', fix: 'name one in `include` (its id, or `tag:internal`) if an agent should call it' },
     ]);
     const both = openapi.read({ openapi: '3.1.0', paths: { '/x': { get: { operationId: 'probe', tags: ['internal', 'health'], responses: {} } } } });
     expect(toolsOf(both, { ...stdio, include: ['tag:health'] }).tools.map((tool) => tool.name)).toEqual(['probe']);
+    expect(toolsOf(both, stdio).findings[0]?.fix).toBe('name one in `include` (its id, or `tag:internal` or `tag:health`) if an agent should call it');
+    const healthOnly = openapi.read({ openapi: '3.1.0', paths: { '/h': { get: { operationId: 'ping', tags: ['health'], responses: {} } } } });
+    expect(toolsOf(healthOnly, stdio).findings).toEqual([
+      { code: 'mcp-hidden', pointer: '#/paths', message: 'left out 1 operation(s) tagged health: ping', fix: 'name one in `include` (its id, or `tag:health`) if an agent should call it' },
+    ]);
   });
 
   it('names the three largest tools over budget, largest first, a tie by name', () => {
