@@ -22,7 +22,7 @@ import { type Comparison, compareContracts, type Finding, overall, sortFindings,
 import { checkDecisions, isDate, withDecisions } from './diff-decisions.js';
 import { compareTransitive } from './diff-transitive.js';
 import { applyUsage, parseUsage } from './diff-usage.js';
-import { type BufAnnotation, type BufBreaking, breakingIn, bufIn, builtImages, type Level, LEVELS } from './input-buf.js';
+import { type BufAnnotation, type BufBreaking, breakingIn, bufIn, builtImages, type Level, LEVELS, refFix } from './input-buf.js';
 import { builtinAdapters } from './inputs.js';
 import { DECISION_SETTINGS, type DecisionSetting, decisionSettingOf, UsageError } from './run-config.js';
 
@@ -135,7 +135,7 @@ export const bufFindings = async (options: DiffOptions, level: Level, breaking: 
   if (options.transitive === true) throw new UsageError('--level compares two contracts. fix: drop --transitive, or run diff --level against each release');
   const sides = [options.old, options.new];
   const atRef = sides.find((spec) => GIT.test(spec));
-  if (atRef !== undefined) throw new UsageError(`cannot judge ${atRef} at --level: buf reads a ref itself. fix: \`buf build '.git#ref=<ref>' -o old.json\` and pass old.json`);
+  if (atRef !== undefined) throw new UsageError(`cannot judge ${atRef} at --level: buf reads a ref itself. ${refFix(atRef)}`);
   for (const spec of sides) {
     const { format } = readContract(spec, options.cwd, noGit, options.built).contract;
     if (format !== 'protobuf') throw new UsageError(`--level judges the wire encoding, and ${spec} reads as ${format}. fix: pass protobuf on both sides (a .proto, a buf module, or the image buf builds), or drop --level`);

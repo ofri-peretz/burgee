@@ -42,7 +42,9 @@ Intent: [`intent.md`](./intent.md). **Status:** approved.
   and each release with `--transitive`, where a buf module is one release, not a folder of files),
   `props` (the contract and `--against`) and `lint` build their protobuf inputs this way. A
   protobuf source at a git ref (`git:<ref>:x.proto`) is refused with
-  ``fix: `buf build '.git#ref=<ref>' -o old.json` and pass old.json``; `lint --since` reads a
+  ``fix: `buf build '.git#ref=<ref>' -o old.json` and pass old.json`` (with `,subdir=<path>` for a
+  module), naming the actual ref. A module that exists only at the ref has no `buf.yaml` in the
+  working tree to be known by, so it is read as a file and git's error stands. `lint --since` reads a
   `.proto` at the ref as new. `gen` and `explain` read images only for now.
 - **R3. `diff --level <file|package|wire-json|wire>`.** Only for protobuf inputs (any other format
   refuses: protobuf is the one with a wire encoding). Runs

@@ -31,13 +31,29 @@ export const bufIn = (runtime: Runtime = ambientRuntime()): BufBuild => async (p
 };
 
 /** `git:<ref>:<path>`, as `diff` names a contract at a ref. */
-const AT_REF = /^git:[^:]+:/;
+const AT_REF = /^git:([^:]+):/;
+
+const passOld = (command: string): string => `fix: \`${command}\` and pass old.json`;
+
+/**
+ * How to hand over `git:<ref>:<path>` as a file: buf builds a `.proto` from the module at the ref's
+ * root and a module by its subdir; any other file (an image) is what git shows.
+ */
+export const refFix = (spec: string): string => {
+  const match = AT_REF.exec(spec) as RegExpExecArray;
+  const ref = match[1] as string;
+  const path = spec.slice(match[0].length);
+  if (path.endsWith('.proto')) return passOld(`buf build '.git#ref=${ref}' -o old.json`);
+  return passOld(/\.[a-z]+$/i.test(path) ? `git show ${ref}:${path} > old.json` : `buf build '.git#ref=${ref},subdir=${path}' -o old.json`);
+};
 
 /** Each spec that is protobuf source, built to its image text; every other spec is read as it is, and an absent one skipped. */
 export const builtImages = async (specs: readonly (string | undefined)[], cwd: string, build: BufBuild): Promise<ReadonlyMap<string, string>> => {
+  // A module at a ref is known only by a buf.yaml in the working tree; one that exists only at the
+  // ref reads as a file there, and git's own error names the fix (R2).
   const sources = specs.filter((spec): spec is string => spec !== undefined && isBufSource(spec.replace(AT_REF, ''), cwd));
   const atRef = sources.find((spec) => AT_REF.test(spec));
-  if (atRef !== undefined) throw new UsageError(`cannot build ${atRef}: buf builds a ref itself. fix: \`buf build '.git#ref=<ref>' -o old.json\` and pass old.json`);
+  if (atRef !== undefined) throw new UsageError(`cannot build ${atRef}: buf builds a ref itself. ${refFix(atRef)}`);
   const images = await Promise.all(sources.map(async (spec) => [spec, await build(spec, cwd)] as const));
   return new Map(images);
 };

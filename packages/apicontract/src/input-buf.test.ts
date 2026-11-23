@@ -174,9 +174,14 @@ describe('builtImages', () => {
   });
 
   it('refuses a protobuf source at a git ref, naming the buf command that builds it', async () => {
-    await expect(builtImages(['git:v1:mod'], sources(), recording())).rejects.toThrow('cannot build git:v1:mod: buf builds a ref itself');
+    const dir = sources();
+    mkdirSync(join(dir, 'api.v1'));
+    mkdirSync(join(dir, 'api.v1', 'mod'));
+    writeFileSync(join(dir, 'api.v1', 'mod', 'buf.yaml'), 'version: v2\n');
+    await expect(builtImages(['git:main:api.v1/mod'], dir, recording())).rejects.toThrow("fix: `buf build '.git#ref=main,subdir=api.v1/mod' -o old.json` and pass old.json");
+    await expect(builtImages(['git:v1.2:mod'], sources(), recording())).rejects.toThrow("cannot build git:v1.2:mod: buf builds a ref itself. fix: `buf build '.git#ref=v1.2,subdir=mod' -o old.json` and pass old.json");
     await expect(builtImages(['git:v1:pets.proto', 'pets.proto'], '.', recording())).rejects.toThrow(
-      "cannot build git:v1:pets.proto: buf builds a ref itself. fix: `buf build '.git#ref=<ref>' -o old.json` and pass old.json",
+      "cannot build git:v1:pets.proto: buf builds a ref itself. fix: `buf build '.git#ref=v1' -o old.json` and pass old.json",
     );
   });
 });
@@ -344,7 +349,7 @@ describe('diff --level', () => {
     const pets = fileURLToPath(new URL('__fixtures__/diff/pets-old.yaml', import.meta.url));
     const base = { cwd: dir, old: join(dir, 'old.proto'), new: join(dir, 'mod'), built: built(dir) };
     await expect(bufFindings({ ...base, transitive: true }, 'wire', judge)).rejects.toThrow('--level compares two contracts. fix: drop --transitive, or run diff --level against each release');
-    await expect(bufFindings({ ...base, old: 'git:v1:pets.json' }, 'wire', judge)).rejects.toThrow("cannot judge git:v1:pets.json at --level: buf reads a ref itself. fix: `buf build '.git#ref=<ref>' -o old.json` and pass old.json");
+    await expect(bufFindings({ ...base, old: 'git:v1:pets.json' }, 'wire', judge)).rejects.toThrow("cannot judge git:v1:pets.json at --level: buf reads a ref itself. fix: `git show v1:pets.json > old.json` and pass old.json");
     await expect(bufFindings({ ...base, new: 'git:v1:pets.json' }, 'wire', judge)).rejects.toThrow('cannot judge git:v1:pets.json');
     await expect(bufFindings({ ...base, old: pets }, 'wire', judge)).rejects.toThrow(`--level judges the wire encoding, and ${pets} reads as openapi. fix: pass protobuf on both sides (a .proto, a buf module, or the image buf builds), or drop --level`);
     await expect(bufFindings({ ...base, new: pets }, 'wire', judge)).rejects.toThrow(`and ${pets} reads as openapi`);
