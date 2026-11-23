@@ -147,6 +147,11 @@ describe('configSchema', () => {
       properties: {
         extends: { type: 'array', items: { type: 'string', minLength: 1 }, description: 'Rulesets, in order: `recommended`, `agent-ready`' },
         rules: { type: 'object', additionalProperties: { enum: ['error', 'warn', 'off'] }, description: 'A level per rule id, over the rulesets' },
+        warnFor: {
+          type: 'string',
+          pattern: '^\\d+d$',
+          description: 'How long a rule new at error warns first, by the date it entered the ruleset: `"14d"` (the default); `"0d"` turns it off',
+        },
       },
     });
     expect(configSchema).toMatchObject({ $schema: 'https://json-schema.org/draft/2020-12/schema', title: 'apicontract.config.json', type: 'object', additionalProperties: false });
@@ -174,6 +179,7 @@ describe('validateConfig, the lint section', () => {
 
   it('reads extends and rules, and leaves out what is not given', () => {
     expect(validateConfig({ lint: { extends: ['agent-ready'], rules: { 'operation-tags': 'error' } } }, file).lint).toEqual({ extends: ['agent-ready'], rules: { 'operation-tags': 'error' } });
+    expect(validateConfig({ lint: { warnFor: '0d' } }, file).lint).toStrictEqual({ warnFor: '0d' });
     expect(validateConfig({ lint: {} }, file).lint).toStrictEqual({});
     expect('lint' in validateConfig({}, file)).toBe(false);
   });
@@ -181,7 +187,12 @@ describe('validateConfig, the lint section', () => {
   it.each([
     [{ lint: [] }, '`lint` must be an object. fix: write `{ "extends": ["recommended"], "rules": { … } }`'],
     [{ lint: 'recommended' }, '`lint` must be an object'],
-    [{ lint: { other: 1 } }, '`lint.other` is not a lint setting. fix: remove it; lint takes extends and rules'],
+    [{ lint: { other: 1 } }, '`lint.other` is not a lint setting. fix: remove it; lint takes extends, rules and warnFor'],
+    [{ lint: { warnFor: 14 } }, '`lint.warnFor` must be a number of days. fix: write `"warnFor": "14d"`, or `"0d"` to turn warn-first off'],
+    [{ lint: { warnFor: '2w' } }, '`lint.warnFor` must be a number of days'],
+    [{ lint: { warnFor: '14d ' } }, '`lint.warnFor` must be a number of days'],
+    [{ lint: { warnFor: 'x14d' } }, '`lint.warnFor` must be a number of days'],
+    [{ lint: { warnFor: ['14d'] } }, '`lint.warnFor` must be a number of days'],
     [{ lint: { extends: 'recommended' } }, '`lint.extends` must be a list of non-empty strings'],
     [{ lint: { rules: { a: 'fatal' } } }, '`lint.rules` must map rule ids to "error", "warn" or "off". fix: write `"rules": { "operation-tags": "error" }`'],
     [{ lint: { rules: ['warn'] } }, '`lint.rules` must map rule ids'],

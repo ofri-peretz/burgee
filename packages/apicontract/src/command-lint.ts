@@ -5,7 +5,7 @@
  * ends with what it checked, and each ruleset's score: the share of its checks that passed.
  */
 import { readFileSync } from 'node:fs';
-import { basename, resolve } from 'node:path';
+import { relative, resolve } from 'node:path';
 
 import { defineCommand, ExitCode } from 'burgee';
 import { parse as parseYaml } from 'seniority/yaml';
@@ -13,16 +13,14 @@ import { parse as parseYaml } from 'seniority/yaml';
 import { uriOf } from './command-diff.js';
 import { builtinAdapters } from './inputs.js';
 import { type Level, lint, type Rule, type LintFinding, type LintInput, type LintResult } from './lint-engine.js';
-import { readRedocly } from './lint-redocly.js';
+import { DEFAULT_RULESETS, gitIn, historyOf, type History, type LintGit, type Resolved, RULESET_FILE, rulesetOfText, type RulesetChange, type Sources, sourcesOf } from './lint-history.js';
 import { rules, rulesets } from './lint-rules.js';
-import { type NotCarried, type ReadRuleset, readSpectral } from './lint-spectral.js';
+import { type NotCarried, type ReadRuleset } from './lint-spectral.js';
 import { type Config, ConfigError, loadConfig, UsageError } from './run-config.js';
 import { loadPlugins } from './run-load.js';
 
 const TEXT = Symbol.for('burgee.text');
 
-/** The ruleset a run starts from when neither the flag nor the config names one. */
-export const DEFAULT_RULESETS: readonly string[] = ['recommended'];
 /** A ruleset may be named with the product's prefix, as a config written for a later name would. */
 const PREFIX = /^(?:apicontract|contractdiff):/u;
 const PERCENT = 100;
@@ -42,6 +40,12 @@ export interface LintOptions {
   readonly sarif?: boolean | undefined;
   /** The config, when the caller has read it; read from `cwd` otherwise. */
   readonly config?: Config | undefined;
+  /** Read the config and its ruleset files at this ref, not the working tree (R11); `merge-base` is CI's base. */
+  readonly rulesFrom?: string | undefined;
+  /** git in the config's folder, when a test gives its own. */
+  readonly git?: LintGit | undefined;
+  /** The time warn-first counts from (R10), when a test gives its own. */
+  readonly now?: Date | undefined;
 }
 
 export interface Score {
@@ -51,25 +55,9 @@ export interface Score {
   readonly percent: number;
 }
 
-/** A ruleset named by its file: a `.spectral.yaml`, `.spectral.json` or `redocly.yaml` (R9). */
-const RULESET_FILE = /\.(?:json|ya?ml)$/u;
-
-/** A ruleset file read from the config's folder; one that cannot be read is a config to fix. */
-const readRulesetFile = (name: string, root: string): ReadRuleset => {
-  let document: unknown;
-  try {
-    // YAML 1.2 reads JSON too.
-    document = parseYaml(readFileSync(resolve(root, name), 'utf8'));
-  } catch (error) {
-    throw new ConfigError(CONFIG_FILE, [`\`lint.extends\` names ${name}, which cannot be read (${(error as Error).message}). fix: correct its path; it is read from the config's folder`]);
-  }
-  // The file's name says whose ruleset it is: Redocly's `redocly.yaml`, else Spectral's.
-  return (/redocly/iu.test(basename(name)) ? readRedocly : readSpectral)(document, name, new Set(RULES.keys()));
-};
-
 /** Every ruleset file `names` lists, read from `root`, by its name. */
 export const readRulesets = (names: readonly string[], root: string): Record<string, ReadRuleset> =>
-  Object.fromEntries(names.filter((name) => RULESET_FILE.test(name)).map((name) => [name, readRulesetFile(name, root)]));
+  Object.fromEntries(names.filter((name) => RULESET_FILE.test(name)).map((name) => [name, rulesetOfText(name, () => readFileSync(resolve(root, name), 'utf8'), CONFIG_FILE)]));
 
 /** A ruleset's levels by its name: a file read already, else a built-in one. */
 const rulesetOf = (name: string, files: Readonly<Record<string, ReadRuleset>>): Readonly<Record<string, Level>> | undefined =>
@@ -144,9 +132,35 @@ export const toSarif = (result: LintResult, all: Readonly<Record<string, Rule>> 
   ],
 });
 
+/** One rule change as the text says it. */
+const changeOf = (change: RulesetChange): string => {
+  if (change.from === change.to) return 'its definition changed';
+  return `${change.from ?? 'not run'} → ${change.to ?? 'not run'}${change.definition ? ', and its definition changed' : ''}`;
+};
+
+/** The working tree's changes to the rules, not applied (R11), as a block before the findings. */
+const changedLines = (history: Partial<History>): string[] => {
+  const changed = history.changed ?? [];
+  if (changed.length === 0) return [];
+  return [
+    `rules changed since ${history.from as string}, not applied`,
+    ...changed.map((change) => `  ${'info'.padEnd(COLUMN)}  ruleset-changed  ${change.id}: ${changeOf(change)}`),
+    `  ${''.padEnd(COLUMN)}  fix: merge the change first; until then the rules come from ${history.from as string}`,
+    '',
+  ];
+};
+
+/** Where the rules came from and what warns first, for the coverage line. */
+const historyNote = (history: Partial<History>): string =>
+  [
+    ...(history.from === undefined ? [] : [`; rules from ${history.from}`]),
+    ...(history.warnFirst === undefined || history.warnFirst.length === 0 ? [] : [`; warn first: ${String(history.warnFirst.length)} (${history.warnFirst.join(', ')})`]),
+    ...(history.unchecked === undefined ? [] : [`; warn first not checked: ${history.unchecked}`]),
+  ].join('');
+
 /** Text grouped by file, then what was checked and each ruleset's score. */
-export const toText = (result: LintResult, scores: Readonly<Record<string, Score>>, notCarried: readonly NotCarried[] = []): string => {
-  const lines: string[] = [];
+export const toText = (result: LintResult, scores: Readonly<Record<string, Score>>, notCarried: readonly NotCarried[] = [], history: Partial<History> = {}): string => {
+  const lines: string[] = changedLines(history);
   for (const file of [...new Set(notCarried.map((entry) => entry.file))]) {
     lines.push(file);
     for (const entry of notCarried.filter((each) => each.file === file)) lines.push(`  ${'warn'.padEnd(COLUMN)}  rule-not-carried  ${entry.pointer}  ${entry.id}: ${entry.reason}`, `  ${''.padEnd(COLUMN)}  fix: ${entry.fix}`);
@@ -162,11 +176,26 @@ export const toText = (result: LintResult, scores: Readonly<Record<string, Score
   const errors = result.findings.filter((finding) => finding.level === 'error').length;
   const nodes = Object.values(result.counts).reduce((sum, count) => sum + count.checked, 0);
   lines.push(
-    `${String(errors)} error(s), ${String(result.findings.length - errors)} warning(s). Checked ${String(Object.keys(result.counts).length)} rule(s) on ${String(result.inputs.length)} input(s), ${String(nodes)} node(s); not carried: ${notCarried.length === 0 ? 'none' : `${String(notCarried.length)} (${notCarried.map((entry) => entry.id).join(', ')})`}.`,
+    `${String(errors)} error(s), ${String(result.findings.length - errors)} warning(s). Checked ${String(Object.keys(result.counts).length)} rule(s) on ${String(result.inputs.length)} input(s), ${String(nodes)} node(s); not carried: ${notCarried.length === 0 ? 'none' : `${String(notCarried.length)} (${notCarried.map((entry) => entry.id).join(', ')})`}${historyNote(history)}.`,
     ...Object.entries(scores).map(([name, score]) => `${name}: ${String(score.percent)}% (${String(score.passed)} of ${String(score.checked)} checks passed)`),
   );
   return lines.join('\n');
 };
+
+/** What `--json` says of the rules' history: each key only when it has something to say. */
+const historyData = (history: History): Record<string, unknown> => ({
+  ...(history.from === undefined ? {} : { rulesFrom: history.from, rulesetChanged: history.changed }),
+  ...(history.warnFirst.length === 0 ? {} : { warnFirst: history.warnFirst }),
+  ...(history.unchecked === undefined ? {} : { warnFirstUnchecked: history.unchecked }),
+});
+
+/** The rules a run's sources resolve to, with what the config's plugins contribute. */
+const resolverOf =
+  (contributed: Readonly<Record<string, Rule>>) =>
+  (sources: Sources): Resolved => ({
+    all: { ...rules, ...Object.assign({}, ...Object.values(sources.files).map((file) => file.rules)), ...contributed } as Record<string, Rule>,
+    levels: levelsOf(sources.names, sources.overrides, contributed, sources.files),
+  });
 
 /** The command's work, with the folder and the config as inputs so a test can give its own. */
 export const runLint = async (options: LintOptions): Promise<Record<string | symbol, unknown>> => {
@@ -175,12 +204,21 @@ export const runLint = async (options: LintOptions): Promise<Record<string | sym
   const configured = config?.input === undefined ? [] : [config.input];
   const specs = options.specs.length > 0 ? options.specs : configured;
   if (specs.length === 0) throw new UsageError('nothing to lint. fix: pass a spec, e.g. `apicontract lint openapi.yaml`, or set `input` in apicontract.config.json');
-  const names = options.rulesets !== undefined && options.rulesets.length > 0 ? options.rulesets : (config?.lint?.extends ?? DEFAULT_RULESETS);
+  const flagged = options.rulesets !== undefined && options.rulesets.length > 0 ? options.rulesets : undefined;
   // The rules the config's plugins contribute (R4); none without a config.
   const contributed = config === undefined ? {} : (await loadPlugins(config)).rules();
-  const files = readRulesets(names, root);
-  const all = { ...rules, ...Object.assign({}, ...Object.values(files).map((file) => file.rules)), ...contributed } as Record<string, Rule>;
-  const levels = levelsOf(names, config?.lint?.rules, contributed, files);
+  const working = sourcesOf(config?.lint, flagged, (name) => rulesetOfText(name, () => readFileSync(resolve(root, name), 'utf8'), CONFIG_FILE));
+  const history = await historyOf({
+    git: options.git ?? gitIn(root),
+    config: config === undefined ? undefined : { file: config.file, name: relative(root, config.file) },
+    flagged,
+    working,
+    resolve: resolverOf(contributed),
+    rulesFrom: options.rulesFrom,
+    now: options.now ?? new Date(),
+  });
+  const { all, levels } = history.resolved;
+  const { names, files } = history.sources;
   const notCarried = Object.values(files).flatMap((file) => file.notCarried);
   const result = lint(
     specs.map((spec) => readInput(spec, options.specs.length > 0 ? options.cwd : root)),
@@ -194,10 +232,11 @@ export const runLint = async (options: LintOptions): Promise<Record<string | sym
     ...result,
     scores,
     notCarried,
+    ...historyData(history),
     ...(sarif === undefined ? {} : { sarif }),
     ...(errors > 0 ? { exitCode: ExitCode.RUNTIME, fix: 'correct each error as its own fix line says, or set its rule to "warn" in `lint.rules`' } : {}),
   };
-  data[TEXT] = () => (sarif === undefined ? toText(result, scores, notCarried) : JSON.stringify(sarif, undefined, 2));
+  data[TEXT] = () => (sarif === undefined ? toText(result, scores, notCarried, history) : JSON.stringify(sarif, undefined, 2));
   return data;
 };
 
@@ -217,6 +256,10 @@ export const command = defineCommand({
   options: {
     ruleset: { type: 'string', multiple: true, choices: Object.keys(rulesets), description: "a ruleset to run, over the config's lint.extends (default recommended)" },
     sarif: { type: 'boolean', description: 'print SARIF 2.1.0 for code scanning instead of text' },
+    rulesFrom: { type: 'string', description: 'read the config and its ruleset files at this git ref, so a change to the rules is judged by the old ones; `merge-base` is the base with origin/main' },
   },
-  run: ({ positionals, options }) => runLint({ cwd: HERE, specs: positionals, rulesets: options.ruleset as string[] | undefined, sarif: options.sarif }),
+  run: ({ positionals, options }) =>
+    runLint({ cwd: HERE, specs: positionals, rulesets: options.ruleset as string[] | undefined, sarif: options.sarif, rulesFrom: options.rulesFrom }),
 });
+
+export { DEFAULT_RULESETS };

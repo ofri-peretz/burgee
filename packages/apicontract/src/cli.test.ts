@@ -19,6 +19,7 @@ const LANE_COMMANDS = [
   ['diff', 'idempotent'],
   ['migrate', 'idempotent'],
   ['plugin', 'idempotent'],
+  ['props', 'idempotent'],
 ] as const;
 
 describe('apicontract, Phase 0', () => {

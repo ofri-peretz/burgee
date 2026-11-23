@@ -59,8 +59,9 @@ describe('keeping a dry run per test file', () => {
       runOnce: ['/b.spec.ts'],
       modules: { '/a.spec.ts': ['/a.ts'], '/b.spec.ts': ['/b.ts'] },
       reads: { static: { x: 1 }, perTest: {} },
+      loadMs: {},
     });
-    expect(merge(fresh, {})).toEqual(fresh);
+    expect(merge(fresh, {})).toEqual({ ...fresh, loadMs: {} });
     // Only kept files that ran once are listed so; kept reads join the fresh ones, a file kept without reads adds none.
     const withReads = { ...kept['/b.spec.ts']!, reads: { b1: { r: 2 } } };
     const plain = { ...kept['/a.spec.ts']!, runOnce: false };
@@ -68,6 +69,20 @@ describe('keeping a dry run per test file', () => {
     const both = merge(dry({ tests: [], perTest: {}, runOnce: [], modules: {}, reads: { static: {}, perTest: { z: { r: 1 } } } }), { '/a.spec.ts': plain, '/b.spec.ts': withReads });
     expect(both.runOnce).toEqual(['/b.spec.ts']);
     expect(both.reads.perTest).toEqual({ z: { r: 1 }, b1: { r: 2 } });
+  });
+
+  it('keeps each file’s own load time with its entry, and merges the kept ones into the fresh run’s', () => {
+    const measured = dry({ loadMs: { '/a.spec.ts': 12, '/b.spec.ts': 7 } });
+    const cache = entriesOf(measured, keyOf, new Set(), undefined);
+    expect([cache.files['/a.spec.ts']?.loadMs, cache.files['/b.spec.ts']?.loadMs]).toEqual([12, 7]);
+    // A run that measured no file keeps none, and a file it did not measure none.
+    expect('loadMs' in (entriesOf(dry(), keyOf, new Set(), undefined).files['/a.spec.ts'] ?? {})).toBe(false);
+    expect('loadMs' in (entriesOf(dry({ loadMs: { '/b.spec.ts': 7 } }), keyOf, new Set(), undefined).files['/a.spec.ts'] ?? {})).toBe(false);
+    const kept = { '/b.spec.ts': cache.files['/b.spec.ts']!, '/c.spec.ts': { ...cache.files['/a.spec.ts']!, loadMs: undefined } };
+    // Keys, not toEqual: a kept file that was never measured must add no key at all, not one holding undefined.
+    expect(Object.keys(merge(dry({ loadMs: { '/a.spec.ts': 3 } }), kept).loadMs ?? {}).sort()).toEqual(['/a.spec.ts', '/b.spec.ts']);
+    expect(merge(dry({ loadMs: { '/a.spec.ts': 3 } }), kept).loadMs).toEqual({ '/a.spec.ts': 3, '/b.spec.ts': 7 });
+    expect(Object.keys(merge(dry(), kept).loadMs ?? {})).toEqual(['/b.spec.ts']);
   });
 
   it('believes a kept file when a fresh run of it reaches the same mutants from the same tests', () => {

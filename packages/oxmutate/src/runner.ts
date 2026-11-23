@@ -51,6 +51,9 @@ type AnyTask = {
   filepath?: string;
   suite?: AnyTask | undefined;
   result?: { state?: string; duration?: number; errors?: { message?: string }[] };
+  /** A file task's own time collecting its tests and running its `beforeAll` setup, in ms. */
+  collectDuration?: number;
+  setupDuration?: number;
   tasks?: AnyTask[] | undefined;
   mode?: string;
   context?: unknown;
@@ -1099,15 +1102,18 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
         if (first && t.result?.state === 'fail' && t.tasks?.length) hookErrors.push({ file, suite: t.name, error: (first.message ?? 'failed').split('\n')[0]?.slice(0, FILE_ERROR_CHARS) ?? 'failed' });
         for (const c of t.tasks ?? []) hooks(c, file);
       };
+      /** Each file's own load cost: collecting it (its imports run here) and its setup, before any test body. */
+      const loadMs = new Map<string, number>();
       for (const f of files) {
         const filepath = (f.file?.filepath ?? f.filepath) as string;
+        loadMs.set(filepath, (f.collectDuration ?? 0) + (f.setupDuration ?? 0));
         visit(f, filepath);
         hooks(f, filepath);
         // A file that fails to collect has no failing test to show for it: report the file.
         const result = f.result as { state?: string; errors?: { message?: string }[] } | undefined;
         if (result?.state === 'fail' && !f.tasks?.length) fileErrors.push({ file: filepath, error: (result.errors?.[0]?.message ?? 'failed to collect').slice(0, FILE_ERROR_CHARS) });
       }
-      emit({ type: 'dry', tests, coverage: ns.mutantCoverage, reads: ns.readCoverage, fileErrors, hookErrors, runOnce: [...runOnce], modules: Object.fromEntries(dryModules), unhandled });
+      emit({ type: 'dry', tests, coverage: ns.mutantCoverage, reads: ns.readCoverage, fileErrors, hookErrors, loadMs: Object.fromEntries(loadMs), runOnce: [...runOnce], modules: Object.fromEntries(dryModules), unhandled });
     } else if (mode === 'isolated') {
       const failed: string[] = [];
       let ran = 0;
@@ -1134,7 +1140,8 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
       if (unhandled > 0) decisive++;
       if (unhandled > 0 && !failed.length && first) failed.push(first.id);
       const timeout = ranAway() || deadlocked;
-      emit({ type: 'isolated', id: env[ACTIVE_MUTANT_ENV] ?? ns.activeMutant, killed: failed.length > 0 && !timeout, failed, ran, ...(timeout && { timeout }), ...(deadlocked && { deadlock: true }), ...(failed.length > 0 && decisive === 0 && { slow: true }) });
+      const ms = files.reduce((sum, f) => sum + (f.result?.duration ?? 0), 0);
+      emit({ type: 'isolated', id: env[ACTIVE_MUTANT_ENV] ?? ns.activeMutant, killed: failed.length > 0 && !timeout, failed, ran, ms, ...(timeout && { timeout }), ...(deadlocked && { deadlock: true }), ...(failed.length > 0 && decisive === 0 && { slow: true }) });
     }
     closeFiles();
     return super.onAfterRunFiles?.(files);

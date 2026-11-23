@@ -63,6 +63,7 @@
     "lint": "eslint src"
   },
   "dependencies": {
+    "bellpull": "^2.0.2",
     "burgee": "^2.0.0",
     "seniority": "^2.0.0",
     "validator": "0.0.1"

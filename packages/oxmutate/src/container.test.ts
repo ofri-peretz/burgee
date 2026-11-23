@@ -272,7 +272,7 @@ const CACHE = ['-v', 'oxmutate-cache:/cache', '-e', 'npm_config_cache=/cache/npm
 const fetch = (sha: string): string => `git fetch -q --depth 1 'https://example.com/r.git' '${sha}' || { echo 'oxmutate: the container could not fetch ${sha}. fix: push it, or set container.remote' >&2; exit 4; }`;
 
 /** The install, guarded by its key, on a line of its own. */
-const INSTALL = [`if [ "$(cat /w/installed 2>/dev/null)" != 'k1' ]; then`, 'npm ci', "echo 'k1' > /w/installed; fi"];
+const INSTALL = [`if [ "$(cat /w/installed 2>/dev/null)" != 'k1' ]; then`, '{', 'npm ci', '} || exit "$?"', "echo 'k1' > /w/installed; fi"];
 
 /** A container's script, line by line. */
 const script = (args: readonly string[]): string[] => args.at(-1)!.split('\n');
@@ -339,12 +339,27 @@ describe('the container plan', () => {
 
   it('keeps the install guard whole when the install command has a comment', () => {
     const lines = script(containerPlan(NPX, { ...input, install: 'npm ci # note', sync: whole }).sync);
-    expect(lines.slice(-3)).toEqual([`if [ "$(cat /w/installed 2>/dev/null)" != 'k1' ]; then`, 'npm ci # note', "echo 'k1' > /w/installed; fi"]);
+    expect(lines.slice(-5)).toEqual([`if [ "$(cat /w/installed 2>/dev/null)" != 'k1' ]; then`, '{', 'npm ci # note', '} || exit "$?"', "echo 'k1' > /w/installed; fi"]);
     if (spawnSync('sh', ['-c', 'true']).status === 0) {
       const file = path.join(scratch('oxmutate-sh-'), 'sync.sh');
       writeFileSync(file, lines.join('\n'));
       expect(spawnSync('sh', ['-n', file], { encoding: 'utf8' })).toMatchObject({ status: 0, stderr: '' });
     }
+  });
+
+  it('stops at a step that fails in the middle of an install chain and writes no stamp, so the install runs again', () => {
+    const dir = scratch('oxmutate-install-');
+    const ran = (install: string): number | null => {
+      const block = script(containerPlan(NPX, { ...input, install, sync: whole }).sync).slice(-5).join('\n').replaceAll('/w/', `${dir.replaceAll('\\', '/')}/`);
+      const file = path.join(dir, 'install-block.sh');
+      writeFileSync(file, block);
+      return spawnSync('sh', ['-e', file], { encoding: 'utf8' }).status;
+    };
+    // errexit ignores `false` here, since it is not the last command of its `&&` list: the stamp was written all the same.
+    expect(ran('false && true')).toBe(1);
+    expect(existsSync(path.join(dir, 'installed'))).toBe(false);
+    expect(ran('true && true')).toBe(0);
+    expect(readFileSync(path.join(dir, 'installed'), 'utf8').trim()).toBe('k1');
   });
 
   it('turns each ref the run names into a commit and a tag inside, and stages the source so a diff sees new files', () => {
@@ -364,7 +379,7 @@ describe('the container plan', () => {
   it('fetches the commit instead with source git, each base as a tag first, keeping node_modules and the kept files', () => {
     const bases = [{ ref: 'origin/main', commit: 'b0', tag: 'oxmutate-base-0' }];
     const plan = containerPlan(NPX, { ...input, fetch: { remote: 'https://example.com/r.git', commit: 'abc123' }, bases });
-    expect(script(plan.sync).slice(2, 12)).toEqual([
+    expect(script(plan.sync).slice(2, 14)).toEqual([
       `command -v git >/dev/null || { echo 'oxmutate: source git needs git in the image. fix: container.image node:${nodeMajor}' >&2; exit 3; }`,
       '[ -d .git ] || git init -q',
       fetch('b0'),
@@ -546,7 +561,7 @@ describe('running in the container', () => {
     const name = `oxmutate-${createHash('sha256').update(realpathSync.native(top)).digest('hex').slice(0, 12)}`;
     const ran = f.ofEngine().find((c) => c.args[0] === 'run')!;
     expect(f.ofEngine()[0]!.args.at(-1)).toBe(name);
-    expect(f.scripts.get('c1')).toContain('then\nnpm ci\n');
+    expect(f.scripts.get('c1')).toContain('then\n{\nnpm ci\n}');
     expect(ran.args).toContain(`${name}:/w`);
     expect(ran.args.at(-1)).toContain("cd '/w/src/packages/a'");
     expect(ran.args.at(-1)).toMatch(/exec npx --no oxmutate 'run'$/u);
@@ -727,7 +742,7 @@ describe('running in the container', () => {
     expect(await key()).not.toBe(first);
     const f = fake({});
     await runInContainer(C, { root: repo({ 'x.ts': '' }), keep: [] }, [], { spawn: f.spawn });
-    expect(f.scripts.get('c1')).toContain('then\nnpm install\n');
+    expect(f.scripts.get('c1')).toContain('then\n{\nnpm install\n}');
   });
 
   it('copies each kept file back from a container never started, removes it, and sends the host’s copy of them in', async () => {
@@ -941,7 +956,7 @@ describe('what the install gets', () => {
       const f = fake({});
       await runInContainer({ ...C, ephemeral: true }, { root: repo(files), keep: [] }, [], { spawn: f.spawn });
       const lines = script(['', f.scripts.get('c1')!]);
-      return lines[lines.findIndex((l) => l.endsWith('; then')) + 1]!;
+      return lines[lines.findIndex((l) => l.endsWith('; then')) + 2]!;
     };
     const berry = 'corepack enable && yarn install --immutable';
     expect(await installOf({ 'yarn.lock': '', '.yarnrc.yml': 'nodeLinker: node-modules\n' })).toBe(berry);
