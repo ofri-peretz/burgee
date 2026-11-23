@@ -1113,17 +1113,17 @@ describe('a full disk says what to free', () => {
   it('turns a sync that failed with the volume nearly empty of room into exit FULL, and nothing else', () => {
     if (spawnSync('sh', ['-c', 'true']).status !== 0) return;
     const dir = scratch('oxmutate-df-');
-    const bin = path.join(dir, 'bin');
-    mkdirSync(bin);
+    let available = 0;
     const df = (availableKiB: number): void => {
-      writeFileSync(path.join(bin, 'df'), `#!/bin/sh\necho 'Filesystem 1024-blocks Used Available Capacity Mounted on'\necho 'overlay 100 100 ${String(availableKiB)} 100% /w'\n`, { mode: 0o755 });
+      available = availableKiB;
     };
     const ran = (body: string): number | null => {
       const file = path.join(dir, 'sync.sh');
-      writeFileSync(file, ['set -e', FULL_TRAP, body].join('\n'));
-      // Windows spells it `Path`, and a second `PATH` beside it is not the one the shell reads.
-      const key = Object.keys(process.env).find((k) => k.toUpperCase() === 'PATH') ?? 'PATH';
-      return spawnSync('sh', [file], { encoding: 'utf8', env: { ...process.env, [key]: `${bin}${path.delimiter}${process.env[key] ?? ''}` } }).status;
+      // df is a shell function, which the shell prefers to any command on PATH. A stub on PATH
+      // lost on Windows: Git's sh puts its own /usr/bin first, so the real df answered.
+      const stub = `df() { echo 'Filesystem 1024-blocks Used Available Capacity Mounted on'; echo 'overlay 100 100 ${String(available)} 100% /w'; }`;
+      writeFileSync(file, ['set -e', stub, FULL_TRAP, body].join('\n'));
+      return spawnSync('sh', [file], { encoding: 'utf8' }).status;
     };
     expect(MIN_FREE_KIB).toBe(65536);
     df(65535);
