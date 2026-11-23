@@ -575,6 +575,9 @@ describe('every refusal says exactly what is wrong and how to fix it', () => {
     [[{ ...good, repo: 'x a/b' }], repoOf('"x a/b"')],
     [[{ ...good, repo: 'a/b c' }], repoOf('"a/b c"')],
     [[{ ...good, repo: 7 }], repoOf('7')],
+    [[{ ...good, repo: ['a/b'] }], repoOf('["a/b"]')],
+    [[{ ...good, source: ['tags'] }], "W: entry 1: `source` [\"tags\"] is not 'releases' or 'tags'. fix: use 'releases' when the repo publishes GitHub releases, else 'tags'"],
+    [[{ ...good, kind: ['spec'] }], "W: entry 1: `kind` [\"spec\"] is not 'spec' or 'test-suite'. fix: omit it for a specification"],
     [[{ ...good, source: 'rss' }], "W: entry 1: `source` \"rss\" is not 'releases' or 'tags'. fix: use 'releases' when the repo publishes GitHub releases, else 'tags'"],
     [[{ ...good, kind: 'blog' }], "W: entry 1: `kind` \"blog\" is not 'spec' or 'test-suite'. fix: omit it for a specification"],
     [[{ ...good, kind: 3 }], "W: entry 1: `kind` 3 is not 'spec' or 'test-suite'. fix: omit it for a specification"],
@@ -655,6 +658,9 @@ describe('versions, character by character', () => {
     expect(compareVersions(v('1.0.0-1'), v('1.0.0-alpha'))).toBeLessThan(0);
     expect(compareVersions(v('1.0.0-alpha'), v('1.0.0-1'))).toBeGreaterThan(0);
     expect(compareVersions(v('1.0.0-rc.2'), v('1.0.0-rc.10'))).toBeLessThan(0);
+    // a run of letters is one token: `rc` before `rc.`, whatever follows the digit on the other side
+    expect(compareVersions(v('1.0.0-rc1'), v('1.0.0-rc.x'))).toBeLessThan(0);
+    expect(compareVersions(v('1.0.0-rc.x'), v('1.0.0-rc1'))).toBeGreaterThan(0);
   });
 });
 
@@ -706,6 +712,12 @@ describe('what GitHub is asked, and how every failure reads', () => {
     expect(await fetchTags({}, 'v3.1.0', '3.0.4', '3.1.0-dev2', 'vnext')).toEqual(['3.1.0', '3.0.4', '3.1.0-dev2']);
     expect(await fetchTags({ tagPattern: '^rel-(v\\d.*)$' }, 'rel-v1.2.0', 'other-1.0.0')).toEqual(['1.2.0']);
     expect(await fetchTags({ tagPattern: 'v\\d+\\.\\d+' }, 'x-v2.5', 'nothing')).toEqual(['2.5']);
+  });
+
+  it('compiles a tag pattern with the unicode flag, so a property escape means what it says', async () => {
+    const spec = entry({ source: 'tags', tagPattern: '^\\p{Lu}(\\d)$' });
+    const got = await fetchPublished(spec, '', github({ 'OAI/OpenAPI-Specification/tags?per_page=50': { body: tagged('A3') } }).get);
+    expect(got.map((p) => p.version)).toEqual(['3']);
   });
 
   it('keeps entries of one repo apart when their patterns differ', async () => {

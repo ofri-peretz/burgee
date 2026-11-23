@@ -84,10 +84,10 @@ const repoProblem = (e: Fields): string | null =>
   typeof e.repo === 'string' && REPO.test(e.repo) ? null : `\`repo\` ${show(e.repo)} is not owner/name. fix: write it as on github.com, e.g. "OAI/OpenAPI-Specification"`;
 
 const sourceProblem = (e: Fields): string | null =>
-  typeof e.source === 'string' && SOURCES.includes(e.source) ? null : `\`source\` ${show(e.source)} is not 'releases' or 'tags'. fix: use 'releases' when the repo publishes GitHub releases, else 'tags'`;
+  SOURCES.includes(e.source as string) ? null : `\`source\` ${show(e.source)} is not 'releases' or 'tags'. fix: use 'releases' when the repo publishes GitHub releases, else 'tags'`;
 
 const kindProblem = (e: Fields): string | null =>
-  e.kind === undefined || (typeof e.kind === 'string' && KINDS.includes(e.kind)) ? null : `\`kind\` ${show(e.kind)} is not 'spec' or 'test-suite'. fix: omit it for a specification`;
+  e.kind === undefined || KINDS.includes(e.kind as string) ? null : `\`kind\` ${show(e.kind)} is not 'spec' or 'test-suite'. fix: omit it for a specification`;
 
 const readsProblem = (e: Fields): string | null =>
   isStrings(e.reads) ? null : '`reads` is not a list of strings. fix: list the versions the adapters accept, or [] when nothing reads the format yet';
@@ -276,6 +276,7 @@ function publishedOf(spec: Spec, item: unknown): Published | null {
   const raw = rawOf(spec, item);
   if (raw === null) return null;
   const version = versionOf(spec, raw.tag);
+  // Stryker disable next-line ConditionalExpression: equivalent, parseVersion of null is null too; the early return is for the type
   if (version === null) return null;
   const parsed = parseVersion(version);
   if (parsed === null) return null;
