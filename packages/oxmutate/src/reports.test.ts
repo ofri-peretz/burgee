@@ -33,6 +33,7 @@ const stats = (s: Partial<RunStats> = {}): RunStats => ({
   confirmLive: 0,
   staleSurvivors: 0,
   watchdogKills: 0,
+  warmStopsMs: [],
   idleStalls: 0,
   crashes: 0,
   canaryFiles: 0,

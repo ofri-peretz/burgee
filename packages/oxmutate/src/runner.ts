@@ -37,7 +37,7 @@ import path from 'node:path';
 
 import { unmodeled, type AroundHooks, type CollectedTask } from './collected.js';
 import { BEAT_ENV, markTest, realNow, startHeartbeat } from './heartbeat.js';
-import { markWriter, type MarkWriter } from './progress-file.js';
+import { markText, markWriter, type MarkWriter } from './progress-file.js';
 import { isDeadlock, takeFloor, trackRpc, trackTimers, watch } from './quiescence.js';
 import { resolveEsm } from './resolve.js';
 import { ACTIVE_MUTANT_ENV, FILE_KEY, NAMESPACE, cwd, env, type Namespace } from './runtime.js';
@@ -740,7 +740,7 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
         if (done.has(id)) continue;
         // The real clock: a test that froze it (`vi.useFakeTimers()`, never undone) made every later
         // mutant read as running since the freeze, and the watchdog stopped it at once (caique, 2026-11-02).
-        mark(`${id} ${String(realNow())}\n`);
+        mark(markText(id, realNow(), plan.testMs?.[test.id] ?? 0));
         let { status, ms, deadlock } = await runArmed(id);
         if (status === 'Polluted') break;
         // A kill that follows unchecked runs may be one of their leftovers, which this run's own cleanup
