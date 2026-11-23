@@ -3,7 +3,7 @@ repo:     https://github.com/SBoudrias/Inquirer.js
 version:  12.1.1
 tag:      @inquirer/core@12.1.1
 commit:   6570b8e4d5e33a00dad2b55fa5f5fa5d148a245b
-vendored: 2026-11-22
+vendored: 2026-11-23
 files:    1
 tool:     scripts/vendor-suite.ts
 

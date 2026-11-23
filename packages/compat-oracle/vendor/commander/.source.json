@@ -3,7 +3,7 @@
   "version": "15.1.0",
   "tag": "v15.1.0",
   "commit": "a5a7dc084d4d2b7932e85ca049c5204e50a2c721",
-  "vendored": "2026-11-16",
+  "vendored": "2026-11-23",
   "files": 109,
   "internalFiles": [
     "useColor.test.js"

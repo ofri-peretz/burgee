@@ -3,7 +3,7 @@ repo:     https://github.com/antonk52/lilconfig
 version:  3.1.5
 tag:      v3.1.5
 commit:   7c0e824f2cdfef39fa8afe4bc2a69a880df4d5a8
-vendored: 2026-11-16
+vendored: 2026-11-23
 files:    1
 tool:     scripts/vendor-suite.ts
 
