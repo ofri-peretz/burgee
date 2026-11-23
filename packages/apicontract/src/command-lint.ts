@@ -13,6 +13,7 @@ import { parse as parseYaml } from 'seniority/yaml';
 import { uriOf } from './command-diff.js';
 import { builtinAdapters } from './inputs.js';
 import { type Level, lint, type Rule, type LintFinding, type LintInput, type LintResult } from './lint-engine.js';
+import { readRedocly } from './lint-redocly.js';
 import { rules, rulesets } from './lint-rules.js';
 import { type NotCarried, type ReadRuleset, readSpectral } from './lint-spectral.js';
 import { type Config, ConfigError, loadConfig, UsageError } from './run-config.js';
@@ -62,10 +63,8 @@ const readRulesetFile = (name: string, root: string): ReadRuleset => {
   } catch (error) {
     throw new ConfigError(CONFIG_FILE, [`\`lint.extends\` names ${name}, which cannot be read (${(error as Error).message}). fix: correct its path; it is read from the config's folder`]);
   }
-  if (/redocly/iu.test(basename(name))) {
-    return { rules: {}, levels: {}, notCarried: [{ id: name, file: name, pointer: '#', reason: 'a Redocly ruleset, which lint does not read yet', fix: 'write the rules you need as a .spectral.yaml, or keep running them in Redocly for now' }] };
-  }
-  return readSpectral(document, name, new Set(RULES.keys()));
+  // The file's name says whose ruleset it is: Redocly's `redocly.yaml`, else Spectral's.
+  return (/redocly/iu.test(basename(name)) ? readRedocly : readSpectral)(document, name, new Set(RULES.keys()));
 };
 
 /** Every ruleset file `names` lists, read from `root`, by its name. */
