@@ -113,7 +113,7 @@ describe.skipIf(process.platform === 'win32')('the examples on this site', () =>
       const { env, argv } = parse(run.command);
       // A hung example is killed with SIGKILL, which no page promises, so a timeout can never
       // pass for an example that was meant to die of SIGTERM.
-      const result = spawnSync(process.execPath, argv, { cwd: dir, env: { ...process.env, ...env }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 20_000, killSignal: 'SIGKILL' });
+      const result = spawnSync(process.execPath, argv, { cwd: dir, env: { ...process.env, FORCE_COLOR: '0', ...env }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 20_000, killSignal: 'SIGKILL' });
       expect({ status: result.status, signal: result.signal }, result.stderr).toEqual({ status: run.exit, signal: run.signal });
       expect(result.stdout + result.stderr).toBe(run.expected);
     }, 30_000);
