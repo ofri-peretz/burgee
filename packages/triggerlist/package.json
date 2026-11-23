@@ -1,6 +1,6 @@
 {
   "name": "triggerlist",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "description": "A review checklist the diff selects: only the items whose triggers fire reach the reviewer, REVIEW.md is compiled under a byte budget, and the checklist is read from the base branch so a change cannot edit its own checks. Working name; unpublished.",
   "license": "MIT",
