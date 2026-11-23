@@ -55,6 +55,10 @@ export interface LintConfig {
   readonly rules?: Readonly<Record<string, 'error' | 'warn' | 'off'>>;
   /** How long a rule new at `error` warns first, e.g. `"14d"`; `"0d"` turns it off (R10). */
   readonly warnFor?: string;
+  /** The ref `--since` defaults to: only operations changed since it are linted in full (R12). */
+  readonly since?: string;
+  /** The rules that still run on operations `--since` leaves untouched; none when absent (R12). */
+  readonly legacy?: readonly string[];
 }
 
 /** The JSON Schema `apicontract.config.json` validates against. */
@@ -96,6 +100,8 @@ export const configSchema = {
         extends: { type: 'array', items: { type: 'string', minLength: 1 }, description: 'Rulesets, in order: `recommended`, `agent-ready`' },
         rules: { type: 'object', additionalProperties: { enum: ['error', 'warn', 'off'] }, description: 'A level per rule id, over the rulesets' },
         warnFor: { type: 'string', pattern: '^\\d+d$', description: 'How long a rule new at error warns first, by the date it entered the ruleset: `"14d"` (the default); `"0d"` turns it off' },
+        since: { type: 'string', minLength: 1, description: 'The git ref `--since` defaults to: only operations added or changed since it run every rule; `merge-base` is the base with origin/main' },
+        legacy: { type: 'array', items: { type: 'string', minLength: 1 }, description: 'Rule ids that still run on operations `since` leaves untouched; none by default' },
       },
     },
   },
@@ -199,6 +205,12 @@ const diffOf = (value: unknown, problems: string[]): DiffConfig | undefined => {
 
 const LINT_LEVELS: readonly unknown[] = ['error', 'warn', 'off'];
 
+/** What is wrong with `lint.warnFor` and `lint.since`, the two settings read with git. */
+const historyProblems = (warnFor: unknown, since: unknown): string[] => [
+  ...(warnFor === undefined || (typeof warnFor === 'string' && /^\d+d$/u.test(warnFor)) ? [] : ['`lint.warnFor` must be a number of days. fix: write `"warnFor": "14d"`, or `"0d"` to turn warn-first off']),
+  ...(since === undefined || text(since) ? [] : ['`lint.since` must be a git ref. fix: write `"since": "merge-base"`, or a tag such as `"v1.0.0"`']),
+];
+
 const lintOf = (value: unknown, problems: string[]): LintConfig | undefined => {
   if (value === undefined) return undefined;
   if (!isRecord(value)) {
@@ -206,18 +218,20 @@ const lintOf = (value: unknown, problems: string[]): LintConfig | undefined => {
     return undefined;
   }
   for (const key of Object.keys(value)) {
-    if (!['extends', 'rules', 'warnFor'].includes(key)) problems.push(`\`lint.${key}\` is not a lint setting. fix: remove it; lint takes extends, rules and warnFor`);
+    if (!['extends', 'rules', 'warnFor', 'since', 'legacy'].includes(key)) problems.push(`\`lint.${key}\` is not a lint setting. fix: remove it; lint takes extends, rules, warnFor, since and legacy`);
   }
   const rules = value.rules;
   if (rules !== undefined && !(isRecord(rules) && Object.values(rules).every((level) => LINT_LEVELS.includes(level)))) {
     problems.push('`lint.rules` must map rule ids to "error", "warn" or "off". fix: write `"rules": { "operation-tags": "error" }`');
   }
-  const { warnFor } = value;
-  if (warnFor !== undefined && !(typeof warnFor === 'string' && /^\d+d$/u.test(warnFor))) problems.push('`lint.warnFor` must be a number of days. fix: write `"warnFor": "14d"`, or `"0d"` to turn warn-first off');
+  const { warnFor, since } = value;
+  problems.push(...historyProblems(warnFor, since));
   return {
     ...(value.extends === undefined ? {} : { extends: strings(value.extends, 'lint.extends', problems) }),
     ...(rules === undefined ? {} : { rules: rules as LintConfig['rules'] & object }),
     ...(warnFor === undefined ? {} : { warnFor: warnFor as string }),
+    ...(since === undefined ? {} : { since: since as string }),
+    ...(value.legacy === undefined ? {} : { legacy: strings(value.legacy, 'lint.legacy', problems) }),
   };
 };
 

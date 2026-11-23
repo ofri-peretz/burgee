@@ -258,6 +258,10 @@ describe('apicontract lint, through burgee', () => {
         type: 'string',
         description: 'read the config and its ruleset files at this git ref, so a change to the rules is judged by the old ones; `merge-base` is the base with origin/main',
       },
+      since: {
+        type: 'string',
+        description: "lint in full only the operations added or changed since this git ref; the rest run lint.legacy (default: none). `merge-base` is the base with origin/main; over the config's lint.since",
+      },
     });
   });
 

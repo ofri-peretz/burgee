@@ -103,7 +103,7 @@ export const DEFAULT_WARN_FOR = '14d';
 /** A ruleset named by its file: a `.spectral.yaml`, `.spectral.json` or `redocly.yaml` (R9). */
 export const RULESET_FILE = /\.(?:json|ya?ml)$/u;
 const KNOWN = new Set(Object.keys(rules));
-const SHORT = 7;
+export const SHORT = 7;
 
 /** A ruleset file's text read as rules; text that does not parse is a config to fix. */
 export const rulesetOfText = (name: string, read: () => string, configFile: string): ReadRuleset => {
@@ -181,16 +181,18 @@ export interface HistoryRun {
   readonly now: Date;
 }
 
-/** The commit `--rules-from` names: `merge-base` is CI's base; a ref git cannot find is a command line to fix. */
-const baseOf = async (run: HistoryRun, ref: string): Promise<string | undefined> => {
-  const commit = ref === 'merge-base' ? await run.git.mergeBase() : await run.git.commit(ref);
-  return commit ?? missing(ref, await run.git.commit('HEAD'));
+/**
+ * The commit a ref on `flag` names: `merge-base` is CI's base. `undefined` outside a repository,
+ * where there is nothing to ask; a ref git cannot find inside one is a command line to fix.
+ */
+export const commitOf = async (git: LintGit, flag: string, ref: string): Promise<string | undefined> => {
+  const commit = ref === 'merge-base' ? await git.mergeBase() : await git.commit(ref);
+  return commit ?? missing(flag, ref, await git.commit('HEAD'));
 };
 
-/** No commit for a ref: nothing to say outside a repository, a command line to fix inside one. */
-const missing = (ref: string, head: string | undefined): undefined => {
+const missing = (flag: string, ref: string, head: string | undefined): undefined => {
   if (head === undefined) return undefined;
-  throw new UsageError(`\`--rules-from ${ref}\` names no commit here. fix: fetch it first (in CI, \`git fetch origin main\`), or pass a ref this checkout has`);
+  throw new UsageError(`\`${flag} ${ref}\` names no commit here. fix: fetch it first (in CI, \`git fetch origin main\`), or pass a ref this checkout has`);
 };
 
 /** The sources a run applies (R11): the working tree's, or the base ref's with what changed since. */
@@ -199,7 +201,7 @@ const appliedOf = async (run: HistoryRun): Promise<Pick<History, 'from' | 'chang
   if (ref === undefined) return { sources: run.working, changed: [] };
   if (run.config === undefined) return { sources: run.working, from: 'the working tree: there is no config to read at a ref', changed: [] };
   if (!run.config.name.endsWith('.json')) throw new UsageError(`\`--rules-from\` reads apicontract.config.json at the ref, and the config is ${run.config.name}. fix: move the config to apicontract.config.json, or drop --rules-from`);
-  const commit = await baseOf(run, ref);
+  const commit = await commitOf(run.git, '--rules-from', ref);
   if (commit === undefined) return { sources: run.working, from: 'the working tree: not a git repository', changed: [] };
   const sources = await sourcesAt(run.git, commit, run.config, run.flagged);
   return { sources, from: `${ref} (${commit.slice(0, SHORT)})`, changed: changesOf(run.resolve(sources), run.resolve(run.working)) };
