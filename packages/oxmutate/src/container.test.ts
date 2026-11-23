@@ -1043,6 +1043,15 @@ describe('when the engine cannot run', () => {
 });
 
 describe('a full disk says what to free', () => {
+  /** The message of a rejected run: its start and a literal ending, so a path spelled two ways on Windows (`RUNNER~1`) compares. */
+  const hostLine = async (run: Promise<unknown>, start: string): Promise<void> => {
+    const message = await run.then(() => '', (e: Error) => e.message);
+    const ending = `: the host's disk is full (${tmpdir()} holds the run's staging). fix: free space there, or set TMPDIR to a disk with room`;
+    expect(message.startsWith(start)).toBe(true);
+    expect(message.endsWith(ending)).toBe(true);
+    expect(message.length).toBeGreaterThan(start.length + ending.length);
+  };
+
   const C = { ...NPX, engine: 'engine' };
   const top = (): string => repo({ 'package.json': '{}' });
   const LINE = (what: string): string => fullDisk(what, 'engine');
@@ -1073,7 +1082,7 @@ describe('a full disk says what to free', () => {
     const root = top();
     hostDisk.full = 'm.json';
     try {
-      await expect(runInContainer(C, { root, keep: [path.join(root, 'reports/m.json')] }, [], { spawn: f.spawn })).rejects.toThrow(`${fullHostDisk(`reports/m.json could not be written to ${root}`)}`);
+      await hostLine(runInContainer(C, { root, keep: [path.join(root, 'reports/m.json')] }, [], { spawn: f.spawn }), 'reports/m.json could not be written to ');
       // Any other error on that copy is the host's own, said as it is.
       hostDisk.code = 'EACCES';
       await expect(runInContainer(C, { root, keep: [path.join(root, 'reports/m.json')] }, [], { spawn: f.spawn })).rejects.toThrow('EACCES: copyfile failed');
@@ -1084,7 +1093,7 @@ describe('a full disk says what to free', () => {
   });
 
   it('says it for the host’s disk when tar cannot pack', async () => {
-    await expect(runInContainer(C, { root: top(), keep: [] }, [], { spawn: fake({ tarSays: 'tar: in.tar: Cannot write: No space left on device' }).spawn })).rejects.toThrow(new RegExp(`^${fullHostDisk('tar could not pack .+').replaceAll('(', '\\(').replaceAll(')', '\\)')}$`, 'u'));
+    await hostLine(runInContainer(C, { root: top(), keep: [] }, [], { spawn: fake({ tarSays: 'tar: in.tar: Cannot write: No space left on device' }).spawn }), 'tar could not pack ');
   });
 
   it('tells a Podman short-name refusal to use a full image name, and keeps the engine’s own words', async () => {
