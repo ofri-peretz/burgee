@@ -51,6 +51,7 @@ const MARKS = [
   'paratext',
   'controlroom',
   'oxmutate',
+  'truemark',
 ] as const;
 
 /** Extrusion, in the marks' own 100-unit space. */

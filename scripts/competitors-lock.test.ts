@@ -89,6 +89,8 @@ const KNOWN = [
   'term-img',
   'terminal-link',
   'tinyexec',
+  // truemark's incumbent (2026-11-23): its focused- and disabled-test rules, by surface.
+  '@vitest/eslint-plugin',
   'which',
   'widest-line',
   'wrap-ansi',

@@ -104,6 +104,19 @@
       "installed": [
         "seniority"
       ]
+    },
+    {
+      "name": "truemark",
+      "count": 7,
+      "installed": [
+        "bellpull",
+        "burgee",
+        "closeout",
+        "linegauge",
+        "roundel",
+        "seniority",
+        "truemark"
+      ]
     }
   ]
 }
