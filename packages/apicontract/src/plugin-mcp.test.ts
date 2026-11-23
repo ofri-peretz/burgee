@@ -84,6 +84,7 @@ describe('the mcp plugin', () => {
     expect(plugin.generators?.mcp?.options).toEqual({
       include: { type: 'string', multiple: true, description: 'only these operation ids, or `tag:<name>`; required past 40 operations' },
       transport: { type: 'string', choices: ['stdio', 'http'], description: 'stdio (default) or Streamable HTTP' },
+      budget: { type: 'number', description: 'the most tokens the tool list may take (estimated as characters ÷ 4); over it, no tool is generated' },
     });
   });
 
