@@ -156,11 +156,26 @@ describe('runLint', () => {
       '    then: { function: myCheck }',
     ].join('\n');
     const api = "openapi: 3.1.0\ninfo: { title: t, version: '1', description: d }\npaths:\n  /a:\n    get: { operationId: Get_A, description: d, responses: { '200': { description: ok } } }\n";
-    const dir = scratch({ 'api.yaml': api, '.spectral.yaml': spectral, 'redocly.yaml': 'rules: {}' });
+    const redocly = [
+      'rules:',
+      '  rule/summary-set:',
+      '    subject: { type: Operation, property: summary }',
+      '    assertions: { defined: true }',
+      '    message: Operations have a summary',
+      '    severity: warn',
+      '  rule/where:',
+      '    subject: { type: Operation }',
+      '    where: []',
+      '    assertions: { defined: true }',
+    ].join('\n');
+    const dir = scratch({ 'api.yaml': api, '.spectral.yaml': spectral, 'redocly.yaml': redocly });
     const config = validateConfig({ input: 'api.yaml', lint: { extends: ['.spectral.yaml', 'redocly.yaml'], rules: { 'ids-camel': 'warn' } } }, join(dir, 'apicontract.config.json'));
     const data = await runLint({ cwd: '/elsewhere', specs: [], config, sarif: true });
-    expect((data.findings as { rule: string; level: string; message: string }[]).map((finding) => [finding.rule, finding.level, finding.message])).toEqual([['ids-camel', 'warn', '`operationId` "Get_A" is not camel case']]);
-    expect((data.notCarried as { id: string }[]).map((entry) => entry.id)).toEqual(['spectral:oas', 'custom', 'redocly.yaml']);
+    expect((data.findings as { rule: string; level: string; message: string }[]).map((finding) => [finding.rule, finding.level, finding.message])).toEqual([
+      ['ids-camel', 'warn', '`operationId` "Get_A" is not camel case'],
+      ['rule/summary-set', 'warn', '`summary` is missing'],
+    ]);
+    expect((data.notCarried as { id: string }[]).map((entry) => entry.id)).toEqual(['spectral:oas', 'custom', 'rule/where']);
     expect(Object.keys(data.scores as object)).toEqual(['.spectral.yaml', 'redocly.yaml']);
     expect(JSON.stringify(data.sarif)).toContain('Operation ids are camel case');
     const lines = text({ ...data, [TEXT]: () => toText(data as never, data.scores as never, data.notCarried as never) }).split('\n');
@@ -171,11 +186,11 @@ describe('runLint', () => {
       '         fix: rewrite it with core functions and a `given` inside the JSONPath subset, or turn it off here and keep it in Spectral',
       '',
       'redocly.yaml',
-      '  warn   rule-not-carried  #  redocly.yaml: a Redocly ruleset, which lint does not read yet',
-      '         fix: write the rules you need as a .spectral.yaml, or keep running them in Redocly for now',
+      '  warn   rule-not-carried  #/rules/rule~1where  rule/where: `where` is not carried',
+      '         fix: rewrite it as a `rule/…` with a subject apicontract selects and assertions it carries, or keep it in Redocly',
       '',
     ]);
-    expect(lines.at(-3)).toMatch(/; not carried: 3 \(spectral:oas, custom, redocly\.yaml\)\.$/u);
+    expect(lines.at(-3)).toMatch(/; not carried: 3 \(spectral:oas, custom, rule\/where\)\.$/u);
   });
 
   it('reads only names that end in .json, .yaml or .yml as ruleset files', () => {

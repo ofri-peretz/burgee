@@ -76,12 +76,12 @@ const isRecord = (value: unknown): value is Record<string, unknown> => typeof va
 const token = (key: string): string => key.replaceAll('~', '~0').replaceAll('/', '~1');
 
 /** Why a rule is not carried: thrown inside the reader, caught per rule. Nothing else in it throws. */
-const uncarried = (reason: string): never => {
+export const uncarried = (reason: string): never => {
   throw new Error(`${reason}`);
 };
 
 /** A Spectral pattern as the `u`-flag source `pattern` compiles: `/x/` loses its slashes; flags are not carried. */
-const patternOf = (value: unknown, key: string): string => {
+export const patternOf = (value: unknown, key: string): string => {
   if (typeof value !== 'string') return uncarried(`\`pattern\`'s \`${key}\` is not a string`);
   const slashed = /^\/(.*)\/([a-z]*)$/su.exec(value);
   if (slashed !== null && slashed[2] !== '') uncarried(`\`pattern\`'s \`${key}\` has the flags \`${slashed[2] as string}\`, which are not carried`);
