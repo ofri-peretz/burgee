@@ -20,7 +20,7 @@ import { checkSurvivors } from './checker.js';
 import type { Unit } from './child.js';
 import { runCommandMutants } from './command-runner.js';
 import { IGNORE_STATIC_REASON, STATIC_BUDGET_REASON, VITE_CONFIGS, disables, type Options } from './config.js';
-import { crashReason } from './crash.js';
+import { afterLoneRun, crashedRun, crashReason } from './crash.js';
 import { rangeDisables } from './directives.js';
 import { guardDisk, isClean, type DiskChange } from './diskguard.js';
 import { dryFix, emptyDryRun, firstError } from './dry-failure.js';
@@ -93,7 +93,7 @@ export interface RunStats {
   /** Of `warmUnitMs`, the time inside armed test runs. The rest is starting workers, collecting files, canaries and hooks. */
   warmArmedMs: number;
   /** Isolated runs by what sent the mutant there: the parts of `isolatedRuns`. */
-  isolatedByCause: { static: number; stopped: number; unfinished: number; rerun: number; confirm: number; flaky: number };
+  isolatedByCause: { static: number; stopped: number; unfinished: number; rerun: number; crashed: number; confirm: number; flaky: number };
   /** Survivors confirmed in a live worker (6b, confirm.qnt `LIVE`); those it handed back are in `isolatedByCause.confirm`. */
   confirmLive: number;
   /** Survivors confirmed on cold modules only because a memo could have hidden them: one covering test, which the warm run armed after other runs in the same module instance. */
@@ -386,7 +386,7 @@ export async function run(options: Options): Promise<RunResult> {
   const { root } = options;
   const work = mkdtempSync(path.join(tmpdir(), 'oxmutate-'));
   const stats: RunStats = {
-    files: 0, mutants: 0, instrumentMs: 0, dryRunMs: 0, mutationMs: 0, staticMs: 0, staticRecollections: 0, staticGroupRuns: 0, staticGroupSplits: 0, staticAuditSampled: 0, staticAuditDisagreed: 0, isolatedMs: 0, wallMs: 0, testExecutions: 0, warmUnitMs: 0, warmArmedMs: 0, isolatedByCause: { static: 0, stopped: 0, unfinished: 0, rerun: 0, confirm: 0, flaky: 0 }, confirmLive: 0, staleSurvivors: 0,
+    files: 0, mutants: 0, instrumentMs: 0, dryRunMs: 0, mutationMs: 0, staticMs: 0, staticRecollections: 0, staticGroupRuns: 0, staticGroupSplits: 0, staticAuditSampled: 0, staticAuditDisagreed: 0, isolatedMs: 0, wallMs: 0, testExecutions: 0, warmUnitMs: 0, warmArmedMs: 0, isolatedByCause: { static: 0, stopped: 0, unfinished: 0, rerun: 0, crashed: 0, confirm: 0, flaky: 0 }, confirmLive: 0, staleSurvivors: 0,
     watchdogKills: 0, warmStopsMs: [], idleStalls: 0, deadlocks: 0, crashes: 0, canaryFiles: 0, pollutionRestarts: 0, pollutionRecovered: 0, pollutionRefused: {}, pollutionRefusedFirst: {}, diskWrites: 0, diskWritePaths: [], auditSampled: 0, auditDisagreed: 0, survivorsOverturned: 0, timeoutsOverturned: 0, compileErrors: 0, isolatedRuns: 0, reused: 0, flakyTests: 0, flakyMutants: 0, units: 0, serversSpawned: 0, serversReleased: 0, watchdogGraced: 0, heldByLoadMs: 0,
   };
   let unitSeq = 0;
@@ -820,6 +820,8 @@ export async function run(options: Options): Promise<RunResult> {
     const crashedIds = new Set<string>();
     /** How each crashed mutant's worker ended. */
     const crashedBy = new Map<string, string>();
+    /** Mutants whose warm worker went down: each runs once alone in a fresh worker before it is a RuntimeError (crash.ts). */
+    const aloneIds = new Set<string>();
     // Dependencies inlined here too, so the static phase (5b) reuses these servers instead of starting its own.
     const governor = createGovernor(options.maxLoad);
     const pool = createPool({ root, vitestConfig: options.vitestConfig, workers: 1, instrumentedMap: mapFile, nodeArgs: options.testRunnerNodeArgs, inlineDeps: true }, options.concurrency, { workDir: work, tag: 'mutant', lifecycle: options.workers, governor, lowPriority: options.lowPriority });
@@ -936,8 +938,10 @@ export async function run(options: Options): Promise<RunResult> {
         stats.isolatedByCause.stopped++;
         isolatedQueue.push(m); // a watchdog stop is confirmed before it is reported (6, below)
       } else if (crashedIds.has(m.id)) {
-        m.status = 'RuntimeError';
-        m.statusReason = crashReason(crashedBy.get(m.id));
+        // Its worker went down while it ran: its own doing, or a neighbour's (memory pressure). Alone in a fresh worker it settles which.
+        stats.isolatedByCause.crashed++;
+        aloneIds.add(m.id);
+        isolatedQueue.push(m);
       } else if (killers.length) {
         m.status = killers.some((r) => r.status === 'Killed') ? 'Killed' : 'Timeout';
         if (m.status === 'Timeout' && killers.some((r) => r.deadlock)) m.statusReason = DEADLOCK_REASON;
@@ -1182,7 +1186,7 @@ export async function run(options: Options): Promise<RunResult> {
       }
       return undecided;
     };
-    const runIsolated = async (items: MutantResult[], stage: IsolatedStage, slack: number | ((id: string) => number) = 1, chase?: Chase): Promise<Map<string, Verdict>> => {
+    const runIsolated = async (items: MutantResult[], stage: IsolatedStage, slack: number | ((id: string) => number) = 1, { chase, alone = new Set<string>() }: { chase?: Chase; alone?: ReadonlySet<string> } = {}): Promise<Map<string, Verdict>> => {
       const verdicts = new Map<string, Verdict>();
       if (items.length === 0) return verdicts;
       const t0 = performance.now();
@@ -1192,13 +1196,15 @@ export async function run(options: Options): Promise<RunResult> {
       // first. Equal mutant counts left one unit at 8.4 s while the others finished in under 3 s on
       // burgee/controlroom (2026-10-30): a mutant's cost is its files' dry-run time, not one.
       const cost = (m: MutantResult): number => isolatedBudget(m.id);
-      const bins = Array.from({ length: Math.min(items.length, options.concurrency * 2) }, () => ({ load: 0, batch: [] as MutantResult[] }));
-      for (const m of [...items].sort((x, y) => cost(y) - cost(x))) {
+      // A mutant in `alone` is a unit of its own: no sibling to be blamed for, or to blame it.
+      const packed = items.filter((m) => !alone.has(m.id));
+      const bins = Array.from({ length: Math.min(packed.length, options.concurrency * 2) }, () => ({ load: 0, batch: [] as MutantResult[] }));
+      for (const m of [...packed].sort((x, y) => cost(y) - cost(x))) {
         const bin = bins.reduce((lightest, b) => (b.load < lightest.load ? b : lightest));
         bin.load += cost(m);
         bin.batch.push(m);
       }
-      const units = bins.sort((x, y) => y.load - x.load).map((b) => mk(b.batch));
+      const units = [...items.filter((m) => alone.has(m.id)).map((m) => mk([m])), ...bins.sort((x, y) => y.load - x.load).map((b) => mk(b.batch))];
       stats.isolatedRuns += items.length;
       // A mutant `chase.when` picks gets its 3x run (`chase.into`) as a unit of its own the moment its
       // verdict is in, in the pool beside the rest, not after the last of them: the tail was 2 to 5
@@ -1240,6 +1246,7 @@ export async function run(options: Options): Promise<RunResult> {
               const next = mk([byId.get(b.id) as MutantResult]);
               chasing.add(next.results);
               chasedIds.add(b.id);
+              stats.isolatedRuns++;
               chaseFrom ||= performance.now();
               follow.push(next);
             }
@@ -1285,7 +1292,8 @@ export async function run(options: Options): Promise<RunResult> {
     // an idle stop is final.
     const stoppedFirst = (id: string, v: Verdict | undefined): boolean => (v?.status === 'Timeout' && !v.idle && !busyStops.has(id)) || slowKill(v);
     const again = new Map<string, Verdict>();
-    const first = await runIsolated(isolatedQueue, 'first', (id) => (busyStops.has(id) ? RERUN_SLACK : 1), { when: stoppedFirst, into: again });
+    // A crash in a unit of several mutants is run again alone (crash.ts); a mutant already run alone has had it.
+    const first = await runIsolated(isolatedQueue, 'first', (id) => (busyStops.has(id) ? RERUN_SLACK : 1), { chase: { when: (id, v) => stoppedFirst(id, v) || (crashedRun(v) && !aloneIds.has(id)), into: again }, alone: aloneIds });
     // A watchdog stop on a loaded machine is a slow test, not a runaway: 31 of them on one
     // burgee/paratext run while the load average sat at 40, all Survived for Stryker (2026-10-27).
     // Each stop gets one more run with 3x the budget; only one that is stopped again is a Timeout.
@@ -1311,14 +1319,18 @@ export async function run(options: Options): Promise<RunResult> {
         stats.timeoutsOverturned++;
       }
     }
+    // A crash in a unit of several mutants was run again alone (the chase above): that run's verdict is the mutant's.
+    const crashedAgain = isolatedQueue.filter((m) => crashedRun(first.get(m.id)) && !aloneIds.has(m.id));
+    stats.isolatedByCause.crashed += crashedAgain.length;
+    for (const m of crashedAgain) first.set(m.id, afterLoneRun(first.get(m.id) as Verdict, again.get(m.id)));
     for (const m of isolatedQueue) {
       const v = first.get(m.id);
       if (v) {
         m.status = v.status;
+        if (v.status === 'RuntimeError' && (v.crashed || aloneIds.has(m.id))) m.statusReason = crashReason(v.exit ?? crashedBy.get(m.id));
         m.killedBy = v.killedBy;
         m.testsCompleted = v.testsCompleted;
         if (v.status === 'Timeout') m.statusReason = timeoutReason(v);
-        if (v.status === 'RuntimeError' && v.crashed) m.statusReason = crashReason(v.exit);
       }
     }
 
@@ -1351,7 +1363,14 @@ export async function run(options: Options): Promise<RunResult> {
     stats.confirmLive += live.verdicts.size;
     stats.isolatedByCause.confirm += live.undecided.length;
     const recheck = new Map<string, Verdict>();
-    const confirmed = new Map([...live.verdicts, ...(await runIsolated(live.undecided, 'confirm', 1, { when: (_, v) => stoppedConfirm(v), into: recheck }))]);
+    const confirmed = new Map([...live.verdicts, ...(await runIsolated(live.undecided, 'confirm', 1, { chase: { when: (_, v) => stoppedConfirm(v) || crashedRun(v), into: recheck } }))]);
+    // A confirmation that took its worker down was run again alone; that run's verdict stands (crash.ts).
+    for (const m of survivors) {
+      const c = confirmed.get(m.id);
+      if (!crashedRun(c)) continue;
+      stats.isolatedByCause.crashed++;
+      confirmed.set(m.id, afterLoneRun(c as Verdict, recheck.get(m.id)));
+    }
     // A timeout here is a watchdog stop like any other, and a loaded machine makes them: two
     // closeout survivors were reported killed this way while a docs build shared the machine
     // (2026-10-27). The same rule as section 6: one more run at 3x the budget before believing it.

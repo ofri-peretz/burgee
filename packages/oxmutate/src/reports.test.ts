@@ -29,7 +29,7 @@ const stats = (s: Partial<RunStats> = {}): RunStats => ({
   testExecutions: 0,
   warmUnitMs: 0,
   warmArmedMs: 0,
-  isolatedByCause: { static: 0, stopped: 0, unfinished: 0, rerun: 0, confirm: 0, flaky: 0 },
+  isolatedByCause: { static: 0, stopped: 0, unfinished: 0, rerun: 0, crashed: 0, confirm: 0, flaky: 0 },
   confirmLive: 0,
   staleSurvivors: 0,
   watchdogKills: 0,
@@ -288,9 +288,9 @@ describe('the terminal summary', () => {
     expect(textSummary(await run({ stats: stats({ crashes: 1 }) })).split('\n')[4]).toBe('  corrected: 1 worker crash(es)');
     expect(textSummary(await run({ stats: stats({ staticAuditDisagreed: 2 }) })).split('\n')[4]).toBe('  corrected: 2 kill(s) a static group hid, found by the audit');
     // What the phases were made of, printed only for a phase that ran.
-    const made = textSummary(await run({ stats: stats({ warmUnitMs: 19_000, warmArmedMs: 2600, isolatedRuns: 9, isolatedByCause: { static: 2, stopped: 1, unfinished: 0, rerun: 1, confirm: 5, flaky: 0 } }) })).split('\n');
+    const made = textSummary(await run({ stats: stats({ warmUnitMs: 19_000, warmArmedMs: 2600, isolatedRuns: 9, isolatedByCause: { static: 2, stopped: 1, unfinished: 0, rerun: 1, crashed: 2, confirm: 5, flaky: 0 } }) })).split('\n');
     expect(made[4]).toBe('  warm servers ran 19.0 s, 2.6 s of it inside test runs');
-    expect(made[5]).toBe('  isolated runs: static 2 · stopped 1 · unfinished 0 · re-run 1 · survivors confirmed 5 · flaky 0');
+    expect(made[5]).toBe('  isolated runs: static 2 · stopped 1 · unfinished 0 · re-run 1 · crashed 2 · survivors confirmed 5 · flaky 0');
     // The static phase: what it cost, with the way out named once it is half the run.
     const twoStatic = [mutant({ static: true }), mutant({ static: true, status: 'Survived' }), mutant()];
     const small = textSummary(await run({ mutants: twoStatic, stats: stats({ staticMs: 3394, wallMs: 6789 }) })).split('\n');
@@ -312,12 +312,12 @@ describe('the terminal summary', () => {
     expect(textSummary(await run({ mutants: outOfTime.slice(0, 2), stats: stats({ staticMs: 2500, wallMs: 5000 }) })).split('\n')[4]).toBe('  static mutants: 1 decided in 2.5 s, 1 left undecided when the static budget ran out, not scored');
     expect(textSummary(await run({ mutants: [mutant()] })).split('\n')[4]).not.toMatch(/static mutants/u);
     // One millisecond of warm time and one isolated run are both a phase that ran.
-    const least = textSummary(await run({ stats: stats({ warmUnitMs: 1, isolatedRuns: 1, isolatedByCause: { static: 0, stopped: 0, unfinished: 0, rerun: 0, confirm: 0, flaky: 1 } }) })).split('\n');
+    const least = textSummary(await run({ stats: stats({ warmUnitMs: 1, isolatedRuns: 1, isolatedByCause: { static: 0, stopped: 0, unfinished: 0, rerun: 0, crashed: 0, confirm: 0, flaky: 1 } }) })).split('\n');
     expect(least[4]).toBe('  warm servers ran 0.0 s, 0.0 s of it inside test runs');
-    expect(least[5]).toBe('  isolated runs: static 0 · stopped 0 · unfinished 0 · re-run 0 · survivors confirmed 0 · flaky 1');
+    expect(least[5]).toBe('  isolated runs: static 0 · stopped 0 · unfinished 0 · re-run 0 · crashed 0 · survivors confirmed 0 · flaky 1');
     // Survivors confirmed live are named apart from the fresh-worker ones; one is enough, none prints nothing.
-    const liveConfirmed = textSummary(await run({ stats: stats({ isolatedRuns: 1, confirmLive: 1, isolatedByCause: { static: 0, stopped: 0, unfinished: 0, rerun: 0, confirm: 1, flaky: 0 } }) })).split('\n');
-    expect(liveConfirmed[4]).toBe('  isolated runs: static 0 · stopped 0 · unfinished 0 · re-run 0 · survivors confirmed 1 · flaky 0');
+    const liveConfirmed = textSummary(await run({ stats: stats({ isolatedRuns: 1, confirmLive: 1, isolatedByCause: { static: 0, stopped: 0, unfinished: 0, rerun: 0, crashed: 0, confirm: 1, flaky: 0 } }) })).split('\n');
+    expect(liveConfirmed[4]).toBe('  isolated runs: static 0 · stopped 0 · unfinished 0 · re-run 0 · crashed 0 · survivors confirmed 1 · flaky 0');
     expect(liveConfirmed[5]).toBe('  survivors confirmed in a live worker: 1, with no fresh worker each');
     expect(textSummary(await run())).not.toContain('live worker');
     // Verdicts reused with none audited (a cache too small to sample): no audit clause.

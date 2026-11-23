@@ -564,6 +564,34 @@ it.skipIf(!native || !existsSync(bin) || !nightly)('says how the worker ended wh
   }
 }, 120_000);
 
+// A mutant whose worker went down is run once more, alone in a fresh worker, before it is a
+// RuntimeError: the crash may be a neighbour's (memory pressure on a busy machine). The fixture's hog
+// takes down every sibling worker of the run the first time it is armed, while the innocent sibling is
+// mid-test, and only itself after that. The sibling gets its real verdict; the hog, which crashes
+// alone too, stays a RuntimeError. Without the re-run both were RuntimeErrors.
+it.skipIf(!native || !existsSync(bin) || !nightly || process.platform === 'win32')('runs a mutant whose worker went down once alone: a neighbour\'s crash is not its verdict', () => {
+  const dir = path.join(pkg, 'test/fixtures/hog');
+  const reportDir = path.join(dir, 'reports');
+  rmSync(reportDir, { recursive: true, force: true });
+  mkdirSync(reportDir, { recursive: true });
+  try {
+    spawnSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: dir, stdio: 'pipe' });
+    const report = JSON.parse(readFileSync(path.join(reportDir, 'mutation.json'), 'utf8')) as {
+      files: Record<string, { mutants: (ReportMutant & { mutatorName: string; statusReason?: string })[] }>;
+      'x-oxmutate': { stats: { isolatedByCause: { crashed: number } } };
+    };
+    const verdicts = (file: string): string[] => (report.files[file]?.mutants ?? []).filter((m) => m.status !== 'Survived' && m.status !== 'NoCoverage').map((m) => `${m.mutatorName} ${String(m.replacement)}: ${m.status}`);
+    expect(verdicts('src/sibling.ts')).toEqual(['ArrowFunction () => undefined: Killed', 'NumericLiteral 0: Killed']);
+    expect(verdicts('src/hog.ts')).toEqual(['ConditionalExpression true: RuntimeError']);
+    const hog = report.files['src/hog.ts']?.mutants.find((m) => m.status === 'RuntimeError');
+    expect(hog?.statusReason).toBe('the worker crashed while this mutant ran (signal SIGKILL)');
+    // Both went down in the warm run; each ran once alone.
+    expect(report['x-oxmutate'].stats.isolatedByCause.crashed).toBeGreaterThanOrEqual(2);
+  } finally {
+    discard(reportDir);
+  }
+}, 180_000);
+
 // A mutant that loops with no switch in the loop (no hit count can stop it) is stopped by the watchdog in
 // the warm run. That stop was then run isolated at 1x, stopped again, and run at 3x: ufo's punycode.ts
 // spent 2.3 s of its 9.2 on the 1x run (2026-11-20). The warm stop is the first look, so the isolated
