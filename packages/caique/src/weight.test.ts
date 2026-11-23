@@ -198,9 +198,12 @@ const RULES: Record<string, EntryRule> = {
   // `bellpull/cross-spawn` for the one process `editor` starts. Measured 63,105 B; the budget
   // moved from 38,000 by D-20261020-caique-inquirer-prompts-budget, where `@inquirer/prompts`
   // 8.7.3 and its tree are the ceiling it is weighed against.
+  // 2026-11-23, `@inquirer/prompts` 8.8.1's 45 new cases (a refused answer kept editable, keys
+  // typed during validation dropped, plain decimals only, a failed search recovered): measured
+  // 66,750 B; 68,000 by D-20261123-revendor-inquirer-prompts-8-8-1.
   './inquirer/prompts': {
     allow: ['bellpull/cross-spawn', 'closeout/cursor', 'closeout/exit-hook', 'linegauge/wrap', 'paratext/csi', 'roundel/terminal'],
-    budget: 65_000,
+    budget: 68_000,
     denied: ['ask.js', 'decide.js', 'raw.js', 'binding.js', 'terminal.js', 'index.js', 'spec.js', 'plugin.js', 'clack.js'],
   },
   // The six widgets in line mode (R5), which is the floor and the accessible rendering.

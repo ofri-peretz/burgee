@@ -59,7 +59,8 @@ export const input = createPrompt<string, InputConfig>((config, done) => {
   const check = async (answer: string): Promise<true | string> => {
     const { required, pattern, patternError = 'Invalid input' } = config;
     if (required && !answer) return 'You must provide a value';
-    if (pattern && !pattern.test(answer)) return patternError;
+    // `search`, not `test`: it neither reads nor moves a `g` or `y` pattern's `lastIndex` (@inquirer/input 5.2.1).
+    if (pattern && answer.search(pattern) === -1) return patternError;
     if (typeof config.validate === 'function') return (await config.validate(answer)) || 'You must provide a valid value';
     return true;
   };
@@ -72,11 +73,15 @@ export const input = createPrompt<string, InputConfig>((config, done) => {
       setStatus('loading');
       const verdict = await check(answer);
       if (verdict === true) {
+        setError(undefined);
         setValue(answer);
         setStatus('done');
         done(answer);
         return;
       }
+      // Keys typed while it validated were ignored, but readline put them in its line (5.2.1).
+      // Stryker disable next-line NumericLiteral: readline's `Interface#clearLine()` takes no argument; the 0 is `@inquirer/core`'s call shape
+      rl.clearLine(0);
       if (theme.validationFailureMode === 'keep') rl.write(value);
       else setValue('');
       setError(verdict);
@@ -151,8 +156,16 @@ export function isStepOf(value: number, step: number, min: number): boolean {
   return (v - (m ?? 0n)) % s === 0n;
 }
 
-function checkNumber(value: number | undefined, { min, max, step }: { min: number; max: number; step: number | 'any' }): boolean | string {
-  if (value == null || Number.isNaN(value)) return false;
+/**
+ * A plain decimal, with an optional exponent. `Number()` alone also reads `0x10`, `0b11`, `0o7`
+ * and `Infinity`, which a person typing a number almost never means (@inquirer/number 4.3.1).
+ */
+const PLAIN_DECIMAL = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/u;
+
+function checkNumber(answer: number | undefined, { min, max, step }: { min: number; max: number; step: number | 'any' }): boolean | string {
+  // Nothing, not a number, or not finite: `1e999` overflows to an answer nobody could type.
+  if (!Number.isFinite(answer)) return false;
+  const value = answer as number;
   if (value < min || value > max) return `Value must be between ${min} and ${max}`;
   if (step !== 'any' && !isStepOf(value, step, min)) return `Value must be a multiple of ${step}${Number.isFinite(min) ? ` starting from ${min}` : ''}`;
   return true;
@@ -174,7 +187,8 @@ export const number = createPrompt(<Required extends boolean>(config: NumberConf
   const submit = async (rl: PromptReadline): Promise<void> => {
     // Whitespace alone is nothing typed (@inquirer/number 4.2.5), so it falls back to the default.
     const typed = value.trim() || defaultValue;
-    const answer = typed === '' ? undefined : Number(typed);
+    let answer: number | undefined;
+    if (typed !== '') answer = PLAIN_DECIMAL.test(typed) ? Number(typed) : Number.NaN;
     setStatus('loading');
     // An empty answer is a valid one unless `required` says otherwise.
     let verdict: string | boolean = required || answer != null ? checkNumber(answer, { min, max, step }) : true;
@@ -186,6 +200,9 @@ export const number = createPrompt(<Required extends boolean>(config: NumberConf
       done(answer as Required extends true ? number : number | undefined);
       return;
     }
+    // Keys typed while it validated were ignored, but readline put them in its line (4.3.1).
+    // Stryker disable next-line NumericLiteral: readline's `Interface#clearLine()` takes no argument; the 0 is `@inquirer/core`'s call shape
+    rl.clearLine(0);
     rl.write(value);
     setError(verdict || 'You must provide a valid numeric value');
     setStatus('idle');
@@ -250,6 +267,9 @@ export const password = createPrompt<string, PasswordConfig>((config, done) => {
         done(value);
         return;
       }
+      // Keys typed while it validated were ignored, but readline put them in its line (@inquirer/password 5.3.1).
+      // Stryker disable next-line NumericLiteral: readline's `Interface#clearLine()` takes no argument; the 0 is `@inquirer/core`'s call shape
+      rl.clearLine(0);
       rl.write(value);
       setError(verdict || 'You must provide a valid value');
       setStatus('idle');
@@ -288,12 +308,14 @@ const confirmTheme: ConfirmTheme = {
   keywords: { yes: 'Yes', no: 'No', error: ({ yes, no }) => `You must answer with "${yes}" or "${no}"` },
   style: {
     // Uppercase where the script has case; a colour where it has none (Chinese, Japanese).
-    confirmDefault: (text: string) => {
-      const first = text[0] ?? '';
-      return first.toLowerCase() === first.toUpperCase() ? styleText('cyan', text) : first.toUpperCase() + text.slice(1);
-    },
+    confirmDefault: (text: string) => (text.toLowerCase() === text.toUpperCase() ? styleText('cyan', text) : text.toUpperCase()),
   },
 };
+
+const segmenter = new Intl.Segmenter();
+
+/** A keyword's first grapheme, lowercased: a whole emoji or astral letter, not half of one. */
+const initialOf = (keyword: string): string => segmenter.segment(keyword).containing(0)?.segment.toLowerCase() ?? '';
 
 /** `confirm`'s config, as the incumbent declares it. */
 export interface ConfirmConfig {
@@ -311,8 +333,8 @@ export const confirm = createPrompt<boolean, ConfirmConfig>((config, done) => {
   const prefix = usePrefix({ status, theme });
 
   const { yes, no } = theme.keywords;
-  const yesKey = (yes[0] ?? '').toLowerCase();
-  const noKey = (no[0] ?? '').toLowerCase();
+  const yesKey = initialOf(yes);
+  const noKey = initialOf(no);
   const hint = config.default === false ? `${yesKey}/${theme.style.confirmDefault(noKey)}` : `${theme.style.confirmDefault(yesKey)}/${noKey}`;
   const word = (answer: boolean): string => (answer ? yes : no);
   const { transformer = word } = config;
@@ -321,10 +343,16 @@ export const confirm = createPrompt<boolean, ConfirmConfig>((config, done) => {
   const answerOf = (typed: string): boolean | undefined => {
     const v = typed.trim().toLowerCase();
     if (v === '') return config.default !== false;
+    // Whole words first, so the full no-keyword never answers yes because the yes-keyword starts
+    // with it; then the built-in `y`/`n`, so `n` answers no beside a yes-keyword like "Nai".
+    if (v === yes.toLowerCase()) return true;
+    if (v === no.toLowerCase()) return false;
+    if (v === 'y' || v === 'yes') return true;
+    if (v === 'n' || v === 'no') return false;
     if (yes.toLowerCase().startsWith(v)) return true;
     if (no.toLowerCase().startsWith(v)) return false;
+    // `ye` is the one built-in prefix left: `n`, `no`, `y` and `yes` matched whole above.
     if ('yes'.startsWith(v)) return true;
-    if ('no'.startsWith(v)) return false;
     return undefined;
   };
 

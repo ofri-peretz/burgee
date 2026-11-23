@@ -1737,8 +1737,8 @@ export const HOSTS: Host[] = [
     ],
     surfaceFiles: ['packages/prompts/src/index.ts'],
     suiteDeps: [
-      '@inquirer/prompts@8.8.0',
-      '@inquirer/core@12.1.0',
+      '@inquirer/prompts@8.8.1',
+      '@inquirer/core@12.1.1',
       // The ten prompts `@inquirer/prompts` re-exports, at the releases 8.7.5 shipped with
       // (2026-10-27). It asks for each by caret, so unpinned they float to the newest, and a
       // later batch asking for a newer `@inquirer/core` would put a second core under each
@@ -1746,22 +1746,22 @@ export const HOSTS: Host[] = [
       // checkbox's suite imports `ValidationError` from the top-level core and asserts the
       // prompt rejects with that class; a prompt built on the nested core rejects with the
       // other one, and the control read 212 / 213 (D-20261019-inquirer-prompts-pins-its-prompts).
-      '@inquirer/checkbox@5.3.0',
-      '@inquirer/confirm@6.4.0',
-      '@inquirer/editor@5.4.0',
-      '@inquirer/expand@5.2.0',
-      '@inquirer/input@5.2.0',
-      '@inquirer/number@4.3.0',
-      '@inquirer/password@5.3.0',
-      '@inquirer/rawlist@5.4.0',
-      '@inquirer/search@4.4.0',
-      '@inquirer/select@5.3.0',
+      '@inquirer/checkbox@5.3.1',
+      '@inquirer/confirm@6.4.1',
+      '@inquirer/editor@5.5.0',
+      '@inquirer/expand@5.2.1',
+      '@inquirer/input@5.2.1',
+      '@inquirer/number@4.3.1',
+      '@inquirer/password@5.3.1',
+      '@inquirer/rawlist@5.4.1',
+      '@inquirer/search@4.4.1',
+      '@inquirer/select@5.3.1',
       // The harness every file renders through: a headless xterm that asserts the screen.
-      '@inquirer/testing@3.4.0',
+      '@inquirer/testing@3.4.1',
       // `withResolver`, a promise helper `search.test.ts` imports for itself.
-      '@inquirer/type@4.3.0',
+      '@inquirer/type@4.3.1',
       // `editor.test.ts` imports `editAsync` from it to mock it.
-      '@inquirer/external-editor@3.1.0',
+      '@inquirer/external-editor@3.1.1',
     ],
     // Upstream runs this suite against its own source, where `@inquirer/editor` is a module of
     // the repository and `vi.mock('@inquirer/external-editor')` reaches its import. Vendored,
@@ -1796,6 +1796,11 @@ export const HOSTS: Host[] = [
         'displays custom loadingMessage',
         // 8.7.4: answers through `editorAction`, the same mock, and counts `editAsync` calls.
         'ignores keypresses while validation is running',
+        // 8.8.1: four more, each answering through `editorAction` and counting `editAsync` calls.
+        'displays custom validationError',
+        'keeps the process alive when a validate throw races EOF',
+        'keeps the user edits when validate throws',
+        'goes back to the default value when validate throws in clear mode',
       ].map((title) => ({
         match: `packages/editor/editor.vitest.ts > editor prompt > ${title}`,
         exact: true,
@@ -1806,7 +1811,7 @@ export const HOSTS: Host[] = [
     target: 'caique/inquirer',
     status: 'active',
     // Stryker disable next-line StringLiteral: an active row's note is its maintainers' log and nothing reads it — `Host.note` is rendered only for a row that is not active (compat-page), so emptying it changes no grade, page or output.
-    note: "**Re-vendored at 8.8.0 on 2026-11-12 (burgee#1526; D-20261112-upstream-issues-2026-11-12): 228 / 228 against a control of 228 / 228, level.** The ten prompts are pinned at the releases 8.8.0 shipped with. `caique/inquirer` read 224 / 228 until three changes were ported, red first in `inquirer-release-8-8.test.ts`: number calls `validate` with `undefined` for an empty optional answer, select takes an index only from plain digits, and rawlist takes one only from digits around their whitespace. **2026-10-28: re-vendored at 8.7.5 (#1296) and level — `caique/inquirer/prompts` 222 / 222 against a control of 222 / 222 (D-20261028-revendor-inquirer-8-7-5).** 8.7.5 renames every suite file `*.test.ts` -> `*.vitest.ts`, so `suiteFiles`, `testGlob` and the editor exclusions follow the new names, and adds one title: `password` keeps the space after its message while the mask has nothing to draw. The re-vendor read 221 / 222 until `password` joined its parts unfiltered, as `@inquirer/password` 5.2.5 does, ported. `suiteDeps` moved to 8.7.5's ten prompts, core 12.0.6, testing 3.3.16, type 4.2.1 and external-editor 3.0.7, and `depsBefore` with them; the vendored tree holds one `@inquirer/core`. **2026-10-27: re-vendored at 8.7.4 (#1193, #1224) and level — `caique/inquirer/prompts` 221 / 221 against a control of 221 / 221 (D-20261027-revendor-dotenv-execa-inquirer).** 8.7.4 adds nine titles: six for `checkbox` while an async `validate` is pending, two for `number` reading whitespace-only input as empty, and one for `editor`, which answers through the `editAsync` mock and is excluded with the other eleven. The re-vendor read 216 / 221 until `checkbox` ignored keys while it validates and `number` trimmed the line, both ported. `suiteDeps` moved to 8.7.4's ten prompts, core 12.0.5 and testing 3.3.15, and `depsBefore` with them. **2026-10-12 (R1, R3 of inquirer-prompts-drop-in): `caique/inquirer/prompts` 100 / 213, control 213 / 213** — `select` (its own 42 cases and its pagination suite's 10) and `checkbox` (48) level over `usePagination`; `input`, `confirm`, `password`, `number`, `expand`, `rawlist` and `search` are not built yet, and fail with `prompt is not a function`. **Vendored 2026-10-11 at 8.7.3 (R2 of inquirer-prompts-drop-in): control 213 / 213, target `caique/inquirer` 0 / 213.** Eleven files, 224 cases, of which `editor.test.ts`'s eleven are excluded above. Every target case fails with `prompt is not a function`: `caique/inquirer` exports `@inquirer/core`'s surface and none of the ten prompts yet. The table of imports and counts this design is read from is in `.sdlc/intents/inquirer-prompts-drop-in/spec.md`.",
+    note: "**Re-vendored at 8.8.1 on 2026-11-23 (D-20261123-revendor-inquirer-prompts-8-8-1): 290 / 290 against a control of 290 / 290, level.** 8.8.1 adds 62 cases and renames one, and `caique/inquirer/prompts` read 245 / 290 until the behaviours were ported, held in `inquirer-release-8-8-1.test.ts`: a refused answer stays in readline's line to edit (expand, rawlist, search), keys typed during an async validation are dropped (input, number, password, search), an arrow pick lands in the line (rawlist, search), number takes plain decimals only, confirm matches whole keywords and the built-in y/n before prefixes and shows whole graphemes, checkbox names a digit on a disabled choice and clears its error on a shortcut, a failed search empties and recovers, and the screen writes a typed Tab as a tab. Four new editor cases answer through the `editAsync` mock and are excluded with the other twelve. `suiteDeps` moved to 8.8.1's ten prompts, core 12.1.1, testing 3.4.1, type 4.3.1 and external-editor 3.1.1. **Re-vendored at 8.8.0 on 2026-11-12 (burgee#1526; D-20261112-upstream-issues-2026-11-12): 228 / 228 against a control of 228 / 228, level.** The ten prompts are pinned at the releases 8.8.0 shipped with. `caique/inquirer` read 224 / 228 until three changes were ported, red first in `inquirer-release-8-8.test.ts`: number calls `validate` with `undefined` for an empty optional answer, select takes an index only from plain digits, and rawlist takes one only from digits around their whitespace. **2026-10-28: re-vendored at 8.7.5 (#1296) and level — `caique/inquirer/prompts` 222 / 222 against a control of 222 / 222 (D-20261028-revendor-inquirer-8-7-5).** 8.7.5 renames every suite file `*.test.ts` -> `*.vitest.ts`, so `suiteFiles`, `testGlob` and the editor exclusions follow the new names, and adds one title: `password` keeps the space after its message while the mask has nothing to draw. The re-vendor read 221 / 222 until `password` joined its parts unfiltered, as `@inquirer/password` 5.2.5 does, ported. `suiteDeps` moved to 8.7.5's ten prompts, core 12.0.6, testing 3.3.16, type 4.2.1 and external-editor 3.0.7, and `depsBefore` with them; the vendored tree holds one `@inquirer/core`. **2026-10-27: re-vendored at 8.7.4 (#1193, #1224) and level — `caique/inquirer/prompts` 221 / 221 against a control of 221 / 221 (D-20261027-revendor-dotenv-execa-inquirer).** 8.7.4 adds nine titles: six for `checkbox` while an async `validate` is pending, two for `number` reading whitespace-only input as empty, and one for `editor`, which answers through the `editAsync` mock and is excluded with the other eleven. The re-vendor read 216 / 221 until `checkbox` ignored keys while it validates and `number` trimmed the line, both ported. `suiteDeps` moved to 8.7.4's ten prompts, core 12.0.5 and testing 3.3.15, and `depsBefore` with them. **2026-10-12 (R1, R3 of inquirer-prompts-drop-in): `caique/inquirer/prompts` 100 / 213, control 213 / 213** — `select` (its own 42 cases and its pagination suite's 10) and `checkbox` (48) level over `usePagination`; `input`, `confirm`, `password`, `number`, `expand`, `rawlist` and `search` are not built yet, and fail with `prompt is not a function`. **Vendored 2026-10-11 at 8.7.3 (R2 of inquirer-prompts-drop-in): control 213 / 213, target `caique/inquirer` 0 / 213.** Eleven files, 224 cases, of which `editor.test.ts`'s eleven are excluded above. Every target case fails with `prompt is not a function`: `caique/inquirer` exports `@inquirer/core`'s surface and none of the ten prompts yet. The table of imports and counts this design is read from is in `.sdlc/intents/inquirer-prompts-drop-in/spec.md`.",
   },
   {
     // 2.16: the testable unit of the inquirer monorepo, and the decision that came with it.
