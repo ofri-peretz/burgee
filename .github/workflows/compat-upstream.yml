@@ -11,7 +11,13 @@
 # fingerprinted from the published tarball, read-only: no `npm install`, so no upstream
 # lifecycle script runs in a job that holds `issues: write`.
 #
-# One job, two passes, one issue stream — deliberately. A second workflow would double the
+# `spec-release-watch` adds a third pass: `--specs` asks GitHub for the releases of every
+# specification a package lists in `packages/*/specs.json` (OpenAPI, AsyncAPI, JSON Schema, MCP,
+# …) and of the test suites our graders run, because a new spec is where a reader goes stale and
+# a new suite release moves a published score. Nothing is cloned or installed: it is a few REST
+# reads with the job's own token.
+#
+# One job, three passes, one issue stream — deliberately. A second workflow would double the
 # scheduled minutes and split the dedupe state, which is the one piece that must not be split.
 name: Compatibility · upstream releases
 
@@ -57,11 +63,23 @@ jobs:
         shell: bash
         run: node packages/compat-oracle/dist/bin.js --competitors 2>&1 | tee competitors.log
 
+      # `spec-release-watch` R2 and R7. A repo that cannot be read is named as unchecked and
+      # exits non-zero: a rate limit or a rename is a hole in the watch, not a quiet "up to date".
+      # An entry with no recorded version is named and not reported (R5); run it with --record
+      # on a checkout and commit the specs.json diff.
+      - name: Check specification releases
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: node packages/compat-oracle/dist/bin.js --specs 2>&1 | tee specs.log
+
       - name: Summary
         if: always()
         run: |
           { echo '## Upstream releases'; echo; echo '```'; cat upstream.log || echo '(no output)'; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           { echo '## Competitor releases'; echo; echo '```'; cat competitors.log || echo '(no output)'; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          { echo '## Specification releases'; echo; echo '```'; cat specs.log || echo '(no output)'; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
 
       # Runs when the check above went red too: the releases it did find are still issues.
       - name: Open one issue per new release
@@ -117,4 +135,36 @@ jobs:
               echo "Record the new fingerprint with \`npm run compat -- --fingerprint\` and commit the \`competitors.json\` diff."
             } >> competitor-body.md
             gh issue create --title "$TITLE" --label upstream-competitor --body-file competitor-body.md
+          done
+
+      # spec-release-watch R4 — one issue per (specification, version). The same dedupe as the two
+      # passes above and deliberately the same shape: search open issues for the exact title,
+      # `continue` on a hit. A pre-release carries `upstream-spec-prerelease` as well, so it can be
+      # read early and not mistaken for a release; the search is on `upstream-spec`, which both
+      # carry, so a re-run opens nothing new whichever kind it is. Nothing is edited or opened as a
+      # PR: a new spec version is a design question, not a bump.
+      - name: Open one issue per specification release
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          FILE=packages/compat-oracle/specs-upstream.json
+          if [ ! -f "$FILE" ]; then echo "No specification report was produced."; exit 0; fi
+          COUNT=$(jq '.updates | length' "$FILE")
+          if [ "$COUNT" -eq 0 ]; then echo "Every specification is at its recorded release."; exit 0; fi
+          gh label create upstream-spec --color 0E8A16 --description "A specification we read published a new release" --force
+          gh label create upstream-spec-prerelease --color FBCA04 --description "A specification we read published a pre-release: read it early, it is not a release" --force
+          jq -c '.updates[]' "$FILE" | while read -r update; do
+            TITLE=$(jq -r .title <<<"$update")
+            EXISTING=$(gh issue list --state open --label upstream-spec --search "\"$TITLE\" in:title" --json number --jq '.[0].number // empty')
+            if [ -n "$EXISTING" ]; then echo "#$EXISTING already tracks: $TITLE"; continue; fi
+            LABELS=upstream-spec
+            if [ "$(jq -r .prerelease <<<"$update")" = true ]; then LABELS=upstream-spec,upstream-spec-prerelease; fi
+            jq -r .report <<<"$update" > spec-body.md
+            {
+              echo
+              echo "Opened by the daily specification watch (\`spec-release-watch\` R4). Nothing was changed and no PR was opened: whether and how the adapter reads the new version is a design decision."
+            } >> spec-body.md
+            gh issue create --title "$TITLE" --label "$LABELS" --body-file spec-body.md
           done
