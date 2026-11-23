@@ -48,6 +48,14 @@ describe('guard-bash', () => {
       expect(decision(hook('guard-bash.mjs', { tool_input: { file_path: join(dir, 'content/a/b.ts') } }, env))).toBeUndefined();
   });
 
+  it('denies an edit under a frozen glob when the paths come with Windows backslashes', () => {
+    const dir = join(scratch('hookset-claude-'), 'C:\\proj');
+    mkdirSync(join(dir, '.claude'), { recursive: true });
+    writeFileSync(join(dir, '.claude/hookset.json'), JSON.stringify({ frozen: ['content/**/*.md'] }));
+    const file = `${dir}\\content\\a\\b.md`;
+    expect(decision(hook('guard-bash.mjs', { tool_input: { file_path: file } }, { CLAUDE_PROJECT_DIR: dir }))).toBe('deny');
+  });
+
   it('has no opinion on a payload it cannot read', () => {
     expect(hook('guard-bash.mjs', 'not json')).toBe('');
   });
