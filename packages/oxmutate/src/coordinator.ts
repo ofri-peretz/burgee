@@ -98,6 +98,8 @@ export interface RunStats {
   /** Survivors confirmed on cold modules only because a memo could have hidden them: one covering test, which the warm run armed after other runs in the same module instance. */
   staleSurvivors: number;
   watchdogKills: number;
+  /** How long each run the warm phase's watchdog stopped had gone, in ms: a stop is at the limit of the test it was running. */
+  warmStopsMs: number[];
   /** Of `watchdogKills`, the stops whose worker was idle, waiting (heartbeat.ts). In an isolated run each is a Timeout as it stands. */
   idleStalls: number;
   crashes: number;
@@ -382,7 +384,7 @@ export async function run(options: Options): Promise<RunResult> {
   const work = mkdtempSync(path.join(tmpdir(), 'oxmutate-'));
   const stats: RunStats = {
     files: 0, mutants: 0, instrumentMs: 0, dryRunMs: 0, mutationMs: 0, staticMs: 0, staticRecollections: 0, staticGroupRuns: 0, staticGroupSplits: 0, staticAuditSampled: 0, staticAuditDisagreed: 0, isolatedMs: 0, wallMs: 0, testExecutions: 0, warmUnitMs: 0, warmArmedMs: 0, isolatedByCause: { static: 0, stopped: 0, unfinished: 0, rerun: 0, confirm: 0, flaky: 0 }, confirmLive: 0, staleSurvivors: 0,
-    watchdogKills: 0, idleStalls: 0, deadlocks: 0, crashes: 0, canaryFiles: 0, pollutionRestarts: 0, pollutionRecovered: 0, pollutionRefused: {}, pollutionRefusedFirst: {}, diskWrites: 0, diskWritePaths: [], auditSampled: 0, auditDisagreed: 0, survivorsOverturned: 0, timeoutsOverturned: 0, compileErrors: 0, isolatedRuns: 0, reused: 0, flakyTests: 0, flakyMutants: 0, units: 0, serversSpawned: 0, serversReleased: 0, watchdogGraced: 0, heldByLoadMs: 0,
+    watchdogKills: 0, warmStopsMs: [], idleStalls: 0, deadlocks: 0, crashes: 0, canaryFiles: 0, pollutionRestarts: 0, pollutionRecovered: 0, pollutionRefused: {}, pollutionRefusedFirst: {}, diskWrites: 0, diskWritePaths: [], auditSampled: 0, auditDisagreed: 0, survivorsOverturned: 0, timeoutsOverturned: 0, compileErrors: 0, isolatedRuns: 0, reused: 0, flakyTests: 0, flakyMutants: 0, units: 0, serversSpawned: 0, serversReleased: 0, watchdogGraced: 0, heldByLoadMs: 0,
   };
   let unitSeq = 0;
   const fileFor = (kind: string, ext: string): string => path.join(work, `${kind}-${String(unitSeq++)}.${ext}`);
@@ -697,15 +699,18 @@ export async function run(options: Options): Promise<RunResult> {
     // The watchdog is for runaways, which loop in fast code; a slow test under a loaded machine is
     // not one. 3x the covering test's dry-run time, not Stryker's 1.5x: at 1.5x, subprocess-heavy
     // burgee/paratext tests were stopped as false timeouts (2026-10-27).
-    const warmBudget = (id: string): number => Math.min(MAX_TEST_MS, options.timeoutMS + Math.max(options.timeoutFactor, 3) * maxTestMs(id) + 250);
+    // The limit is the running test's own when the warm worker's mark names it (its dry-run time): a
+    // mutant that hangs a 10 ms test is stopped in a fraction of a second, not after the budget of the
+    // slowest test that covers it. The floor is `timeoutMS` plus 250 ms, as for any test.
+    const warmBudget = (id: string, testMs: number | undefined = undefined): number => Math.min(MAX_TEST_MS, options.timeoutMS + Math.max(options.timeoutFactor, 3) * (testMs ?? maxTestMs(id)) + 250);
     /**
      * A blocked, not looping, warm run gets the 3x its re-run would get, in place: a kill there cost
      * a server start and that re-run (compat-oracle, 2026-11-15: 25 stops in 12 minutes, every one
      * busy at 0–6% CPU, its worker in `spawnSync`). Still within MAX_TEST_MS per test it runs.
      */
-    const warmGrace = (id: string): number => {
+    const warmGrace = (id: string, testMs: number | undefined = undefined): number => {
       const m = byId.get(id);
-      return Math.min(RERUN_SLACK * warmBudget(id), MAX_TEST_MS * Math.max(1, m ? allCovering(m).length : 1));
+      return Math.min(RERUN_SLACK * warmBudget(id, testMs), MAX_TEST_MS * Math.max(1, m ? allCovering(m).length : 1));
     };
 
     // Files a mutant's covering tests live in, cheapest first (by the covering tests' time there).
@@ -894,7 +899,9 @@ export async function run(options: Options): Promise<RunResult> {
       writeFileSync(unit.plan as string, JSON.stringify({ tests: left, hitLimits, skip: [], specTests: [...specOf.keys()], runOnce: dry.runOnce, testMs: testMsOf(left) }));
       return true;
     };
-    await pool.drain(unitsForRound(toRun, (m) => fileOrder.get(m.id) ?? []), (_, id) => warmBudget(id), afterUnit, { prepare: beforeUnit, grace: (_, id) => warmGrace(id) });
+    pool.stats.stops = [];
+    await pool.drain(unitsForRound(toRun, (m) => fileOrder.get(m.id) ?? []), (_, id, testMs) => warmBudget(id, testMs), afterUnit, { prepare: beforeUnit, grace: (_, id, testMs) => warmGrace(id, testMs) });
+    stats.warmStopsMs = pool.stats.stops;
     stats.mutationMs = performance.now() - m0;
 
     // ── 5. Verdicts from the warm run ─────────────────────────────────────────────────────────
