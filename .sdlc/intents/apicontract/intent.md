@@ -149,3 +149,22 @@ answer. `apicontract` is the working name; the final name is decided before the 
   [`D-20261106-apicontract-diff-rule-ids`](../../decisions/D-20261106-apicontract-diff-rule-ids.md).
 - Which MCP servers form the SC10 corpus? Decided:
   [`D-20261106-apicontract-mcp-corpus`](../../decisions/D-20261106-apicontract-mcp-corpus.md).
+
+## Evidence sweep 2026-11-22
+
+Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/apicontract` (2,545 tests) and `packages/validator` (1,153) is green there. Code for every Wave 6 lane is on `main`; 3 of 10 success criteria hold (SC3, SC7, and SC9's Quint half). The name and the first publish are the owner's call ([`D-20261119-apicontract-stays-private`](../../decisions/D-20261119-apicontract-stays-private.md)).
+
+| # | criterion | held by | state |
+| --: | :-- | :-- | :-- |
+| 1 | SC1: byte-identical to openapi-typescript on 100% of its fixtures | 39 / 61 gated cases in `apicontract-types/spec.md` (+2 in #1653, not re-graded) | **open** |
+| 2 | SC2: our generators are plugins on the public API, locked (R-EX5) | every built-in is a plugin with a sample `checkPlugin` accepts; no lock that fails on an internal import was located | **open**: the lock |
+| 3 | SC3: `gen validator` and `gen json-schema` agree on the fixture corpus; ajv compiles unchanged | `apicontract-gen-validator` J1–J3 on fixtures | met |
+| 4 | SC4: round trip on every corpus document, no silent drop | five fixture documents only | **open** |
+| 5 | SC5: NestJS regeneration edits zero user lines; every contract test passes | N1 = 0 (`plugin-nest-regen.test.ts`); contract tests 3 / 3 on the sample, out of lockfile | **open**: contract tests on bench specs |
+| 6 | SC6: an agent writes a passing plugin in one turn, weekly | no eval case | **open** |
+| 7 | SC7: each input or generator lands with zero core lines changed | `git log 7405c05..daee10f -- packages/apicontract/src/core`: one lint chore (#1611), no lane PR | met |
+| 8 | SC8: every leading metric per PR, lagging weekly, each a control band | no apicontract row in `.sdlc/bands/control-bands.json` | **open** |
+| 9 | SC9: Quint `--invariant=safety` green; oxmutate floors held | Quint: `models.yml` runs every `.qnt`. Floors: `apicontract` and `validator` `unmeasured` | **open**: floors |
+| 10 | SC10: `explain` eval, `diff` vs oasdiff, one unannounced MCP break | none read | **open** |
+
+Status stays `approved`: `apicontract` is `private` and unpublished, and [`D-20261119-apicontract-stays-private`](../../decisions/D-20261119-apicontract-stays-private.md) reserves `shipped` for published work; a lane that meets every criterion is recorded as "criteria met, unpublished".
