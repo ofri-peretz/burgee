@@ -1113,18 +1113,18 @@ describe('a full disk says what to free', () => {
   it('turns a sync that failed with the volume nearly empty of room into exit FULL, and nothing else', () => {
     if (spawnSync('sh', ['-c', 'true']).status !== 0) return;
     const dir = scratch('oxmutate-df-');
-    const bin = path.join(dir, 'bin');
-    mkdirSync(bin);
+    // `df` is a shell function, not a stub file found on PATH: a function wins over any binary, so
+    // the trap reads it on every platform. A stub file was not run on windows-latest at times (#1764:
+    // Git Bash fell back to the real df, which saw room, and exit 1 stayed 1).
+    let available = 0;
     const df = (availableKiB: number): void => {
-      writeFileSync(path.join(bin, 'df'), `#!/bin/sh\necho 'Filesystem 1024-blocks Used Available Capacity Mounted on'\necho 'overlay 100 100 ${String(availableKiB)} 100% /w'\n`, { mode: 0o755 });
+      available = availableKiB;
     };
     const ran = (body: string): number | null => {
       const file = path.join(dir, 'sync.sh');
-      writeFileSync(file, ['set -e', FULL_TRAP, body].join('\n'));
-      // The stub first, joined by the platform's delimiter, and one PATH key: Windows names it `Path`,
-      // and a second, differently cased key leaves which one the child reads to chance.
-      const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => key.toUpperCase() !== 'PATH'));
-      return spawnSync('sh', [file], { encoding: 'utf8', env: { ...env, PATH: `${bin}${path.delimiter}${process.env['PATH'] ?? ''}` } }).status;
+      const stub = `df() { echo 'Filesystem 1024-blocks Used Available Capacity Mounted on'; echo 'overlay 100 100 ${String(available)} 100% /w'; }`;
+      writeFileSync(file, ['set -e', stub, FULL_TRAP, body].join('\n'));
+      return spawnSync('sh', [file], { encoding: 'utf8' }).status;
     };
     expect(MIN_FREE_KIB).toBe(65536);
     df(65535);
