@@ -104,6 +104,7 @@ describe('readRedocly: what it does not carry', () => {
     expect(reason({ subject: { type: 'Tag' }, assertions })).toBe('subject type `Tag` is not one of Root, Info, Operation, Parameter, Schema');
     expect(reason({ subject: { type: 'Operation', filterInParentKeys: ['get'] }, assertions })).toBe('`subject.filterInParentKeys` is not carried');
     expect(reason({ subject: { type: 'Operation', property: 3 }, assertions })).toBe('`subject.property` is not a name or a list of names');
+    expect(reason({ subject: { type: 'Operation', property: [] }, assertions })).toBe('`subject.property` is an empty list');
     expect(reason({ subject })).toBe('it has no `assertions`');
     expect(reason({ subject, assertions: {} })).toBe('it has no `assertions`');
     expect(reason({ subject, assertions: { ref: true } })).toBe('assertion `ref` has no core function that means the same');

@@ -99,6 +99,8 @@ const ruleOf = (id: string, value: Record<string, unknown>, file: string): { rul
   const given = SUBJECTS[String(subject.type)] ?? uncarried(`subject type \`${String(subject.type)}\` is not one of ${Object.keys(SUBJECTS).join(', ')}`);
   for (const key of Object.keys(subject)) if (key !== 'type' && key !== 'property') uncarried(`\`subject.${key}\` is not carried`);
   const fields = subject.property === undefined ? [undefined] : [subject.property].flat().map((field) => (typeof field === 'string' ? field : uncarried('`subject.property` is not a name or a list of names')));
+  // An empty list would carry a rule that checks nothing.
+  if (fields.length === 0) uncarried('`subject.property` is an empty list');
   const assertions = isRecord(value.assertions) && Object.keys(value.assertions).length > 0 ? value.assertions : uncarried('it has no `assertions`');
   const thens = fields.flatMap((field) => Object.entries(assertions).map(([name, option]): Then => ({ ...thenOf(name, option), ...(field === undefined ? {} : { field }) })));
   const description = plainMessage(value.message) ?? id;
