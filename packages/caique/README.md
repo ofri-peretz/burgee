@@ -28,7 +28,7 @@
 <p align="center">
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/%40clack%2Fprompts%20suite-23%2F23-0a6b47?style=flat-square" alt="caique/clack passes 23 of 23 cases of the @clack/prompts test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/%40inquirer%2Fcore%20suite-47%2F47-0a6b47?style=flat-square" alt="caique/inquirer passes 47 of 47 cases of the @inquirer/core test suite" /></a>
-  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/%40inquirer%2Fprompts%20suite-228%2F228-0a6b47?style=flat-square" alt="caique/inquirer passes 228 of 228 cases of the @inquirer/prompts test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/%40inquirer%2Fprompts%20suite-290%2F290-0a6b47?style=flat-square" alt="caique/inquirer passes 290 of 290 cases of the @inquirer/prompts test suite" /></a>
 </p>
 
 <p align="center">
@@ -361,7 +361,7 @@ Graded by the incumbent's own test suite:
 | `inquirer-core` | 47 / 47 |
 | `inquirer-prompts` | 290 / 290 |
 
-Weight, installed and tree-inclusive: **306,493 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.7878** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
+Weight, installed and tree-inclusive: **306,501 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.7878** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## For agents
 
