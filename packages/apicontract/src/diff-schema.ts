@@ -22,6 +22,8 @@ export interface Change {
   readonly before: unknown;
   readonly after: unknown;
   readonly effect: Effect;
+  /** Under a schema marked `x-frozen: true` (contractdiff-compat-depth R4): breaking whatever it does. */
+  readonly frozen?: true;
 }
 
 /** The documents `$ref`s point into, old and new. */
@@ -201,6 +203,13 @@ const compareRest = (pointer: string, a: Dict, b: Dict): Change[] =>
     .filter((keyword) => !HANDLED.has(keyword) && !ANNOTATIONS.has(keyword) && !keyword.startsWith('x-') && canonical(a[keyword]) !== canonical(b[keyword]))
     .map((keyword) => at(`${pointer}/${token(keyword)}`, a[keyword], b[keyword])('keyword-changed', 'unknown'));
 
+/**
+ * A changed `default`: the values accepted are the same, so it is `neutral`, but a reader that
+ * omits the value now gets another one (contractdiff-compat-depth R2: a `dangerous` change).
+ */
+const compareDefault = (pointer: string, a: Dict, b: Dict): Change[] =>
+  canonical(a.default) === canonical(b.default) ? [] : [at(`${pointer}/default`, a.default, b.default)('default-changed', 'neutral')];
+
 interface Walk {
   readonly direction: Direction;
   readonly documents: Documents;
@@ -326,8 +335,25 @@ const compareRefs = (walk: Walk, pointer: string, a: unknown, b: unknown): Chang
   }
 };
 
+/** Whether a schema is marked `x-frozen: true`: nothing under it may change. */
+export const isFrozen = (schema: unknown): boolean => isDict(schema) && schema['x-frozen'] === true;
+
+/**
+ * Every change under a schema the old contract froze, marked so: its effect stays what it is, its
+ * verdict will not. The old side's mark is the promise; taking it off is itself a change under it.
+ */
+const frozenUnder = (pointer: string, a: unknown, b: unknown, changes: Change[]): Change[] => {
+  if (!isFrozen(a)) return changes;
+  const unfrozen = isFrozen(b) ? [] : [at(`${pointer}/x-frozen`, true, (Object(b) as Dict)['x-frozen'])('frozen-unset', 'neutral')];
+  return [...unfrozen, ...changes].map((change) => ({ ...change, frozen: true }));
+};
+
 function compare(walk: Walk, pointer: string, a: unknown, b: unknown): Change[] {
   if (local(a) || local(b)) return compareRefs(walk, pointer, a, b);
+  return frozenUnder(pointer, a, b, compareKeywords(walk, pointer, a, b));
+}
+
+function compareKeywords(walk: Walk, pointer: string, a: unknown, b: unknown): Change[] {
   const before = asDict(a);
   const after = asDict(b);
   if (before === false && after === false) return [];
@@ -344,6 +370,7 @@ function compare(walk: Walk, pointer: string, a: unknown, b: unknown): Change[] 
     ...compareArrays(walk, pointer, sides),
     ...compareCompositions(walk, pointer, sides),
     ...compareRest(pointer, before, after),
+    ...compareDefault(pointer, before, after),
   ];
 }
 

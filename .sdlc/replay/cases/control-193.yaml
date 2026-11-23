@@ -1,0 +1,7 @@
+# Report coverage on a schedule, and grade the repo's own supply chain (#193)
+id: control-193
+kind: control
+pr: 193
+base: "5e20431d5bdb"
+head: "8586f58542e7"
+set: tune

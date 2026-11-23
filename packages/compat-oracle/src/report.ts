@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { active, gradable, type Host, hostNamed, HOSTS, PREVIOUS_MAJORS, registersOn } from './hosts.js';
 import { liveRegistry } from './registry.js';
 import { type Baseline, controlName, type Grade, grade, readBaseline, regressed } from './run.js';
+import { check as checkSpecs, record as recordSpecs } from './specs.js';
 import { diffRecords, isEmptyDiff, latestVersion, readRecord, renderDiff, renderMissingExtras } from './upstream.js';
 import { vendor } from './vendor.js';
 import { check as checkCompetitors, fingerprint as writeFingerprints } from './watch.js';
@@ -33,11 +34,13 @@ export interface Paths {
   vendorDiff: string;
   upstream: string;
   competitors: string;
+  /** `--specs`: the specification releases newer than the ones recorded (spec-release-watch R2). */
+  specs: string;
   packages: string;
   repoRoot: string;
 }
 
-const PATHS: Paths = {
+export const PATHS: Paths = {
   vendor: resolve(root, 'vendor'),
   baseline: resolve(root, 'baseline'),
   majors: resolve(root, 'baseline', 'majors'),
@@ -46,6 +49,7 @@ const PATHS: Paths = {
   vendorDiff: resolve(root, 'vendor-diff.md'),
   upstream: resolve(root, 'upstream.json'),
   competitors: resolve(root, 'competitors-upstream.json'),
+  specs: resolve(root, 'specs-upstream.json'),
   packages: resolve(root, '..'),
   repoRoot: resolve(root, '..', '..'),
 };
@@ -451,9 +455,46 @@ async function fingerprintMode(write: Write, paths: Paths, missing: boolean): Pr
   return failures === 0 ? 0 : 1;
 }
 
-export async function main(argv: string[], write: Write, paths: Paths = PATHS): Promise<number> {
+/**
+ * `--specs`: the specification pass (spec-release-watch R2). Every `packages/*\/specs.json` entry
+ * is asked of GitHub, and `specs-upstream.json` lists each version newer than the one recorded.
+ * `--record` writes the newest version into `specs.json` instead and opens nothing (R5).
+ */
+async function specsMode(write: Write, paths: Paths, recording: boolean, token: string | undefined): Promise<number> {
+  try {
+    if (recording) {
+      write('\nrecording specification releases\n\n');
+      const failures = await recordSpecs(paths.packages, write, { token });
+      // A record run reports nothing: an empty list, so a stale report cannot open an issue.
+      writeFileSync(paths.specs, `${JSON.stringify({ checked: new Date().toISOString(), updates: [], unchecked: [] }, null, 2)}\n`);
+      write(failures === 0 ? '\n  every specification recorded\n' : `\n\u2716 ${failures} specification(s) unchecked, not recorded\n`);
+      return failures === 0 ? 0 : 1;
+    }
+    write('\nspecification releases\n\n');
+    const result = await checkSpecs(paths.packages, write, { token });
+    writeFileSync(paths.specs, `${JSON.stringify({ checked: new Date().toISOString(), updates: result.updates, unchecked: result.unchecked }, null, 2)}\n`);
+    if (result.unrecorded.length > 0) {
+      write(`\n  ${result.unrecorded.length} specification(s) have nothing recorded yet, so none is reported: ${result.unrecorded.map((u) => u.name).join(', ')}\n  fix: run \`compat-oracle --specs --record\` and commit the specs.json diff\n`);
+    }
+    write(result.updates.length === 0 ? '\n  every specification checked is at its recorded release\n' : `\n  ${result.updates.length} new specification release(s) — see specs-upstream.json\n`);
+    // A repo we could not read is a hole in the watch, never "up to date" (R7): the job goes red,
+    // and the issues for the repos that were read are still opened from the file above.
+    if (result.unchecked.length > 0) {
+      write(`\n\u2716 ${result.unchecked.length} specification(s) unchecked: ${result.unchecked.map((u) => u.name).join(', ')}\n`);
+      return 1;
+    }
+    return 0;
+  } catch (error) {
+    write(`\n\u2716 ${error instanceof Error ? error.message : String(error)}\n`);
+    return 1;
+  }
+}
+
+/** `env` is what the entry hands in from the environment; only `bin.ts` reads the environment. */
+export async function main(argv: string[], write: Write, paths: Paths = PATHS, env: { readonly GITHUB_TOKEN?: string | undefined } = {}): Promise<number> {
   if (argv.includes('--upstream')) return upstreamMode(write, { check: (host, w) => checkUpstream(host, w, paths.vendor), out: paths.upstream });
   if (argv.includes('--competitors')) return competitorMode(write, paths);
+  if (argv.includes('--specs')) return specsMode(write, paths, argv.includes('--record'), env.GITHUB_TOKEN);
   if (argv.includes('--fingerprint')) return fingerprintMode(write, paths, argv.includes('--missing'));
 
   const wantsVendor = argv.includes('--vendor');

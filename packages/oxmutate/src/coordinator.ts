@@ -20,6 +20,7 @@ import { checkSurvivors } from './checker.js';
 import type { Unit } from './child.js';
 import { runCommandMutants } from './command-runner.js';
 import { IGNORE_STATIC_REASON, STATIC_BUDGET_REASON, VITE_CONFIGS, disables, type Options } from './config.js';
+import { crashReason } from './crash.js';
 import { rangeDisables } from './directives.js';
 import { guardDisk, isClean, type DiskChange } from './diskguard.js';
 import { dryFix, emptyDryRun, firstError } from './dry-failure.js';
@@ -98,6 +99,8 @@ export interface RunStats {
   /** Survivors confirmed on cold modules only because a memo could have hidden them: one covering test, which the warm run armed after other runs in the same module instance. */
   staleSurvivors: number;
   watchdogKills: number;
+  /** How long each run the warm phase's watchdog stopped had gone, in ms: a stop is at the limit of the test it was running. */
+  warmStopsMs: number[];
   /** Of `watchdogKills`, the stops whose worker was idle, waiting (heartbeat.ts). In an isolated run each is a Timeout as it stands. */
   idleStalls: number;
   crashes: number;
@@ -185,6 +188,8 @@ interface Verdict {
   slowTwice?: boolean | undefined;
   /** A RuntimeError because this mutant's own run took the worker down (not a verdict the run never produced). */
   crashed?: boolean | undefined;
+  /** How that worker's process ended (scheduler.ts `exitReason`). */
+  exit?: string | undefined;
   /** Tests that ran across its files: Stryker's `testsCompleted`. */
   testsCompleted?: number | undefined;
 }
@@ -382,7 +387,7 @@ export async function run(options: Options): Promise<RunResult> {
   const work = mkdtempSync(path.join(tmpdir(), 'oxmutate-'));
   const stats: RunStats = {
     files: 0, mutants: 0, instrumentMs: 0, dryRunMs: 0, mutationMs: 0, staticMs: 0, staticRecollections: 0, staticGroupRuns: 0, staticGroupSplits: 0, staticAuditSampled: 0, staticAuditDisagreed: 0, isolatedMs: 0, wallMs: 0, testExecutions: 0, warmUnitMs: 0, warmArmedMs: 0, isolatedByCause: { static: 0, stopped: 0, unfinished: 0, rerun: 0, confirm: 0, flaky: 0 }, confirmLive: 0, staleSurvivors: 0,
-    watchdogKills: 0, idleStalls: 0, deadlocks: 0, crashes: 0, canaryFiles: 0, pollutionRestarts: 0, pollutionRecovered: 0, pollutionRefused: {}, pollutionRefusedFirst: {}, diskWrites: 0, diskWritePaths: [], auditSampled: 0, auditDisagreed: 0, survivorsOverturned: 0, timeoutsOverturned: 0, compileErrors: 0, isolatedRuns: 0, reused: 0, flakyTests: 0, flakyMutants: 0, units: 0, serversSpawned: 0, serversReleased: 0, watchdogGraced: 0, heldByLoadMs: 0,
+    watchdogKills: 0, warmStopsMs: [], idleStalls: 0, deadlocks: 0, crashes: 0, canaryFiles: 0, pollutionRestarts: 0, pollutionRecovered: 0, pollutionRefused: {}, pollutionRefusedFirst: {}, diskWrites: 0, diskWritePaths: [], auditSampled: 0, auditDisagreed: 0, survivorsOverturned: 0, timeoutsOverturned: 0, compileErrors: 0, isolatedRuns: 0, reused: 0, flakyTests: 0, flakyMutants: 0, units: 0, serversSpawned: 0, serversReleased: 0, watchdogGraced: 0, heldByLoadMs: 0,
   };
   let unitSeq = 0;
   const fileFor = (kind: string, ext: string): string => path.join(work, `${kind}-${String(unitSeq++)}.${ext}`);
@@ -697,15 +702,18 @@ export async function run(options: Options): Promise<RunResult> {
     // The watchdog is for runaways, which loop in fast code; a slow test under a loaded machine is
     // not one. 3x the covering test's dry-run time, not Stryker's 1.5x: at 1.5x, subprocess-heavy
     // burgee/paratext tests were stopped as false timeouts (2026-10-27).
-    const warmBudget = (id: string): number => Math.min(MAX_TEST_MS, options.timeoutMS + Math.max(options.timeoutFactor, 3) * maxTestMs(id) + 250);
+    // The limit is the running test's own when the warm worker's mark names it (its dry-run time): a
+    // mutant that hangs a 10 ms test is stopped in a fraction of a second, not after the budget of the
+    // slowest test that covers it. The floor is `timeoutMS` plus 250 ms, as for any test.
+    const warmBudget = (id: string, testMs: number | undefined = undefined): number => Math.min(MAX_TEST_MS, options.timeoutMS + Math.max(options.timeoutFactor, 3) * (testMs ?? maxTestMs(id)) + 250);
     /**
      * A blocked, not looping, warm run gets the 3x its re-run would get, in place: a kill there cost
      * a server start and that re-run (compat-oracle, 2026-11-15: 25 stops in 12 minutes, every one
      * busy at 0–6% CPU, its worker in `spawnSync`). Still within MAX_TEST_MS per test it runs.
      */
-    const warmGrace = (id: string): number => {
+    const warmGrace = (id: string, testMs: number | undefined = undefined): number => {
       const m = byId.get(id);
-      return Math.min(RERUN_SLACK * warmBudget(id), MAX_TEST_MS * Math.max(1, m ? allCovering(m).length : 1));
+      return Math.min(RERUN_SLACK * warmBudget(id, testMs), MAX_TEST_MS * Math.max(1, m ? allCovering(m).length : 1));
     };
 
     // Files a mutant's covering tests live in, cheapest first (by the covering tests' time there).
@@ -810,6 +818,8 @@ export async function run(options: Options): Promise<RunResult> {
     /** Of them, the stops that read busy (heartbeat.ts): a loop or a slow test, not an idle wait. */
     const busyStops = new Set<string>();
     const crashedIds = new Set<string>();
+    /** How each crashed mutant's worker ended. */
+    const crashedBy = new Map<string, string>();
     // Dependencies inlined here too, so the static phase (5b) reuses these servers instead of starting its own.
     const governor = createGovernor(options.maxLoad);
     const pool = createPool({ root, vitestConfig: options.vitestConfig, workers: 1, instrumentedMap: mapFile, nodeArgs: options.testRunnerNodeArgs, inlineDeps: true }, options.concurrency, { workDir: work, tag: 'mutant', lifecycle: options.workers, governor, lowPriority: options.lowPriority });
@@ -841,7 +851,10 @@ export async function run(options: Options): Promise<RunResult> {
         runaways.add(outcome.killedFor);
         if (outcome.stall !== 'idle') busyStops.add(outcome.killedFor);
       }
-      else if (bad) crashedIds.add(bad);
+      else if (bad) {
+        crashedIds.add(bad);
+        if (outcome.exit !== undefined) crashedBy.set(bad, outcome.exit);
+      }
       // The rest of the unit: pairs not yet run, mutants not yet decided, into a fresh context.
       const ran = new Set(recs.filter((r) => r.type === 'mutant').map((r) => `${r.id ?? ''}|${r.test ?? ''}`));
       const decided = { tests: killedSoFar(false), spec: killedSoFar(true) };
@@ -894,7 +907,9 @@ export async function run(options: Options): Promise<RunResult> {
       writeFileSync(unit.plan as string, JSON.stringify({ tests: left, hitLimits, skip: [], specTests: [...specOf.keys()], runOnce: dry.runOnce, testMs: testMsOf(left) }));
       return true;
     };
-    await pool.drain(unitsForRound(toRun, (m) => fileOrder.get(m.id) ?? []), (_, id) => warmBudget(id), afterUnit, { prepare: beforeUnit, grace: (_, id) => warmGrace(id) });
+    pool.stats.stops = [];
+    await pool.drain(unitsForRound(toRun, (m) => fileOrder.get(m.id) ?? []), (_, id, testMs) => warmBudget(id, testMs), afterUnit, { prepare: beforeUnit, grace: (_, id, testMs) => warmGrace(id, testMs) });
+    stats.warmStopsMs = pool.stats.stops;
     stats.mutationMs = performance.now() - m0;
 
     // ── 5. Verdicts from the warm run ─────────────────────────────────────────────────────────
@@ -922,7 +937,7 @@ export async function run(options: Options): Promise<RunResult> {
         isolatedQueue.push(m); // a watchdog stop is confirmed before it is reported (6, below)
       } else if (crashedIds.has(m.id)) {
         m.status = 'RuntimeError';
-        m.statusReason = 'the worker crashed while this mutant ran';
+        m.statusReason = crashReason(crashedBy.get(m.id));
       } else if (killers.length) {
         m.status = killers.some((r) => r.status === 'Killed') ? 'Killed' : 'Timeout';
         if (m.status === 'Timeout' && killers.some((r) => r.deadlock)) m.statusReason = DEADLOCK_REASON;
@@ -1208,7 +1223,7 @@ export async function run(options: Options): Promise<RunResult> {
             else into.set(rec.id, { status: prev?.status ?? 'Survived', killedBy: prev?.killedBy, testsCompleted });
           }
           if (outcome.killedFor) into.set(outcome.killedFor, { status: 'Timeout', idle: outcome.stall === 'idle' });
-          if (outcome.crashed && outcome.crashedFor) into.set(outcome.crashedFor, { status: 'RuntimeError', crashed: true });
+          if (outcome.crashed && outcome.crashedFor) into.set(outcome.crashedFor, { status: 'RuntimeError', crashed: true, exit: outcome.exit });
           const follow: Unit[] = [];
           const done = new Set([...into.keys()]);
           const rest = outcome.killedFor || outcome.crashed ? (unit.batch ?? []).filter((b) => !done.has(b.id)).map((b) => byId.get(b.id) as MutantResult) : [];
@@ -1303,6 +1318,7 @@ export async function run(options: Options): Promise<RunResult> {
         m.killedBy = v.killedBy;
         m.testsCompleted = v.testsCompleted;
         if (v.status === 'Timeout') m.statusReason = timeoutReason(v);
+        if (v.status === 'RuntimeError' && v.crashed) m.statusReason = crashReason(v.exit);
       }
     }
 
@@ -1355,7 +1371,7 @@ export async function run(options: Options): Promise<RunResult> {
         m.killedBy = v.killedBy;
         const reason = stale.has(m.id) ? 'killed on cold modules: the warm run armed it after other runs in the same module instance, and a memo they filled hid it' : 'killed only when the mutant stays active across the whole test file (cross-test effect)';
         const timedOut = v.slowTwice ? timeoutReason(v) : reason;
-        m.statusReason = v.status === 'RuntimeError' ? 'the worker crashed while this mutant ran' : timedOut;
+        m.statusReason = v.status === 'RuntimeError' ? crashReason(v.exit) : timedOut;
         stats.survivorsOverturned++;
       }
     }

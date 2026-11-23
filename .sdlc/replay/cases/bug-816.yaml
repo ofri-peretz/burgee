@@ -1,0 +1,8 @@
+# feat(controlroom): out of reserved, plugins, an input line, boilerplates, and ink at 584 / 584 (#816)
+id: bug-816
+kind: bug
+pr: 816
+base: "2f6a3aef1fc5"
+head: "52300169a98e"
+answer: "The kitty keyboard helpers are added to csi.ts, which paratext's ansi-escapes default object spreads, so the drop-in default gains members ansi-escapes lacks and the entry bundles past its 7,200 B ceiling."
+set: tune

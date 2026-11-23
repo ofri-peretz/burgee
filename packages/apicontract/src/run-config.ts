@@ -26,6 +26,14 @@ export interface ExtractConfig {
   readonly options: Options;
 }
 
+/** `diff --decisions`: how a change is held to the decision written in the contract. */
+export const DECISION_SETTINGS = ['warn', 'error', 'off'] as const;
+export type DecisionSetting = (typeof DECISION_SETTINGS)[number];
+
+export interface DiffConfig {
+  readonly decisions?: DecisionSetting;
+}
+
 export interface Config {
   /** The folder the config file is in: every path in it is relative to this. */
   readonly root: string;
@@ -35,6 +43,16 @@ export interface Config {
   readonly plugins: readonly string[];
   readonly targets: Readonly<Record<string, Target>>;
   readonly extract: ExtractConfig;
+  /** Absent when the config has no `diff` section. */
+  readonly diff?: DiffConfig;
+  /** `apicontract lint`'s rulesets and per-rule levels; absent when the config has no `lint` section. */
+  readonly lint?: LintConfig;
+}
+
+/** `lint`: the rulesets a run starts from, then each rule's level over them (apicontract-lint R8). */
+export interface LintConfig {
+  readonly extends?: readonly string[];
+  readonly rules?: Readonly<Record<string, 'error' | 'warn' | 'off'>>;
 }
 
 /** The JSON Schema `apicontract.config.json` validates against. */
@@ -61,6 +79,21 @@ export const configSchema = {
       type: 'object',
       additionalProperties: false,
       properties: { from: { type: 'string', minLength: 1 }, out: { type: 'string', minLength: 1 }, options: { type: 'object' } },
+    },
+    diff: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        decisions: { enum: DECISION_SETTINGS, description: 'How `apicontract diff` holds a change to the decision written in the contract. The base ref\'s value wins over the working tree\'s; `--decisions` wins over both' },
+      },
+    },
+    lint: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        extends: { type: 'array', items: { type: 'string', minLength: 1 }, description: 'Rulesets, in order: `recommended`, `agent-ready`' },
+        rules: { type: 'object', additionalProperties: { enum: ['error', 'warn', 'off'] }, description: 'A level per rule id, over the rulesets' },
+      },
     },
   },
 } as const;
@@ -140,6 +173,48 @@ const extractOf = (value: unknown, problems: string[]): ExtractConfig => {
   };
 };
 
+/** `diff.decisions`, checked on its own: a refusal names the three settings. */
+const decisionsOf = (value: unknown, problems: string[]): DecisionSetting | undefined => {
+  if (value === undefined) return undefined;
+  if (DECISION_SETTINGS.includes(value as DecisionSetting)) return value as DecisionSetting;
+  problems.push(`\`diff.decisions\` must be one of ${DECISION_SETTINGS.join(', ')}. fix: write \`"decisions": "warn"\``);
+  return undefined;
+};
+
+const diffOf = (value: unknown, problems: string[]): DiffConfig | undefined => {
+  if (value === undefined) return undefined;
+  if (!isRecord(value)) {
+    problems.push('`diff` must be an object. fix: write `{ "decisions": "warn" }`');
+    return undefined;
+  }
+  for (const key of Object.keys(value)) {
+    if (key !== 'decisions') problems.push(`\`diff.${key}\` is not a diff setting. fix: remove it; diff takes decisions`);
+  }
+  const decisions = decisionsOf(value.decisions, problems);
+  return decisions === undefined ? {} : { decisions };
+};
+
+const LINT_LEVELS: readonly unknown[] = ['error', 'warn', 'off'];
+
+const lintOf = (value: unknown, problems: string[]): LintConfig | undefined => {
+  if (value === undefined) return undefined;
+  if (!isRecord(value)) {
+    problems.push('`lint` must be an object. fix: write `{ "extends": ["recommended"], "rules": { … } }`');
+    return undefined;
+  }
+  for (const key of Object.keys(value)) {
+    if (!['extends', 'rules'].includes(key)) problems.push(`\`lint.${key}\` is not a lint setting. fix: remove it; lint takes extends and rules`);
+  }
+  const rules = value.rules;
+  if (rules !== undefined && !(isRecord(rules) && Object.values(rules).every((level) => LINT_LEVELS.includes(level)))) {
+    problems.push('`lint.rules` must map rule ids to "error", "warn" or "off". fix: write `"rules": { "operation-tags": "error" }`');
+  }
+  return {
+    ...(value.extends === undefined ? {} : { extends: strings(value.extends, 'lint.extends', problems) }),
+    ...(rules === undefined ? {} : { rules: rules as LintConfig['rules'] & object }),
+  };
+};
+
 const targetsOf = (value: unknown, problems: string[]): Record<string, Target> => {
   if (value !== undefined && !isRecord(value)) problems.push('`targets` must be an object. fix: map a target name to `{ "generator": "…", "out": "…" }`');
   if (!isRecord(value)) return {};
@@ -174,8 +249,10 @@ export const validateConfig = (value: unknown, file: string): Config => {
     targets: targetsOf(value.targets, problems),
     extract: extractOf(value.extract, problems),
   };
+  const diff = diffOf(value.diff, problems);
+  const lint = lintOf(value.lint, problems);
   if (problems.length > 0) throw new ConfigError(file, problems);
-  return config;
+  return { ...config, ...(diff === undefined ? {} : { diff }), ...(lint === undefined ? {} : { lint }) };
 };
 
 /** The first config file in `cwd`, in the order {@link CONFIG_FILES} lists them. */
@@ -208,4 +285,23 @@ export const loadConfig = async (cwd: string, explicit?: string): Promise<Config
   if (file === undefined) return undefined;
   if (!existsSync(file)) throw new ConfigError(file, ['it does not exist. fix: pass `--config` a file that exists, or create `apicontract.config.json`']);
   return validateConfig(await read(file), file);
+};
+
+/**
+ * `diff.decisions` from the text of an `apicontract.config.json`, and nothing else in it: `diff`
+ * reads this from the base ref too (R12), where the rest of the file may be a version this build
+ * does not know. `undefined` when the file does not set it.
+ */
+export const decisionSettingOf = (text: string, file: string): DecisionSetting | undefined => {
+  let value: unknown;
+  try {
+    value = JSON.parse(text);
+  } catch (error) {
+    throw new ConfigError(file, [`it is not JSON (${(error as Error).message}). fix: correct the JSON, or validate it against \`configSchema\``]);
+  }
+  const section = isRecord(value) && isRecord(value.diff) ? value.diff : {};
+  const problems: string[] = [];
+  const setting = decisionsOf(section.decisions, problems);
+  if (problems.length > 0) throw new ConfigError(file, problems);
+  return setting;
 };

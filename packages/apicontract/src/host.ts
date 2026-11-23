@@ -1,8 +1,9 @@
 /**
  * The plugin host for apicontract's half of the family contract (spec.md R-PL; `plugin-contract`).
  *
- * A plugin is one plain object shared by the whole family. This host reads two of its keys,
- * `adapters` (an input format) and `generators` (spec → code), and ignores every other key
+ * A plugin is one plain object shared by the whole family. This host reads four of its keys,
+ * `adapters` (an input format), `generators` (spec → code), `extractors` (code → spec) and
+ * `rules` (`lint` rules, apicontract-lint R4), and ignores every other key
  * without complaining, which is what lets one object also carry burgee `commands` or a flagstaff
  * component. The shape is declared here, not imported from another layer.
  *
@@ -15,6 +16,10 @@
  */
 import { type Contract, type ContractFinding } from './core/model.js';
 import { builtinAdapters } from './inputs.js';
+import { type Rule } from './lint-engine.js';
+import { parse } from './lint-jsonpath.js';
+import { FUNCTIONS } from './lint-names.js';
+import { SELECTS } from './lint-select.js';
 
 /** The plugin contract version: one number for the family. */
 export const CONTRACT = 1;
@@ -103,6 +108,8 @@ export interface Plugin {
   readonly adapters?: Readonly<Record<string, Adapter>>;
   readonly generators?: Readonly<Record<string, Generator>>;
   readonly extractors?: Readonly<Record<string, Extractor>>;
+  /** `lint` rules (apicontract-lint R4): each with the sample that is its test. */
+  readonly rules?: Readonly<Record<string, Rule>>;
 }
 
 export type PluginErrorCode = 'E_PLUGIN_SCHEMA' | 'E_PLUGIN_CONTRACT' | 'E_NO_STATIC_PROJECTION' | 'E_NO_CONTRIBUTION';
@@ -211,6 +218,38 @@ const validateExtractor = (extractor: unknown, where: string): void => {
   }
 };
 
+/** A `then` entry: a built-in function by name, its options an object. */
+const isThen = (then: unknown): boolean =>
+  isRecord(then) && (FUNCTIONS as readonly unknown[]).includes(then.function) && (then.field === undefined || text(then.field)) && (then.functionOptions === undefined || isRecord(then.functionOptions));
+
+/** A `path` given's paths: one or several, each inside the JSONPath subset. */
+const pathsOf = (path: unknown, where: string): void => {
+  const paths = [path].flat();
+  if (paths.length === 0 || !paths.every((each) => text(each))) refuse(`${where} selects \`path\` and names none`, "add `given.path`: a JSONPath into the document, e.g. `$.info`");
+  for (const each of paths as string[]) {
+    try {
+      parse(each);
+    } catch (error) {
+      refuse(`${where} selects a path outside the subset`, `${(error as Error).message}; write it with \`.key\`, \`['key']\`, \`*\`, \`..\` and \`?(@.x == 'y')\``);
+    }
+  }
+};
+
+const validateRule = (rule: unknown, where: string): void => {
+  if (!isRecord(rule) || !text(rule.description) || !text(rule.fix) || !isRecord(rule.given) || !(SELECTS as readonly unknown[]).includes(rule.given.select)) {
+    refuse(`${where} is not a rule`, `a rule is \`{ description, given: { select }, then or check, fix, sample }\`, \`select\` one of ${SELECTS.join(', ')}`);
+  }
+  if (rule.given.select === 'path') pathsOf(rule.given.path, where);
+  const thens = rule.then === undefined ? [] : [rule.then].flat();
+  if (!thens.every((then) => isThen(then)) || (rule.check !== undefined && typeof rule.check !== 'function') || (thens.length === 0 && rule.check === undefined)) {
+    refuse(`${where} says nothing that must hold`, `give it \`then: { function }\`, \`function\` one of ${FUNCTIONS.join(', ')}, or a \`check(node, context)\` function`);
+  }
+  const { sample } = rule;
+  if (!isRecord(sample) || !('document' in sample) || !Array.isArray(sample.findings) || !sample.findings.every((finding) => isRecord(finding) && typeof finding.pointer === 'string' && text(finding.message))) {
+    refuse(`${where} has no sample`, 'add `sample: { document, findings: [{ pointer, message }] }`: a small document and exactly what the rule finds on it', 'E_NO_STATIC_PROJECTION');
+  }
+};
+
 const each = (group: unknown, plugin: string, key: string, validateOne: (value: unknown, where: string) => void): void => {
   if (group === undefined) return;
   if (!isRecord(group)) refuse(`plugin "${plugin}": ${key} must be an object`, `map a name to each of the ${key}`);
@@ -228,6 +267,7 @@ export function validate(plugin: unknown): asserts plugin is Plugin {
   each(plugin.adapters, name, 'adapters', validateAdapter);
   each(plugin.generators, name, 'generators', validateGenerator);
   each(plugin.extractors, name, 'extractors', validateExtractor);
+  each(plugin.rules, name, 'rules', validateRule);
 }
 
 /** A set of registered plugins. One per program run; tests make their own. */
@@ -242,6 +282,8 @@ export interface Host {
   readonly generator: (target: string) => Generator;
   /** The extractor registered under `name`. */
   readonly extractor: (name: string) => Extractor;
+  /** Every rule the plugins contribute, by id: a later plugin wins an id. */
+  readonly rules: () => Readonly<Record<string, Rule>>;
   /** Run a generator on a document and return the files it would write. `run` returns its findings too. */
   readonly generate: (target: string, document: unknown, options?: Options) => Promise<GeneratedFile[]>;
   /** Run a generator on a document: the files it would write, and what the reader and the generator report. */
@@ -308,6 +350,7 @@ export const createHost = (): Host => {
     read: (document) => read(document),
     generator,
     extractor,
+    rules: () => Object.fromEntries(order.flatMap((plugin) => Object.entries(plugin.rules ?? {}))),
     generate: async (target, document, options) => (await run(target, document, options)).files,
     run,
   };

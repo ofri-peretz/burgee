@@ -1,0 +1,44 @@
+{
+  "name": "replay",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Grades a reviewer and a repository's checks against bugs that actually happened: replays each known bug PR and size-matched clean controls, scores findings against a one-sentence answer key per stage, and counts how often every check fires. Working name; unpublished.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "replay": "./dist/bin.js"
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.map",
+    "!dist/**/*.test.*"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage.enabled",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "bellpull": "^2.0.0",
+    "burgee": "^2.1.5",
+    "seniority": "^2.0.0",
+    "validator": "0.0.1"
+  },
+  "devDependencies": {
+    "vitest": "^5.0.1"
+  }
+}

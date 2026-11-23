@@ -40,6 +40,26 @@ function getListSearch(
 }
 
 describe('search prompt', () => {
+  it.each(['up', 'down'] as const)(
+    'preserves the query when typing after %s navigation',
+    async (key) => {
+      const source = vi.fn(getListSearch(PROVINCES));
+      const { answer, events, nextRender } = await render(search, {
+        message: 'Select a Canadian province',
+        source,
+      });
+
+      events.type('New');
+      await nextRender();
+      events.keypress(key);
+      events.type('f');
+      await nextRender();
+      expect(source).toHaveBeenLastCalledWith('Newf', expect.anything());
+      events.keypress('enter');
+      await expect(answer).resolves.toEqual('NL');
+    },
+  );
+
   it('does not submit stale choices and keeps the search term while a search is pending', async () => {
     const { promise: resultsPromise, resolve: resolveResults } =
       withResolver<Array<string>>();
@@ -69,6 +89,72 @@ describe('search prompt', () => {
     expect(terms.at(-1)).toBe('Quebec');
   });
 
+  // Surface the prompt status in the message text: the default theme only
+  // distinguishes `loading` through the spinner prefix (delayed 300ms), while
+  // these tests assert the status painted at the moment a keystroke-triggered
+  // search starts.
+  const statusMessage = (text: string, status: string) => `«${status}» ${text}`;
+
+  it('paints the loading status while a search triggered by typing is pending', async () => {
+    const abortController = new AbortController();
+    const { promise: pendingResults } = withResolver<Array<string>>();
+    const { answer, events, getScreen, nextRender } = await render(
+      search,
+      {
+        message: 'Select a Canadian province',
+        source: (term: string | undefined) => (term ? pendingResults : ['Alberta']),
+        theme: { style: { message: statusMessage } },
+      },
+      { signal: abortController.signal },
+    );
+
+    // The fetch triggered by the keystroke is pending: the `loading` status
+    // set by the search effect must be on screen without waiting for the
+    // fetch to settle.
+    events.type('N');
+    await nextRender();
+    expect(getScreen()).toContain('«loading» Select a Canadian province N');
+
+    abortController.abort();
+    await expect(answer).rejects.toThrow();
+  });
+
+  it('clears a previous search error as soon as the retry starts', async () => {
+    const abortController = new AbortController();
+    const { promise: retryResults, resolve: resolveRetry } =
+      withResolver<Array<string>>();
+    const { answer, events, getScreen, nextRender } = await render(
+      search,
+      {
+        message: 'Select a Canadian province',
+        source: (term: string | undefined) => {
+          if (!term) return ['Alberta'];
+          if (term === 'N') throw new Error("You're being rate limited");
+          return retryResults;
+        },
+        theme: { style: { message: statusMessage } },
+      },
+      { signal: abortController.signal },
+    );
+
+    // The first search fails: its error reaches the screen.
+    events.type('N');
+    await nextRender();
+    expect(getScreen()).toContain("You're being rate limited");
+
+    // Typing again starts a new search: the error must leave the screen as
+    // soon as the retry is pending, together with the loading status.
+    events.type('e');
+    await nextRender();
+    expect(getScreen()).toContain('«loading» Select a Canadian province Ne');
+    expect(getScreen()).not.toContain("You're being rate limited");
+
+    resolveRetry(['New Brunswick']);
+    await nextRender();
+    events.keypress('enter');
+    await expect(answer).resolves.toEqual('New Brunswick');
+  });
+
   it('does not start another validation while one is pending', async () => {
     const { promise: validation, resolve: resolveValidation } = withResolver<boolean>();
     const validate = vi.fn(() => validation);
@@ -84,6 +170,50 @@ describe('search prompt', () => {
 
     await expect(answer).resolves.toEqual('Quebec');
     expect(validate).toHaveBeenCalledOnce();
+  });
+
+  it('ignores query edits while validating the selected choice', async () => {
+    const { promise: validation, resolve: resolveValidation } = withResolver<boolean>();
+    const source = vi.fn(getListSearch(PROVINCES));
+    const { answer, events, getScreen } = await render(search, {
+      message: 'Select a Canadian province',
+      source,
+      validate: () => validation,
+    });
+
+    events.keypress('enter');
+    events.type('Que');
+    resolveValidation(true);
+
+    await expect(answer).resolves.toEqual('AB');
+    expect(source).toHaveBeenCalledOnce();
+    expect(getScreen()).toContain('Alberta');
+  });
+
+  it('restores the completed query after validation fails despite ignored typing', async () => {
+    const controller = new AbortController();
+    const { promise: validation, resolve: resolveValidation } = withResolver<boolean>();
+    const source = vi.fn(getListSearch(PROVINCES));
+    const { answer, events, nextRender } = await render(
+      search,
+      {
+        message: 'Select a Canadian province',
+        initialValue: 'Al',
+        source,
+        validate: () => validation,
+      },
+      { signal: controller.signal },
+    );
+
+    events.keypress('enter');
+    events.type('ignored');
+    resolveValidation(false);
+    await nextRender();
+    events.type('x');
+
+    expect(source).toHaveBeenLastCalledWith('Albertax', expect.anything());
+    controller.abort();
+    await expect(answer).rejects.toThrow();
   });
 
   it('allows to search', async () => {
@@ -349,6 +479,7 @@ describe('search prompt', () => {
 
   it('handles search errors', async () => {
     const abortController = new AbortController();
+    let failWith: string | Error = new Error("You're being rate limited");
     const { answer, events, getScreen, nextRender } = await render(
       search,
       {
@@ -356,7 +487,10 @@ describe('search prompt', () => {
         source: (term: string | void) => {
           if (!term) return Promise.resolve([]);
 
-          throw new Error("You're being rate limited");
+          // A non-Error rejection is the fallback's input; that is the case tested here.
+          /* eslint-disable-next-line prefer-promise-reject-errors */
+          /* oxlint-disable-next-line typescript/prefer-promise-reject-errors */
+          return Promise.reject(failWith);
         },
       },
       { signal: abortController.signal },
@@ -377,8 +511,66 @@ describe('search prompt', () => {
       ↑↓ navigate • ⏎ select"
     `);
 
+    // A rejection that carries no usable message (a non-Error, or an empty
+    // Error) shows the generic fallback instead of nothing at all.
+    failWith = 'not an Error';
+    events.type('!');
+    await nextRender();
+    expect(getScreen()).toContain('Search failed');
+
     abortController.abort();
     await expect(answer).rejects.toThrow();
+  });
+
+  it('stops loading after a source failure and lets the user search again', async () => {
+    const { promise: failedSearch, reject } = withResolver<string[]>();
+    const controller = new AbortController();
+    const validate = vi.fn(() => true);
+    const source = vi.fn((term: string | undefined) => {
+      if (term === 'Q') return failedSearch;
+      return term ? ['Quebec'] : ['Alberta', 'Manitoba'];
+    });
+    const { answer, events, getScreen, nextRender } = await render(
+      search<string>,
+      {
+        message: 'Select a Canadian province',
+        source,
+        validate,
+        theme: {
+          style: { message: (text: string, status: string) => `${status} ${text}` },
+        },
+      },
+      { signal: controller.signal },
+    );
+
+    try {
+      expect(getScreen()).toContain('❯ Alberta');
+      events.keypress('down');
+      await nextRender();
+      expect(getScreen()).toContain('❯ Manitoba');
+      events.type('Q');
+      expect(source).toHaveBeenLastCalledWith('Q', expect.anything());
+
+      reject(new Error('Search request failed'));
+      await nextRender();
+      expect(getScreen()).toContain('Search request failed');
+      expect(getScreen()).toContain('idle Select a Canadian province Q');
+
+      events.keypress('up');
+      events.keypress('enter');
+      expect(validate).not.toHaveBeenCalled();
+
+      events.type('ue');
+      await vi.waitFor(() => {
+        expect(getScreen()).toContain('idle Select a Canadian province Que');
+        expect(getScreen()).toContain('❯ Quebec');
+      });
+      events.keypress('enter');
+      await expect(answer).resolves.toBe('Quebec');
+    } finally {
+      controller.abort();
+      await answer.catch(() => {});
+    }
   });
 
   it('handles empty results', async () => {
@@ -717,6 +909,10 @@ describe('search prompt', () => {
       ↑↓ navigate • ⏎ select"
     `);
 
+    // The rejected name is now restored to the readline line: one word
+    // delete leaves "New " behind, so delete the rest before typing the
+    // next query.
+    events.keypress({ name: 'backspace', ctrl: true });
     events.keypress({ name: 'backspace', ctrl: true });
     events.type('Quebec');
     await nextRender();
@@ -819,6 +1015,104 @@ describe('search prompt', () => {
 
     events.keypress('enter');
     await expect(answer).resolves.toEqual('AB');
+  });
+
+  // The displayed query and readline's line must stay in sync: after any
+  // handler rewrites the shown value, the next keystroke edits what is shown
+  // — typing appends, Backspace removes one character.
+  describe('the shown query stays editable after the prompt rewrites it', () => {
+    type Step =
+      | 'enter'
+      | 'tab'
+      | 'up'
+      | 'down'
+      | 'backspace'
+      | 'ctrl+backspace'
+      | { type: string };
+
+    const cases: Array<{
+      after: string;
+      steps: Step[];
+      shown: string;
+      probe: string;
+      typed: string;
+      edited: string;
+      settle: Step[];
+      answer: string;
+      validate?: (value: string) => boolean | string;
+    }> = [
+      {
+        // The selected name is also the exact query: validate rejects it and
+        // the term must stay editable on the line.
+        after: 'a rejected exact-name match',
+        steps: [{ type: 'Alberta' }, 'enter'],
+        shown: 'Alberta',
+        probe: 'x',
+        typed: 'Albertax',
+        edited: 'Alberta',
+        settle: ['ctrl+backspace', { type: 'Yukon' }, 'enter'],
+        answer: 'YT',
+        validate: (value: string) => value !== 'AB',
+      },
+      {
+        after: 'tab autocompletion',
+        steps: [{ type: 'New' }, 'tab'],
+        shown: 'New Brunswick',
+        probe: 's',
+        typed: 'New Brunswicks',
+        edited: 'New Brunswick',
+        settle: ['ctrl+backspace', 'ctrl+backspace', { type: 'Yukon' }, 'enter'],
+        answer: 'YT',
+      },
+      {
+        after: 'arrow navigation',
+        steps: [{ type: 'New' }, 'down'],
+        shown: 'New',
+        probe: 'f',
+        typed: 'Newf',
+        edited: 'New',
+        settle: [{ type: 'foundland' }, 'enter'],
+        answer: 'NL',
+      },
+    ];
+
+    it.each(cases)('after $after', async (row) => {
+      const { answer, events, getScreen, nextRender } = await render(search, {
+        message: 'Select a Canadian province',
+        source: getListSearch(PROVINCES),
+        ...(row.validate === undefined ? {} : { validate: row.validate }),
+      });
+
+      // The source runs asynchronously, so every keystroke needs a render to
+      // settle before the next one (and finally Enter) reads the results.
+      const send = async (steps: Step[]) => {
+        for (const step of steps) {
+          if (step === 'ctrl+backspace') {
+            events.keypress({ name: 'backspace', ctrl: true });
+          } else if (typeof step === 'string') {
+            events.keypress(step);
+          } else {
+            events.type(step.type);
+          }
+          await nextRender();
+        }
+      };
+      const promptLine = () => (getScreen().split('\n')[0] ?? '').trimEnd();
+
+      await send(row.steps);
+      expect(promptLine()).toBe(`? Select a Canadian province ${row.shown}`);
+
+      // Typing appends to the shown query...
+      await send([{ type: row.probe }]);
+      expect(promptLine()).toBe(`? Select a Canadian province ${row.typed}`);
+
+      // ...and Backspace removes exactly one character.
+      await send(['backspace']);
+      expect(promptLine()).toBe(`? Select a Canadian province ${row.edited}`);
+
+      await send(row.settle);
+      await expect(answer).resolves.toEqual(row.answer);
+    });
   });
 });
 

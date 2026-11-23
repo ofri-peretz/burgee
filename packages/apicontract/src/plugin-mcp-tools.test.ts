@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { stableHash } from './command-explain-name.js';
 import { type Contract } from './core/model.js';
 import { openapi } from './openapi.js';
-import { MAX_NAME, MAX_TOOLS, optionsOf, snake, toolNames, toolsOf } from './plugin-mcp-tools.js';
+import { CHARS_PER_TOKEN, MAX_NAME, MAX_TOOLS, optionsOf, snake, tokensOf, toolNames, toolsOf } from './plugin-mcp-tools.js';
 
 const pets = openapi.read(parse(readFileSync(new URL('__fixtures__/agents/pets.openapi.yaml', import.meta.url), 'utf8')));
 const stdio = { transport: 'stdio' } as const;
@@ -200,5 +200,81 @@ describe('toolsOf', () => {
     expect(toolsOf(many(MAX_TOOLS + 1), { ...stdio, include: ['op0'] }).tools).toHaveLength(1);
     const all = many(MAX_TOOLS + 1);
     expect(toolsOf(all, { ...stdio, include: all.operations.map((operation) => operation.id) }).tools).toHaveLength(MAX_TOOLS + 1);
+  });
+});
+
+describe('hidden tags and the budget (contractdiff-compat-depth R6)', () => {
+  const tagged = openapi.read({
+    openapi: '3.1.0',
+    paths: {
+      '/pets': { get: { operationId: 'listPets', tags: ['pets'], description: 'Every pet. '.repeat(40), responses: {} } },
+      '/health': { get: { operationId: 'health', tags: ['health'], responses: {} } },
+      '/admin': { get: { operationId: 'reindex', tags: ['internal', 'pets'], responses: {} } },
+      '/one': { get: { operationId: 'one', responses: {} } },
+    },
+  });
+  const names = (options: Parameters<typeof toolsOf>[1]) => toolsOf(tagged, options).tools.map((tool) => tool.route.operationId);
+
+  it('leaves out operations tagged internal or health unless include names them, and says which', () => {
+    const result = toolsOf(tagged, stdio);
+    expect(result.tools.map((tool) => tool.route.operationId)).toEqual(['listPets', 'one']);
+    expect(result.findings).toEqual([
+      { code: 'mcp-hidden', pointer: '#/paths', message: 'left out 2 operation(s) tagged internal or health: health, reindex', fix: 'name one in `include` (its id, or `tag:internal` or `tag:health`) if an agent should call it' },
+    ]);
+    expect(names({ ...stdio, include: ['tag:pets'] })).toEqual(['listPets']);
+    expect(names({ ...stdio, include: ['health', 'tag:internal'] })).toEqual(['health', 'reindex']);
+    expect(toolsOf(tagged, { ...stdio, include: ['one'] }).findings).toEqual([]);
+    expect(toolsOf(tagged, { ...stdio, include: ['tag:pets', 'one'] }).findings).toEqual([
+      { code: 'mcp-hidden', pointer: '#/paths', message: 'left out 1 operation(s) tagged internal: reindex', fix: 'name one in `include` (its id, or `tag:internal`) if an agent should call it' },
+    ]);
+    const both = openapi.read({ openapi: '3.1.0', paths: { '/x': { get: { operationId: 'probe', tags: ['internal', 'health'], responses: {} } } } });
+    expect(toolsOf(both, { ...stdio, include: ['tag:health'] }).tools.map((tool) => tool.name)).toEqual(['probe']);
+    expect(toolsOf(both, stdio).findings[0]?.fix).toBe('name one in `include` (its id, or `tag:internal` or `tag:health`) if an agent should call it');
+    const healthOnly = openapi.read({ openapi: '3.1.0', paths: { '/h': { get: { operationId: 'ping', tags: ['health'], responses: {} } } } });
+    expect(toolsOf(healthOnly, stdio).findings).toEqual([
+      { code: 'mcp-hidden', pointer: '#/paths', message: 'left out 1 operation(s) tagged health: ping', fix: 'name one in `include` (its id, or `tag:health`) if an agent should call it' },
+    ]);
+  });
+
+  it('names the three largest tools over budget, largest first, a tie by name', () => {
+    const sized = openapi.read({
+      openapi: '3.1.0',
+      paths: {
+        '/t': { get: { operationId: 'tiny', responses: {} } },
+        '/z': { get: { operationId: 'zz', description: 'z'.repeat(200), responses: {} } },
+        '/m': { get: { operationId: 'mid', description: 'm'.repeat(100), responses: {} } },
+        '/a': { get: { operationId: 'aa', description: 'a'.repeat(200), responses: {} } },
+      },
+    });
+    const all = toolsOf(sized, stdio).tools;
+    const size = (name: string) => String(tokensOf(all.filter((tool) => tool.name === name)));
+    expect(size('aa')).toBe(size('zz'));
+    expect(toolsOf(sized, { ...stdio, budget: 1 }).findings.at(-1)?.message).toBe(
+      `no tool was generated: 4 tool(s) take about ${String(tokensOf(all))} of 1 tokens (estimate: characters ÷ 4); the largest are aa (${size('aa')}), zz (${size('zz')}), mid (${size('mid')})`,
+    );
+  });
+
+  it('reports the size against the budget, and generates nothing over it, naming the largest tools', () => {
+    const fits = toolsOf(tagged, { ...stdio, budget: 4000 });
+    const size = tokensOf(fits.tools);
+    expect(size).toBe(Math.ceil(JSON.stringify(fits.tools.map(({ route: _route, ...tool }) => tool)).length / CHARS_PER_TOKEN));
+    expect(fits.findings.at(-1)).toEqual({ code: 'mcp-budget', pointer: '#', message: `2 tool(s), about ${String(size)} of 4000 tokens (estimate: characters ÷ 4)`, fix: 'nothing to do' });
+    expect(toolsOf(tagged, { ...stdio, budget: size }).tools).toHaveLength(2);
+    const over = toolsOf(tagged, { ...stdio, budget: size - 1 });
+    expect(over.tools).toEqual([]);
+    expect(over.findings.at(-1)).toEqual({
+      code: 'mcp-over-budget',
+      pointer: '#',
+      message: `no tool was generated: 2 tool(s) take about ${String(size)} of ${String(size - 1)} tokens (estimate: characters ÷ 4); the largest are list_pets (${String(tokensOf([fits.tools[0] as never]))}), one (${String(tokensOf([fits.tools[1] as never]))})`,
+      fix: 'narrow `include` to the operation ids or `tag:<name>` entries the agent needs, or raise `budget`',
+    });
+    expect(toolsOf(tagged, { ...stdio, include: ['one'], budget: size - 1 }).tools).toHaveLength(1);
+  });
+
+  it('refuses a budget that is not a whole number of tokens above 0', () => {
+    expect(optionsOf({ budget: 1 })).toStrictEqual({ transport: 'stdio', budget: 1 });
+    expect(optionsOf({ include: ['a'] })).toStrictEqual({ transport: 'stdio', include: ['a'] });
+    expect(optionsOf({})).toStrictEqual({ transport: 'stdio' });
+    for (const budget of [0, -1, 1.5, '10', Number.NaN]) expect(() => optionsOf({ budget })).toThrow('fix: set `budget` to a whole number of tokens above 0');
   });
 });

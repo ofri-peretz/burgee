@@ -41,6 +41,7 @@ import sqliteSecurity from "eslint-plugin-sqlite-security";
 import supabaseSecurity from "eslint-plugin-supabase-security";
 import typeormSecurity from "eslint-plugin-typeorm-security";
 import vercelAiSecurity from "eslint-plugin-vercel-ai-security";
+import { configs as truemark } from "truemark/eslint";
 
 // Library-surface plugins. burgee imports none of these libraries, so each one
 // should stay silent here — a finding from one is a false positive to fix in the
@@ -163,6 +164,10 @@ export default [
       // Agent worktrees are whole copies of this repo. Linting them lints every
       // file twice and fails on whatever a stale copy still contains.
       ".claude/**",
+      // hookset's Claude hook pack: standalone hook programs vendored byte-identical into each
+      // repo's `.claude/hooks/` (ignored above), where a process exit IS the protocol. Their
+      // deny/allow cases run as `--self-test` from `packages/hookset/src/claude.test.ts`.
+      "packages/hookset/claude/**",
       // oxmutate's sandbox: a copy of the project while the command runner or the type checker
       // runs, removed after it. Linting it lints the project twice, mid-copy.
       "**/.oxmutate-tmp/**",
@@ -335,6 +340,15 @@ export default [
       "import-next/no-barrel-import": "off",
       "import-next/no-unused-modules": ["error", { allowImportOnly: true }],
     },
+  },
+  {
+    // truemark, dogfooded: focused, unexplained-skip, fixed-sleep and retried tests, at error
+    // like every other rule. The findings that predate it sit in eslint-suppressions.json, a
+    // per-file count ESLint enforces: a new finding fails, and a fixed one fails until
+    // `npm run lint:prune` drops it, so the counts only go down. Built from dist, so `npm run
+    // lint` builds truemark first.
+    ...truemark.recommended,
+    files: ["**/*.test.{ts,tsx,mts,cts,mjs,js}", "**/vitest.config.{ts,mts}", "**/vitest.*.config.{ts,mts}", "**/playwright.config.ts"],
   },
   {
     // Scripts are process entry points; their exit code is their contract (E1). They also
@@ -690,6 +704,14 @@ export default [
       "maintainability/no-missing-error-context": "off",
       "reliability/no-missing-error-context": "off",
     },
+  },
+  {
+    // truemark reads its AST types from `eslint` (an optional peer) and `estree` (types only,
+    // no runtime module). Under verbatimModuleSyntax an inline type specifier emits
+    // `import {} from 'estree'`, which fails to resolve at run time, and would load ESLint
+    // into the `truemark diff` CLI that never needs it. Type-only imports stay top-level.
+    files: ["packages/truemark/src/**/*.ts"],
+    rules: { "import-next/consistent-type-specifier-style": "off" },
   },
   {
     // Measured 2026-09-07: under verbatimModuleSyntax an inline type specifier

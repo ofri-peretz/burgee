@@ -55,3 +55,20 @@ export function markReader(file: string): MarkReader {
     close: () => closeSync(fd),
   };
 }
+
+/** What a mark says: the mutant running, when its run began, and, in a warm run, the dry-run time of the test it is in. */
+export interface Mark {
+  id: string;
+  since: number;
+  testMs: number | undefined;
+}
+
+/** A mark's text: `<id> <since>`, and for a warm run `<id> <since> <testMs>`. */
+export const markText = (id: string, since: number, testMs?: number): string => (testMs === undefined ? `${id} ${String(since)}\n` : `${id} ${String(since)} ${String(testMs)}\n`);
+
+/** Reads a mark as the reader returns it (trimmed); a missing time reads as 0, the epoch. */
+export function parseMark(line: string): Mark {
+  // `split` always returns a first part, so only the later two can be missing.
+  const [id, since, testField] = line.split(' ') as [string, string?, string?];
+  return { id, since: Number(since ?? 0), testMs: testField === undefined ? undefined : Number(testField) };
+}

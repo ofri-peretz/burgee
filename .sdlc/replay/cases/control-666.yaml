@@ -1,0 +1,7 @@
+# ci(workspace): pin claude-code-action to the release eslint runs green on (#666)
+id: control-666
+kind: control
+pr: 666
+base: "ff4159d25544"
+head: "cbe720da9116"
+set: test

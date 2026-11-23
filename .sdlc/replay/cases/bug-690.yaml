@@ -1,0 +1,8 @@
+# chore(ci): Bump github/codeql-action/init from 4.38.1 to 4.38.2 (#690)
+id: bug-690
+kind: bug
+pr: 690
+base: "daae8ecbcfdd"
+head: "e1f9335f5064"
+answer: "Dependabot bumps github/codeql-action/init to 4.38.2 and leaves autobuild and analyze on 4.38.1; CodeQL refuses mixed versions, so the Analyze job fails."
+set: test

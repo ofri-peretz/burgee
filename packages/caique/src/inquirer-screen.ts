@@ -30,7 +30,7 @@ import { Stream } from 'node:stream';
 import { stripVTControlCharacters } from 'node:util';
 
 import { SHOW_CURSOR } from 'closeout/cursor';
-import { wrap } from 'linegauge/wrap';
+import { visibleWidth, wrap } from 'linegauge/wrap';
 import { cursorDown as down, cursorLeft as csiLeft, cursorTo as to, cursorUp as up, eraseLines as erase } from 'paratext/csi';
 
 import { processRuntime } from './runtime.js';
@@ -168,14 +168,34 @@ export function outputWidth(output: { columns?: number | undefined } | undefined
  * off. `linegauge/wrap` is this repository's port of `wrap-ansi`, graded against it.
  */
 export function breakLines(content: string, width: number): string {
-  return content
-    .split('\n')
-    .flatMap((line) =>
-      wrap(line, width, { trim: false, wordWrap: false })
-        .split('\n')
-        .map((row) => row.trimEnd()),
-    )
-    .join('\n');
+  return wrapContent(content, width).text;
+}
+
+/**
+ * `breakLines`, and the geometry of the final logical line: `lastRow` is its last physical row
+ * and `finalLineRows` how many rows it spans, which is where the cursor goes back to.
+ * `lastRow` keeps its trailing spaces: readline counts them in the cursor position, so a line
+ * that ends exactly at the edge would otherwise read one column short (@inquirer/core 12.1.1).
+ */
+export function wrapContent(content: string, width: number): { text: string; lastRow: string; finalLineRows: number } {
+  // A tab is written as a tab, as the incumbent's wrapper leaves it, not spread into spaces the way
+  // `wrap` does: a Tab typed into an answer is in readline's line, and the screen shows that line.
+  // It rides through `wrap` as a NUL, which is as wide as nothing and which no prompt draws.
+  const wrappedLines = content.split('\n').map((line) =>
+    wrap(line.replaceAll('\t', '\0'), width, { trim: false, wordWrap: false })
+      .replaceAll('\0', '\t')
+      .split('\n'),
+  );
+  // `split` always returns at least one element, here and on each wrapped line, so the last of each exists.
+  const finalLine = wrappedLines.at(-1) as string[];
+  return {
+    text: wrappedLines
+      .flat()
+      .map((row) => row.trimEnd())
+      .join('\n'),
+    lastRow: finalLine.at(-1) as string,
+    finalLineRows: finalLine.length,
+  };
 }
 
 const height = (content: string): number => content.split('\n').length;
@@ -230,15 +250,21 @@ export class ScreenManager {
     this.#cursorPos = this.#rl.getCursorPos();
 
     const width = outputWidth(this.#rl.output);
-    const wrapped = breakLines(content, width);
+    const wrapped = wrapContent(content, width);
     const wrappedBottom = breakLines(bottomContent, width);
+    // Measured in columns, so a line of wide characters reaches the edge when it fills it, not
+    // when its code units happen to count to the width (@inquirer/core 12.1.1). At or past the
+    // edge rather than exactly on it, so a one-column terminal, where every row is full, still
+    // gets its extra line.
+    const atRightEdge = visibleWidth(wrapped.lastRow) >= width;
 
     // Exactly at the right edge, the cursor would otherwise land at the start of the line
-    // it has just filled. One more newline puts it where a person expects it.
-    const body = rawPromptLine.length % width === 0 ? `${wrapped}\n` : wrapped;
+    // it has just filled. One more newline puts it where a person expects it. An empty or
+    // escape-only prompt line still gets one before the bottom content, as `0 % width` did.
+    const body = atRightEdge || rawPromptLine.length === 0 ? `${wrapped.text}\n` : wrapped.text;
 
     let output = body + (wrappedBottom ? `\n${wrappedBottom}` : '');
-    const promptLineUpDiff = Math.floor(rawPromptLine.length / width) - this.#cursorPos.rows;
+    const promptLineUpDiff = wrapped.finalLineRows - 1 + Number(atRightEdge) - this.#cursorPos.rows;
     const bottomContentHeight = promptLineUpDiff + (wrappedBottom ? height(wrappedBottom) : 0);
     // Stryker disable next-line EqualityOperator,ConditionalExpression: `cursorUp` writes nothing for zero rows or fewer, so the guard only skips a no-op
     if (bottomContentHeight > 0) output += cursorUp(bottomContentHeight);

@@ -1,0 +1,60 @@
+# Reusable: `hookset check` on the calling repo, against the presets at the tag its lefthook.yml
+# pins. Fails on a missing station, an unpinned remote, a step that repeats a preset, or a
+# vendored Claude hook that drifted. Callers:
+#
+#   jobs:
+#     hookset:
+#       uses: ofri-peretz/burgee/.github/workflows/hookset-check.yml@main
+#
+# No install and no build: Node 24 runs packages/hookset/src/core.ts as it is (type stripping),
+# from a sparse checkout of burgee at the pinned tag.
+name: hookset check
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  hookset:
+    name: hookset check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: The hookset tag lefthook.yml pins
+        id: pin
+        run: |
+          set -euo pipefail
+          ref=$(grep -oE 'hookset@[0-9]+\.[0-9]+\.[0-9]+[^[:space:]"'"'"']*' lefthook.yml 2>/dev/null | head -1 || true)
+          if [ -z "$ref" ]; then
+            echo "::error::lefthook.yml pins no hookset@<version> tag. fix: run \`hookset init\` (burgee packages/hookset)."
+            exit 1
+          fi
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ofri-peretz/burgee
+          ref: ${{ steps.pin.outputs.ref }}
+          path: .hookset
+          sparse-checkout: packages/hookset
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
+        with:
+          node-version: 24
+
+      - name: hookset check
+        run: |
+          node --input-type=module -e '
+            const core = await import(`${process.cwd()}/.hookset/packages/hookset/src/core.ts`);
+            const result = core.checkRepo(process.cwd(), `${process.cwd()}/.hookset/packages/hookset`);
+            console.log(core.checkText(result));
+            for (const p of result.problems) console.log(`::${p.severity === "error" ? "error" : "warning"}::${p.message} — fix: ${p.fix}`);
+            process.exitCode = result.ok ? 0 : 1;
+          '

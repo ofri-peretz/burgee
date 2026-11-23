@@ -1,0 +1,8 @@
+# feat(flagstaff): `flagstaff/cli-table3` — cli-table3 graded 29 / 29 by its own suite (#116)
+id: bug-116
+kind: bug
+pr: 116
+base: "ec43c473f7cb"
+head: "3daa4126eba1"
+answer: "The cli-table3 façade is graded 29 / 29 but the generated compatibility page is not regenerated, so it keeps publishing the old 0 / 29 row and nothing checks the page against the measurement."
+set: test

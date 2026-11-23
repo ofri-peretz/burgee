@@ -1,0 +1,88 @@
+# Reusable: a PR that changes a package's source or manifest adds a changeset, and the changeset
+# is one changesets will accept. The same rule as burgee's own `changesets-pr.yml`, for the repos
+# that had none. Opt out per PR with the `skip-changeset` label; the Version PR
+# (`changeset-release/main`) always passes, because it consumes changesets. Callers:
+#
+#   jobs:
+#     changeset:
+#       uses: ofri-peretz/burgee/.github/workflows/changeset-gate.yml@main
+#       with:
+#         paths: '^packages/[^/]+/(src|package\.json)'
+name: Changeset gate
+
+on:
+  workflow_call:
+    inputs:
+      paths:
+        description: Extended regex over changed paths that need a changeset.
+        type: string
+        default: '^packages/[^/]+/(src|package\.json)'
+      install:
+        description: The install command `changeset status` needs.
+        type: string
+        default: npm ci --ignore-scripts --no-audit --no-fund
+
+permissions:
+  contents: read
+
+jobs:
+  changeset:
+    name: changeset
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Does this PR need a changeset?
+        id: check
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REF: ${{ github.head_ref }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          PATHS: ${{ inputs.paths }}
+        run: |
+          set -euo pipefail
+          if [ -z "${BASE_SHA:-}" ]; then echo "status=not-a-pr" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if [ "$HEAD_REF" = "changeset-release/main" ]; then echo "status=release" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if echo ",$LABELS," | grep -q ',skip-changeset,'; then echo "status=skipped" >> "$GITHUB_OUTPUT"; exit 0; fi
+          added=$(git diff --name-only --diff-filter=A "$BASE_SHA"..."$HEAD_SHA" \
+            | grep -E '^\.changeset/[^/]+\.md$' | grep -vE '^\.changeset/README\.md$' || true)
+          src=$(git diff --name-only "$BASE_SHA"..."$HEAD_SHA" | grep -E "$PATHS" || true)
+          if [ -n "$added" ]; then echo "status=present" >> "$GITHUB_OUTPUT"
+          elif [ -z "$src" ]; then echo "status=not-needed" >> "$GITHUB_OUTPUT"
+          else echo "status=missing" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
+        if: steps.check.outputs.status == 'present'
+        with:
+          node-version-file: .nvmrc
+
+      - name: The changeset is one changesets will accept
+        if: steps.check.outputs.status == 'present'
+        env:
+          INSTALL: ${{ inputs.install }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          $INSTALL
+          git fetch --no-tags --quiet origin "$BASE_REF"
+          npx changeset status --since="origin/$BASE_REF"
+
+      - name: Fail when the changeset is missing
+        if: steps.check.outputs.status == 'missing'
+        run: |
+          echo "::error::This PR changes package source or a package.json and adds no changeset."
+          echo "fix: run 'npx changeset', commit the .changeset/*.md it writes, and push. Internal-only work: add the 'skip-changeset' label."
+          exit 1
+
+      - name: Report
+        if: always()
+        env:
+          STATUS: ${{ steps.check.outputs.status }}
+        run: |
+          echo "changeset status: $STATUS" >> "$GITHUB_STEP_SUMMARY"

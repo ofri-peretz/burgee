@@ -537,6 +537,10 @@
         }
       ]
     },
+    "replay": {
+      "status": "unmeasured",
+      "reason": "New on 2026-11-23: cases, config, scoring, the runner and the proposer. The changed-lines lane gates its first commits; the floor is set by its first full weekly run."
+    },
     "roundel": {
       "status": "measured",
       "floor": 93.1,
@@ -669,9 +673,21 @@
         }
       ]
     },
+    "hookset": {
+      "status": "unmeasured",
+      "reason": "New on 2026-11-23: the lefthook presets, the Claude hook pack and init/check. The floor is set by its first full weekly run."
+    },
+    "triggerlist": {
+      "status": "unmeasured",
+      "reason": "New on 2026-11-23: the checklist, the diff reader, match, compile, seed and protect. The changed-lines lane gates its first commits; the floor is set by its first full weekly run."
+    },
     "validator": {
       "status": "unmeasured",
       "reason": "New on 2026-11-13: nodes, the check pass and the issues pass. The changed-lines run on its first commits scored 100% (437 killed, 0 survived); the floor is set by its first full weekly run."
+    },
+    "truemark": {
+      "status": "unmeasured",
+      "reason": "New on 2026-11-23: four lint rules and the changed-lines checks, moved from the eslint monorepo (D-20261123-truemark-lives-in-burgee). The floor is set by its first full weekly run."
     }
   }
 }
