@@ -28,17 +28,17 @@ Two tests for any new feature or package:
 |---|---|---|---|---|
 | Put each rule where it can't be forgotten | "where should this rule live?" | **rulehome** `audit` (seven homes) | on burgee, in the family | [`rulehome`](../intents/rulehome/) |
 | Automatic code checks | "is this shape allowed?" | Interlace eslint plugins; `contractdiff lint` | lint not built | [`apicontract-lint`](../intents/apicontract-lint/) |
-| Checks before push | "did I run the checks?" | rulehome `hooks`: writes the hook preset for the checks it found | all | [`rulehome`](../intents/rulehome/) R5 |
+| Checks before push | "did I run the checks?" | hookset: lefthook/Husky presets by station, a Claude hook pack | not built | [`hookset`](../intents/hookset/) |
 | Agreements between systems | "breaking, and decided?" | `contractdiff diff` + decision markers | in review; rulehome `intent` folds into it | [`apicontract-diff-decisions`](../intents/apicontract-diff-decisions/) |
 | | "compatible with every past release? used?" | `contractdiff diff` | transitive, dangerous, usage-aware | [`contractdiff-compat-depth`](../intents/contractdiff-compat-depth/) |
 | Short notes, how-tos on demand | "is this skill or agent well formed?" | rulehome `skills`, `agents` | on burgee | [`rulehome`](../intents/rulehome/) |
 | Give the AI less to hold | "which part matters here?" | `explain`, `--since`, findings-only output | operation selection for spec → MCP | [`contractdiff-compat-depth`](../intents/contractdiff-compat-depth/) R6 |
 | Write "done" down first | "is there a list, and is each item tested?" | the intent/spec flow (our repos only) | out of scope until asked | — |
-| Tests it can't game | "does it behave like the incumbent? on inputs it didn't pick?" | compat-oracle; generated contract tests | property-based inputs from the contract | [`contract-property-tests`](../intents/contract-property-tests/) |
+| Tests it can't game | "does it behave like the incumbent? on inputs it didn't pick?" | compat-oracle; generated contract tests; `props` | property tests not built | [`contract-properties`](../intents/contract-properties/) |
 | Test the tests | "would a test catch a bug here?" | **oxmutate** | nothing: covered | — |
-| Reviewer with our rules | "does this follow our rules, in a rulebook the reviewer can hold?" | lint `--json`; rulehome `rulebook` | the rulebook compiler | [`rulehome`](../intents/rulehome/) R6 |
-| Say how it was checked | "what was and wasn't checked?" | rulehome `proof`: the PR's "Checked:" line from the runs' JSON | all | [`rulehome`](../intents/rulehome/) R7 |
-| Learn from every miss | "which rules and reviews earn their keep?" | `lint --stats --idle`; rulehome `replay` | the replay harness | [`rulehome`](../intents/rulehome/) R8 |
+| Reviewer with our rules | "does this follow our rules, in a rulebook the reviewer can hold?" | lint `--json`; triggerlist | not built | [`triggerlist`](../intents/triggerlist/) |
+| Say how it was checked | "what was and wasn't checked?" | proofline: `Verified-by:` trailer and PR block, re-run evidence | not built | [`proofline`](../intents/proofline/) |
+| Learn from every miss | "which rules and reviews earn their keep?" | `lint --stats --idle`; replay | replay not built | [`replay`](../intents/replay/) |
 | Machine-readable everything | "what did the tool say?" | burgee | pagination/truncation metadata | burgee backlog |
 
 Not a tool's job: trying the change in the app (browser and simulator tools exist), stopping after three
