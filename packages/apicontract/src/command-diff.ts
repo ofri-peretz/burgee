@@ -3,6 +3,9 @@
  * for whom, under the mode chosen. Each side is a file or `git:<ref>:<path>`, read through the
  * same built-in adapters (`inputs.ts`), so an OpenAPI document, a JSON Schema, an AsyncAPI
  * document and an MCP snapshot are all diffed by one engine. Exit 1 on a breaking or unknown change.
+ *
+ * It also holds a change to the decision written in the contract (apicontract-diff-decisions
+ * spec.md R11, R12): `--decisions warn|error|off`, read from the base ref's config first.
  */
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -15,7 +18,9 @@ import { parse as parseYaml } from 'seniority/yaml';
 import { type Contract } from './core/model.js';
 import { MODES, type Mode, type Side, SIDES, type Verdict } from './diff-classify.js';
 import { type Comparison, compareContracts, type Finding } from './diff-contract.js';
+import { checkDecisions, isDate, withDecisions } from './diff-decisions.js';
 import { builtinAdapters } from './inputs.js';
+import { DECISION_SETTINGS, type DecisionSetting, decisionSettingOf, UsageError } from './run-config.js';
 
 const TEXT = Symbol.for('burgee.text');
 
@@ -43,6 +48,10 @@ export interface DiffOptions {
   readonly sarif?: boolean | undefined;
   /** Write `.changeset/<hash>.md` bumping this package by the verdict. */
   readonly changeset?: string | undefined;
+  /** How a change is held to the decision written in the contract. Wins over the config; default `warn`. */
+  readonly decisions?: DecisionSetting | undefined;
+  /** The date `x-sunset` is judged against, `YYYY-MM-DD`; default today's UTC date. Tests pin it. */
+  readonly today?: string | undefined;
   readonly git?: GitReader;
 }
 
@@ -90,35 +99,54 @@ export const uriOf = (file: string): string => (isAbsolute(file) ? pathToFileURL
 
 const show = (value: unknown): string => (value === undefined ? '-' : JSON.stringify(value));
 
-/** SARIF 2.1.0: one result per finding, at the side's file and the finding's operation. */
+/** One SARIF result: a finding at its side's file and operation. `label` says what kind of finding it is. */
+const resultOf = (finding: Finding, label: string, files: { readonly old: Pick<Side_, 'file'>; readonly nu: Pick<Side_, 'file'> }): object => ({
+  ruleId: finding.id,
+  level: LEVEL[finding.verdict],
+  message: { text: `${label}: ${finding.operation} ${where(finding)} ${show(finding.before)} -> ${show(finding.after)}. fix: ${finding.fix}` },
+  locations: [
+    {
+      physicalLocation: { artifactLocation: { uri: uriOf((finding.document === 'old' ? files.old : files.nu).file) } },
+      logicalLocations: [{ fullyQualifiedName: `${finding.source}${finding.payload === undefined ? '' : ` ${finding.payload}`}${finding.pointer}` }],
+    },
+  ],
+});
+
+/** SARIF 2.1.0: one result per finding, at the side's file and the finding's operation; a decision finding is a `warning` unless `--decisions error`. */
 export const toSarif = (comparison: Comparison, old: Pick<Side_, 'file'>, nu: Pick<Side_, 'file'>): object => {
-  const ids = [...new Set(comparison.findings.map((finding) => finding.id))].sort();
+  const decisions = comparison.decisions ?? [];
+  const ids = [...new Set([...comparison.findings, ...decisions].map((finding) => finding.id))].sort();
   return {
     version: '2.1.0',
     $schema: 'https://json.schemastore.org/sarif-2.1.0.json',
     runs: [
       {
         tool: { driver: { name: 'apicontract diff', rules: ids.map((id) => ({ id })) } },
-        results: comparison.findings.map((finding) => ({
-          ruleId: finding.id,
-          level: LEVEL[finding.verdict],
-          message: { text: `${finding.verdict}: ${finding.operation} ${where(finding)} ${show(finding.before)} -> ${show(finding.after)}. fix: ${finding.fix}` },
-          locations: [
-            {
-              physicalLocation: { artifactLocation: { uri: uriOf((finding.document === 'old' ? old : nu).file) } },
-              logicalLocations: [{ fullyQualifiedName: `${finding.source}${finding.payload === undefined ? '' : ` ${finding.payload}`}${finding.pointer}` }],
-            },
-          ],
-        })),
+        results: [...comparison.findings.map((finding) => resultOf(finding, finding.verdict, { old, nu })), ...decisions.map((finding) => resultOf(finding, 'decision', { old, nu }))],
       },
     ],
   };
 };
 
+/** The decision findings, after the changes: each with its fix line, whatever its level. */
+const decisionLines = (decisions: readonly Finding[]): string[] => {
+  if (decisions.length === 0) return [];
+  const level = (decisions[0] as Finding).verdict === 'breaking' ? 'error' : 'warn';
+  return [
+    '',
+    `decisions: ${String(decisions.length)} (--decisions ${level})`,
+    ...decisions.flatMap((finding) => [
+      `  ${level.padEnd(COLUMN)}  ${finding.id}  ${finding.operation}  ${where(finding)}  ${show(finding.before)} -> ${show(finding.after)}`,
+      `  ${''.padEnd(COLUMN)}  fix: ${finding.fix}`,
+    ]),
+  ];
+};
+
 /** Text grouped by operation, each finding with its fix line. */
 export const toText = (comparison: Comparison, old: string, nu: string): string => {
   const { summary, mode, side } = comparison;
-  if (comparison.findings.length === 0) return `no changes between ${old} and ${nu}`;
+  const decisions = comparison.decisions ?? [];
+  if (comparison.findings.length === 0) return decisions.length === 0 ? `no changes between ${old} and ${nu}` : [`no changes between ${old} and ${nu}`, ...decisionLines(decisions)].join('\n');
   const lines = [
     `${comparison.verdict}: ${String(summary.breaking)} breaking, ${String(summary.unknown)} unknown, ${String(summary['non-breaking'])} non-breaking (--mode ${mode} --side ${side})`,
   ];
@@ -131,7 +159,7 @@ export const toText = (comparison: Comparison, old: string, nu: string): string 
       if (finding.verdict !== 'non-breaking') lines.push(`  ${''.padEnd(COLUMN)}  fix: ${finding.fix}`);
     }
   }
-  return lines.join('\n');
+  return [...lines, ...decisionLines(decisions)].join('\n');
 };
 
 const BUMP: Readonly<Record<Verdict, string>> = { breaking: 'major', unknown: 'major', 'non-breaking': 'minor' };
@@ -158,12 +186,58 @@ const writeChangeset = (
   return { file, changed: true };
 };
 
+const CONFIG = 'apicontract.config.json';
+/** The characters of `YYYY-MM-DD`. */
+const DATE_LENGTH = 10;
+
+/**
+ * `diff.decisions` from the config at `ref`. A config that is not at that ref, or that cannot be
+ * read as one, sets nothing: it is history this run cannot fix, and the next source down answers.
+ */
+const settingAt = (ref: string, cwd: string, git: GitReader): DecisionSetting | undefined => {
+  try {
+    return decisionSettingOf(git(ref, CONFIG, cwd), `git:${ref}:${CONFIG}`);
+  } catch {
+    return undefined;
+  }
+};
+
+/**
+ * How decisions are held (R11, R12): the flag, else the base ref's config, else the working tree's,
+ * else `warn`. The base ref's wins over the working tree's so a change cannot loosen the check it is
+ * judged by; only the flag, which lives in the CI file with its own owner, is above it.
+ */
+const settingFor = (options: DiffOptions, git: GitReader): DecisionSetting => {
+  if (options.decisions !== undefined) return options.decisions;
+  const ref = GIT.exec(options.old)?.groups?.ref;
+  const atBase = ref === undefined ? undefined : settingAt(ref, options.cwd, git);
+  const file = resolve(options.cwd, CONFIG);
+  return atBase ?? (existsSync(file) ? decisionSettingOf(readFileSync(file, 'utf8'), CONFIG) : undefined) ?? 'warn';
+};
+
+/** The date sunsets are judged against: the one given, checked, or today's UTC date. */
+const todayOf = (given: string | undefined): string => {
+  if (given === undefined) return new Date().toISOString().slice(0, DATE_LENGTH);
+  if (!isDate(given)) throw new UsageError(`--today takes a real date as YYYY-MM-DD, not ${given}. fix: pass a date such as --today 2027-01-01`);
+  return given;
+};
+
+/** What to do about a failed run: the changes' own fix, or, when only the decisions fail it, theirs. */
+const fixOf = (changed: Verdict, verdict: Verdict): string =>
+  changed === 'non-breaking'
+    ? 'resolve each decision finding as its own fix line says, or run with `--decisions warn` while the contract catches up'
+    : `make each ${verdict} change compatible as its own fix line says, or release it as a major version`;
+
 /** The command's work, with the folder and the git reader as inputs so a test can give its own. */
 export const diff = (options: DiffOptions): Record<string | symbol, unknown> => {
   const git = options.git ?? noGit;
   const old = read(options.old, options.cwd, git);
   const nu = read(options.new, options.cwd, git);
-  const comparison = compareContracts(old.contract, nu.contract, { mode: options.mode, side: options.side });
+  const changes = compareContracts(old.contract, nu.contract, { mode: options.mode, side: options.side });
+  const level = settingFor(options, git);
+  const today = todayOf(options.today);
+  const comparison =
+    level === 'off' ? { ...changes, decisions: [] } : withDecisions(changes, checkDecisions(old.contract, nu.contract, changes, { today, level, changeset: options.changeset !== undefined }), level);
   const sarif = options.sarif === true ? toSarif(comparison, old, nu) : undefined;
   const written = options.changeset === undefined ? undefined : writeChangeset(options.cwd, options.changeset, comparison, { old: old.label, nu: nu.label });
   const failed = comparison.verdict !== 'non-breaking';
@@ -178,7 +252,7 @@ export const diff = (options: DiffOptions): Record<string | symbol, unknown> => 
     ...(failed
       ? {
           exitCode: ExitCode.RUNTIME,
-          fix: `make each ${comparison.verdict} change compatible as its own fix line says, or release it as a major version`,
+          fix: fixOf(changes.verdict, comparison.verdict),
         }
       : {}),
   };
@@ -212,7 +286,23 @@ export const command = defineCommand({
     side: { type: 'string', choices: SIDES, description: 'whose code the question is about (default caller)' },
     sarif: { type: 'boolean', description: 'print SARIF 2.1.0 for code scanning instead of text' },
     changeset: { type: 'string', description: 'write .changeset/<hash>.md bumping this package by the verdict', placeholder: 'package' },
+    decisions: {
+      type: 'string',
+      choices: DECISION_SETTINGS,
+      description: 'hold a change to the decision written in the contract: warn (default; prints, exit code unchanged), error (fails the run) or off. Read from the base ref\'s apicontract.config.json first',
+    },
+    today: { type: 'string', description: 'the date x-sunset is judged against (default: today, UTC)', placeholder: 'YYYY-MM-DD' },
   },
   run: ({ args, options }) =>
-    diff({ cwd: HERE, old: args.old, new: args.new, mode: options.mode as Mode | undefined, side: options.side as Side | undefined, sarif: options.sarif, changeset: options.changeset }),
+    diff({
+      cwd: HERE,
+      old: args.old,
+      new: args.new,
+      mode: options.mode as Mode | undefined,
+      side: options.side as Side | undefined,
+      sarif: options.sarif,
+      changeset: options.changeset,
+      decisions: options.decisions as DecisionSetting | undefined,
+      today: options.today,
+    }),
 });
