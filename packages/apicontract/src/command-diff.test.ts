@@ -57,6 +57,12 @@ describe('apicontract diff, through burgee', () => {
       side: { type: 'string', choices: ['caller', 'server'], description: 'whose code the question is about (default caller)' },
       sarif: { type: 'boolean', description: 'print SARIF 2.1.0 for code scanning instead of text' },
       changeset: { type: 'string', description: 'write .changeset/<hash>.md bumping this package by the verdict', placeholder: 'package' },
+      decisions: {
+        type: 'string',
+        choices: ['warn', 'error', 'off'],
+        description: "hold a change to the decision written in the contract: warn (default; prints, exit code unchanged), error (fails the run) or off. Read from the base ref's apicontract.config.json first",
+      },
+      today: { type: 'string', description: 'the date x-sunset is judged against (default: today, UTC)', placeholder: 'YYYY-MM-DD' },
     });
   });
 
@@ -91,7 +97,7 @@ describe('apicontract diff, through burgee', () => {
   });
 
   it('prints SARIF with --sarif', async () => {
-    const r = await runBurgee(program, { argv: ['diff', OLD, NEW, '--sarif'] });
+    const r = await runBurgee(program, { argv: ['diff', OLD, NEW, '--sarif', '--decisions', 'off'] });
     const sarif = JSON.parse(r.stdout) as { version: string; runs: { results: { level: string }[] }[] };
     expect(sarif.version).toBe('2.1.0');
     expect(sarif.runs[0]?.results.map((result) => result.level)).toEqual(['error', 'error', 'error', 'error', 'note', 'note', 'note']);
@@ -145,7 +151,11 @@ describe('diff', () => {
     };
     const dir = scratch({ 'new.yaml': spec(', required: [id]') });
     const data = diff({ cwd: dir, old: 'git:origin/main:api/spec.yaml', new: 'new.yaml', git });
-    expect(calls).toEqual([['origin/main', 'api/spec.yaml', dir]]);
+    // The base ref's config is asked for too (R12), after the sides; the reader here has it as the same text, which is no config.
+    expect(calls).toEqual([
+      ['origin/main', 'api/spec.yaml', dir],
+      ['origin/main', 'apicontract.config.json', dir],
+    ]);
     expect(data).toMatchObject({ old: 'git:origin/main:api/spec.yaml', verdict: 'non-breaking' });
   });
 

@@ -12,26 +12,13 @@ declaration. The repository is a turbo monorepo of ten public, independently rel
 packages and one private grader. None of the ten depends on anything outside this
 repository. The tenth is the reservation `controlroom@0.0.1`, with no API yet.
 
-## Package map
+## Packages
 
-| Package | What it owns | Replaces |
-| :-- | :-- | :-- |
-| [`burgee`](./packages/burgee/) | argv, dispatch, the manifest and every surface projected from it | commander · yargs |
-| [`roundel`](./packages/roundel/) | colour: output policy, semantic tokens, theme | chalk · picocolors |
-| [`flagstaff`](./packages/flagstaff/) | render: frame loop, spinners, progress, boxes, tables | ora · log-update · boxen · cli-table3 |
-| [`caique`](./packages/caique/) | prompts that are flags first and never hang | inquirer · clack |
-| [`linegauge`](./packages/linegauge/) | measuring, wrapping and slicing styled text | string-width · wrap-ansi · strip-ansi · slice-ansi |
-| [`seniority`](./packages/seniority/) | config precedence with provenance | cosmiconfig · dotenv · rc |
-| [`bellpull`](./packages/bellpull/) | subprocesses and executable resolution | execa · cross-spawn · which |
-| [`closeout`](./packages/closeout/) | exit handlers, terminal restore, bounded shutdown | signal-exit · exit-hook · restore-cursor |
-| [`paratext`](./packages/paratext/) | hyperlinks, images, title, clipboard, notifications, bell | ansi-escapes (OSC half) · terminal-link · term-img |
-| [`controlroom`](./packages/controlroom/) | full-screen screens over flagstaff's loop, each with a static projection, inline or full-screen; `controlroom/ink` is ink's drop-in | ink · @inkjs/ui |
-| [`compat-oracle`](./packages/compat-oracle/) | private: grades each drop-in path with the incumbent's own test suite | — |
-
-Each package's `package.json` `description` is the canonical one-liner, and its README is
-the canonical page: `scripts/sync-package-docs.ts` projects every README into that package's
-own docs app (`apps/docs-<name>/content/docs/index.md`; burgee's into
-`apps/docs/content/docs/packages/burgee.md`), and a lock test fails when any of them differ.
+`ls packages/`; each `package.json` `description` is the canonical one-liner, and
+[`/llms.txt`](https://burgee.interlace.tools/llms.txt) renders the package map from those
+manifests. `compat-oracle` is private: it grades each drop-in path with the incumbent's own test
+suite. Each README is its package's canonical page: `scripts/sync-package-docs.ts` projects it
+into the package's docs app, and a lock fails when they differ.
 
 ## Where the docs live
 
@@ -68,15 +55,8 @@ npm run bench             # the benchmark suite
 npm run mutation:changed  # changed-lines mutation lane vs origin/main (pre-push runs it; needs cargo)
 npm run mutation:weekly   # full mutation run that lands the ratchet PR (launchd, Saturdays)
 npm run ledger -- new decision <slug>   # one file per decision or gap, never a table row
-npm run weight:converge   # after editing a package README: re-measures the foundation weight band
 ```
 
-Editing a package README changes its packed size: run `npm run weight:converge`, or the
-foundation weight locks fail.
-
-Generated files each have a writer and a `--check` twin; the check names its writer. Never
-hand-edit them.
-
-Enforced elsewhere, so not repeated here: commit format and scope (commitlint), changesets
-(the changeset gate), the ledger format (`decisions-lock` / `gaps-lock`), skipping hooks and
-CI polling loops (`.claude/hooks/guard-bash.mjs`).
+Everything else is a check whose failure names the fix: commit format (commitlint),
+changesets, the ledger format, README weight (`weight:converge`), generated files (each
+`--check` names its writer), skipped hooks and CI polling (`.claude/hooks/guard-bash.mjs`).

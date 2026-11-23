@@ -1,0 +1,92 @@
+# The review checklist (triggerlist, .sdlc/intents/triggerlist/). Each item fires only when its
+# trigger matches the diff, so a reviewer reads the handful that apply, never the whole list.
+# CI reads this file from the base branch: a pull request cannot change the checks it is held to.
+# After editing: `npx triggerlist compile` rewrites REVIEW.md, and review-md-lock fails until it does.
+# Draft more items with `npx triggerlist seed`, then narrow each trigger before adding it here.
+
+# Files that judge code. A pull request changing one of these and other files together is flagged
+# by `triggerlist protect` (observe mode until a decision says enforce).
+gates:
+  - REVIEW.md
+  - .sdlc/checklist.yaml
+  - lefthook.yml
+  - scripts/*-lock.test.ts
+  - .sdlc/bands/**
+  - .github/CODEOWNERS
+  - .github/workflows/claude-code-review.yml
+
+items:
+  - id: subprocess-through-bellpull
+    trigger:
+      paths: ['packages/*/src/**/*.ts']
+      pattern: "node:child_process|require\\(\\s*['\"]child_process"
+    question: Does new code spawn a process directly instead of through bellpull, the package whose job that is?
+    check: npx vitest run --config vitest.root.config.ts scripts/inline-implementation-lock.test.ts
+    sources: [scripts/inline-implementation-lock.test.ts]
+
+  - id: changeset-for-package-change
+    trigger:
+      paths: ['packages/*/src/**', 'packages/*/package.json']
+    question: Does a change to a package's source or package.json carry a changeset, or the skip-changeset label for internal-only work?
+    check: ls .changeset/ and the PR's labels
+    sources: [AGENTS.md]
+
+  - id: ledger-row-not-file
+    trigger:
+      paths: ['.sdlc/DECISIONS.md', '.sdlc/GAPS.md']
+    question: Is a decision or gap being added as a row in the policy file instead of one new file from `npm run ledger -- new`?
+    check: npx vitest run --config vitest.root.config.ts scripts/decisions-lock.test.ts scripts/gaps-lock.test.ts
+    sources: [CLAUDE.md]
+
+  - id: hooks-bypassed
+    trigger:
+      paths: ['**']
+      pattern: '--no-verify|LEFTHOOK=0'
+    question: Does the change bypass or teach bypassing the git hooks, which are the gate?
+    check: read the lines that fired; the hooks may never be skipped
+    sources: [CLAUDE.md]
+
+  - id: readme-weight-band
+    trigger:
+      paths: ['packages/*/README.md']
+    question: Did a package README change without re-measuring the foundation weight band (`npm run weight:converge`)?
+    check: git diff --stat -- .sdlc/bands/foundation-ceilings.json
+    sources: [AGENTS.md]
+
+  - id: generated-docs-edited
+    trigger:
+      paths: ['apps/docs-*/content/docs/index.md', 'apps/docs/content/docs/packages/*.md']
+    question: Is a generated package page edited by hand instead of its package README plus `npx tsx scripts/sync-package-docs.ts`?
+    check: npx tsx scripts/sync-package-docs.ts --check
+    sources: [AGENTS.md]
+
+  - id: mutation-in-actions
+    trigger:
+      paths: ['.github/workflows/**']
+      pattern: 'oxmutate|mutation'
+    question: Does a workflow start running mutation testing, which the owner ruled out of GitHub Actions?
+    check: npx vitest run --config vitest.root.config.ts scripts/mutation-changed-lock.test.ts
+    sources: [.sdlc/decisions/D-20261101-no-mutation-in-gha.md]
+
+  - id: test-sleeps-and-focus
+    trigger:
+      paths: ['**/*.test.ts']
+      pattern: '\b(?:it|describe|test)\.(?:only|skip)\(|setTimeout\(|\bsleep\('
+    question: Does a test add a fixed sleep, a focused case or a skipped case, against the five-second case budget and the gate?
+    check: npx tsx scripts/case-budget.ts node_modules/.cache/case-budget
+    sources: [.sdlc/decisions/D-20261101-tests-under-5s.md]
+
+  - id: lock-still-bites
+    trigger:
+      paths: ['scripts/*-lock.test.ts']
+    question: Does the changed lock still fail when the invariant it guards is broken, or was it loosened to pass?
+    check: break the invariant by hand and run the lock; it must go red
+    sources: [CLAUDE.md]
+
+  - id: unsourced-number
+    trigger:
+      paths: ['**/*.md']
+      pattern: '\d+(?:\.\d+)?\s?(?:%|x\b|ms\b|KB\b|MB\b)'
+    question: Does every added number come from a file in this repository, with unmeasured claims written as unmeasured?
+    check: find the generated page, baseline or band each number came from
+    sources: [AGENTS.md]
