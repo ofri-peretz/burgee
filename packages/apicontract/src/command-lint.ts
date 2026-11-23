@@ -13,6 +13,7 @@ import { parse as parseYaml } from 'seniority/yaml';
 import { uriOf } from './command-diff.js';
 import { type Contract } from './core/model.js';
 import { builtinAdapters } from './inputs.js';
+import { codeIndexOf, mapIn, typescriptIn } from './lint-code-read.js';
 import { type Level, lint, type Rule, type LintFinding, type LintInput, type LintResult } from './lint-engine.js';
 import { DEFAULT_RULESETS, gitIn, historyOf, type History, type LintGit, type Resolved, RULESET_FILE, rulesetOfText, type RulesetChange, type Sources, sourcesOf } from './lint-history.js';
 import { rules, rulesets } from './lint-rules.js';
@@ -57,6 +58,8 @@ export interface LintOptions {
   readonly stats?: string | undefined;
   /** List the rules with no finding in this many days, `"90d"`, from `stats` (R13). */
   readonly idle?: string | undefined;
+  /** The TypeScript compiler the rules on code read handlers with (R14), when a test gives its own; the project's otherwise. */
+  readonly typescript?: (() => typeof import('typescript')) | undefined;
 }
 
 /** What `--stats` did: the file, whether this run was counted into it, and the idle rules when `--idle` asked. */
@@ -144,6 +147,18 @@ export const contractAt = (text: string): Contract | undefined => {
 
 const LEVEL: Readonly<Record<LintFinding['level'], string>> = { error: 'error', warn: 'warning' };
 
+/** Where a finding is in the spec, as SARIF says it. */
+const specLocation = (finding: LintFinding): object => ({ physicalLocation: { artifactLocation: { uri: uriOf(finding.file) } }, logicalLocations: [{ fullyQualifiedName: finding.pointer }] });
+
+/** A finding's SARIF location: the spec's; for a rule on code, the handler's line, with the spec's related (R-BL7). */
+const locationsOf = (finding: LintFinding): object =>
+  finding.code === undefined
+    ? { locations: [specLocation(finding)] }
+    : { locations: [{ physicalLocation: { artifactLocation: { uri: uriOf(finding.code.file) }, region: { startLine: finding.code.line } } }], relatedLocations: [{ id: 0, ...specLocation(finding) }] };
+
+/** Where a finding is, as the text says it: the spec's pointer; for a rule on code, the handler's line first. */
+const placeOf = (finding: LintFinding): string => (finding.code === undefined ? finding.pointer : `${finding.code.file}:${String(finding.code.line)} (${finding.pointer})`);
+
 /** SARIF 2.1.0: one result per finding, at its file and pointer. */
 export const toSarif = (result: LintResult, all: Readonly<Record<string, Rule>> = rules): object => ({
   version: '2.1.0',
@@ -155,7 +170,7 @@ export const toSarif = (result: LintResult, all: Readonly<Record<string, Rule>> 
         ruleId: finding.rule,
         level: LEVEL[finding.level],
         message: { text: `${finding.message}. fix: ${finding.fix}` },
-        locations: [{ physicalLocation: { artifactLocation: { uri: uriOf(finding.file) } }, logicalLocations: [{ fullyQualifiedName: finding.pointer }] }],
+        ...locationsOf(finding),
       })),
     },
   ],
@@ -227,7 +242,7 @@ export const toText = (result: LintResult, scores: Readonly<Record<string, Score
     const findings = result.findings.filter((finding) => finding.file === file);
     if (findings.length === 0) continue;
     lines.push(file);
-    for (const finding of findings) lines.push(`  ${finding.level.padEnd(COLUMN)}  ${finding.rule}  ${finding.pointer}  ${finding.message}`, `  ${''.padEnd(COLUMN)}  fix: ${finding.fix}`);
+    for (const finding of findings) lines.push(`  ${finding.level.padEnd(COLUMN)}  ${finding.rule}  ${placeOf(finding)}  ${finding.message}`, `  ${''.padEnd(COLUMN)}  fix: ${finding.fix}`);
     lines.push('');
   }
   const errors = result.findings.filter((finding) => finding.level === 'error').length;
@@ -334,6 +349,12 @@ const dataOf = ({ result, scores, notCarried, notes, sarif }: Done): Record<stri
   return data;
 };
 
+/** Each input with the handlers the map names, read only when a rule on code asks for them (R14). */
+const withCode = (inputs: readonly LintInput[], root: string, typescript: LintOptions['typescript']): readonly LintInput[] => {
+  const code = codeIndexOf(() => mapIn(root), root, typescript ?? (() => typescriptIn(root)));
+  return inputs.map((input) => ({ ...input, code }));
+};
+
 /** The command's work, with the folder and the config as inputs so a test can give its own. */
 export const runLint = async (options: LintOptions): Promise<Record<string | symbol, unknown>> => {
   const config = options.config ?? (await loadConfig(options.cwd));
@@ -362,7 +383,7 @@ export const runLint = async (options: LintOptions): Promise<Record<string | sym
   const notCarried = Object.values(files).flatMap((file) => file.notCarried);
   const legacy = legacyOf(config?.lint?.legacy ?? [], all);
   const { inputs, since } = await inputsOf({ specs, base: options.specs.length > 0 ? options.cwd : root, root, git, since: options.since ?? config?.lint?.since });
-  const result = lint(inputs, all, levels, legacy);
+  const result = lint(withCode(inputs, root, options.typescript), all, levels, legacy);
   const scores = Object.fromEntries(names.map((name) => [name.replace(PREFIX, ''), scoreOf(rulesetOf(name, files) as Record<string, Level>, result.counts)]));
   const stats = await recordOf({ options, result, git, now }, days);
   return dataOf({ result, scores, notCarried, notes: { ...history, since, stats }, sarif: options.sarif === true ? toSarif(result, all) : undefined });

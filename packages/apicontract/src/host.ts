@@ -18,7 +18,7 @@ import { type Contract, type ContractFinding } from './core/model.js';
 import { builtinAdapters } from './inputs.js';
 import { type Rule } from './lint-engine.js';
 import { parse } from './lint-jsonpath.js';
-import { FUNCTIONS } from './lint-names.js';
+import { CODE_FUNCTIONS, FUNCTIONS } from './lint-names.js';
 import { SELECTS } from './lint-select.js';
 
 /** The plugin contract version: one number for the family. */
@@ -220,7 +220,18 @@ const validateExtractor = (extractor: unknown, where: string): void => {
 
 /** A `then` entry: a built-in function by name, its options an object. */
 const isThen = (then: unknown): boolean =>
-  isRecord(then) && (FUNCTIONS as readonly unknown[]).includes(then.function) && (then.field === undefined || text(then.field)) && (then.functionOptions === undefined || isRecord(then.functionOptions));
+  isRecord(then) &&
+  [...FUNCTIONS, ...CODE_FUNCTIONS].includes(then.function as never) &&
+  (then.field === undefined || text(then.field)) &&
+  (then.functionOptions === undefined || isRecord(then.functionOptions));
+
+/** A rule on code (R14) selects operations, and only it names a code function. */
+const validateCode = (rule: Record<string, unknown>, given: Record<string, unknown>, thens: readonly unknown[], where: string): void => {
+  const code = thens.some((then) => (CODE_FUNCTIONS as readonly unknown[]).includes((then as Record<string, unknown>).function));
+  if (given.implementation === true && given.select !== 'operation') refuse(`${where} reads code but selects ${String(given.select)}`, 'a rule with `given.implementation` selects `operation`: it reads each operation\'s handler');
+  if (code && given.implementation !== true) refuse(`${where} names a function on code without \`given.implementation\``, `add \`implementation: true\` to \`given\` to judge each operation's handler with ${CODE_FUNCTIONS.join(', ')}`);
+  if (given.implementation === true && rule.check !== undefined) refuse(`${where} reads code with a \`check\``, 'a rule on code says what must hold with `then`, so the handler is read once, statically');
+};
 
 /** A `path` given's paths: one or several, each inside the JSONPath subset. */
 const pathsOf = (path: unknown, where: string): void => {
@@ -244,6 +255,7 @@ const validateRule = (rule: unknown, where: string): void => {
   if (!thens.every((then) => isThen(then)) || (rule.check !== undefined && typeof rule.check !== 'function') || (thens.length === 0 && rule.check === undefined)) {
     refuse(`${where} says nothing that must hold`, `give it \`then: { function }\`, \`function\` one of ${FUNCTIONS.join(', ')}, or a \`check(node, context)\` function`);
   }
+  validateCode(rule, rule.given, thens, where);
   const { sample } = rule;
   if (!isRecord(sample) || !('document' in sample) || !Array.isArray(sample.findings) || !sample.findings.every((finding) => isRecord(finding) && typeof finding.pointer === 'string' && text(finding.message))) {
     refuse(`${where} has no sample`, 'add `sample: { document, findings: [{ pointer, message }] }`: a small document and exactly what the rule finds on it', 'E_NO_STATIC_PROJECTION');
