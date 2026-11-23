@@ -1,0 +1,1 @@
+{ "mutate": ["src/hog.ts", "src/sibling.ts"], "concurrency": 2, "flakyReruns": 0, "reporters": ["json"], "timeoutMS": 4000 }

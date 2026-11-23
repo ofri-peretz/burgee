@@ -189,7 +189,7 @@ function whereItWent(r: RunResult): string[] {
     lines.push(`  static readers: ${String(sr.mutants)} static mutants ${inUse ? 'ran' : 'would run'} ${String(sr.readerTests)} tests where their value is read, against ${String(sr.loaderTests)} in every file that loads them${ratio}; ${String(sr.fellBack)} kept every loader (${how}, ${(sr.dryRunMs / MS_PER_S).toFixed(1)} s)`);
   }
   const c = s.isolatedByCause;
-  const causes = [`static ${String(c.static)}`, `stopped ${String(c.stopped)}`, `unfinished ${String(c.unfinished)}`, `re-run ${String(c.rerun)}`, `survivors confirmed ${String(c.confirm)}`, `flaky ${String(c.flaky)}`];
+  const causes = [`static ${String(c.static)}`, `stopped ${String(c.stopped)}`, `unfinished ${String(c.unfinished)}`, `re-run ${String(c.rerun)}`, `crashed ${String(c.crashed)}`, `survivors confirmed ${String(c.confirm)}`, `flaky ${String(c.flaky)}`];
   if (s.isolatedRuns > 0) lines.push(`  isolated runs: ${causes.join(' · ')}`);
   if (s.confirmLive > 0) lines.push(`  survivors confirmed in a live worker: ${String(s.confirmLive)}, with no fresh worker each`);
   return lines;

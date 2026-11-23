@@ -72,6 +72,7 @@ export const NIGHTLY_ONLY: Readonly<Record<string, string>> = {
   [`${E2E} > queues a stopped mutant's 3x run while the first stage is still running`]: `${MUTATION_RUN}, one mutant stalled 8 s on purpose beside one running 7 s; 22 s`,
   [`${E2E} > stops a mutant at the limit of the test it hangs, not of the slowest test that covers it`]: `${MUTATION_RUN}, two mutants blocking a worker for ever, stopped and re-run; 35 s`,
   [`${E2E} > says how the worker ended when a mutant takes it down`]: `${MUTATION_RUN}, a mutant killing its worker's process with SIGKILL; about 6 s`,
+  [`${E2E} > runs a mutant whose worker went down once alone: a neighbour's crash is not its verdict`]: `${MUTATION_RUN}, a mutant killing every worker of the run beside a 4 s test; about 25 s`,
   [`${E2E} > gives a blocked warm run its 3x in place, with no server restart and the same verdicts`]: `${MUTATION_RUN}, its mutant blocking 1.2 s past its budget on purpose; 8.5 s`,
   [`${E2E} > takes the processes a test started with a server the watchdog kills`]: `${MUTATION_RUN}, through a watchdog kill and its 3x re-run, each starting a child; 20.3 s`,
   [`${E2E} > restarts a polluted context and judges later mutants from a clean state`]: `${MUTATION_RUN}; 8.2 s`,
