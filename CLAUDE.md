@@ -1,31 +1,12 @@
-# Commands
+# CLAUDE.md
 
-- `npm run ci:local` — runs the full pre-push gate (`typecheck` + `test` + `build` via turbo).
-  Run this before pushing. **Lint is not included**: `npm run lint` (eslint + workflows + md) is
-  a separate CI job, so run it independently.
-- `npm test` — vitest at the root config, then `turbo run test` per package.
-- `npm run bench` — `tsx benchmarks/run.ts`.
-- `npm run mutation:changed` — the changed-lines mutation lane against `origin/main`, the per-PR mutation gate (pre-push runs it last; needs cargo). No GitHub Actions workflow mutates (D-20261101-no-mutation-in-gha).
-- `npm run mutation:weekly` — every package's full mutation run on a clean worktree of `origin/main`, landing the ratchet PR; launchd starts it Saturdays 02:30 (`tools/launchd/`). `-- --dry-run` prints the plan.
+Map, commands and package layout: [AGENTS.md](./AGENTS.md). This file holds only what changes
+how you work in every session; every other rule is a check whose failure message names the fix.
 
-# Workflow
-
-- Branch `<type>/<slug>`. Commit `<type>(<scope>): <subject>` — commitlint enforces the scope
-  against a fixed enum (package names plus `docs ci deps release workspace benchmarks`).
-- `git commit` is fast — `pre-commit` is a no-op and only commitlint runs on the message.
-  **`git push` is the slow one**: it runs the `pre-push` battery (typecheck + test + build) and
-  can take **3–4 minutes**. That is not a hang. If a push is killed mid-flight, check
-  `git log origin/<branch> -1` before retrying — a timed-out push may still have landed.
-- IMPORTANT: never `--no-verify`. The hooks are the gate.
-- **Recording a decision or a gap is one new file**, never a row in `.sdlc/DECISIONS.md` or
-  `.sdlc/GAPS.md` — those hold the policy only, and a row written there fails a lock.
-  `npm run ledger -- new decision <slug>` → `.sdlc/decisions/D-YYYYMMDD-<slug>.md`;
-  `npm run ledger -- new gap <A|B|C|release> <slug>` → `.sdlc/gaps/<letter>-YYYYMMDD-<slug>.md`.
-  Never "the next number": the sequential ids are frozen, so parallel PRs stop colliding.
-- Waiting on CI? `gh pr checks <PR> --watch`. Never hand-roll `until … gh pr view … sleep` —
-  those loops get killed by the harness timeout and end knowing nothing.
-
-# Gotchas
-
-- This is a monorepo driven by turbo: a change in `packages/*` rebuilds dependents, so
-  `turbo run test` can be far slower than the package's own vitest run.
+- `npm run ci:local` is the pre-push gate (typecheck + test + build). `npm run lint` is a
+  separate CI job and is not in it: run it too.
+- `git push` runs that gate plus the changed-lines mutation lane: 3–4 minutes, not a hang.
+- Turbo rebuilds dependents: a `packages/*` change can make `turbo run test` far slower than the
+  package's own vitest run.
+- Every number in prose comes from a file in this repo (a generated page, a baseline, a band);
+  a claim that cannot be measured is written as _unmeasured_. (judgment, until proofline)

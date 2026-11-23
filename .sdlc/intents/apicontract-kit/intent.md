@@ -62,3 +62,16 @@ path is the cheapest adoption lever in the program (research, 2026-11-18).
 
 - The suite is exported as `apicontract/testing`, runner-agnostic: it throws on failure, so it works
   under vitest, jest and `node:test`.
+
+## Evidence sweep 2026-11-22
+
+Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/apicontract` (2,545 tests) and `packages/validator` (1,153) is green there. 3 of 4 criteria met. X3 (agent writes a plugin in one turn, read weekly) has no eval case and no skill.
+
+| # | criterion | held by | state |
+| --: | :-- | :-- | :-- |
+| 1 | `conformance` fails each of seven broken fixtures and passes the scaffold; every mutant in `src/testing*.ts` killed | `src/__fixtures__/kit/broken-*.ts` (7), `testing.test.ts`; #1625 killed the changed-line survivors | met (no package floor yet) |
+| 2 | `plugin new` output passes `conformance` and typecheck unedited | `scaffold.test.ts`, `command-plugin.test.ts` | met |
+| 3 | Each `migrate` source: every documented config example converts or yields a finding | `migrate-{openapi-typescript,openapi-fetch,hey-api,orval}.test.ts` "the documented examples" | met |
+| 4 | X3 read weekly and published | no `evals/cases/apicontract-plugin-*`; `packages/apicontract/AGENTS.md` exists, the skill does not | **open** |
+
+Status stays `approved`: `apicontract` is `private` and unpublished, and [`D-20261119-apicontract-stays-private`](../../decisions/D-20261119-apicontract-stays-private.md) reserves `shipped` for published work; a lane that meets every criterion is recorded as "criteria met, unpublished".

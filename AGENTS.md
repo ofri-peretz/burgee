@@ -58,38 +58,25 @@ own docs app (`apps/docs-<name>/content/docs/index.md`; burgee's into
 
 ## Commands
 
-From [`CLAUDE.md`](./CLAUDE.md), with Node 24 (`nvm use 24`; the hooks break on older):
+Node 24 (`engines`; the hooks break on older).
 
 ```bash
-npm run ci:local   # the full pre-push gate: typecheck + test + build via turbo
-npm run lint       # eslint + workflows + markdown + brand + artifacts — separate from ci:local
-npm test           # vitest at the root config, then turbo run test per package
-npm run bench      # the benchmark suite
+npm run ci:local          # the pre-push gate: typecheck + test + build via turbo
+npm run lint              # eslint + workflows + markdown + brand + artifacts, separate from ci:local
+npm test                  # vitest at the root config, then turbo run test per package
+npm run bench             # the benchmark suite
+npm run mutation:changed  # changed-lines mutation lane vs origin/main (pre-push runs it; needs cargo)
+npm run mutation:weekly   # full mutation run that lands the ratchet PR (launchd, Saturdays)
+npm run ledger -- new decision <slug>   # one file per decision or gap, never a table row
+npm run weight:converge   # after editing a package README: re-measures the foundation weight band
 ```
 
-Generated files each have a writer and a `--check` twin — run the writer, never hand-edit:
-`scripts/sync-package-docs.ts`, `scripts/sync-doc-versions.ts`, `scripts/readme-benchmarks.ts`,
-`npm run brand`, `npm run compat:page`.
+Editing a package README changes its packed size: run `npm run weight:converge`, or the
+foundation weight locks fail.
 
-## Rules
+Generated files each have a writer and a `--check` twin; the check names its writer. Never
+hand-edit them.
 
-- Branch `<type>/<slug>`. Commit `<type>(<scope>): <subject>`; the scope, when present, must
-  be a package name or one of `docs ci deps release workspace benchmarks` — commitlint
-  enforces the enum.
-- A change to any `packages/*` source or `package.json` needs a changeset
-  (`.changeset/<slug>.md`); internal-only work takes the `skip-changeset` label instead.
-- Editing a package README changes its packed size: the foundation weight band
-  (`.sdlc/bands/foundation-ceilings.json`) must be re-measured, or the weight locks fail.
-  `npm run weight:converge` does it — it writes the band and regenerates the READMEs, and the
-  band is the only copy: nothing else records a foundation package's `ours`.
-- A decision or a gap is **one new file**, never a row appended to `.sdlc/DECISIONS.md` or
-  `.sdlc/GAPS.md` (both hold prose only, and a lock fails on a row there):
-  `npm run ledger -- new decision <slug>` or `npm run ledger -- new gap <A|B|C|release> <slug>`
-  writes `.sdlc/decisions/D-YYYYMMDD-<slug>.md` / `.sdlc/gaps/<letter>-YYYYMMDD-<slug>.md` to
-  fill in. Never take "the next number" — D-001..D-151, A1..A30, B1..B22, C1..C7 and the few
-  written on main before the switch (`LEGACY_LATE` in `scripts/ledgers.ts`) are frozen, and
-  a new sequential id fails `decisions-lock` / `gaps-lock`. Striking a gap is `status: closed` in
-  its file. `npm run ledger -- decisions` / `gaps` prints the tables.
-- `git push` runs a 3–4 minute pre-push battery. It is not a hang. **Never `--no-verify`.**
-- Every number in prose comes from a file in this repository — a generated page, a baseline,
-  a band — and a claim that cannot be measured is written as *unmeasured*, not estimated.
+Enforced elsewhere, so not repeated here: commit format and scope (commitlint), changesets
+(the changeset gate), the ledger format (`decisions-lock` / `gaps-lock`), skipping hooks and
+CI polling loops (`.claude/hooks/guard-bash.mjs`).

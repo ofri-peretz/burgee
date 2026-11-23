@@ -53,3 +53,16 @@ one model are vision row 1 ("cannot disagree"); orval generates both but from it
 - axios and ky clients are not built until asked; `fetch` covers both runtimes they target.
 - SWR is the next client plugin after these three (Hey API #1479, 119 👍, read 2026-11-18); Vue Query,
   Solid Query and Zustand one plugin each, written by the kit's scaffold, on request.
+
+## Evidence sweep 2026-11-22
+
+Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/apicontract` (2,545 tests) and `packages/validator` (1,153) is green there. 3 of 4 criteria met in-lane. The consumer-harness readings are open.
+
+| # | criterion | held by | state |
+| --: | :-- | :-- | :-- |
+| 1 | In-lane: client against the MSW scenarios on a local `node:http` server; every body validates | `src/plugin-msw-roundtrip.test.ts` (#1634) | met |
+| 2 | Follow-up: `fetch` type-checks on the bench specs; MSW runs under real MSW (`consumers.ts`) | no reading committed | **open** |
+| 3 | Query keys stable across property order | `plugin-tanstack-query.test.ts` "makes the same key for the same input in any property order" | met |
+| 4 | Each generator has a `sample`; X1 = 0 | `plugin-fetch-sample.ts`, `plugin-msw-sample.ts`, `plugin-tanstack-query-sample.ts`, `plugin-swr-sample.ts` | met (SWR landed too) |
+
+Status stays `approved`: `apicontract` is `private` and unpublished, and [`D-20261119-apicontract-stays-private`](../../decisions/D-20261119-apicontract-stays-private.md) reserves `shipped` for published work; a lane that meets every criterion is recorded as "criteria met, unpublished".
