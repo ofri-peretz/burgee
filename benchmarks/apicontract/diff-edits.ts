@@ -39,6 +39,8 @@ export function resolve(document: Readonly<Json>, value: unknown): unknown {
     if (!isObject(current) || typeof current.$ref !== 'string') return current;
     if (!current.$ref.startsWith('#/')) return undefined;
     let target: unknown = document;
+    // A `$ref` is a URI fragment: percent-decoding comes first, then JSON Pointer's `~1`/`~0`
+    // (RFC 6901 §6), so a `%7E1` is the escaped `/` the fragment's author wrote.
     for (const raw of current.$ref.slice(2).split('/')) {
       const key = decodeURIComponent(raw).replaceAll('~1', '/').replaceAll('~0', '~');
       target = isObject(target) ? target[key] : undefined;

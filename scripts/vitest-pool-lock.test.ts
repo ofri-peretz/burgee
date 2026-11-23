@@ -20,14 +20,16 @@ const PACKAGE = fileURLToPath(new URL('../packages/burgee/', import.meta.url));
 /** A test file that hands a shell's name to a spawn, directly or as a call's `file`. */
 const SPAWNS_A_SHELL = /(?:spawn|exec)[A-Za-z]*\(\s*'(?:bash|zsh|fish|pwsh|sh)'|\bfile: '(?:bash|zsh|fish|pwsh|sh)'/;
 
-/** Every `src/*.test.ts` of the package that spawns a shell, as the config spells a path. */
-export function shellDriving(dir: string): string[] {
-  return readdirSync(join(dir, 'src'))
+/** Every `<folder>/*.test.ts` under `dir` that spawns a shell, as the config spells a path. */
+export function shellDriving(dir: string, folder = 'src'): string[] {
+  return readdirSync(join(dir, folder))
     .filter((name) => name.endsWith('.test.ts'))
-    .filter((name) => SPAWNS_A_SHELL.test(readFileSync(join(dir, 'src', name), 'utf8')))
-    .map((name) => `src/${name}`)
+    .filter((name) => SPAWNS_A_SHELL.test(readFileSync(join(dir, folder, name), 'utf8')))
+    .map((name) => `${folder}/${name}`)
     .sort();
 }
+
+const ROOT = fileURLToPath(new URL('../', import.meta.url));
 
 interface Project {
   extends?: boolean;
@@ -57,6 +59,22 @@ describe('windows-lane-holds R3c — shell-driving files run outside the paralle
     // Every file that spawns a shell is in the `shells` group and out of the pool.
     const driving = shellDriving(PACKAGE);
     expect([...(shells?.test?.include ?? [])].sort(), 'a test file spawns a shell and is not in SHELL_DRIVING').toEqual(driving);
+    expect(pool?.test?.exclude ?? []).toEqual(expect.arrayContaining(driving));
+  });
+});
+
+describe('the root locks hold the same split: shell-driving files run after the pool, one at a time', () => {
+  it('finds the shell-driving root locks, and every one of them is in the `shells` group', async () => {
+    const driving = shellDriving(ROOT, 'scripts');
+    expect(driving).toContain('scripts/changelog-section.test.ts');
+    // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- importing is the assertion: the evaluated config is what vitest reads, and the path is a fixed file in this repo
+    const mod = (await import(pathToFileURL(join(ROOT, 'vitest.root.config.ts')).href)) as { default: { test?: { projects?: Project[] } } };
+    const all = mod.default.test?.projects ?? [];
+    const pool = all.find((p) => p.test?.name === 'pool');
+    const shells = all.find((p) => p.test?.name === 'shells');
+    expect(shells?.test?.sequence?.groupOrder ?? 0).toBeGreaterThan(pool?.test?.sequence?.groupOrder ?? 0);
+    expect(shells?.test?.fileParallelism).toBe(false);
+    expect([...(shells?.test?.include ?? [])].sort(), 'a root lock spawns a shell and is not in SHELL_DRIVING (vitest.root.config.ts)').toEqual(driving);
     expect(pool?.test?.exclude ?? []).toEqual(expect.arrayContaining(driving));
   });
 });
