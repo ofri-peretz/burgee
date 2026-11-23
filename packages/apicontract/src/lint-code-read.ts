@@ -88,7 +88,7 @@ const returnedOf = (tsc: Ts, object: ts.ObjectLiteralExpression): Returned => {
   };
 };
 
-/** What a rule on code reads of a handler: its calls, the calls its input reaches, its literal returns. Nested functions' returns are theirs, not the handler's. */
+/** What a rule on code reads of a handler: its calls, the calls its input reaches, its literal returns. Nested functions' input calls and returns are theirs, not the handler's. */
 export const summarize = (tsc: Ts, handler: FunctionLike): HandlerSummary => {
   const first = handler.parameters[0];
   const input = first !== undefined && tsc.isIdentifier(first.name) ? first.name.text : undefined;
@@ -100,7 +100,8 @@ export const summarize = (tsc: Ts, handler: FunctionLike): HandlerSummary => {
       const name = calleeOf(tsc, node);
       if (name !== undefined) {
         calls.push(name);
-        if (input !== undefined && node.arguments.some((argument) => rootOf(tsc, argument) === input)) inputCalls.push(name);
+        // Only the handler's own calls guard its input: one in a callback may run later, or never.
+        if (own && input !== undefined && node.arguments.some((argument) => rootOf(tsc, argument) === input)) inputCalls.push(name);
       }
     }
     if (own && tsc.isReturnStatement(node) && node.expression !== undefined && tsc.isObjectLiteralExpression(node.expression)) returns.push(returnedOf(tsc, node.expression));

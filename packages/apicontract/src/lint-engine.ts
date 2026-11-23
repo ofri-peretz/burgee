@@ -6,7 +6,7 @@
  * and not only "0 problems" (R3).
  */
 import { type Contract } from './core/model.js';
-import { applyCode, type CodeIndex, type Handler, NO_HANDLER_FIX, NOT_FOUND_FIX } from './lint-code.js';
+import { applyCode, type CodeIndex, type Handler, isRead, NO_HANDLER_FIX, type ReadHandler, NOT_FOUND_FIX } from './lint-code.js';
 import { apply, type FunctionName } from './lint-functions.js';
 import { CODE_FUNCTIONS, type CodeFunctionName, type ThenName } from './lint-names.js';
 import { type Given, type LintNode, select } from './lint-select.js';
@@ -158,7 +158,7 @@ interface Check {
 }
 
 /** What every `then` finds on one handler: a code function reads it, a value function reads its summary. */
-const handlerProblems = (rule: Rule, handler: Handler, contract: Contract): string[] =>
+const handlerProblems = (rule: Rule, handler: ReadHandler, contract: Contract): string[] =>
   thensOf(rule).flatMap((then) => {
     const options = (then.functionOptions ?? {}) as Readonly<Record<string, unknown>>;
     const problem = isCode(then.function) ? applyCode(then.function, handler, contract, options) : apply(then.function, fieldOf(handler.summary, then.field), options);
@@ -174,8 +174,8 @@ const codeChecks = (rule: Rule, node: LintNode, input: LintInput): Check[] => {
   }
   return handlers.map((handler): Check => {
     const where = { pointer: node.pointer, name: handler.symbol };
-    if (handler.summary === undefined) return { ...where, problems: [`handler-not-found: ${handler.missing as string}`], fix: NOT_FOUND_FIX };
-    return { ...where, problems: handlerProblems(rule, handler, input.contract), code: { file: handler.file, line: handler.line as number } };
+    if (!isRead(handler)) return { ...where, problems: [`handler-not-found: ${handler.missing as string}`], fix: NOT_FOUND_FIX };
+    return { ...where, problems: handlerProblems(rule, handler, input.contract), code: { file: handler.file, line: handler.line } };
   });
 };
 

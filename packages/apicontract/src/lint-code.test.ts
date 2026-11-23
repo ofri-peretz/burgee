@@ -15,7 +15,7 @@ import { runLint, toSarif } from './command-lint.js';
 import { type Contract } from './core/model.js';
 import { PluginError, validate } from './host.js';
 import { codeIndexOf, findHandler, mapIn, summarize, typescriptIn } from './lint-code-read.js';
-import { applyCode, type Handler, type HandlerSummary } from './lint-code.js';
+import { applyCode, type Handler, type HandlerSummary, type ReadHandler } from './lint-code.js';
 import { lint, type Rule, type Then } from './lint-engine.js';
 import { read } from './openapi.js';
 import { UsageError, validateConfig } from './run-config.js';
@@ -44,7 +44,7 @@ const DOCUMENT = {
 const CONTRACT: Contract = read(DOCUMENT);
 
 const summary = (over: Partial<HandlerSummary> = {}): HandlerSummary => ({ calls: [], inputCalls: [], returns: [], ...over });
-const handler = (over: Partial<Handler> = {}): Handler => ({ file: 'h.ts', symbol: 'handlers.getPets', target: 'custom', line: 1, summary: summary(), ...over });
+const handler = (over: Partial<ReadHandler> = {}): ReadHandler => ({ file: 'h.ts', symbol: 'handlers.getPets', target: 'custom', line: 1, summary: summary(), ...over });
 
 const shaped = (returns: HandlerSummary['returns'], ref = '#/components/schemas/Problem') => applyCode('returns-error-shape', handler({ summary: summary({ returns }) }), CONTRACT, { ref });
 
@@ -147,6 +147,12 @@ describe('reading a handler', () => {
     expect(summaryOf('const h = { 1(i) { f(i); } };', 'h.1')).toBeUndefined();
     expect(summaryOf('class A { m() { first(); } }\nclass A { m() { second(); } }', 'A.m')?.calls).toStrictEqual(['first']);
     expect(summaryOf('export default class { m() {} }\nclass A { m() { f(); } }', 'A.m')?.calls).toStrictEqual(['f']);
+    // A validator in a callback guards nothing the handler answers with: it is a call, not an input call.
+    expect(summaryOf('const h = { m(input) { setTimeout(() => schema.safeParse(input.body)); return { status: 201 }; } };', 'h.m')).toStrictEqual({
+      calls: ['setTimeout', 'safeParse'],
+      inputCalls: [],
+      returns: [{ status: 201, hasBody: false }],
+    });
     // With no input, no call passes it; a return with neither status nor body has neither.
     expect(summaryOf('const h = { m() { f(1); return {}; } };', 'h.m')).toStrictEqual({ calls: ['f'], inputCalls: [], returns: [{ hasBody: false }] });
     // A call through something other than a name: `(f)()`, `a[0]()`.

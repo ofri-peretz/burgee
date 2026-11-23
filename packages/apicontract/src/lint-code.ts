@@ -31,7 +31,7 @@ export interface Returned {
 export interface HandlerSummary {
   /** The name of every function the handler calls, the last name of a member call. */
   readonly calls: readonly string[];
-  /** The functions the handler passes its input, or a member of it, to. */
+  /** The functions the handler itself passes its input, or a member of it, to; a nested function's calls are not counted. */
   readonly inputCalls: readonly string[];
   readonly returns: readonly Returned[];
 }
@@ -48,6 +48,12 @@ export interface Handler {
   /** Why it could not be read, when it could not. */
   readonly missing?: string;
 }
+
+/** A handler that was found and read: its line and its summary are there. */
+export type ReadHandler = Handler & { readonly line: number; readonly summary: HandlerSummary };
+
+/** Whether a handler was found and read, rather than missing. */
+export const isRead = (handler: Handler): handler is ReadHandler => handler.summary !== undefined;
 
 /** The handlers of each operation, as `lint` reads them for a run. */
 export interface CodeIndex {
@@ -100,8 +106,8 @@ const errorShapeOf = (contract: Contract, summary: HandlerSummary, options: Read
 };
 
 /** One code function on one handler: `undefined` when it holds, else what is wrong. */
-export const applyCode = (name: CodeFunctionName, handler: Handler, contract: Contract, options: Readonly<Record<string, unknown>> = {}): string | undefined => {
-  const summary = handler.summary as HandlerSummary;
+export const applyCode = (name: CodeFunctionName, handler: ReadHandler, contract: Contract, options: Readonly<Record<string, unknown>> = {}): string | undefined => {
+  const { summary } = handler;
   switch (name) {
     case 'calls': {
       return callsOf(summary, options);
