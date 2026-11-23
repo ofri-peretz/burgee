@@ -351,7 +351,9 @@ describe('the container plan', () => {
     const dir = scratch('oxmutate-install-');
     const ran = (install: string): number | null => {
       const block = script(containerPlan(NPX, { ...input, install, sync: whole }).sync).slice(-5).join('\n').replaceAll('/w/', `${dir.replaceAll('\\', '/')}/`);
-      return spawnSync('sh', ['-ec', block], { encoding: 'utf8' }).status;
+      const file = path.join(dir, 'install-block.sh');
+      writeFileSync(file, block);
+      return spawnSync('sh', ['-e', file], { encoding: 'utf8' }).status;
     };
     // errexit ignores `false` here, since it is not the last command of its `&&` list: the stamp was written all the same.
     expect(ran('false && true')).toBe(1);
