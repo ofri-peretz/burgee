@@ -1,4 +1,4 @@
-import { existsSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { ambientRuntime, run } from 'bellpull';
@@ -21,8 +21,10 @@ const scratch = scratchDirs();
 describe('sh', () => {
   it('runs a command line in the folder with the extra env, and reports the exit code and output', async () => {
     const dir = scratch('replay-shell-');
-    const ran = await sh('printf "%s:%s" "$PWD" "$REPLAY_PR"; echo oops >&2; exit 3', { cwd: dir, env: { REPLAY_PR: '7' } });
-    expect(ran).toEqual({ code: 3, stdout: `${dir}:7`, stderr: 'oops\n' });
+    // A file it writes proves the folder: Git Bash on Windows prints $PWD in its own spelling.
+    const ran = await sh('printf here > here.txt; printf "%s" "$REPLAY_PR"; echo oops >&2; exit 3', { cwd: dir, env: { REPLAY_PR: '7' } });
+    expect(ran).toEqual({ code: 3, stdout: '7', stderr: 'oops\n' });
+    expect(readFileSync(join(dir, 'here.txt'), 'utf8')).toBe('here');
   });
 
   it('gives a command that reads stdin an empty one when there is no input', async () => {
