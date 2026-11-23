@@ -94,7 +94,7 @@ const newCommand = defineCommand({
     const top = rootOf(options);
     const intents = intentsOf(top, options);
     const target = join(intents, args.slug);
-    if (existsSync(target)) throw new Failure(`.sdlc/intents/${args.slug} already exists`, `edit ${join(target, 'intent.md')}, or pick another slug`);
+    if (existsSync(target)) throw new Failure(`${target} already exists`, `edit ${join(target, 'intent.md')}, or pick another slug`);
     const templates = ['intent.md', 'spec.md'].map((name) => [name, read(join(intents, '_template', name))] as const);
     const missing = templates.find(([, text]) => text === undefined);
     if (missing !== undefined) throw new Failure(`no template ${join(intents, '_template', missing[0])}`, `add _template/${missing[0]} under ${intents}`);

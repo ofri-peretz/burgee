@@ -25,12 +25,20 @@ export const storeDir = async (root: string): Promise<string> => {
   return common === undefined ? join(root, '.proofline') : join(resolve(root, common), 'proofline');
 };
 
+/** A line that is not JSON is skipped: a blank one, or one cut short when a writer was killed mid-append. */
+const parsed = <T>(line: string): T[] => {
+  try {
+    return [JSON.parse(line) as T];
+  } catch {
+    return [];
+  }
+};
+
 export const readLines = <T>(file: string): T[] =>
   existsSync(file)
     ? readFileSync(file, 'utf8')
         .split('\n')
-        .filter((line) => line.trim() !== '')
-        .map((line) => JSON.parse(line) as T)
+        .flatMap((line) => parsed<T>(line))
     : [];
 
 export const appendLines = (file: string, rows: readonly unknown[]): void => {

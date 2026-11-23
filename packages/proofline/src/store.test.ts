@@ -51,6 +51,13 @@ describe('readLines and appendLines', () => {
     });
     expect(readLines(file)).toEqual([{ a: 1 }, { b: 2 }, { c: 3 }, { d: 4 }]);
   });
+
+  it('skips a line cut short by a killed writer', () => {
+    const file = join(temp(), 'cut.jsonl');
+    appendLines(file, [{ a: 1 }]);
+    writeFileSync(file, '{"b":', { flag: 'a' });
+    expect(readLines(file)).toEqual([{ a: 1 }]);
+  });
 });
 
 describe('runShell', () => {

@@ -332,7 +332,7 @@ describe('intent new', () => {
     templates(dir);
     await run(dir, ['intent', 'new', 'a']);
     expect((await json(dir, ['intent', 'new', 'a'])).error).toMatchObject({
-      message: `.sdlc/intents/a already exists. fix: edit ${join(dir, '.sdlc/intents/a/intent.md')}, or pick another slug`,
+      message: `${join(dir, '.sdlc/intents/a')} already exists. fix: edit ${join(dir, '.sdlc/intents/a/intent.md')}, or pick another slug`,
     });
     const bare = repo();
     intents(bare, { '_template/intent.md': 'x' });
