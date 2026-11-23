@@ -162,9 +162,10 @@ export function isStepOf(value: number, step: number, min: number): boolean {
  */
 const PLAIN_DECIMAL = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/u;
 
-function checkNumber(value: number | undefined, { min, max, step }: { min: number; max: number; step: number | 'any' }): boolean | string {
-  // Not finite as well as not a number: `1e999` overflows to an answer nobody could type.
-  if (value == null || !Number.isFinite(value)) return false;
+function checkNumber(answer: number | undefined, { min, max, step }: { min: number; max: number; step: number | 'any' }): boolean | string {
+  // Nothing, not a number, or not finite: `1e999` overflows to an answer nobody could type.
+  if (!Number.isFinite(answer)) return false;
+  const value = answer as number;
   if (value < min || value > max) return `Value must be between ${min} and ${max}`;
   if (step !== 'any' && !isStepOf(value, step, min)) return `Value must be a multiple of ${step}${Number.isFinite(min) ? ` starting from ${min}` : ''}`;
   return true;

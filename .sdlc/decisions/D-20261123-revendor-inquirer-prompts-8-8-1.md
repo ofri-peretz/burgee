@@ -30,7 +30,7 @@ superseded_by: —
 
 Two unit cases held the old arrow behaviour, a cleared line after an arrow in `rawlist` and `search`. They now hold the new one.
 
-**Weight.** `./inquirer/prompts` measures 66,750 B against its 65,000 B budget (`packages/caique/src/weight.test.ts`). The budget is raised to 68,000 under the owner's delegation of budgets (D-20261020-caique-inquirer-prompts-budget). The growth is the code of the ports above, since `dist` carries no comments. `npm run weight:converge` moved caique's recorded weight from 304,657 to 306,501 B in `.sdlc/bands/foundation-ceilings.json`.
+**Weight.** `./inquirer/prompts` measures 66,750 B against its 65,000 B budget (`packages/caique/src/weight.test.ts`). The budget is raised to 68,000 under the owner's delegation of budgets (D-20261020-caique-inquirer-prompts-budget). The growth is the code of the ports above, since `dist` carries no comments. `npm run weight:converge` moved caique's recorded weight from 304,657 to 306,473 B in `.sdlc/bands/foundation-ceilings.json`.
 
 **Records.** The row's `suiteDeps` moved to what 8.8.1 asks for, each checked against `npm view`:
 

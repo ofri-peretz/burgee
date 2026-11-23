@@ -99,7 +99,7 @@ export const search = createPrompt(<Value>(config: SearchConfig<Value>, done: (v
         defaultApplied.current = true;
       }
       setActive(start);
-      setSearchError(undefined);
+      // No error to clear here: the effect cleared it as it started, and only this fetch sets one.
       setResults(normalized);
       setStatus('idle');
     };
@@ -110,6 +110,7 @@ export const search = createPrompt(<Value>(config: SearchConfig<Value>, done: (v
       setSearchError(error instanceof Error && error.message ? error.message : 'Search failed');
       setActive(undefined);
       setResults([]);
+      // Stryker disable next-line StringLiteral: any status but `loading` and `validating` draws and reads keys as idle does, with no results to answer
       setStatus('idle');
     });
     return () => {

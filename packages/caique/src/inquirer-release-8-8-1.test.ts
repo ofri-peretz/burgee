@@ -49,6 +49,19 @@ describe('@inquirer/confirm 6.4.1', () => {
     await expect(answer).resolves.toBe(true);
   });
 
+  it.each([
+    { yes: 'N', no: 'Nein', typed: 'n', expected: true, why: 'the whole yes-keyword before the built-in n' },
+    { yes: 'Ab', no: 'A', typed: 'a', expected: false, why: 'the whole no-keyword before the yes prefix' },
+    { yes: 'Ja', no: 'Yok', typed: 'y', expected: true, why: 'the built-in y before the no prefix' },
+    { yes: 'Ja', no: 'Yesno', typed: 'yes', expected: true, why: 'the built-in yes before the no prefix' },
+    { yes: 'Nope', no: 'Ochi', typed: 'no', expected: false, why: 'the built-in no before the yes prefix' },
+  ])('$typed answers $expected beside $yes / $no: $why', async ({ yes, no, typed, expected }) => {
+    const { answer, events } = await render(confirm, { message: 'Sure?', theme: { keywords: { yes, no } } });
+    events.type(typed);
+    events.keypress('enter');
+    await expect(answer).resolves.toBe(expected);
+  });
+
   it('shows whole graphemes as initials, and the default one uppercased or coloured', async () => {
     const emoji = await render(confirm, { message: 'Like it?', theme: { keywords: { yes: '👍', no: '👎' } } });
     expect(emoji.getScreen()).toBe('? Like it? (👍/👎)');
@@ -153,6 +166,14 @@ describe('@inquirer/rawlist 5.4.1', () => {
     expect(getScreen()).toContain('? Fruit 31');
   });
 
+  it('writes nothing back when an arrow stops at the edge over a default nobody typed', async () => {
+    const { events, getScreen } = await render(rawlist, { message: 'Fruit', choices: fruits, loop: false, default: 'cherry' });
+    expect(getScreen()).toContain('? Fruit 3');
+    events.keypress('down');
+    events.type('1');
+    expect(getScreen()).toContain('? Fruit 1');
+  });
+
   it('preselects a choice whose value and default are both null', async () => {
     const { answer, events, getScreen } = await render(rawlist, { message: 'Pick', choices: [{ value: 'a' }, { value: null, name: 'none' }], default: null });
     expect(getScreen()).toContain('? Pick 2');
@@ -184,6 +205,18 @@ describe('@inquirer/input 5.2.1', () => {
     events.keypress('enter');
     await nextRender();
     expect(getScreen()).toBe('? Number 12a\n> Invalid input');
+  });
+
+  it('clears the error of a refused attempt when the same answer passes', async () => {
+    let attempts = 0;
+    const { answer, events, getScreen, nextRender } = await render(input, { message: 'Again?', validate: () => ++attempts > 1 || 'Try again' });
+    events.type('ok');
+    events.keypress('enter');
+    await nextRender();
+    expect(getScreen()).toContain('Try again');
+    events.keypress('enter');
+    await expect(answer).resolves.toBe('ok');
+    expect(getScreen()).toBe('✔ Again? ok');
   });
 
   it('drops the keys typed while it validated, and clears the error once answered', async () => {
@@ -223,6 +256,8 @@ describe('@inquirer/number 4.3.1', () => {
     ['+.5', 0.5],
     ['7.', 7],
     ['2E-1', 0.2],
+    ['.25', 0.25],
+    ['1e10', 1e10],
   ])('takes %s', async (typed, expected) => {
     const { answer, events } = await render(number, { message: 'Value', step: 'any' });
     events.type(typed);
@@ -275,6 +310,53 @@ describe('@inquirer/search 4.4.1', () => {
     expect(getScreen()).not.toContain('Fruit x');
     verdict.resolve(true);
     await expect(answer).resolves.toBe('apple');
+  });
+
+  it('keeps the term in the line through keys typed while it validates', async () => {
+    const verdict = pending<boolean>();
+    const seen: (string | undefined)[] = [];
+    const { events, nextRender } = await render(search, {
+      message: 'Fruit',
+      initialValue: 'ban',
+      source: (term?: string) => {
+        seen.push(term);
+        return source(term);
+      },
+      validate: () => verdict.promise,
+    });
+    await nextRender();
+    events.keypress('enter');
+    events.type('xyz');
+    verdict.resolve(false);
+    await nextRender();
+    events.type('s');
+    await nextRender();
+    // The refused choice's name replaced the term, and the ignored keys are nowhere in it.
+    expect(seen.at(-1)).toBe('bananas');
+  });
+
+  it('writes the term back for each key typed while it validates, as 4.4.1 does', async () => {
+    // The line holds the term through the validation, and a refusal of the choice the term names
+    // writes the term once more without clearing: @inquirer/search 4.4.1 then reads both.
+    const verdict = pending<string>();
+    const seen: (string | undefined)[] = [];
+    const { events, nextRender } = await render(search, {
+      message: 'Fruit',
+      initialValue: 'banana',
+      source: (term?: string) => {
+        seen.push(term);
+        return source(term);
+      },
+      validate: () => verdict.promise,
+    });
+    await nextRender();
+    events.keypress('enter');
+    events.type('x');
+    verdict.resolve('Not that one');
+    await nextRender();
+    events.type('s');
+    await nextRender();
+    expect(seen.at(-1)).toBe('bananabananas');
   });
 
   it('keeps a refused term in the line, so typing extends it', async () => {
@@ -345,6 +427,32 @@ describe('@inquirer/search 4.4.1', () => {
     expect(getScreen()).toContain('❯ apple');
     events.keypress('enter');
     await expect(answer).resolves.toBe('apple');
+  });
+
+  it('answers nothing on Enter while a failed search shows, and moves nowhere', async () => {
+    let calls = 0;
+    const { answer, events, getScreen, nextRender } = await render(search, {
+      message: 'Fruit',
+      source: async (term?: string) => {
+        calls += 1;
+        if (calls === 2) throw new Error('offline');
+        return source(term);
+      },
+    });
+    await nextRender();
+    events.keypress('down');
+    events.keypress('down');
+    expect(getScreen()).toContain('❯ cherry');
+    events.type('e');
+    await nextRender();
+    expect(getScreen()).toContain('> offline');
+    events.keypress('enter');
+    events.keypress('down');
+    events.type('r');
+    await nextRender();
+    expect(getScreen()).toContain('❯ cherry');
+    events.keypress('enter');
+    await expect(answer).resolves.toBe('cherry');
   });
 
   it('names a failed search by its error message', async () => {
