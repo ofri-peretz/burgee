@@ -31,6 +31,7 @@ and `chalk` (wave 0.4, the red ratchet) is roundel's incumbent, not anyone else'
 | `ac-lint` | `lane/ac-lint` | `packages/apicontract/src/lint-*.ts`, `packages/apicontract/src/command-lint*.ts`, `packages/apicontract/src/plugin-lint-*.ts`, `.sdlc/intents/apicontract-lint/**`, `packages/apicontract/src/__fixtures__/lint/**` | 6.0 |
 | `ac-kit` | `lane/ac-kit` | `packages/apicontract/src/testing*.ts`, `packages/apicontract/src/migrate-*.ts`, `packages/apicontract/src/scaffold*.ts`, `packages/apicontract/src/command-migrate*.ts`, `packages/apicontract/src/command-plugin*.ts`, `packages/apicontract/AGENTS.md`, `.sdlc/intents/apicontract-kit/**`, `packages/apicontract/src/__fixtures__/kit/**` | 6.0 |
 | `ac-corpus` | `lane/ac-corpus` | `benchmarks/apicontract/**`, `.sdlc/intents/apicontract-corpus/**` | — |
+| `ac-props` | `lane/ac-props` | `packages/apicontract/src/props-*.ts`, `packages/apicontract/src/command-props*.ts`, `.sdlc/intents/contract-properties/**`, `packages/apicontract/src/__fixtures__/props/**` | — |
 | `validator` | `lane/validator` | `packages/validator/**`, `.sdlc/intents/validator/**`, `benchmarks/validator/**` | harness 2.0 |
 | `replay` | `lane/replay` | `packages/replay/**`, `.sdlc/intents/replay/**`, `.sdlc/replay/**` | triggerlist's checklist (R4 firing table) |
 | `triggerlist` | `lane/triggerlist` | `packages/triggerlist/**`, `.sdlc/intents/triggerlist/**`, `.sdlc/checklist.yaml`, `REVIEW.md` | — |
