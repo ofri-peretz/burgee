@@ -1,0 +1,8 @@
+# feat(caique): caique/clack level at 16 / 16, excluding the @clack/core case by exact title (#764)
+id: bug-764
+kind: bug
+pr: 764
+base: "ee2b2ce452a3"
+head: "1817b6286fae"
+answer: "burgee migrate rewrites @clack/prompts to caique/clack but leaves @clack/core alone, so a file that also calls updateSettings from @clack/core keeps configuring clack while its prompts move to caique, and the report says nothing."
+set: tune

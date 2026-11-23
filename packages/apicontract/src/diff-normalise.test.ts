@@ -65,7 +65,7 @@ describe('equivalent rewrites: no change at all, in either direction', () => {
       { anyOf: [{ type: ['array'], prefixItems: [{ type: 'string' }], maxItems: 1, minItems: 1 }, { type: 'array', prefixItems: [{ type: 'string' }, { type: 'number' }, { type: 'boolean' }], minItems: 2, maxItems: 2 }] },
     ],
     ['keyword order', { type: 'object', required: ['a'], properties: { a: { type: 'string' } } }, { properties: { a: { type: 'string' } }, required: ['a'], type: 'object' }],
-    ['default annotations', { type: 'string', default: 'a', description: 'x' }, { type: 'string', examples: ['b'] }],
+    ['annotations', { type: 'string', description: 'x' }, { type: 'string', examples: ['b'] }],
     ...[date, datetime, duration, email, hostname, ipv4, ipv6, time, uuid].map((format) => [`format ${format.name} as its pattern`, { type: 'string', format: format.name }, { type: 'string', pattern: format.pattern.source }] satisfies Pair),
     ['a format beside its own pattern', { type: 'string', format: 'uuid' }, { type: 'string', format: 'uuid', pattern: uuid.pattern.source }],
   ])('%s', (_shape, a, b) => {

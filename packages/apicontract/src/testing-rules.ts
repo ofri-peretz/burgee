@@ -1,5 +1,5 @@
 /**
- * The seven rules of the conformance suite (apicontract-kit R2), one function each. A rule reads
+ * The eight rules of the conformance suite (apicontract-kit R2), one function each. A rule reads
  * what the suite observed and returns its failures; it never throws, so one broken rule cannot
  * hide another. The shared definition of done they check is `.sdlc/intents/apicontract/program.md`.
  */
@@ -7,7 +7,7 @@ import { type ContractFinding } from './core/model.js';
 import { documentOf, type Extractor, type Finding, type GeneratedFile, type Generator, type Host, resultOf, validate, validateFiles } from './host.js';
 import { unsafe } from './testing-owner.js';
 
-export const RULES = ['schema', 'sample', 'deterministic', 'regeneration', 'roundtrip', 'fix-lines', 'paths'] as const;
+export const RULES = ['schema', 'sample', 'deterministic', 'regeneration', 'roundtrip', 'fix-lines', 'paths', 'no-io'] as const;
 
 export type Rule = (typeof RULES)[number];
 
@@ -67,9 +67,9 @@ export const schema = (plugin: unknown): Failure[] => {
   } catch (error) {
     return [failureOf('schema', 'plugin', error, 'export the shape `Plugin` in apicontract describes')];
   }
-  const { adapters = {}, generators = {}, extractors = {} } = plugin;
-  if (Object.keys({ ...adapters, ...generators, ...extractors }).length > 0) return [];
-  return [{ rule: 'schema', where: `plugin "${plugin.name}"`, message: 'it contributes no adapter, generator or extractor', fix: 'add `generators`, `extractors` or `adapters`' }];
+  const { adapters = {}, generators = {}, extractors = {}, rules = {} } = plugin;
+  if (Object.keys({ ...adapters, ...generators, ...extractors, ...rules }).length > 0) return [];
+  return [{ rule: 'schema', where: `plugin "${plugin.name}"`, message: 'it contributes no adapter, generator, extractor or rule', fix: 'add `generators`, `extractors`, `adapters` or `rules`' }];
 };
 
 /** `sample`: each generator's run on its sample document returns exactly the files the sample declares. */

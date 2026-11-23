@@ -45,6 +45,14 @@ export interface Config {
   readonly extract: ExtractConfig;
   /** Absent when the config has no `diff` section. */
   readonly diff?: DiffConfig;
+  /** `apicontract lint`'s rulesets and per-rule levels; absent when the config has no `lint` section. */
+  readonly lint?: LintConfig;
+}
+
+/** `lint`: the rulesets a run starts from, then each rule's level over them (apicontract-lint R8). */
+export interface LintConfig {
+  readonly extends?: readonly string[];
+  readonly rules?: Readonly<Record<string, 'error' | 'warn' | 'off'>>;
 }
 
 /** The JSON Schema `apicontract.config.json` validates against. */
@@ -77,6 +85,14 @@ export const configSchema = {
       additionalProperties: false,
       properties: {
         decisions: { enum: DECISION_SETTINGS, description: 'How `apicontract diff` holds a change to the decision written in the contract. The base ref\'s value wins over the working tree\'s; `--decisions` wins over both' },
+      },
+    },
+    lint: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        extends: { type: 'array', items: { type: 'string', minLength: 1 }, description: 'Rulesets, in order: `recommended`, `agent-ready`' },
+        rules: { type: 'object', additionalProperties: { enum: ['error', 'warn', 'off'] }, description: 'A level per rule id, over the rulesets' },
       },
     },
   },
@@ -178,6 +194,27 @@ const diffOf = (value: unknown, problems: string[]): DiffConfig | undefined => {
   return decisions === undefined ? {} : { decisions };
 };
 
+const LINT_LEVELS: readonly unknown[] = ['error', 'warn', 'off'];
+
+const lintOf = (value: unknown, problems: string[]): LintConfig | undefined => {
+  if (value === undefined) return undefined;
+  if (!isRecord(value)) {
+    problems.push('`lint` must be an object. fix: write `{ "extends": ["recommended"], "rules": { … } }`');
+    return undefined;
+  }
+  for (const key of Object.keys(value)) {
+    if (!['extends', 'rules'].includes(key)) problems.push(`\`lint.${key}\` is not a lint setting. fix: remove it; lint takes extends and rules`);
+  }
+  const rules = value.rules;
+  if (rules !== undefined && !(isRecord(rules) && Object.values(rules).every((level) => LINT_LEVELS.includes(level)))) {
+    problems.push('`lint.rules` must map rule ids to "error", "warn" or "off". fix: write `"rules": { "operation-tags": "error" }`');
+  }
+  return {
+    ...(value.extends === undefined ? {} : { extends: strings(value.extends, 'lint.extends', problems) }),
+    ...(rules === undefined ? {} : { rules: rules as LintConfig['rules'] & object }),
+  };
+};
+
 const targetsOf = (value: unknown, problems: string[]): Record<string, Target> => {
   if (value !== undefined && !isRecord(value)) problems.push('`targets` must be an object. fix: map a target name to `{ "generator": "…", "out": "…" }`');
   if (!isRecord(value)) return {};
@@ -213,8 +250,9 @@ export const validateConfig = (value: unknown, file: string): Config => {
     extract: extractOf(value.extract, problems),
   };
   const diff = diffOf(value.diff, problems);
+  const lint = lintOf(value.lint, problems);
   if (problems.length > 0) throw new ConfigError(file, problems);
-  return diff === undefined ? config : { ...config, diff };
+  return { ...config, ...(diff === undefined ? {} : { diff }), ...(lint === undefined ? {} : { lint }) };
 };
 
 /** The first config file in `cwd`, in the order {@link CONFIG_FILES} lists them. */
