@@ -57,6 +57,8 @@ const problems = (validate: Validate, data: unknown): string[] => (validate(data
 type Report = { files: Record<string, { mutants: Record<string, unknown>[] }> };
 type Sarif = { runs: { tool: { driver: Record<string, unknown> }; results: unknown[] }[] };
 
+/** Stryker's own default `timeoutMS`: far above anything the fixture's one 1 ms test needs. */
+const MUTANT_TIMEOUT_MS = 5000;
 const out = mkdtempSync(path.join(tmpdir(), 'oxmutate-sc4-'));
 afterAll(() => discard(out));
 
@@ -64,7 +66,11 @@ describe.skipIf(!ready)('the reports validate against their schemas (SC4)', () =
   let report: Report;
   let sarif: Sarif;
   beforeAll(() => {
-    const r = spawnSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', out, '--reporter', 'json,sarif'], { cwd: fixture, encoding: 'utf8' });
+    // The fixture has no loop, so no mutant of it is a real Timeout. At the default 500 ms a survivor's
+    // fresh-worker confirmation (2 s, then 3x) could still be stopped on a CI runner busy with three
+    // other suites, and this case read a third status (Quality (Full) on main and on PRs, 2026-11-23). These
+    // cases check the reports' shape, not the watchdog: 5 s takes the runner's load out of them.
+    const r = spawnSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', out, '--reporter', 'json,sarif', '--mutant-timeout', String(MUTANT_TIMEOUT_MS)], { cwd: fixture, encoding: 'utf8' });
     if (r.status !== 0) throw new Error(`oxmutate run exited ${String(r.status)}: ${r.stdout}${r.stderr}`);
     report = JSON.parse(readFileSync(path.join(out, 'mutation.json'), 'utf8')) as Report;
     sarif = JSON.parse(readFileSync(path.join(out, 'mutation.sarif'), 'utf8')) as Sarif;
