@@ -18,11 +18,11 @@ import { parse as parseYaml } from 'seniority/yaml';
 
 import { type Contract } from './core/model.js';
 import { MODES, type Mode, type Side, SIDES, type Verdict } from './diff-classify.js';
-import { type Comparison, compareContracts, type Finding } from './diff-contract.js';
+import { type Comparison, compareContracts, type Finding, overall, sortFindings, summaryOf } from './diff-contract.js';
 import { checkDecisions, isDate, withDecisions } from './diff-decisions.js';
 import { compareTransitive } from './diff-transitive.js';
 import { applyUsage, parseUsage } from './diff-usage.js';
-import { bufIn, builtImages } from './input-buf.js';
+import { type BufAnnotation, type BufBreaking, breakingIn, bufIn, builtImages, type Level, LEVELS, refFix } from './input-buf.js';
 import { builtinAdapters } from './inputs.js';
 import { DECISION_SETTINGS, type DecisionSetting, decisionSettingOf, UsageError } from './run-config.js';
 
@@ -70,6 +70,8 @@ export interface DiffOptions {
   readonly git?: GitReader;
   /** The image text buf built for each protobuf source given (apicontract-protobuf R2), by spec. */
   readonly built?: ReadonlyMap<string, string> | undefined;
+  /** What buf breaking reported at `--level` (apicontract-protobuf R3), counted beside the model's findings. */
+  readonly breaking?: readonly Finding[] | undefined;
 }
 
 export interface Side_ {
@@ -100,6 +102,50 @@ export const readContract = (spec: string, cwd: string, git: GitReader, built: R
     throw new Error(`no input format reads ${spec}. fix: pass a document one of these reads: ${Object.keys(builtinAdapters).join(', ')}`);
   }
   return { label: spec, file, contract: found[1].read(document) };
+};
+
+/** The comparison with buf's findings among its own, and the verdict the worse of the two. */
+const withBreaking = (comparison: Comparison, breaking: readonly Finding[]): Comparison => {
+  const findings = sortFindings([...comparison.findings, ...breaking]);
+  const summary = summaryOf(findings);
+  return { ...comparison, findings, summary, verdict: overall(summary) };
+};
+
+/** One buf breaking annotation as a breaking finding: buf's rule id, at its file and line, with its message. */
+const findingOf = (annotation: BufAnnotation, level: Level): Finding => {
+  // A whole-file change (a file deleted) names no file buf can point into: it is grouped under its rule.
+  const where = annotation.path === '' ? `buf:${annotation.type}` : annotation.path;
+  return {
+  id: `buf:${annotation.type}`,
+  scheme: 'buf',
+  verdict: 'breaking',
+  effect: 'narrows',
+  operation: where,
+  source: annotation.path === '' ? where : `${annotation.path}:${String(annotation.line)}`,
+  document: 'new',
+  direction: 'request',
+  pointer: '',
+  before: undefined,
+  after: undefined,
+  fix: `${annotation.message} (buf breaking at --level ${level}): restore what changed, or release it as a new major version`,
+  };
+};
+
+/**
+ * buf breaking's findings for `--level` (apicontract-protobuf R3): both sides must read as
+ * protobuf, the one format with a wire encoding, and neither may be at a git ref or one of releases.
+ */
+export const bufFindings = async (options: DiffOptions, level: Level, breaking: BufBreaking): Promise<readonly Finding[]> => {
+  if (options.transitive === true) throw new UsageError('--level compares two contracts. fix: drop --transitive, or run diff --level against each release');
+  const sides = [options.old, options.new];
+  const atRef = sides.find((spec) => GIT.test(spec));
+  if (atRef !== undefined) throw new UsageError(`cannot judge ${atRef} at --level: buf reads a ref itself. ${refFix(atRef)}`);
+  for (const spec of sides) {
+    const { format } = readContract(spec, options.cwd, noGit, options.built).contract;
+    if (format !== 'protobuf') throw new UsageError(`--level judges the wire encoding, and ${spec} reads as ${format}. fix: pass protobuf on both sides (a .proto, a buf module, or the image buf builds), or drop --level`);
+  }
+  const annotations = await breaking(options.new, options.old, level, options.cwd);
+  return annotations.map((annotation) => findingOf(annotation, level));
 };
 
 /** The width of the verdict column in text output: `non-breaking` and two spaces. */
@@ -320,7 +366,8 @@ export const diff = (options: DiffOptions): Record<string | symbol, unknown> => 
   // The decisions are held against the release right before this one: the one the change is made to.
   const latest = compareContracts(last.contract, nu.contract, compare);
   const compared = options.transitive === true ? compareTransitive(olds, nu.contract, compare) : latest;
-  const changes = options.usage === undefined ? compared : applyUsage(compared, usageOf(options.usage, options.cwd));
+  const used = options.usage === undefined ? compared : applyUsage(compared, usageOf(options.usage, options.cwd));
+  const changes = options.breaking === undefined ? used : withBreaking(used, options.breaking);
   const level = settingFor(options, git);
   const today = todayOf(options.today);
   const comparison =
@@ -383,11 +430,12 @@ export const command = defineCommand({
     },
     usage: { type: 'string', description: 'a JSON file of the operations and members callers use (or an apicontract.map.json): a breaking change nobody uses is non-breaking', placeholder: 'file' },
     transitive: { type: 'boolean', description: 'compare the last contract with every one before it, not only the last: findings say which release they break' },
+    level: { type: 'string', choices: LEVELS, description: 'protobuf only: also judge the wire encoding with buf breaking at this category; its findings count as breaking' },
     dangerousBreaking: { type: 'boolean', description: 'report dangerous changes (a default changed, a value a reader may not expect) as breaking, so they fail the run' },
     today: { type: 'string', description: 'the date x-sunset is judged against (default: today, UTC)', placeholder: 'YYYY-MM-DD' },
   },
-  run: async ({ args, options }) =>
-    diff({
+  run: async ({ args, options }) => {
+    const sides: DiffOptions = {
       built: await builtImages([args.old, args.new, ...args.more], HERE, bufIn()),
       cwd: HERE,
       old: args.old,
@@ -402,5 +450,8 @@ export const command = defineCommand({
       decisions: options.decisions as DecisionSetting | undefined,
       today: options.today,
       dangerousBreaking: options.dangerousBreaking,
-    }),
+    };
+    const level = options.level as Level | undefined;
+    return diff(level === undefined ? sides : { ...sides, breaking: await bufFindings(sides, level, breakingIn()) });
+  },
 });

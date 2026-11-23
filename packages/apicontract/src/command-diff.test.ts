@@ -71,6 +71,7 @@ describe('apicontract diff, through burgee', () => {
       },
       usage: { type: 'string', description: 'a JSON file of the operations and members callers use (or an apicontract.map.json): a breaking change nobody uses is non-breaking', placeholder: 'file' },
       transitive: { type: 'boolean', description: 'compare the last contract with every one before it, not only the last: findings say which release they break' },
+      level: { type: 'string', choices: ['file', 'package', 'wire-json', 'wire'], description: 'protobuf only: also judge the wire encoding with buf breaking at this category; its findings count as breaking' },
       dangerousBreaking: { type: 'boolean', description: 'report dangerous changes (a default changed, a value a reader may not expect) as breaking, so they fail the run' },
       today: { type: 'string', description: 'the date x-sunset is judged against (default: today, UTC)', placeholder: 'YYYY-MM-DD' },
     });
