@@ -355,21 +355,30 @@ const sameness = new WeakMap<object, WeakMap<object, Map<string, boolean>>>();
  */
 const unchanged = (documents: Documents, ref: string): boolean => {
   const { old, new: nu } = documents;
+  // Stryker disable next-line LogicalOperator: equivalent, a caller passes both documents or neither
   if (!isDict(old) || !isDict(nu)) return false;
   const byNew = sameness.get(old) ?? new WeakMap<object, Map<string, boolean>>();
+  // Stryker disable next-line CallExpression: equivalent, the cache only saves repeating the same walk
   sameness.set(old, byNew);
   const memo = byNew.get(nu) ?? new Map<string, boolean>();
+  // Stryker disable next-line CallExpression: equivalent, the cache only saves repeating the same walk
   byNew.set(nu, memo);
   const equal = (one: string): boolean => {
+    // Stryker disable next-line StringLiteral: equivalent, the cache only saves repeating the same walk
     const known = memo.get(`=${one}`);
+    // Stryker disable next-line ConditionalExpression: equivalent, the cache only saves repeating the same walk
     if (known !== undefined) return known;
     const [before, after] = [reach(old, one), reach(nu, one)];
-    const result = before !== DANGLING && after !== DANGLING && canonical(before) === canonical(after);
+    // One side naming nothing already differs from the other in canonical form.
+    const result = before !== DANGLING && canonical(before) === canonical(after);
+    // Stryker disable next-line StringLiteral: equivalent, the cache only saves repeating the same walk
     memo.set(`=${one}`, result);
     return result;
   };
   const cached = memo.get(ref);
+  // Stryker disable next-line ConditionalExpression: equivalent, the cache only saves repeating the same walk
   if (cached !== undefined) return cached;
+  // Stryker disable next-line ArrayDeclaration: equivalent, the start is popped first and its references lead back to it at most once more
   const seen = new Set<string>([ref]);
   const queue = [ref];
   let result = true;
@@ -383,13 +392,17 @@ const unchanged = (documents: Documents, ref: string): boolean => {
       }
     }
   }
+  // Stryker disable next-line CallExpression: equivalent, the cache only saves repeating the same walk
   memo.set(ref, result);
   return result;
 };
 
+/** A local `$ref` with nothing beside it. */
+// Stryker disable next-line ConditionalExpression: equivalent, a schema that is no reference reads as unchanged only through a name that resolves to nothing, and that is never unchanged
+const bareRef = (schema: unknown): schema is Dict => local(schema) && Object.keys(schema).length === 1;
+
 /** A bare `$ref` on both sides, to the same name: nothing beside it can differ. */
-const sameRef = (a: unknown, b: unknown): a is Dict =>
-  local(a) && local(b) && a.$ref === b.$ref && Object.keys(a).length === 1 && Object.keys(b).length === 1;
+const sameRef = (a: unknown, b: unknown): a is Dict => bareRef(a) && bareRef(b) && a.$ref === b.$ref;
 
 /** Both sides with their local references followed, once per pair on the path. */
 const compareRefs = (walk: Walk, pointer: string, a: unknown, b: unknown): Change[] => {

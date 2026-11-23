@@ -207,6 +207,32 @@ describe('compositions', () => {
     expect(compareSchemas(twice, twice, 'request', { old: { A: example }, new: { A: example } })).toEqual([]);
   });
 
+  it('follows a shared reference into arrays and through loops before calling it unchanged', () => {
+    const bare = { $ref: '#/A' };
+    // A's own bytes are the same; the change sits behind a reference inside its allOf.
+    const inArray = { old: { A: { allOf: [{ $ref: '#/B' }] }, B: { type: 'string' } }, new: { A: { allOf: [{ $ref: '#/B' }] }, B: { type: 'integer' } } };
+    expect(compareSchemas(bare, bare, 'request', inArray).map((c) => c.rule)).toEqual(['type-narrowed', 'type-widened']);
+    // A loop B -> C -> B that never returns to A ends, and finds nothing to compare.
+    const loop = { A: { properties: { b: { $ref: '#/B' } } }, B: { properties: { c: { $ref: '#/C' } } }, C: { properties: { b: { $ref: '#/B' } } } };
+    expect(compareSchemas(bare, bare, 'request', { old: loop, new: loop })).toEqual([]);
+    // Names nothing on either side: refused, not read as the same nothing.
+    expect(() => compareSchemas(bare, bare, 'request', { old: {}, new: {} })).toThrow(/cannot resolve `#\/A`/);
+  });
+
+  it('compares what sits beside a reference, on either side, although the target is the same', () => {
+    const documents = { old: { A: { type: 'string' } }, new: { A: { type: 'string' } } };
+    const rules = (a: Parameters<typeof compareSchemas>[0], b: Parameters<typeof compareSchemas>[1]) => compareSchemas(a, b, 'request', documents).map((c) => c.rule);
+    expect(rules({ $ref: '#/A', maxLength: 5 }, { $ref: '#/A' })).not.toEqual([]);
+    expect(rules({ $ref: '#/A' }, { $ref: '#/A', maxLength: 5 })).not.toEqual([]);
+  });
+
+  it('compares a schema graph that doubles at every level without walking each path', () => {
+    // 2^40 paths from the root, the same on both sides: only a comparison that skips a same-name reference ends.
+    const graph = Object.fromEntries(Array.from({ length: 40 }, (_, level) => [`S${level}`, { type: 'object', properties: { left: { $ref: `#/S${level + 1}` }, right: { $ref: `#/S${level + 1}` } } }]));
+    const documents = { old: { ...graph, S40: { type: 'string' } }, new: { ...graph, S40: { type: 'string' } } };
+    expect(compareSchemas({ $ref: '#/S0' }, { $ref: '#/S0' }, 'request', documents)).toEqual([]);
+  });
+
   it('compares a branch kept by equal text when the count changed: its reference may point at a changed target', () => {
     const documents = { old: { A: { type: 'string' }, B: {}, C: {} }, new: { A: { type: 'string', maxLength: 5 }, B: {}, C: {} } };
     const changes = compareSchemas({ allOf: [{ $ref: '#/A' }, { $ref: '#/B' }] }, { allOf: [{ $ref: '#/A' }, { $ref: '#/B' }, { $ref: '#/C' }] }, 'request', documents);

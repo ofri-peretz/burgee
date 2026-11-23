@@ -295,6 +295,39 @@ describe('where decisions are read, member by member', () => {
     expect(members.has(keyOf('nobody', R, ''))).toBe(false);
   });
 
+  it('finds a marker any chain of references reaches, through arrays and past a cycle that does not include the start', () => {
+    const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` });
+    const components = {
+      schemas: {
+        // The marker sits in the second allOf branch of a schema reached from inside another allOf.
+        A: { allOf: [{ type: 'object' }, { properties: { b: ref('B') } }] },
+        B: { allOf: [{ type: 'object' }, { properties: { marked: { type: 'string', 'x-change': 'kept' } } }] },
+        // C reaches a loop D -> E -> D that never comes back to C, and holds no marker.
+        C: { type: 'object', properties: { d: ref('D') } },
+        D: { type: 'object', properties: { e: ref('E') } },
+        E: { type: 'object', properties: { d: ref('D') } },
+        // A loop made only of references: asking for a member under it still ends.
+        X: ref('Y'),
+        Y: ref('X'),
+      },
+    };
+    const contract = api({ type: 'object', properties: { a: ref('A'), c: ref('C'), x: ref('X') } }, { components });
+    const { decisions, members } = readDecisions(contract);
+    expect([...decisions.keys()]).toContain(keyOf('a', R, '/properties/a/properties/b/properties/marked'));
+    expect(['/properties/c/properties/d/properties/e', '/properties/x', '/properties/x/properties/z'].map((pointer) => members.has(keyOf('a', R, pointer)))).toEqual([true, true, false]);
+  });
+
+  it('reads a schema graph that doubles at every level without walking each path', () => {
+    // 2^40 paths from the root: only a walk that skips a part with no marker ends.
+    const schemas = Object.fromEntries(
+      Array.from({ length: 40 }, (_, level) => [`S${level}`, { type: 'object', properties: { left: { $ref: `#/components/schemas/S${level + 1}` }, right: { $ref: `#/components/schemas/S${level + 1}` } } }]),
+    );
+    const contract = api({ $ref: '#/components/schemas/S0' }, { components: { schemas: { ...schemas, S40: { type: 'string' } } } });
+    const { decisions, members } = readDecisions(contract);
+    expect(decisions.size).toBe(0);
+    expect(members.has(keyOf('a', R, '/properties/left/properties/right/properties/left'))).toBe(true);
+  });
+
   it('knows a payload root that has no schema to walk', () => {
     const contract = api({}, { parameters: [{ name: 'q', in: 'query' }] });
     expect(readDecisions(contract).members.has(keyOf('a', 'param:query:q', ''))).toBe(true);

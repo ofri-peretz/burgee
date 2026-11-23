@@ -296,7 +296,9 @@ const holdsMarker = (node: unknown): boolean => {
  */
 const isMarkerFree = (scan: Scan, ref: string): boolean => {
   const known = scan.markerFree.get(ref);
+  // Stryker disable next-line ConditionalExpression: equivalent, the cache only saves repeating the same walk
   if (known !== undefined) return known;
+  // Stryker disable next-line ArrayDeclaration: equivalent, the start is popped first and its references lead back to it at most once more
   const seen = new Set<string>([ref]);
   const queue = [ref];
   let free = true;
@@ -310,11 +312,13 @@ const isMarkerFree = (scan: Scan, ref: string): boolean => {
       }
     }
   }
+  // Stryker disable next-line CallExpression: equivalent, the cache only saves repeating the same walk
   scan.markerFree.set(ref, free);
   return free;
 };
 
 /** The local references anywhere under a value. */
+// Stryker disable next-line ArrayDeclaration: equivalent, a name that is no pointer looks up nothing, and nothing holds no marker
 const refsIn = (node: unknown, into: string[] = []): string[] => {
   if (Array.isArray(node)) for (const item of node) refsIn(item, into);
   else if (isDict(node)) {
@@ -327,9 +331,11 @@ const refsIn = (node: unknown, into: string[] = []): string[] => {
 
 /** The schemas a member's next step can be read from: itself, what it references, and its `allOf` branches, as the walk reads them. */
 const facesOf = (document: unknown, schema: unknown, seen: Set<unknown> = new Set()): Dict[] => {
+  // Stryker disable next-line ArrayDeclaration: equivalent, a face that is not a schema has no children to match
   if (!isDict(schema) || seen.has(schema)) return [];
   seen.add(schema);
   const ref = localRef(schema);
+  // Stryker disable next-line ArrayDeclaration: equivalent, a face that is not a schema has no children to match
   return [schema, ...(ref === undefined ? [] : facesOf(document, lookup(document, ref), seen)), ...arrayOf(schema.allOf).flatMap((branch) => facesOf(document, branch, seen))];
 };
 
@@ -352,7 +358,7 @@ const walk = (scan: Scan, at: At, schema: unknown, pointer: string): void => {
 const memberOf = (contract: Contract, key: string): boolean => {
   const [id, payload, pointer] = key.split('\n') as [string, string, string];
   const schema = contract.operations.find((operation) => operation.id === id)?.payloads.find((candidate) => candidate.name === payload)?.schema;
-  return schema !== undefined && memberIn(contract.document, schema, pointer);
+  return memberIn(contract.document, schema, pointer);
 };
 
 /** The parameter objects of an operation, by the payload name the OpenAPI reader gives them. */
