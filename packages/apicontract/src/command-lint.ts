@@ -4,7 +4,7 @@
  * `--sarif`; every finding with its `fix:` line; exit 1 when any finding is at `error`. Every run
  * ends with what it checked, and each ruleset's score: the share of its checks that passed.
  */
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { relative, resolve } from 'node:path';
 
 import { defineCommand, ExitCode } from 'burgee';
@@ -18,6 +18,7 @@ import { DEFAULT_RULESETS, gitIn, historyOf, type History, type LintGit, type Re
 import { rules, rulesets } from './lint-rules.js';
 import { type Since, sinceOf } from './lint-since.js';
 import { type NotCarried, type ReadRuleset } from './lint-spectral.js';
+import { countRun, type Idle, idleCutoff, idleDays, idleOf, statsOf } from './lint-stats.js';
 import { type Config, ConfigError, loadConfig, UsageError } from './run-config.js';
 import { loadPlugins } from './run-load.js';
 
@@ -32,6 +33,8 @@ const RULESETS = new Map(Object.entries(rulesets));
 const RULES = new Map(Object.entries(rules));
 /** The width of the level column in text output: `error` and two spaces. */
 const COLUMN = 'error'.length;
+/** `2026-11-23` of an ISO date. */
+const DATE = 'yyyy-mm-dd'.length;
 
 export interface LintOptions {
   readonly cwd: string;
@@ -50,6 +53,19 @@ export interface LintOptions {
   readonly now?: Date | undefined;
   /** Lint in full only the operations added or changed since this ref (R12), over the config's `lint.since`. */
   readonly since?: string | undefined;
+  /** Count this run into this JSON file, relative to `cwd` (R13). */
+  readonly stats?: string | undefined;
+  /** List the rules with no finding in this many days, `"90d"`, from `stats` (R13). */
+  readonly idle?: string | undefined;
+}
+
+/** What `--stats` did: the file, whether this run was counted into it, and the idle rules when `--idle` asked. */
+export interface Recorded {
+  readonly file: string;
+  /** False when this commit was counted already. */
+  readonly counted: boolean;
+  readonly idle?: readonly Idle[];
+  readonly idleFor?: string;
 }
 
 export interface Score {
@@ -164,12 +180,29 @@ const changedLines = (history: Partial<History>): string[] => {
 };
 
 /** What a run says beside its findings: the rules' history (R10, R11) and what `--since` skipped (R12). */
-export type Notes = Partial<History> & { readonly since?: Since | undefined };
+export type Notes = Partial<History> & { readonly since?: Since | undefined; readonly stats?: Recorded | undefined };
 
 /** What `--since` did, for the coverage line. */
 const sinceNote = (since: Since | undefined): string[] => {
   if (since === undefined) return [];
   return ['unapplied' in since ? `; since not applied: ${since.unapplied}` : `; since ${since.from}: ${String(since.skipped)} untouched operation(s) skipped`];
+};
+
+/** What `--stats` did, for the coverage line. */
+const statsNote = (stats: Recorded | undefined): string[] => {
+  if (stats === undefined) return [];
+  return [`; stats: ${stats.counted ? 'this run counted in' : 'this commit already counted in'} ${stats.file}`, ...(stats.idle === undefined ? [] : [`; idle ${stats.idleFor as string}: ${String(stats.idle.length)}`])];
+};
+
+/** The rules `--idle` found idle, as a block before the findings. */
+const idleLines = (stats: Recorded | undefined): string[] => {
+  if (stats?.idle === undefined || stats.idle.length === 0) return [];
+  return [
+    `rules with no finding in ${stats.idleFor as string}`,
+    ...stats.idle.map((entry) => `  ${'info'.padEnd(COLUMN)}  rule-idle  ${entry.id}: ${entry.found ? 'last found something' : 'has found nothing since its first run'} ${entry.since.slice(0, DATE)}, in ${String(entry.runs)} run(s)`),
+    `  ${''.padEnd(COLUMN)}  fix: set each to "off" in \`lint.rules\` if what it guards cannot come back; keep it if it is a tripwire`,
+    '',
+  ];
 };
 
 /** Where the rules came from, what warns first and what `--since` skipped, for the coverage line. */
@@ -179,11 +212,12 @@ const historyNote = (history: Notes): string =>
     ...(history.warnFirst === undefined || history.warnFirst.length === 0 ? [] : [`; warn first: ${String(history.warnFirst.length)} (${history.warnFirst.join(', ')})`]),
     ...(history.unchecked === undefined ? [] : [`; warn first not checked: ${history.unchecked}`]),
     ...sinceNote(history.since),
+    ...statsNote(history.stats),
   ].join('');
 
 /** Text grouped by file, then what was checked and each ruleset's score. */
 export const toText = (result: LintResult, scores: Readonly<Record<string, Score>>, notCarried: readonly NotCarried[] = [], history: Notes = {}): string => {
-  const lines: string[] = changedLines(history);
+  const lines: string[] = [...changedLines(history), ...idleLines(history.stats)];
   for (const file of [...new Set(notCarried.map((entry) => entry.file))]) {
     lines.push(file);
     for (const entry of notCarried.filter((each) => each.file === file)) lines.push(`  ${'warn'.padEnd(COLUMN)}  rule-not-carried  ${entry.pointer}  ${entry.id}: ${entry.reason}`, `  ${''.padEnd(COLUMN)}  fix: ${entry.fix}`);
@@ -244,11 +278,40 @@ const inputsOf = async (read: Read): Promise<{ readonly inputs: readonly LintInp
   return sinceOf({ git: read.git, ref: read.since, inputs: inputs.map((input) => ({ input, path: relative(read.root, resolve(read.base, input.file)) })), read: contractAt });
 };
 
+interface Count {
+  readonly options: LintOptions;
+  readonly result: LintResult;
+  readonly git: LintGit;
+  readonly now: Date;
+}
+
+/** `--idle`'s days, refused before anything runs: without `--stats` it has nothing to read. */
+const idleOption = (options: LintOptions): number | undefined => {
+  if (options.idle === undefined) return undefined;
+  if (options.stats === undefined) throw new UsageError('`--idle` reads the counts `--stats` keeps. fix: add `--stats lint-stats.json`, a file your CI caches');
+  return idleDays(options.idle);
+};
+
+/** The run counted into `--stats`'s file, once per commit (outside a repository, once per day), and the idle rules (R13). */
+const recordOf = async ({ options, result, git, now }: Count, days: number | undefined): Promise<Recorded | undefined> => {
+  if (options.stats === undefined) return undefined;
+  const path = resolve(options.cwd, options.stats);
+  // Stryker disable next-line StringLiteral: equivalent, `JSON.parse` reads a Buffer as its text
+  const stats = statsOf(existsSync(path) ? readFileSync(path, 'utf8') : undefined, options.stats);
+  const next = countRun(stats, result, { key: (await git.commit('HEAD')) ?? now.toISOString().slice(0, DATE), now });
+  if (next !== stats) writeFileSync(path, `${JSON.stringify(next, undefined, 2)}\n`);
+  return {
+    file: options.stats,
+    counted: next !== stats,
+    ...(days === undefined ? {} : { idle: idleOf(next, Object.keys(result.counts), idleCutoff(days, now)), idleFor: options.idle as string }),
+  };
+};
+
 interface Done {
   readonly result: LintResult;
   readonly scores: Readonly<Record<string, Score>>;
   readonly notCarried: readonly NotCarried[];
-  readonly notes: History & { readonly since?: Since | undefined };
+  readonly notes: History & { readonly since?: Since | undefined; readonly stats?: Recorded | undefined };
   readonly sarif: object | undefined;
 }
 
@@ -261,6 +324,9 @@ const dataOf = ({ result, scores, notCarried, notes, sarif }: Done): Record<stri
     notCarried,
     ...historyData(notes),
     ...(notes.since === undefined ? {} : { since: notes.since }),
+    ...(notes.stats === undefined ? {} : { stats: notes.stats }),
+    // burgee N7: an idempotent command says whether it changed anything; only `--stats` writes.
+    changed: notes.stats?.counted ?? false,
     ...(sarif === undefined ? {} : { sarif }),
     ...(errors > 0 ? { exitCode: ExitCode.RUNTIME, fix: 'correct each error as its own fix line says, or set its rule to "warn" in `lint.rules`' } : {}),
   };
@@ -275,6 +341,8 @@ export const runLint = async (options: LintOptions): Promise<Record<string | sym
   const configured = config?.input === undefined ? [] : [config.input];
   const specs = options.specs.length > 0 ? options.specs : configured;
   if (specs.length === 0) throw new UsageError('nothing to lint. fix: pass a spec, e.g. `apicontract lint openapi.yaml`, or set `input` in apicontract.config.json');
+  const days = idleOption(options);
+  const now = options.now ?? new Date();
   const flagged = options.rulesets !== undefined && options.rulesets.length > 0 ? options.rulesets : undefined;
   // The rules the config's plugins contribute (R4); none without a config.
   const contributed = config === undefined ? {} : (await loadPlugins(config)).rules();
@@ -287,7 +355,7 @@ export const runLint = async (options: LintOptions): Promise<Record<string | sym
     working,
     resolve: resolverOf(contributed),
     rulesFrom: options.rulesFrom,
-    now: options.now ?? new Date(),
+    now,
   });
   const { all, levels } = history.resolved;
   const { names, files } = history.sources;
@@ -296,7 +364,8 @@ export const runLint = async (options: LintOptions): Promise<Record<string | sym
   const { inputs, since } = await inputsOf({ specs, base: options.specs.length > 0 ? options.cwd : root, root, git, since: options.since ?? config?.lint?.since });
   const result = lint(inputs, all, levels, legacy);
   const scores = Object.fromEntries(names.map((name) => [name.replace(PREFIX, ''), scoreOf(rulesetOf(name, files) as Record<string, Level>, result.counts)]));
-  return dataOf({ result, scores, notCarried, notes: { ...history, since }, sarif: options.sarif === true ? toSarif(result, all) : undefined });
+  const stats = await recordOf({ options, result, git, now }, days);
+  return dataOf({ result, scores, notCarried, notes: { ...history, since, stats }, sarif: options.sarif === true ? toSarif(result, all) : undefined });
 };
 
 /** The folder the user ran the command in (see command-diff.ts). */
@@ -306,7 +375,8 @@ const HERE = '.';
 export const command = defineCommand({
   name: 'lint',
   description: "A contract's form checked by rules: standards, and whether an agent can use it as tools",
-  effects: 'read_only',
+  // Only `--stats` writes, and it counts a commit once: running again changes nothing.
+  effects: 'idempotent',
   examples: [
     { command: 'apicontract lint openapi.yaml', description: 'the recommended rules, as warnings' },
     { command: 'apicontract lint openapi.yaml --ruleset agent-ready', description: 'can an agent call this API as tools: descriptions, examples, ids' },
@@ -317,9 +387,20 @@ export const command = defineCommand({
     sarif: { type: 'boolean', description: 'print SARIF 2.1.0 for code scanning instead of text' },
     rulesFrom: { type: 'string', description: 'read the config and its ruleset files at this git ref, so a change to the rules is judged by the old ones; `merge-base` is the base with origin/main' },
     since: { type: 'string', description: "lint in full only the operations added or changed since this git ref; the rest run lint.legacy (default: none). `merge-base` is the base with origin/main; over the config's lint.since" },
+    stats: { type: 'string', description: "count this run into a JSON file of per-rule runs, findings and last finding date, once per commit; meant for a CI cache" },
+    idle: { type: 'string', description: 'with --stats: list the rules that ran and found nothing in this many days, e.g. 90d, as rule-idle' },
   },
   run: ({ positionals, options }) =>
-    runLint({ cwd: HERE, specs: positionals, rulesets: options.ruleset as string[] | undefined, sarif: options.sarif, rulesFrom: options.rulesFrom, since: options.since }),
+    runLint({
+      cwd: HERE,
+      specs: positionals,
+      rulesets: options.ruleset as string[] | undefined,
+      sarif: options.sarif,
+      rulesFrom: options.rulesFrom,
+      since: options.since,
+      stats: options.stats,
+      idle: options.idle,
+    }),
 });
 
 export { DEFAULT_RULESETS };

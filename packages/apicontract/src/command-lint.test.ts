@@ -243,9 +243,9 @@ describe('apicontract lint, through burgee', () => {
     await runBurgee(program, { argv: ['--version'] });
   });
 
-  it('is described for --help and the MCP tool list, and only reads', () => {
+  it('is described for --help and the MCP tool list, and writes only with --stats', () => {
     expect(command.description).toBe("A contract's form checked by rules: standards, and whether an agent can use it as tools");
-    expect(command.effects).toBe('read_only');
+    expect(command.effects).toBe('idempotent');
     expect(command.examples).toEqual([
       { command: 'apicontract lint openapi.yaml', description: 'the recommended rules, as warnings' },
       { command: 'apicontract lint openapi.yaml --ruleset agent-ready', description: 'can an agent call this API as tools: descriptions, examples, ids' },
@@ -262,6 +262,8 @@ describe('apicontract lint, through burgee', () => {
         type: 'string',
         description: "lint in full only the operations added or changed since this git ref; the rest run lint.legacy (default: none). `merge-base` is the base with origin/main; over the config's lint.since",
       },
+      stats: { type: 'string', description: 'count this run into a JSON file of per-rule runs, findings and last finding date, once per commit; meant for a CI cache' },
+      idle: { type: 'string', description: 'with --stats: list the rules that ran and found nothing in this many days, e.g. 90d, as rule-idle' },
     });
   });
 
