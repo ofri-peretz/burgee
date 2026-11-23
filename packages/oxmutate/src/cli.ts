@@ -139,7 +139,7 @@ const runCommand = defineCommand({
     since: { type: 'string', description: 'only mutants on lines changed since this git ref (the PR lane)' },
     frozenOracle: { type: 'string', description: "also score against this ref's tests; exit 1 if the change weakened them" },
     shard: { type: 'string', description: 'run one deterministic share, i/n, for a CI matrix' },
-    concurrency: { type: 'number', description: 'worker processes (default: cores - 1, at most 8)' },
+    concurrency: { type: 'number', description: 'worker processes (default: cores - 1, at most 8; inside a container, cores - 1)' },
     mutantTimeout: { type: 'number', description: 'absolute slack per mutant, ms (default 500; Stryker 5000)' },
     strykerCompat: { type: 'boolean', description: 'reproduce Stryker 10.0.0 skips (no mutants inside `as` casts or enums)' },
     ignoreStatic: { type: 'boolean', description: 'skip static mutants (module-level code): faster, and the score leaves them out' },

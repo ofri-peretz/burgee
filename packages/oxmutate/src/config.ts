@@ -9,7 +9,7 @@ import { availableParallelism } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { type Container, containerOf, machineDefault } from './container.js';
+import { type Container, containerOf, INSIDE, machineDefault } from './container.js';
 import { MAX_LOAD_PER_CORE } from './governor.js';
 import { type IgnoreRule } from './native.js';
 import { resolveEsm } from './resolve.js';
@@ -185,6 +185,17 @@ const NOT_NEEDED: Record<string, string> = {
  * `timeoutMS` is 5000, and a warm run needs far less (cli.ts `--mutant-timeout`).
  */
 const MAX_DEFAULT_CONCURRENCY = 8;
+
+/**
+ * Workers where the config sets none: every core but one, at most eight on a host. Inside the
+ * container oxmutate starts the cap is lifted: its cores are the ones the container was given and
+ * nothing else of the machine's work runs there, and a worker the kernel kills for memory is run
+ * again alone (crash.ts), so more workers cannot turn a neighbour's crash into a verdict.
+ */
+function defaultConcurrency(): number {
+  const spare = availableParallelism() - 1;
+  return Math.max(1, process.env[INSIDE] === 'inside' ? spare : Math.min(MAX_DEFAULT_CONCURRENCY, spare));
+}
 const DEFAULT_TIMEOUT_MS = 500;
 const DEFAULT_TIMEOUT_FACTOR = 1.5;
 const DEFAULT_THRESHOLD_HIGH = 80;
@@ -311,7 +322,7 @@ export async function loadOptions(root: string, overrides: Partial<Options> = {}
     root,
     mutate,
     vitestConfig: vitest.configFile ? path.resolve(root, vitest.configFile) : undefined,
-    concurrency: Number(raw['concurrency'] ?? Math.max(1, Math.min(MAX_DEFAULT_CONCURRENCY, availableParallelism() - 1))),
+    concurrency: Number(raw['concurrency'] ?? defaultConcurrency()),
     workers: workersOf(raw['resources']),
     ...governorOf(raw['resources']),
     timeoutMS: Number(raw['timeoutMS'] ?? DEFAULT_TIMEOUT_MS),
