@@ -271,12 +271,28 @@ describe('a protobuf contract, downstream', () => {
     expect((contract.document as { $defs: Record<string, unknown> }).$defs['p.M']).toStrictEqual({
       type: 'object',
       properties: { cat: { type: 'string', 'x-protobuf-field': 1 }, dogName: { type: 'string', 'x-protobuf-field': 2 }, maybe: { type: 'integer', 'x-protobuf-field': 3 }, lost: { type: 'boolean', 'x-protobuf-field': 4 } },
-      'x-protobuf-oneof': { pet: ['cat', 'dogName'], undefined: ['lost'] },
+      'x-protobuf-oneof': { pet: ['cat', 'dogName'], 7: ['lost'] },
     });
     expect(contract.findings).toStrictEqual([
       { code: 'oneof-not-enforced', pointer: '/file/0/messageType/0/oneofDecl/0', message: '`p.M.pet` holds at most one of `cat`, `dogName`; the schema does not enforce that', fix: 'check the choice in code, or read the group from `x-protobuf-oneof`' },
       expect.objectContaining({ pointer: '/file/0/messageType/0/oneofDecl/7' }),
     ]);
+  });
+
+  it('reads a type two messages reach once, so its findings are made once', () => {
+    const oneof = { name: 'C', field: [field('x', 1, { type: 'TYPE_STRING', oneofIndex: 0 })], oneofDecl: [{ name: 'choice' }] };
+    const contract = read(
+      image({
+        messageType: [
+          { name: 'M', field: [field('c', 1, { type: 'TYPE_MESSAGE', typeName: '.p.C' }), field('a', 2, { type: 'TYPE_MESSAGE', typeName: '.p.A' })] },
+          { name: 'A', field: [field('c', 1, { type: 'TYPE_MESSAGE', typeName: '.p.C' })] },
+          oneof,
+        ],
+        service: [{ name: 'S', method: [method('Do')] }],
+      }),
+    );
+    expect(Object.keys((contract.document as { $defs: object }).$defs).sort()).toStrictEqual(['p.A', 'p.C', 'p.M']);
+    expect(contract.findings?.map((finding) => finding.pointer)).toStrictEqual(['/file/0/messageType/2/oneofDecl/0']);
   });
 
   it('reads a list that is not one as empty, and skips what in it is not an object', () => {
