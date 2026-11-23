@@ -152,7 +152,8 @@ Turn it on for a project with `"container": true` in `oxmutate.config.json`, or 
 on the machine with `OXMUTATE_CONTAINER=1`. Docker and Podman both work. The first run installs the
 project's dependencies inside the container; later runs send only the files that changed and
 install again only when the lockfile does. `oxmutate prune` removes every container and volume it
-made. The keys and what each step does are in
+made; it is also the first fix when the engine's disk is full (`podman machine set --disk-size`
+enlarges a Podman machine's). Every failure is one line ending in `fix:`. The keys and what each step does are in
 [the configuration docs](https://oxmutate.interlace.tools/docs/configuration#in-a-container).
 
 ## How it works
