@@ -103,7 +103,9 @@ export const updateMap = (previous: ContractMap, produced: readonly Produced[]):
 
 /** The symbols the user owns that implement an operation: what a rule on code reads (apicontract-lint R14). */
 export const handlersOf = (map: ContractMap, operation: string): MapEntry[] =>
-  (new Map(Object.entries(map.operations)).get(operation) ?? []).filter((entry) => entry.owner === 'user');
+  Object.entries(map.operations)
+    .filter(([id]) => id === operation)
+    .flatMap(([, entries]) => entries.filter((entry) => entry.owner === 'user'));
 
 /** The bytes the map is written as. */
 export const serializeMap = (map: ContractMap): string => `${JSON.stringify(map, undefined, 2)}\n`;
