@@ -6,8 +6,13 @@
 import { describe, expect, it } from 'vitest';
 
 import { render } from './__fixtures__/inquirer-render.js';
+import { POINTER } from './inquirer-choices.js';
 import { checkbox, confirm, expand, input, number, password, rawlist, search } from './inquirer-prompts.js';
 import { wrapContent } from './inquirer-screen.js';
+import { TICK, UNICODE } from './inquirer-theme.js';
+
+/** The unchecked box as this platform draws it: Windows consoles get the ASCII fallback. */
+const UNCHECKED = UNICODE ? '◯' : '( )';
 
 const nothing = (): void => undefined;
 
@@ -84,7 +89,7 @@ describe('@inquirer/checkbox 5.3.1', () => {
     const { answer, events, getScreen } = await render(checkbox, { message: 'Topping', choices: toppings });
     events.keypress('2');
     expect(getScreen()).toContain('This option is disabled and cannot be toggled.');
-    expect(getScreen()).toContain('❯◯ ham');
+    expect(getScreen()).toContain(`${POINTER}${UNCHECKED} ham`);
     events.keypress('3');
     expect(getScreen()).not.toContain('This option is disabled');
     events.keypress('enter');
@@ -95,7 +100,7 @@ describe('@inquirer/checkbox 5.3.1', () => {
     const { events, getScreen } = await render(checkbox, { message: 'Topping', choices: toppings });
     events.keypress('9');
     expect(getScreen()).not.toContain('This option is disabled');
-    expect(getScreen()).toContain('❯◯ ham');
+    expect(getScreen()).toContain(`${POINTER}${UNCHECKED} ham`);
   });
 
   it.each(['a', 'i'])('clears the required error when toggling with %s', async (key) => {
@@ -216,7 +221,7 @@ describe('@inquirer/input 5.2.1', () => {
     expect(getScreen()).toContain('Try again');
     events.keypress('enter');
     await expect(answer).resolves.toBe('ok');
-    expect(getScreen()).toBe('✔ Again? ok');
+    expect(getScreen()).toBe(`${TICK} Again? ok`);
   });
 
   it('drops the keys typed while it validated, and clears the error once answered', async () => {
@@ -237,7 +242,7 @@ describe('@inquirer/input 5.2.1', () => {
     expect(getScreen()).toBe('? Two? 2');
     events.keypress('enter');
     await expect(answer).resolves.toBe('2');
-    expect(getScreen()).toBe('✔ Two? 2');
+    expect(getScreen()).toBe(`${TICK} Two? 2`);
   });
 });
 
@@ -424,7 +429,7 @@ describe('@inquirer/search 4.4.1', () => {
     events.type('p');
     await nextRender();
     expect(getScreen()).not.toContain('Search failed');
-    expect(getScreen()).toContain('❯ apple');
+    expect(getScreen()).toContain(`${POINTER} apple`);
     events.keypress('enter');
     await expect(answer).resolves.toBe('apple');
   });
@@ -442,7 +447,7 @@ describe('@inquirer/search 4.4.1', () => {
     await nextRender();
     events.keypress('down');
     events.keypress('down');
-    expect(getScreen()).toContain('❯ cherry');
+    expect(getScreen()).toContain(`${POINTER} cherry`);
     events.type('e');
     await nextRender();
     expect(getScreen()).toContain('> offline');
@@ -450,7 +455,7 @@ describe('@inquirer/search 4.4.1', () => {
     events.keypress('down');
     events.type('r');
     await nextRender();
-    expect(getScreen()).toContain('❯ cherry');
+    expect(getScreen()).toContain(`${POINTER} cherry`);
     events.keypress('enter');
     await expect(answer).resolves.toBe('cherry');
   });
