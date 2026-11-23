@@ -239,6 +239,9 @@ describe('a protobuf contract, downstream', () => {
       ['any-payload-unread', '/file/0/service/1/method/0/outputType'],
     ]);
     expect(contract.operations[0]?.payloads.map((payload) => payload.schema)).toStrictEqual([{}, { type: 'object', properties: { '@type': { type: 'string' } }, required: ['@type'] }]);
+    expect(contract.operations.map((operation) => operation.id)).toStrictEqual(['p.S.Do']);
+    expect(read(image({ messageType: [{ name: 'M', field: [null, field('a', 1, { type: 'TYPE_BOOL' })] }], service: [{ name: 'S', method: [method('Do')] }] })).document).toMatchObject({ $defs: { 'p.M': { properties: { a: { type: 'boolean', 'x-protobuf-field': 1 } } } } });
+    expect(Object.keys((read(image({ messageType: [{ name: 'M', field: [null] }], service: [{ name: 'S', method: [method('Do')] }] })).document as { $defs: { 'p.M': { properties: object } } }).$defs['p.M'].properties)).toStrictEqual([]);
   });
 
   it('reads the services of the files buf built, not of their imports', () => {

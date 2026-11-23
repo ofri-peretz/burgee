@@ -117,8 +117,8 @@
     "name": "Protocol Buffers",
     "repo": "protocolbuffers/protobuf",
     "source": "releases",
-    "reads": [],
-    "adapters": []
+    "reads": ["proto2", "proto3"],
+    "adapters": ["protobuf"]
   },
   {
     "name": "Avro",
