@@ -5,6 +5,7 @@
 > ([doc](https://claude.ai/artifact/7NWAJKCPBNoyiELySAXfEh)). The owner's direction the same day:
 > lefthook and our own lint are the preferred levers, Interlace OSS is the toolkit for every
 > verification station, and every product CLI is a burgee program. Working name.
+> Where it lives: [`D-20261123-verification-tools-live-in-burgee`](../../decisions/D-20261123-verification-tools-live-in-burgee.md).
 
 **Status:** review · **Opened:** `2026-11-23` · **Owner:** `@ofri-peretz`
 

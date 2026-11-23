@@ -62,3 +62,5 @@ Each is a default, not a decision; overturning one in review is a new decision f
 
 - First bug cases come from reverts on `main` and `fix` PRs that name the PR they fix.
 - The reviewer runs with the same model as CI, so the score is the score of what ships.
+- The grader (the separate call per finding) runs on the cheapest current model, set by one flag,
+  and a run grades at most 10 findings per case; a case that hits the cap is named in the report.

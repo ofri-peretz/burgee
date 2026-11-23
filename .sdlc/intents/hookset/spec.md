@@ -12,8 +12,8 @@ Intent: [`intent.md`](./intent.md). **Status:** draft.
   `local` override block; refuses to overwrite a hand-written file without `--force`.
 - **R3** `hookset check` compares the repo's resolved hook steps to the pinned preset and to the
   station list; exit 1 on a missing station or an unpinned remote.
-- **R4** Claude pack: a `PreToolUse` Bash hook that denies `--no-verify`, `-n` on commit,
-  `LEFTHOOK=0`, `HUSKY=0` and `core.hooksPath` changes; asks on `npm publish`, `changeset publish`
+- **R4** Claude pack: a `PreToolUse` Bash hook that denies `--no-verify`, `-n` as a `git commit` flag
+  only (never a bare `-n` token, which `git log -n` and `git diff -n` also use), `LEFTHOOK=0`, `HUSKY=0` and `core.hooksPath` changes; asks on `npm publish`, `changeset publish`
   and deploy commands from a repo-declared list; denies edits to repo-declared frozen globs.
 - **R5** A `PostToolUse` hook that counts failed test commands per session in a temp file and, on
   the third, returns a message telling the agent to stop and ask.
