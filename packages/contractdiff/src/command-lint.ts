@@ -25,8 +25,8 @@ import { loadPlugins } from './run-load.js';
 
 const TEXT = Symbol.for('burgee.text');
 
-/** A ruleset may be named with the product's prefix, as a config written for a later name would. */
-const PREFIX = /^(?:contractdiff|contractdiff):/u;
+/** A ruleset may be named with the product's prefix: `contractdiff:strict` is `strict`. */
+const PREFIX = /^contractdiff:/u;
 const PERCENT = 100;
 /** The file `lint.rules` is read from. */
 const CONFIG_FILE = 'contractdiff.config.json';

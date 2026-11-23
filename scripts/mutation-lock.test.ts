@@ -15,7 +15,7 @@
  * reason, and the ratchet file only moves up.
  */
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -44,7 +44,8 @@ import {
   writeWrapper,
 } from './mutation.js';
 import { decisionNumber } from './ratchet-steps.js';
-import { scratchDirs } from './scratch-dir.js';
+import { discard, scratchDirs } from './scratch-dir.js';
+
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PACKAGES = readdirSync(join(REPO_ROOT, 'packages'), { withFileTypes: true })
@@ -112,7 +113,7 @@ describe('which lines a pull request changed (R1)', () => {
       const diff = git(...changedDiffArgs('HEAD~1...HEAD'), '--', 'packages/');
       expect(Object.fromEntries(parseChangedLines(diff))).toEqual({ 'packages/new/src/a.ts': [[20, 20]] });
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      discard(dir);
     }
   });
 
