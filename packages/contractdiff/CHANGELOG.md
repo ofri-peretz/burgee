@@ -1,5 +1,14 @@
 # apicontract
 
+## 0.4.0
+
+### Minor Changes
+
+- [#1765](https://github.com/ofri-peretz/burgee/pull/1765) [`d718668`](https://github.com/ofri-peretz/burgee/commit/d71866827d9ebb5b7f9e6fd811fabdde0ae657f6) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `diff` reads an HTTP operation's security requirement: asking for credentials it did not, or
+  other ones, is `ac-security-narrowed` (breaking for a caller), and asking for less is
+  `ac-security-widened`. A renamed path parameter is now reported as `ac-path-parameter-renamed`,
+  dangerous: the URL is the same, but a client generated from the old contract passes it by name.
+
 ## 0.3.0
 
 ### Minor Changes
