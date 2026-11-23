@@ -1,0 +1,7 @@
+# perf(roundel): chalk builders keep their escapes and their links — no Proxy trap per access (#770)
+id: control-770
+kind: control
+pr: 770
+base: "175dfc0154d0"
+head: "6195b99344a2"
+set: tune

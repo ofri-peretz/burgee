@@ -1,0 +1,7 @@
+# feat(seniority): seniority/yaml, a YAML parser with no dependency (1/2) (#776)
+id: control-776
+kind: control
+pr: 776
+base: "04bdf3379dca"
+head: "8ba7c33b8196"
+set: tune

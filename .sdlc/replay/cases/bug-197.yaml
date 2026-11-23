@@ -1,0 +1,8 @@
+# feat(compat-oracle): grade linegauge against string-width's own suite (#197)
+id: bug-197
+kind: bug
+pr: 197
+base: "7b729a44af92"
+head: "714298efe477"
+answer: "linegauge is graded against string-width's suite and recorded in the oracle, but the generated compatibility page is not regenerated, so the compat:page --check gate fails on main."
+set: tune

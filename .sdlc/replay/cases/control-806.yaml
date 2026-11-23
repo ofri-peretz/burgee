@@ -1,0 +1,7 @@
+# feat(flagstaff): markdown and diff chat widgets (controlroom R21) (#806)
+id: control-806
+kind: control
+pr: 806
+base: "23c65073be09"
+head: "f30e011b129a"
+set: test
