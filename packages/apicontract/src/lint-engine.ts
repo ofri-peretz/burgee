@@ -64,9 +64,24 @@ export interface RuleCount {
   readonly failed: number;
 }
 
+/** The operations a run lints in full: their ids, and their pointers for a node that names no operation. */
+export interface Touched {
+  readonly ids: ReadonlySet<string>;
+  readonly sources: readonly string[];
+}
+
+/** A pointer at or under `source`: the operation's own node, or one of its members. */
+const under = (pointer: string, source: string): boolean => pointer === source || pointer.startsWith(`${source}/`);
+
+/** Whether a node belongs to a touched operation: by its operation, else by where it is. */
+export const touches = (touched: Touched, node: LintNode): boolean =>
+  node.operation === undefined ? touched.sources.some((source) => under(node.pointer, source)) : touched.ids.has(node.operation.id);
+
 export interface LintInput {
   readonly file: string;
   readonly contract: Contract;
+  /** With `--since` (R12): the operations linted in full; a node of any other runs only `lint.legacy`. */
+  readonly touched?: Touched;
 }
 
 export interface LintResult {
@@ -102,13 +117,30 @@ export const problemsOf = (rule: Rule, node: LintNode, context: LintContext): st
 
 const RANK: Readonly<Record<Exclude<Level, 'off'>, number>> = { error: 0, warn: 1 };
 
+/** One rule to run: its id, its level, and whether it is one `lint.legacy` names (R12). */
+interface Run {
+  readonly id: string;
+  readonly rule: Rule;
+  readonly level: Exclude<Level, 'off'>;
+  readonly legacy: boolean;
+}
+
+/** The nodes a rule checks on one input: under `--since`, only a touched operation's, unless the rule is a legacy one. */
+const nodesOf = (input: LintInput, run: Run): LintNode[] => {
+  const nodes = select(input.contract, run.rule.given);
+  const { touched } = input;
+  return run.legacy || touched === undefined ? nodes : nodes.filter((node) => touches(touched, node));
+};
+
 /** One rule over every input: its findings, and how many nodes it checked and failed. */
-const runRule = (id: string, rule: Rule, level: Exclude<Level, 'off'>, inputs: readonly LintInput[]): { findings: LintFinding[]; count: RuleCount } => {
+const runRule = (run: Run, inputs: readonly LintInput[]): { findings: LintFinding[]; count: RuleCount } => {
+  const { id, rule, level } = run;
   const findings: LintFinding[] = [];
   let checked = 0;
   let failed = 0;
-  for (const { file, contract } of inputs) {
-    for (const node of select(contract, rule.given)) {
+  for (const input of inputs) {
+    const { file, contract } = input;
+    for (const node of nodesOf(input, run)) {
       checked += 1;
       const problems = problemsOf(rule, node, { contract });
       if (problems.length > 0) failed += 1;
@@ -118,12 +150,20 @@ const runRule = (id: string, rule: Rule, level: Exclude<Level, 'off'>, inputs: r
   return { findings, count: { checked, failed } };
 };
 
-/** Run `rules` at `levels` over every input. A rule at `off`, or absent from `levels`, is not run. */
-export const lint = (inputs: readonly LintInput[], rules: Readonly<Record<string, Rule>>, levels: Readonly<Record<string, Level>>): LintResult => {
+/**
+ * Run `rules` at `levels` over every input. A rule at `off`, or absent from `levels`, is not run.
+ * On an input with `touched`, only the rules in `legacy` see the untouched operations (R12).
+ */
+export const lint = (
+  inputs: readonly LintInput[],
+  rules: Readonly<Record<string, Rule>>,
+  levels: Readonly<Record<string, Level>>,
+  legacy: ReadonlySet<string> = new Set(),
+): LintResult => {
   const runs = Object.entries(levels)
     .flatMap(([id, level]) => {
       const rule = new Map(Object.entries(rules)).get(id);
-      return level === 'off' || rule === undefined ? [] : [{ id, ...runRule(id, rule, level, inputs) }];
+      return level === 'off' || rule === undefined ? [] : [{ id, ...runRule({ id, rule, level, legacy: legacy.has(id) }, inputs) }];
     })
     .sort((a, b) => a.id.localeCompare(b.id, 'en'));
   const findings = runs.flatMap((run) => run.findings);

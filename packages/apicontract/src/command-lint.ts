@@ -11,10 +11,12 @@ import { defineCommand, ExitCode } from 'burgee';
 import { parse as parseYaml } from 'seniority/yaml';
 
 import { uriOf } from './command-diff.js';
+import { type Contract } from './core/model.js';
 import { builtinAdapters } from './inputs.js';
 import { type Level, lint, type Rule, type LintFinding, type LintInput, type LintResult } from './lint-engine.js';
 import { DEFAULT_RULESETS, gitIn, historyOf, type History, type LintGit, type Resolved, RULESET_FILE, rulesetOfText, type RulesetChange, type Sources, sourcesOf } from './lint-history.js';
 import { rules, rulesets } from './lint-rules.js';
+import { type Since, sinceOf } from './lint-since.js';
 import { type NotCarried, type ReadRuleset } from './lint-spectral.js';
 import { type Config, ConfigError, loadConfig, UsageError } from './run-config.js';
 import { loadPlugins } from './run-load.js';
@@ -46,6 +48,8 @@ export interface LintOptions {
   readonly git?: LintGit | undefined;
   /** The time warn-first counts from (R10), when a test gives its own. */
   readonly now?: Date | undefined;
+  /** Lint in full only the operations added or changed since this ref (R12), over the config's `lint.since`. */
+  readonly since?: string | undefined;
 }
 
 export interface Score {
@@ -99,6 +103,9 @@ export const scoreOf = (ruleset: Readonly<Record<string, Level>>, counts: LintRe
   return { passed, checked, percent: checked === 0 ? PERCENT : Math.floor((passed / checked) * PERCENT) };
 };
 
+/** A document's contract, by the first adapter that detects it. */
+const contractOf = (document: unknown): Contract | undefined => Object.values(builtinAdapters).find((adapter) => adapter.detect(document))?.read(document);
+
 /** One input read through the first adapter that detects it. */
 export const readInput = (file: string, cwd: string): LintInput => {
   let document: unknown;
@@ -108,9 +115,15 @@ export const readInput = (file: string, cwd: string): LintInput => {
   } catch (error) {
     throw new UsageError(`cannot read ${file}: ${(error as Error).message}. fix: pass a JSON or YAML document that exists`);
   }
-  const found = Object.entries(builtinAdapters).find(([, adapter]) => adapter.detect(document));
-  if (found === undefined) throw new UsageError(`no input format reads ${file}. fix: pass a document one of these reads: ${Object.keys(builtinAdapters).join(', ')}`);
-  return { file, contract: found[1].read(document) };
+  const contract = contractOf(document);
+  if (contract === undefined) throw new UsageError(`no input format reads ${file}. fix: pass a document one of these reads: ${Object.keys(builtinAdapters).join(', ')}`);
+  return { file, contract };
+};
+
+/** A document's text at a ref, as a contract: `undefined` when it does not parse or no adapter reads it, so it counts as new. */
+export const contractAt = (text: string): Contract | undefined => {
+  // Stryker disable next-line BlockStatement: equivalent, an empty handler returns the same undefined
+  try { return contractOf(parseYaml(text)); } catch { return undefined; }
 };
 
 const LEVEL: Readonly<Record<LintFinding['level'], string>> = { error: 'error', warn: 'warning' };
@@ -150,16 +163,26 @@ const changedLines = (history: Partial<History>): string[] => {
   ];
 };
 
-/** Where the rules came from and what warns first, for the coverage line. */
-const historyNote = (history: Partial<History>): string =>
+/** What a run says beside its findings: the rules' history (R10, R11) and what `--since` skipped (R12). */
+export type Notes = Partial<History> & { readonly since?: Since | undefined };
+
+/** What `--since` did, for the coverage line. */
+const sinceNote = (since: Since | undefined): string[] => {
+  if (since === undefined) return [];
+  return ['unapplied' in since ? `; since not applied: ${since.unapplied}` : `; since ${since.from}: ${String(since.skipped)} untouched operation(s) skipped`];
+};
+
+/** Where the rules came from, what warns first and what `--since` skipped, for the coverage line. */
+const historyNote = (history: Notes): string =>
   [
     ...(history.from === undefined ? [] : [`; rules from ${history.from}`]),
     ...(history.warnFirst === undefined || history.warnFirst.length === 0 ? [] : [`; warn first: ${String(history.warnFirst.length)} (${history.warnFirst.join(', ')})`]),
     ...(history.unchecked === undefined ? [] : [`; warn first not checked: ${history.unchecked}`]),
+    ...sinceNote(history.since),
   ].join('');
 
 /** Text grouped by file, then what was checked and each ruleset's score. */
-export const toText = (result: LintResult, scores: Readonly<Record<string, Score>>, notCarried: readonly NotCarried[] = [], history: Partial<History> = {}): string => {
+export const toText = (result: LintResult, scores: Readonly<Record<string, Score>>, notCarried: readonly NotCarried[] = [], history: Notes = {}): string => {
   const lines: string[] = changedLines(history);
   for (const file of [...new Set(notCarried.map((entry) => entry.file))]) {
     lines.push(file);
@@ -197,6 +220,54 @@ const resolverOf =
     levels: levelsOf(sources.names, sources.overrides, contributed, sources.files),
   });
 
+/** The rules `lint.legacy` names, each one a rule this run knows; a name that is not one is a config to fix. */
+const legacyOf = (names: readonly string[], all: Readonly<Record<string, Rule>>): ReadonlySet<string> => {
+  const known = new Set(Object.keys(all));
+  const unknown = names.filter((id) => !known.has(id));
+  if (unknown.length > 0) throw new ConfigError(CONFIG_FILE, unknown.map((id) => `\`lint.legacy\` names \`${id}\`, which is not a rule. fix: use one of ${[...known].sort().join(', ')}`));
+  return new Set(names);
+};
+
+interface Read {
+  readonly specs: readonly string[];
+  /** The folder the specs are relative to, and the one git runs in. */
+  readonly base: string;
+  readonly root: string;
+  readonly git: LintGit;
+  readonly since: string | undefined;
+}
+
+/** Each spec read, with what it touched since `--since`'s ref when one is given (R12). */
+const inputsOf = async (read: Read): Promise<{ readonly inputs: readonly LintInput[]; readonly since?: Since }> => {
+  const inputs = read.specs.map((spec) => readInput(spec, read.base));
+  if (read.since === undefined) return { inputs };
+  return sinceOf({ git: read.git, ref: read.since, inputs: inputs.map((input) => ({ input, path: relative(read.root, resolve(read.base, input.file)) })), read: contractAt });
+};
+
+interface Done {
+  readonly result: LintResult;
+  readonly scores: Readonly<Record<string, Score>>;
+  readonly notCarried: readonly NotCarried[];
+  readonly notes: History & { readonly since?: Since | undefined };
+  readonly sarif: object | undefined;
+}
+
+/** What a run returns: its data for `--json`, its text, and exit 1 when any finding is at `error`. */
+const dataOf = ({ result, scores, notCarried, notes, sarif }: Done): Record<string | symbol, unknown> => {
+  const errors = result.findings.filter((finding) => finding.level === 'error').length;
+  const data: Record<string | symbol, unknown> = {
+    ...result,
+    scores,
+    notCarried,
+    ...historyData(notes),
+    ...(notes.since === undefined ? {} : { since: notes.since }),
+    ...(sarif === undefined ? {} : { sarif }),
+    ...(errors > 0 ? { exitCode: ExitCode.RUNTIME, fix: 'correct each error as its own fix line says, or set its rule to "warn" in `lint.rules`' } : {}),
+  };
+  data[TEXT] = () => (sarif === undefined ? toText(result, scores, notCarried, notes) : JSON.stringify(sarif, undefined, 2));
+  return data;
+};
+
 /** The command's work, with the folder and the config as inputs so a test can give its own. */
 export const runLint = async (options: LintOptions): Promise<Record<string | symbol, unknown>> => {
   const config = options.config ?? (await loadConfig(options.cwd));
@@ -208,8 +279,9 @@ export const runLint = async (options: LintOptions): Promise<Record<string | sym
   // The rules the config's plugins contribute (R4); none without a config.
   const contributed = config === undefined ? {} : (await loadPlugins(config)).rules();
   const working = sourcesOf(config?.lint, flagged, (name) => rulesetOfText(name, () => readFileSync(resolve(root, name), 'utf8'), CONFIG_FILE));
+  const git = options.git ?? gitIn(root);
   const history = await historyOf({
-    git: options.git ?? gitIn(root),
+    git,
     config: config === undefined ? undefined : { file: config.file, name: relative(root, config.file) },
     flagged,
     working,
@@ -220,24 +292,11 @@ export const runLint = async (options: LintOptions): Promise<Record<string | sym
   const { all, levels } = history.resolved;
   const { names, files } = history.sources;
   const notCarried = Object.values(files).flatMap((file) => file.notCarried);
-  const result = lint(
-    specs.map((spec) => readInput(spec, options.specs.length > 0 ? options.cwd : root)),
-    all,
-    levels,
-  );
+  const legacy = legacyOf(config?.lint?.legacy ?? [], all);
+  const { inputs, since } = await inputsOf({ specs, base: options.specs.length > 0 ? options.cwd : root, root, git, since: options.since ?? config?.lint?.since });
+  const result = lint(inputs, all, levels, legacy);
   const scores = Object.fromEntries(names.map((name) => [name.replace(PREFIX, ''), scoreOf(rulesetOf(name, files) as Record<string, Level>, result.counts)]));
-  const errors = result.findings.filter((finding) => finding.level === 'error').length;
-  const sarif = options.sarif === true ? toSarif(result, all) : undefined;
-  const data: Record<string | symbol, unknown> = {
-    ...result,
-    scores,
-    notCarried,
-    ...historyData(history),
-    ...(sarif === undefined ? {} : { sarif }),
-    ...(errors > 0 ? { exitCode: ExitCode.RUNTIME, fix: 'correct each error as its own fix line says, or set its rule to "warn" in `lint.rules`' } : {}),
-  };
-  data[TEXT] = () => (sarif === undefined ? toText(result, scores, notCarried, history) : JSON.stringify(sarif, undefined, 2));
-  return data;
+  return dataOf({ result, scores, notCarried, notes: { ...history, since }, sarif: options.sarif === true ? toSarif(result, all) : undefined });
 };
 
 /** The folder the user ran the command in (see command-diff.ts). */
@@ -257,9 +316,10 @@ export const command = defineCommand({
     ruleset: { type: 'string', multiple: true, choices: Object.keys(rulesets), description: "a ruleset to run, over the config's lint.extends (default recommended)" },
     sarif: { type: 'boolean', description: 'print SARIF 2.1.0 for code scanning instead of text' },
     rulesFrom: { type: 'string', description: 'read the config and its ruleset files at this git ref, so a change to the rules is judged by the old ones; `merge-base` is the base with origin/main' },
+    since: { type: 'string', description: "lint in full only the operations added or changed since this git ref; the rest run lint.legacy (default: none). `merge-base` is the base with origin/main; over the config's lint.since" },
   },
   run: ({ positionals, options }) =>
-    runLint({ cwd: HERE, specs: positionals, rulesets: options.ruleset as string[] | undefined, sarif: options.sarif, rulesFrom: options.rulesFrom }),
+    runLint({ cwd: HERE, specs: positionals, rulesets: options.ruleset as string[] | undefined, sarif: options.sarif, rulesFrom: options.rulesFrom, since: options.since }),
 });
 
 export { DEFAULT_RULESETS };
