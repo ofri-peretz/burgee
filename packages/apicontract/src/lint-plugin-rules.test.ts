@@ -218,7 +218,7 @@ describe('lint with a plugin rule', () => {
   const dir = makeDir('apicontract-lint-plugin-');
   copyFileSync(FIXTURE, join(dir, 'summary-rule.mjs'));
   writeFileSync(join(dir, 'api.json'), JSON.stringify(document));
-  const configured = (lint?: object) => validateConfig({ plugins: ['./summary-rule.mjs'], ...(lint === undefined ? {} : { lint }) }, join(dir, 'apicontract.config.json'));
+  const configured = (lint?: object) => validateConfig({ plugins: ['./summary-rule.mjs'], ...(lint === undefined ? {} : { lint }) }, join(dir, 'contractdiff.config.json'));
 
   it('runs a contributed rule at warn, and at the level the config sets', async () => {
     const data = await runLint({ cwd: dir, specs: ['api.json'], config: configured(), sarif: true });

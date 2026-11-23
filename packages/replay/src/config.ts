@@ -7,7 +7,7 @@
  * exits non-zero. `maxFindings` caps the grader calls per case, which is what a run costs.
  */
 import { parse as parseYaml } from 'seniority/yaml';
-import { array, enumOf, number, object, optional, parse, string } from 'validator';
+import { array, enumOf, number, object, optional, parse, string } from 'loadline';
 
 export const SEVERITIES = ['must-fix', 'should-fix', 'nit', 'pre-existing'] as const;
 export type Severity = (typeof SEVERITIES)[number];

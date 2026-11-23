@@ -41,7 +41,7 @@ interface Library {
 
 /** Our own validator, installed from this checkout's build so it is read by the same code as the rest. */
 const OURS = path.resolve(import.meta.dirname, '../../packages/validator');
-const OURS_IMPORTS = `import { array, boolean, check, discriminated, enumOf, literal, number, object, optional, string } from 'validator';`;
+const OURS_IMPORTS = `import { array, boolean, check, discriminated, enumOf, literal, number, object, optional, string } from 'loadline';`;
 const oursSchema = (i: string): string => `
 const Item${i} = object({ sku: string({ min: 1, max: 32 }), qty: number({ int: true, min: 1 }), price: number({ min: 0 }) });
 const S${i} = object({
@@ -59,12 +59,12 @@ const LIBRARIES: Record<string, Library> = {
     imports: OURS_IMPORTS,
     schema: oursSchema,
     check: (s) => `(d) => check(${s}, d)`,
-    infer: (i) => `import('validator').Infer<typeof S${i}>`,
+    infer: (i) => `import('loadline').Infer<typeof S${i}>`,
   },
   // The emitter's code, compiled at run time as ajv compiles: what \`apicontract gen validator\` writes ahead of time.
   oursEmitted: {
     pkg: `file:${OURS}`,
-    imports: `${OURS_IMPORTS}\nimport { compile } from 'validator/jit';`,
+    imports: `${OURS_IMPORTS}\nimport { compile } from 'loadline/jit';`,
     schema: oursSchema,
     check: (s) => `compile(${s})`,
   },
@@ -187,7 +187,7 @@ const bin = (name: string): string => path.join(path.dirname(require.resolve('ty
 const dir = process.argv[2] ?? mkdtempSync(path.join(tmpdir(), 'validator-baseline-'));
 mkdirSync(dir, { recursive: true });
 writeFileSync(path.join(dir, 'package.json'), '{"private":true,"type":"module"}');
-mustRun('npm', ['run', 'build', '--workspace', 'validator'], path.resolve(OURS, '../..'));
+mustRun('npm', ['run', 'build', '--workspace', 'loadline'], path.resolve(OURS, '../..'));
 mustRun('npm', ['i', '--silent', '--no-audit', '--no-fund', ...new Set(Object.values(LIBRARIES).map((l) => l.pkg))], dir);
 writeFileSync(path.join(dir, 'run.mjs'), RUNNER);
 

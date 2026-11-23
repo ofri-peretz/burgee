@@ -4,8 +4,8 @@
  * The names and options are Spectral's core functions, so a carried `.spectral.yaml` rule (R9)
  * means here what it meant there.
  */
-import { check } from 'validator';
-import { fromJsonSchema, type ImportDraft } from 'validator/json-schema';
+import { check } from 'loadline';
+import { fromJsonSchema, type ImportDraft } from 'loadline/json-schema';
 
 import { type FunctionName } from './lint-names.js';
 

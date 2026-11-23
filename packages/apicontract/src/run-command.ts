@@ -12,7 +12,7 @@ const writing = {
   check: { type: 'boolean', description: 'write nothing; exit 1 and list the files that are stale' },
   dryRun: { type: 'boolean', description: 'write nothing; print the diff a run would write' },
   force: { type: 'boolean', description: 'overwrite a generated file that was edited by hand' },
-  config: { type: 'string', description: 'the config file (default: apicontract.config.json, .mjs or .ts in this folder)', placeholder: 'path' },
+  config: { type: 'string', description: 'the config file (default: contractdiff.config.json, .mjs or .ts in this folder)', placeholder: 'path' },
 } as const;
 
 /**

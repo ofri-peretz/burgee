@@ -127,12 +127,12 @@ export interface RuleId {
   /** The id a finding is reported and suppressed by. */
   readonly id: string;
   /** Whose scheme `id` is in. */
-  readonly scheme: 'oasdiff' | 'apicontract';
+  readonly scheme: 'oasdiff' | 'contractdiff';
 }
 
 /** The public id of `rule` where it happened. */
 export const ruleId = (rule: string, direction: Direction, payload: string | undefined, pointer: string): RuleId => {
   const locus = locusOf(direction, payload, pointer);
   const id = OASDIFF.get(`${rule}@${String(locus)}`);
-  return id === undefined ? { id: `ac-${rule}`, scheme: 'apicontract' } : { id, scheme: 'oasdiff' };
+  return id === undefined ? { id: `ac-${rule}`, scheme: 'contractdiff' } : { id, scheme: 'oasdiff' };
 };

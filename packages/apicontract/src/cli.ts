@@ -1,5 +1,5 @@
 /**
- * apicontract's commands, declared once so burgee projects each to `--json`, `--schema`, `--mcp`,
+ * contractdiff's commands, declared once so burgee projects each to `--json`, `--schema`, `--mcp`,
  * completions and `--skill`. Phase 0: every command is declared with its final name and effects
  * and fails with a `fix:` line naming the phase that delivers it (roadmap.md), until it lands. `gen`
  * and `extract` come first because they are the product: spec to code, and code to spec.
@@ -17,12 +17,12 @@ const planned = (name: string, description: string, phase: string, effects: Effe
     description,
     effects,
     run: () => {
-      throw new Error(`\`apicontract ${name}\` is not implemented yet. fix: it lands in ${phase} (.sdlc/intents/apicontract/roadmap.md)`);
+      throw new Error(`\`contractdiff ${name}\` is not implemented yet. fix: it lands in ${phase} (.sdlc/intents/apicontract/roadmap.md)`);
     },
   });
 
 export const program = defineProgram({
-  name: 'apicontract',
+  name: 'contractdiff',
   version: VERSION,
   description: 'Turn your specs into code and your code into specs, through plugins',
   commands: [

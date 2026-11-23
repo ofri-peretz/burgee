@@ -35,7 +35,7 @@ describe.each(TARGETS)('the $name plugin', ({ name, plugin, framework, run, desc
   const golden = (path: string): string => readFileSync(new URL(`__fixtures__/servers/${name}/sample/${path}.golden.txt`, import.meta.url), 'utf8');
   const host = () => {
     const created = createHost();
-    created.register({ name: 'apicontract', adapters: builtinAdapters });
+    created.register({ name: 'contractdiff', adapters: builtinAdapters });
     created.register(plugin);
     return created;
   };
@@ -205,7 +205,7 @@ describe('routesFile and handlersFile', () => {
   it('writes one stub per operation, a blank line between them', () => {
     const route = { id: 'a', method: 'delete', path: '/a', source: '#', name: 'a', handler: 'handleA', params: [], responses: [{ status: '204' }] };
     expect(handlersFile(EXPRESS, [route, { ...route, name: 'b', method: 'get', responses: [] }])).toBe(`/**
- * The handlers the routes call, one per operation. apicontract wrote this file once and never
+ * The handlers the routes call, one per operation. contractdiff wrote this file once and never
  * rewrites it: change it freely. \`Handlers\` (routes.ts, regenerated) declares one method per
  * operation, and the routes validate every request and response; each method here answers the spec's
  * example until you replace it. Serve them with \`app.use(createRouter(handlers))\` from routes.ts.

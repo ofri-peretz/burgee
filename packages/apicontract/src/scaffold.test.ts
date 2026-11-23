@@ -13,10 +13,10 @@ const directory = scratch('apicontract-scaffold-');
 const testing = pathToFileURL(join(import.meta.dirname, 'testing.ts')).href;
 
 
-/** Write a scaffold to disk with `apicontract/testing` pointing at this checkout, and import it. */
+/** Write a scaffold to disk with `contractdiff/testing` pointing at this checkout, and import it. */
 const load = async (name: string, kind: (typeof KINDS)[number]): Promise<Record<string, unknown>> => {
   const files = scaffold(name, kind);
-  for (const file of files) writeFileSync(join(directory, file.path), file.content.replaceAll("'apicontract/testing'", `'${testing}'`));
+  for (const file of files) writeFileSync(join(directory, file.path), file.content.replaceAll("'contractdiff/testing'", `'${testing}'`));
   // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the point of the test: the scaffold as written to disk, loaded as a user would load it
   return (await import(pathToFileURL(join(directory, `plugin-${name}.ts`)).href)) as Record<string, unknown>;
 };
@@ -35,8 +35,8 @@ describe('the scaffold', () => {
       ['plugin-pets.test.ts', 'user'],
       ['README.md', 'user'],
     ]);
-    expect(files[0]?.content).toContain(`apicontract plugin new pets --kind ${kind}`);
-    expect(files[1]?.content).toContain("import { conformance } from 'apicontract/testing';");
+    expect(files[0]?.content).toContain(`contractdiff plugin new pets --kind ${kind}`);
+    expect(files[1]?.content).toContain("import { conformance } from 'contractdiff/testing';");
     expect(files[2]?.content).toContain(`a\n${kind}, scaffolded by`);
   });
 
@@ -46,18 +46,18 @@ describe('the scaffold', () => {
     ['adapter', 'an input format, and a generator that reads it'],
     ['rules', '`lint` rules'],
   ] as const)('says what a %s plugin is in its first line', (kind, what) => {
-    expect(scaffold('pets', kind)[0]?.content.split('\n').slice(0, 2)).toEqual(['/**', ` * The \`pets\` apicontract plugin: ${what}.`]);
+    expect(scaffold('pets', kind)[0]?.content.split('\n').slice(0, 2)).toEqual(['/**', ` * The \`pets\` contractdiff plugin: ${what}.`]);
   });
 
   it('tells a rule what to change, and the others to change `run`', () => {
-    expect(scaffold('pets', 'rules')[0]?.content).toContain(' * Scaffolded by `apicontract plugin new pets --kind rules`. Change `then` or `check`, then make `sample.findings`\n * say exactly what the rule finds on `sample.document`:');
+    expect(scaffold('pets', 'rules')[0]?.content).toContain(' * Scaffolded by `contractdiff plugin new pets --kind rules`. Change `then` or `check`, then make `sample.findings`\n * say exactly what the rule finds on `sample.document`:');
     expect(scaffold('pets', 'generator')[0]?.content).toContain('Change `run`, then make `sample`\n * say exactly what `run` returns for `sample.document`:');
   });
 
   it('writes a seeded rule exactly, its document and findings indented where they sit', () => {
     const seed = { document: { a: [1] }, select: 'document', pointer: '#', message: 'm "q"', fix: 'f', findings: [{ pointer: '#', message: 'm' }] } as const;
-    expect(scaffold('pets', 'rules', seed)[0]?.content.split('\n').slice(0, 2)).toEqual(['/**', ' * The `pets` apicontract plugin: `lint` rules.']);
-    expect(scaffold('pets', 'rules', seed)[0]?.content).toContain(' * Scaffolded by `apicontract plugin new pets --kind rules`. Change `then`');
+    expect(scaffold('pets', 'rules', seed)[0]?.content.split('\n').slice(0, 2)).toEqual(['/**', ' * The `pets` contractdiff plugin: `lint` rules.']);
+    expect(scaffold('pets', 'rules', seed)[0]?.content).toContain(' * Scaffolded by `contractdiff plugin new pets --kind rules`. Change `then`');
     expect(scaffold('pets', 'rules', seed)[0]?.content).toContain(`const DOCUMENT = {
   "a": [
     1

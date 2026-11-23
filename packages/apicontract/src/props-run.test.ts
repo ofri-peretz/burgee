@@ -164,7 +164,7 @@ const twice = (schema: unknown): Contract => {
   return { ...one, operations: [operation, { ...operation, id: 'op2' }] };
 };
 
-/** apicontract's validator, its issues moved by `move`. */
+/** contractdiff's validator, its issues moved by `move`. */
 const moving = (move: (paths: string[]) => string[]) => ({
   validator: (document: unknown, draft: Parameters<typeof validatorJudge>[1]) => {
     const real = validatorJudge(document, draft);
@@ -230,7 +230,7 @@ describe('runProps, told apart', () => {
 /** The payloads soundness fails on, old to new, with a classifier that finds only `findings`. */
 const failing = (findings: readonly Partial<Finding>[]): string[] => runProps(old, { runs: 200, seed: 1, against: nu, subject: blind(findings) }).counterexamples.map((found) => `${found.operation} ${found.payload}`).sort();
 
-/** apicontract's validator, except that it cannot read a schema whose text holds `marker`. */
+/** contractdiff's validator, except that it cannot read a schema whose text holds `marker`. */
 const unreadable = (marker: string) => ({
   ...blind([]),
   validator: (document: unknown, draft: Parameters<typeof validatorJudge>[1]) => {
@@ -261,7 +261,7 @@ describe('soundness, told apart', () => {
 });
 
 describe('the pieces the runner is built from', () => {
-  it("is apicontract's own code unless a test plants another", () => {
+  it("is contractdiff's own code unless a test plants another", () => {
     expect(SUBJECT.normalise).toBe(normalise);
     expect(SUBJECT.compare).toBe(compareContracts);
     expect(SUBJECT.decode(SUBJECT.encode({ a: [1] }))).toEqual({ a: [1] });

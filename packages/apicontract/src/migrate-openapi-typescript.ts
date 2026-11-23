@@ -1,8 +1,8 @@
 /**
- * `apicontract migrate openapi-typescript` (apicontract-kit R4): its CLI flags in `package.json`
- * scripts and its `redocly.yaml` `apis` become `apicontract.config.json` with the `types` target in
+ * `contractdiff migrate openapi-typescript` (apicontract-kit R4): its CLI flags in `package.json`
+ * scripts and its `redocly.yaml` `apis` become `contractdiff.config.json` with the `types` target in
  * `openapi-typescript` compat mode. The output is the same, so no import changes; the scripts that
- * ran it run `apicontract gen` instead.
+ * ran it run `contractdiff gen` instead.
  *
  * Flags: https://github.com/openapi-ts/openapi-typescript/blob/main/docs/cli.md (§ Flags, § Multiple schemas).
  */
@@ -88,13 +88,13 @@ const parseArgs = (args: readonly string[], pointer: string): { run: Run; check:
     else if (name === '--redocly') {
       findings.push(finding('option-dropped', pointer, `\`--redocly ${String(next())}\` names a config this migration did not read`, 'move its `apis` into `redocly.yaml` at the project root and run the migration again'));
     } else if (name.startsWith('-')) {
-      findings.push(finding('option-dropped', pointer, `\`${word}\` is not an openapi-typescript flag apicontract carries`, 'remove it; `apicontract gen --help` lists what the types target takes'));
+      findings.push(finding('option-dropped', pointer, `\`${word}\` is not an openapi-typescript flag contractdiff carries`, 'remove it; `contractdiff gen --help` lists what the types target takes'));
     } else input ??= word;
   }
   return { run: { input, out, options: Object.fromEntries(options), pointer, findings }, check };
 };
 
-/** Every openapi-typescript run in the scripts, and each script rewritten to `apicontract gen`. */
+/** Every openapi-typescript run in the scripts, and each script rewritten to `contractdiff gen`. */
 const fromScripts = (files: Files): { runs: Run[]; replaced: Record<string, string> } => {
   const runs: Run[] = [];
   const replaced = new Map<string, string>();
@@ -108,7 +108,7 @@ const fromScripts = (files: Files): { runs: Run[]; replaced: Record<string, stri
       runs.push(run);
       const before = list.slice(0, at);
       while (RUNNERS.has(before.at(-1) as string)) before.pop();
-      return [...before, 'apicontract', 'gen', ...(check ? ['--check'] : [])].join(' ');
+      return [...before, 'contractdiff', 'gen', ...(check ? ['--check'] : [])].join(' ');
     });
     if (rewritten.join('') !== command) replaced.set(name, rewritten.join(''));
   }
@@ -127,7 +127,7 @@ const fromApi = (name: string, api: unknown): Run[] => {
   for (const [flag, value] of Object.entries(flags)) {
     const kebab = flag.replaceAll(/[A-Z]/gu, (letter) => `-${letter.toLowerCase()}`);
     if (CARRIED.has(kebab)) options.set(camel(kebab), value);
-    else dropped.push(finding('option-dropped', `${pointer}/x-openapi-ts/${flag}`, `\`${flag}\` is not an openapi-typescript option apicontract carries`, 'remove it; `apicontract gen --help` lists what the types target takes'));
+    else dropped.push(finding('option-dropped', `${pointer}/x-openapi-ts/${flag}`, `\`${flag}\` is not an openapi-typescript option contractdiff carries`, 'remove it; `contractdiff gen --help` lists what the types target takes'));
   }
   return [{ input: typeof api.root === 'string' ? api.root : undefined, out: typeof output === 'string' ? output : undefined, options: Object.fromEntries(options), pointer, findings: dropped }];
 };
@@ -139,11 +139,11 @@ const fromRedocly = (text: string): { runs: Run[]; findings: ContractFinding[] }
   try {
     parsed = parseYaml(text);
   } catch (error) {
-    return { runs: [], findings: [finding('config-unreadable', 'redocly.yaml', `redocly.yaml is not YAML this migration reads: ${(error as Error).message}`, 'fix the YAML, or write apicontract.config.json by hand')] };
+    return { runs: [], findings: [finding('config-unreadable', 'redocly.yaml', `redocly.yaml is not YAML this migration reads: ${(error as Error).message}`, 'fix the YAML, or write contractdiff.config.json by hand')] };
   }
   const root = isDict(parsed) ? parsed : {};
   for (const key of Object.keys(root).filter((name) => name !== 'apis')) {
-    findings.push(finding('option-dropped', `redocly.yaml#/${key}`, `\`${key}\` configures Redocly, not the types`, 'keep redocly.yaml for `redocly lint`; apicontract does not read it'));
+    findings.push(finding('option-dropped', `redocly.yaml#/${key}`, `\`${key}\` configures Redocly, not the types`, 'keep redocly.yaml for `redocly lint`; contractdiff does not read it'));
   }
   const runs = Object.entries(isDict(root.apis) ? root.apis : {}).flatMap(([name, api]) => fromApi(name, api));
   return { runs, findings };
@@ -154,21 +154,21 @@ const assemble = (runs: readonly Run[]): { config: Config | undefined; findings:
   const findings = runs.flatMap((run) => run.findings);
   const input = runs.find((run) => run.input !== undefined)?.input;
   if (input === undefined) {
-    findings.push(finding('nothing-to-migrate', 'package.json#/scripts', 'no script runs openapi-typescript on a document, and redocly.yaml names no api with `x-openapi-ts`', 'run `apicontract plugin new` or write apicontract.config.json by hand'));
+    findings.push(finding('nothing-to-migrate', 'package.json#/scripts', 'no script runs openapi-typescript on a document, and redocly.yaml names no api with `x-openapi-ts`', 'run `contractdiff plugin new` or write contractdiff.config.json by hand'));
     return { config: undefined, findings };
   }
   if (/^https?:\/\//u.test(input)) {
-    findings.push(finding('remote-input', 'apicontract.config.json#/input', `${input} is fetched over the network, and apicontract reads local files`, 'download the document into the project and point `input` at it'));
+    findings.push(finding('remote-input', 'contractdiff.config.json#/input', `${input} is fetched over the network, and contractdiff reads local files`, 'download the document into the project and point `input` at it'));
   }
   const targets = new Map<string, Target>();
   // A run with no input of its own (`npx openapi-typescript` beside redocly.yaml) runs the apis, read above.
   for (const run of runs.filter((one) => one.input !== undefined)) {
     if (run.input !== input) {
-      findings.push(finding('second-input', run.pointer, `${run.input as string} is a second input, and one apicontract.config.json reads one`, 'write a second apicontract.config.json for it in its own folder'));
+      findings.push(finding('second-input', run.pointer, `${run.input as string} is a second input, and one contractdiff.config.json reads one`, 'write a second contractdiff.config.json for it in its own folder'));
       continue;
     }
     if (run.out === undefined) {
-      findings.push(finding('stdout-output', run.pointer, 'openapi-typescript printed to stdout, and apicontract writes a file', `the target writes ${STDOUT_OUT}: change \`out\` to where the types belong`));
+      findings.push(finding('stdout-output', run.pointer, 'openapi-typescript printed to stdout, and contractdiff writes a file', `the target writes ${STDOUT_OUT}: change \`out\` to where the types belong`));
     }
     const name = targets.size === 0 ? 'types' : `types-${String(targets.size + 1)}`;
     targets.set(name, { generator: 'types', out: run.out ?? STDOUT_OUT, options: { compat: 'openapi-typescript', ...run.options } });

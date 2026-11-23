@@ -154,7 +154,7 @@ describe('payloads', () => {
     expect(result).toMatchObject({ verdict: 'unknown', summary: { breaking: 0, unknown: 1, 'non-breaking': 0 } });
     expect(result.findings[0]).toMatchObject({
       id: 'ac-keyword-changed',
-      fix: 'review o body:application/json /multipleOf by hand: apicontract cannot tell what `keyword-changed` does to the values it accepts',
+      fix: 'review o body:application/json /multipleOf by hand: contractdiff cannot tell what `keyword-changed` does to the values it accepts',
     });
   });
 

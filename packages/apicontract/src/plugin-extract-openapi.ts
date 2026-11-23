@@ -1,5 +1,5 @@
 /**
- * `apicontract extract --from openapi-from-schemas` (apicontract-extract R4): a module exporting
+ * `contractdiff extract --from openapi-from-schemas` (apicontract-extract R4): a module exporting
  * `{ [operationId]: { method, path, input, output } }` of Standard Schema values becomes an OpenAPI
  * 3.1 document. The code-first route for a team with no framework integration, and the writer the
  * framework extractors (ts-rest, NestJS) hand their routes to.
@@ -10,8 +10,8 @@
  */
 import { STATUS_CODES } from 'node:http';
 
-import { string } from 'validator';
-import { standardJson } from 'validator/json-schema';
+import { string } from 'loadline';
+import { standardJson } from 'loadline/json-schema';
 
 import { type ContractFinding } from './core/model.js';
 import { stable } from './extract-normalise.js';

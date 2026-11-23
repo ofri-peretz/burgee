@@ -2,7 +2,7 @@
  * The JSON Schema input format (apicontract-inputs R1, R2): a schema document (2020-12, 2019-09,
  * draft-07, draft-06 or draft-04) read into the model. The root schema is one operation and every
  * `$defs` or `definitions` entry is another, each with one `request` payload: the value being
- * validated. It imports only `apicontract/core`.
+ * validated. It imports only `contractdiff/core`.
  *
  * Schemas are handed over as written, `$ref`s intact, and resolution stays in `core/resolve.ts`,
  * which follows local JSON Pointers from the document root. A reference it cannot follow that way

@@ -1,5 +1,5 @@
 /**
- * `apicontract lint`'s engine (apicontract-lint spec.md R1–R4, R8): rules are data, a ruleset maps
+ * `contractdiff lint`'s engine (apicontract-lint spec.md R1–R4, R8): rules are data, a ruleset maps
  * rule ids to levels, and a run applies every rule that is not `off` to every input, in rule-id
  * order. No rule sees another rule's output. Every finding names its rule, its level, a pointer and
  * a `fix:` line; every run also says how many nodes each rule checked, so a clean run is a count
@@ -170,7 +170,7 @@ const codeChecks = (rule: Rule, node: LintNode, input: LintInput): Check[] => {
   const operation = node.operation as NonNullable<LintNode['operation']>;
   const handlers = input.code?.handlersOf(operation.id) ?? [];
   if (handlers.length === 0) {
-    return [{ pointer: node.pointer, problems: [`map-has-no-handler: \`${operation.id}\` has no handler you own in apicontract.map.json`], fix: NO_HANDLER_FIX }];
+    return [{ pointer: node.pointer, problems: [`map-has-no-handler: \`${operation.id}\` has no handler you own in contractdiff.map.json`], fix: NO_HANDLER_FIX }];
   }
   return handlers.map((handler): Check => {
     const where = { pointer: node.pointer, name: handler.symbol };

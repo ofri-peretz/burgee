@@ -84,7 +84,7 @@ describe('validate', () => {
   it.each([0, 2, 1.5, '1', null])('refuses contract %s, which this host does not know', (contract) => {
     const error = refusal(() => validate({ name: 'p', contract }));
     expect(error.code).toBe('E_PLUGIN_CONTRACT');
-    expect(error.message).toBe(`plugin "p" declares contract ${String(contract)}; this apicontract knows 1. fix: upgrade apicontract, or lower the plugin's \`contract\``);
+    expect(error.message).toBe(`plugin "p" declares contract ${String(contract)}; this contractdiff knows 1. fix: upgrade contractdiff, or lower the plugin's \`contract\``);
   });
 
   it.each<[string, unknown]>([

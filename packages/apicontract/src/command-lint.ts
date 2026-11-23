@@ -1,5 +1,5 @@
 /**
- * `apicontract lint [spec…]` (apicontract-lint spec.md R1–R3, R8): a contract's form checked by
+ * `contractdiff lint [spec…]` (apicontract-lint spec.md R1–R3, R8): a contract's form checked by
  * rules that are data, on every format the adapters read. Text grouped by file, `--json`, or
  * `--sarif`; every finding with its `fix:` line; exit 1 when any finding is at `error`. Every run
  * ends with what it checked, and each ruleset's score: the share of its checks that passed.
@@ -26,10 +26,10 @@ import { loadPlugins } from './run-load.js';
 const TEXT = Symbol.for('burgee.text');
 
 /** A ruleset may be named with the product's prefix, as a config written for a later name would. */
-const PREFIX = /^(?:apicontract|contractdiff):/u;
+const PREFIX = /^(?:contractdiff|contractdiff):/u;
 const PERCENT = 100;
 /** The file `lint.rules` is read from. */
-const CONFIG_FILE = 'apicontract.config.json';
+const CONFIG_FILE = 'contractdiff.config.json';
 const RULESETS = new Map(Object.entries(rulesets));
 const RULES = new Map(Object.entries(rules));
 /** The width of the level column in text output: `error` and two spaces. */
@@ -165,7 +165,7 @@ export const toSarif = (result: LintResult, all: Readonly<Record<string, Rule>> 
   $schema: 'https://json.schemastore.org/sarif-2.1.0.json',
   runs: [
     {
-      tool: { driver: { name: 'apicontract lint', rules: Object.keys(result.counts).map((id) => ({ id, shortDescription: { text: (new Map(Object.entries(all)).get(id) as Rule).description } })) } },
+      tool: { driver: { name: 'contractdiff lint', rules: Object.keys(result.counts).map((id) => ({ id, shortDescription: { text: (new Map(Object.entries(all)).get(id) as Rule).description } })) } },
       results: result.findings.map((finding) => ({
         ruleId: finding.rule,
         level: LEVEL[finding.level],
@@ -361,7 +361,7 @@ export const runLint = async (options: LintOptions): Promise<Record<string | sym
   const root = config?.root ?? options.cwd;
   const configured = config?.input === undefined ? [] : [config.input];
   const specs = options.specs.length > 0 ? options.specs : configured;
-  if (specs.length === 0) throw new UsageError('nothing to lint. fix: pass a spec, e.g. `apicontract lint openapi.yaml`, or set `input` in apicontract.config.json');
+  if (specs.length === 0) throw new UsageError('nothing to lint. fix: pass a spec, e.g. `contractdiff lint openapi.yaml`, or set `input` in contractdiff.config.json');
   const days = idleOption(options);
   const now = options.now ?? new Date();
   const flagged = options.rulesets !== undefined && options.rulesets.length > 0 ? options.rulesets : undefined;
@@ -399,8 +399,8 @@ export const command = defineCommand({
   // Only `--stats` writes, and it counts a commit once: running again changes nothing.
   effects: 'idempotent',
   examples: [
-    { command: 'apicontract lint openapi.yaml', description: 'the recommended rules, as warnings' },
-    { command: 'apicontract lint openapi.yaml --ruleset agent-ready', description: 'can an agent call this API as tools: descriptions, examples, ids' },
+    { command: 'contractdiff lint openapi.yaml', description: 'the recommended rules, as warnings' },
+    { command: 'contractdiff lint openapi.yaml --ruleset agent-ready', description: 'can an agent call this API as tools: descriptions, examples, ids' },
   ],
   arguments: [{ name: 'specs', variadic: true, required: false, description: "the contracts to lint (default: the config's input)" }],
   options: {

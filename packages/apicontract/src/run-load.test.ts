@@ -31,7 +31,7 @@ describe('locate', () => {
     expect(locate('/abs/p.mjs', '/repo')).toBe(pathToFileURL('/abs/p.mjs').href);
   });
 
-  it('resolves a package name from the config folder, not from apicontract', () => {
+  it('resolves a package name from the config folder, not from contractdiff', () => {
     const root = temp();
     mkdirSync(join(root, 'node_modules/apicontract-plugin-x'), { recursive: true });
     writeFileSync(join(root, 'node_modules/apicontract-plugin-x/package.json'), '{ "name": "apicontract-plugin-x", "main": "index.js" }');
@@ -45,14 +45,14 @@ describe('loadPlugins', () => {
     const root = temp();
     writeFileSync(join(root, 'named.mjs'), 'export const plugin = { name: "named", generators: {} };\n');
     const host = await loadPlugins({ root, file: join(root, 'c.json'), plugins: [PLUGIN, './named.mjs'] });
-    expect(host.plugins().map((plugin) => plugin.name)).toEqual(['apicontract', ...builtins.map((plugin) => plugin.name), 'spine-test', 'named']);
+    expect(host.plugins().map((plugin) => plugin.name)).toEqual(['contractdiff', ...builtins.map((plugin) => plugin.name), 'spine-test', 'named']);
     expect(host.plugins()[0]?.adapters).toBe(builtinAdapters);
     expect(host.generator('types').description).toBe('One type per schema, for the tests');
   });
 
   it('registers only the built-ins when the config names no plugin', async () => {
     const host = await loadPlugins({ root: temp(), file: 'c.json', plugins: [] });
-    expect(host.plugins().map((plugin) => plugin.name)).toEqual(['apicontract', ...builtins.map((plugin) => plugin.name)]);
+    expect(host.plugins().map((plugin) => plugin.name)).toEqual(['contractdiff', ...builtins.map((plugin) => plugin.name)]);
   });
 
   it('stops on a plugin that does not load, naming it and how to install it', async () => {
@@ -68,7 +68,7 @@ describe('loadPlugins', () => {
     writeFileSync(join(root, 'bad.mjs'), 'export default { generators: {} };\n');
     writeFileSync(join(root, 'none.mjs'), 'export const x = 1;\n');
     expect(await rejection(loadPlugins({ root, file: '/r/c.json', plugins: ['./bad.mjs'] }))).toBe(
-      '/r/c.json cannot be used:\n  - "./bad.mjs" is not a plugin apicontract can use: a plugin needs a name. fix: add `name: "…"`: it is how a refused plugin is reported',
+      '/r/c.json cannot be used:\n  - "./bad.mjs" is not a plugin contractdiff can use: a plugin needs a name. fix: add `name: "…"`: it is how a refused plugin is reported',
     );
     expect(await rejection(loadPlugins({ root, file: '/r/c.json', plugins: ['./none.mjs'] }))).toContain('a plugin is a plain object');
   });

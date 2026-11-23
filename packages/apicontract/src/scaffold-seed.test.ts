@@ -64,11 +64,11 @@ describe('seedOf', () => {
   ])('refuses a file that is %s, with the shape it takes', (_, value, start) => {
     write('bad.json', value);
     expect(() => seedOf('bad.json', dir)).toThrow(start);
-    expect(() => seedOf('bad.json', dir)).toThrow(/fix: pass one finding from `apicontract lint --json`, shaped \{ "file", "pointer", "message", "fix" \}, or the whole output$/u);
+    expect(() => seedOf('bad.json', dir)).toThrow(/fix: pass one finding from `contractdiff lint --json`, shaped \{ "file", "pointer", "message", "fix" \}, or the whole output$/u);
   });
 
   it('refuses a finding file that is not there, and a pointer no rule can select', () => {
-    expect(() => seedOf('missing.json', dir)).toThrow('there is no finding file missing.json. fix: save one with `apicontract lint <spec> --json > missing.json`');
+    expect(() => seedOf('missing.json', dir)).toThrow('there is no finding file missing.json. fix: save one with `contractdiff lint <spec> --json > missing.json`');
     expect(() => seedOf(write('nowhere.json', { ...PARAMETER, pointer: '#/nowhere' }), dir)).toThrow('api.json has no node at #/nowhere a rule can select. fix: lint api.json again and pass a finding from that run');
   });
 });
@@ -78,7 +78,7 @@ describe('a seeded rules plugin', () => {
     const testing = pathToFileURL(join(import.meta.dirname, 'testing.ts')).href;
     const [source] = scaffold('no-bare-ids', 'rules', seedOf(write('seed.json', PARAMETER), dir));
     expect(source?.content).toContain('description: "Never again: `description` is missing",');
-    writeFileSync(join(dir, 'plugin-no-bare-ids.ts'), (source?.content ?? '').replaceAll("'apicontract/testing'", `'${testing}'`));
+    writeFileSync(join(dir, 'plugin-no-bare-ids.ts'), (source?.content ?? '').replaceAll("'contractdiff/testing'", `'${testing}'`));
     // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the scaffold as written to disk, loaded as a user would load it
     const module = (await import(pathToFileURL(join(dir, 'plugin-no-bare-ids.ts')).href)) as { plugin: unknown };
     await expect(conformance(module.plugin)).resolves.toBeUndefined();

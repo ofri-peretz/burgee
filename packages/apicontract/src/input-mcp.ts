@@ -1,6 +1,6 @@
 /**
  * The MCP input format (apicontract-inputs R6): a snapshot of what a Model Context Protocol server
- * lists, read into the model. It imports only `apicontract/core`.
+ * lists, read into the model. It imports only `contractdiff/core`.
  *
  * A document is a `tools/list` result (`{ tools }`), a `prompts/list` result (`{ prompts }`), a
  * `resources/templates/list` result (`{ resourceTemplates }`), any mix of the three in one object,

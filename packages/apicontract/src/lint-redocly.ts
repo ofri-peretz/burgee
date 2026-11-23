@@ -2,14 +2,14 @@
  * A `redocly.yaml` read as `lint` rules (apicontract-lint spec.md R9). Redocly's configurable
  * rules (`rule/<name>`: a `subject` and `assertions`) are carried when the subject is a node the
  * model selects and every assertion has a core function that means the same; a built-in rule
- * with an apicontract equivalent takes its level. Everything else is listed as not carried.
+ * with an contractdiff equivalent takes its level. Everything else is listed as not carried.
  */
 import { type Level, type Rule, type Then } from './lint-engine.js';
 import { type Given } from './lint-select.js';
 import { type NotCarried, patternOf, plainMessage, type ReadRuleset, uncarried } from './lint-spectral.js';
 
 /**
- * Redocly built-in rules with an apicontract equivalent, and the level `extends: [recommended]` gives each.
+ * Redocly built-in rules with an contractdiff equivalent, and the level `extends: [recommended]` gives each.
  * ponytail: written from Redocly's documented rules; that the two find the same things is _unmeasured_.
  */
 export const REDOCLY_RECOMMENDED: Readonly<Record<string, { readonly id: string; readonly level: Level }>> = {
@@ -117,7 +117,7 @@ const extendsOf = (value: unknown, file: string): { levels: Map<string, Level>; 
   for (const [index, name] of [value ?? []].flat().entries()) {
     const pointer = `#/extends/${String(index)}`;
     if (name !== 'recommended') {
-      notCarried.push({ id: String(name), file, pointer, reason: `extends \`${String(name)}\`, which apicontract does not read`, fix: `name the rules you need from \`${String(name)}\` in ${file}` });
+      notCarried.push({ id: String(name), file, pointer, reason: `extends \`${String(name)}\`, which contractdiff does not read`, fix: `name the rules you need from \`${String(name)}\` in ${file}` });
       continue;
     }
     for (const { id, level } of Object.values(REDOCLY_RECOMMENDED)) levels.set(id, level);
@@ -125,8 +125,8 @@ const extendsOf = (value: unknown, file: string): { levels: Map<string, Level>; 
       id: 'recommended',
       file,
       pointer,
-      reason: `carries ${String(Object.keys(REDOCLY_RECOMMENDED).length)} of its rules as apicontract equivalents (${Object.keys(REDOCLY_RECOMMENDED).join(', ')}); the others are not carried`,
-      fix: 'write the others you rely on as `rule/…` assertions in this file, or run `apicontract lint --ruleset recommended` for the built-in set',
+      reason: `carries ${String(Object.keys(REDOCLY_RECOMMENDED).length)} of its rules as contractdiff equivalents (${Object.keys(REDOCLY_RECOMMENDED).join(', ')}); the others are not carried`,
+      fix: 'write the others you rely on as `rule/…` assertions in this file, or run `contractdiff lint --ruleset recommended` for the built-in set',
     });
   }
   return { levels, notCarried };
@@ -167,7 +167,7 @@ export const readRedocly = (document: unknown, file: string, known: ReadonlySet<
     try {
       entryOf(id, definition, { file, known, rules, levels });
     } catch (error) {
-      notCarried.push({ id, file, pointer: `#/rules/${token(id)}`, reason: (error as Error).message, fix: 'rewrite it as a `rule/…` with a subject apicontract selects and assertions it carries, or keep it in Redocly' });
+      notCarried.push({ id, file, pointer: `#/rules/${token(id)}`, reason: (error as Error).message, fix: 'rewrite it as a `rule/…` with a subject contractdiff selects and assertions it carries, or keep it in Redocly' });
     }
   }
   return { rules: Object.fromEntries(rules), levels: Object.fromEntries(levels), notCarried };

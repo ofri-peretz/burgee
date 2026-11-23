@@ -81,7 +81,7 @@ describe('x-frozen on a contract (R4)', () => {
       ['breaking', 'ac-frozen-changed', ''],
       ['breaking', 'ac-frozen-changed', '/x-frozen'],
     ]);
-    expect(result.findings[0]).toMatchObject({ scheme: 'apicontract', effect: 'widens' });
+    expect(result.findings[0]).toMatchObject({ scheme: 'contractdiff', effect: 'widens' });
     expect(result.findings[0]?.fix).toBe(
       'o response:200:application/json is under `x-frozen`, so nothing under it may change (`became-nullable`): revert it, or publish the change as a new version of the contract',
     );
@@ -175,7 +175,7 @@ const scratch = (files: Record<string, string>): string => {
   return dir;
 };
 
-describe('apicontract diff with dangerous changes', () => {
+describe('contractdiff diff with dangerous changes', () => {
   const dir = scratch({ 'a.yaml': spec("{ type: string, default: 'a' }"), 'b.yaml': spec("{ type: string, default: 'b' }") });
 
   it('lists them with their fix, and does not fail the run', () => {

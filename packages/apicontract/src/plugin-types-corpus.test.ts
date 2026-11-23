@@ -120,7 +120,7 @@ describe('types from the corpus shapes that failed', () => {
   beforeAll(async () => {
     dir = scratch('apicontract-types-corpus-');
     const host = createHost();
-    host.register({ name: 'apicontract', adapters: builtinAdapters });
+    host.register({ name: 'contractdiff', adapters: builtinAdapters });
     host.register(plugin);
     const results = await Promise.all(Object.entries(SHAPES).map(async ([name, document]) => [name, (await host.run('types', document)).files[0]?.content ?? ''] as const));
     for (const [name, content] of results) {

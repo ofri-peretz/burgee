@@ -76,11 +76,11 @@ describe('applyUsage', () => {
 
   it('reads a contract map, whose files are the callers', () => {
     const map = JSON.stringify({ version: 1, operations: { a: [{ file: 'src/b.ts', symbol: 'a', target: 'ts' }, { file: 'src/a.ts', symbol: 'A', target: 'ts' }, { file: 'src/a.ts', symbol: 'aa', target: 'ts' }, 'junk', { file: 1 }] }, files: {} });
-    expect(parseUsage(map, 'apicontract.map.json').get('a')).toStrictEqual({ callers: ['src/a.ts', 'src/b.ts'] });
+    expect(parseUsage(map, 'contractdiff.map.json').get('a')).toStrictEqual({ callers: ['src/a.ts', 'src/b.ts'] });
   });
 
   it('refuses a file it cannot read, each with the shape it takes', () => {
-    const shape = 'fix: pass JSON shaped { "operations": { "<operationId>": { "members": ["name"], "callers": ["web"] } } }, or an apicontract.map.json';
+    const shape = 'fix: pass JSON shaped { "operations": { "<operationId>": { "members": ["name"], "callers": ["web"] } } }, or an contractdiff.map.json';
     expect(() => parseUsage('{', 'u.json')).toThrow(/^u\.json is not JSON: .+\. fix: pass JSON shaped/u);
     expect(() => parseUsage('null', 'u.json')).toThrow(`u.json has no \`operations\` object. ${shape}`);
     expect(() => parseUsage('[]', 'u.json')).toThrow(`u.json has no \`operations\` object. ${shape}`);
@@ -96,7 +96,7 @@ describe('applyUsage', () => {
 const spec = (maxLength: number): string =>
   `openapi: 3.1.0\ninfo: { title: t, version: '1' }\npaths:\n  /a:\n    post:\n      operationId: a\n      requestBody:\n        required: true\n        content:\n          application/json:\n            schema: { type: object, properties: { name: { type: string, maxLength: ${String(maxLength)} } } }\n      responses:\n        '204': { description: none }\n`;
 
-describe('apicontract diff --usage', () => {
+describe('contractdiff diff --usage', () => {
   const dir = makeDir('apicontract-usage-');
   writeFileSync(join(dir, 'a.yaml'), spec(10));
   writeFileSync(join(dir, 'b.yaml'), spec(5));
@@ -118,7 +118,7 @@ describe('apicontract diff --usage', () => {
 
   it('refuses a usage file that is not there, with the fix', () => {
     expect(() => diff({ cwd: dir, old: 'a.yaml', new: 'b.yaml', usage: 'missing.json' })).toThrow(
-      'there is no usage file missing.json. fix: pass the path of a JSON file that says which operations callers use, or an apicontract.map.json',
+      'there is no usage file missing.json. fix: pass the path of a JSON file that says which operations callers use, or an contractdiff.map.json',
     );
   });
 });

@@ -4,7 +4,7 @@
  *
  * The server uses `@modelcontextprotocol/sdk`'s low-level `Server`, which takes JSON Schema tool
  * definitions as they are, so the generated code needs the SDK and nothing else. The SDK is the
- * user's dependency, never apicontract's.
+ * user's dependency, never contractdiff's.
  *
  * The bodies are lines of text, one string literal per line: the generated code reads the
  * environment, and this package's own source may not name the process outside its bin.
@@ -144,7 +144,7 @@ export const clientFile = (names: readonly string[]): string =>
 /** `handlers.ts`: the user's file, written once. */
 export const HANDLERS = lines(
   '/**',
-  ' * The handler each tool runs. apicontract wrote this file once and never rewrites it: change it freely.',
+  ' * The handler each tool runs. contractdiff wrote this file once and never rewrites it: change it freely.',
   ' * `defaults` (client.ts, regenerated) calls the API for every tool, a new one included; replace an',
   ' * entry to do something else, e.g. `{ ...defaults, delete_pet: async () => { throw new Error("not here") } }`.',
   ' */',

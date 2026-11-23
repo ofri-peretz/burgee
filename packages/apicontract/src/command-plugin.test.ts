@@ -24,7 +24,7 @@ beforeAll(async () => {
 });
 
 
-describe('`apicontract plugin new`', () => {
+describe('`contractdiff plugin new`', () => {
   it('is described for --help, --schema and the MCP tool list', () => {
     expect(command.description).toBe('Scaffold a plugin that passes the conformance suite as generated');
     expect(command.arguments).toEqual([
@@ -33,13 +33,13 @@ describe('`apicontract plugin new`', () => {
     ]);
     expect(command.options).toEqual({
       kind: { type: 'string', choices: ['generator', 'extractor', 'adapter', 'rules'], default: 'generator', description: 'what the plugin contributes: spec to code, code to spec, an input format, or lint rules' },
-      from: { type: 'string', placeholder: 'finding.json', description: 'with --kind rules: seed the rule from one finding of `apicontract lint --json`' },
+      from: { type: 'string', placeholder: 'finding.json', description: 'with --kind rules: seed the rule from one finding of `contractdiff lint --json`' },
       out: { type: 'string', placeholder: 'dir', description: 'directory to write into. Defaults to the current directory' },
     });
     expect(command.examples).toEqual([
-      { command: 'apicontract plugin new my-target', description: 'a generator plugin, its conformance test and a README' },
-      { command: 'apicontract plugin new my-source --kind extractor --out plugins', description: 'an extractor, written under plugins/' },
-      { command: 'apicontract plugin new no-bare-ids --kind rules --from finding.json', description: 'a lint rule that finds the mistake one finding named, with that as its sample' },
+      { command: 'contractdiff plugin new my-target', description: 'a generator plugin, its conformance test and a README' },
+      { command: 'contractdiff plugin new my-source --kind extractor --out plugins', description: 'an extractor, written under plugins/' },
+      { command: 'contractdiff plugin new no-bare-ids --kind rules --from finding.json', description: 'a lint rule that finds the mistake one finding named, with that as its sample' },
     ]);
   });
 

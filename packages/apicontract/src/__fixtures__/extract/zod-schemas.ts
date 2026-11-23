@@ -1,6 +1,6 @@
 /**
  * Zod 4 schemas, read through Standard JSON Schema: the extractor never names Zod. Zod is a test-only
- * fixture here (it is in the root node_modules), never a dependency of apicontract.
+ * fixture here (it is in the root node_modules), never a dependency of contractdiff.
  */
 // eslint-disable-next-line import-next/no-extraneous-dependencies -- a test fixture: Zod is read by the extractor, never shipped
 import { z } from 'zod';

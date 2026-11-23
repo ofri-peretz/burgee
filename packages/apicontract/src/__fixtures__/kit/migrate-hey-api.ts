@@ -18,7 +18,7 @@ export interface Case {
   readonly findings: readonly string[];
 }
 
-const registry = 'registry-input @ apicontract.config.json#/input';
+const registry = 'registry-input @ contractdiff.config.json#/input';
 const imports = 'imports-change @ openapi-ts.config#/output';
 const both = { types: { generator: 'types', out: 'src/client' }, fetch: { generator: 'fetch', out: 'src/client' } };
 const backend = (plugins: string): string => `export default {\n  input: 'hey-api/backend', // sign up at app.heyapi.dev\n  output: 'src/client',\n  plugins: [\n    // ...other plugins\n${plugins}\n  ],\n};\n`;

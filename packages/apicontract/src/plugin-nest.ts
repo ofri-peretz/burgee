@@ -12,7 +12,7 @@
  * A new operation is a new abstract method: the user's class stops compiling, and nothing of the
  * user's is rewritten. Options: `validators` and `types`, the import paths of the `validator` and
  * `types` targets' output (`./validators.js`, `./types.js`), and `testRunner` (`vitest`, `node` or
- * `jest`). NestJS is the user's dependency, never apicontract's.
+ * `jest`). NestJS is the user's dependency, never contractdiff's.
  */
 import { type Contract } from './core/model.js';
 import { type GeneratedFile, type Generator, type GeneratorResult, type Options, type Plugin } from './host.js';

@@ -1,7 +1,7 @@
 /**
  * The protobuf input format (apicontract-protobuf R1): a buf image in its JSON form
  * (`buf build -o image.json`, the proto3 JSON of a `FileDescriptorSet`) read into the model. It
- * imports only `apicontract/core`; `.proto` sources reach it compiled by the user's own buf.
+ * imports only `contractdiff/core`; `.proto` sources reach it compiled by the user's own buf.
  *
  * - One operation per RPC method of a file that is not an import, named `<package>.<Service>.<Method>`.
  *   Its input message is the `request` payload, its output message the `response`.

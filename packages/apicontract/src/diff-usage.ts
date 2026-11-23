@@ -4,7 +4,7 @@
  * with usage data does; it is data the user hands in, never collected here.
  *
  * Two shapes are read: `{ "operations": { "<id>": { "members"?: [...], "callers"?: [...] } } }`, and
- * an `apicontract.map.json` from a client generation, whose files are the callers. A member is a
+ * an `contractdiff.map.json` from a client generation, whose files are the callers. A member is a
  * parameter's name or a property's path (`owner.id`); an operation with no `members` uses all of them.
  */
 import { type Comparison, type Finding, overall, sortFindings, summaryOf } from './diff-contract.js';
@@ -22,7 +22,7 @@ export type Usage = ReadonlyMap<string, OperationUsage>;
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
 const isStrings = (value: unknown): value is string[] => Array.isArray(value) && value.every((item) => typeof item === 'string');
 
-const SHAPE = 'fix: pass JSON shaped { "operations": { "<operationId>": { "members": ["name"], "callers": ["web"] } } }, or an apicontract.map.json';
+const SHAPE = 'fix: pass JSON shaped { "operations": { "<operationId>": { "members": ["name"], "callers": ["web"] } } }, or an contractdiff.map.json';
 
 /** One operation's entry: a usage object, or a contract map's list of generated symbols. */
 const entryOf = (file: string, id: string, value: unknown): OperationUsage => {

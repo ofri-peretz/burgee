@@ -2,7 +2,7 @@
  * The handlers a rule on code reads (apicontract-lint R14): each one the map names for an
  * operation, found in its file with the TypeScript compiler and read once into a `HandlerSummary`.
  *
- * The compiler is the project's own `typescript`, resolved from the project's folder: apicontract
+ * The compiler is the project's own `typescript`, resolved from the project's folder: contractdiff
  * depends on nothing, and a project with TypeScript handlers has it installed. A handler is a
  * method of a class (`PetsController.getPets`, the `nest` target) or a member of an object
  * (`handlers.getPets`, the `hono`, `fastify` and `express` targets).
@@ -145,7 +145,7 @@ export const codeIndexOf = (mapOf: () => ContractMap, root: string, load: () => 
   };
 };
 
-/** The project's map, `apicontract.map.json` at `root`; an empty one when there is none. */
+/** The project's map, `contractdiff.map.json` at `root`; an empty one when there is none. */
 export const mapIn = (root: string): ContractMap => {
   const path = join(root, MAP_FILE);
   // Stryker disable next-line StringLiteral: with no encoding the Buffer parses as the same JSON.

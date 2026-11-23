@@ -41,12 +41,12 @@ describe('locusOf', () => {
 
 describe('ruleId', () => {
   it('falls back to ours, ac-prefixed, where oasdiff has no id', () => {
-    expect(ruleId('keyword-changed', 'request', 'body:application/json', '/multipleOf')).toEqual({ id: 'ac-keyword-changed', scheme: 'apicontract' });
-    expect(ruleId('enum-value-removed', 'response', 'response:200:application/json', '')).toEqual({ id: 'ac-enum-value-removed', scheme: 'apicontract' });
+    expect(ruleId('keyword-changed', 'request', 'body:application/json', '/multipleOf')).toEqual({ id: 'ac-keyword-changed', scheme: 'contractdiff' });
+    expect(ruleId('enum-value-removed', 'response', 'response:200:application/json', '')).toEqual({ id: 'ac-enum-value-removed', scheme: 'contractdiff' });
   });
 
   it('gives a non-HTTP payload ours even where the change has an oasdiff id over HTTP', () => {
-    expect(ruleId('type-narrowed', 'tool-call', 'arguments', '')).toEqual({ id: 'ac-type-narrowed', scheme: 'apicontract' });
-    expect(ruleId('operation-removed', 'tool-call', undefined, '')).toEqual({ id: 'ac-operation-removed', scheme: 'apicontract' });
+    expect(ruleId('type-narrowed', 'tool-call', 'arguments', '')).toEqual({ id: 'ac-type-narrowed', scheme: 'contractdiff' });
+    expect(ruleId('operation-removed', 'tool-call', undefined, '')).toEqual({ id: 'ac-operation-removed', scheme: 'contractdiff' });
   });
 });

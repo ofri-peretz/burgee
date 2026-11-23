@@ -19,7 +19,7 @@ const temp = (): string => realpathSync(scratch('apicontract-extract-'));
 const project = (extractConfig?: Record<string, unknown>): string => {
   const root = temp();
   copyFileSync(PLUGIN, join(root, 'plugin.mjs'));
-  writeFileSync(join(root, 'apicontract.config.json'), JSON.stringify({ plugins: ['./plugin.mjs'], ...(extractConfig === undefined ? {} : { extract: extractConfig }) }));
+  writeFileSync(join(root, 'contractdiff.config.json'), JSON.stringify({ plugins: ['./plugin.mjs'], ...(extractConfig === undefined ? {} : { extract: extractConfig }) }));
   return root;
 };
 
@@ -45,10 +45,10 @@ describe('extract', () => {
     expect(first.findings).toEqual([]);
     expect(first.files).toEqual([
       { path: 'spec.json', owner: 'generated', action: 'write', target: 'extract' },
-      { path: 'apicontract.map.json', owner: 'generated', action: 'write' },
+      { path: 'contractdiff.map.json', owner: 'generated', action: 'write' },
     ]);
     expect(readFileSync(join(root, 'spec.json'), 'utf8')).toBe(spec('extracted'));
-    const map = JSON.parse(readFileSync(join(root, 'apicontract.map.json'), 'utf8')) as { files: Record<string, { target: string }> };
+    const map = JSON.parse(readFileSync(join(root, 'contractdiff.map.json'), 'utf8')) as { files: Record<string, { target: string }> };
     expect(map.files['spec.json']?.target).toBe('extract');
     expect((await extract({ cwd: root, from: 'schemas' })).changed).toBe(false);
   });
@@ -67,8 +67,8 @@ describe('extract', () => {
     writeFileSync(join(root, 'spec.json'), '{ "mine": true }\n');
     expect((await failure(extract({ cwd: root, from: 'schemas' }))).message).toBe('generated files were edited by hand: spec.json. fix: move the change to a user file, or pass --force');
     await extract({ cwd: root, from: 'schemas', force: true });
-    writeFileSync(join(root, 'apicontract.config.json'), JSON.stringify({ plugins: ['./plugin.mjs'], extract: { options: { title: 'New' } } }));
-    expect(await extract({ cwd: root, from: 'schemas', check: true })).toMatchObject({ stale: ['spec.json', 'apicontract.map.json'], exitCode: 1, fix: 'run `apicontract extract` and commit the result' });
+    writeFileSync(join(root, 'contractdiff.config.json'), JSON.stringify({ plugins: ['./plugin.mjs'], extract: { options: { title: 'New' } } }));
+    expect(await extract({ cwd: root, from: 'schemas', check: true })).toMatchObject({ stale: ['spec.json', 'contractdiff.map.json'], exitCode: 1, fix: 'run `contractdiff extract` and commit the result' });
     expect((await extract({ cwd: root, from: 'schemas', dryRun: true })).diff).toContain('+    "title": "New",');
     expect(readFileSync(join(root, 'spec.json'), 'utf8')).toBe(spec('extracted'));
   });
@@ -100,21 +100,21 @@ describe('extract', () => {
   });
 });
 
-describe('apicontract extract, through burgee', () => {
+describe('contractdiff extract, through burgee', () => {
   beforeAll(async () => {
     await runBurgee(program, { argv: ['--version'] });
   });
 
   it('answers --json --dry-run with the envelope', async () => {
     const root = project();
-    const r = await runBurgee(program, { argv: ['extract', '--json', '--dry-run', '--from', 'schemas', '--out', 'x.json', '--config', join(root, 'apicontract.config.json')] });
+    const r = await runBurgee(program, { argv: ['extract', '--json', '--dry-run', '--from', 'schemas', '--out', 'x.json', '--config', join(root, 'contractdiff.config.json')] });
     expect(r.code).toBe(ExitCode.OK);
     expect(r.json).toMatchObject({ ok: true, data: { changed: true, changes: 2 } });
     expect(existsSync(join(root, 'x.json'))).toBe(false);
   });
 
   it('reports the findings in the --json envelope and in the text', async () => {
-    const config = join(project({ options: { findings: true } }), 'apicontract.config.json');
+    const config = join(project({ options: { findings: true } }), 'contractdiff.config.json');
     const json = await runBurgee(program, { argv: ['extract', '--json', '--dry-run', '--from', 'schemas', '--config', config] });
     expect(json.json).toMatchObject({ ok: true, data: { findings: [{ code: 'type-only', pointer: '/health', target: 'extract' }] } });
     const text = await runBurgee(program, { argv: ['extract', '--dry-run', '--from', 'schemas', '--config', config] });

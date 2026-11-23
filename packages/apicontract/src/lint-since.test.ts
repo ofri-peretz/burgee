@@ -56,7 +56,7 @@ const planted = (plant: Planted): LintGit => ({
 /** A run in a scratch folder linting `api.yaml` as it is now, `NEW` unless given. */
 const lintSince = async (git: LintGit, options: { since?: string; lint?: object; api?: string } = {}) => {
   const dir = scratch({ 'api.yaml': options.api ?? NEW });
-  const config = validateConfig({ input: 'api.yaml', lint: options.lint ?? {} }, join(dir, 'apicontract.config.json'));
+  const config = validateConfig({ input: 'api.yaml', lint: options.lint ?? {} }, join(dir, 'contractdiff.config.json'));
   return runLint({ cwd: dir, specs: [], config, git, ...(options.since === undefined ? {} : { since: options.since }) });
 };
 const found = (data: Record<string | symbol, unknown>): string[] => (data.findings as { rule: string; pointer: string }[]).map((finding) => `${finding.rule} ${finding.pointer}`);
@@ -178,12 +178,12 @@ const git = async (cwd: string, ...args: string[]): Promise<string> => {
 
 describe('--since, on a planted repository', () => {
   it('reads the input at the ref through git, by its path from the config folder', async () => {
-    const dir = scratch({ 'api.yaml': OLD, 'apicontract.config.json': '{"input":"api.yaml"}' });
+    const dir = scratch({ 'api.yaml': OLD, 'contractdiff.config.json': '{"input":"api.yaml"}' });
     await git(dir, 'init', '-q', '-b', 'main');
     await git(dir, 'add', '.');
     await git(dir, 'commit', '-q', '-m', 'one');
     writeFileSync(join(dir, 'api.yaml'), NEW);
-    const config = validateConfig({ input: 'api.yaml' }, join(dir, 'apicontract.config.json'));
+    const config = validateConfig({ input: 'api.yaml' }, join(dir, 'contractdiff.config.json'));
     const data = await runLint({ cwd: dir, specs: [], config, since: 'HEAD' });
     expect(found(data)).toStrictEqual(B_ONLY);
     expect(data.since).toMatchObject({ skipped: 1 });

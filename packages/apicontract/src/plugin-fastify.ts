@@ -2,7 +2,7 @@
  * The built-in `fastify` target (apicontract-servers R1–R7): a Fastify plugin, `registerRoutes`,
  * that registers a typed route table and validates every request and every answer, from an OpenAPI
  * document; a `handlers.ts` the user owns, written once; and a contract test per operation, which
- * listens on a free port. Fastify is the user's dependency, never apicontract's.
+ * listens on a free port. Fastify is the user's dependency, never contractdiff's.
  *
  * Validation is the `validator` target's (R2), as in every server target, not Fastify's own: the
  * plugin reads each body as text, so a body the contract refuses answers the same RFC 9457 Problem

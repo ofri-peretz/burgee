@@ -67,7 +67,7 @@ describe('schema', () => {
     expect(schema({})).toEqual([{ rule: 'schema', where: 'plugin', message: 'a plugin needs a name', fix: 'add `name: "…"`: it is how a refused plugin is reported' }]);
   });
 
-  it('refuses a plugin that contributes nothing apicontract reads', () => {
+  it('refuses a plugin that contributes nothing contractdiff reads', () => {
     expect(schema({ name: 'empty', commands: [] })).toEqual([
       { rule: 'schema', where: 'plugin "empty"', message: 'it contributes no adapter, generator, extractor or rule', fix: 'add `generators`, `extractors`, `adapters` or `rules`' },
     ]);
@@ -87,7 +87,7 @@ describe('schema', () => {
         throw new Error('no name');
       },
     };
-    expect(schema(throwing)).toEqual([{ rule: 'schema', where: 'plugin', message: 'no name', fix: 'export the shape `Plugin` in apicontract describes' }]);
+    expect(schema(throwing)).toEqual([{ rule: 'schema', where: 'plugin', message: 'no name', fix: 'export the shape `Plugin` in contractdiff describes' }]);
   });
 });
 

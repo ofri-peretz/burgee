@@ -22,7 +22,7 @@ const project = (spec: unknown): string => {
   const root = realpathSync(scratch('apicontract-nest-'));
   writeFileSync(join(root, 'openapi.json'), JSON.stringify(spec));
   const targets = { types: { generator: 'types', out: OUT }, validator: { generator: 'validator', out: OUT }, nest: { generator: 'nest', out: OUT } };
-  writeFileSync(join(root, 'apicontract.config.json'), JSON.stringify({ input: 'openapi.json', targets }));
+  writeFileSync(join(root, 'contractdiff.config.json'), JSON.stringify({ input: 'openapi.json', targets }));
   return root;
 };
 

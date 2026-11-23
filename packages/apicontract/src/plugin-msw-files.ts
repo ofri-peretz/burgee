@@ -1,7 +1,7 @@
 /**
  * The two files `gen msw` writes (apicontract-clients R5): `scenarios.ts`, one response per declared
  * status of every operation, as data; and `handlers.ts`, MSW handlers answering from it. MSW is the
- * user's dependency, never apicontract's, and `scenarios.ts` imports nothing, so any test server can
+ * user's dependency, never contractdiff's, and `scenarios.ts` imports nothing, so any test server can
  * answer from it too.
  */
 import { type ContractFinding } from './core/model.js';

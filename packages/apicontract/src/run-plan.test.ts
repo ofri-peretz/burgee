@@ -4,7 +4,7 @@ import { type GeneratedFile } from './host.js';
 import { digest, withHeader } from './run-header.js';
 import { changes, plan } from './run-plan.js';
 
-const command = 'apicontract gen';
+const command = 'contractdiff gen';
 const gen = (path: string, content: string): GeneratedFile => ({ path, content, owner: 'generated' });
 const user = (path: string, content: string): GeneratedFile => ({ path, content, owner: 'user' });
 const written = (path: string, body: string): string => withHeader(path, body, command);
@@ -33,7 +33,7 @@ describe('plan', () => {
   });
 
   it('rewrites a generated file whose header names another command', () => {
-    const [entry] = plan([gen('a.ts', 'A\n')], disk({ 'a.ts': withHeader('a.ts', 'A\n', 'apicontract extract') }), { command });
+    const [entry] = plan([gen('a.ts', 'A\n')], disk({ 'a.ts': withHeader('a.ts', 'A\n', 'contractdiff extract') }), { command });
     expect(entry?.action).toBe('write');
   });
 
@@ -42,7 +42,7 @@ describe('plan', () => {
     expect(plan([gen('a.ts', 'A2\n')], disk({ 'a.ts': edited }), { command })[0]?.action).toBe('conflict');
   });
 
-  it('refuses to overwrite a file at a generated path that apicontract never wrote', () => {
+  it('refuses to overwrite a file at a generated path that contractdiff never wrote', () => {
     expect(plan([gen('a.ts', 'A\n')], disk({ 'a.ts': 'export {};\n' }), { command })[0]?.action).toBe('conflict');
   });
 

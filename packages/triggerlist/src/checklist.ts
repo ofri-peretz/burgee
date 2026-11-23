@@ -5,7 +5,7 @@
  * the pointer to it and never silently matched as nothing.
  */
 import { parse as parseYaml } from 'seniority/yaml';
-import { array, object, optional, parse, string } from 'validator';
+import { array, object, optional, parse, string } from 'loadline';
 
 /** One item: an id, a trigger readable from a diff, and what the reviewer does when it fires. */
 export interface Item {

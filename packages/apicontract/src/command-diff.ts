@@ -1,5 +1,5 @@
 /**
- * `apicontract diff <old> <new>` (apicontract-diff spec.md R4, R5): what a contract change breaks,
+ * `contractdiff diff <old> <new>` (apicontract-diff spec.md R4, R5): what a contract change breaks,
  * for whom, under the mode chosen. Each side is a file or `git:<ref>:<path>`, read through the
  * same built-in adapters (`inputs.ts`), so an OpenAPI document, a JSON Schema, an AsyncAPI
  * document and an MCP snapshot are all diffed by one engine. Exit 1 on a breaking or unknown change; a
@@ -31,12 +31,12 @@ const TEXT = Symbol.for('burgee.text');
 export type GitReader = (ref: string, path: string, cwd: string) => string;
 
 /**
- * The reader the command ships with until apicontract can spawn `git`: subprocesses are bellpull's
- * job in this repository (inline-implementation lock) and apicontract does not depend on it yet.
+ * The reader the command ships with until contractdiff can spawn `git`: subprocesses are bellpull's
+ * job in this repository (inline-implementation lock) and contractdiff does not depend on it yet.
  */
 export const noGit: GitReader = (ref, path) => {
   throw new Error(
-    `cannot read \`git:${ref}:${path}\`: this build of apicontract does not run git. fix: \`git show ${ref}:${path} > old.yaml\` and diff that file`,
+    `cannot read \`git:${ref}:${path}\`: this build of contractdiff does not run git. fix: \`git show ${ref}:${path} > old.yaml\` and diff that file`,
   );
 };
 
@@ -146,7 +146,7 @@ export const toSarif = (comparison: Comparison, old: Pick<Side_, 'file'>, nu: Pi
     $schema: 'https://json.schemastore.org/sarif-2.1.0.json',
     runs: [
       {
-        tool: { driver: { name: 'apicontract diff', rules: ids.map((id) => ({ id })) } },
+        tool: { driver: { name: 'contractdiff diff', rules: ids.map((id) => ({ id })) } },
         results: [
           ...comparison.findings.map((finding) => resultOf(finding, finding.verdict, { old, nu, releases })),
           ...decisions.map((finding) => resultOf(finding, 'decision', { old, nu })),
@@ -227,7 +227,7 @@ const writeChangeset = (
   return { file, changed: true };
 };
 
-const CONFIG = 'apicontract.config.json';
+const CONFIG = 'contractdiff.config.json';
 /** The characters of `YYYY-MM-DD`. */
 const DATE_LENGTH = 10;
 
@@ -302,7 +302,7 @@ const sidesOf = (options: DiffOptions, git: GitReader): { readonly olds: readonl
 /** The usage file, read. */
 const usageOf = (file: string, cwd: string): ReturnType<typeof parseUsage> => {
   const path = resolve(cwd, file);
-  if (!existsSync(path)) throw new UsageError(`there is no usage file ${file}. fix: pass the path of a JSON file that says which operations callers use, or an apicontract.map.json`);
+  if (!existsSync(path)) throw new UsageError(`there is no usage file ${file}. fix: pass the path of a JSON file that says which operations callers use, or an contractdiff.map.json`);
   return parseUsage(String(readFileSync(path)), file);
 };
 
@@ -358,9 +358,9 @@ export const command = defineCommand({
   // result already reports whether it wrote. The spine's test pins every effect; this follows it.
   effects: 'idempotent',
   examples: [
-    { command: 'apicontract diff old.yaml new.yaml', description: 'what breaks for callers built on old.yaml' },
-    { command: 'apicontract diff old.yaml new.yaml --mode full --sarif', description: 'both directions, for code scanning' },
-    { command: 'apicontract diff releases/ openapi.yaml --transitive', description: 'what breaks for callers on any past release, the oldest named' },
+    { command: 'contractdiff diff old.yaml new.yaml', description: 'what breaks for callers built on old.yaml' },
+    { command: 'contractdiff diff old.yaml new.yaml --mode full --sarif', description: 'both directions, for code scanning' },
+    { command: 'contractdiff diff releases/ openapi.yaml --transitive', description: 'what breaks for callers on any past release, the oldest named' },
   ],
   arguments: [
     { name: 'old', description: 'the contract before: a file, or git:<ref>:<path>' },
@@ -375,9 +375,9 @@ export const command = defineCommand({
     decisions: {
       type: 'string',
       choices: DECISION_SETTINGS,
-      description: 'hold a change to the decision written in the contract: warn (default; prints, exit code unchanged), error (fails the run) or off. Read from the base ref\'s apicontract.config.json first',
+      description: 'hold a change to the decision written in the contract: warn (default; prints, exit code unchanged), error (fails the run) or off. Read from the base ref\'s contractdiff.config.json first',
     },
-    usage: { type: 'string', description: 'a JSON file of the operations and members callers use (or an apicontract.map.json): a breaking change nobody uses is non-breaking', placeholder: 'file' },
+    usage: { type: 'string', description: 'a JSON file of the operations and members callers use (or an contractdiff.map.json): a breaking change nobody uses is non-breaking', placeholder: 'file' },
     transitive: { type: 'boolean', description: 'compare the last contract with every one before it, not only the last: findings say which release they break' },
     dangerousBreaking: { type: 'boolean', description: 'report dangerous changes (a default changed, a value a reader may not expect) as breaking, so they fail the run' },
     today: { type: 'string', description: 'the date x-sunset is judged against (default: today, UTC)', placeholder: 'YYYY-MM-DD' },

@@ -5,7 +5,7 @@
  * `set` keeps the cases a change is tuned on apart from the ones it is judged on.
  */
 import { parse as parseYaml } from 'seniority/yaml';
-import { enumOf, number, object, optional, parse, string } from 'validator';
+import { enumOf, number, object, optional, parse, string } from 'loadline';
 
 export const KINDS = ['bug', 'control'] as const;
 export const SETS = ['tune', 'test'] as const;

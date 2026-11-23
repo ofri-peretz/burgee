@@ -1,6 +1,6 @@
 /**
  * The OpenAPI input format (spec.md R1, R2): an OpenAPI 3.0, 3.1 or 3.2 document read into the
- * model. It imports only `apicontract/core`, and the core never imports it.
+ * model. It imports only `contractdiff/core`, and the core never imports it.
  *
  * Schemas are handed over as written, references and all: whether to inline them is the reader's
  * choice (`explain` inlines, `gen` keeps named types), so it is not made here.

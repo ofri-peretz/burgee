@@ -109,7 +109,7 @@ console.log(JSON.stringify({ route: 'tools/list', tools: listed.tools.length }))
 function generate(spec: string, target: string, out: string): void {
   if (!existsSync(path.join(APICONTRACT_DIST, 'bin.js'))) throw new Error('apicontract is not built. fix: npx turbo run build --filter=apicontract');
   mkdirSync(out, { recursive: true });
-  const config = path.join(out, '..', 'apicontract.config.json');
+  const config = path.join(out, '..', 'contractdiff.config.json');
   // The config takes paths relative to itself, so the spec is copied in beside it.
   const input = `spec${path.extname(spec)}`;
   cpSync(spec, path.join(out, '..', input));

@@ -87,7 +87,7 @@ export const decisionFinding = (
   },
 ): Finding => ({
   id: `ac-decision-${rule}`,
-  scheme: 'apicontract',
+  scheme: 'contractdiff',
   verdict: level === 'error' ? 'breaking' : 'unknown',
   effect: 'neutral',
   operation: place.operation,

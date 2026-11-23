@@ -37,7 +37,7 @@ const lintIn = (dir: string, options: { head?: string | undefined; now: Date; id
   runLint({
     cwd: dir,
     specs: [],
-    config: validateConfig({ input: 'api.yaml', lint: { rules: options.rules ?? {} } }, join(dir, 'apicontract.config.json')),
+    config: validateConfig({ input: 'api.yaml', lint: { rules: options.rules ?? {} } }, join(dir, 'contractdiff.config.json')),
     git: at('head' in options ? options.head : 'c1'),
     now: options.now,
     stats: 'stats.json',
@@ -102,7 +102,7 @@ describe('--stats and --idle (R13)', () => {
 
   it('refuses --idle without --stats, a number of days it cannot read, and a file it did not write', async () => {
     const dir = scratch({ 'api.yaml': API });
-    const config = validateConfig({ input: 'api.yaml' }, join(dir, 'apicontract.config.json'));
+    const config = validateConfig({ input: 'api.yaml' }, join(dir, 'contractdiff.config.json'));
     await expect(runLint({ cwd: dir, specs: [], config, git: at('c1'), idle: '90d' })).rejects.toThrow(
       '`--idle` reads the counts `--stats` keeps. fix: add `--stats lint-stats.json`, a file your CI caches',
     );

@@ -1,5 +1,5 @@
 {
-  "name": "apicontract",
+  "name": "contractdiff",
   "version": "0.2.0",
   "private": true,
   "description": "A CLI that turns specs into code and code into specs, through plugins: TypeScript types, validators, NestJS modules, and the spec back from each. Codename; unpublished until the naming pass.",
@@ -48,7 +48,7 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "apicontract": "./dist/bin.js"
+    "contractdiff": "./dist/bin.js"
   },
   "files": [
     "dist",
@@ -66,7 +66,7 @@
     "bellpull": "^2.0.3",
     "burgee": "^2.2.0",
     "seniority": "^2.0.0",
-    "validator": "0.0.1"
+    "loadline": "0.0.1"
   },
   "devDependencies": {
     "vitest": "^5.0.1"

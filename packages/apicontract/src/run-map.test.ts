@@ -14,7 +14,7 @@ const refusal = (attempt: () => unknown): { message: string; code: unknown } => 
 
 describe('parseMap', () => {
   it('is empty when there is no map yet', () => {
-    expect(MAP_FILE).toBe('apicontract.map.json');
+    expect(MAP_FILE).toBe('contractdiff.map.json');
     expect(parseMap(undefined)).toEqual({ version: 1, operations: {}, files: {} });
   });
 
@@ -32,7 +32,7 @@ describe('parseMap', () => {
     ['no files', '{"version":1,"operations":{}}', 'is not a version 1 contract map'],
   ])('refuses a map that is %s, as a config error with a fix line', (_, text, why) => {
     const error = refusal(() => parseMap(text));
-    expect(error.message).toBe(`apicontract.map.json cannot be used:\n  - it ${why}. fix: delete apicontract.map.json and run \`apicontract gen\` again; it is regenerated, never edited`);
+    expect(error.message).toBe(`contractdiff.map.json cannot be used:\n  - it ${why}. fix: delete contractdiff.map.json and run \`contractdiff gen\` again; it is regenerated, never edited`);
     expect(error.code).toBe('CONFIG');
   });
 });

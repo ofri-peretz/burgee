@@ -58,11 +58,11 @@ describe('validateConfig', () => {
         targets: { types: { generator: 'types', out: './src/gen/', options: { a: 1 } } },
         extract: { from: 'schemas', out: 'spec.json', options: { module: './a.js' } },
       },
-      '/repo/apicontract.config.json',
+      '/repo/contractdiff.config.json',
     );
     expect(config).toEqual({
       root: '/repo',
-      file: '/repo/apicontract.config.json',
+      file: '/repo/contractdiff.config.json',
       input: 'openapi.yaml',
       overlays: ['o.yaml'],
       plugins: ['./plugin.mjs', 'apicontract-plugin-x'],
@@ -160,7 +160,7 @@ describe('configSchema', () => {
         legacy: { type: 'array', items: { type: 'string', minLength: 1 }, description: 'Rule ids that still run on operations `since` leaves untouched; none by default' },
       },
     });
-    expect(configSchema).toMatchObject({ $schema: 'https://json-schema.org/draft/2020-12/schema', title: 'apicontract.config.json', type: 'object', additionalProperties: false });
+    expect(configSchema).toMatchObject({ $schema: 'https://json-schema.org/draft/2020-12/schema', title: 'contractdiff.config.json', type: 'object', additionalProperties: false });
     expect(configSchema.properties.targets.additionalProperties).toEqual({
       type: 'object',
       additionalProperties: false,
@@ -181,7 +181,7 @@ describe('configSchema', () => {
 });
 
 describe('validateConfig, the lint section', () => {
-  const file = '/project/apicontract.config.json';
+  const file = '/project/contractdiff.config.json';
 
   it('reads extends and rules, and leaves out what is not given', () => {
     expect(validateConfig({ lint: { extends: ['agent-ready'], rules: { 'operation-tags': 'error' } } }, file).lint).toEqual({ extends: ['agent-ready'], rules: { 'operation-tags': 'error' } });
@@ -237,15 +237,15 @@ describe('ConfigError and UsageError', () => {
 
 describe('findConfig and loadConfig', () => {
   it('looks for json, then mjs, then ts', () => {
-    expect(CONFIG_FILES).toEqual(['apicontract.config.json', 'apicontract.config.mjs', 'apicontract.config.ts']);
+    expect(CONFIG_FILES).toEqual(['contractdiff.config.json', 'contractdiff.config.mjs', 'contractdiff.config.ts']);
     const dir = temp();
     expect(findConfig(dir)).toBeUndefined();
-    writeFileSync(join(dir, 'apicontract.config.ts'), 'export default { input: "ts.yaml" };\n');
-    expect(findConfig(dir)).toBe(join(dir, 'apicontract.config.ts'));
-    writeFileSync(join(dir, 'apicontract.config.mjs'), 'export default { input: "mjs.yaml" };\n');
-    expect(findConfig(dir)).toBe(join(dir, 'apicontract.config.mjs'));
-    writeFileSync(join(dir, 'apicontract.config.json'), '{ "input": "json.yaml" }\n');
-    expect(findConfig(dir)).toBe(join(dir, 'apicontract.config.json'));
+    writeFileSync(join(dir, 'contractdiff.config.ts'), 'export default { input: "ts.yaml" };\n');
+    expect(findConfig(dir)).toBe(join(dir, 'contractdiff.config.ts'));
+    writeFileSync(join(dir, 'contractdiff.config.mjs'), 'export default { input: "mjs.yaml" };\n');
+    expect(findConfig(dir)).toBe(join(dir, 'contractdiff.config.mjs'));
+    writeFileSync(join(dir, 'contractdiff.config.json'), '{ "input": "json.yaml" }\n');
+    expect(findConfig(dir)).toBe(join(dir, 'contractdiff.config.json'));
   });
 
   it('is undefined when no config is named and none is found', async () => {
@@ -254,13 +254,13 @@ describe('findConfig and loadConfig', () => {
 
   it('loads the JSON form', async () => {
     const dir = temp();
-    writeFileSync(join(dir, 'apicontract.config.json'), '{ "input": "a.yaml" }\n');
-    expect(await loadConfig(dir)).toMatchObject({ root: dir, file: join(dir, 'apicontract.config.json'), input: 'a.yaml' });
+    writeFileSync(join(dir, 'contractdiff.config.json'), '{ "input": "a.yaml" }\n');
+    expect(await loadConfig(dir)).toMatchObject({ root: dir, file: join(dir, 'contractdiff.config.json'), input: 'a.yaml' });
   });
 
   it('loads a module by its default export, and the file --config names, relative to cwd', async () => {
     const dir = temp();
-    writeFileSync(join(dir, 'apicontract.config.json'), '{ "input": "json.yaml" }\n');
+    writeFileSync(join(dir, 'contractdiff.config.json'), '{ "input": "json.yaml" }\n');
     writeFileSync(join(dir, 'other.mjs'), 'export default { input: "mjs.yaml" };\n');
     expect(await loadConfig(dir, 'other.mjs')).toMatchObject({ root: dir, file: join(dir, 'other.mjs'), input: 'mjs.yaml' });
   });
@@ -268,7 +268,7 @@ describe('findConfig and loadConfig', () => {
   it('refuses a named file that does not exist, a file that is not JSON, and a module that does not load', async () => {
     const dir = temp();
     expect(await rejection(loadConfig(dir, 'missing.json'))).toBe(
-      `${join(dir, 'missing.json')} cannot be used:\n  - it does not exist. fix: pass \`--config\` a file that exists, or create \`apicontract.config.json\``,
+      `${join(dir, 'missing.json')} cannot be used:\n  - it does not exist. fix: pass \`--config\` a file that exists, or create \`contractdiff.config.json\``,
     );
     writeFileSync(join(dir, 'bad.json'), '{');
     expect(await rejection(loadConfig(dir, 'bad.json'))).toMatch(/cannot be used:\n {2}- it is not JSON \(.+\)\. fix: correct the JSON, or validate it against `configSchema`$/u);

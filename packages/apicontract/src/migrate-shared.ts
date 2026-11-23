@@ -1,11 +1,11 @@
 /**
- * What every `apicontract migrate <from>` returns (apicontract-kit R4): our config, the edits to the
+ * What every `contractdiff migrate <from>` returns (apicontract-kit R4): our config, the edits to the
  * user's files, and a finding for every option it could not carry. A migration is pure: it reads
  * the incumbent's config and files as text and returns text; `command-migrate.ts` does the writing.
  */
 import { type ContractFinding } from './core/model.js';
 
-/** One target of `apicontract.config.json` (apicontract-gen-command R1). */
+/** One target of `contractdiff.config.json` (apicontract-gen-command R1). */
 export interface Target {
   readonly generator: string;
   /** Where the incumbent wrote this output: a file for one file, a folder for several. */
@@ -81,5 +81,5 @@ export const commandParts = (command: string): string[] => command.split(/(\s*(?
 /** `kebab-case` as `camelCase`: CLI flags and YAML keys as option names. */
 export const camel = (name: string): string => name.replaceAll(/-([a-z])/gu, (_match, letter: string) => letter.toUpperCase());
 
-/** The text of `config` as `apicontract.config.json` holds it. */
+/** The text of `config` as `contractdiff.config.json` holds it. */
 export const configText = (config: Config): string => `${JSON.stringify(config, undefined, 2)}\n`;

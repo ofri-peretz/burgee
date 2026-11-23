@@ -4,7 +4,7 @@
  * it, and the answer a stub gives.
  *
  * Every spec-derived string goes through {@link literal}; the `types` and `validator` targets'
- * output is imported by path ({@link Imports}), never by apicontract.
+ * output is imported by path ({@link Imports}), never by contractdiff.
  */
 import { type Response, type Route, stubStatus } from './plugin-server-routes.js';
 

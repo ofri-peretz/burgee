@@ -1,5 +1,5 @@
 /**
- * `apicontract migrate openapi-fetch` (apicontract-kit R4): openapi-fetch reads the types
+ * `contractdiff migrate openapi-fetch` (apicontract-kit R4): openapi-fetch reads the types
  * openapi-typescript writes, so its migration is that one plus the `fetch` target, with each
  * `import createClient from "openapi-fetch"` pointed at the generated client. A call by method and
  * path (`client.GET("/pets")`) has no mechanical equivalent in a client with one method per

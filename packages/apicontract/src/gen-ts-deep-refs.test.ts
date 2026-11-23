@@ -11,7 +11,7 @@ import { plugin } from './plugin-types.js';
  */
 
 const host = createHost();
-host.register({ name: 'apicontract', adapters: builtinAdapters });
+host.register({ name: 'contractdiff', adapters: builtinAdapters });
 host.register(plugin);
 
 const types = async (document: unknown): Promise<string> => (await host.run('types', document)).files[0]?.content ?? '';

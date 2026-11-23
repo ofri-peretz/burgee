@@ -22,12 +22,12 @@ const project = (config: Record<string, unknown> = {}, spec = 'run/pets.openapi.
   copyFileSync(join(FIXTURES, spec), join(root, 'openapi.yaml'));
   copyFileSync(join(FIXTURES, 'run/plugin.mjs'), join(root, 'plugin.mjs'));
   const written = { input: 'openapi.yaml', plugins: ['./plugin.mjs'], targets: { types: { generator: 'types', out: 'src/gen' } }, ...config };
-  writeFileSync(join(root, 'apicontract.config.json'), `${JSON.stringify(written)}\n`);
+  writeFileSync(join(root, 'contractdiff.config.json'), `${JSON.stringify(written)}\n`);
   return root;
 };
 
 const read = (root: string, path: string): string => readFileSync(join(root, path), 'utf8');
-const header = (path: string, body: string): string => withHeader(path, body, 'apicontract gen');
+const header = (path: string, body: string): string => withHeader(path, body, 'contractdiff gen');
 
 const failure = async (attempt: Promise<unknown>): Promise<{ message: string; code: unknown }> => {
   try {
@@ -51,7 +51,7 @@ describe('gen', () => {
         { path: 'src/gen/handlers.ts', owner: 'user', action: 'write', target: 'types' },
         { path: 'src/gen/schemas.json', owner: 'generated', action: 'write', target: 'types' },
         { path: 'src/gen/types.ts', owner: 'generated', action: 'write', target: 'types' },
-        { path: 'apicontract.map.json', owner: 'generated', action: 'write' },
+        { path: 'contractdiff.map.json', owner: 'generated', action: 'write' },
       ],
       changed: true,
       changes: 4,
@@ -69,14 +69,14 @@ describe('gen', () => {
     expect(second.unchanged).toBe(3);
     expect(second.skipped).toBe(1);
     // A run that changes one file, the map, still says it changed something.
-    rmSync(join(root, 'apicontract.map.json'));
+    rmSync(join(root, 'contractdiff.map.json'));
     expect(await gen({ cwd: root })).toMatchObject({ changed: true, changes: 1 });
   });
 
   it('maps each operation to the files and symbols generated for it', async () => {
     const root = project();
     await gen({ cwd: root });
-    const map = JSON.parse(read(root, 'apicontract.map.json')) as { operations: Record<string, unknown>; files: Record<string, unknown> };
+    const map = JSON.parse(read(root, 'contractdiff.map.json')) as { operations: Record<string, unknown>; files: Record<string, unknown> };
     expect(map.operations).toEqual({
       addPet: [
         { file: 'src/gen/handlers.ts', symbol: 'addPet', target: 'types', owner: 'user' },
@@ -118,7 +118,7 @@ describe('gen', () => {
   it('checks without writing: exit 1 and the stale files after the spec changes, clean after gen', async () => {
     const root = project();
     const before = await gen({ cwd: root, check: true });
-    expect(before).toMatchObject({ stale: ['src/gen/handlers.ts', 'src/gen/schemas.json', 'src/gen/types.ts', 'apicontract.map.json'], exitCode: 1, fix: 'run `apicontract gen` and commit the result' });
+    expect(before).toMatchObject({ stale: ['src/gen/handlers.ts', 'src/gen/schemas.json', 'src/gen/types.ts', 'contractdiff.map.json'], exitCode: 1, fix: 'run `contractdiff gen` and commit the result' });
     expect(existsSync(join(root, 'src/gen'))).toBe(false);
     await gen({ cwd: root });
     const clean = await gen({ cwd: root, check: true });
@@ -126,7 +126,7 @@ describe('gen', () => {
     expect(clean).not.toHaveProperty('exitCode');
     expect(clean).not.toHaveProperty('fix');
     writeFileSync(join(root, 'openapi.yaml'), read(root, 'openapi.yaml').replace('Pet:', 'Cat:'));
-    expect(await gen({ cwd: root, check: true })).toMatchObject({ stale: ['src/gen/schemas.json', 'src/gen/types.ts', 'apicontract.map.json'], exitCode: 1 });
+    expect(await gen({ cwd: root, check: true })).toMatchObject({ stale: ['src/gen/schemas.json', 'src/gen/types.ts', 'contractdiff.map.json'], exitCode: 1 });
   });
 
   it('prints the diff a run would write, and writes nothing', async () => {
@@ -149,9 +149,9 @@ describe('gen', () => {
         `+${header('types.ts', 'export type Cat = unknown;\n').split('\n')[0] ?? ''}`,
         '+export type Cat = unknown;',
         '',
-      ].join('\n') + report.diff?.slice(report.diff.indexOf('--- a/apicontract.map.json')),
+      ].join('\n') + report.diff?.slice(report.diff.indexOf('--- a/contractdiff.map.json')),
     );
-    expect(report.diff).toContain('--- a/apicontract.map.json');
+    expect(report.diff).toContain('--- a/contractdiff.map.json');
     expect(read(root, 'src/gen/schemas.json')).toBe('["Pet"]\n');
   });
 
@@ -159,19 +159,19 @@ describe('gen', () => {
     const root = project({ targets: { types: { generator: 'types', out: 'src/gen' }, other: { generator: 'types', out: '.', options: { banner: '// b\n' } } } });
     await gen({ cwd: root });
     expect(read(root, 'types.ts')).toBe(header('types.ts', '// b\nexport type Pet = unknown;\n'));
-    writeFileSync(join(root, 'apicontract.config.json'), JSON.stringify({ input: 'openapi.yaml', plugins: ['./plugin.mjs'], targets: { types: { generator: 'types', out: 'lib' }, other: { generator: 'types', out: '.', options: { banner: '// b\n' } } } }));
+    writeFileSync(join(root, 'contractdiff.config.json'), JSON.stringify({ input: 'openapi.yaml', plugins: ['./plugin.mjs'], targets: { types: { generator: 'types', out: 'lib' }, other: { generator: 'types', out: '.', options: { banner: '// b\n' } } } }));
     const report = await gen({ cwd: root, targets: ['types'] });
     expect(report.files.filter((file) => file.action === 'delete').map((file) => `${file.path}:${file.target ?? ''}`)).toEqual(['src/gen/schemas.json:types', 'src/gen/types.ts:types']);
     expect(existsSync(join(root, 'src/gen/types.ts'))).toBe(false);
     expect(existsSync(join(root, 'src/gen/handlers.ts'))).toBe(true);
-    const map = JSON.parse(read(root, 'apicontract.map.json')) as { files: Record<string, { target: string }> };
+    const map = JSON.parse(read(root, 'contractdiff.map.json')) as { files: Record<string, { target: string }> };
     expect(Object.keys(map.files)).toEqual(['lib/schemas.json', 'lib/types.ts', 'schemas.json', 'types.ts']);
   });
 
   it('runs every target when --target is empty, and only the named ones otherwise, in config order', async () => {
     const root = project({ targets: { b: { generator: 'types', out: 'b' }, a: { generator: 'types', out: 'a' } } });
     expect((await gen({ cwd: root, targets: [] })).files.map((file) => file.target)).toContain('b');
-    rmSync(join(root, 'apicontract.map.json'));
+    rmSync(join(root, 'contractdiff.map.json'));
     const report = await gen({ cwd: root, dryRun: true, targets: ['a'] });
     expect(new Set(report.files.map((file) => file.target))).toEqual(new Set(['a', undefined]));
   });
@@ -189,12 +189,12 @@ describe('gen', () => {
   it('refuses a config without targets, without input, or no config at all, as config errors', async () => {
     const root = project({ targets: {} });
     expect(await failure(gen({ cwd: root }))).toMatchObject({ code: 'CONFIG', message: expect.stringContaining('it has no `targets`. fix: add `"targets": { "types": { "generator": "types", "out": "src/generated" } }`') as unknown });
-    writeFileSync(join(root, 'apicontract.config.json'), '{ "targets": { "t": { "generator": "types", "out": "o" } } }');
+    writeFileSync(join(root, 'contractdiff.config.json'), '{ "targets": { "t": { "generator": "types", "out": "o" } } }');
     expect(await failure(gen({ cwd: root }))).toMatchObject({ code: 'CONFIG', message: expect.stringContaining('it has no `input`. fix: add `"input": "openapi.yaml"`, the spec to generate from') as unknown });
     const empty = realpathSync(scratch('apicontract-none-'));
     expect(await failure(requireConfig(empty, undefined))).toMatchObject({
       code: 'CONFIG',
-      message: `${join(empty, 'apicontract.config.json')} cannot be used:\n  - no config was found. fix: create apicontract.config.json with \`input\` and \`targets\`, or pass \`--config\``,
+      message: `${join(empty, 'contractdiff.config.json')} cannot be used:\n  - no config was found. fix: create contractdiff.config.json with \`input\` and \`targets\`, or pass \`--config\``,
     });
   });
 
@@ -206,19 +206,19 @@ describe('gen', () => {
 
   it('refuses a map that was edited into something unreadable', async () => {
     const root = project();
-    writeFileSync(join(root, 'apicontract.map.json'), '{');
+    writeFileSync(join(root, 'contractdiff.map.json'), '{');
     expect(await failure(gen({ cwd: root }))).toMatchObject({ code: 'CONFIG' });
   });
 });
 
-describe('apicontract gen, through burgee', () => {
+describe('contractdiff gen, through burgee', () => {
   beforeAll(async () => {
     await runBurgee(program, { argv: ['--version'] });
   });
 
   it('answers --json --dry-run with the envelope, and writes nothing', async () => {
     const root = project();
-    const r = await runBurgee(program, { argv: ['gen', '--json', '--dry-run', '--config', join(root, 'apicontract.config.json')] });
+    const r = await runBurgee(program, { argv: ['gen', '--json', '--dry-run', '--config', join(root, 'contractdiff.config.json')] });
     expect(r.stderr).toBe('');
     expect(r.code).toBe(ExitCode.OK);
     const envelope = r.json as { ok: boolean; data: { changes: number; diff: string; files: unknown[] }; meta: Record<string, unknown> };
@@ -232,7 +232,7 @@ describe('apicontract gen, through burgee', () => {
 
   it('exits 1 on --check when stale and 0 after gen, and 1 with the fix line on a hand edit', async () => {
     const root = project();
-    const config = join(root, 'apicontract.config.json');
+    const config = join(root, 'contractdiff.config.json');
     expect((await runBurgee(program, { argv: ['gen', '--check', '--json', '--config', config] })).code).toBe(ExitCode.RUNTIME);
     expect((await runBurgee(program, { argv: ['gen', '--target', 'types', '--config', config] })).code).toBe(ExitCode.OK);
     expect((await runBurgee(program, { argv: ['gen', '--check', '--config', config] })).code).toBe(ExitCode.OK);
@@ -245,9 +245,9 @@ describe('apicontract gen, through burgee', () => {
 
   it('exits 3 on a config it cannot use, and 2 on an unknown target', async () => {
     const root = project({ inptu: 'x' });
-    expect((await runBurgee(program, { argv: ['gen', '--config', join(root, 'apicontract.config.json')] })).code).toBe(ExitCode.CONFIG);
+    expect((await runBurgee(program, { argv: ['gen', '--config', join(root, 'contractdiff.config.json')] })).code).toBe(ExitCode.CONFIG);
     const good = project();
-    expect((await runBurgee(program, { argv: ['gen', '--target', 'nope', '--config', join(good, 'apicontract.config.json')] })).code).toBe(ExitCode.USAGE);
+    expect((await runBurgee(program, { argv: ['gen', '--target', 'nope', '--config', join(good, 'contractdiff.config.json')] })).code).toBe(ExitCode.USAGE);
   });
 
   it('finds the config in the working folder when --config is not given', async () => {

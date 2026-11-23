@@ -1,5 +1,5 @@
 /**
- * `apicontract extract --from ts-rest` (apicontract-extract R7): a ts-rest contract object becomes
+ * `contractdiff extract --from ts-rest` (apicontract-extract R7): a ts-rest contract object becomes
  * OpenAPI 3.1, through the writer `openapi-from-schemas` uses. ts-rest is archived; this is the way
  * out for its users, and `gen` then writes the server and client the contract had.
  *

@@ -1,17 +1,17 @@
 /**
- * `apicontract.map.json` (apicontract-gen-command R7, spec.md R-BL1): for each operation, the files
+ * `contractdiff.map.json` (apicontract-gen-command R7, spec.md R-BL1): for each operation, the files
  * and symbols generated for it. `check`, `diff` and the contract-test plugins read it.
  *
  * It also records, under `files`, every generated file a run wrote and the hash of its body: that is
  * how a file in a language without comments (JSON) is known to be unedited, and how a file a
- * target stopped producing is known to be apicontract's to delete (R5). Keys are sorted, so the
+ * target stopped producing is known to be contractdiff's to delete (R5). Keys are sorted, so the
  * same inputs write the same bytes.
  */
 import { type GeneratedFile } from './host.js';
 import { ConfigError } from './run-config.js';
 import { digest } from './run-header.js';
 
-export const MAP_FILE = 'apicontract.map.json';
+export const MAP_FILE = 'contractdiff.map.json';
 
 export interface MapEntry {
   readonly file: string;
@@ -47,7 +47,7 @@ export const emptyMap = (): ContractMap => ({ version: 1, operations: {}, files:
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
 
 const unreadable = (why: string): never => {
-  throw new ConfigError(MAP_FILE, [`it ${why}. fix: delete ${MAP_FILE} and run \`apicontract gen\` again; it is regenerated, never edited`]);
+  throw new ConfigError(MAP_FILE, [`it ${why}. fix: delete ${MAP_FILE} and run \`contractdiff gen\` again; it is regenerated, never edited`]);
 };
 
 const isMap = (value: unknown): value is ContractMap => isRecord(value) && value.version === 1 && isRecord(value.operations) && isRecord(value.files);

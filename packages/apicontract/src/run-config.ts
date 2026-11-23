@@ -1,5 +1,5 @@
 /**
- * The project's config (apicontract-gen-command R1): `apicontract.config.json`, `.mjs` or `.ts`,
+ * The project's config (apicontract-gen-command R1): `contractdiff.config.json`, `.mjs` or `.ts`,
  * the first found wins, in that order. It is data, so an agent can write it unaided: the JSON form
  * validates against {@link configSchema}, and every problem is reported at once, each with a
  * `fix:` line.
@@ -10,7 +10,7 @@ import { pathToFileURL } from 'node:url';
 
 import { type Options } from './host.js';
 
-export const CONFIG_FILES = ['apicontract.config.json', 'apicontract.config.mjs', 'apicontract.config.ts'] as const;
+export const CONFIG_FILES = ['contractdiff.config.json', 'contractdiff.config.mjs', 'contractdiff.config.ts'] as const;
 
 export interface Target {
   /** The generator's name, as a plugin registers it. */
@@ -45,7 +45,7 @@ export interface Config {
   readonly extract: ExtractConfig;
   /** Absent when the config has no `diff` section. */
   readonly diff?: DiffConfig;
-  /** `apicontract lint`'s rulesets and per-rule levels; absent when the config has no `lint` section. */
+  /** `contractdiff lint`'s rulesets and per-rule levels; absent when the config has no `lint` section. */
   readonly lint?: LintConfig;
 }
 
@@ -61,10 +61,10 @@ export interface LintConfig {
   readonly legacy?: readonly string[];
 }
 
-/** The JSON Schema `apicontract.config.json` validates against. */
+/** The JSON Schema `contractdiff.config.json` validates against. */
 export const configSchema = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
-  title: 'apicontract.config.json',
+  title: 'contractdiff.config.json',
   type: 'object',
   additionalProperties: false,
   properties: {
@@ -90,7 +90,7 @@ export const configSchema = {
       type: 'object',
       additionalProperties: false,
       properties: {
-        decisions: { enum: DECISION_SETTINGS, description: 'How `apicontract diff` holds a change to the decision written in the contract. The base ref\'s value wins over the working tree\'s; `--decisions` wins over both' },
+        decisions: { enum: DECISION_SETTINGS, description: 'How `contractdiff diff` holds a change to the decision written in the contract. The base ref\'s value wins over the working tree\'s; `--decisions` wins over both' },
       },
     },
     lint: {
@@ -303,12 +303,12 @@ const read = async (file: string): Promise<unknown> => {
 export const loadConfig = async (cwd: string, explicit?: string): Promise<Config | undefined> => {
   const file = explicit === undefined ? findConfig(cwd) : resolve(cwd, explicit);
   if (file === undefined) return undefined;
-  if (!existsSync(file)) throw new ConfigError(file, ['it does not exist. fix: pass `--config` a file that exists, or create `apicontract.config.json`']);
+  if (!existsSync(file)) throw new ConfigError(file, ['it does not exist. fix: pass `--config` a file that exists, or create `contractdiff.config.json`']);
   return validateConfig(await read(file), file);
 };
 
 /**
- * `diff.decisions` from the text of an `apicontract.config.json`, and nothing else in it: `diff`
+ * `diff.decisions` from the text of an `contractdiff.config.json`, and nothing else in it: `diff`
  * reads this from the base ref too (R12), where the rest of the file may be a version this build
  * does not know. `undefined` when the file does not set it.
  */

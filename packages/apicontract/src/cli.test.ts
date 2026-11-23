@@ -22,7 +22,7 @@ const LANE_COMMANDS = [
   ['props', 'idempotent'],
 ] as const;
 
-describe('apicontract, Phase 0', () => {
+describe('contractdiff, Phase 0', () => {
   // burgee's first run loads its renderers lazily; paying that here keeps each case under 5 s.
   beforeAll(async () => {
     await runBurgee(program, { argv: ['--version'] });

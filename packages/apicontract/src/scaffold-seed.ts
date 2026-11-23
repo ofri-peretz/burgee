@@ -12,7 +12,7 @@ import { select, SELECTS } from './lint-select.js';
 import { UsageError } from './run-config.js';
 import { type RuleSeed } from './scaffold.js';
 
-const SHAPE = 'fix: pass one finding from `apicontract lint --json`, shaped { "file", "pointer", "message", "fix" }, or the whole output';
+const SHAPE = 'fix: pass one finding from `contractdiff lint --json`, shaped { "file", "pointer", "message", "fix" }, or the whole output';
 
 /** An object to read members of; an array reads as one with no `file`, so it is refused all the same. */
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
@@ -38,7 +38,7 @@ export const seedOf = (from: string, cwd: string): RuleSeed => {
   try {
     text = String(readFileSync(resolve(cwd, from)));
   } catch {
-    throw new UsageError(`there is no finding file ${from}. fix: save one with \`apicontract lint <spec> --json > ${from}\``);
+    throw new UsageError(`there is no finding file ${from}. fix: save one with \`contractdiff lint <spec> --json > ${from}\``);
   }
   const finding = findingOf(text, from);
   const [file, pointer] = [finding.file as string, finding.pointer as string];

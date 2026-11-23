@@ -25,7 +25,7 @@ describe('scripts', () => {
     const before = pkg({ gen: 'rm -rf out && pnpm exec openapi-typescript a.yaml -o "out/a.ts" > /dev/null; echo done', lint: 'eslint .' });
     const { config, edits } = migrate(undefined, { 'package.json': before });
     expect(config?.targets.types?.out).toBe('/dev/null');
-    expect(edits[0]?.after).toBe(pkg({ gen: 'rm -rf out && apicontract gen; echo done', lint: 'eslint .' }));
+    expect(edits[0]?.after).toBe(pkg({ gen: 'rm -rf out && contractdiff gen; echo done', lint: 'eslint .' }));
   });
 
   it('reads --output=, a quoted input, and the output of a redirect', () => {
@@ -41,7 +41,7 @@ describe('scripts', () => {
     const result = migrate(undefined, { 'package.json': pkg({ a: 'openapi-typescript a.yaml -o a.ts', b: 'openapi-typescript a.yaml -o b.ts --unknown' }) });
     expect(Object.keys(result.config?.targets ?? {})).toEqual(['types', 'types-2']);
     expect(result.findings).toEqual([
-      { code: 'option-dropped', pointer: 'package.json#/scripts/b', message: '`--unknown` is not an openapi-typescript flag apicontract carries', fix: 'remove it; `apicontract gen --help` lists what the types target takes' },
+      { code: 'option-dropped', pointer: 'package.json#/scripts/b', message: '`--unknown` is not an openapi-typescript flag contractdiff carries', fix: 'remove it; `contractdiff gen --help` lists what the types target takes' },
     ]);
   });
 
@@ -50,7 +50,7 @@ describe('scripts', () => {
     const result = migrate(undefined, { 'package.json': text });
     expect(result.edits).toEqual([]);
     expect(result.findings).toEqual([
-      { code: 'script-not-rewritten', pointer: 'package.json#/scripts/a', message: 'the `a` script is not written as `"a": "…"` on one line', fix: 'set it to `apicontract gen` by hand' },
+      { code: 'script-not-rewritten', pointer: 'package.json#/scripts/a', message: 'the `a` script is not written as `"a": "…"` on one line', fix: 'set it to `contractdiff gen` by hand' },
     ]);
   });
 
@@ -68,14 +68,14 @@ describe('redocly.yaml', () => {
     expect(result.config).toEqual({ input: 'a.yaml', targets: { types: { generator: 'types', out: STDOUT_OUT, options: { compat: 'openapi-typescript', rootTypes: true } } } });
     expect(result.findings.map((one) => [one.code, one.pointer, one.message])).toEqual([
       ['option-dropped', 'redocly.yaml#/apis2', '`apis2` configures Redocly, not the types'],
-      ['option-dropped', 'redocly.yaml#/apis/a/x-openapi-ts/transform', '`transform` is not an openapi-typescript option apicontract carries'],
-      ['stdout-output', 'redocly.yaml#/apis/a', 'openapi-typescript printed to stdout, and apicontract writes a file'],
+      ['option-dropped', 'redocly.yaml#/apis/a/x-openapi-ts/transform', '`transform` is not an openapi-typescript option contractdiff carries'],
+      ['stdout-output', 'redocly.yaml#/apis/a', 'openapi-typescript printed to stdout, and contractdiff writes a file'],
     ]);
   });
 
   it('reports YAML it cannot read, and reads a document that is not a map as empty', () => {
     expect(migrate('a: [', {}).findings[0]?.code).toBe('config-unreadable');
-    expect(migrate('a: [', {}).findings[0]?.fix).toBe('fix the YAML, or write apicontract.config.json by hand');
+    expect(migrate('a: [', {}).findings[0]?.fix).toBe('fix the YAML, or write contractdiff.config.json by hand');
     expect(migrate('- 1', {}).findings.map((one) => one.code)).toEqual(['nothing-to-migrate']);
     expect(migrate('apis:\n  a:\n    root: 1\n    x-openapi-ts:\n      output: 2\n', {}).findings.map((one) => one.code)).toEqual(['nothing-to-migrate']);
   });
@@ -85,7 +85,7 @@ describe('the edges a mutant would cross', () => {
   it('drops every runner word before the binary, and keeps the words before them', () => {
     const scripts = { a: 'bunx openapi-typescript a.yaml -o a.ts', b: 'pnpx openapi-typescript a.yaml -o b.ts', c: 'yarn openapi-typescript a.yaml -o c.ts', d: 'npm exec openapi-typescript a.yaml -o d.ts', e: 'pnpm dlx openapi-typescript a.yaml -o e.ts', f: 'cross-env A=1 npx openapi-typescript a.yaml -o f.ts' };
     expect(migrate(undefined, { 'package.json': pkg(scripts) }).edits[0]?.after).toBe(
-      pkg({ a: 'apicontract gen', b: 'apicontract gen', c: 'apicontract gen', d: 'apicontract gen', e: 'apicontract gen', f: 'cross-env A=1 apicontract gen' }),
+      pkg({ a: 'contractdiff gen', b: 'contractdiff gen', c: 'contractdiff gen', d: 'contractdiff gen', e: 'contractdiff gen', f: 'cross-env A=1 contractdiff gen' }),
     );
   });
 
@@ -93,8 +93,8 @@ describe('the edges a mutant would cross', () => {
     const result = migrate(undefined, { 'package.json': pkg({ a: 'rm -rf out&&openapi-typescript "my api.yaml" --output=a=b.ts', b: 'openapi-typescript myenum -o c.ts' }) });
     expect(result.config?.input).toBe('my api.yaml');
     expect(result.config?.targets.types?.out).toBe('a=b.ts');
-    expect(result.edits[0]?.after).toContain('"a": "rm -rf out&&apicontract gen"');
-    expect(result.findings[0]?.message).toBe('myenum is a second input, and one apicontract.config.json reads one');
+    expect(result.edits[0]?.after).toContain('"a": "rm -rf out&&contractdiff gen"');
+    expect(result.findings[0]?.message).toBe('myenum is a second input, and one contractdiff.config.json reads one');
   });
 
   it('touches no script that does not run openapi-typescript, even in a package.json it cannot edit', () => {
@@ -106,7 +106,7 @@ describe('the edges a mutant would cross', () => {
     expect(migrate('apis:\n  - root: a.yaml\n    x-openapi-ts:\n      output: a.ts\n', {}).findings.map((one) => one.code)).toEqual(['nothing-to-migrate']);
     const result = migrate('apis:\n  a:\n    root: a.yaml\n    x-openapi-ts:\n      output: 2\n      bogus: 1\n', {});
     expect(result.config?.targets.types?.out).toBe(STDOUT_OUT);
-    expect(result.findings[0]?.fix).toBe('remove it; `apicontract gen --help` lists what the types target takes');
+    expect(result.findings[0]?.fix).toBe('remove it; `contractdiff gen --help` lists what the types target takes');
   });
 
   it('reads a null redocly.yaml, and an api with no settings, as nothing', () => {

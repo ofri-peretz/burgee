@@ -64,7 +64,7 @@ export interface Report {
 export type Compare = (old: Contract, nu: Contract, options: { mode: Mode; side: Side }) => Comparison;
 
 /**
- * The code the properties hold to account. Each defaults to apicontract's own; a test passes a
+ * The code the properties hold to account. Each defaults to contractdiff's own; a test passes a
  * planted bug in one to show the property that catches it.
  */
 export interface Subject {
@@ -86,7 +86,7 @@ export interface PropsOptions {
   readonly against?: Contract | undefined;
   readonly mode?: Mode | undefined;
   readonly side?: Side | undefined;
-  /** The code under test, piece by piece; apicontract's own where not given. */
+  /** The code under test, piece by piece; contractdiff's own where not given. */
   readonly subject?: Partial<Subject> | undefined;
 }
 

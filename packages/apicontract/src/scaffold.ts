@@ -1,10 +1,10 @@
 /**
- * `apicontract plugin new <name>` (apicontract-kit R3): the files of a plugin that passes the
+ * `contractdiff plugin new <name>` (apicontract-kit R3): the files of a plugin that passes the
  * conformance suite as generated, as plain strings. Every file is the user's (`owner: 'user'`):
  * written once, never rewritten, which is what makes a second `plugin new` safe.
  *
- * The plugin and its test import from `apicontract/testing` only, and the test runs under
- * `node:test`, so the scaffold needs nothing installed beyond apicontract.
+ * The plugin and its test import from `contractdiff/testing` only, and the test runs under
+ * `node:test`, so the scaffold needs nothing installed beyond contractdiff.
  */
 import { type GeneratedFile } from './host.js';
 import { type SampleFinding } from './lint-engine.js';
@@ -32,14 +32,14 @@ const openapiSample = (name: string): string => `{
 }`;
 
 const header = (name: string, kind: Kind, what: string): string => `/**
- * The \`${name}\` apicontract plugin: ${what}.
+ * The \`${name}\` contractdiff plugin: ${what}.
  *
- * Scaffolded by \`apicontract plugin new ${name} --kind ${kind}\`. ${kind === 'rules' ? 'Change `then` or `check`, then make `sample.findings`\n * say exactly what the rule finds on' : 'Change `run`, then make `sample`\n * say exactly what `run` returns for'} \`sample.document\`: \`node --test plugin-${name}.test.ts\` runs the
+ * Scaffolded by \`contractdiff plugin new ${name} --kind ${kind}\`. ${kind === 'rules' ? 'Change `then` or `check`, then make `sample.findings`\n * say exactly what the rule finds on' : 'Change `run`, then make `sample`\n * say exactly what `run` returns for'} \`sample.document\`: \`node --test plugin-${name}.test.ts\` runs the
  * conformance suite and names every rule the plugin breaks, with a \`fix:\` line for each.
  */
 `;
 
-const generator = (name: string): string => `${header(name, 'generator', 'a generator, spec to code')}import { type Contract, type GeneratedFile, type Plugin } from 'apicontract/testing';
+const generator = (name: string): string => `${header(name, 'generator', 'a generator, spec to code')}import { type Contract, type GeneratedFile, type Plugin } from 'contractdiff/testing';
 
 /** One file: the operation ids, sorted so two runs give the same bytes. */
 const run = (contract: Contract): GeneratedFile[] => {
@@ -63,7 +63,7 @@ export const plugin: Plugin = {
 };
 `;
 
-const extractor = (name: string): string => `${header(name, 'extractor', 'an extractor, code to spec')}import { type Plugin } from 'apicontract/testing';
+const extractor = (name: string): string => `${header(name, 'extractor', 'an extractor, code to spec')}import { type Plugin } from 'contractdiff/testing';
 
 /** The operations named in \`options.operations\`; a real extractor reads them from the user's code instead. */
 const run = (options: Readonly<Record<string, unknown>>): unknown => {
@@ -87,7 +87,7 @@ export const plugin: Plugin = {
 };
 `;
 
-const adapter = (name: string): string => `${header(name, 'adapter', 'an input format, and a generator that reads it')}import { type Contract, type GeneratedFile, type Plugin } from 'apicontract/testing';
+const adapter = (name: string): string => `${header(name, 'adapter', 'an input format, and a generator that reads it')}import { type Contract, type GeneratedFile, type Plugin } from 'contractdiff/testing';
 
 /** A document in this format: \`{ "${name}": 1, "operations": ["listPets"] }\`. */
 const detect = (document: unknown): boolean => typeof document === 'object' && document !== null && (document as Record<string, unknown>)['${name}'] === 1;
@@ -137,7 +137,7 @@ const SAMPLE_DEPTH = 4;
 /** A value as TypeScript source, indented to sit `depth` levels in. */
 const literal = (value: unknown, depth: number): string => JSON.stringify(value, undefined, 2).replaceAll('\n', `\n${'  '.repeat(depth)}`);
 
-const rule = (name: string): string => `${header(name, 'rules', '`lint` rules')}import { type Plugin } from 'apicontract/testing';
+const rule = (name: string): string => `${header(name, 'rules', '`lint` rules')}import { type Plugin } from 'contractdiff/testing';
 
 export const plugin: Plugin = {
   name: '${name}',
@@ -157,7 +157,7 @@ export const plugin: Plugin = {
 `;
 
 /** A rule that finds the one mistake a finding named: a start, to widen into the mistake in general. */
-const seeded = (name: string, seed: RuleSeed): string => `${header(name, 'rules', '`lint` rules')}import { type Plugin } from 'apicontract/testing';
+const seeded = (name: string, seed: RuleSeed): string => `${header(name, 'rules', '`lint` rules')}import { type Plugin } from 'contractdiff/testing';
 
 // Seeded from one finding: \`check\` flags exactly the node it was found at. Widen it to say what makes
 // any node this mistake, then add the documents it should and should not flag to \`sample\`.
@@ -182,19 +182,19 @@ export const plugin: Plugin = {
 
 const test = (name: string, kind: Kind): string => `import { test } from 'node:test';
 
-import { conformance } from 'apicontract/testing';
+import { conformance } from 'contractdiff/testing';
 
 import { ${kind === 'adapter' ? 'mutate, plugin' : 'plugin'} } from './plugin-${name}.js';
 
-test('the ${name} plugin passes the apicontract conformance suite', async () => {
+test('the ${name} plugin passes the contractdiff conformance suite', async () => {
   await conformance(plugin${kind === 'adapter' ? ', { mutate }' : ''});
 });
 `;
 
 const readme = (name: string, kind: Kind): string => `# ${name}
 
-An [apicontract](https://github.com/ofri-peretz/burgee/tree/main/packages/apicontract) plugin: a
-${kind}, scaffolded by \`apicontract plugin new ${name} --kind ${kind}\`.
+An [contractdiff](https://github.com/ofri-peretz/burgee/tree/main/packages/apicontract) plugin: a
+${kind}, scaffolded by \`contractdiff plugin new ${name} --kind ${kind}\`.
 
 ## Check it
 
@@ -202,7 +202,7 @@ ${kind}, scaffolded by \`apicontract plugin new ${name} --kind ${kind}\`.
 node --test plugin-${name}.test.ts
 \`\`\`
 
-The test runs the conformance suite from \`apicontract/testing\`. It passes as scaffolded, and it
+The test runs the conformance suite from \`contractdiff/testing\`. It passes as scaffolded, and it
 names every rule a change breaks, each with a \`fix:\` line:
 
 | Rule | What it asks |
@@ -218,7 +218,7 @@ names every rule a change breaks, each with a \`fix:\` line:
 
 ## Use it
 
-The files are ES modules: keep them in a package with \`"type": "module"\`. Add the plugin to \`apicontract.config.json\`:
+The files are ES modules: keep them in a package with \`"type": "module"\`. Add the plugin to \`contractdiff.config.json\`:
 
 \`\`\`json
 { "plugins": ["./plugin-${name}.ts"] }

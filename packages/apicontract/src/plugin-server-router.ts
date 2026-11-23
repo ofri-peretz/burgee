@@ -111,7 +111,7 @@ export const routesFile = (framework: Framework, served: readonly Served[], opti
 export const handlersFile = (framework: Framework, routes: readonly Route[]): string =>
   lines(
     '/**',
-    ' * The handlers the routes call, one per operation. apicontract wrote this file once and never',
+    ' * The handlers the routes call, one per operation. contractdiff wrote this file once and never',
     ' * rewrites it: change it freely. `Handlers` (routes.ts, regenerated) declares one method per',
     " * operation, and the routes validate every request and response; each method here answers the spec's",
     ` * example until you replace it. ${framework.usage}`,

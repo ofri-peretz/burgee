@@ -64,7 +64,7 @@ const planted = (plant: Planted): LintGit & { asked: Date[]; shown: string[] } =
 /** A run in a scratch folder whose working config is `lint`. */
 const lintIn = async (lint: object, git: LintGit, extra: { rulesFrom?: string; files?: Record<string, string> } = {}) => {
   const dir = scratch({ 'api.yaml': API, ...extra.files });
-  const config = validateConfig(JSON.parse(json(lint)), join(dir, 'apicontract.config.json'));
+  const config = validateConfig(JSON.parse(json(lint)), join(dir, 'contractdiff.config.json'));
   return runLint({ cwd: dir, specs: [], config, git, now: NOW, ...(extra.rulesFrom === undefined ? {} : { rulesFrom: extra.rulesFrom }) });
 };
 const levelOf = (data: Record<string | symbol, unknown>, rule: string): string | undefined => (data.findings as { rule: string; level: string }[]).find((finding) => finding.rule === rule)?.level;
@@ -74,7 +74,7 @@ const spectral = (description: string) => `rules:\n  ids:\n    description: ${de
 
 describe('--rules-from (R11)', () => {
   it('applies the rules at the ref and lists what the working tree changed, not applied', async () => {
-    const commits = { [BASE]: { 'apicontract.config.json': json({ extends: ['recommended', '.spectral.yaml'], rules: { [SLASH]: 'warn', 'operation-tags': 'off' } }), '.spectral.yaml': spectral('old') } };
+    const commits = { [BASE]: { 'contractdiff.config.json': json({ extends: ['recommended', '.spectral.yaml'], rules: { [SLASH]: 'warn', 'operation-tags': 'off' } }), '.spectral.yaml': spectral('old') } };
     const git = planted({ commits, before: OLD });
     const working = { extends: ['recommended', '.spectral.yaml'], rules: { [SLASH]: 'error', 'info-description': 'off' } };
     const data = await lintIn(working, git, { rulesFrom: BASE, files: { '.spectral.yaml': spectral('new') } });
@@ -101,7 +101,7 @@ describe('--rules-from (R11)', () => {
     expect(summary(data)).toMatch(new RegExp(`; rules from ${BASE} \\(abc1234\\); warn first: 1 \\(ids\\)\\.$`, 'u'));
     expect(git.asked).toStrictEqual([new Date('2026-11-09T00:00:00.000Z')]);
     // Only the config and the ruleset files are read at a ref; a built-in ruleset is not a file.
-    expect(git.shown).toStrictEqual([`${BASE}:apicontract.config.json`, `${BASE}:.spectral.yaml`, `${OLD}:apicontract.config.json`]);
+    expect(git.shown).toStrictEqual([`${BASE}:contractdiff.config.json`, `${BASE}:.spectral.yaml`, `${OLD}:contractdiff.config.json`]);
   });
 
   it('reads merge-base as the base with origin/main, and a ref with no config there as the defaults', async () => {
@@ -114,7 +114,7 @@ describe('--rules-from (R11)', () => {
 
   it('says when nothing changed, and when there is no repository or no config', async () => {
     const same = { rules: { [SLASH]: 'warn' } };
-    const unchanged = await lintIn(same, planted({ commits: { [BASE]: { 'apicontract.config.json': json(same) } } }), { rulesFrom: BASE });
+    const unchanged = await lintIn(same, planted({ commits: { [BASE]: { 'contractdiff.config.json': json(same) } } }), { rulesFrom: BASE });
     expect(unchanged.rulesetChanged).toStrictEqual([]);
     expect(text(unchanged).startsWith('api.yaml')).toBe(true);
     expect('warnFirstUnchecked' in unchanged).toBe(false);
@@ -137,25 +137,25 @@ describe('--rules-from (R11)', () => {
       new UsageError('`--rules-from nope` names no commit here. fix: fetch it first (in CI, `git fetch origin main`), or pass a ref this checkout has'),
     );
     const dir = scratch({ 'api.yaml': API });
-    const config = validateConfig({ input: 'api.yaml' }, join(dir, 'apicontract.config.mjs'));
+    const config = validateConfig({ input: 'api.yaml' }, join(dir, 'contractdiff.config.mjs'));
     await expect(runLint({ cwd: dir, specs: [], config, git: planted({}), rulesFrom: BASE })).rejects.toThrow(
-      new UsageError('`--rules-from` reads apicontract.config.json at the ref, and the config is apicontract.config.mjs. fix: move the config to apicontract.config.json, or drop --rules-from'),
+      new UsageError('`--rules-from` reads contractdiff.config.json at the ref, and the config is contractdiff.config.mjs. fix: move the config to contractdiff.config.json, or drop --rules-from'),
     );
-    const broken = planted({ commits: { [BASE]: { 'apicontract.config.json': '{' } } });
+    const broken = planted({ commits: { [BASE]: { 'contractdiff.config.json': '{' } } });
     await expect(lintIn({}, broken, { rulesFrom: BASE })).rejects.toThrow(ConfigError);
-    await expect(lintIn({}, broken, { rulesFrom: BASE })).rejects.toThrow(/^apicontract\.config\.json at abc1234 cannot be used:\n {2}- it is not JSON \(.+\)\. fix: correct it in a commit, or pass a later ref$/u);
-    const missing = planted({ commits: { [BASE]: { 'apicontract.config.json': json({ extends: ['.spectral.yaml'] }) } } });
+    await expect(lintIn({}, broken, { rulesFrom: BASE })).rejects.toThrow(/^contractdiff\.config\.json at abc1234 cannot be used:\n {2}- it is not JSON \(.+\)\. fix: correct it in a commit, or pass a later ref$/u);
+    const missing = planted({ commits: { [BASE]: { 'contractdiff.config.json': json({ extends: ['.spectral.yaml'] }) } } });
     await expect(lintIn({}, missing, { rulesFrom: BASE })).rejects.toThrow(
       '`lint.extends` names .spectral.yaml, which cannot be read (it is not in commit abc1234). fix: correct its path',
     );
-    const invalid = planted({ commits: { [BASE]: { 'apicontract.config.json': JSON.stringify({ lint: { rules: { [SLASH]: 'fatal' } } }) } } });
-    await expect(lintIn({}, invalid, { rulesFrom: BASE })).rejects.toThrow(/^apicontract\.config\.json at abc1234 cannot be used:\n {2}- `lint\.rules` must map rule ids/u);
+    const invalid = planted({ commits: { [BASE]: { 'contractdiff.config.json': JSON.stringify({ lint: { rules: { [SLASH]: 'fatal' } } }) } } });
+    await expect(lintIn({}, invalid, { rulesFrom: BASE })).rejects.toThrow(/^contractdiff\.config\.json at abc1234 cannot be used:\n {2}- `lint\.rules` must map rule ids/u);
   });
 });
 
 describe('warn first (R10)', () => {
   it('runs a rule at warn while it is newer at error than warnFor, and says so', async () => {
-    const git = planted({ commits: { [OLD]: { 'apicontract.config.json': json({ extends: ['agent-ready'] }) } }, before: OLD });
+    const git = planted({ commits: { [OLD]: { 'contractdiff.config.json': json({ extends: ['agent-ready'] }) } }, before: OLD });
     const data = await lintIn({ rules: { [SLASH]: 'error' }, warnFor: '30d' }, git);
     expect(levelOf(data, SLASH)).toBe('warn');
     expect(data.warnFirst).toStrictEqual([SLASH]);
@@ -166,13 +166,13 @@ describe('warn first (R10)', () => {
   });
 
   it('runs a rule at its own level once it was at error at the cutoff, and every rule warns when no commit is that old', async () => {
-    const atError = await lintIn({ rules: { [SLASH]: 'error' } }, planted({ commits: { [OLD]: { 'apicontract.config.json': json({ rules: { [SLASH]: 'error' } }) } }, before: OLD }));
+    const atError = await lintIn({ rules: { [SLASH]: 'error' } }, planted({ commits: { [OLD]: { 'contractdiff.config.json': json({ rules: { [SLASH]: 'error' } }) } }, before: OLD }));
     expect(levelOf(atError, SLASH)).toBe('error');
     expect('warnFirst' in atError).toBe(false);
     const young = await lintIn({ rules: { [SLASH]: 'error', 'operation-tags': 'error' } }, planted({}));
     expect(young.warnFirst).toStrictEqual(['operation-tags', SLASH]);
     expect(summary(young)).toMatch(/; warn first: 2 \(operation-tags, path-no-trailing-slash\)\.$/u);
-    const off = await lintIn({ rules: { [SLASH]: 'error' } }, planted({ commits: { [OLD]: { 'apicontract.config.json': json({ rules: { [SLASH]: 'off' } }) } }, before: OLD }));
+    const off = await lintIn({ rules: { [SLASH]: 'error' } }, planted({ commits: { [OLD]: { 'contractdiff.config.json': json({ rules: { [SLASH]: 'off' } }) } }, before: OLD }));
     expect(off.warnFirst).toStrictEqual([SLASH]);
   });
 
@@ -185,11 +185,11 @@ describe('warn first (R10)', () => {
   });
 
   it('says why it was not checked', async () => {
-    const unreadable = await lintIn({ rules: { [SLASH]: 'error' } }, planted({ commits: { [OLD]: { 'apicontract.config.json': '{' } }, before: OLD }));
+    const unreadable = await lintIn({ rules: { [SLASH]: 'error' } }, planted({ commits: { [OLD]: { 'contractdiff.config.json': '{' } }, before: OLD }));
     expect(levelOf(unreadable, SLASH)).toBe('error');
-    expect(unreadable.warnFirstUnchecked).toMatch(/^the rules at old0000 cannot be read \(apicontract\.config\.json at old0000 cannot be used:\)$/u);
+    expect(unreadable.warnFirstUnchecked).toMatch(/^the rules at old0000 cannot be read \(contractdiff\.config\.json at old0000 cannot be used:\)$/u);
     const dir = scratch({ 'api.yaml': API });
-    const config = validateConfig({ input: 'api.yaml', lint: { rules: { [SLASH]: 'error' } } }, join(dir, 'apicontract.config.mjs'));
+    const config = validateConfig({ input: 'api.yaml', lint: { rules: { [SLASH]: 'error' } } }, join(dir, 'contractdiff.config.mjs'));
     const module = await runLint({ cwd: dir, specs: [], config, git: planted({}), now: NOW });
     expect(module.warnFirstUnchecked).toBe('the config is not JSON, so its history is not read');
     expect(summary(module)).toMatch(/; warn first not checked: the config is not JSON, so its history is not read\.$/u);
@@ -198,7 +198,7 @@ describe('warn first (R10)', () => {
   it('counts from the time the run starts when no time is given', async () => {
     const git = planted({});
     const dir = scratch({ 'api.yaml': API });
-    const config = validateConfig({ input: 'api.yaml', lint: { rules: { [SLASH]: 'error' } } }, join(dir, 'apicontract.config.json'));
+    const config = validateConfig({ input: 'api.yaml', lint: { rules: { [SLASH]: 'error' } } }, join(dir, 'contractdiff.config.json'));
     const started = Date.now();
     await runLint({ cwd: dir, specs: [], config, git });
     const asked = (git.asked[0] as Date).getTime() + 14 * 86_400_000;
@@ -228,7 +228,7 @@ describe('the pieces', () => {
   });
 
   it('rulesetOfText: reads a redocly.yaml in a folder as Redocly', () => {
-    const read = rulesetOfText('rules/redocly.yaml', () => 'rules:\n  rule/x: { subject: { type: Root }, assertions: { defined: true } }\n', 'apicontract.config.json');
+    const read = rulesetOfText('rules/redocly.yaml', () => 'rules:\n  rule/x: { subject: { type: Root }, assertions: { defined: true } }\n', 'contractdiff.config.json');
     expect(Object.keys(read.rules)).toStrictEqual(['rule/x']);
   });
 
@@ -265,12 +265,12 @@ describe('gitIn, on a planted repository', () => {
     const dir = scratch({});
     const sub = join(dir, 'api');
     mkdirSync(sub);
-    writeFileSync(join(sub, 'apicontract.config.json'), '{"one":1}');
+    writeFileSync(join(sub, 'contractdiff.config.json'), '{"one":1}');
     await git(dir, 'init', '-q', '-b', 'main');
     await git(dir, 'add', '.');
     await git(dir, 'commit', '-q', '-m', 'one');
     const first = await git(dir, 'rev-parse', 'HEAD');
-    writeFileSync(join(sub, 'apicontract.config.json'), '{"two":2}');
+    writeFileSync(join(sub, 'contractdiff.config.json'), '{"two":2}');
     await git(dir, 'commit', '-q', '-am', 'two');
     const second = await git(dir, 'rev-parse', 'HEAD');
     const inSub = gitIn(sub);
@@ -282,7 +282,7 @@ describe('gitIn, on a planted repository', () => {
     expect(await inSub.mergeBase()).toBe(first);
     expect(await inSub.before(new Date('2030-01-01T00:00:00.000Z'))).toBe(second);
     expect(await inSub.before(new Date('2000-01-01T00:00:00.000Z'))).toBeUndefined();
-    expect(await inSub.show(first, 'apicontract.config.json')).toBe('{"one":1}');
+    expect(await inSub.show(first, 'contractdiff.config.json')).toBe('{"one":1}');
     expect(await inSub.show(first, 'missing.json')).toBeUndefined();
     expect(await gitIn(dir).commit('HEAD')).toBe(second);
     // A hook's GIT_DIR does not lead it to another repository.

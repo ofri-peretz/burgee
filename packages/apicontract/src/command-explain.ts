@@ -1,5 +1,5 @@
 /**
- * `apicontract explain <operation>` (apicontract-agents R1): one operation fully resolved, every
+ * `contractdiff explain <operation>` (apicontract-agents R1): one operation fully resolved, every
  * `$ref` inlined and every cycle cut with a marker, as Markdown or `--json`, under `--max-bytes`.
  * `--list` prints the operation ids, one per line.
  *
@@ -38,7 +38,7 @@ const documentOf = async (cwd: string, input: string | undefined): Promise<unkno
   if (input !== undefined) return readDocument(resolve(cwd, input), '--input');
   const config = await loadConfig(cwd);
   if (config?.input === undefined) {
-    throw new ConfigError(resolve(cwd, 'apicontract.config.json'), ['no spec was named. fix: pass --input <file>, or add `"input"` to apicontract.config.json']);
+    throw new ConfigError(resolve(cwd, 'contractdiff.config.json'), ['no spec was named. fix: pass --input <file>, or add `"input"` to contractdiff.config.json']);
   }
   return readInput({ root: config.root, file: config.file, input: config.input, overlays: config.overlays });
 };
@@ -52,11 +52,11 @@ export const explain = async (options: ExplainOptions): Promise<Explanation | st
     throw new UsageError(`--max-bytes takes a whole number of bytes above 0, not ${String(maxBytes)}. fix: pass a number such as --max-bytes 4096`);
   }
   const host = createHost();
-  host.register({ name: 'apicontract', adapters: builtinAdapters });
+  host.register({ name: 'contractdiff', adapters: builtinAdapters });
   const contract = host.read(await documentOf(options.cwd, options.input));
   const ids = contract.operations.map((operation) => operation.id);
   if (options.list === true) return ids;
-  if (options.operation === undefined) throw new UsageError('name the operation to explain. fix: run `apicontract explain --list` for the ids, then `apicontract explain <id>`');
+  if (options.operation === undefined) throw new UsageError('name the operation to explain. fix: run `contractdiff explain --list` for the ids, then `contractdiff explain <id>`');
   const operation = contract.operations.find((candidate) => candidate.id === options.operation);
   if (operation === undefined) {
     const shown = ids.slice(0, SHOWN).join(', ');
@@ -76,7 +76,7 @@ export const command = defineCommand({
   effects: 'read_only',
   arguments: [{ name: 'operation', required: false, description: 'the operation id; `--list` prints them' }],
   options: {
-    input: { type: 'string', description: 'the spec, JSON or YAML (default: `input` in apicontract.config.json)', placeholder: 'file' },
+    input: { type: 'string', description: 'the spec, JSON or YAML (default: `input` in contractdiff.config.json)', placeholder: 'file' },
     list: { type: 'boolean', description: 'print the operation ids, one per line' },
     maxBytes: { type: 'number', description: 'cut the deepest schemas first until the JSON fits; the cuts are listed under `truncated`', placeholder: 'n' },
   },

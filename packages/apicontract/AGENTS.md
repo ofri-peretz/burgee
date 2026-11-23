@@ -1,21 +1,21 @@
-# apicontract, for agents
+# contractdiff, for agents
 
-apicontract turns specs into code and code into specs through plugins. This file is the plugin
-authoring guide: how to write a plugin that apicontract accepts, and how to prove it.
+contractdiff turns specs into code and code into specs through plugins. This file is the plugin
+authoring guide: how to write a plugin that contractdiff accepts, and how to prove it.
 
 ## Write a plugin
 
 ```sh
-apicontract plugin new my-target                      # a generator: spec to code
-apicontract plugin new my-source --kind extractor     # an extractor: code to spec
-apicontract plugin new my-format --kind adapter       # an input format, with a generator that reads it
+contractdiff plugin new my-target                      # a generator: spec to code
+contractdiff plugin new my-source --kind extractor     # an extractor: code to spec
+contractdiff plugin new my-format --kind adapter       # an input format, with a generator that reads it
 ```
 
 Each writes three files, all yours: `plugin-<name>.ts` with a one-operation `sample`, a
 `plugin-<name>.test.ts` that calls the conformance suite, and a `README.md`. A second run writes
 nothing and never overwrites a file you changed.
 
-A plugin is one plain object (`Plugin` in `apicontract/testing`):
+A plugin is one plain object (`Plugin` in `contractdiff/testing`):
 
 - `generators.<name>`: `{ description, inputs, sample: { document, files }, run(contract, options) }`.
   `run` returns files, `{ path, content, owner }`; `owner: 'user'` is written once and never again.
@@ -28,7 +28,7 @@ A plugin is one plain object (`Plugin` in `apicontract/testing`):
 
 ```ts
 import { test } from 'node:test';
-import { conformance } from 'apicontract/testing';
+import { conformance } from 'contractdiff/testing';
 import { plugin } from './plugin-my-target.js';
 
 test('conforms', async () => {
@@ -55,10 +55,10 @@ is not OpenAPI or Swagger), `extractor` and `generator` (the round trip, and whi
 ## Switch from another tool
 
 ```sh
-apicontract migrate openapi-typescript   # or openapi-fetch, hey-api, orval
-apicontract migrate orval --dry-run --json
+contractdiff migrate openapi-typescript   # or openapi-fetch, hey-api, orval
+contractdiff migrate orval --dry-run --json
 ```
 
-It reads the incumbent's config as data (never runs it), writes `apicontract.config.json` beside
+It reads the incumbent's config as data (never runs it), writes `contractdiff.config.json` beside
 it, rewrites the scripts that ran it, and reports every option it could not carry as a finding
 with a `fix:`. It deletes nothing; it prints the uninstall command.

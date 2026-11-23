@@ -15,7 +15,7 @@ const pets = parse(readFileSync(new URL('__fixtures__/agents/pets.openapi.yaml',
 
 const host = () => {
   const created = createHost();
-  created.register({ name: 'apicontract', adapters: builtinAdapters });
+  created.register({ name: 'contractdiff', adapters: builtinAdapters });
   created.register(plugin);
   return created;
 };

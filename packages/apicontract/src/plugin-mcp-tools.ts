@@ -187,7 +187,7 @@ export const toolsOf = (contract: Contract, options: McpOptions): { tools: Tool[
   }
   for (const entry of include ?? []) {
     const matched = contract.operations.some((operation) => (entry.startsWith('tag:') ? tagsOf(contract, operation).includes(entry.slice('tag:'.length)) : entry === operation.id));
-    if (!matched) findings.push(finding('mcp-include-unmatched', '#', `\`include\` names "${entry}", which matches no operation`, 'use an operation id from `apicontract explain --list`, or `tag:<name>` with a tag the spec declares'));
+    if (!matched) findings.push(finding('mcp-include-unmatched', '#', `\`include\` names "${entry}", which matches no operation`, 'use an operation id from `contractdiff explain --list`, or `tag:<name>` with a tag the spec declares'));
   }
   const explained = chosen.map((operation) => describe(contract, operation));
   const routed = explained.filter((explanation) => {

@@ -1,8 +1,8 @@
 /**
- * `apicontract/testing` — the conformance suite (apicontract-kit R1–R2): the shared definition of
+ * `contractdiff/testing` — the conformance suite (apicontract-kit R1–R2): the shared definition of
  * done (`.sdlc/intents/apicontract/program.md`) as one function a plugin's own test calls.
  *
- *     import { conformance } from 'apicontract/testing';
+ *     import { conformance } from 'contractdiff/testing';
  *     it('conforms', async () => { await conformance(plugin); });
  *
  * It throws a `ConformanceError` listing every rule the plugin breaks, each with a `fix:` line, so
@@ -118,7 +118,7 @@ export const conformance = async (plugin: unknown, options: ConformanceOptions =
   const valid = plugin as Plugin;
   const host = createHost();
   // The built-in formats first, as `checkPlugin` does, so a sample reads without the plugin carrying an adapter.
-  host.register({ name: 'apicontract', adapters: builtinAdapters });
+  host.register({ name: 'contractdiff', adapters: builtinAdapters });
   host.register(valid);
   const report = await checked(valid);
   const observed = await Promise.all(generatorsOf(valid).map(async (entry) => observe(host, entry, options)));

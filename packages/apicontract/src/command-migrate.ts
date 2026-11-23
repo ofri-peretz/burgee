@@ -1,6 +1,6 @@
 /**
- * `apicontract migrate <from> [dir]` (apicontract-kit R4): read the incumbent's config and the
- * project's files, write `apicontract.config.json` beside the incumbent's (never deleting it),
+ * `contractdiff migrate <from> [dir]` (apicontract-kit R4): read the incumbent's config and the
+ * project's files, write `contractdiff.config.json` beside the incumbent's (never deleting it),
  * apply the edits, and report every option it could not carry. `--dry-run` writes nothing.
  *
  * `idempotent`, and earned: the config is the user's once written, and a second run finds no
@@ -66,15 +66,15 @@ export const command = defineCommand({
   },
   effects: 'idempotent',
   examples: [
-    { command: 'apicontract migrate openapi-typescript', description: 'redocly.yaml and the scripts that run it, as apicontract.config.json' },
-    { command: 'apicontract migrate orval --dry-run --json', description: 'the config, the edits and every finding, as data; nothing written' },
+    { command: 'contractdiff migrate openapi-typescript', description: 'redocly.yaml and the scripts that run it, as contractdiff.config.json' },
+    { command: 'contractdiff migrate orval --dry-run --json', description: 'the config, the edits and every finding, as data; nothing written' },
   ],
   run: async ({ args, options }) => {
     const root = resolve(args.dir ?? '');
     const source = SOURCES[args.from] as (typeof SOURCES)[string];
     const [config, files] = await Promise.all([firstConfig(root, source.configs), project(root)]);
     const result = source.migrate(config?.text, files);
-    const written = result.config === undefined ? [] : [{ path: 'apicontract.config.json', owner: 'user' as const, content: configText(result.config) }];
+    const written = result.config === undefined ? [] : [{ path: 'contractdiff.config.json', owner: 'user' as const, content: configText(result.config) }];
     const dryRun = options.dryRun === true;
     const report = dryRun ? { written: [], unchanged: [], kept: [] } : await writeFiles(root, written);
     await Promise.all((dryRun ? [] : result.edits).map(async (edit) => writeFile(join(root, edit.path), edit.after)));

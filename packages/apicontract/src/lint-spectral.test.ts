@@ -89,7 +89,7 @@ describe('readSpectral: a rule it carries', () => {
 
 describe('readSpectral: what it does not carry', () => {
   it.each<[string, unknown, string]>([
-    ['a custom function', { given: '$', then: { function: 'myFunction' } }, 'function `myFunction` is not a core function apicontract carries (truthy, falsy, defined, undefined, pattern, casing, enumeration, length, xor, schema)'],
+    ['a custom function', { given: '$', then: { function: 'myFunction' } }, 'function `myFunction` is not a core function contractdiff carries (truthy, falsy, defined, undefined, pattern, casing, enumeration, length, xor, schema)'],
     ['a path outside the subset', { given: '$.paths[*]~', then: { function: 'truthy' } }, '$.paths[*]~: `~` is outside the subset'],
     ['no given', { then: { function: 'truthy' } }, '`given` is not a JSONPath or a list of them'],
     ['an empty given', { given: [], then: { function: 'truthy' } }, '`given` is not a JSONPath or a list of them'],
@@ -98,12 +98,12 @@ describe('readSpectral: what it does not carry', () => {
     ['a JSONPath field', { given: '$', then: { field: '$.a', function: 'truthy' } }, '`field` `$.a` is not a member name; `@key` and JSONPath fields are not carried'],
     ['a field that is not text', { given: '$', then: { field: 1, function: 'truthy' } }, '`field` `1` is not a member name; `@key` and JSONPath fields are not carried'],
     ['options that are not an object', { given: '$', then: { function: 'length', functionOptions: 1 } }, '`functionOptions` is not an object'],
-    ['a casing apicontract lacks', { given: '$', then: { function: 'casing', functionOptions: { type: 'cobol' } } }, '`casing` type `cobol` is not one of camel, pascal, kebab, snake, macro, flat'],
+    ['a casing contractdiff lacks', { given: '$', then: { function: 'casing', functionOptions: { type: 'cobol' } } }, '`casing` type `cobol` is not one of camel, pascal, kebab, snake, macro, flat'],
     ['casing options it does not read', { given: '$', then: { function: 'casing', functionOptions: { type: 'camel', disallowDigits: true, separator: {} } } }, '`casing` options `disallowDigits`, `separator` are not carried'],
     ['a pattern with flags', { given: '$', then: { function: 'pattern', functionOptions: { match: '/x/i' } } }, "`pattern`'s `match` has the flags `i`, which are not carried"],
     ['a pattern that is not text', { given: '$', then: { function: 'pattern', functionOptions: { notMatch: 1 } } }, "`pattern`'s `notMatch` is not a string"],
     ['a pattern that does not compile', { given: '$', then: { function: 'pattern', functionOptions: { match: '\\p{Nope}' } } }, "`pattern`'s `match` does not compile as a Unicode regular expression"],
-    ['a format it does not read', { given: '$', formats: ['arazzo1_0'], then: { function: 'truthy' } }, 'format `arazzo1_0` is not one apicontract reads'],
+    ['a format it does not read', { given: '$', formats: ['arazzo1_0'], then: { function: 'truthy' } }, 'format `arazzo1_0` is not one contractdiff reads'],
     ['a severity it does not know', { given: '$', then: { function: 'truthy' }, severity: 'loud' }, 'severity `loud` is not error, warn, info, hint or off'],
     ['one casing option it does not read', { given: '$', then: { function: 'casing', functionOptions: { type: 'camel', separator: {} } } }, '`casing` options `separator` are not carried'],
     ['a given with a path that is not text', { given: ['$', 1], then: { function: 'truthy' } }, '`given` is not a JSONPath or a list of them'],
@@ -129,7 +129,7 @@ describe('readSpectral: what it does not carry', () => {
 });
 
 describe('the tables', () => {
-  it('maps each spectral:oas rule it carries to its apicontract rule and Spectral level', () => {
+  it('maps each spectral:oas rule it carries to its contractdiff rule and Spectral level', () => {
     expect(SPECTRAL_OAS).toStrictEqual({
       'info-description': { id: 'info-description', level: 'warn' },
       'operation-description': { id: 'operation-description', level: 'warn' },
@@ -159,7 +159,7 @@ describe('the tables', () => {
 });
 
 describe('readSpectral: extends and bare severities', () => {
-  it('carries spectral:oas as its apicontract equivalents, and lists the rest in one entry', () => {
+  it('carries spectral:oas as its contractdiff equivalents, and lists the rest in one entry', () => {
     const { levels, notCarried } = read({ extends: 'spectral:oas' });
     expect(levels).toEqual(Object.fromEntries(Object.values(SPECTRAL_OAS).map(({ id, level }) => [id, level])));
     expect(levels['operation-operation-id-unique']).toBe('error');
@@ -168,8 +168,8 @@ describe('readSpectral: extends and bare severities', () => {
         id: 'spectral:oas',
         file: '.spectral.yaml',
         pointer: '#/extends/0',
-        reason: `carries 9 of its rules as apicontract equivalents (${Object.keys(SPECTRAL_OAS).join(', ')}); the others are not carried`,
-        fix: 'add the others you rely on as rules in this file, or run `apicontract lint --ruleset recommended` for the built-in set',
+        reason: `carries 9 of its rules as contractdiff equivalents (${Object.keys(SPECTRAL_OAS).join(', ')}); the others are not carried`,
+        fix: 'add the others you rely on as rules in this file, or run `contractdiff lint --ruleset recommended` for the built-in set',
       },
     ]);
     expect(read({ extends: [['spectral:oas', 'recommended']] }).notCarried).toHaveLength(1);
@@ -181,12 +181,12 @@ describe('readSpectral: extends and bare severities', () => {
       id: './house.yaml',
       file: '.spectral.yaml',
       pointer: '#/extends/1',
-      reason: 'extends `./house.yaml`, which apicontract does not read',
+      reason: 'extends `./house.yaml`, which contractdiff does not read',
       fix: 'copy the rules you need from `./house.yaml` into .spectral.yaml, inside the JSONPath subset',
     });
   });
 
-  it('sets the level of a spectral:oas rule by its apicontract name, and of an apicontract rule by its own', () => {
+  it('sets the level of a spectral:oas rule by its contractdiff name, and of an contractdiff rule by its own', () => {
     expect(read({ extends: 'spectral:oas', rules: { 'operation-operationId': 'error', 'oas3-unused-component': 'off', 'info-description': false } }).levels).toMatchObject({
       'operation-operation-id': 'error',
       'no-unused-component': 'off',

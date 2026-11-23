@@ -21,12 +21,12 @@ export const listing = (contract: Contract): string =>
 
 export const files: GeneratedFile[] = [
   { path: 'operations.txt', owner: 'generated', content: 'listPets\n' },
-  { path: 'custom.ts', owner: 'user', content: '// Your code. apicontract writes this file once and never again.\n' },
+  { path: 'custom.ts', owner: 'user', content: '// Your code. contractdiff writes this file once and never again.\n' },
 ];
 
 export const list = (contract: Contract): GeneratedFile[] => [
   { path: 'operations.txt', owner: 'generated', content: listing(contract) },
-  { path: 'custom.ts', owner: 'user', content: '// Your code. apicontract writes this file once and never again.\n' },
+  { path: 'custom.ts', owner: 'user', content: '// Your code. contractdiff writes this file once and never again.\n' },
 ];
 
 export const generator: Generator = { description: 'Lists the operations', inputs: ['openapi'], sample: { document, files }, run: list };

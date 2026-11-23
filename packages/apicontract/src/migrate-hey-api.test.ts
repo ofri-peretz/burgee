@@ -16,7 +16,7 @@ describe('the documented examples', () => {
     for (const one of result.findings) expect(one.fix).not.toBe('');
     // Every finding in full, as recorded: the words a user reads are part of the behaviour.
     expect(result.findings).toEqual((recorded['hey-api'] as Record<string, unknown>)[name]);
-    expect(result.edits).toEqual([{ path: 'package.json', before: files['package.json'], after: pkg({ 'openapi-ts': 'apicontract gen' }) }]);
+    expect(result.edits).toEqual([{ path: 'package.json', before: files['package.json'], after: pkg({ 'openapi-ts': 'contractdiff gen' }) }]);
     expect(result.uninstall).toBe('npm uninstall @hey-api/openapi-ts @hey-api/client-fetch');
   });
 });
@@ -32,7 +32,7 @@ describe('reading the config', () => {
     expect(result.findings.find((one) => one.code === 'plugin-translated')).toEqual({
       code: 'plugin-translated',
       pointer: 'openapi-ts.config#/plugins/10',
-      message: "`valibot` schemas become the `validator` target, apicontract's own validators, not valibot's",
+      message: "`valibot` schemas become the `validator` target, contractdiff's own validators, not valibot's",
       fix: "import the validators from the `validator` target's output, or keep Hey API for valibot",
     });
   });
@@ -41,11 +41,11 @@ describe('reading the config', () => {
     const result = only("export default { input: { path: 'a.yaml', watch: true }, logs: { level: 'debug' }, plugins: ['@hey-api/transformers', { name: getName() }, 3], output: { path: 'o', format: 'prettier' } }");
     expect(result.config).toEqual({ input: 'a.yaml', targets: {} });
     expect(result.findings).toEqual([
-      { code: 'option-dropped', pointer: 'openapi-ts.config#/logs', message: '`logs` has no counterpart in apicontract', fix: 'remove it, or carry it over by hand; `apicontract gen --help` lists what each target takes' },
-      { code: 'option-dropped', pointer: 'openapi-ts.config#/input/watch', message: '`watch` has no counterpart in apicontract', fix: 'remove it, or carry it over by hand; `apicontract gen --help` lists what each target takes' },
-      { code: 'option-dropped', pointer: 'openapi-ts.config#/output/format', message: '`format` has no counterpart in apicontract', fix: 'remove it, or carry it over by hand; `apicontract gen --help` lists what each target takes' },
-      { code: 'imports-change', pointer: 'openapi-ts.config#/output', message: "the files under o are written with apicontract's module names, not Hey API's `*.gen.ts`", fix: "after `apicontract gen`, point imports of o/*.gen at the targets' files" },
-      { code: 'plugin-dropped', pointer: 'openapi-ts.config#/plugins/0', message: 'the `@hey-api/transformers` plugin has no apicontract target', fix: 'keep Hey API for it, or write the plugin: `apicontract plugin new`' },
+      { code: 'option-dropped', pointer: 'openapi-ts.config#/logs', message: '`logs` has no counterpart in contractdiff', fix: 'remove it, or carry it over by hand; `contractdiff gen --help` lists what each target takes' },
+      { code: 'option-dropped', pointer: 'openapi-ts.config#/input/watch', message: '`watch` has no counterpart in contractdiff', fix: 'remove it, or carry it over by hand; `contractdiff gen --help` lists what each target takes' },
+      { code: 'option-dropped', pointer: 'openapi-ts.config#/output/format', message: '`format` has no counterpart in contractdiff', fix: 'remove it, or carry it over by hand; `contractdiff gen --help` lists what each target takes' },
+      { code: 'imports-change', pointer: 'openapi-ts.config#/output', message: "the files under o are written with contractdiff's module names, not Hey API's `*.gen.ts`", fix: "after `contractdiff gen`, point imports of o/*.gen at the targets' files" },
+      { code: 'plugin-dropped', pointer: 'openapi-ts.config#/plugins/0', message: 'the `@hey-api/transformers` plugin has no contractdiff target', fix: 'keep Hey API for it, or write the plugin: `contractdiff plugin new`' },
       { code: 'unreadable', pointer: 'openapi-ts.config#/plugins/1', message: '`{"name":{"unreadable":"getName()"}}` is not data this migration can read', fix: 'write the value out as a literal, or carry it over by hand' },
       { code: 'unreadable', pointer: 'openapi-ts.config#/plugins/2', message: '`3` is not data this migration can read', fix: 'write the value out as a literal, or carry it over by hand' },
     ]);
@@ -66,7 +66,7 @@ describe('reading the config', () => {
   it('reports a remote input, and does not take a local path for a registry', () => {
     expect(only("export default { input: 'https://x.dev/openapi.json' }").findings.map((one) => [one.code, one.message])[0]).toEqual([
       'remote-input',
-      'https://x.dev/openapi.json is fetched over the network, and apicontract reads local files',
+      'https://x.dev/openapi.json is fetched over the network, and contractdiff reads local files',
     ]);
     expect(only("export default { input: 'org/project?branch=main' }").findings[0]?.code).toBe('registry-input');
     expect(only("export default { input: 'org/project@v2' }").findings[0]?.code).toBe('registry-input');
@@ -75,7 +75,7 @@ describe('reading the config', () => {
 
   it('reports a config that exports nothing it can read', () => {
     expect(only('export default config;').findings).toEqual([{ code: 'unreadable', pointer: 'openapi-ts.config', message: '`config` is not data this migration can read', fix: 'write the value out as a literal, or carry it over by hand' }]);
-    expect(only('').findings).toEqual([{ code: 'config-unreadable', pointer: 'openapi-ts.config', message: 'no `export default` or `module.exports` was found', fix: 'write apicontract.config.json by hand' }]);
+    expect(only('').findings).toEqual([{ code: 'config-unreadable', pointer: 'openapi-ts.config', message: 'no `export default` or `module.exports` was found', fix: 'write contractdiff.config.json by hand' }]);
   });
 });
 
@@ -83,7 +83,7 @@ describe('scripts', () => {
   it('rewrites the Hey API part of a script and reads its flags, other flags reported', () => {
     const files = { 'package.json': pkg({ gen: 'rimraf src/client && openapi-ts -i a.yaml -o out --dry-run -p zod,swr; echo ok', build: 'tsc' }) };
     const result = migrate(undefined, files);
-    expect(result.edits[0]?.after).toBe(pkg({ gen: 'rimraf src/client && apicontract gen; echo ok', build: 'tsc' }));
+    expect(result.edits[0]?.after).toBe(pkg({ gen: 'rimraf src/client && contractdiff gen; echo ok', build: 'tsc' }));
     expect(result.config?.targets).toEqual({
       types: { generator: 'types', out: 'out' },
       fetch: { generator: 'fetch', out: 'out' },
@@ -127,15 +127,15 @@ describe('the edges a mutant would cross', () => {
   });
 
   it('splits a script at `&&` without spaces, and touches no script that does not run Hey API', () => {
-    expect(migrate(undefined, { 'package.json': pkg({ a: 'rimraf x &&openapi-ts -i a.yaml' }) }).edits[0]?.after).toBe(pkg({ a: 'rimraf x &&apicontract gen' }));
+    expect(migrate(undefined, { 'package.json': pkg({ a: 'rimraf x &&openapi-ts -i a.yaml' }) }).edits[0]?.after).toBe(pkg({ a: 'rimraf x &&contractdiff gen' }));
     expect(migrate(undefined, { 'package.json': '{"scripts":{"a":"openapi-ts -i a.yaml","b":"eslint . && tsc"}}' }).findings.map((one) => one.pointer).filter((pointer) => pointer.startsWith('package.json'))).toEqual(['package.json#/scripts/a']);
   });
 
   it('counts http and https as remote, and only at the start', () => {
     expect(only("export default { input: 'http://x.dev/a.yaml' }").findings[0]).toEqual({
       code: 'remote-input',
-      pointer: 'apicontract.config.json#/input',
-      message: 'http://x.dev/a.yaml is fetched over the network, and apicontract reads local files',
+      pointer: 'contractdiff.config.json#/input',
+      message: 'http://x.dev/a.yaml is fetched over the network, and contractdiff reads local files',
       fix: 'download the document into the project and point `input` at it',
     });
     expect(only("export default { input: 'a.yaml', plugins: [null] }").findings.map((one) => `${one.code} @ ${one.pointer}`)).toEqual(['imports-change @ openapi-ts.config#/output', 'unreadable @ openapi-ts.config#/plugins/0']);

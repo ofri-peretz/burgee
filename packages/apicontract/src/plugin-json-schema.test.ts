@@ -12,7 +12,7 @@ const scratch = scratchDirs();
 
 const host = () => {
   const made = createHost();
-  made.register({ name: 'apicontract', adapters: builtinAdapters });
+  made.register({ name: 'contractdiff', adapters: builtinAdapters });
   made.register(plugin);
   return made;
 };

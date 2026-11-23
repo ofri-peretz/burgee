@@ -2,7 +2,7 @@
  * The built-in `hono` target (apicontract-servers R1–R7): a typed route table and
  * `registerRoutes(app, handlers)`, which validates every request and every answer, from an OpenAPI
  * document; a `handlers.ts` the user owns, written once; and a contract test per operation, which
- * calls the app with `app.request`. Hono is the user's dependency, never apicontract's.
+ * calls the app with `app.request`. Hono is the user's dependency, never contractdiff's.
  *
  * Options: `validators` and `types`, the import paths of the `validator` and `types` targets'
  * output, and `testRunner`. The shared generator is `plugin-server-router.ts`.

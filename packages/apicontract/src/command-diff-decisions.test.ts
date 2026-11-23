@@ -29,7 +29,7 @@ const makeDir = scratchDirs();
 const reader =
   (config?: string): GitReader =>
   (_ref, path) => {
-    if (path === 'apicontract.config.json') {
+    if (path === 'contractdiff.config.json') {
       if (config === undefined) throw new Error('no such file at that ref');
       return config;
     }
@@ -40,7 +40,7 @@ const setting = (decisions: string): string => JSON.stringify({ diff: { decision
 
 const decisionsOf = (data: Record<string | symbol, unknown>): Finding[] => data.decisions as Finding[];
 
-describe('apicontract diff --decisions, through burgee', () => {
+describe('contractdiff diff --decisions, through burgee', () => {
   beforeAll(async () => {
     await runBurgee(program, { argv: ['--version'] });
   });
@@ -174,7 +174,7 @@ describe('no regression on a contract that carries no markers (R5, R11)', () => 
 
 const verdictsWith = (options: { old?: string; config?: string; flag?: 'warn' | 'error' | 'off'; working?: string; git?: GitReader }) => {
   const cwd = makeDir('apicontract-diff-decisions-');
-  if (options.working !== undefined) writeFileSync(join(cwd, 'apicontract.config.json'), options.working);
+  if (options.working !== undefined) writeFileSync(join(cwd, 'contractdiff.config.json'), options.working);
   const data = diff({
     cwd,
     old: options.old ?? 'git:main:base.yaml',
@@ -216,7 +216,7 @@ describe('the setting comes from the base ref (R12)', () => {
     expect(verdictsWith({ old: at('base'), git })).toEqual(['unknown']);
     expect(calls).toEqual([]);
     expect(verdictsWith({ git })).toEqual(['breaking']);
-    expect(calls).toEqual(['main:base.yaml', 'main:apicontract.config.json']);
+    expect(calls).toEqual(['main:base.yaml', 'main:contractdiff.config.json']);
   });
 
   it('ignores a config at the ref that is not JSON or sets a value that is not a setting, and asks the working tree', () => {
@@ -230,7 +230,7 @@ describe('the setting comes from the base ref (R12)', () => {
   });
 });
 
-describe('diff.decisions in apicontract.config.json', () => {
+describe('diff.decisions in contractdiff.config.json', () => {
   it('is a documented setting of the schema, and validated with the rest of the config', () => {
     expect(configSchema.properties.diff).toStrictEqual({
       type: 'object',
@@ -239,24 +239,24 @@ describe('diff.decisions in apicontract.config.json', () => {
         decisions: {
           enum: ['warn', 'error', 'off'],
           description:
-            "How `apicontract diff` holds a change to the decision written in the contract. The base ref's value wins over the working tree's; `--decisions` wins over both",
+            "How `contractdiff diff` holds a change to the decision written in the contract. The base ref's value wins over the working tree's; `--decisions` wins over both",
         },
       },
     });
-    expect(validateConfig({ diff: { decisions: 'error' } }, '/p/apicontract.config.json').diff).toEqual({ decisions: 'error' });
-    expect(validateConfig({}, '/p/apicontract.config.json')).not.toHaveProperty('diff');
-    expect(validateConfig({ diff: {} }, '/p/apicontract.config.json').diff).toStrictEqual({});
+    expect(validateConfig({ diff: { decisions: 'error' } }, '/p/contractdiff.config.json').diff).toEqual({ decisions: 'error' });
+    expect(validateConfig({}, '/p/contractdiff.config.json')).not.toHaveProperty('diff');
+    expect(validateConfig({ diff: {} }, '/p/contractdiff.config.json').diff).toStrictEqual({});
   });
 
   it('reports every problem with it, with its fix', () => {
-    expect(() => validateConfig({ diff: { decisions: 'strict', mode: 'full' } }, '/p/apicontract.config.json')).toThrow(
+    expect(() => validateConfig({ diff: { decisions: 'strict', mode: 'full' } }, '/p/contractdiff.config.json')).toThrow(
       [
-        '/p/apicontract.config.json cannot be used:',
+        '/p/contractdiff.config.json cannot be used:',
         '  - `diff.mode` is not a diff setting. fix: remove it; diff takes decisions',
         '  - `diff.decisions` must be one of warn, error, off. fix: write `"decisions": "warn"`',
       ].join('\n'),
     );
-    expect(() => validateConfig({ diff: 'warn' }, '/p/apicontract.config.json')).toThrow('`diff` must be an object. fix: write `{ "decisions": "warn" }`');
+    expect(() => validateConfig({ diff: 'warn' }, '/p/contractdiff.config.json')).toThrow('`diff` must be an object. fix: write `{ "decisions": "warn" }`');
   });
 
   it('refuses a config that is not JSON, naming the file', () => {
@@ -328,7 +328,7 @@ describe('the text and SARIF of a comparison that has no decisions field', () =>
 describe('the text of a comparison with decisions', () => {
   const finding = (verdict: 'unknown' | 'breaking'): Finding => ({
     id: 'ac-decision-stale',
-    scheme: 'apicontract',
+    scheme: 'contractdiff',
     verdict,
     effect: 'neutral',
     operation: 'getBalance',
@@ -374,7 +374,7 @@ describe('--changeset moves the version for a decided breaking change (R10)', ()
     const dir = makeDir('apicontract-diff-decisions-');
     const without = diff({ cwd: dir, old: at('base'), new: at('decided'), today: '2027-01-01' });
     expect(decisionsOf(without).map((finding) => finding.id)).toEqual(['ac-decision-unversioned']);
-    const withSet = diff({ cwd: dir, old: at('base'), new: at('decided'), today: '2027-01-01', changeset: 'apicontract' });
+    const withSet = diff({ cwd: dir, old: at('base'), new: at('decided'), today: '2027-01-01', changeset: 'contractdiff' });
     expect(decisionsOf(withSet)).toEqual([]);
   });
 });

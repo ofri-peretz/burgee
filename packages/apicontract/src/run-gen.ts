@@ -1,5 +1,5 @@
 /**
- * `apicontract gen` (apicontract-gen-command): load the config and its plugins, read the spec, run
+ * `contractdiff gen` (apicontract-gen-command): load the config and its plugins, read the spec, run
  * every target's generator and write what they return through {@link commit}.
  */
 import { join } from 'node:path';
@@ -26,7 +26,7 @@ export interface GenOptions {
 export const requireConfig = async (cwd: string, explicit: string | undefined): Promise<Config> => {
   const config = await loadConfig(cwd, explicit);
   if (config === undefined) {
-    throw new ConfigError(join(cwd, 'apicontract.config.json'), ['no config was found. fix: create apicontract.config.json with `input` and `targets`, or pass `--config`']);
+    throw new ConfigError(join(cwd, 'contractdiff.config.json'), ['no config was found. fix: create contractdiff.config.json with `input` and `targets`, or pass `--config`']);
   }
   return config;
 };
@@ -60,5 +60,5 @@ export const gen = async (options: GenOptions): Promise<Report> => {
   );
   const produced: Produced[] = results.map((result) => result.produced);
   const findings: (ContractFinding & { target: string })[] = results.flatMap((result) => result.findings);
-  return commit({ root: config.root, command: 'apicontract gen', produced, findings, check: options.check, dryRun: options.dryRun, force: options.force });
+  return commit({ root: config.root, command: 'contractdiff gen', produced, findings, check: options.check, dryRun: options.dryRun, force: options.force });
 };

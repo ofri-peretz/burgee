@@ -4,9 +4,9 @@
  * regeneration safety is tested here and nowhere else.
  *
  * - a `user` file is written once: present on disk, it is skipped, whatever it holds;
- * - a `generated` file is rewritten when what is on disk is still what apicontract wrote (its header's
+ * - a `generated` file is rewritten when what is on disk is still what contractdiff wrote (its header's
  *   hash matches its body, or, for a language without comments, the map recorded its hash);
- * - anything else at a generated path is a hand edit, or a file apicontract never wrote, and is a
+ * - anything else at a generated path is a hand edit, or a file contractdiff never wrote, and is a
  *   `conflict` that only `--force` overwrites;
  * - a generated file the previous run wrote and this one does not is deleted, on the same terms.
  */
@@ -38,7 +38,7 @@ export interface PlanOptions {
 /** What is on disk at each path that has a file: its contents. */
 export type Disk = ReadonlyMap<string, string>;
 
-/** Whether the bytes on disk are still what apicontract wrote at `path`. */
+/** Whether the bytes on disk are still what contractdiff wrote at `path`. */
 const intact = (path: string, content: string, recorded: ReadonlyMap<string, string>): boolean => {
   const header = readHeader(content);
   // eslint-disable-next-line secure-coding/no-insecure-comparison, node-security/no-timing-unsafe-compare -- content hashes of files on the user's disk, not secrets

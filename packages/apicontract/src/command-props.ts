@@ -1,6 +1,6 @@
 /**
- * `apicontract props <contract>` (contract-properties R3, R4): property tests drawn from the
- * contract, run against apicontract's own validator, normaliser and classifier, with no server.
+ * `contractdiff props <contract>` (contract-properties R3, R4): property tests drawn from the
+ * contract, run against contractdiff's own validator, normaliser and classifier, with no server.
  * Exit 1 on any counterexample, printed with the seed that replays it and the smallest value found.
  * `--sarif` (R5) prints the counterexamples as SARIF 2.1.0, as `diff --sarif` does its findings.
  */
@@ -70,7 +70,7 @@ export const toSarif = (report: Report, file: string): object => ({
   $schema: 'https://json.schemastore.org/sarif-2.1.0.json',
   runs: [
     {
-      tool: { driver: { name: 'apicontract props', rules: PROPERTIES.map((property) => ({ id: `props/${property}` })) } },
+      tool: { driver: { name: 'contractdiff props', rules: PROPERTIES.map((property) => ({ id: `props/${property}` })) } },
       results: report.counterexamples.map((found) => ({
         ruleId: `props/${found.property}`,
         level: 'error',
@@ -123,10 +123,10 @@ export const command = defineCommand({
   description: 'Property tests drawn from the contract: validator agreement, round-trip, normalisation and diff soundness, with no server',
   effects: 'idempotent',
   examples: [
-    { command: 'apicontract props openapi.yaml', description: 'the properties on every payload, 1000 values each' },
-    { command: 'apicontract props new.yaml --against old.yaml --seed 7', description: 'also check that what diff calls compatible is, replayably' },
-    { command: 'apicontract props openapi.yaml --emit test/arbitraries.ts --runs 0', description: 'write fast-check arbitraries for your own tests' },
-    { command: 'apicontract props openapi.yaml --seed 7 --sarif', description: 'counterexamples as SARIF, for code scanning' },
+    { command: 'contractdiff props openapi.yaml', description: 'the properties on every payload, 1000 values each' },
+    { command: 'contractdiff props new.yaml --against old.yaml --seed 7', description: 'also check that what diff calls compatible is, replayably' },
+    { command: 'contractdiff props openapi.yaml --emit test/arbitraries.ts --runs 0', description: 'write fast-check arbitraries for your own tests' },
+    { command: 'contractdiff props openapi.yaml --seed 7 --sarif', description: 'counterexamples as SARIF, for code scanning' },
   ],
   arguments: [{ name: 'contract', description: 'the contract: a file, or git:<ref>:<path>' }],
   options: {

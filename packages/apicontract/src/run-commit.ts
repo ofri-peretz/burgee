@@ -1,7 +1,7 @@
 /**
  * The tail every writing command shares (`gen`, `extract`): plan what the produced files do to the
  * disk, refuse a hand edit, then print the diff (`--dry-run`), report what is stale (`--check`), or
- * write the files and `apicontract.map.json`. One place, so the safety rules hold for every target.
+ * write the files and `contractdiff.map.json`. One place, so the safety rules hold for every target.
  */
 import { type ContractFinding } from './core/model.js';
 import { type Owner } from './host.js';

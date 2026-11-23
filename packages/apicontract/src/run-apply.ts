@@ -1,5 +1,5 @@
 /**
- * The only code in apicontract that writes the user's disk (apicontract-gen-command R5). Each file
+ * The only code in contractdiff that writes the user's disk (apicontract-gen-command R5). Each file
  * is written to a temporary file beside it and renamed over the old one, so a run killed halfway
  * never leaves half a file. It deletes only what a plan says to, and a plan deletes only files the
  * previous map recorded as generated.
@@ -22,7 +22,7 @@ export const readDisk = (root: string, paths: Iterable<string>): Map<string, str
 /** Write one file atomically: a temporary file in the same folder, then a rename. */
 export const writeAtomic = (file: string, content: string): void => {
   mkdirSync(dirname(file), { recursive: true });
-  const temporary = `${file}.${String(process.pid)}.apicontract-tmp`;
+  const temporary = `${file}.${String(process.pid)}.contractdiff-tmp`;
   writeFileSync(temporary, content);
   renameSync(temporary, file);
 };

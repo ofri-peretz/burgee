@@ -1,5 +1,5 @@
 /**
- * `apicontract extract --from standard-schema` (apicontract-extract R3): the exports of a module,
+ * `contractdiff extract --from standard-schema` (apicontract-extract R3): the exports of a module,
  * as one JSON Schema document with a `$defs` entry per export.
  *
  * Any value implementing Standard JSON Schema is read the same way, so one extractor covers every
@@ -7,8 +7,8 @@
  * document (`{ document, findings }`): dropping the schema without a word is the one thing an
  * extractor must not do, and the finding is not the user's spec, so it stays out of it.
  */
-import { optional, number, object, string } from 'validator';
-import { standardJson } from 'validator/json-schema';
+import { optional, number, object, string } from 'loadline';
+import { standardJson } from 'loadline/json-schema';
 
 import { definitions, escape, isStandard, type Json, loadModule, placeAt, relocate, sideOf, toJsonSchema } from './extract-standard.js';
 import { type Extractor, type ExtractorResult, type Options, type Plugin } from './host.js';

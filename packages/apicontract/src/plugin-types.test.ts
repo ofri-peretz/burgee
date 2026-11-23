@@ -19,7 +19,7 @@ const document = {
 
 const hostWithTypes = () => {
   const host = createHost();
-  host.register({ name: 'apicontract', adapters: builtinAdapters });
+  host.register({ name: 'contractdiff', adapters: builtinAdapters });
   host.register(plugin);
   return host;
 };

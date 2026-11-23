@@ -4,7 +4,7 @@
  * controller; and `contract-runtime.ts`, the validation and Problem Details helpers the bases call.
  *
  * NestJS, the `types` target's output and the `validator` target's output are imported by the
- * generated code, never by apicontract. Every spec-derived string goes through `literal`
+ * generated code, never by contractdiff. Every spec-derived string goes through `literal`
  * (`plugin-server-code.ts`).
  */
 import { type Imports, lines, literal, operationTypes, partsOf, pascal, readAs, routePath, stubResponse, where } from './plugin-server-code.js';
@@ -94,7 +94,7 @@ export const baseFile = (controller: Controller, imports: Imports): string => {
 export const controllerFile = (controller: Controller): string =>
   lines(
     '/**',
-    ` * The \`${controller.file}\` routes. apicontract wrote this file once and never rewrites it: change it freely.`,
+    ` * The \`${controller.file}\` routes. contractdiff wrote this file once and never rewrites it: change it freely.`,
     ` * \`${controller.name}ControllerBase\` (${controller.file}.controller.base.ts, regenerated) declares one method per`,
     ' * operation and validates every request and response; each method here answers the spec\'s example until you replace it.',
     ' */',

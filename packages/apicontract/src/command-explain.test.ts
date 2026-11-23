@@ -46,7 +46,7 @@ describe('explain', () => {
   });
 
   it('refuses a missing operation, an unknown one and a bad budget, each with a fix', async () => {
-    expect((await failure(explain({ cwd: '/', input: FIXTURE }))).message).toContain('fix: run `apicontract explain --list`');
+    expect((await failure(explain({ cwd: '/', input: FIXTURE }))).message).toContain('fix: run `contractdiff explain --list`');
     const unknown = await failure(explain({ cwd: '/', input: FIXTURE, operation: 'nope' }));
     expect(unknown.message).toBe('no operation is named "nope". fix: pass one of: listPets, createPet, deletePet, getTree (`--list` prints them all)');
     expect(unknown.code).toBe('USAGE');
@@ -74,21 +74,21 @@ describe('explain', () => {
     const root = scratch('apicontract-explain-');
     expect(await failure(explain({ cwd: root, list: true }))).toMatchObject({ code: 'CONFIG' });
     expect((await failure(explain({ cwd: root, list: true }))).message).toBe(
-      `${join(root, 'apicontract.config.json')} cannot be used:\n  - no spec was named. fix: pass --input <file>, or add \`"input"\` to apicontract.config.json`,
+      `${join(root, 'contractdiff.config.json')} cannot be used:\n  - no spec was named. fix: pass --input <file>, or add \`"input"\` to contractdiff.config.json`,
     );
-    writeFileSync(join(root, 'apicontract.config.json'), JSON.stringify({ targets: {} }));
+    writeFileSync(join(root, 'contractdiff.config.json'), JSON.stringify({ targets: {} }));
     expect(await failure(explain({ cwd: root, list: true }))).toMatchObject({ code: 'CONFIG' });
     writeFileSync(join(root, 'spec.json'), JSON.stringify({ openapi: '3.1.0', paths: { '/a': { get: { operationId: 'a', responses: {} } } } }));
     writeFileSync(
       join(root, 'rename.json'),
       JSON.stringify({ overlay: '1.0.0', info: { title: 't', version: '1' }, actions: [{ target: "$.paths['/a'].get", update: { operationId: 'renamed' } }] }),
     );
-    writeFileSync(join(root, 'apicontract.config.json'), JSON.stringify({ input: 'spec.json', overlays: ['rename.json'] }));
+    writeFileSync(join(root, 'contractdiff.config.json'), JSON.stringify({ input: 'spec.json', overlays: ['rename.json'] }));
     expect(await explain({ cwd: root, list: true })).toEqual(['renamed']);
   });
 });
 
-describe('apicontract explain, through burgee', () => {
+describe('contractdiff explain, through burgee', () => {
   beforeAll(async () => {
     await runBurgee(program, { argv: ['--version'] });
   });
@@ -98,7 +98,7 @@ describe('apicontract explain, through burgee', () => {
     expect(command.effects).toBe('read_only');
     expect(command.arguments).toEqual([{ name: 'operation', required: false, description: 'the operation id; `--list` prints them' }]);
     expect(command.options).toEqual({
-      input: { type: 'string', description: 'the spec, JSON or YAML (default: `input` in apicontract.config.json)', placeholder: 'file' },
+      input: { type: 'string', description: 'the spec, JSON or YAML (default: `input` in contractdiff.config.json)', placeholder: 'file' },
       list: { type: 'boolean', description: 'print the operation ids, one per line' },
       maxBytes: { type: 'number', description: 'cut the deepest schemas first until the JSON fits; the cuts are listed under `truncated`', placeholder: 'n' },
     });

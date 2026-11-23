@@ -200,7 +200,7 @@ const appliedOf = async (run: HistoryRun): Promise<Pick<History, 'from' | 'chang
   const ref = run.rulesFrom;
   if (ref === undefined) return { sources: run.working, changed: [] };
   if (run.config === undefined) return { sources: run.working, from: 'the working tree: there is no config to read at a ref', changed: [] };
-  if (!run.config.name.endsWith('.json')) throw new UsageError(`\`--rules-from\` reads apicontract.config.json at the ref, and the config is ${run.config.name}. fix: move the config to apicontract.config.json, or drop --rules-from`);
+  if (!run.config.name.endsWith('.json')) throw new UsageError(`\`--rules-from\` reads contractdiff.config.json at the ref, and the config is ${run.config.name}. fix: move the config to contractdiff.config.json, or drop --rules-from`);
   const commit = await commitOf(run.git, '--rules-from', ref);
   if (commit === undefined) return { sources: run.working, from: 'the working tree: not a git repository', changed: [] };
   const sources = await sourcesAt(run.git, commit, run.config, run.flagged);

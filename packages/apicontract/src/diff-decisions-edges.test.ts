@@ -299,7 +299,7 @@ describe('where decisions are read, member by member', () => {
 
 describe('what is wrong with a marker, said exactly', () => {
   const finding = (rest: Partial<Finding> & Pick<Finding, 'id' | 'operation' | 'source' | 'fix' | 'before' | 'after'>): Finding => ({
-    scheme: 'apicontract',
+    scheme: 'contractdiff',
     verdict: 'unknown',
     effect: 'neutral',
     document: 'new',
@@ -543,7 +543,7 @@ describe('a marker must match a change, at the edges (R6)', () => {
 });
 
 describe('where a decision finding points (R13)', () => {
-  const place = (extra: Partial<Finding>) => ({ scheme: 'apicontract', verdict: 'unknown', effect: 'neutral', document: 'new', ...extra });
+  const place = (extra: Partial<Finding>) => ({ scheme: 'contractdiff', verdict: 'unknown', effect: 'neutral', document: 'new', ...extra });
 
   it('on a response payload: the direction it travels, the member, and the operation among several', () => {
     const contract = read({

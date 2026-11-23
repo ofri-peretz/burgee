@@ -31,7 +31,7 @@ export interface LoadOptions {
 /** A host with the built-ins and every configured plugin registered. */
 export const loadPlugins = async ({ root, file, plugins }: LoadOptions): Promise<Host> => {
   const host = createHost();
-  for (const plugin of [{ name: 'apicontract', adapters: builtinAdapters }, ...builtins]) host.register(plugin);
+  for (const plugin of [{ name: 'contractdiff', adapters: builtinAdapters }, ...builtins]) host.register(plugin);
   // Imported together, registered in the config's order: a later plugin wins a name.
   const modules = await Promise.all(
     plugins.map(async (entry) => {
@@ -49,7 +49,7 @@ export const loadPlugins = async ({ root, file, plugins }: LoadOptions): Promise
       host.register(pluginOf(module));
     } catch (error) {
       // `register` refuses only with a PluginError, whose message carries its fix.
-      throw new ConfigError(file, [`"${entry}" is not a plugin apicontract can use: ${(error as Error).message}`]);
+      throw new ConfigError(file, [`"${entry}" is not a plugin contractdiff can use: ${(error as Error).message}`]);
     }
   }
   return host;

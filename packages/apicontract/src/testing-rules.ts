@@ -60,12 +60,12 @@ export const outcome = async (call: () => unknown): Promise<Outcome> => {
 
 const isError = (value: Outcome): value is { readonly error: unknown } => 'error' in value;
 
-/** `schema`: `host.validate` accepts the plugin, and it contributes something apicontract reads. */
+/** `schema`: `host.validate` accepts the plugin, and it contributes something contractdiff reads. */
 export const schema = (plugin: unknown): Failure[] => {
   try {
     validate(plugin);
   } catch (error) {
-    return [failureOf('schema', 'plugin', error, 'export the shape `Plugin` in apicontract describes')];
+    return [failureOf('schema', 'plugin', error, 'export the shape `Plugin` in contractdiff describes')];
   }
   const { adapters = {}, generators = {}, extractors = {}, rules = {} } = plugin;
   if (Object.keys({ ...adapters, ...generators, ...extractors, ...rules }).length > 0) return [];

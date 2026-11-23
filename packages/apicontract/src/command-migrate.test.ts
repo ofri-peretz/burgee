@@ -35,7 +35,7 @@ beforeAll(async () => {
 });
 
 
-describe('`apicontract migrate`', () => {
+describe('`contractdiff migrate`', () => {
   it('is declared for --help, --schema and the MCP tool list', () => {
     expect(command.description).toBe('Switch from openapi-typescript, openapi-fetch, Hey API or orval: their config in, ours out');
     expect(command.arguments).toEqual([
@@ -44,8 +44,8 @@ describe('`apicontract migrate`', () => {
     ]);
     expect(command.options).toEqual({ dryRun: { type: 'boolean', description: 'report what would change; write nothing' } });
     expect(command.examples).toEqual([
-      { command: 'apicontract migrate openapi-typescript', description: 'redocly.yaml and the scripts that run it, as apicontract.config.json' },
-      { command: 'apicontract migrate orval --dry-run --json', description: 'the config, the edits and every finding, as data; nothing written' },
+      { command: 'contractdiff migrate openapi-typescript', description: 'redocly.yaml and the scripts that run it, as contractdiff.config.json' },
+      { command: 'contractdiff migrate orval --dry-run --json', description: 'the config, the edits and every finding, as data; nothing written' },
     ]);
   });
 
@@ -72,15 +72,15 @@ describe('`apicontract migrate`', () => {
       changed: true,
       read: '.redocly.yaml',
       config: { input: 'api.yaml', targets: { types: { generator: 'types', out: 'src/api.d.ts', options: { compat: 'openapi-typescript' } }, fetch: { generator: 'fetch', out: 'src/client.ts' } } },
-      written: ['apicontract.config.json'],
+      written: ['contractdiff.config.json'],
       unchanged: [],
       kept: [],
       edited: ['package.json', 'src/app.ts'],
-      findings: [{ code: 'option-dropped', pointer: 'redocly.yaml#/rules', message: '`rules` configures Redocly, not the types', fix: 'keep redocly.yaml for `redocly lint`; apicontract does not read it' }],
+      findings: [{ code: 'option-dropped', pointer: 'redocly.yaml#/rules', message: '`rules` configures Redocly, not the types', fix: 'keep redocly.yaml for `redocly lint`; contractdiff does not read it' }],
       uninstall: 'npm uninstall openapi-fetch openapi-typescript',
     });
-    expect(JSON.parse(readFileSync(join(directory, 'apicontract.config.json'), 'utf8'))).toEqual(data(first).config);
-    expect(readFileSync(join(directory, 'package.json'), 'utf8')).toBe(pkg({ types: 'apicontract gen' }));
+    expect(JSON.parse(readFileSync(join(directory, 'contractdiff.config.json'), 'utf8'))).toEqual(data(first).config);
+    expect(readFileSync(join(directory, 'package.json'), 'utf8')).toBe(pkg({ types: 'contractdiff gen' }));
     expect(readFileSync(join(directory, '.redocly.yaml'), 'utf8')).toBe('rules: {}\n');
     expect(readFileSync(join(directory, 'node_modules/openapi-fetch/index.ts'), 'utf8')).toBe("import x from 'openapi-fetch';");
     const second = await runBurgee(program, { argv: ['migrate', 'openapi-fetch', directory, '--json'] });
@@ -95,10 +95,10 @@ describe('`apicontract migrate`', () => {
   });
 
   it('keeps a config the user already has, and reports a change for edits alone', async () => {
-    const directory = make('kept', { 'package.json': pkg({ api: 'openapi-ts -i a.yaml' }), 'apicontract.config.json': '{}\n' });
+    const directory = make('kept', { 'package.json': pkg({ api: 'openapi-ts -i a.yaml' }), 'contractdiff.config.json': '{}\n' });
     const r = await runBurgee(program, { argv: ['migrate', 'hey-api', directory, '--json'] });
-    expect(data(r)).toMatchObject({ changed: true, read: null, written: [], kept: ['apicontract.config.json'], edited: ['package.json'] });
-    expect(readFileSync(join(directory, 'apicontract.config.json'), 'utf8')).toBe('{}\n');
+    expect(data(r)).toMatchObject({ changed: true, read: null, written: [], kept: ['contractdiff.config.json'], edited: ['package.json'] });
+    expect(readFileSync(join(directory, 'contractdiff.config.json'), 'utf8')).toBe('{}\n');
   });
 
   it('migrates the current directory without one', async () => {
@@ -106,7 +106,7 @@ describe('`apicontract migrate`', () => {
     const cwd = vi.spyOn(process, 'cwd').mockReturnValue(directory);
     try {
       const r = await runBurgee(program, { argv: ['migrate', 'openapi-typescript', '--json'] });
-      expect(data(r)).toMatchObject({ changed: true, written: ['apicontract.config.json'] });
+      expect(data(r)).toMatchObject({ changed: true, written: ['contractdiff.config.json'] });
     } finally {
       cwd.mockReturnValue(join(root, 'elsewhere'));
     }
@@ -133,7 +133,7 @@ describe('reading the project', () => {
   it('reports a change when it writes the config and edits nothing', async () => {
     const directory = make('config-only', { 'redocly.yaml': 'apis:\n  a:\n    root: a.yaml\n    x-openapi-ts:\n      output: a.ts\n' });
     const r = await runBurgee(program, { argv: ['migrate', 'openapi-typescript', directory, '--json'] });
-    expect(data(r)).toMatchObject({ changed: true, read: 'redocly.yaml', written: ['apicontract.config.json'], edited: [] });
+    expect(data(r)).toMatchObject({ changed: true, read: 'redocly.yaml', written: ['contractdiff.config.json'], edited: [] });
   });
 });
 

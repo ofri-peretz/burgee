@@ -1,5 +1,5 @@
 /**
- * `apicontract migrate orval` (apicontract-kit R4): `orval.config.*` read as data. Each project
+ * `contractdiff migrate orval` (apicontract-kit R4): `orval.config.*` read as data. Each project
  * names an input and an output; the output's `client` maps to our targets, the models always
  * become `types`, and `mock: true` becomes `msw`. Every other output option is a finding.
  *
@@ -27,7 +27,7 @@ const CLIENTS: ReadonlyMap<string, readonly string[]> = new Map([
 const TRANSLATED: ReadonlyMap<string, string> = new Map([
   ['axios-functions', 'the `fetch` target, which calls `fetch` and not axios'],
   ['axios', 'the `fetch` target, which calls `fetch` and not axios'],
-  ['zod', "the `validator` target, apicontract's own validators and not Zod"],
+  ['zod', "the `validator` target, contractdiff's own validators and not Zod"],
 ]);
 
 /** orval's default client. */
@@ -41,7 +41,7 @@ const isDict = (value: unknown): value is Record<string, Literal> => typeof valu
 const text = (value: Literal): string => (isUnreadable(value) ? value.unreadable : JSON.stringify(value));
 
 const dropped = (pointer: string, key: string): ContractFinding =>
-  finding('option-dropped', `${pointer}/${key}`, `\`${key}\` has no counterpart in apicontract`, 'remove it, or carry it over by hand; `apicontract gen --help` lists what each target takes');
+  finding('option-dropped', `${pointer}/${key}`, `\`${key}\` has no counterpart in contractdiff`, 'remove it, or carry it over by hand; `contractdiff gen --help` lists what each target takes');
 
 const unreadable = (pointer: string, value: Literal): ContractFinding =>
   finding('unreadable', pointer, `\`${text(value)}\` is not data this migration can read`, 'write the value out as a literal, or carry it over by hand');
@@ -65,12 +65,12 @@ const targetsOf = (settings: Readonly<Record<string, Literal>>, out: string, poi
   const generators = CLIENTS.get(client as string) ?? [];
   const translated = TRANSLATED.get(client as string);
   if (typeof client !== 'string') findings.push(unreadable(`${pointer}/output/client`, client));
-  else if (translated !== undefined) findings.push(finding('client-translated', `${pointer}/output/client`, `the \`${client}\` client becomes ${translated}`, `check the call sites after \`apicontract gen\`, or keep orval for ${client}`));
-  else if (generators.length === 0) findings.push(finding('client-dropped', `${pointer}/output/client`, `the \`${client}\` client has no apicontract target`, 'keep orval for it, or write the plugin: `apicontract plugin new`'));
+  else if (translated !== undefined) findings.push(finding('client-translated', `${pointer}/output/client`, `the \`${client}\` client becomes ${translated}`, `check the call sites after \`contractdiff gen\`, or keep orval for ${client}`));
+  else if (generators.length === 0) findings.push(finding('client-dropped', `${pointer}/output/client`, `the \`${client}\` client has no contractdiff target`, 'keep orval for it, or write the plugin: `contractdiff plugin new`'));
   for (const generator of generators) targets.set(generator, { generator, out });
   if (settings.mock === true) targets.set('msw', { generator: 'msw', out });
-  else if (settings.mock !== undefined && settings.mock !== false) findings.push(finding('option-dropped', `${pointer}/output/mock`, 'mock options other than `true` have no counterpart in apicontract', 'set `mock: true` and run the migration again, or carry the options over by hand'));
-  findings.push(finding('imports-change', `${pointer}/output`, `the files under ${out} are written with apicontract's module names, not orval's`, `after \`apicontract gen\`, point imports of ${out} at the targets' files`));
+  else if (settings.mock !== undefined && settings.mock !== false) findings.push(finding('option-dropped', `${pointer}/output/mock`, 'mock options other than `true` have no counterpart in contractdiff', 'set `mock: true` and run the migration again, or carry the options over by hand'));
+  findings.push(finding('imports-change', `${pointer}/output`, `the files under ${out} are written with contractdiff's module names, not orval's`, `after \`contractdiff gen\`, point imports of ${out} at the targets' files`));
   return Object.fromEntries(targets);
 };
 
@@ -89,7 +89,7 @@ const project = (name: string, value: Literal, findings: ContractFinding[]): Con
     findings.push(finding('nothing-to-migrate', pointer, `the \`${name}\` project names no input or no output`, 'set `input` and `output` and run the migration again'));
     return undefined;
   }
-  if (/^https?:\/\//u.test(path)) findings.push(finding('remote-input', 'apicontract.config.json#/input', `${path} is fetched over the network, and apicontract reads local files`, 'download the document into the project and point `input` at it'));
+  if (/^https?:\/\//u.test(path)) findings.push(finding('remote-input', 'contractdiff.config.json#/input', `${path} is fetched over the network, and contractdiff reads local files`, 'download the document into the project and point `input` at it'));
   return { input: path, targets: targetsOf(isDict(output) ? output : {}, out, pointer, findings) };
 };
 
@@ -117,7 +117,7 @@ export const migrate: Migrate = (configText, files) => {
         if (found === null) return part;
         // No flags at all is one empty word, which pairs with nothing.
         args ??= (found[2] as string).trim().split(/\s+/u);
-        return `${found[1] as string}apicontract gen`;
+        return `${found[1] as string}contractdiff gen`;
       })
       .join('');
     if (rewritten !== command) replaced.set(name, rewritten);
@@ -127,11 +127,11 @@ export const migrate: Migrate = (configText, files) => {
   let config: Config | undefined;
   if (isDict(value)) {
     const [first, ...rest] = Object.entries(value);
-    for (const [name] of rest) findings.push(finding('second-input', `orval.config#/${name}`, `the \`${name}\` project is a second input, and one apicontract.config.json reads one`, 'write a second apicontract.config.json for it in its own folder'));
+    for (const [name] of rest) findings.push(finding('second-input', `orval.config#/${name}`, `the \`${name}\` project is a second input, and one contractdiff.config.json reads one`, 'write a second contractdiff.config.json for it in its own folder'));
     config = first === undefined ? undefined : project(first[0], first[1], findings);
     if (first === undefined) findings.push(finding('nothing-to-migrate', 'orval.config', 'the config names no project', 'add a project and run the migration again'));
   } else {
-    findings.push(value === undefined ? finding('config-unreadable', 'orval.config', 'no orval.config file, or no `export default` in it', 'write apicontract.config.json by hand') : unreadable('orval.config', value));
+    findings.push(value === undefined ? finding('config-unreadable', 'orval.config', 'no orval.config file, or no `export default` in it', 'write contractdiff.config.json by hand') : unreadable('orval.config', value));
   }
   const { edits, findings: unwritten } = editScripts(files, Object.fromEntries(replaced));
   return { config, edits, findings: [...findings, ...unwritten], uninstall: 'npm uninstall orval' };

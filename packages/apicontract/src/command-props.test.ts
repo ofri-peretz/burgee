@@ -23,7 +23,7 @@ const text = (data: Record<string | symbol, unknown>): string => (data[TEXT] as 
 
 const makeDir = scratchDirs();
 
-describe('apicontract props, through burgee', () => {
+describe('contractdiff props, through burgee', () => {
   // burgee's first run loads its renderers lazily; paying that here keeps each case under 5 s.
   beforeAll(async () => {
     await runBurgee(program, { argv: ['--version'] });
@@ -38,10 +38,10 @@ describe('apicontract props, through burgee', () => {
     expect(command.description).toBe('Property tests drawn from the contract: validator agreement, round-trip, normalisation and diff soundness, with no server');
     expect(command.effects).toBe('idempotent');
     expect(command.examples).toEqual([
-      { command: 'apicontract props openapi.yaml', description: 'the properties on every payload, 1000 values each' },
-      { command: 'apicontract props new.yaml --against old.yaml --seed 7', description: 'also check that what diff calls compatible is, replayably' },
-      { command: 'apicontract props openapi.yaml --emit test/arbitraries.ts --runs 0', description: 'write fast-check arbitraries for your own tests' },
-      { command: 'apicontract props openapi.yaml --seed 7 --sarif', description: 'counterexamples as SARIF, for code scanning' },
+      { command: 'contractdiff props openapi.yaml', description: 'the properties on every payload, 1000 values each' },
+      { command: 'contractdiff props new.yaml --against old.yaml --seed 7', description: 'also check that what diff calls compatible is, replayably' },
+      { command: 'contractdiff props openapi.yaml --emit test/arbitraries.ts --runs 0', description: 'write fast-check arbitraries for your own tests' },
+      { command: 'contractdiff props openapi.yaml --seed 7 --sarif', description: 'counterexamples as SARIF, for code scanning' },
     ]);
     expect(command.arguments).toEqual([{ name: 'contract', description: 'the contract: a file, or git:<ref>:<path>' }]);
     expect(command.options).toEqual({
@@ -149,7 +149,7 @@ describe('props --sarif (contract-properties R5)', () => {
     expect(r.code).toBe(ExitCode.OK);
     const sarif = JSON.parse(r.stdout) as { version: string; runs: { tool: { driver: { name: string; rules: { id: string }[] } }; results: unknown[] }[] };
     expect(sarif.version).toBe('2.1.0');
-    expect(sarif.runs[0]?.tool.driver).toMatchObject({ name: 'apicontract props', rules: [{ id: 'props/agreement' }, { id: 'props/round-trip' }, { id: 'props/normalise' }, { id: 'props/soundness' }] });
+    expect(sarif.runs[0]?.tool.driver).toMatchObject({ name: 'contractdiff props', rules: [{ id: 'props/agreement' }, { id: 'props/round-trip' }, { id: 'props/normalise' }, { id: 'props/soundness' }] });
     expect(sarif.runs[0]?.results).toEqual([]);
   });
 
@@ -180,7 +180,7 @@ describe('toSarif', () => {
       $schema: 'https://json.schemastore.org/sarif-2.1.0.json',
       runs: [
         {
-          tool: { driver: { name: 'apicontract props', rules: [{ id: 'props/agreement' }, { id: 'props/round-trip' }, { id: 'props/normalise' }, { id: 'props/soundness' }] } },
+          tool: { driver: { name: 'contractdiff props', rules: [{ id: 'props/agreement' }, { id: 'props/round-trip' }, { id: 'props/normalise' }, { id: 'props/soundness' }] } },
           results: [
             {
               ruleId: 'props/round-trip',

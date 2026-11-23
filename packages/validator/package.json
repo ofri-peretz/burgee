@@ -1,8 +1,8 @@
 {
-  "name": "validator",
+  "name": "loadline",
   "version": "0.0.1",
   "private": true,
-  "description": "A JS/TS validator whose schemas are data: checked with no eval, or compiled ahead of time from a contract. Working name; unpublished until the capabilities are measured.",
+  "description": "A JS/TS validator whose schemas are data: checked with no eval, or compiled ahead of time from a contract.",
   "license": "MIT",
   "type": "module",
   "engines": {

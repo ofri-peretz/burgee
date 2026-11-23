@@ -1,5 +1,5 @@
 /**
- * `apicontract migrate hey-api` (apicontract-kit R4): `openapi-ts.config.*` (or the CLI flags in
+ * `contractdiff migrate hey-api` (apicontract-kit R4): `openapi-ts.config.*` (or the CLI flags in
  * a script) read as data, its plugins mapped to our targets one by one. A plugin with no target,
  * and every plugin option, is a finding.
  *
@@ -39,14 +39,14 @@ const unreadable = (pointer: string, value: Literal): ContractFinding =>
   finding('unreadable', pointer, `\`${isUnreadable(value) ? value.unreadable : JSON.stringify(value)}\` is not data this migration can read`, 'write the value out as a literal, or carry it over by hand');
 
 const dropped = (pointer: string, key: string): ContractFinding =>
-  finding('option-dropped', `${pointer}/${key}`, `\`${key}\` has no counterpart in apicontract`, 'remove it, or carry it over by hand; `apicontract gen --help` lists what each target takes');
+  finding('option-dropped', `${pointer}/${key}`, `\`${key}\` has no counterpart in contractdiff`, 'remove it, or carry it over by hand; `contractdiff gen --help` lists what each target takes');
 
 /** A string, the first of a list (the rest reported), or the `path` of an object (its other keys reported). */
 const pathOf = (value: Literal, pointer: string, findings: ContractFinding[], what: 'input' | 'output'): string | undefined => {
   if (typeof value === 'string') return value;
   if (Array.isArray(value)) {
     const [first, ...rest] = value as Literal[];
-    rest.forEach((other, index) => findings.push(finding(`second-${what}`, `${pointer}/${String(index + 1)}`, `${JSON.stringify(other)} is a second ${what}, and one apicontract.config.json has one`, 'write a second apicontract.config.json for it in its own folder')));
+    rest.forEach((other, index) => findings.push(finding(`second-${what}`, `${pointer}/${String(index + 1)}`, `${JSON.stringify(other)} is a second ${what}, and one contractdiff.config.json has one`, 'write a second contractdiff.config.json for it in its own folder')));
     return pathOf(first, `${pointer}/0`, findings, what);
   }
   if (isDict(value)) {
@@ -75,11 +75,11 @@ const plugins = (list: readonly Literal[], output: string, findings: ContractFin
     }
     const generator = MAPPED.get(name) ?? (VALIDATORS.has(name) ? 'validator' : undefined);
     if (generator === undefined) {
-      findings.push(finding('plugin-dropped', pointer, `the \`${name}\` plugin has no apicontract target`, 'keep Hey API for it, or write the plugin: `apicontract plugin new`'));
+      findings.push(finding('plugin-dropped', pointer, `the \`${name}\` plugin has no contractdiff target`, 'keep Hey API for it, or write the plugin: `contractdiff plugin new`'));
       return;
     }
     if (VALIDATORS.has(name)) {
-      findings.push(finding('plugin-translated', pointer, `\`${name}\` schemas become the \`validator\` target, apicontract's own validators, not ${name}'s`, `import the validators from the \`validator\` target's output, or keep Hey API for ${name}`));
+      findings.push(finding('plugin-translated', pointer, `\`${name}\` schemas become the \`validator\` target, contractdiff's own validators, not ${name}'s`, `import the validators from the \`validator\` target's output, or keep Hey API for ${name}`));
     }
     targets.set(generator, { generator, out: output });
   });
@@ -119,7 +119,7 @@ const fromScripts = (files: Files): { replaced: Record<string, string>; args: st
       if (found === null) return part;
       const rest = part.slice(found[0].length).trim();
       args ??= rest === '' ? [] : rest.split(/\s+/u).filter((word) => word !== '\\');
-      return `${found[1] as string}apicontract gen`;
+      return `${found[1] as string}contractdiff gen`;
     });
     if (rewritten.join('') !== command) replaced.set(name, rewritten.join(''));
   }
@@ -129,7 +129,7 @@ const fromScripts = (files: Files): { replaced: Record<string, string>; args: st
 /** One Hey API config object as ours. */
 const convert = (value: Literal, findings: ContractFinding[]): Config | undefined => {
   if (!isDict(value)) {
-    findings.push(value === undefined ? finding('config-unreadable', POINTER, 'no `export default` or `module.exports` was found', 'write apicontract.config.json by hand') : unreadable(POINTER, value));
+    findings.push(value === undefined ? finding('config-unreadable', POINTER, 'no `export default` or `module.exports` was found', 'write contractdiff.config.json by hand') : unreadable(POINTER, value));
     return undefined;
   }
   const { input, output, plugins: listed, ...rest } = value;
@@ -140,11 +140,11 @@ const convert = (value: Literal, findings: ContractFinding[]): Config | undefine
     findings.push(finding('nothing-to-migrate', `${POINTER}#/input`, 'the config names no input document', 'set `input` and run the migration again'));
     return undefined;
   }
-  if (/^https?:\/\//u.test(path)) findings.push(finding('remote-input', 'apicontract.config.json#/input', `${path} is fetched over the network, and apicontract reads local files`, 'download the document into the project and point `input` at it'));
-  else if (/^[\w-]+\/[\w-]+(?:[?@].*)?$/u.test(path)) findings.push(finding('registry-input', 'apicontract.config.json#/input', `${path} is a Hey API Platform registry address`, 'download the document from the registry into the project and point `input` at it'));
+  if (/^https?:\/\//u.test(path)) findings.push(finding('remote-input', 'contractdiff.config.json#/input', `${path} is fetched over the network, and contractdiff reads local files`, 'download the document into the project and point `input` at it'));
+  else if (/^[\w-]+\/[\w-]+(?:[?@].*)?$/u.test(path)) findings.push(finding('registry-input', 'contractdiff.config.json#/input', `${path} is a Hey API Platform registry address`, 'download the document from the registry into the project and point `input` at it'));
   const list = Array.isArray(listed) ? (listed as Literal[]) : DEFAULT_PLUGINS;
   if (listed !== undefined && !Array.isArray(listed)) findings.push(unreadable(`${POINTER}#/plugins`, listed));
-  findings.push(finding('imports-change', `${POINTER}#/output`, `the files under ${out} are written with apicontract's module names, not Hey API's \`*.gen.ts\``, `after \`apicontract gen\`, point imports of ${out}/*.gen at the targets' files`));
+  findings.push(finding('imports-change', `${POINTER}#/output`, `the files under ${out} are written with contractdiff's module names, not Hey API's \`*.gen.ts\``, `after \`contractdiff gen\`, point imports of ${out}/*.gen at the targets' files`));
   return { input: path, targets: plugins(list, out, findings) };
 };
 
@@ -155,7 +155,7 @@ export const migrate: Migrate = (configText, files) => {
   let value: Literal = configText === undefined ? flags : readExport(configText);
   if (Array.isArray(value)) {
     const [first, ...rest] = value as Literal[];
-    rest.forEach((_other, index) => findings.push(finding('second-input', `${POINTER}#/${String(index + 1)}`, 'a second config, and one apicontract.config.json reads one input', 'write a second apicontract.config.json for it in its own folder')));
+    rest.forEach((_other, index) => findings.push(finding('second-input', `${POINTER}#/${String(index + 1)}`, 'a second config, and one contractdiff.config.json reads one input', 'write a second contractdiff.config.json for it in its own folder')));
     value = first;
   }
   const config = convert(value, findings);

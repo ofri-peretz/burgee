@@ -15,7 +15,7 @@ import { compareSchemas, type Effect, isFrozen, serverReceives } from './diff-sc
 export interface Finding {
   /** oasdiff's rule id where the change is one oasdiff names, else ours, `ac-`-prefixed. */
   readonly id: string;
-  readonly scheme: 'oasdiff' | 'apicontract';
+  readonly scheme: 'oasdiff' | 'contractdiff';
   readonly verdict: Verdict;
   readonly effect: Effect;
   readonly operation: string;
@@ -218,7 +218,7 @@ const fixFor = (raw: Raw, verdict: Verdict, operation: string): string => {
   const where = [operation, raw.payload, raw.pointer].filter((part) => part !== undefined && part !== '').join(' ');
   if (raw.frozen === true) return `${where} is under \`x-frozen\`, so nothing under it may change (\`${raw.rule}\`): revert it, or publish the change as a new version of the contract`;
   if (verdict === 'dangerous') return dangerFix(raw, where);
-  if (verdict === 'unknown') return `review ${where} by hand: apicontract cannot tell what \`${raw.rule}\` does to the values it accepts`;
+  if (verdict === 'unknown') return `review ${where} by hand: contractdiff cannot tell what \`${raw.rule}\` does to the values it accepts`;
   if (verdict === 'non-breaking') return 'nothing to do';
   if (raw.effect === 'narrows') return `keep accepting at ${where} what the old contract accepted, or release this as a major version`;
   return `keep ${where} within what the old contract allowed, or release this as a major version`;
@@ -252,7 +252,7 @@ export const summaryOf = (findings: readonly Finding[]): Record<Verdict, number>
   Object.fromEntries(SEVERITY.map((verdict) => [verdict, findings.filter((finding) => finding.verdict === verdict).length])) as Record<Verdict, number>;
 
 /** A change under `x-frozen` has one id, whatever changed; its fix line names the change. */
-const FROZEN = { id: 'ac-frozen-changed', scheme: 'apicontract' } as const;
+const FROZEN = { id: 'ac-frozen-changed', scheme: 'contractdiff' } as const;
 
 /** Compare `a` (old) with `b` (new): every change, classified. */
 export const compareContracts = (a: Contract, b: Contract, options: CompareOptions = {}): Comparison => {

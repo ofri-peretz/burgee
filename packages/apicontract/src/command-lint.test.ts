@@ -30,7 +30,7 @@ describe('levelsOf', () => {
   it('lays the rulesets over each other in order, then the config rules, with either prefix', () => {
     expect(DEFAULT_RULESETS).toEqual(['recommended']);
     expect(levelsOf(['recommended'])).toEqual(rulesets.recommended);
-    const both = levelsOf(['apicontract:recommended', 'contractdiff:agent-ready'], { 'operation-tags': 'error', 'example-valid': 'off' });
+    const both = levelsOf(['contractdiff:recommended', 'contractdiff:agent-ready'], { 'operation-tags': 'error', 'example-valid': 'off' });
     expect(both).toEqual({ ...rulesets.recommended, ...rulesets['agent-ready'], 'operation-tags': 'error', 'example-valid': 'off' });
   });
 
@@ -40,7 +40,7 @@ describe('levelsOf', () => {
     expect(() => levelsOf(['recommendedapicontract:'])).toThrow('there is no ruleset `recommendedapicontract:`');
     expect(() => levelsOf([], { nope: 'warn' })).toThrow('`lint.rules` names `nope`, which is not a rule. fix: use one of description-length, description-overlap, example-valid,');
     expect(() => levelsOf([], { nope: 'warn', nor: 'warn' })).toThrow(ConfigError);
-    expect(() => levelsOf([], { nope: 'warn', nor: 'warn' })).toThrow(/^apicontract\.config\.json cannot be used:\n {2}- `lint\.rules` names `nope`.*\n {2}- `lint\.rules` names `nor`/u);
+    expect(() => levelsOf([], { nope: 'warn', nor: 'warn' })).toThrow(/^contractdiff\.config\.json cannot be used:\n {2}- `lint\.rules` names `nope`.*\n {2}- `lint\.rules` names `nor`/u);
   });
 });
 
@@ -112,20 +112,20 @@ describe('runLint', () => {
 
   it("fails on an error, with a fix, and reads the config's input, rulesets and levels from its folder", async () => {
     const dir = scratch({ 'api.yaml': "openapi: 3.1.0\ninfo: { title: t, version: '1', description: d }\npaths:\n  /a:\n    get: { operationId: a, description: d, tags: [t], responses: { '200': { description: ok } } }\n  /b/:\n    get: { operationId: b, description: e, tags: [t], responses: { '200': { description: ok } } }\n" });
-    const config = validateConfig({ input: 'api.yaml', lint: { extends: ['recommended'], rules: { 'path-no-trailing-slash': 'error' } } }, join(dir, 'apicontract.config.json'));
+    const config = validateConfig({ input: 'api.yaml', lint: { extends: ['recommended'], rules: { 'path-no-trailing-slash': 'error' } } }, join(dir, 'contractdiff.config.json'));
     const data = await runLint({ cwd: '/elsewhere', specs: [], config });
     expect(data.exitCode).toBe(ExitCode.RUNTIME);
     expect(data.fix).toBe('correct each error as its own fix line says, or set its rule to "warn" in `lint.rules`');
     expect(data.findings).toEqual([{ rule: 'path-no-trailing-slash', level: 'error', file: 'api.yaml', pointer: '#', message: 'path `/b/` ends with a slash', fix: 'drop the trailing slash' }]);
     expect(text(data).split('\n').at(-2)).toBe('1 error(s), 0 warning(s). Checked 11 rule(s) on 1 input(s), 13 node(s); not carried: none; warn first not checked: not a git repository.');
-    const flagged = await runLint({ cwd: dir, specs: ['api.yaml'], rulesets: [], config: validateConfig({ lint: { rules: { 'path-no-trailing-slash': 'off' } } }, join(dir, 'apicontract.config.json')) });
+    const flagged = await runLint({ cwd: dir, specs: ['api.yaml'], rulesets: [], config: validateConfig({ lint: { rules: { 'path-no-trailing-slash': 'off' } } }, join(dir, 'contractdiff.config.json')) });
     expect(flagged.findings).toEqual([]);
     expect(text(flagged).split('\n')).toEqual(['0 error(s), 0 warning(s). Checked 10 rule(s) on 1 input(s), 12 node(s); not carried: none.', 'recommended: 100% (12 of 12 checks passed)']);
   });
 
   it('reads the config from the folder when none is given, and refuses when there is nothing to lint', async () => {
-    const dir = scratch({ 'apicontract.config.json': JSON.stringify({ lint: { extends: ['agent-ready'] } }) });
-    await expect(runLint({ cwd: dir, specs: [] })).rejects.toThrow('nothing to lint. fix: pass a spec, e.g. `apicontract lint openapi.yaml`, or set `input` in apicontract.config.json');
+    const dir = scratch({ 'contractdiff.config.json': JSON.stringify({ lint: { extends: ['agent-ready'] } }) });
+    await expect(runLint({ cwd: dir, specs: [] })).rejects.toThrow('nothing to lint. fix: pass a spec, e.g. `contractdiff lint openapi.yaml`, or set `input` in contractdiff.config.json');
     await expect(runLint({ cwd: makeDir('apicontract-lint-'), specs: [] })).rejects.toThrow('nothing to lint');
     const data = await runLint({ cwd: dir, specs: [TOOLS] });
     expect(Object.keys(data.scores as object)).toEqual(['agent-ready']);
@@ -133,11 +133,11 @@ describe('runLint', () => {
     expect(Object.keys(prefixed.scores as object)).toEqual(['agent-ready']);
     expect('sarif' in prefixed).toBe(false);
     expect('exitCode' in prefixed).toBe(false);
-    const bare = validateConfig({ input: 'tools.mcp.json' }, join(FIXTURES, 'apicontract.config.json'));
+    const bare = validateConfig({ input: 'tools.mcp.json' }, join(FIXTURES, 'contractdiff.config.json'));
     const fromRoot = await runLint({ cwd: '/elsewhere', specs: [], config: bare });
     expect(fromRoot.inputs).toEqual(['tools.mcp.json']);
     expect(Object.keys(fromRoot.scores as object)).toEqual(['recommended']);
-    const fromCwd = await runLint({ cwd: FIXTURES, specs: ['tools.mcp.json'], config: validateConfig({}, join(dir, 'apicontract.config.json')) });
+    const fromCwd = await runLint({ cwd: FIXTURES, specs: ['tools.mcp.json'], config: validateConfig({}, join(dir, 'contractdiff.config.json')) });
     expect(fromCwd.inputs).toEqual(['tools.mcp.json']);
   });
 
@@ -169,7 +169,7 @@ describe('runLint', () => {
       '    assertions: { defined: true }',
     ].join('\n');
     const dir = scratch({ 'api.yaml': api, '.spectral.yaml': spectral, 'redocly.yaml': redocly });
-    const config = validateConfig({ input: 'api.yaml', lint: { extends: ['.spectral.yaml', 'redocly.yaml'], rules: { 'ids-camel': 'warn' } } }, join(dir, 'apicontract.config.json'));
+    const config = validateConfig({ input: 'api.yaml', lint: { extends: ['.spectral.yaml', 'redocly.yaml'], rules: { 'ids-camel': 'warn' } } }, join(dir, 'contractdiff.config.json'));
     const data = await runLint({ cwd: '/elsewhere', specs: [], config, sarif: true });
     expect((data.findings as { rule: string; level: string; message: string }[]).map((finding) => [finding.rule, finding.level, finding.message])).toEqual([
       ['ids-camel', 'warn', '`operationId` "Get_A" is not camel case'],
@@ -179,15 +179,15 @@ describe('runLint', () => {
     expect(Object.keys(data.scores as object)).toEqual(['.spectral.yaml', 'redocly.yaml']);
     expect(JSON.stringify(data.sarif)).toContain('Operation ids are camel case');
     const lines = text({ ...data, [TEXT]: () => toText(data as never, data.scores as never, data.notCarried as never) }).split('\n');
-    expect(lines.slice(0, 3)).toEqual(['.spectral.yaml', expect.stringMatching(/^  warn   rule-not-carried  #\/extends\/0  spectral:oas: carries 9 of its rules/u), '         fix: add the others you rely on as rules in this file, or run `apicontract lint --ruleset recommended` for the built-in set']);
-    expect(lines).toContain('  warn   rule-not-carried  #/rules/custom  custom: function `myCheck` is not a core function apicontract carries (truthy, falsy, defined, undefined, pattern, casing, enumeration, length, xor, schema)');
+    expect(lines.slice(0, 3)).toEqual(['.spectral.yaml', expect.stringMatching(/^  warn   rule-not-carried  #\/extends\/0  spectral:oas: carries 9 of its rules/u), '         fix: add the others you rely on as rules in this file, or run `contractdiff lint --ruleset recommended` for the built-in set']);
+    expect(lines).toContain('  warn   rule-not-carried  #/rules/custom  custom: function `myCheck` is not a core function contractdiff carries (truthy, falsy, defined, undefined, pattern, casing, enumeration, length, xor, schema)');
     expect(lines.slice(3, 10)).toEqual([
-      '  warn   rule-not-carried  #/rules/custom  custom: function `myCheck` is not a core function apicontract carries (truthy, falsy, defined, undefined, pattern, casing, enumeration, length, xor, schema)',
+      '  warn   rule-not-carried  #/rules/custom  custom: function `myCheck` is not a core function contractdiff carries (truthy, falsy, defined, undefined, pattern, casing, enumeration, length, xor, schema)',
       '         fix: rewrite it with core functions and a `given` inside the JSONPath subset, or turn it off here and keep it in Spectral',
       '',
       'redocly.yaml',
       '  warn   rule-not-carried  #/rules/rule~1where  rule/where: `where` is not carried',
-      '         fix: rewrite it as a `rule/…` with a subject apicontract selects and assertions it carries, or keep it in Redocly',
+      '         fix: rewrite it as a `rule/…` with a subject contractdiff selects and assertions it carries, or keep it in Redocly',
       '',
     ]);
     expect(lines.at(-3)).toMatch(/; not carried: 3 \(spectral:oas, custom, rule\/where\)\.$/u);
@@ -202,7 +202,7 @@ describe('runLint', () => {
     const dir = scratch({ 'api.yaml': 'openapi: 3.1.0\ninfo: { title: t, version: "1" }\npaths: {}\n', 'bad.spectral.yaml': 'rules: [' });
     await Promise.all(
       ['missing.spectral.yaml', 'bad.spectral.yaml'].map(async (name) => {
-        const config = validateConfig({ input: 'api.yaml', lint: { extends: [name] } }, join(dir, 'apicontract.config.json'));
+        const config = validateConfig({ input: 'api.yaml', lint: { extends: [name] } }, join(dir, 'contractdiff.config.json'));
         const error = await runLint({ cwd: dir, specs: [], config }).catch((caught: unknown) => caught);
         expect(error).toBeInstanceOf(ConfigError);
         expect((error as Error).message).toContain(`- \`lint.extends\` names ${name}, which cannot be read (`);
@@ -223,7 +223,7 @@ describe('runLint', () => {
     const sarif = data.sarif as { runs: [{ tool: { driver: { rules: { id: string; shortDescription: { text: string } }[] } }; results: unknown[] }] };
     expect(JSON.parse(text(data))).toEqual(sarif);
     expect(text(data).startsWith('{\n  "version": "2.1.0",\n  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",\n')).toBe(true);
-    expect((sarif.runs[0].tool.driver as unknown as { name: string }).name).toBe('apicontract lint');
+    expect((sarif.runs[0].tool.driver as unknown as { name: string }).name).toBe('contractdiff lint');
     expect(sarif.runs[0].tool.driver.rules[0]).toEqual({ id: 'example-valid', shortDescription: { text: 'Every example is valid against the schema it sits in' } });
     expect(sarif.runs[0].results).toEqual([
       {
@@ -238,7 +238,7 @@ describe('runLint', () => {
   });
 });
 
-describe('apicontract lint, through burgee', () => {
+describe('contractdiff lint, through burgee', () => {
   beforeAll(async () => {
     await runBurgee(program, { argv: ['--version'] });
   });
@@ -247,8 +247,8 @@ describe('apicontract lint, through burgee', () => {
     expect(command.description).toBe("A contract's form checked by rules: standards, and whether an agent can use it as tools");
     expect(command.effects).toBe('idempotent');
     expect(command.examples).toEqual([
-      { command: 'apicontract lint openapi.yaml', description: 'the recommended rules, as warnings' },
-      { command: 'apicontract lint openapi.yaml --ruleset agent-ready', description: 'can an agent call this API as tools: descriptions, examples, ids' },
+      { command: 'contractdiff lint openapi.yaml', description: 'the recommended rules, as warnings' },
+      { command: 'contractdiff lint openapi.yaml --ruleset agent-ready', description: 'can an agent call this API as tools: descriptions, examples, ids' },
     ]);
     expect(command.arguments).toEqual([{ name: 'specs', variadic: true, required: false, description: "the contracts to lint (default: the config's input)" }]);
     expect(command.options).toEqual({

@@ -4,8 +4,8 @@
     "a remote schema": [
       {
         "code": "remote-input",
-        "pointer": "apicontract.config.json#/input",
-        "message": "https://petstore3.swagger.io/api/v3/openapi.yaml is fetched over the network, and apicontract reads local files",
+        "pointer": "contractdiff.config.json#/input",
+        "message": "https://petstore3.swagger.io/api/v3/openapi.yaml is fetched over the network, and contractdiff reads local files",
         "fix": "download the document into the project and point `input` at it"
       }
     ],
@@ -13,8 +13,8 @@
       {
         "code": "second-input",
         "pointer": "redocly.yaml#/apis/external@v1",
-        "message": "./openapi/external.yaml is a second input, and one apicontract.config.json reads one",
-        "fix": "write a second apicontract.config.json for it in its own folder"
+        "message": "./openapi/external.yaml is a second input, and one contractdiff.config.json reads one",
+        "fix": "write a second contractdiff.config.json for it in its own folder"
       }
     ],
     "a redocly.yaml somewhere else": [
@@ -28,7 +28,7 @@
         "code": "nothing-to-migrate",
         "pointer": "package.json#/scripts",
         "message": "no script runs openapi-typescript on a document, and redocly.yaml names no api with `x-openapi-ts`",
-        "fix": "run `apicontract plugin new` or write apicontract.config.json by hand"
+        "fix": "run `contractdiff plugin new` or write contractdiff.config.json by hand"
       }
     ],
     "auth headers in redocly.yaml": [
@@ -36,12 +36,12 @@
         "code": "option-dropped",
         "pointer": "redocly.yaml#/resolve",
         "message": "`resolve` configures Redocly, not the types",
-        "fix": "keep redocly.yaml for `redocly lint`; apicontract does not read it"
+        "fix": "keep redocly.yaml for `redocly lint`; contractdiff does not read it"
       },
       {
         "code": "remote-input",
-        "pointer": "apicontract.config.json#/input",
-        "message": "https://api.example.com/v2/openapi.yaml is fetched over the network, and apicontract reads local files",
+        "pointer": "contractdiff.config.json#/input",
+        "message": "https://api.example.com/v2/openapi.yaml is fetched over the network, and contractdiff reads local files",
         "fix": "download the document into the project and point `input` at it"
       }
     ],
@@ -50,7 +50,7 @@
       {
         "code": "stdout-output",
         "pointer": "package.json#/scripts/types",
-        "message": "openapi-typescript printed to stdout, and apicontract writes a file",
+        "message": "openapi-typescript printed to stdout, and contractdiff writes a file",
         "fix": "the target writes schema.ts: change `out` to where the types belong"
       }
     ]
@@ -59,105 +59,105 @@
     "configuration: defineConfig in openapi-ts.config.ts": [
       {
         "code": "registry-input",
-        "pointer": "apicontract.config.json#/input",
+        "pointer": "contractdiff.config.json#/input",
         "message": "hey-api/backend is a Hey API Platform registry address",
         "fix": "download the document from the registry into the project and point `input` at it"
       },
       {
         "code": "imports-change",
         "pointer": "openapi-ts.config#/output",
-        "message": "the files under src/client are written with apicontract's module names, not Hey API's `*.gen.ts`",
-        "fix": "after `apicontract gen`, point imports of src/client/*.gen at the targets' files"
+        "message": "the files under src/client are written with contractdiff's module names, not Hey API's `*.gen.ts`",
+        "fix": "after `contractdiff gen`, point imports of src/client/*.gen at the targets' files"
       }
     ],
     "configuration: CommonJS": [
       {
         "code": "registry-input",
-        "pointer": "apicontract.config.json#/input",
+        "pointer": "contractdiff.config.json#/input",
         "message": "hey-api/backend is a Hey API Platform registry address",
         "fix": "download the document from the registry into the project and point `input` at it"
       },
       {
         "code": "imports-change",
         "pointer": "openapi-ts.config#/output",
-        "message": "the files under src/client are written with apicontract's module names, not Hey API's `*.gen.ts`",
-        "fix": "after `apicontract gen`, point imports of src/client/*.gen at the targets' files"
+        "message": "the files under src/client are written with contractdiff's module names, not Hey API's `*.gen.ts`",
+        "fix": "after `contractdiff gen`, point imports of src/client/*.gen at the targets' files"
       }
     ],
     "configuration: ESM": [
       {
         "code": "registry-input",
-        "pointer": "apicontract.config.json#/input",
+        "pointer": "contractdiff.config.json#/input",
         "message": "hey-api/backend is a Hey API Platform registry address",
         "fix": "download the document from the registry into the project and point `input` at it"
       },
       {
         "code": "imports-change",
         "pointer": "openapi-ts.config#/output",
-        "message": "the files under src/client are written with apicontract's module names, not Hey API's `*.gen.ts`",
-        "fix": "after `apicontract gen`, point imports of src/client/*.gen at the targets' files"
+        "message": "the files under src/client are written with contractdiff's module names, not Hey API's `*.gen.ts`",
+        "fix": "after `contractdiff gen`, point imports of src/client/*.gen at the targets' files"
       }
     ],
     "configuration: several configs": [
       {
         "code": "second-input",
         "pointer": "openapi-ts.config#/1",
-        "message": "a second config, and one apicontract.config.json reads one input",
-        "fix": "write a second apicontract.config.json for it in its own folder"
+        "message": "a second config, and one contractdiff.config.json reads one input",
+        "fix": "write a second contractdiff.config.json for it in its own folder"
       },
       {
         "code": "imports-change",
         "pointer": "openapi-ts.config#/output",
-        "message": "the files under src/foo are written with apicontract's module names, not Hey API's `*.gen.ts`",
-        "fix": "after `apicontract gen`, point imports of src/foo/*.gen at the targets' files"
+        "message": "the files under src/foo are written with contractdiff's module names, not Hey API's `*.gen.ts`",
+        "fix": "after `contractdiff gen`, point imports of src/foo/*.gen at the targets' files"
       }
     ],
     "configuration: several inputs, one output each": [
       {
         "code": "second-input",
         "pointer": "openapi-ts.config#/input/1",
-        "message": "\"bar.yaml\" is a second input, and one apicontract.config.json has one",
-        "fix": "write a second apicontract.config.json for it in its own folder"
+        "message": "\"bar.yaml\" is a second input, and one contractdiff.config.json has one",
+        "fix": "write a second contractdiff.config.json for it in its own folder"
       },
       {
         "code": "second-output",
         "pointer": "openapi-ts.config#/output/1",
-        "message": "\"src/bar\" is a second output, and one apicontract.config.json has one",
-        "fix": "write a second apicontract.config.json for it in its own folder"
+        "message": "\"src/bar\" is a second output, and one contractdiff.config.json has one",
+        "fix": "write a second contractdiff.config.json for it in its own folder"
       },
       {
         "code": "imports-change",
         "pointer": "openapi-ts.config#/output",
-        "message": "the files under src/foo are written with apicontract's module names, not Hey API's `*.gen.ts`",
-        "fix": "after `apicontract gen`, point imports of src/foo/*.gen at the targets' files"
+        "message": "the files under src/foo are written with contractdiff's module names, not Hey API's `*.gen.ts`",
+        "fix": "after `contractdiff gen`, point imports of src/foo/*.gen at the targets' files"
       }
     ],
     "configuration: several inputs, one output": [
       {
         "code": "second-input",
         "pointer": "openapi-ts.config#/input/1",
-        "message": "\"bar.yaml\" is a second input, and one apicontract.config.json has one",
-        "fix": "write a second apicontract.config.json for it in its own folder"
+        "message": "\"bar.yaml\" is a second input, and one contractdiff.config.json has one",
+        "fix": "write a second contractdiff.config.json for it in its own folder"
       },
       {
         "code": "imports-change",
         "pointer": "openapi-ts.config#/output",
-        "message": "the files under src/client are written with apicontract's module names, not Hey API's `*.gen.ts`",
-        "fix": "after `apicontract gen`, point imports of src/client/*.gen at the targets' files"
+        "message": "the files under src/client are written with contractdiff's module names, not Hey API's `*.gen.ts`",
+        "fix": "after `contractdiff gen`, point imports of src/client/*.gen at the targets' files"
       }
     ],
     "get started: the CLI": [
       {
         "code": "registry-input",
-        "pointer": "apicontract.config.json#/input",
+        "pointer": "contractdiff.config.json#/input",
         "message": "hey-api/backend is a Hey API Platform registry address",
         "fix": "download the document from the registry into the project and point `input` at it"
       },
       {
         "code": "imports-change",
         "pointer": "openapi-ts.config#/output",
-        "message": "the files under src/client are written with apicontract's module names, not Hey API's `*.gen.ts`",
-        "fix": "after `apicontract gen`, point imports of src/client/*.gen at the targets' files"
+        "message": "the files under src/client are written with contractdiff's module names, not Hey API's `*.gen.ts`",
+        "fix": "after `contractdiff gen`, point imports of src/client/*.gen at the targets' files"
       }
     ],
     "get started: a Vite plugin is not a config file": [
@@ -173,169 +173,169 @@
         "code": "config-unreadable",
         "pointer": "openapi-ts.config",
         "message": "no `export default` or `module.exports` was found",
-        "fix": "write apicontract.config.json by hand"
+        "fix": "write contractdiff.config.json by hand"
       }
     ],
     "fetch client: the plugin": [
       {
         "code": "registry-input",
-        "pointer": "apicontract.config.json#/input",
+        "pointer": "contractdiff.config.json#/input",
         "message": "hey-api/backend is a Hey API Platform registry address",
         "fix": "download the document from the registry into the project and point `input` at it"
       },
       {
         "code": "imports-change",
         "pointer": "openapi-ts.config#/output",
-        "message": "the files under src/client are written with apicontract's module names, not Hey API's `*.gen.ts`",
-        "fix": "after `apicontract gen`, point imports of src/client/*.gen at the targets' files"
+        "message": "the files under src/client are written with contractdiff's module names, not Hey API's `*.gen.ts`",
+        "fix": "after `contractdiff gen`, point imports of src/client/*.gen at the targets' files"
       }
     ],
     "fetch client: the CLI": [
       {
         "code": "registry-input",
-        "pointer": "apicontract.config.json#/input",
+        "pointer": "contractdiff.config.json#/input",
         "message": "hey-api/backend is a Hey API Platform registry address",
         "fix": "download the document from the registry into the project and point `input` at it"
       },
       {
         "code": "imports-change",
         "pointer": "openapi-ts.config#/output",
-        "message": "the files under src/client are written with apicontract's module names, not Hey API's `*.gen.ts`",
-        "fix": "after `apicontract gen`, point imports of src/client/*.gen at the targets' files"
+        "message": "the files under src/client are written with contractdiff's module names, not Hey API's `*.gen.ts`",
+        "fix": "after `contractdiff gen`, point imports of src/client/*.gen at the targets' files"
       }
     ],
     "fetch client: runtimeConfigPath": [
       {
         "code": "registry-input",
-        "pointer": "apicontract.config.json#/input",
+        "pointer": "contractdiff.config.json#/input",
         "message": "hey-api/backend is a Hey API Platform registry address",
         "fix": "download the document from the registry into the project and point `input` at it"
       },
       {
         "code": "imports-change",
         "pointer": "openapi-ts.config#/output",
-        "message": "the files under src/client are written with apicontract's module names, not Hey API's `*.gen.ts`",
-        "fix": "after `apicontract gen`, point imports of src/client/*.gen at the targets' files"
+        "message": "the files under src/client are written with contractdiff's module names, not Hey API's `*.gen.ts`",
+        "fix": "after `contractdiff gen`, point imports of src/client/*.gen at the targets' files"
       },
       {
         "code": "option-dropped",
         "pointer": "openapi-ts.config#/plugins/0/runtimeConfigPath",
-        "message": "`runtimeConfigPath` has no counterpart in apicontract",
-        "fix": "remove it, or carry it over by hand; `apicontract gen --help` lists what each target takes"
+        "message": "`runtimeConfigPath` has no counterpart in contractdiff",
+        "fix": "remove it, or carry it over by hand; `contractdiff gen --help` lists what each target takes"
       }
     ],
     "TanStack Query: React": [
       {
         "code": "registry-input",
-        "pointer": "apicontract.config.json#/input",
+        "pointer": "contractdiff.config.json#/input",
         "message": "hey-api/backend is a Hey API Platform registry address",
         "fix": "download the document from the registry into the project and point `input` at it"
       },
       {
         "code": "imports-change",
         "pointer": "openapi-ts.config#/output",
-        "message": "the files under src/client are written with apicontract's module names, not Hey API's `*.gen.ts`",
-        "fix": "after `apicontract gen`, point imports of src/client/*.gen at the targets' files"
+        "message": "the files under src/client are written with contractdiff's module names, not Hey API's `*.gen.ts`",
+        "fix": "after `contractdiff gen`, point imports of src/client/*.gen at the targets' files"
       }
     ],
     "TanStack Query: Vue": [
       {
         "code": "registry-input",
-        "pointer": "apicontract.config.json#/input",
+        "pointer": "contractdiff.config.json#/input",
         "message": "hey-api/backend is a Hey API Platform registry address",
         "fix": "download the document from the registry into the project and point `input` at it"
       },
       {
         "code": "imports-change",
         "pointer": "openapi-ts.config#/output",
-        "message": "the files under src/client are written with apicontract's module names, not Hey API's `*.gen.ts`",
-        "fix": "after `apicontract gen`, point imports of src/client/*.gen at the targets' files"
+        "message": "the files under src/client are written with contractdiff's module names, not Hey API's `*.gen.ts`",
+        "fix": "after `contractdiff gen`, point imports of src/client/*.gen at the targets' files"
       },
       {
         "code": "plugin-dropped",
         "pointer": "openapi-ts.config#/plugins/0",
-        "message": "the `@tanstack/vue-query` plugin has no apicontract target",
-        "fix": "keep Hey API for it, or write the plugin: `apicontract plugin new`"
+        "message": "the `@tanstack/vue-query` plugin has no contractdiff target",
+        "fix": "keep Hey API for it, or write the plugin: `contractdiff plugin new`"
       }
     ],
     "Zod": [
       {
         "code": "registry-input",
-        "pointer": "apicontract.config.json#/input",
+        "pointer": "contractdiff.config.json#/input",
         "message": "hey-api/backend is a Hey API Platform registry address",
         "fix": "download the document from the registry into the project and point `input` at it"
       },
       {
         "code": "imports-change",
         "pointer": "openapi-ts.config#/output",
-        "message": "the files under src/client are written with apicontract's module names, not Hey API's `*.gen.ts`",
-        "fix": "after `apicontract gen`, point imports of src/client/*.gen at the targets' files"
+        "message": "the files under src/client are written with contractdiff's module names, not Hey API's `*.gen.ts`",
+        "fix": "after `contractdiff gen`, point imports of src/client/*.gen at the targets' files"
       },
       {
         "code": "plugin-translated",
         "pointer": "openapi-ts.config#/plugins/0",
-        "message": "`zod` schemas become the `validator` target, apicontract's own validators, not zod's",
+        "message": "`zod` schemas become the `validator` target, contractdiff's own validators, not zod's",
         "fix": "import the validators from the `validator` target's output, or keep Hey API for zod"
       }
     ],
     "Zod: validating the SDK": [
       {
         "code": "registry-input",
-        "pointer": "apicontract.config.json#/input",
+        "pointer": "contractdiff.config.json#/input",
         "message": "hey-api/backend is a Hey API Platform registry address",
         "fix": "download the document from the registry into the project and point `input` at it"
       },
       {
         "code": "imports-change",
         "pointer": "openapi-ts.config#/output",
-        "message": "the files under src/client are written with apicontract's module names, not Hey API's `*.gen.ts`",
-        "fix": "after `apicontract gen`, point imports of src/client/*.gen at the targets' files"
+        "message": "the files under src/client are written with contractdiff's module names, not Hey API's `*.gen.ts`",
+        "fix": "after `contractdiff gen`, point imports of src/client/*.gen at the targets' files"
       },
       {
         "code": "plugin-translated",
         "pointer": "openapi-ts.config#/plugins/0",
-        "message": "`zod` schemas become the `validator` target, apicontract's own validators, not zod's",
+        "message": "`zod` schemas become the `validator` target, contractdiff's own validators, not zod's",
         "fix": "import the validators from the `validator` target's output, or keep Hey API for zod"
       },
       {
         "code": "option-dropped",
         "pointer": "openapi-ts.config#/plugins/1/validator",
-        "message": "`validator` has no counterpart in apicontract",
-        "fix": "remove it, or carry it over by hand; `apicontract gen --help` lists what each target takes"
+        "message": "`validator` has no counterpart in contractdiff",
+        "fix": "remove it, or carry it over by hand; `contractdiff gen --help` lists what each target takes"
       }
     ],
     "MSW": [
       {
         "code": "registry-input",
-        "pointer": "apicontract.config.json#/input",
+        "pointer": "contractdiff.config.json#/input",
         "message": "hey-api/backend is a Hey API Platform registry address",
         "fix": "download the document from the registry into the project and point `input` at it"
       },
       {
         "code": "imports-change",
         "pointer": "openapi-ts.config#/output",
-        "message": "the files under src/client are written with apicontract's module names, not Hey API's `*.gen.ts`",
-        "fix": "after `apicontract gen`, point imports of src/client/*.gen at the targets' files"
+        "message": "the files under src/client are written with contractdiff's module names, not Hey API's `*.gen.ts`",
+        "fix": "after `contractdiff gen`, point imports of src/client/*.gen at the targets' files"
       }
     ],
     "MSW: source": [
       {
         "code": "registry-input",
-        "pointer": "apicontract.config.json#/input",
+        "pointer": "contractdiff.config.json#/input",
         "message": "hey-api/backend is a Hey API Platform registry address",
         "fix": "download the document from the registry into the project and point `input` at it"
       },
       {
         "code": "imports-change",
         "pointer": "openapi-ts.config#/output",
-        "message": "the files under src/client are written with apicontract's module names, not Hey API's `*.gen.ts`",
-        "fix": "after `apicontract gen`, point imports of src/client/*.gen at the targets' files"
+        "message": "the files under src/client are written with contractdiff's module names, not Hey API's `*.gen.ts`",
+        "fix": "after `contractdiff gen`, point imports of src/client/*.gen at the targets' files"
       },
       {
         "code": "option-dropped",
         "pointer": "openapi-ts.config#/plugins/0/source",
-        "message": "`source` has no counterpart in apicontract",
-        "fix": "remove it, or carry it over by hand; `apicontract gen --help` lists what each target takes"
+        "message": "`source` has no counterpart in contractdiff",
+        "fix": "remove it, or carry it over by hand; `contractdiff gen --help` lists what each target takes"
       }
     ]
   },
@@ -345,13 +345,13 @@
         "code": "client-translated",
         "pointer": "orval.config#/cli/output/client",
         "message": "the `axios-functions` client becomes the `fetch` target, which calls `fetch` and not axios",
-        "fix": "check the call sites after `apicontract gen`, or keep orval for axios-functions"
+        "fix": "check the call sites after `contractdiff gen`, or keep orval for axios-functions"
       },
       {
         "code": "imports-change",
         "pointer": "orval.config#/cli/output",
-        "message": "the files under ./src/petstore.ts are written with apicontract's module names, not orval's",
-        "fix": "after `apicontract gen`, point imports of ./src/petstore.ts at the targets' files"
+        "message": "the files under ./src/petstore.ts are written with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of ./src/petstore.ts at the targets' files"
       }
     ],
     "quick start: a config file": [
@@ -359,93 +359,93 @@
         "code": "client-translated",
         "pointer": "orval.config#/petstore/output/client",
         "message": "the `axios-functions` client becomes the `fetch` target, which calls `fetch` and not axios",
-        "fix": "check the call sites after `apicontract gen`, or keep orval for axios-functions"
+        "fix": "check the call sites after `contractdiff gen`, or keep orval for axios-functions"
       },
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under ./src/petstore.ts are written with apicontract's module names, not orval's",
-        "fix": "after `apicontract gen`, point imports of ./src/petstore.ts at the targets' files"
+        "message": "the files under ./src/petstore.ts are written with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of ./src/petstore.ts at the targets' files"
       }
     ],
     "quick start: React Query with a models folder": [
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under ./src/api/petstore.ts are written with apicontract's module names, not orval's",
-        "fix": "after `apicontract gen`, point imports of ./src/api/petstore.ts at the targets' files"
+        "message": "the files under ./src/api/petstore.ts are written with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of ./src/api/petstore.ts at the targets' files"
       }
     ],
     "the full example": [
       {
         "code": "option-dropped",
         "pointer": "orval.config#/petstore/hooks",
-        "message": "`hooks` has no counterpart in apicontract",
-        "fix": "remove it, or carry it over by hand; `apicontract gen --help` lists what each target takes"
+        "message": "`hooks` has no counterpart in contractdiff",
+        "fix": "remove it, or carry it over by hand; `contractdiff gen --help` lists what each target takes"
       },
       {
         "code": "option-dropped",
         "pointer": "orval.config#/petstore/input/override",
-        "message": "`override` has no counterpart in apicontract",
-        "fix": "remove it, or carry it over by hand; `apicontract gen --help` lists what each target takes"
+        "message": "`override` has no counterpart in contractdiff",
+        "fix": "remove it, or carry it over by hand; `contractdiff gen --help` lists what each target takes"
       },
       {
         "code": "option-dropped",
         "pointer": "orval.config#/petstore/output/mode",
-        "message": "`mode` has no counterpart in apicontract",
-        "fix": "remove it, or carry it over by hand; `apicontract gen --help` lists what each target takes"
+        "message": "`mode` has no counterpart in contractdiff",
+        "fix": "remove it, or carry it over by hand; `contractdiff gen --help` lists what each target takes"
       },
       {
         "code": "option-dropped",
         "pointer": "orval.config#/petstore/output/override",
-        "message": "`override` has no counterpart in apicontract",
-        "fix": "remove it, or carry it over by hand; `apicontract gen --help` lists what each target takes"
+        "message": "`override` has no counterpart in contractdiff",
+        "fix": "remove it, or carry it over by hand; `contractdiff gen --help` lists what each target takes"
       },
       {
         "code": "option-dropped",
         "pointer": "orval.config#/petstore/output/allParamsOptional",
-        "message": "`allParamsOptional` has no counterpart in apicontract",
-        "fix": "remove it, or carry it over by hand; `apicontract gen --help` lists what each target takes"
+        "message": "`allParamsOptional` has no counterpart in contractdiff",
+        "fix": "remove it, or carry it over by hand; `contractdiff gen --help` lists what each target takes"
       },
       {
         "code": "option-dropped",
         "pointer": "orval.config#/petstore/output/urlEncodeParameters",
-        "message": "`urlEncodeParameters` has no counterpart in apicontract",
-        "fix": "remove it, or carry it over by hand; `apicontract gen --help` lists what each target takes"
+        "message": "`urlEncodeParameters` has no counterpart in contractdiff",
+        "fix": "remove it, or carry it over by hand; `contractdiff gen --help` lists what each target takes"
       },
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under src/petstore.ts are written with apicontract's module names, not orval's",
-        "fix": "after `apicontract gen`, point imports of src/petstore.ts at the targets' files"
+        "message": "the files under src/petstore.ts are written with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files"
       }
     ],
     "client: angular": [
       {
         "code": "client-dropped",
         "pointer": "orval.config#/petstore/output/client",
-        "message": "the `angular` client has no apicontract target",
-        "fix": "keep orval for it, or write the plugin: `apicontract plugin new`"
+        "message": "the `angular` client has no contractdiff target",
+        "fix": "keep orval for it, or write the plugin: `contractdiff plugin new`"
       },
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under src/petstore.ts are written with apicontract's module names, not orval's",
-        "fix": "after `apicontract gen`, point imports of src/petstore.ts at the targets' files"
+        "message": "the files under src/petstore.ts are written with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files"
       }
     ],
     "client: angular-query": [
       {
         "code": "client-dropped",
         "pointer": "orval.config#/petstore/output/client",
-        "message": "the `angular-query` client has no apicontract target",
-        "fix": "keep orval for it, or write the plugin: `apicontract plugin new`"
+        "message": "the `angular-query` client has no contractdiff target",
+        "fix": "keep orval for it, or write the plugin: `contractdiff plugin new`"
       },
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under src/petstore.ts are written with apicontract's module names, not orval's",
-        "fix": "after `apicontract gen`, point imports of src/petstore.ts at the targets' files"
+        "message": "the files under src/petstore.ts are written with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files"
       }
     ],
     "client: axios": [
@@ -453,13 +453,13 @@
         "code": "client-translated",
         "pointer": "orval.config#/petstore/output/client",
         "message": "the `axios` client becomes the `fetch` target, which calls `fetch` and not axios",
-        "fix": "check the call sites after `apicontract gen`, or keep orval for axios"
+        "fix": "check the call sites after `contractdiff gen`, or keep orval for axios"
       },
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under src/petstore.ts are written with apicontract's module names, not orval's",
-        "fix": "after `apicontract gen`, point imports of src/petstore.ts at the targets' files"
+        "message": "the files under src/petstore.ts are written with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files"
       }
     ],
     "client: axios-functions": [
@@ -467,165 +467,165 @@
         "code": "client-translated",
         "pointer": "orval.config#/petstore/output/client",
         "message": "the `axios-functions` client becomes the `fetch` target, which calls `fetch` and not axios",
-        "fix": "check the call sites after `apicontract gen`, or keep orval for axios-functions"
+        "fix": "check the call sites after `contractdiff gen`, or keep orval for axios-functions"
       },
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under src/petstore.ts are written with apicontract's module names, not orval's",
-        "fix": "after `apicontract gen`, point imports of src/petstore.ts at the targets' files"
+        "message": "the files under src/petstore.ts are written with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files"
       }
     ],
     "client: react-query": [
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under src/petstore.ts are written with apicontract's module names, not orval's",
-        "fix": "after `apicontract gen`, point imports of src/petstore.ts at the targets' files"
+        "message": "the files under src/petstore.ts are written with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files"
       }
     ],
     "client: solid-start": [
       {
         "code": "client-dropped",
         "pointer": "orval.config#/petstore/output/client",
-        "message": "the `solid-start` client has no apicontract target",
-        "fix": "keep orval for it, or write the plugin: `apicontract plugin new`"
+        "message": "the `solid-start` client has no contractdiff target",
+        "fix": "keep orval for it, or write the plugin: `contractdiff plugin new`"
       },
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under src/petstore.ts are written with apicontract's module names, not orval's",
-        "fix": "after `apicontract gen`, point imports of src/petstore.ts at the targets' files"
+        "message": "the files under src/petstore.ts are written with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files"
       }
     ],
     "client: solid-query": [
       {
         "code": "client-dropped",
         "pointer": "orval.config#/petstore/output/client",
-        "message": "the `solid-query` client has no apicontract target",
-        "fix": "keep orval for it, or write the plugin: `apicontract plugin new`"
+        "message": "the `solid-query` client has no contractdiff target",
+        "fix": "keep orval for it, or write the plugin: `contractdiff plugin new`"
       },
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under src/petstore.ts are written with apicontract's module names, not orval's",
-        "fix": "after `apicontract gen`, point imports of src/petstore.ts at the targets' files"
+        "message": "the files under src/petstore.ts are written with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files"
       }
     ],
     "client: svelte-query": [
       {
         "code": "client-dropped",
         "pointer": "orval.config#/petstore/output/client",
-        "message": "the `svelte-query` client has no apicontract target",
-        "fix": "keep orval for it, or write the plugin: `apicontract plugin new`"
+        "message": "the `svelte-query` client has no contractdiff target",
+        "fix": "keep orval for it, or write the plugin: `contractdiff plugin new`"
       },
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under src/petstore.ts are written with apicontract's module names, not orval's",
-        "fix": "after `apicontract gen`, point imports of src/petstore.ts at the targets' files"
+        "message": "the files under src/petstore.ts are written with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files"
       }
     ],
     "client: vue-query": [
       {
         "code": "client-dropped",
         "pointer": "orval.config#/petstore/output/client",
-        "message": "the `vue-query` client has no apicontract target",
-        "fix": "keep orval for it, or write the plugin: `apicontract plugin new`"
+        "message": "the `vue-query` client has no contractdiff target",
+        "fix": "keep orval for it, or write the plugin: `contractdiff plugin new`"
       },
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under src/petstore.ts are written with apicontract's module names, not orval's",
-        "fix": "after `apicontract gen`, point imports of src/petstore.ts at the targets' files"
+        "message": "the files under src/petstore.ts are written with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files"
       }
     ],
     "client: pinia-colada": [
       {
         "code": "client-dropped",
         "pointer": "orval.config#/petstore/output/client",
-        "message": "the `pinia-colada` client has no apicontract target",
-        "fix": "keep orval for it, or write the plugin: `apicontract plugin new`"
+        "message": "the `pinia-colada` client has no contractdiff target",
+        "fix": "keep orval for it, or write the plugin: `contractdiff plugin new`"
       },
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under src/petstore.ts are written with apicontract's module names, not orval's",
-        "fix": "after `apicontract gen`, point imports of src/petstore.ts at the targets' files"
+        "message": "the files under src/petstore.ts are written with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files"
       }
     ],
     "client: swr": [
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under src/petstore.ts are written with apicontract's module names, not orval's",
-        "fix": "after `apicontract gen`, point imports of src/petstore.ts at the targets' files"
+        "message": "the files under src/petstore.ts are written with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files"
       }
     ],
     "client: zod": [
       {
         "code": "client-translated",
         "pointer": "orval.config#/petstore/output/client",
-        "message": "the `zod` client becomes the `validator` target, apicontract's own validators and not Zod",
-        "fix": "check the call sites after `apicontract gen`, or keep orval for zod"
+        "message": "the `zod` client becomes the `validator` target, contractdiff's own validators and not Zod",
+        "fix": "check the call sites after `contractdiff gen`, or keep orval for zod"
       },
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under src/petstore.ts are written with apicontract's module names, not orval's",
-        "fix": "after `apicontract gen`, point imports of src/petstore.ts at the targets' files"
+        "message": "the files under src/petstore.ts are written with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files"
       }
     ],
     "client: effect": [
       {
         "code": "client-dropped",
         "pointer": "orval.config#/petstore/output/client",
-        "message": "the `effect` client has no apicontract target",
-        "fix": "keep orval for it, or write the plugin: `apicontract plugin new`"
+        "message": "the `effect` client has no contractdiff target",
+        "fix": "keep orval for it, or write the plugin: `contractdiff plugin new`"
       },
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under src/petstore.ts are written with apicontract's module names, not orval's",
-        "fix": "after `apicontract gen`, point imports of src/petstore.ts at the targets' files"
+        "message": "the files under src/petstore.ts are written with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files"
       }
     ],
     "client: valibot": [
       {
         "code": "client-dropped",
         "pointer": "orval.config#/petstore/output/client",
-        "message": "the `valibot` client has no apicontract target",
-        "fix": "keep orval for it, or write the plugin: `apicontract plugin new`"
+        "message": "the `valibot` client has no contractdiff target",
+        "fix": "keep orval for it, or write the plugin: `contractdiff plugin new`"
       },
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under src/petstore.ts are written with apicontract's module names, not orval's",
-        "fix": "after `apicontract gen`, point imports of src/petstore.ts at the targets' files"
+        "message": "the files under src/petstore.ts are written with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files"
       }
     ],
     "client: hono": [
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under src/petstore.ts are written with apicontract's module names, not orval's",
-        "fix": "after `apicontract gen`, point imports of src/petstore.ts at the targets' files"
+        "message": "the files under src/petstore.ts are written with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files"
       }
     ],
     "client: fetch": [
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under src/petstore.ts are written with apicontract's module names, not orval's",
-        "fix": "after `apicontract gen`, point imports of src/petstore.ts at the targets' files"
+        "message": "the files under src/petstore.ts are written with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files"
       }
     ],
     "client: mcp": [
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under src/petstore.ts are written with apicontract's module names, not orval's",
-        "fix": "after `apicontract gen`, point imports of src/petstore.ts at the targets' files"
+        "message": "the files under src/petstore.ts are written with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files"
       }
     ]
   }

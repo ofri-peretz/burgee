@@ -1,6 +1,6 @@
 /**
  * apicontract-lint R14 and R15 (kind 3, rules on code): a rule with `given.implementation` judges
- * the handler the user owns for each operation, found through apicontract.map.json and read with the
+ * the handler the user owns for each operation, found through contractdiff.map.json and read with the
  * project's TypeScript; an operation the map has no handler for says so.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -211,7 +211,7 @@ describe('codeIndexOf', () => {
   it('mapIn: the map at the root, or an empty one', () => {
     const root = makeDir('apicontract-code-');
     expect(mapIn(root)).toStrictEqual(emptyMap());
-    writeFileSync(join(root, 'apicontract.map.json'), JSON.stringify(mapped()));
+    writeFileSync(join(root, 'contractdiff.map.json'), JSON.stringify(mapped()));
     expect(mapIn(root)).toStrictEqual(mapped());
   });
 });
@@ -251,17 +251,17 @@ describe('the engine, on code', () => {
         file: 'api.json',
         pointer: '#/paths/~1pets~1{id}/get',
         message: 'handlers.getPet: handler-not-found: it is gone',
-        fix: 'keep the name apicontract generated for it (the generated code requires it), or run `apicontract gen` to write the map again',
+        fix: 'keep the name contractdiff generated for it (the generated code requires it), or run `contractdiff gen` to write the map again',
       },
     ]);
     expect(result.counts).toStrictEqual({ audits: { checked: 2, failed: 2 } });
     const unmapped = lint([{ file: 'api.json', contract: CONTRACT }], { audits: codeRule({ function: 'calls', functionOptions: { name: 'audit' } }) }, { audits: 'warn' });
     expect(unmapped.findings.map((finding) => [finding.message, finding.fix])).toStrictEqual([
       [
-        'map-has-no-handler: `getPets` has no handler you own in apicontract.map.json',
-        'generate a server for it with `apicontract gen` (targets nest, hono, fastify or express record the handler you own in apicontract.map.json), or drop `implementation` from the rule',
+        'map-has-no-handler: `getPets` has no handler you own in contractdiff.map.json',
+        'generate a server for it with `contractdiff gen` (targets nest, hono, fastify or express record the handler you own in contractdiff.map.json), or drop `implementation` from the rule',
       ],
-      ['map-has-no-handler: `getPet` has no handler you own in apicontract.map.json', expect.any(String) as string],
+      ['map-has-no-handler: `getPet` has no handler you own in contractdiff.map.json', expect.any(String) as string],
     ]);
   });
 
@@ -272,7 +272,7 @@ describe('the engine, on code', () => {
     expect(lint([{ file: 'api.json', contract: CONTRACT }], { odd: codeRule({ function: 'calls' }, { given: { select: 'operation' } }) }, { odd: 'warn' }).findings).toStrictEqual([]);
     // A code function with no options says what it needs.
     const bare = lint([{ file: 'api.json', contract: CONTRACT, code: index({ getPets: [handler()] }) }], { bare: codeRule({ function: 'calls' }) }, { bare: 'warn' }).findings;
-    expect(bare.map((finding) => finding.message)).toStrictEqual(['handlers.getPets: `calls` needs `functionOptions.name`, the function to call', 'map-has-no-handler: `getPet` has no handler you own in apicontract.map.json']);
+    expect(bare.map((finding) => finding.message)).toStrictEqual(['handlers.getPets: `calls` needs `functionOptions.name`, the function to call', 'map-has-no-handler: `getPet` has no handler you own in contractdiff.map.json']);
   });
 });
 
@@ -321,12 +321,12 @@ const project = () => {
   mkdirSync(join(dir, 'src'));
   writeFileSync(join(dir, 'rules.mjs'), PLUGIN);
   writeFileSync(join(dir, 'api.json'), JSON.stringify(DOCUMENT));
-  writeFileSync(join(dir, 'apicontract.map.json'), JSON.stringify(mapped()));
+  writeFileSync(join(dir, 'contractdiff.map.json'), JSON.stringify(mapped()));
   writeFileSync(join(dir, 'src/handlers.ts'), "export const handlers = {\n  getPets(input) {\n    return { status: 200, body: [] };\n  },\n};\n");
   return dir;
 };
 
-const configured = (dir: string, rules: object = {}) => validateConfig({ input: 'api.json', plugins: ['./rules.mjs'], lint: { extends: [], rules } }, join(dir, 'apicontract.config.json'));
+const configured = (dir: string, rules: object = {}) => validateConfig({ input: 'api.json', plugins: ['./rules.mjs'], lint: { extends: [], rules } }, join(dir, 'contractdiff.config.json'));
 
 describe('lint, on a project with handlers', () => {
 

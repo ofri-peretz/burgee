@@ -91,7 +91,7 @@ describe('readRedocly: a configurable rule it carries', () => {
 describe('readRedocly: what it does not carry', () => {
   it('names why, at the rule, with a fix', () => {
     expect(one({ subject: { type: 'Operation' }, where: [], assertions: { defined: true } }).notCarried).toStrictEqual([
-      { id: 'rule/r', file: 'redocly.yaml', pointer: '#/rules/rule~1r', reason: '`where` is not carried', fix: 'rewrite it as a `rule/…` with a subject apicontract selects and assertions it carries, or keep it in Redocly' },
+      { id: 'rule/r', file: 'redocly.yaml', pointer: '#/rules/rule~1r', reason: '`where` is not carried', fix: 'rewrite it as a `rule/…` with a subject contractdiff selects and assertions it carries, or keep it in Redocly' },
     ]);
     expect(one({ assertions: {} }, 'rule/a~b').notCarried[0]?.pointer).toBe('#/rules/rule~1a~0b');
   });
@@ -141,20 +141,20 @@ describe('readRedocly: extends and built-in rules', () => {
         id: 'recommended',
         file: 'redocly.yaml',
         pointer: '#/extends/0',
-        reason: `carries 10 of its rules as apicontract equivalents (${Object.keys(REDOCLY_RECOMMENDED).join(', ')}); the others are not carried`,
-        fix: 'write the others you rely on as `rule/…` assertions in this file, or run `apicontract lint --ruleset recommended` for the built-in set',
+        reason: `carries 10 of its rules as contractdiff equivalents (${Object.keys(REDOCLY_RECOMMENDED).join(', ')}); the others are not carried`,
+        fix: 'write the others you rely on as `rule/…` assertions in this file, or run `contractdiff lint --ruleset recommended` for the built-in set',
       },
     ]);
   });
 
   it('lists another extends as not carried, and reads one name as a list', () => {
     expect(read({ extends: 'minimal' }).notCarried).toStrictEqual([
-      { id: 'minimal', file: 'redocly.yaml', pointer: '#/extends/0', reason: 'extends `minimal`, which apicontract does not read', fix: 'name the rules you need from `minimal` in redocly.yaml' },
+      { id: 'minimal', file: 'redocly.yaml', pointer: '#/extends/0', reason: 'extends `minimal`, which contractdiff does not read', fix: 'name the rules you need from `minimal` in redocly.yaml' },
     ]);
     expect(read({ extends: ['minimal', 'recommended'] }).notCarried.map((entry) => entry.pointer)).toStrictEqual(['#/extends/0', '#/extends/1']);
   });
 
-  it('sets a built-in rule level by its apicontract name, or a known rule by its own', () => {
+  it('sets a built-in rule level by its contractdiff name, or a known rule by its own', () => {
     expect(read({ rules: { 'operation-2xx-response': 'off', 'operation-tags': { severity: 'warn' }, 'info-description': 'error' } })).toStrictEqual({
       rules: {},
       levels: { 'operation-success-response': 'off', 'operation-tags': 'warn', 'info-description': 'error' },
@@ -168,7 +168,7 @@ describe('readRedocly: extends and built-in rules', () => {
 });
 
 describe('the tables', () => {
-  it('maps each recommended rule to its apicontract rule and level', () => {
+  it('maps each recommended rule to its contractdiff rule and level', () => {
     expect(REDOCLY_RECOMMENDED).toStrictEqual({
       'info-description': { id: 'info-description', level: 'warn' },
       'operation-description': { id: 'operation-description', level: 'warn' },

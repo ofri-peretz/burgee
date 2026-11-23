@@ -4,7 +4,7 @@
  * an OpenAPI document; a `handlers.ts` the user owns, written once; and a contract test per
  * operation, which listens on a free port. A handler that throws or rejects reaches the app's error
  * middleware, as Express 5 passes async errors on. Express is the user's dependency, never
- * apicontract's.
+ * contractdiff's.
  *
  * Routes are written as path-to-regexp 8 reads them, its reserved characters escaped. Options and
  * the shared generator as `plugin-hono.ts`.

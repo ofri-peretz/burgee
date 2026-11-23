@@ -35,7 +35,7 @@ const spec = (extra: string): string =>
 const tools = (query: object) => JSON.stringify({ tools: [{ name: 'search', inputSchema: { type: 'object', properties: { query } } }] });
 const schema = (extra: string) => `$schema: https://json-schema.org/draft/2020-12/schema\ntype: object\nproperties:\n  id: { type: string${extra} }\n`;
 
-describe('apicontract diff, through burgee', () => {
+describe('contractdiff diff, through burgee', () => {
   // burgee's first run loads its renderers lazily; paying that here keeps each case under 5 s.
   beforeAll(async () => {
     await runBurgee(program, { argv: ['--version'] });
@@ -45,9 +45,9 @@ describe('apicontract diff, through burgee', () => {
     expect(command.description).toBe('What a contract change breaks, and for whom, under the compatibility mode you pick');
     expect(command.effects).toBe('idempotent');
     expect(command.examples).toEqual([
-      { command: 'apicontract diff old.yaml new.yaml', description: 'what breaks for callers built on old.yaml' },
-      { command: 'apicontract diff old.yaml new.yaml --mode full --sarif', description: 'both directions, for code scanning' },
-      { command: 'apicontract diff releases/ openapi.yaml --transitive', description: 'what breaks for callers on any past release, the oldest named' },
+      { command: 'contractdiff diff old.yaml new.yaml', description: 'what breaks for callers built on old.yaml' },
+      { command: 'contractdiff diff old.yaml new.yaml --mode full --sarif', description: 'both directions, for code scanning' },
+      { command: 'contractdiff diff releases/ openapi.yaml --transitive', description: 'what breaks for callers on any past release, the oldest named' },
     ]);
     expect(command.arguments).toEqual([
       { name: 'old', description: 'the contract before: a file, or git:<ref>:<path>' },
@@ -67,9 +67,9 @@ describe('apicontract diff, through burgee', () => {
       decisions: {
         type: 'string',
         choices: ['warn', 'error', 'off'],
-        description: "hold a change to the decision written in the contract: warn (default; prints, exit code unchanged), error (fails the run) or off. Read from the base ref's apicontract.config.json first",
+        description: "hold a change to the decision written in the contract: warn (default; prints, exit code unchanged), error (fails the run) or off. Read from the base ref's contractdiff.config.json first",
       },
-      usage: { type: 'string', description: 'a JSON file of the operations and members callers use (or an apicontract.map.json): a breaking change nobody uses is non-breaking', placeholder: 'file' },
+      usage: { type: 'string', description: 'a JSON file of the operations and members callers use (or an contractdiff.map.json): a breaking change nobody uses is non-breaking', placeholder: 'file' },
       transitive: { type: 'boolean', description: 'compare the last contract with every one before it, not only the last: findings say which release they break' },
       dangerousBreaking: { type: 'boolean', description: 'report dangerous changes (a default changed, a value a reader may not expect) as breaking, so they fail the run' },
       today: { type: 'string', description: 'the date x-sunset is judged against (default: today, UTC)', placeholder: 'YYYY-MM-DD' },
@@ -164,13 +164,13 @@ describe('diff', () => {
     // The base ref's config is asked for too (R12), after the sides; the reader here has it as the same text, which is no config.
     expect(calls).toEqual([
       ['origin/main', 'api/spec.yaml', dir],
-      ['origin/main', 'apicontract.config.json', dir],
+      ['origin/main', 'contractdiff.config.json', dir],
     ]);
     expect(data).toMatchObject({ old: 'git:origin/main:api/spec.yaml', verdict: 'non-breaking' });
   });
 
   it('refuses a git side by default, with the command to run instead', () => {
-    expect(() => noGit('HEAD~1', 'a.yaml', '.')).toThrow('cannot read `git:HEAD~1:a.yaml`: this build of apicontract does not run git. fix: `git show HEAD~1:a.yaml > old.yaml` and diff that file');
+    expect(() => noGit('HEAD~1', 'a.yaml', '.')).toThrow('cannot read `git:HEAD~1:a.yaml`: this build of contractdiff does not run git. fix: `git show HEAD~1:a.yaml > old.yaml` and diff that file');
     expect(() => diff({ cwd: '.', old: 'git:HEAD:a.yaml', new: 'b.yaml' })).toThrow('fix: `git show HEAD:a.yaml > old.yaml`');
     // Only a side that starts with `git:` is one.
     expect(() => diff({ cwd: scratch({}), old: 'my-git:HEAD:a.yaml', new: 'b.yaml', git: () => spec('') })).toThrow('ENOENT');
@@ -223,7 +223,7 @@ describe('toSarif', () => {
       $schema: 'https://json.schemastore.org/sarif-2.1.0.json',
       runs: [
         {
-          tool: { driver: { name: 'apicontract diff', rules: [{ id: 'ac-operation-added' }, { id: 'ac-operation-removed' }] } },
+          tool: { driver: { name: 'contractdiff diff', rules: [{ id: 'ac-operation-added' }, { id: 'ac-operation-removed' }] } },
           results: [
             {
               ruleId: 'ac-operation-removed',

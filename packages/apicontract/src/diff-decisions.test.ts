@@ -245,7 +245,7 @@ describe('a breaking change needs a decision (R5)', () => {
     expect(rows(findings)).toEqual([['ac-decision-missing', BODY, '/properties/currency']]);
     expect(findings[0]).toMatchObject({
       verdict: 'unknown',
-      scheme: 'apicontract',
+      scheme: 'contractdiff',
       operation: 'getBalance',
       source: '#/paths/~1v3~1wallet/get',
       document: 'new',

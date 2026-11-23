@@ -1,4 +1,4 @@
-import { fromJsonSchema, standardJson } from 'validator/json-schema';
+import { fromJsonSchema, standardJson } from 'loadline/json-schema';
 import { describe, expect, it } from 'vitest';
 
 import { corpus } from './__fixtures__/extract/corpus.js';
@@ -61,7 +61,7 @@ describe('the round trip through the validator and the standard-schema extractor
     ['formats', 'non-breaking'],
   ])('classifies the round trip of %s as %s', async (name, verdict) => {
     const host = createHost();
-    host.register({ name: 'apicontract', adapters: builtinAdapters });
+    host.register({ name: 'contractdiff', adapters: builtinAdapters });
     const result = await roundtrip(corpus[name], generate, extract, { read: host.read });
     expect(result.comparison?.verdict).toBe(verdict);
   });

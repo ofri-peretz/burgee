@@ -1,7 +1,7 @@
 /**
  * `lint`'s rules on code (apicontract-lint spec.md R14, R15, kind 3): a rule whose `given` says
  * `implementation: true` reads, for each operation it selects, the handler the user owns, found
- * through `apicontract.map.json`. The handler is read once, statically, into a `HandlerSummary`
+ * through `contractdiff.map.json`. The handler is read once, statically, into a `HandlerSummary`
  * (`lint-code-read.ts`); the functions here judge that summary, pure and total, as the value
  * functions judge a document.
  *
@@ -122,6 +122,6 @@ export const applyCode = (name: CodeFunctionName, handler: ReadHandler, contract
 };
 
 /** The fix for an operation the map has no handler for (R15). */
-export const NO_HANDLER_FIX = 'generate a server for it with `apicontract gen` (targets nest, hono, fastify or express record the handler you own in apicontract.map.json), or drop `implementation` from the rule';
+export const NO_HANDLER_FIX = 'generate a server for it with `contractdiff gen` (targets nest, hono, fastify or express record the handler you own in contractdiff.map.json), or drop `implementation` from the rule';
 /** The fix for a handler the map names and the source does not hold. */
-export const NOT_FOUND_FIX = 'keep the name apicontract generated for it (the generated code requires it), or run `apicontract gen` to write the map again';
+export const NOT_FOUND_FIX = 'keep the name contractdiff generated for it (the generated code requires it), or run `contractdiff gen` to write the map again';

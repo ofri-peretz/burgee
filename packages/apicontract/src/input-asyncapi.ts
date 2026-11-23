@@ -1,6 +1,6 @@
 /**
  * The AsyncAPI input format (apicontract-inputs R5): an AsyncAPI 2.x or 3.x document read into the
- * model. It imports only `apicontract/core`.
+ * model. It imports only `contractdiff/core`.
  *
  * - **3.x**: one operation per `operations.<id>`, named by that id. Directions are the document
  *   owner's: `action: send` is `publish` (the application sends it) and `action: receive` is

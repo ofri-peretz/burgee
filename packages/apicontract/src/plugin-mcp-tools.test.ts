@@ -156,7 +156,7 @@ describe('toolsOf', () => {
   it('includes operations by id and by tag, and reports an entry that matches nothing', () => {
     const chosen = toolsOf(pets, { ...stdio, include: ['tag:admin', 'getTree', 'tag:none', 'nope'] });
     expect(chosen.tools.map((candidate) => candidate.name)).toEqual(['create_pet', 'get_tree']);
-    const fix = 'use an operation id from `apicontract explain --list`, or `tag:<name>` with a tag the spec declares';
+    const fix = 'use an operation id from `contractdiff explain --list`, or `tag:<name>` with a tag the spec declares';
     expect(chosen.findings.filter((found) => found.code === 'mcp-include-unmatched')).toEqual([
       { code: 'mcp-include-unmatched', pointer: '#', message: '`include` names "tag:none", which matches no operation', fix },
       { code: 'mcp-include-unmatched', pointer: '#', message: '`include` names "nope", which matches no operation', fix },

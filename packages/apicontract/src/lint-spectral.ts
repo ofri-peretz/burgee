@@ -4,7 +4,7 @@
  * JSONPath subset and its `then` uses core functions with options that mean here what they meant
  * there. Every rule that is not carried is listed with the reason and a `fix:`, never dropped.
  *
- * `extends: spectral:oas` carries the rules that have an apicontract equivalent, at Spectral's
+ * `extends: spectral:oas` carries the rules that have an contractdiff equivalent, at Spectral's
  * default level; the rest of that ruleset is reported as not carried, in one entry.
  */
 import { type Level, type Rule, type Then } from './lint-engine.js';
@@ -29,7 +29,7 @@ export interface ReadRuleset {
 }
 
 /**
- * `spectral:oas` rules with an apicontract equivalent, and Spectral's default level for each.
+ * `spectral:oas` rules with an contractdiff equivalent, and Spectral's default level for each.
  * ponytail: written from Spectral's documented oas ruleset; that the two find the same things on
  * the corpus is _unmeasured_.
  */
@@ -118,7 +118,7 @@ const optionsOf = (name: FunctionName, options: unknown): Readonly<Record<string
 const thenOf = (then: unknown): Then => {
   if (!isRecord(then)) return uncarried('a `then` entry is not an object');
   const name = then.function;
-  if (!(FUNCTIONS as readonly unknown[]).includes(name)) return uncarried(`function \`${String(name)}\` is not a core function apicontract carries (${FUNCTIONS.join(', ')})`);
+  if (!(FUNCTIONS as readonly unknown[]).includes(name)) return uncarried(`function \`${String(name)}\` is not a core function contractdiff carries (${FUNCTIONS.join(', ')})`);
   const { field } = then;
   if (field !== undefined && (typeof field !== 'string' || field.startsWith('@') || field.startsWith('$'))) uncarried(`\`field\` \`${String(field)}\` is not a member name; \`@key\` and JSONPath fields are not carried`);
   const options = optionsOf(name as FunctionName, then.functionOptions);
@@ -148,7 +148,7 @@ const levelOf = (severity: unknown): Level =>
 
 /** One rule definition as a `lint` rule and its level. */
 const ruleOf = (id: string, value: Record<string, unknown>, file: string): { rule: Rule; level: Level } => {
-  const formats = value.formats === undefined ? undefined : [value.formats].flat().map((format) => FORMATS[String(format)] ?? uncarried(`format \`${String(format)}\` is not one apicontract reads`));
+  const formats = value.formats === undefined ? undefined : [value.formats].flat().map((format) => FORMATS[String(format)] ?? uncarried(`format \`${String(format)}\` is not one contractdiff reads`));
   const paths = pathsOf(value.given);
   const thens = [value.then].flat().map((then) => thenOf(then));
   const description = [value.description, plainMessage(value.message), id].find((text): text is string => typeof text === 'string') as string;
@@ -172,7 +172,7 @@ const extendsOf = (value: unknown, file: string): { levels: Map<string, Level>; 
     const pointer = `#/extends/${String(index)}`;
     if (mode === 'off') continue;
     if (name !== 'spectral:oas') {
-      notCarried.push({ id: String(name), file, pointer, reason: `extends \`${String(name)}\`, which apicontract does not read`, fix: `copy the rules you need from \`${String(name)}\` into ${file}, inside the JSONPath subset` });
+      notCarried.push({ id: String(name), file, pointer, reason: `extends \`${String(name)}\`, which contractdiff does not read`, fix: `copy the rules you need from \`${String(name)}\` into ${file}, inside the JSONPath subset` });
       continue;
     }
     for (const { id, level } of Object.values(SPECTRAL_OAS)) levels.set(id, level);
@@ -180,14 +180,14 @@ const extendsOf = (value: unknown, file: string): { levels: Map<string, Level>; 
       id: 'spectral:oas',
       file,
       pointer,
-      reason: `carries ${String(Object.keys(SPECTRAL_OAS).length)} of its rules as apicontract equivalents (${Object.keys(SPECTRAL_OAS).join(', ')}); the others are not carried`,
-      fix: 'add the others you rely on as rules in this file, or run `apicontract lint --ruleset recommended` for the built-in set',
+      reason: `carries ${String(Object.keys(SPECTRAL_OAS).length)} of its rules as contractdiff equivalents (${Object.keys(SPECTRAL_OAS).join(', ')}); the others are not carried`,
+      fix: 'add the others you rely on as rules in this file, or run `contractdiff lint --ruleset recommended` for the built-in set',
     });
   }
   return { levels, notCarried };
 };
 
-/** The level a rule's bare severity sets, for a rule `extends` or apicontract defines. */
+/** The level a rule's bare severity sets, for a rule `extends` or contractdiff defines. */
 const overrideOf = (id: string, severity: unknown, known: ReadonlySet<string>): [string, Level] => {
   const target = SPECTRAL_OAS[id]?.id ?? (known.has(id) ? id : uncarried(`it sets the level of \`${id}\`, which no carried ruleset defines`));
   return [target, levelOf(severity)];

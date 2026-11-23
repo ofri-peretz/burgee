@@ -121,7 +121,7 @@ describe('controllerFile and moduleFile', () => {
 
   it('writes one stub per operation into the user’s class', () => {
     expect(controllerFile(pets)).toBe(`/**
- * The \`pets\` routes. apicontract wrote this file once and never rewrites it: change it freely.
+ * The \`pets\` routes. contractdiff wrote this file once and never rewrites it: change it freely.
  * \`PetsControllerBase\` (pets.controller.base.ts, regenerated) declares one method per
  * operation and validates every request and response; each method here answers the spec's example until you replace it.
  */

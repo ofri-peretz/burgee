@@ -1,5 +1,5 @@
 /**
- * The plugin host for apicontract's half of the family contract (spec.md R-PL; `plugin-contract`).
+ * The plugin host for contractdiff's half of the family contract (spec.md R-PL; `plugin-contract`).
  *
  * A plugin is one plain object shared by the whole family. This host reads four of its keys,
  * `adapters` (an input format), `generators` (spec → code), `extractors` (code → spec) and
@@ -27,7 +27,7 @@ export const CONTRACT = 1;
 /** `generated` is rewritten on every run. `user` is written once and never touched again (R-PL4). */
 export type Owner = 'generated' | 'user';
 
-/** One symbol a generated file declares for an operation: what `apicontract.map.json` records (R-BL1). */
+/** One symbol a generated file declares for an operation: what `contractdiff.map.json` records (R-BL1). */
 export interface GeneratedSymbol {
   /** The operation's id in the contract. */
   readonly operation: string;
@@ -101,7 +101,7 @@ export interface Extractor {
   readonly run: (options: Options) => unknown;
 }
 
-/** The keys apicontract reads. Any object with these fields is a plugin here, whatever else it carries. */
+/** The keys contractdiff reads. Any object with these fields is a plugin here, whatever else it carries. */
 export interface Plugin {
   readonly name: string;
   readonly contract?: number;
@@ -274,7 +274,7 @@ export function validate(plugin: unknown): asserts plugin is Plugin {
   const { name, contract } = plugin;
   if (!text(name)) refuse('a plugin needs a name', 'add `name: "…"`: it is how a refused plugin is reported');
   if (contract !== undefined && (!Number.isInteger(contract) || (contract as number) < 1 || (contract as number) > CONTRACT)) {
-    refuse(`plugin "${name}" declares contract ${String(contract)}; this apicontract knows ${String(CONTRACT)}`, "upgrade apicontract, or lower the plugin's `contract`", 'E_PLUGIN_CONTRACT');
+    refuse(`plugin "${name}" declares contract ${String(contract)}; this contractdiff knows ${String(CONTRACT)}`, "upgrade contractdiff, or lower the plugin's `contract`", 'E_PLUGIN_CONTRACT');
   }
   each(plugin.adapters, name, 'adapters', validateAdapter);
   each(plugin.generators, name, 'generators', validateGenerator);
@@ -425,14 +425,14 @@ const checkExtractor = async ([name, extractor]: [string, Extractor]): Promise<F
 };
 
 /**
- * `apicontract check <plugin>` (R-PL5): run every generator on its own sample, twice, and compare
+ * `contractdiff check <plugin>` (R-PL5): run every generator on its own sample, twice, and compare
  * both runs with the files the sample declares, byte for byte. It proves the output is what the
  * author says it is, and that it is the same on every run.
  */
 export const checkPlugin = async (plugin: unknown): Promise<Finding[]> => {
   const host = createHost();
   // The built-in formats first, so a generator's sample reads without the plugin carrying an adapter.
-  host.register({ name: 'apicontract', adapters: builtinAdapters });
+  host.register({ name: 'contractdiff', adapters: builtinAdapters });
   host.register(plugin);
   const [, registered] = host.plugins() as [Plugin, Plugin];
   const checkOne = async ([name, generator]: [string, Generator]): Promise<Finding[]> => {
@@ -449,7 +449,7 @@ export const checkPlugin = async (plugin: unknown): Promise<Finding[]> => {
   return findings.flat();
 };
 
-/** The program's own host: what `apicontract gen` reads, and what the family's `register()` fills. */
+/** The program's own host: what `contractdiff gen` reads, and what the family's `register()` fills. */
 const program = createHost();
 
 /** Register a plugin with the program's host. Later wins a name. */

@@ -76,7 +76,7 @@ describe('validators.ts type-checks under strict', () => {
   beforeAll(async () => {
     dir = scratch('apicontract-validator-types-');
     const host = createHost();
-    host.register({ name: 'apicontract', adapters: builtinAdapters });
+    host.register({ name: 'contractdiff', adapters: builtinAdapters });
     host.register(plugin);
     const written = await Promise.all(DOCUMENTS.map(async ([name, document]) => [name, (await host.run('validator', document)).files] as const));
     for (const [name, [file]] of written) {
@@ -95,7 +95,7 @@ describe('validators.ts type-checks under strict', () => {
       skipLibCheck: true,
       types: [],
       // The run-time door imports the validator package: this checkout's source stands for it.
-      paths: { validator: [join(VALIDATOR, 'index.ts')], 'validator/json-schema': [join(VALIDATOR, 'json-schema.ts')] },
+      paths: { loadline: [join(VALIDATOR, 'index.ts')], 'loadline/json-schema': [join(VALIDATOR, 'json-schema.ts')] },
     };
     writeFileSync(join(dir, 'tsconfig.json'), JSON.stringify({ compilerOptions, files: [...DOCUMENTS.map(([name]) => `${name}.ts`), 'use.ts'] }));
   });

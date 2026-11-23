@@ -1,7 +1,7 @@
 /**
  * The built-in `markdown` target (apicontract-agents R5): `explain` for every operation, written
  * as one page each, plus an `index.md` and an `llms.txt`, so an agent without this CLI reads the
- * same text an agent with it gets from `apicontract explain`. Point the target's `out` at
+ * same text an agent with it gets from `contractdiff explain`. Point the target's `out` at
  * `docs/api`.
  *
  * It calls `explain`'s own functions (R2, R3) and never a resolver of its own.

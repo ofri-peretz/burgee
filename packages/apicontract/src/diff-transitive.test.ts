@@ -88,7 +88,7 @@ const releases = (): string => {
   return dir;
 };
 
-describe('apicontract diff --transitive', () => {
+describe('contractdiff diff --transitive', () => {
   beforeAll(async () => {
     await runBurgee(program, { argv: ['--version'] });
   });

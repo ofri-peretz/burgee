@@ -1,5 +1,5 @@
 /**
- * `apicontract extract` (apicontract-gen-command R9): run an extractor on the user's code and write
+ * `contractdiff extract` (apicontract-gen-command R9): run an extractor on the user's code and write
  * the spec it returns through the same {@link commit} as `gen`, as one generated JSON file. What the
  * spec could not say comes back as findings beside it, reported as `gen` reports a generator's.
  */
@@ -27,7 +27,7 @@ export const extract = async (options: ExtractOptions): Promise<Report> => {
   const config: Config =
     (await loadConfig(options.cwd, options.config)) ??
     // Stryker disable next-line StringLiteral: equivalent, the file name only appears in a refusal, and a config with no plugins and no overlays refuses nothing; the root is set apart
-    { ...validateConfig({}, join(options.cwd, 'apicontract.config.json')), root: options.cwd };
+    { ...validateConfig({}, join(options.cwd, 'contractdiff.config.json')), root: options.cwd };
   const from = options.from ?? config.extract.from;
   if (from === undefined) throw new UsageError('extract needs an extractor. fix: pass --from <extractor>, or set `"extract": { "from": "…" }` in the config');
   const out = relativePath(options.out ?? config.extract.out ?? 'spec.json');
@@ -36,5 +36,5 @@ export const extract = async (options: ExtractOptions): Promise<Report> => {
   const { document, findings } = documentOf(await host.extractor(from).run(config.extract.options));
   const content = JSON.stringify(document, undefined, 2) as string | undefined;
   if (content === undefined) throw new Error(`the extractor "${from}" returned no document. fix: return the spec object from \`run(options)\``);
-  return commit({ root: config.root, command: 'apicontract extract', produced: [{ target: 'extract', files: [{ path: out, content: `${content}\n`, owner: 'generated' }] }], findings: findings.map((finding) => ({ ...finding, target: 'extract' })), check: options.check, dryRun: options.dryRun, force: options.force });
+  return commit({ root: config.root, command: 'contractdiff extract', produced: [{ target: 'extract', files: [{ path: out, content: `${content}\n`, owner: 'generated' }] }], findings: findings.map((finding) => ({ ...finding, target: 'extract' })), check: options.check, dryRun: options.dryRun, force: options.force });
 };
