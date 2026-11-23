@@ -79,11 +79,11 @@ describe('gen', () => {
     const map = JSON.parse(read(root, 'apicontract.map.json')) as { operations: Record<string, unknown>; files: Record<string, unknown> };
     expect(map.operations).toEqual({
       addPet: [
-        { file: 'src/gen/handlers.ts', symbol: 'addPet', target: 'types' },
+        { file: 'src/gen/handlers.ts', symbol: 'addPet', target: 'types', owner: 'user' },
         { file: 'src/gen/types.ts', symbol: 'AddPet', target: 'types' },
       ],
       listPets: [
-        { file: 'src/gen/handlers.ts', symbol: 'listPets', target: 'types' },
+        { file: 'src/gen/handlers.ts', symbol: 'listPets', target: 'types', owner: 'user' },
         { file: 'src/gen/types.ts', symbol: 'ListPets', target: 'types' },
       ],
     });

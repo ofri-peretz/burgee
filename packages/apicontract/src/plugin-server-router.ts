@@ -148,7 +148,13 @@ export const runRouter = (framework: Framework, contract: Contract, options: Opt
       ? []
       : [
           { path: 'routes.ts', owner: 'generated' as const, content: routesFile(framework, table, checked), symbols: routes.map((route) => ({ operation: route.id, symbol: 'Handlers' })) },
-          { path: 'handlers.ts', owner: 'user' as const, content: handlersFile(framework, routes) },
+          {
+            path: 'handlers.ts',
+            owner: 'user' as const,
+            content: handlersFile(framework, routes),
+            // The member that answers each operation: `Handlers` (routes.ts) requires it, so its name holds while the file is the user's.
+            symbols: routes.map((route) => ({ operation: route.id, symbol: `handlers.${route.name}` })),
+          },
         ]),
     ...routes.map((route): GeneratedFile => ({ path: `${route.name}.contract.test.ts`, owner: 'generated', content: contractTest(route, checked, checked.testRunner, framework.harness) })),
   ];
