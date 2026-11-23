@@ -15,6 +15,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import type { ServerConfig, Unit } from './child.js';
+import { exitReason } from './crash.js';
 import type { Governor } from './governor.js';
 import { beatFile, classifyStall, CPU_WINDOW_MS, cpuShare, LOOP_CPU, readBeat, type CpuSample, type Stall } from './heartbeat.js';
 import { markReader, parseMark } from './progress-file.js';
@@ -45,6 +46,8 @@ export interface UnitOutcome {
   crashed?: boolean | undefined;
   /** The mutant in flight when the server crashed. */
   crashedFor?: string | undefined;
+  /** How the crashed worker's process ended: `signal SIGKILL` (the kernel's out-of-memory kill, or a kill from outside), `exit code 134`. */
+  exit?: string | undefined;
   /** Wall time from the unit being sent to its outcome, on this side of the IPC. */
   ms?: number | undefined;
   /** Mutants that ran past their budget blocked, not looping, and were given their grace in place. */
@@ -104,7 +107,9 @@ class Server {
   /** The server's latest CPU readings, oldest first (child.ts sends them). */
   private readonly cpu: CpuSample[] = [];
   private onMessage?: ((m: { type: string }) => void) | undefined;
-  private onExit?: ((code: number | null) => void) | undefined;
+  private onExit?: ((how: string) => void) | undefined;
+  /** How the worker's process ended, once it has (`exitReason`). */
+  private exitedBy = '';
   exited = false;
 
   constructor(configFile: string, cwd: string, execArgv: string[], workDir: string) {
@@ -134,9 +139,10 @@ class Server {
       }
       this.onMessage?.(m);
     });
-    this.child.once('exit', (code) => {
+    this.child.once('exit', (code, signal) => {
       this.exited = true;
-      this.onExit?.(code);
+      this.exitedBy = exitReason(code, signal);
+      this.onExit?.(this.exitedBy);
     });
   }
 
@@ -184,8 +190,8 @@ class Server {
       this.onMessage = (m) => {
         if (m.type === 'done') finish({ stderr: this.stderr });
       };
-      this.onExit = () => finish({ crashed: true, crashedFor: inFlight(unit.progress), stderr: this.stderr });
-      if (this.exited) finish({ crashed: true, stderr: this.stderr });
+      this.onExit = (how) => finish({ crashed: true, crashedFor: inFlight(unit.progress), exit: how, stderr: this.stderr });
+      if (this.exited) finish({ crashed: true, exit: this.exitedBy, stderr: this.stderr });
       else this.child.send({ type: 'run', unit });
     });
   }

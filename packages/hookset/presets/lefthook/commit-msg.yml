@@ -1,0 +1,8 @@
+# hookset preset — commit-msg. Pulled through lefthook `remotes` at a pinned `hookset@<version>`
+# tag; never copy it into a repo (`hookset check` fails on a copy). The PATH tail is for GUI git
+# clients that start hooks without the shell's PATH.
+commit-msg:
+  commands:
+    hookset-commitlint:
+      run: PATH="$PATH:/opt/homebrew/bin:/usr/local/bin" npx --no -- commitlint --edit {1}
+      fail_text: "The message must be <type>(<scope>): <subject>, with a scope from commitlint.config. Fix it and commit again."
