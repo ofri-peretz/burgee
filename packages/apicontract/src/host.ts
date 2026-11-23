@@ -17,6 +17,7 @@
 import { type Contract, type ContractFinding } from './core/model.js';
 import { builtinAdapters } from './inputs.js';
 import { type Rule } from './lint-engine.js';
+import { parse } from './lint-jsonpath.js';
 import { FUNCTIONS } from './lint-names.js';
 import { SELECTS } from './lint-select.js';
 
@@ -221,10 +222,24 @@ const validateExtractor = (extractor: unknown, where: string): void => {
 const isThen = (then: unknown): boolean =>
   isRecord(then) && (FUNCTIONS as readonly unknown[]).includes(then.function) && (then.field === undefined || text(then.field)) && (then.functionOptions === undefined || isRecord(then.functionOptions));
 
+/** A `path` given's paths: one or several, each inside the JSONPath subset. */
+const pathsOf = (path: unknown, where: string): void => {
+  const paths = [path].flat();
+  if (paths.length === 0 || !paths.every((each) => text(each))) refuse(`${where} selects \`path\` and names none`, "add `given.path`: a JSONPath into the document, e.g. `$.info`");
+  for (const each of paths as string[]) {
+    try {
+      parse(each);
+    } catch (error) {
+      refuse(`${where} selects a path outside the subset`, `${(error as Error).message}; write it with \`.key\`, \`['key']\`, \`*\`, \`..\` and \`?(@.x == 'y')\``);
+    }
+  }
+};
+
 const validateRule = (rule: unknown, where: string): void => {
   if (!isRecord(rule) || !text(rule.description) || !text(rule.fix) || !isRecord(rule.given) || !(SELECTS as readonly unknown[]).includes(rule.given.select)) {
     refuse(`${where} is not a rule`, `a rule is \`{ description, given: { select }, then or check, fix, sample }\`, \`select\` one of ${SELECTS.join(', ')}`);
   }
+  if (rule.given.select === 'path') pathsOf(rule.given.path, where);
   const thens = rule.then === undefined ? [] : [rule.then].flat();
   if (!thens.every((then) => isThen(then)) || (rule.check !== undefined && typeof rule.check !== 'function') || (thens.length === 0 && rule.check === undefined)) {
     refuse(`${where} says nothing that must hold`, `give it \`then: { function }\`, \`function\` one of ${FUNCTIONS.join(', ')}, or a \`check(node, context)\` function`);

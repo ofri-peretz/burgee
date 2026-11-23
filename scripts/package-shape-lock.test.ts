@@ -49,6 +49,10 @@ const OPTIONAL_PEERS: Readonly<Record<string, readonly string[]>> = {
   // oxmutate runs the project's own Vitest, resolved from the project (spec R1, R15: "your own
   // Vitest and config"); bringing a second Vitest would grade a suite under the wrong runner.
   oxmutate: ['vitest'],
+  // truemark/eslint is an ESLint plugin, so it runs inside the project's own ESLint and imports
+  // only its types (truemark intent, Constraints: "`eslint` is an optional peer; the CLI needs
+  // only git"). A second ESLint would lint with rules registered on the wrong instance.
+  truemark: ['eslint'],
 };
 
 /** A peer this package may name although it is not ours: admitted above, and marked optional. */
@@ -100,6 +104,9 @@ const FAMILY_ORDER = [
   // A tool built on the stack rather than a layer of it: a burgee program (its CLI, --json, the
   // MCP server) that spawns through bellpull. Above burgee, and nothing in the family depends on it.
   'oxmutate',
+  // The same kind as oxmutate: a burgee program (`truemark diff`) that spawns git through bellpull,
+  // plus an ESLint plugin. Nothing in the family depends on it.
+  'truemark',
 ];
 
 /**

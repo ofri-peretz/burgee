@@ -1,5 +1,15 @@
 # oxmutate
 
+## 2.15.1
+
+### Patch Changes
+
+- [#1711](https://github.com/ofri-peretz/burgee/pull/1711) [`205b23b`](https://github.com/ofri-peretz/burgee/commit/205b23bff7bf88736e8bf7c011ff9f68615990e1) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A mutant that takes its worker down is a RuntimeError whose reason now says how the process ended:
+  `the worker crashed while this mutant ran (signal SIGKILL)` for a kill from outside or the kernel's
+  out-of-memory kill, `(exit code 134)` for a process that exited itself. A crash the mutant did not
+  cause (a neighbour's memory pressure on a busy machine) can now be told from one it did. A crash in the
+  isolated phase carries its reason too; before, only a warm crash did.
+
 ## 2.15.0
 
 ### Minor Changes

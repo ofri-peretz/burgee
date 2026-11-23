@@ -127,6 +127,7 @@ const MARK_SHARE = {
   paratext: 0.95,
   controlroom: 0.9,
   oxmutate: 0.8,
+  truemark: 0.75,
 } as const;
 
 /**
@@ -349,6 +350,19 @@ const OXMUTATE =
 /** On the block, clear of the notch. */
 const SPECIMEN = { x: 40, y: 58 } as const;
 
+/**
+ * truemark: a hallmark plate with its tick struck through it — the mark an assayer punches
+ * into metal that has been tested. The tick is a cut, absence as linegauge's ticks are, so the
+ * plate reads as stamped rather than drawn on; the mark rides on the solid corner above it. The
+ * plate is an octagon, each corner chamfered 22 units in from an 8-unit inset.
+ */
+const PLATE = 'M30 8 H70 L92 30 V70 L70 92 H30 L8 70 V30 Z';
+/** The tick, wound against the plate so it cuts through it. */
+const STRUCK = 'M36 52 L58 74 L88 38 L80 30 L58 58 L44 44 Z';
+const TRUEMARK = `${PLATE} ${STRUCK}`;
+/** In the plate's upper left, clear of the tick. */
+const ASSAY = { x: 32, y: 30 } as const;
+
 type Sibling = {
   name: keyof typeof MARK_SHARE;
   tagline: string;
@@ -369,6 +383,7 @@ const SIBLINGS: readonly Sibling[] = [
   { name: 'paratext', tagline: 'Everything around the output.', shape: PARATEXT, at: HEAD },
   { name: 'controlroom', tagline: 'Where a system is run from.', shape: CONTROLROOM, at: PANEL },
   { name: 'oxmutate', tagline: 'The test of the tests.', shape: OXMUTATE, at: SPECIMEN },
+  { name: 'truemark', tagline: 'Green that still means it.', shape: TRUEMARK, at: ASSAY },
 ];
 
 const siblings = SIBLINGS.map(({ name, tagline, shape, at, markings }) => ({
