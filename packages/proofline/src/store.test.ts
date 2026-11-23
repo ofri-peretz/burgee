@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
-import { chmodSync, mkdirSync, realpathSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { mkdirSync, realpathSync, writeFileSync } from 'node:fs';
+import { basename, join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
@@ -56,28 +56,28 @@ describe('readLines and appendLines', () => {
 describe('runShell', () => {
   it('runs through the shell at the root, stdout then stderr, with the exit code', async () => {
     const dir = temp();
-    expect(await runShell('pwd; echo err >&2; exit 3', dir, 10_000)).toEqual({
-      exit: 3,
-      output: `${dir}\nerr\n`,
-    });
+    const ran = await runShell(`node -e "console.log(process.cwd());console.error('err');process.exit(3)"`, dir, 10_000);
+    expect(ran.exit).toBe(3);
+    expect(ran.output).toMatch(new RegExp(`${basename(dir)}\n+err\n$`, 'u'));
   });
 
   it('passes the command to the shell alone', async () => {
-    expect(await runShell('echo a', temp(), 10_000)).toEqual({ exit: 0, output: 'a\n' });
+    expect(await runShell('node -e "console.log(process.argv.length)"', temp(), 10_000)).toEqual({ exit: 0, output: '1\n' });
   });
 
   it('is exit 1 when the command is killed by its timeout', async () => {
-    expect((await runShell('exec sleep 5', temp(), 50)).exit).toBe(1);
+    expect((await runShell('node -e "setTimeout(() => 0, 1500)"', temp(), 50)).exit).toBe(1);
   });
 });
 
 describe('runnable', () => {
-  it('is true for a program that is not a file here, and for an executable file', () => {
+  it('is true for a program that is not a file here, a directory, and a script', () => {
     const dir = temp();
     writeFileSync(join(dir, 'run.sh'), '#!/bin/sh\n');
-    chmodSync(join(dir, 'run.sh'), 0o755);
     expect(runnable('npm test', dir)).toBe(true);
     expect(runnable('  run.sh --flag', dir)).toBe(true);
+    mkdirSync(join(dir, 'tools'));
+    expect(runnable('tools', dir)).toBe(true);
   });
 
   it('is false for a document named as the command', () => {

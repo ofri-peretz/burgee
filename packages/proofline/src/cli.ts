@@ -46,7 +46,7 @@ const dir = {
   type: 'string',
   description: 'the intents directory, from the root (default .sdlc/intents)',
 } as const;
-const timeout = {
+const commandTimeout = {
   type: 'number',
   description: 'seconds each command may run (default 600)',
 } as const;
@@ -56,7 +56,7 @@ const ISO_DATE = 10;
 
 const rootOf = (options: { root?: string | undefined }): string => resolve(options.root ?? '');
 const intentsOf = (top: string, options: { dir?: string | undefined }): string => join(top, options.dir ?? '.sdlc/intents');
-const timeoutOf = (options: { timeout?: number | undefined }): number => (options.timeout ?? DEFAULT_TIMEOUT_S) * MS_PER_S;
+const timeoutOf = (options: { commandTimeout?: number | undefined }): number => (options.commandTimeout ?? DEFAULT_TIMEOUT_S) * MS_PER_S;
 const read = (file: string): string | undefined => (existsSync(file) ? readFileSync(file, 'utf8') : undefined);
 const kebab = (text: string): string =>
   text
@@ -160,7 +160,7 @@ const checkCommand = defineCommand({
       type: 'boolean',
       description: 're-run every evidence row whose command is one plain shell command',
     },
-    timeout,
+    commandTimeout,
   },
   effects: 'read_only',
   examples: [
@@ -269,7 +269,7 @@ const stampCommand = defineCommand({
       description: 'print the PR "How this was checked" block instead of the trailers',
     },
     root,
-    timeout,
+    commandTimeout,
   },
   effects: 'non_idempotent',
   examples: [

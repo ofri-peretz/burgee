@@ -3,7 +3,7 @@
  * tree (intent, Defaults taken: the receipt lives in the commit and the PR body, not in `.sdlc/`).
  * Stamps and the gate log are JSON lines, appended, so two worktrees of one clone share them.
  */
-import { accessSync, appendFileSync, constants, existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 import { ambientRuntime, run } from 'bellpull';
@@ -50,16 +50,11 @@ export const runShell = async (command: string, root: string, timeoutMs: number)
 };
 
 /**
- * False when the command's first word is a file in the repository that is not executable: an
- * evidence cell naming a document (`.sdlc/gaps/<id>.md`) is a pointer, not a command to run.
+ * False when the command's first word is a file in the repository that is not a script: an
+ * evidence cell naming a document (`.sdlc/gaps/<id>.md`) is a pointer, not a command to run. A
+ * script starts with `#!`; the execute bit is not read, because Windows has none.
  */
 export const runnable = (command: string, root: string): boolean => {
   const file = join(root, (/\S+/u.exec(command) as RegExpExecArray)[0]);
-  if (!existsSync(file)) return true;
-  try {
-    accessSync(file, constants.X_OK);
-    return true;
-  } catch {
-    return false;
-  }
+  return !existsSync(file) || !statSync(file).isFile() || readFileSync(file, 'utf8').startsWith('#!');
 };

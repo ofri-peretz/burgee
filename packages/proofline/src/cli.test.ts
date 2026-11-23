@@ -82,8 +82,8 @@ describe('stamp', () => {
 
   it('prints the PR block with --pr, and records the intent and criterion', async () => {
     const dir = repo();
-    const r = await run(dir, ['stamp', '--run', 'true', '--not-checked', 'nothing', '--intent', 'i', '--criterion', '2', '--pr']);
-    expect(r.stdout).toContain('## How this was checked\n\nChecked: `true` (pass). Not checked: nothing.\n\nVerified-by: true -> exit 0');
+    const r = await run(dir, ['stamp', '--run', 'exit 0', '--not-checked', 'nothing', '--intent', 'i', '--criterion', '2', '--pr']);
+    expect(r.stdout).toContain('## How this was checked\n\nChecked: `exit 0` (pass). Not checked: nothing.\n\nVerified-by: exit 0 -> exit 0');
     expect(stamps(dir)).toEqual([expect.objectContaining({ intent: 'i', criterion: 2 })]);
   });
 
@@ -102,23 +102,25 @@ describe('stamp', () => {
 
   it('exits 1 when a command fails, still printing and recording it, with a fix', async () => {
     const dir = repo();
-    const r = await run(dir, ['stamp', '--run', 'exit 3', '--run', 'true', '--not-checked', 'x']);
+    const r = await run(dir, ['stamp', '--run', 'exit 3', '--run', 'exit 0', '--not-checked', 'x']);
     expect(r.code).toBe(1);
     expect(r.stdout).toContain('Verified-by: exit 3 -> exit 3');
     expect(r.stdout).toContain('error: `exit 3` exited 3\nfix: make it pass and stamp again; a failing command is not a receipt');
     expect(stamps(dir)).toHaveLength(2);
   });
 
-  it('kills a command at --timeout seconds', async () => {
-    const r = await run(repo(), ['stamp', '--run', 'exec sleep 3', '--not-checked', 'x', '--timeout', '0.05']);
+  it('kills a command at --command-timeout seconds', async () => {
+    const dir = repo();
+    writeFileSync(join(dir, 'wait.js'), 'setTimeout(() => 0, 1500);\n');
+    const r = await run(dir, ['stamp', '--run', 'node wait.js', '--not-checked', 'x', '--command-timeout', '0.05']);
     expect(r.code).toBe(1);
     expect(r.stdout).toContain('-> exit 1');
   });
 
   it.each([
     [['stamp', '--not-checked', 'x'], 'nothing to stamp', 'proofline stamp --run "<command>" --not-checked "<gap>", or proofline stamp --none "<reason>"'],
-    [['stamp', '--run', 'true', '--none', 'r'], '--none and --run together', 'drop --none: the commands are the receipt'],
-    [['stamp', '--run', 'true'], 'no --not-checked', 'add --not-checked "<what you did not check>", or --not-checked nothing'],
+    [['stamp', '--run', 'exit 0', '--none', 'r'], '--none and --run together', 'drop --none: the commands are the receipt'],
+    [['stamp', '--run', 'exit 0'], 'no --not-checked', 'add --not-checked "<what you did not check>", or --not-checked nothing'],
     [['stamp', '--none', 'r', '--intent', 'i'], '--intent and --criterion go together', 'pass both, or neither'],
     [['stamp', '--none', 'r', '--criterion', '1'], '--intent and --criterion go together', 'pass both, or neither'],
   ])('refuses %j as a usage error with a fix', async (argv, message, fix) => {
@@ -242,16 +244,16 @@ describe('done', () => {
         '',
       ].join('\n'),
     );
-    await run(dir, ['stamp', '--intent', 'i', '--criterion', '1', '--run', 'true', '--not-checked', 'nothing']);
+    await run(dir, ['stamp', '--intent', 'i', '--criterion', '1', '--run', 'exit 0', '--not-checked', 'nothing']);
     await run(dir, ['stamp', '--intent', 'i', '--criterion', '2', '--run', 'echo two', '--not-checked', 'nothing']);
     const met = await json(dir, ['done', 'i']);
     expect(met.code).toBe(0);
     expect(met.data).toMatchObject({
       exitCode: 0,
       intent: 'i',
-      checked: 'Checked: C1 by `true`; C2 by `echo two`. Not checked: nothing.',
+      checked: 'Checked: C1 by `exit 0`; C2 by `echo two`. Not checked: nothing.',
     });
-    expect((await run(dir, ['done', 'i'])).stdout).toBe('Checked: C1 by `true`; C2 by `echo two`. Not checked: nothing.\n');
+    expect((await run(dir, ['done', 'i'])).stdout).toBe('Checked: C1 by `exit 0`; C2 by `echo two`. Not checked: nothing.\n');
   });
 
   it('reads --dir', async () => {
@@ -407,7 +409,7 @@ describe('intent check', () => {
       's/spec.md': '## Out of scope\n',
       'r/intent.md': INTENT('review', '| Criterion | Command | Output |\n| - | - | - |\n| C1 | `exit 9` | x |'),
     });
-    const r = await json(dir, ['intent', 'check', '--evidence', '--timeout', '30']);
+    const r = await json(dir, ['intent', 'check', '--evidence', '--command-timeout', '30']);
     expect(r.code).toBe(1);
     expect(r.data['reruns']).toEqual([
       {
@@ -475,7 +477,7 @@ describe('intent check', () => {
     expect((await json(dir, ['intent', 'check', '--dir', 'docs'])).data['intents']).toBe(1);
     const r = await json(repo(), ['intent', 'check']);
     expect(r.code).toBe(1);
-    expect(r.error?.message).toMatch(/^no intents directory at .*\.sdlc\/intents\. fix: run `proofline intent new <slug>` after adding _template\/, or pass --dir$/u);
+    expect(r.error?.message).toMatch(/^no intents directory at .*\.sdlc[\\/]intents\. fix: run `proofline intent new <slug>` after adding _template\/, or pass --dir$/u);
   });
 });
 
