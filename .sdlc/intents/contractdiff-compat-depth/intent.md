@@ -5,7 +5,8 @@
 > what Confluent, Apicurio, buf, GraphQL Inspector and Hive do that our `diff` does not, and the one
 > agent gap in spec → MCP.
 
-**Status:** draft · **Opened:** `2026-11-22` · **Owner:** `@ofri-peretz` · **Lane:** `ac-diff`
+**Status:** approved · **Opened:** `2026-11-22` · **Owner:** `@ofri-peretz` · **Lane:** `ac-diff` ·
+**Accepted by:** [`D-20261122-toolkit-intents-accepted`](../../decisions/D-20261122-toolkit-intents-accepted.md)
 
 ---
 

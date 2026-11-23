@@ -5,7 +5,8 @@
 > Node, 9 tests): `audit` sorts a repository's AI setup into seven homes, `skills` and `agents` lint skill
 > and subagent files, and `intent` checks decision markers on an OpenAPI diff.
 
-**Status:** draft · **Opened:** `2026-11-22` · **Owner:** `@ofri-peretz` · **Lane:** `rulehome` (new)
+**Status:** approved · **Opened:** `2026-11-22` · **Owner:** `@ofri-peretz` · **Lane:** `rulehome` (new) ·
+**Accepted by:** [`D-20261122-toolkit-intents-accepted`](../../decisions/D-20261122-toolkit-intents-accepted.md)
 
 ---
 
