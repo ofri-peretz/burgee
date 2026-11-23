@@ -41,6 +41,7 @@ and `chalk` (wave 0.4, the red ratchet) is roundel's incumbent, not anyone else'
 | `hookset` | `lane/hookset` | `packages/hookset/**`, `.sdlc/intents/hookset/**`, `.github/workflows/hookset-check.yml`, `.github/workflows/changeset-gate.yml` | — |
 | `controlroom` | `lane/controlroom` | `packages/controlroom/**`, `.sdlc/intents/controlroom/**` | closeout R4 (controlroom spec R1); caique `./keys` and flagstaff's seam (R2, R3) |
 | `oxmutate` | `lane/oxmutate` | `packages/oxmutate/**`, `.sdlc/intents/oxmutate/**` | — |
+| `proofline` | `lane/proofline` | `packages/proofline/**`, `.sdlc/intents/proofline/**` | — |
 | `truemark` | `lane/truemark` | `packages/truemark/**`, `.sdlc/intents/truemark/**` | — |
 | `output` | `lane/output` | `packages/roundel/**`, `packages/flagstaff/**`, `.sdlc/intents/roundel/**`, `.sdlc/intents/flagstaff/**` | — (0.4 is urgent) |
 | `engine` | `lane/engine` | `packages/burgee/**`, `packages/commander-harness/**`, `packages/yargs-harness/**`, `.sdlc/intents/commander-*/**`, `.sdlc/intents/yargs-*/**` | — |
