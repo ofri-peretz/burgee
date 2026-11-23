@@ -74,6 +74,12 @@ function typedOf(specs: Specs, tokens: Token[]): { typed: Map<string, unknown>; 
   return { typed, positionals };
 }
 
+/** How a failed repeatable's values are rejoined for `raw`: its own separator, or a newline when it keeps values whole. */
+function joinerOf(spec: OptionSpec): string {
+  if (spec.separator === false) return '\n';
+  return spec.separator ?? ',';
+}
+
 /** Coerced one option at a time, so one bad value costs only itself: it goes to `raw`, as typed (R2). */
 async function contextOf(specs: Specs, path: string[], tokens: Token[]): Promise<CompletionContext> {
   const { typed, positionals } = typedOf(specs, tokens);
@@ -82,7 +88,7 @@ async function contextOf(specs: Specs, path: string[], tokens: Token[]): Promise
       const spec = specs[key] as OptionSpec;
       return await coerce({ [key]: spec }, { [key]: value }).then(
         (coerced) => ({ key, ok: true, value: coerced[key] }),
-        () => ({ key, ok: false, value: Array.isArray(value) ? value.join(spec.separator ?? ',') : String(value) }),
+        () => ({ key, ok: false, value: Array.isArray(value) ? value.join(joinerOf(spec)) : String(value) }),
       );
     }),
   );

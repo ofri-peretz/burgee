@@ -117,6 +117,17 @@ describe('run() with a shell', () => {
     SPAWN,
   );
 
+  it(
+    'a shell command that exits 1 ran and failed: on Windows too, where cmd.exe exits 1 for a missing command',
+    async () => {
+      // The cmd.exe ENOENT inference needs a file bellpull resolved; with a shell there is none,
+      // so every exit 1 used to read as "not found". `exit 1` is a builtin of sh and cmd.exe alike.
+      const result = await run('exit 1', [], { runtime: { ...runtime, platform: 'win32' }, shell: true });
+      expect([result.ok, result.code]).toStrictEqual([false, 1]);
+    },
+    SPAWN,
+  );
+
   it.skipIf(WINDOWS)(
     'treats a named shell the same as `shell: true`',
     async () => {

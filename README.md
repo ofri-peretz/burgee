@@ -388,7 +388,7 @@ median of a named window of CI runs rather than any one run** ([measured](https:
 
 | Claim | Gate | Measured | |
 | :--- | :--- | ---: | :--- |
-| the core entry point is under 52 KB bundled | `core-under-52kb-bundled` | 24,528 bytes | ✅ met |
+| the core entry point is under 52 KB bundled | `core-under-52kb-bundled` | 24,536 bytes | ✅ met |
 | `burgee/yargs` is lighter in a user's bundle than `yargs` | `lighter-than-yargs` | 0.986× | ✅ met |
 | `burgee` is lighter than `cac` **plus what a cac user installs to match it** | `lighter-than-cac-at-parity` | 0.249× | ✅ met |
 | `burgee/commander` is lighter than `commander` **plus the same** | `lighter-than-commander-at-parity` | 0.436× | ✅ met |
@@ -414,7 +414,7 @@ against that window by `scripts/claim-table-lock.test.ts`. Until then the token 
 
 ### The two ways to ask the bundle question, and why both are here
 
-`burgee` is 24,528 bundled bytes and `cac` is 10,452, so the bare row reads **2.347× and it
+`burgee` is 24,536 bundled bytes and `cac` is 10,452, so the bare row reads **2.347× and it
 stays on this page**. It is also not the choice anyone makes. A program that picks `cac` and
 then wants its config file read, its shutdown bounded on every path out, and its cursor handed
 back on Ctrl-C installs three more packages — and *that* is what one `import` of burgee competes
@@ -422,7 +422,7 @@ with ([measured](https://burgee.interlace.tools/docs/benchmarks)):
 
 | | the incumbent alone | + what you add to match burgee | ours |
 | :--- | ---: | ---: | ---: |
-| `cac` | 10,452 B | **98,484 B** | 24,528 B |
+| `cac` | 10,452 B | **98,484 B** | 24,536 B |
 | `commander` | 39,205 B | **127,249 B** | 55,514 B |
 | `yargs` | 111,994 B | **199,887 B** | 110,446 B |
 
@@ -447,7 +447,7 @@ more than finding a package to charge for them.
 
 `cold-start-at-or-below-cac` and the two bare weight rows began as **≤ 1** and have a
 measured floor above it, and it is worth saying plainly rather than leaving as a to-do.
-`cac` is 10,452 bytes of parser and help renderer; burgee's 24,528 is that plus coercion,
+`cac` is 10,452 bytes of parser and help renderer; burgee's 24,536 is that plus coercion,
 choices, relations, Standard Schema, configuration precedence, signal-bound shutdown, terminal
 restore and agent detection.
 Our `commander/command.js` is 33,487 bundled against commander's 27,226, and the front-end also
