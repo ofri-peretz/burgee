@@ -1254,7 +1254,7 @@ describe.skipIf(!native || !existsSync(bin))('fresh or warm, by what the coverin
     const reportDir = mkdtempSync(path.join(tmpdir(), 'oxmutate-fresh-split-'));
     execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: dir, stdio: 'pipe', env: { ...process.env, ...env } });
     const report = JSON.parse(readFileSync(path.join(reportDir, 'mutation.json'), 'utf8')) as { files: Record<string, { mutants: ReportMutant[] }>; 'x-oxmutate': { stats: Stats } };
-    rmSync(reportDir, { recursive: true, force: true });
+    discard(reportDir);
     const rows = Object.entries(report.files).flatMap(([f, x]) => x.mutants.map((m) => `${f}:${String(m.location.start.line)}:${String(m.location.start.column ?? 0)}:${m.mutatorName}:${m.status === 'Timeout' ? 'Killed' : m.status}`));
     return { verdicts: rows.sort(), stats: report['x-oxmutate'].stats, mutants: Object.fromEntries(Object.entries(report.files).map(([f, x]) => [f, x.mutants.length])) };
   };
