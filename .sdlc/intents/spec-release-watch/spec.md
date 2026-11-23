@@ -7,7 +7,7 @@ Intent: [`intent.md`](./intent.md). **Status:** draft.
 ## Requirements
 
 - **R1. The watch list.** `packages/apicontract/specs.json`: an array of
-  `{ name, repo, source: 'releases' | 'tags', tagPattern?, reads: string[], seen?: { version, at } }`.
+  `{ name, repo, kind?: 'spec' | 'test-suite', source: 'releases' | 'tags', tagPattern?, reads: string[], seen?: { version, at } }`.
   `reads` names the versions apicontract's adapters accept (from `inputs.ts`), `seen` is the
   newest version the watch has recorded.
 - **R2. The pass.** `compat-oracle --specs` reads every `packages/*/specs.json`, asks GitHub for each
@@ -24,7 +24,8 @@ Intent: [`intent.md`](./intent.md). **Status:** draft.
   `seen` for each spec and opens nothing. An entry with no `seen` is recorded, not reported, on any
   run (warn first: the first run never files a backlog).
 - **R6. Coverage lock.** A test fails when a built-in adapter in `packages/apicontract/src/inputs.ts`
-  has no `specs.json` entry naming its format.
+  has no `specs.json` entry naming its format, or when a test suite a grader vendors has no
+  `test-suite` entry.
 - **R7. Rate and failure.** Requests use `GITHUB_TOKEN` when set; a repo that errors or is
   rate-limited is reported in the log and the step summary as unchecked, never as up to date.
 
@@ -38,7 +39,9 @@ step after `--competitors`, and one issue step copied from the competitor one wi
 Initial list (repos only; versions are recorded by the first `--record` run, not typed in):
 OAI/OpenAPI-Specification, OAI/Overlay-Specification, OAI/Arazzo-Specification, asyncapi/spec,
 json-schema-org/json-schema-spec, modelcontextprotocol/modelcontextprotocol, graphql/graphql-spec,
-open-rpc/spec, cloudevents/spec, standard-schema/standard-schema.
+open-rpc/spec, cloudevents/spec, standard-schema/standard-schema, asyncapi/bindings,
+protocolbuffers/protobuf, apache/avro, a2aproject/A2A, and the test suite
+json-schema-org/JSON-Schema-Test-Suite (an entry with `kind: 'test-suite'`, titled `suite:` in R4).
 
 ## Verification
 

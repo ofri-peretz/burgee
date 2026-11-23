@@ -21,7 +21,15 @@ are every format apicontract reads or plans to read:
 - JSON Schema (json-schema-org/json-schema-spec);
 - Model Context Protocol (modelcontextprotocol/modelcontextprotocol, dated versions);
 - GraphQL (graphql/graphql-spec), OpenRPC (open-rpc/spec), CloudEvents (cloudevents/spec);
-- Standard Schema (standard-schema/standard-schema), which our validator implements.
+- Standard Schema (standard-schema/standard-schema), which our validator implements;
+- AsyncAPI bindings (asyncapi/bindings): Kafka, MQTT, AMQP and WebSocket version on their own;
+- Protocol Buffers (protocolbuffers/protobuf, editions), Avro (apache/avro): the program's
+  request/response and messages families;
+- A2A (a2aproject/A2A), beside MCP in the agent-tools family.
+
+And the official **test suites** our graders run, because a new suite release moves a published
+score as surely as a new spec does: the JSON Schema Test Suite
+(json-schema-org/JSON-Schema-Test-Suite).
 
 Pre-releases (release candidates, drafts) are tracked too, as their own issues, labelled so
 they can be read early but not mistaken for a release.
@@ -57,5 +65,8 @@ they can be read early but not mistaken for a release.
 ## Rejected
 
 - **Watching the specs' websites or RSS.** Not every spec has a feed; every one publishes on GitHub.
+- **The LLM providers' structured-output dialects** (OpenAI, Anthropic, Gemini), which our dialect
+  plugins follow. They change in provider docs, not in versioned releases, so this watch cannot see
+  them; tracking them needs its own check, out of scope here.
 - **Opening a PR that updates the adapters.** A new spec version is a design question (which
   constructs, which defaults), not a mechanical bump.
