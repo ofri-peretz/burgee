@@ -73,7 +73,7 @@ generator with findings is a capability no incumbent has (roadmap row marked **n
 
 ## Evidence sweep 2026-11-22
 
-Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/apicontract` (2,545 tests) and `packages/validator` (1,153) is green there. 3 of 5 criteria met on fixtures. J1 on the corpus bench payloads and the mutation floor are open.
+Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/apicontract` (2,545 tests) and `packages/validator` (1,153) is green there. 4 of 6 rows met on fixtures. J1 on the corpus bench payloads and the mutation floor are open.
 
 | # | criterion | held by | state |
 | --: | :-- | :-- | :-- |
@@ -82,5 +82,6 @@ Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–
 | 3 | J3 = 0 silent losses, keyword-enumeration test per dialect | 49 keywords + 21 others × 3 sources × 2 drafts, and 50 × 5 dialects | met |
 | 4 | R2: generated validators beat ajv on validations per second | bench order schema, same process: about 1.5× valid and 1.9× invalid (load average 30, so a ratio) | met, as a ratio on a loaded machine |
 | 5 | `sample` for both; X1 = 0 | both plugins carry samples `checkPlugin` accepts (#1629); `validators.ts` typed without `@ts-nocheck` (#1642) | met |
+| 6 | Mutation floor (program definition of done, item 5) | changed-line survivors killed in #1629; `.sdlc/bands/mutation-ratchets.json` has `apicontract: unmeasured` | **open**: no floor until the first full mutation reading |
 
 Status stays `approved`: `apicontract` is `private` and unpublished, and [`D-20261119-apicontract-stays-private`](../../decisions/D-20261119-apicontract-stays-private.md) reserves `shipped` for published work; a lane that meets every criterion is recorded as "criteria met, unpublished".
