@@ -11,6 +11,7 @@ import { defineCommand, ExitCode } from 'burgee';
 
 import { type GitReader, noGit, readContract, uriOf } from './command-diff.js';
 import { MODES, type Mode, type Side, SIDES } from './diff-classify.js';
+import { bufIn, builtImages } from './input-buf.js';
 import { emitArbitraries } from './props-emit.js';
 import { type Counterexample, PROPERTIES, type Report, runProps, type Subject } from './props-run.js';
 
@@ -38,6 +39,8 @@ export interface PropsCommandOptions {
   /** Render SARIF 2.1.0 as the text output, for code scanning. */
   readonly sarif?: boolean | undefined;
   readonly git?: GitReader;
+  /** The image text buf built for each protobuf source given (apicontract-protobuf R2), by spec. */
+  readonly built?: ReadonlyMap<string, string> | undefined;
   readonly subject?: Partial<Subject>;
 }
 
@@ -83,8 +86,8 @@ export const toSarif = (report: Report, file: string): object => ({
 
 export const props = (options: PropsCommandOptions): Record<string | symbol, unknown> => {
   const git = options.git ?? noGit;
-  const side = readContract(options.contract, options.cwd, git);
-  const against = options.against === undefined ? undefined : readContract(options.against, options.cwd, git).contract;
+  const side = readContract(options.contract, options.cwd, git, options.built);
+  const against = options.against === undefined ? undefined : readContract(options.against, options.cwd, git, options.built).contract;
   const report = runProps(side.contract, { runs: options.runs, seed: options.seed, against, mode: options.mode, side: options.side, subject: options.subject });
   let wrote = false;
   if (options.emit !== undefined) {
@@ -138,8 +141,9 @@ export const command = defineCommand({
     emit: { type: 'string', description: 'write the fast-check arbitraries to this file', placeholder: 'file' },
     sarif: { type: 'boolean', description: 'print SARIF 2.1.0 for code scanning instead of text' },
   },
-  run: ({ args, options }) =>
+  run: async ({ args, options }) =>
     props({
+      built: await builtImages([args.contract, options.against], HERE, bufIn()),
       cwd: HERE,
       contract: args.contract,
       against: options.against,
