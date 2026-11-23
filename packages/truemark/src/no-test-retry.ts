@@ -24,8 +24,7 @@ export const noTestRetry = defineRule('no-test-retry', {
   create(context) {
     const configFile = CONFIG_FILE.test(context.filename);
     const { sourceCode } = context;
-    // Only a citation excuses a retry, and a citation has no date: `today` is never read.
-    // Stryker disable next-line StringLiteral: as above
+    // Stryker disable next-line StringLiteral: only a citation excuses a retry, and a citation has no date, so `today` is never read
     const explained = (node: EsNode): boolean => cited(justification(node, sourceCode, ''));
     return {
       Property(node) {
