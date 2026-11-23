@@ -9,8 +9,8 @@ const file = (path: string, content = 'x', owner: GeneratedFile['owner'] = 'gene
 const ok = (...files: GeneratedFile[]): Outcome => ({ files, findings: [] });
 const finding = (problem: Finding['problem'], path = 'a.ts'): Finding => ({ generator: 'g', path, problem, fix: `fix ${problem}` });
 
-it('lists the seven rules in the order a report reads them', () => {
-  expect(RULES).toEqual(['schema', 'sample', 'deterministic', 'regeneration', 'roundtrip', 'fix-lines', 'paths']);
+it('lists the eight rules in the order a report reads them', () => {
+  expect(RULES).toEqual(['schema', 'sample', 'deterministic', 'regeneration', 'roundtrip', 'fix-lines', 'paths', 'no-io']);
 });
 
 const error = (text: string): Outcome => ({ error: new Error(text) });
@@ -69,7 +69,7 @@ describe('schema', () => {
 
   it('refuses a plugin that contributes nothing apicontract reads', () => {
     expect(schema({ name: 'empty', commands: [] })).toEqual([
-      { rule: 'schema', where: 'plugin "empty"', message: 'it contributes no adapter, generator or extractor', fix: 'add `generators`, `extractors` or `adapters`' },
+      { rule: 'schema', where: 'plugin "empty"', message: 'it contributes no adapter, generator, extractor or rule', fix: 'add `generators`, `extractors`, `adapters` or `rules`' },
     ]);
   });
 

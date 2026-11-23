@@ -7,8 +7,10 @@
  * `node:test`, so the scaffold needs nothing installed beyond apicontract.
  */
 import { type GeneratedFile } from './host.js';
+import { type SampleFinding } from './lint-engine.js';
+import { type Select } from './lint-select.js';
 
-export const KINDS = ['generator', 'extractor', 'adapter'] as const;
+export const KINDS = ['generator', 'extractor', 'adapter', 'rules'] as const;
 
 export type Kind = (typeof KINDS)[number];
 
@@ -32,8 +34,7 @@ const openapiSample = (name: string): string => `{
 const header = (name: string, kind: Kind, what: string): string => `/**
  * The \`${name}\` apicontract plugin: ${what}.
  *
- * Scaffolded by \`apicontract plugin new ${name} --kind ${kind}\`. Change \`run\`, then make \`sample\`
- * say exactly what \`run\` returns for \`sample.document\`: \`node --test plugin-${name}.test.ts\` runs the
+ * Scaffolded by \`apicontract plugin new ${name} --kind ${kind}\`. ${kind === 'rules' ? 'Change `then` or `check`, then make `sample.findings`\n * say exactly what the rule finds on' : 'Change `run`, then make `sample`\n * say exactly what `run` returns for'} \`sample.document\`: \`node --test plugin-${name}.test.ts\` runs the
  * conformance suite and names every rule the plugin breaks, with a \`fix:\` line for each.
  */
 `;
@@ -119,6 +120,66 @@ export const plugin: Plugin = {
 export const mutate = (document: unknown): unknown => ({ ...(document as object), operations: ['listPets', 'createPet'] });
 `;
 
+/** A rule seeded from one finding (apicontract-lint R7): the document it was found in, and where. */
+export interface RuleSeed {
+  readonly document: unknown;
+  readonly select: Select;
+  readonly pointer: string;
+  readonly message: string;
+  readonly fix: string;
+  /** What the seeded rule finds on `document`: its sample. */
+  readonly findings: readonly SampleFinding[];
+}
+
+/** How deep a seeded rule's sample sits: plugin, rules, the rule, sample. */
+const SAMPLE_DEPTH = 4;
+
+/** A value as TypeScript source, indented to sit `depth` levels in. */
+const literal = (value: unknown, depth: number): string => JSON.stringify(value, undefined, 2).replaceAll('\n', `\n${'  '.repeat(depth)}`);
+
+const rule = (name: string): string => `${header(name, 'rules', '`lint` rules')}import { type Plugin } from 'apicontract/testing';
+
+export const plugin: Plugin = {
+  name: '${name}',
+  rules: {
+    '${name}': {
+      description: 'Every operation has a summary',
+      given: { select: 'operation' },
+      then: { field: 'summary', function: 'truthy' },
+      fix: 'add a one-line \`summary\` saying what the operation does',
+      sample: {
+        document: ${openapiSample(name).replaceAll('\n', '\n        ')},
+        findings: [{ pointer: '#/paths/~1pets/get', message: '\`summary\` is missing' }],
+      },
+    },
+  },
+};
+`;
+
+/** A rule that finds the one mistake a finding named: a start, to widen into the mistake in general. */
+const seeded = (name: string, seed: RuleSeed): string => `${header(name, 'rules', '`lint` rules')}import { type Plugin } from 'apicontract/testing';
+
+// Seeded from one finding: \`check\` flags exactly the node it was found at. Widen it to say what makes
+// any node this mistake, then add the documents it should and should not flag to \`sample\`.
+const DOCUMENT = ${literal(seed.document, 0)};
+
+export const plugin: Plugin = {
+  name: '${name}',
+  rules: {
+    '${name}': {
+      description: ${JSON.stringify(`Never again: ${seed.message}`)},
+      given: { select: '${seed.select}' },
+      check: (node) => (node.pointer === ${JSON.stringify(seed.pointer)} ? [${JSON.stringify(seed.message)}] : []),
+      fix: ${JSON.stringify(seed.fix)},
+      sample: {
+        document: DOCUMENT,
+        findings: ${literal(seed.findings, SAMPLE_DEPTH)},
+      },
+    },
+  },
+};
+`;
+
 const test = (name: string, kind: Kind): string => `import { test } from 'node:test';
 
 import { conformance } from 'apicontract/testing';
@@ -146,13 +207,14 @@ names every rule a change breaks, each with a \`fix:\` line:
 
 | Rule | What it asks |
 |---|---|
-| \`schema\` | \`validate\` accepts the plugin, and it contributes a generator, an extractor or an adapter |
-| \`sample\` | \`run\` on \`sample.document\` returns exactly \`sample.files\` (an extractor: \`sample.document\`) |
+| \`schema\` | \`validate\` accepts the plugin, and it contributes a generator, an extractor, an adapter or a rule |
+| \`sample\` | \`run\` on \`sample.document\` returns exactly \`sample.files\` (an extractor: \`sample.document\`; a rule: \`sample.findings\`) |
 | \`deterministic\` | two runs give the same bytes |
 | \`regeneration\` | after a spec change, every \`owner: 'user'\` file is byte for byte what it was |
 | \`roundtrip\` | with \`{ extractor }\`: extracting what the generator wrote gives back the sample contract |
 | \`fix-lines\` | every refusal and every finding says what to do: \`fix: …\` |
 | \`paths\` | every path stays inside the output folder, even for an operation id with \`../\` in it |
+| \`no-io\` | a rule reads only the node and the contract it is given: it never calls \`fetch\` |
 
 ## Use it
 
@@ -164,11 +226,11 @@ The files are ES modules: keep them in a package with \`"type": "module"\`. Add 
 `;
 
 /** The scaffold's files for a plugin called `name`, every one of them the user's. */
-export const scaffold = (name: string, kind: Kind): GeneratedFile[] => {
+export const scaffold = (name: string, kind: Kind, seed?: RuleSeed): GeneratedFile[] => {
   checkName(name);
-  const templates = { generator, extractor, adapter };
+  const templates = { generator, extractor, adapter, rules: rule };
   if (!(KINDS as readonly string[]).includes(kind)) throw new Error(`"${String(kind)}" is not a plugin kind. fix: pass --kind ${KINDS.join(', --kind ')}`);
-  const source = templates[kind](name);
+  const source = seed === undefined ? templates[kind](name) : seeded(name, seed);
   return [
     { path: `plugin-${name}.ts`, owner: 'user', content: source },
     { path: `plugin-${name}.test.ts`, owner: 'user', content: test(name, kind) },
