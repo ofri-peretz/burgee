@@ -17,7 +17,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { discard } from './__fixtures__/scratch-dir.js';
 import { active, gradable, HOSTS, type Host, hostNamed, PREVIOUS_MAJORS } from './hosts.js';
 import { liveRegistry } from './registry.js';
-import { main, type Paths, upstreamMode, verdict } from './report.js';
+import { main, type Paths, PATHS, upstreamMode, verdict } from './report.js';
 import { controlName, grade, type Grade } from './run.js';
 import { check as checkSpecs, record as recordSpecs } from './specs.js';
 import { type CompatRecord, latestVersion, renderDiff, renderMissingExtras, diffRecords } from './upstream.js';
@@ -527,6 +527,59 @@ describe('--specs and --specs --record', () => {
     recorded.mockResolvedValue(2);
     expect(await main(['--specs', '--record'], write, paths)).toBe(1);
     expect(out).toContain('\n✖ 2 specification(s) unchecked, not recorded\n');
+  });
+});
+
+const text = (path: string): string => readFileSync(path, 'utf8');
+
+describe('--specs, to the character', () => {
+  const checkedSpecs = vi.mocked(checkSpecs);
+  const recorded = vi.mocked(recordSpecs);
+  const stamp = '2026-11-23T10:00:00.000Z';
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(stamp));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('writes the check report as two-space JSON with a trailing newline', async () => {
+    checkedSpecs.mockResolvedValue({ updates: [], unrecorded: [], unchecked: [{ name: 'MCP', repo: 'a/b', error: 'e' }] });
+    await main(['--specs'], write, paths);
+    expect(text(paths.specs)).toBe(`{\n  "checked": "${stamp}",\n  "updates": [],\n  "unchecked": [\n    {\n      "name": "MCP",\n      "repo": "a/b",\n      "error": "e"\n    }\n  ]\n}\n`);
+  });
+
+  it('writes the record report as two-space JSON with nothing in it to open', async () => {
+    recorded.mockResolvedValue(0);
+    await main(['--specs', '--record'], write, paths);
+    expect(text(paths.specs)).toBe(`{\n  "checked": "${stamp}",\n  "updates": [],\n  "unchecked": []\n}\n`);
+  });
+
+  it('says one entry with nothing recorded, and two unchecked, in full', async () => {
+    checkedSpecs.mockResolvedValue({
+      updates: [],
+      unrecorded: [{ name: 'MCP', newest: '1' }],
+      unchecked: [{ name: 'A', repo: 'a/a', error: 'x' }, { name: 'B', repo: 'b/b', error: 'y' }],
+    });
+    expect(await main(['--specs'], write, paths)).toBe(1);
+    expect(out).toBe(
+      '\nspecification releases\n\n' +
+        '\n  1 specification(s) have nothing recorded yet, so none is reported: MCP\n  fix: run `compat-oracle --specs --record` and commit the specs.json diff\n' +
+        '\n  every specification checked is at its recorded release\n' +
+        '\n\u2716 2 specification(s) unchecked: A, B\n',
+    );
+  });
+
+  it('says a record run that left one repo unchecked in full', async () => {
+    recorded.mockResolvedValue(1);
+    expect(await main(['--specs', '--record'], write, paths)).toBe(1);
+    expect(out).toBe('\nrecording specification releases\n\n\n\u2716 1 specification(s) unchecked, not recorded\n');
+  });
+
+  it('points the default report at specs-upstream.json beside the package, and nowhere else', () => {
+    expect(PATHS.specs).toBe(join(PATHS.packages, 'compat-oracle', 'specs-upstream.json'));
   });
 });
 

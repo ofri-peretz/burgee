@@ -40,7 +40,7 @@ export interface Paths {
   repoRoot: string;
 }
 
-const PATHS: Paths = {
+export const PATHS: Paths = {
   vendor: resolve(root, 'vendor'),
   baseline: resolve(root, 'baseline'),
   majors: resolve(root, 'baseline', 'majors'),

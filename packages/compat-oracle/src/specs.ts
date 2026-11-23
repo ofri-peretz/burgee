@@ -140,7 +140,7 @@ export function readSpecFiles(packagesDir: string): SpecFile[] {
     .filter((e) => e.isDirectory() && existsSync(join(packagesDir, e.name, 'specs.json')))
     .map((e) => {
       const file = join(packagesDir, e.name, 'specs.json');
-      return { owner: e.name, file, specs: parseSpecs(JSON.parse(readFileSync(file, 'utf8')) as unknown, `packages/${e.name}/specs.json`) };
+      return { owner: e.name, file, specs: parseSpecs(JSON.parse(readFileSync(file).toString()) as unknown, `packages/${e.name}/specs.json`) };
     })
     .sort((a, b) => a.owner.localeCompare(b.owner));
 }
@@ -172,22 +172,24 @@ export function parseVersion(text: string): Version | null {
   const semver = SEMVER.exec(text);
   if (semver !== null) return { scheme: 'semver', parts: [Number(semver[1]), Number(semver[2] ?? 0), Number(semver[3] ?? 0)], pre: semver[4] ?? null };
   const month = MONTH.exec(text);
-  const index = MONTHS.indexOf((month?.[1] ?? '').toLowerCase());
-  if (month !== null && index !== -1) return { scheme: 'month', parts: [Number(month[2]), index], pre: null };
-  return null;
+  if (month === null) return null;
+  const index = MONTHS.indexOf((month[1] as string).toLowerCase());
+  return index === -1 ? null : { scheme: 'month', parts: [Number(month[2]), index], pre: null };
 }
 
 /** `rc2` against `rc10`: runs of digits compare as numbers, anything else as text. */
+const tokens = (text: string): string[] => [...text.matchAll(/\d+|\D+/g)].map((m) => m[0]);
+
 function comparePre(a: string, b: string): number {
-  const left = [...a.matchAll(/\d+|\D+/g)].map((m) => m[0]);
-  const right = [...b.matchAll(/\d+|\D+/g)].map((m) => m[0]);
+  const left = tokens(a);
+  const right = tokens(b);
   for (let i = 0; i < Math.max(left.length, right.length); i += 1) {
     const x = left[i];
     const y = right[i];
     if (x === undefined) return -1;
     if (y === undefined) return 1;
-    const both = /^\d/.test(x) && /^\d/.test(y);
-    const order = both ? Number(x) - Number(y) : x.localeCompare(y);
+    const [nx, ny] = [Number(x), Number(y)];
+    const order = Number.isNaN(nx) || Number.isNaN(ny) ? x.localeCompare(y) : nx - ny;
     if (order !== 0) return order;
   }
   return 0;
@@ -259,12 +261,27 @@ const rawOf = (spec: Spec, item: unknown): Raw | null => {
   return { tag: item.name, prerelease: false, url: `https://github.com/${spec.repo}/releases/tag/${item.name}` };
 };
 
+/** `v3.1.0` is `3.1.0`; a `v` that is not followed by a digit belongs to the name. */
+const bare = (text: string): string => text.replace(/^v(?=\d)/, '');
+
 /** The version in a tag: the pattern's first group, else the whole tag without a leading `v`. */
 function versionOf(spec: Spec, tag: string): string | null {
-  if (spec.tagPattern === undefined) return tag.replace(/^v(?=\d)/, '');
+  if (spec.tagPattern === undefined) return bare(tag);
   const match = compile(spec.tagPattern).exec(tag);
-  if (match === null) return null;
-  return (match[1] ?? match[0]).replace(/^v(?=\d)/, '');
+  return match === null ? null : bare(match[1] ?? match[0]);
+}
+
+/** One item of the list, or null when it is not a version of this spec: junk, a draft, another tag. */
+function publishedOf(spec: Spec, item: unknown): Published | null {
+  const raw = rawOf(spec, item);
+  if (raw === null) return null;
+  const version = versionOf(spec, raw.tag);
+  if (version === null) return null;
+  const parsed = parseVersion(version);
+  if (parsed === null) return null;
+  // R3: GitHub's own flag, or a suffix on the version (`-rc1`, `-draft`, `-beta.2`, `-next-major`).
+  // A suffix is how every one of these specs spells a candidate, so it is not listed by name.
+  return { version, parsed, prerelease: raw.prerelease || parsed.pre !== null, url: raw.url };
 }
 
 /** The list GitHub answered with. Throws, with a `fix:` line, for anything but a list. */
@@ -292,16 +309,7 @@ async function request(spec: Spec, token: string | undefined, get: Get): Promise
  */
 export async function fetchPublished(spec: Spec, token: string | undefined, get: Get = liveGet): Promise<Published[]> {
   const body = await request(spec, token, get);
-  const published: Published[] = [];
-  for (const item of body) {
-    const raw = rawOf(spec, item);
-    const version = raw === null ? null : versionOf(spec, raw.tag);
-    const parsed = version === null ? null : parseVersion(version);
-    if (raw === null || version === null || parsed === null) continue;
-    // R3: GitHub's own flag, or a suffix on the version (`-rc1`, `-draft`, `-beta.2`, `-next-major`).
-    // A suffix is how every one of these specs spells a candidate, so it is not listed by name.
-    published.push({ version, parsed, prerelease: raw.prerelease || parsed.pre !== null, url: raw.url });
-  }
+  const published = body.flatMap((item) => publishedOf(spec, item) ?? []);
   if (published.length === 0) {
     throw new Error(`no version-shaped ${spec.source} among the ${body.length} ${spec.repo} returned; it is unchecked, not up to date. fix: set \`tagPattern\` in specs.json so its first group is the version`);
   }
@@ -381,7 +389,7 @@ const COL = 30;
 function memo(token: string | undefined, get: Get): (spec: Spec) => Promise<Published[]> {
   const held = new Map<string, Promise<Published[]>>();
   return (spec) => {
-    const key = `${spec.repo}|${spec.source}|${spec.tagPattern ?? ''}`;
+    const key = JSON.stringify([spec.repo, spec.source, spec.tagPattern]);
     const known = held.get(key) ?? fetchPublished(spec, token, get);
     held.set(key, known);
     return known;

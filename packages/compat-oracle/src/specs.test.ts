@@ -6,7 +6,7 @@
  * reads back what the pass made of it. Each requirement has a case that fails without the code
  * that meets it.
  */
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { type Dirent, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it, vi } from 'vitest';
@@ -25,6 +25,16 @@ import {
   type Spec,
   titleOf,
 } from './specs.js';
+
+vi.mock('node:fs', async (importOriginal) => {
+  const real = await importOriginal<typeof import('node:fs')>();
+  return { ...real, readdirSync: vi.fn(real.readdirSync) };
+});
+
+vi.mock('node:fs', async (importOriginal) => {
+  const real = await importOriginal<typeof import('node:fs')>();
+  return { ...real, readdirSync: vi.fn(real.readdirSync) };
+});
 
 const scratch = scratchDirs();
 
@@ -530,5 +540,281 @@ describe('R7 — a repo that cannot be read is unchecked, never up to date', () 
 
   it('fetchPublished itself throws, so no caller can mistake a failure for an empty list', async () => {
     await expect(fetchPublished(entry(), undefined, github({ [URL_RELEASES]: { status: 403 } }).get)).rejects.toThrow('fix:');
+  });
+});
+
+// ── exact text: every message, log line and body a person reads, character for character ─────────
+
+const row = (name: string, text: string): string => `  ${name.padEnd(30)} ${text}\n`;
+
+const repoOf = (shown: string, n = 1): string => `W: entry ${n}: \`repo\` ${shown} is not owner/name. fix: write it as on github.com, e.g. "OAI/OpenAPI-Specification"`;
+
+describe('every refusal says exactly what is wrong and how to fix it', () => {
+  const where = 'W';
+  const refusal = (raw: unknown): string => {
+    try {
+      parseSpecs(raw, where);
+    } catch (error) {
+      return (error as Error).message;
+    }
+    return 'accepted';
+  };
+  const good = { name: 'A', repo: 'a/b', source: 'tags', reads: [] };
+  const NOT_OBJECT = 'W: entry 1: it is not an object. fix: write each entry as { name, repo, source, reads }';
+  const NAME = 'W: entry 1: it has no `name`. fix: name the specification as a person calls it, e.g. "OpenAPI"';
+  const SEEN = 'W: entry 1: `seen` is not { version, at }. fix: delete it and run `compat-oracle --specs --record`';
+  const READS = 'W: entry 1: `reads` is not a list of strings. fix: list the versions the adapters accept, or [] when nothing reads the format yet';
+
+  it.each([
+    [{}, 'W: it is not an array. fix: make the file a JSON array of { name, repo, source, reads } entries'],
+    [[null], NOT_OBJECT],
+    [[[]], NOT_OBJECT],
+    [[{ ...good, name: '' }], NAME],
+    [[{ ...good, name: 4 }], NAME],
+    [[{ ...good, repo: 'a/b/c' }], repoOf('"a/b/c"')],
+    [[{ ...good, repo: 'x a/b' }], repoOf('"x a/b"')],
+    [[{ ...good, repo: 'a/b c' }], repoOf('"a/b c"')],
+    [[{ ...good, repo: 7 }], repoOf('7')],
+    [[{ ...good, source: 'rss' }], "W: entry 1: `source` \"rss\" is not 'releases' or 'tags'. fix: use 'releases' when the repo publishes GitHub releases, else 'tags'"],
+    [[{ ...good, kind: 'blog' }], "W: entry 1: `kind` \"blog\" is not 'spec' or 'test-suite'. fix: omit it for a specification"],
+    [[{ ...good, kind: 3 }], "W: entry 1: `kind` 3 is not 'spec' or 'test-suite'. fix: omit it for a specification"],
+    [[{ ...good, reads: 'x' }], READS],
+    [[{ ...good, reads: [1] }], READS],
+    [[{ ...good, adapters: [1] }], 'W: entry 1: `adapters` is not a list of strings. fix: list the adapter names from apicontract/src/inputs.ts'],
+    [[{ ...good, tagPattern: 3 }], 'W: entry 1: `tagPattern` is not a string. fix: write a regular expression whose first group is the version'],
+    [[{ ...good, tagPattern: '(' }], 'W: entry 1: `tagPattern` "(" is not a regular expression. fix: correct it; its first group is the version'],
+    [[{ ...good, seen: 'x' }], SEEN],
+    [[{ ...good, seen: null }], SEEN],
+    [[{ ...good, seen: { version: '1' } }], SEEN],
+    [[{ ...good, seen: { at: '1' } }], SEEN],
+    [[{ ...good, seen: { version: 1, at: 'x' } }], SEEN],
+    [[good, { ...good, repo: 'nope' }], repoOf('"nope"', 2)],
+  ])('refuses %j', (raw, message) => {
+    expect(refusal(raw)).toBe(message);
+  });
+
+  it('accepts a repo with dots, dashes and digits, an empty pattern group, and a seen', () => {
+    expect(refusal([{ ...good, repo: 'a.b-c_9/D.e-f_0', tagPattern: '^(.+)$', kind: 'spec', adapters: [], seen: { version: '1', at: 'x' } }])).toBe('accepted');
+  });
+});
+
+const dirent = (name: string, directory = true): Dirent => ({ name, isDirectory: () => directory }) as unknown as Dirent;
+
+/** What `readdirSync` answers with: directories by name, or one entry that is not a directory. */
+const listing = (...names: (string | false)[]): typeof readdirSync => {
+  const [first, second] = names;
+  const entries = second === false ? [dirent(first as string, false)] : names.map((n) => dirent(n as string));
+  return (() => entries) as unknown as typeof readdirSync;
+};
+
+describe('the package directory listing', () => {
+
+  it('is sorted by package name whatever order the filesystem lists it in', () => {
+    const dir = packages([entry()], 'zeta');
+    mkdirSync(join(dir, 'alpha'));
+    writeFileSync(join(dir, 'alpha', 'specs.json'), JSON.stringify([entry({ name: 'Other' })]));
+    vi.mocked(readdirSync).mockImplementationOnce(listing('zeta', 'alpha'));
+    expect(readSpecFiles(dir).map((f) => f.owner)).toEqual(['alpha', 'zeta']);
+  });
+
+  it('skips anything that is not a directory, even one named for a package that has a specs.json', () => {
+    const dir = packages([entry()], 'apicontract');
+    vi.mocked(readdirSync).mockImplementationOnce(listing('apicontract', false));
+    expect(readSpecFiles(dir)).toEqual([]);
+  });
+
+  it('names the package’s own file in a refusal', () => {
+    const dir = packages({}, 'broken');
+    expect(() => readSpecFiles(dir)).toThrow('packages/broken/specs.json: it is not an array. fix:');
+  });
+});
+
+describe('versions, character by character', () => {
+  it('reads every month by its place in the calendar, in any case', () => {
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    months.forEach((month, index) => {
+      expect(parseVersion(`${month}2025`)).toEqual({ scheme: 'month', parts: [2025, index], pre: null });
+      expect(parseVersion(`${month.toUpperCase()}2025`)?.parts).toEqual([2025, index]);
+    });
+  });
+
+  it.each(['x2025-11-25', '2025-11-25!', 'x3.1.0', '3.1.0.4', '3.1.0 ', 'My-September2025', 'September20255', '2025September', 'Smarch2025', '', 'v3.1.0'])('does not read %j', (text) => {
+    expect(parseVersion(text)).toBeNull();
+  });
+
+  it('reads multi-digit parts whole, in every position', () => {
+    expect(parseVersion('13.12.11')).toEqual({ scheme: 'semver', parts: [13, 12, 11], pre: null });
+    expect(parseVersion('2025-11-25-rc.1')).toEqual({ scheme: 'date', parts: [2025, 11, 25], pre: 'rc.1' });
+  });
+
+  it('orders a candidate before its release both ways round, and text after numbers', () => {
+    expect(compareVersions(v('3.1.0-rc1'), v('3.1.0'))).toBe(-1);
+    expect(compareVersions(v('3.1.0'), v('3.1.0-rc1'))).toBe(1);
+    expect(compareVersions(v('1.0.0-rc2'), v('1.0.0-rc10'))).toBeLessThan(0);
+    expect(compareVersions(v('1.0.0-rc10'), v('1.0.0-rc2'))).toBeGreaterThan(0);
+    expect(compareVersions(v('1.0.0-1'), v('1.0.0-alpha'))).toBeLessThan(0);
+    expect(compareVersions(v('1.0.0-alpha'), v('1.0.0-1'))).toBeGreaterThan(0);
+    expect(compareVersions(v('1.0.0-rc.2'), v('1.0.0-rc.10'))).toBeLessThan(0);
+  });
+});
+
+const fetchTags = async (spec: Partial<Spec>, ...names: string[]): Promise<string[]> =>
+  (await fetchPublished(entry({ source: 'tags', ...spec }), '', github({ 'OAI/OpenAPI-Specification/tags?per_page=50': { body: tagged(...names) } }).get)).map((p) => p.version);
+
+describe('what GitHub is asked, and how every failure reads', () => {
+  const seen = { version: '3.1.1', at: 'x' };
+  const failureOf = async (reply: Reply, token = ''): Promise<string> => {
+    const result = await check(packages([entry({ seen })]), () => undefined, { token, get: github({ [URL_RELEASES]: reply }).get });
+    return result.unchecked[0]?.error ?? 'no failure';
+  };
+
+  it('sends exactly these headers, with the token only when there is one', async () => {
+    const fake = github({ [URL_RELEASES]: { body: releases('3.1.1') } });
+    await fetchPublished(entry(), undefined, fake.get);
+    await fetchPublished(entry(), '', fake.get);
+    await fetchPublished(entry(), 'tok', fake.get);
+    const base = { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'burgee-compat-oracle' };
+    expect(fake.asked.map((a) => a.headers)).toEqual([base, base, { ...base, Authorization: 'Bearer tok' }]);
+  });
+
+  it('asks the releases list for 20 and the tags list for 50', async () => {
+    const fake = github({ [URL_RELEASES]: { body: releases('3.1.1') }, 'OAI/OpenAPI-Specification/tags?per_page=50': { body: tagged('3.1.1') } });
+    await fetchPublished(entry(), '', fake.get);
+    await fetchPublished(entry({ source: 'tags' }), '', fake.get);
+    expect(fake.asked.map((a) => a.url)).toEqual(['https://api.github.com/repos/OAI/OpenAPI-Specification/releases?per_page=20', 'https://api.github.com/repos/OAI/OpenAPI-Specification/tags?per_page=50']);
+  });
+
+  it('says each failure in full', async () => {
+    expect(await failureOf({ status: 403, remaining: '0' })).toBe('GitHub refused OAI/OpenAPI-Specification (HTTP 403, rate limit exhausted); it is unchecked, not up to date. fix: set GITHUB_TOKEN so the request is authenticated');
+    expect(await failureOf({ status: 403, remaining: '9' })).toBe('GitHub refused OAI/OpenAPI-Specification (HTTP 403); it is unchecked, not up to date. fix: set GITHUB_TOKEN so the request is authenticated');
+    expect(await failureOf({ status: 429 }, 'tok')).toBe('GitHub refused OAI/OpenAPI-Specification (HTTP 429); it is unchecked, not up to date. fix: wait for the limit to reset, or check the token can read public repositories');
+    expect(await failureOf({ status: 404 })).toBe('OAI/OpenAPI-Specification was not found (HTTP 404); it is unchecked, not up to date. fix: the repository was renamed, moved or made private; correct `repo` in specs.json');
+    expect(await failureOf({ status: 500 })).toBe('GitHub answered HTTP 500 for OAI/OpenAPI-Specification; it is unchecked, not up to date. fix: re-run the job, and if it persists check `repo` in specs.json');
+    expect(await failureOf({ throws: 'offline' })).toBe('could not reach GitHub for OAI/OpenAPI-Specification: offline; it is unchecked, not up to date. fix: re-run the job');
+    expect(await failureOf({ body: {} })).toBe('GitHub answered OAI/OpenAPI-Specification with something that is not a list; it is unchecked, not up to date. fix: re-run the job');
+    expect(await failureOf({ body: releases('nightly') })).toBe('no version-shaped releases among the 1 OAI/OpenAPI-Specification returned; it is unchecked, not up to date. fix: set `tagPattern` in specs.json so its first group is the version');
+  });
+
+  it('says a seen it cannot read, and one in another scheme, in full', async () => {
+    const odd = await check(packages([entry({ seen: { version: 'whenever', at: 'x' } })]), () => undefined, { token: '', get: github({ [URL_RELEASES]: { body: releases('3.2.0') } }).get });
+    expect(odd.unchecked[0]?.error).toBe('`seen.version` "whenever" is not a version; it is unchecked, not up to date. fix: delete `seen` and run `compat-oracle --specs --record`');
+    const other = await check(packages([entry({ seen: { version: '2025-06-18', at: 'x' } })]), () => undefined, { token: '', get: github({ [URL_RELEASES]: { body: releases('3.2.0') } }).get });
+    expect(other.unchecked[0]?.error).toBe("none of OAI/OpenAPI-Specification's versions is in the scheme of seen 2025-06-18; it is unchecked, not up to date. fix: delete `seen` and run `compat-oracle --specs --record`");
+  });
+
+  it('reads a tag the way the entry says: `v` stripped, a `v` inside the name left alone, a pattern’s group or its whole match', async () => {
+    expect(await fetchTags({}, 'v3.1.0', '3.0.4', '3.1.0-dev2', 'vnext')).toEqual(['3.1.0', '3.0.4', '3.1.0-dev2']);
+    expect(await fetchTags({ tagPattern: '^rel-(v\\d.*)$' }, 'rel-v1.2.0', 'other-1.0.0')).toEqual(['1.2.0']);
+    expect(await fetchTags({ tagPattern: 'v\\d+\\.\\d+' }, 'x-v2.5', 'nothing')).toEqual(['2.5']);
+  });
+
+  it('keeps entries of one repo apart when their patterns differ', async () => {
+    const fake = github({ [URL_RELEASES]: { body: releases('3.2.0') } });
+    await check(packages([entry({ seen }), entry({ name: 'Other', tagPattern: '^(.+)$', seen })]), () => undefined, { token: '', get: fake.get });
+    expect(fake.asked).toHaveLength(2);
+  });
+
+  it('skips an item that is not an object, a draft, and one with no tag', async () => {
+    const got = await fetchPublished(entry(), '', github({ [URL_RELEASES]: { body: [null, 3, { tag_name: '9.9.9', draft: true }, { draft: false }, { tag_name: '3.2.0' }] } }).get);
+    expect(got.map((p) => p.version)).toEqual(['3.2.0']);
+  });
+});
+
+describe('the log and the report, in full', () => {
+  const full = entry({ seen: { version: '3.0.0', at: 'x' }, adapters: ['openapi', 'swagger2'], reads: ['3.0', 'Swagger 2.0'] });
+  const body = releases('3.1.0-rc1', '3.0.5', '3.0.0');
+
+  it('logs an update, a pre-release, and the report body, word for word', async () => {
+    const ran = await run([full], { [URL_RELEASES]: { body } });
+    expect(ran.out).toBe(row('OpenAPI', '3.0.0 → 3.0.5') + row('OpenAPI', '3.0.0 → 3.1.0-rc1 (pre-release)'));
+    expect(ran.updates[0]).toEqual({
+      name: 'OpenAPI',
+      repo: 'OAI/OpenAPI-Specification',
+      kind: 'spec',
+      from: '3.0.0',
+      to: '3.0.5',
+      prerelease: false,
+      url: 'https://github.com/x/releases/tag/3.0.5',
+      title: 'spec: OpenAPI 3.0.5 released (we read 3.0, Swagger 2.0)',
+      report: [
+        '## OpenAPI 3.0.5',
+        '',
+        '- Release: https://github.com/x/releases/tag/3.0.5',
+        '- Recorded before this: 3.0.0',
+        '- We read: 3.0, Swagger 2.0',
+        '- Adapter: `packages/apicontract/src/openapi.ts`, `packages/apicontract/src/input-swagger2.ts`',
+        '- Read the release notes for constructs the adapter does not accept yet; that is a design decision, not a version bump.',
+        '',
+      ].join('\n'),
+    });
+    expect(ran.updates[1]).toMatchObject({ to: '3.1.0-rc1', prerelease: true });
+    expect(ran.updates[1]?.report).toBe(
+      [
+        '## OpenAPI 3.1.0-rc1 (pre-release)',
+        '',
+        '- Release: https://github.com/x/releases/tag/3.1.0-rc1',
+        '- Recorded before this: 3.0.0',
+        '- We read: 3.0, Swagger 2.0',
+        '- Adapter: `packages/apicontract/src/openapi.ts`, `packages/apicontract/src/input-swagger2.ts`',
+        '- Read the release notes for constructs the adapter does not accept yet; that is a design decision, not a version bump.',
+        '- A pre-release: read it early, but it is not a release, and nothing should be changed to match it yet.',
+        '',
+      ].join('\n'),
+    );
+  });
+
+  it('writes the report of a single adapter, of none, and of a suite, word for word', async () => {
+    const one = await run([entry({ seen: { version: '3.0.0', at: 'x' }, adapters: ['mcp'] })], { [URL_RELEASES]: { body: releases('3.0.1') } });
+    expect(one.updates[0]?.report).toContain('- Adapter: `packages/apicontract/src/input-mcp.ts`\n- Read the release notes');
+    const none = await run([entry({ seen: { version: '3.0.0', at: 'x' } })], { [URL_RELEASES]: { body: releases('3.0.1') } });
+    expect(none.updates[0]?.report).toBe(
+      ['## OpenAPI 3.0.1', '', '- Release: https://github.com/x/releases/tag/3.0.1', '- Recorded before this: 3.0.0', '- We read: 3.0, 3.1', '- No adapter reads this format yet; `.sdlc/decisions/D-20261122-open-formats.md` lists it as planned.', ''].join('\n'),
+    );
+    const suite = await run([entry({ kind: 'test-suite', reads: [], seen: { version: '3.0.0', at: 'x' } })], { [URL_RELEASES]: { body: releases('3.0.1') } });
+    expect(suite.updates[0]?.report).toBe(
+      ['## OpenAPI 3.0.1', '', '- Release: https://github.com/x/releases/tag/3.0.1', '- Recorded before this: 3.0.0', '- We read: nothing yet', '- A grader vendors this suite: a new release moves a published score. Re-vendor, re-grade, and say what moved.', ''].join('\n'),
+    );
+  });
+
+  it('logs the newest version when up to date, whichever order GitHub lists them in, and the unrecorded line', async () => {
+    const current = await run([entry({ seen: { version: '3.1.1', at: 'x' } })], { [URL_RELEASES]: { body: releases('3.0.4', '3.1.1', '3.0.9') } });
+    expect(current.out).toBe(row('OpenAPI', '3.1.1 — up to date'));
+    const fresh = await run([entry()], { [URL_RELEASES]: { body: releases('3.0.4', '3.1.1', '3.0.9') } });
+    expect(fresh.out).toBe(row('OpenAPI', '3.1.1 — nothing recorded yet; run --specs --record and commit specs.json'));
+  });
+
+  it('logs an unchecked repo in full', async () => {
+    const ran = await run([entry({ seen: { version: '3.1.1', at: 'x' } })], { [URL_RELEASES]: { status: 404 } });
+    expect(ran.out).toBe(row('OpenAPI', `✖ unchecked: ${ran.unchecked[0]?.error ?? ''}`));
+  });
+});
+
+describe('recording, in full', () => {
+  const replies = { [URL_RELEASES]: { body: releases('3.2.0', '3.1.1') } };
+  const recordWith = async (specs: Spec[]): Promise<{ out: string; text: string; failures: number }> => {
+    const dir = packages(specs);
+    let out = '';
+    const failures = await record(dir, (s) => (out += s), { token: '', get: github(replies).get, today: '2026-11-23' });
+    return { out, text: readFileSync(join(dir, 'apicontract', 'specs.json'), 'utf8'), failures };
+  };
+
+  it('writes the file with two-space indentation and a newline, and logs each line', async () => {
+    const { out, text } = await recordWith([entry({ reads: [] })]);
+    expect(text).toBe(`${JSON.stringify([{ name: 'OpenAPI', repo: 'OAI/OpenAPI-Specification', source: 'releases', reads: [], seen: { version: '3.2.0', at: '2026-11-23' } }], null, 2)}\n`);
+    expect(text).toContain('\n  {\n    "name"');
+    expect(out).toBe(row('OpenAPI', '3.2.0  recorded'));
+  });
+
+  it('leaves seen alone when it already is the newest, however equal, and moves it when newer by one minor', async () => {
+    const same = await recordWith([entry({ seen: { version: '3.2.0', at: 'old' } })]);
+    expect(same.out).toBe(row('OpenAPI', '3.2.0 — already the newest'));
+    expect((JSON.parse(same.text) as Spec[])[0]?.seen).toEqual({ version: '3.2.0', at: 'old' });
+    const behind = await recordWith([entry({ seen: { version: '3.1.1', at: 'old' } })]);
+    expect((JSON.parse(behind.text) as Spec[])[0]?.seen).toEqual({ version: '3.2.0', at: '2026-11-23' });
+  });
+
+  it('says in full why a scheme cannot be recorded into', async () => {
+    const { out } = await recordWith([entry({ seen: { version: '2025-06-18', at: 'x' } })]);
+    expect(out).toBe(row('OpenAPI', "✖ unchecked: none of OAI/OpenAPI-Specification's versions is in the scheme of seen 2025-06-18. fix: delete `seen` and record again"));
   });
 });
