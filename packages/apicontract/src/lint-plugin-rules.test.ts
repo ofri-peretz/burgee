@@ -66,10 +66,10 @@ describe('validate: a plugin rule', () => {
     ['no description', rule({ description: '' })],
     ['no fix', rule({ fix: '' })],
     ['no given', { ...rule(), given: 1 }],
-    ['a select there is not', rule({ given: { select: 'path' as 'operation' } })],
+    ['a select there is not', rule({ given: { select: 'route' as 'operation' } })],
   ])('refuses %s as not a rule', (_, candidate) => {
     const error = refusal({ name: 'r', rules: { a: candidate } });
-    expect(error.message).toBe('plugin "r": rules.a is not a rule. fix: a rule is `{ description, given: { select }, then or check, fix, sample }`, `select` one of document, operation, parameter, property, schema');
+    expect(error.message).toBe('plugin "r": rules.a is not a rule. fix: a rule is `{ description, given: { select }, then or check, fix, sample }`, `select` one of document, operation, parameter, property, schema, path');
     expect(error.code).toBe('E_PLUGIN_SCHEMA');
   });
 
@@ -99,6 +99,18 @@ describe('validate: a plugin rule', () => {
     const error = refusal({ name: 'r', rules: { a: { ...rule(), sample } } });
     expect(error.message).toBe('plugin "r": rules.a has no sample. fix: add `sample: { document, findings: [{ pointer, message }] }`: a small document and exactly what the rule finds on it');
     expect(error.code).toBe('E_NO_STATIC_PROJECTION');
+  });
+
+  it('accepts a path given inside the subset, one or several, and refuses one without a path or outside it', () => {
+    expect(() => validate({ name: 'r', rules: { a: rule({ given: { select: 'path', path: '$.info' } }), b: rule({ given: { select: 'path', path: ['$.info', '$..description'] } }) } })).not.toThrow();
+    for (const path of [undefined, [], [''], ['$.info', ''], 1]) {
+      expect(refusal({ name: 'r', rules: { a: { ...rule(), given: { select: 'path', path } } } }).message).toBe(
+        'plugin "r": rules.a selects `path` and names none. fix: add `given.path`: a JSONPath into the document, e.g. `$.info`',
+      );
+    }
+    expect(refusal({ name: 'r', rules: { a: rule({ given: { select: 'path', path: ['$.info', '$.paths.*~'] } }) } }).message).toBe(
+      "plugin \"r\": rules.a selects a path outside the subset. fix: $.paths.*~: `.*~` is outside the subset; write it with `.key`, `['key']`, `*`, `..` and `?(@.x == 'y')`",
+    );
   });
 
   it('accepts a sample whose document is null and that finds nothing', () => {

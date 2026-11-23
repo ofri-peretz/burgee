@@ -223,6 +223,51 @@ describe('confirm prompt', () => {
     await expect(answer).resolves.toEqual(true);
   });
 
+  it('answers no when the no-keyword is a prefix of the yes-keyword', async () => {
+    // Typing the full no-keyword used to answer yes: "No" is a prefix of
+    // "Nope-not", and prefix matching checked the yes-keyword first.
+    const { answer, events } = await render(confirm, {
+      message: 'Proceed?',
+      theme: {
+        keywords: { yes: 'Nope-not', no: 'No' },
+      },
+    });
+
+    events.type('No');
+    events.keypress('enter');
+
+    await expect(answer).resolves.toEqual(false);
+  });
+
+  it('keeps the built-in n answering no when the yes-keyword starts with n', async () => {
+    // A single "n" used to answer yes: the custom yes-keyword "Nai" starts
+    // with "n" and prefix matching ran before the built-in short answers.
+    const { answer, events } = await render(confirm, {
+      message: 'Proceed?',
+      theme: {
+        keywords: { yes: 'Nai', no: 'Ochi' },
+      },
+    });
+
+    events.type('n');
+    events.keypress('enter');
+
+    await expect(answer).resolves.toEqual(false);
+
+    // Typing the custom keyword in full still answers yes.
+    const { answer: yesAnswer, events: yesEvents } = await render(confirm, {
+      message: 'Proceed?',
+      theme: {
+        keywords: { yes: 'Nai', no: 'Ochi' },
+      },
+    });
+
+    yesEvents.type('nai');
+    yesEvents.keypress('enter');
+
+    await expect(yesAnswer).resolves.toEqual(true);
+  });
+
   it('highlights the default keyword in scripts without case (e.g. Chinese)', async () => {
     vi.stubEnv('FORCE_COLOR', '1');
     const { answer, events, getScreen } = await render(confirm, {
@@ -246,6 +291,24 @@ describe('confirm prompt', () => {
     expect(getScreen()).toMatchInlineSnapshot('"✔ 确认? 是"');
   });
 
+  it.each([
+    ['👍', '👎', true, '(👍/👎)'],
+    ['𐐨', '𐐩', false, '(𐐨/𐐁)'],
+    // The screen renderer NFC-normalizes its output, so the decomposed
+    // E + combining acute in the keyword surfaces as the precomposed É.
+    ['E\u0301videmment', 'Non', true, '(\u00c9/n)'],
+  ] as const)('shows complete initials for %s and %s', async (yes, no, value, hint) => {
+    const { answer, events, getScreen } = await render(confirm, {
+      message: 'Continue?',
+      default: value,
+      theme: { keywords: { yes, no } },
+    });
+
+    expect(getScreen()).toContain(hint);
+    events.keypress('enter');
+    await expect(answer).resolves.toBe(value);
+  });
+
   it('toggle between values with the tab key', async () => {
     const { answer, events, getScreen } = await render(confirm, {
       message: 'Do you want to proceed?',
@@ -261,6 +324,35 @@ describe('confirm prompt', () => {
 
     events.keypress('tab');
     expect(getScreen()).toMatchInlineSnapshot(`"? Do you want to proceed? (Y/n) No"`);
+
+    events.keypress('enter');
+    await expect(answer).resolves.toEqual(false);
+    expect(getScreen()).toMatchInlineSnapshot('"✔ Do you want to proceed? No"');
+  });
+
+  // The displayed answer and readline's line must stay in sync: after any
+  // handler rewrites the shown value, the next keystroke edits what is shown
+  // — typing appends, Backspace removes one character. The unrecognized-
+  // input rejection is covered above ("shows an error and keeps prompting").
+  it('keeps the tab-toggled answer editable', async () => {
+    const { answer, events, getScreen } = await render(confirm, {
+      message: 'Do you want to proceed?',
+    });
+
+    events.keypress('tab');
+    expect(getScreen()).toContain('? Do you want to proceed? (Y/n) No');
+
+    // Typing appends to the shown answer...
+    events.type('p');
+    expect(getScreen().split('\n')[0]?.trimEnd()).toBe(
+      '? Do you want to proceed? (Y/n) Nop',
+    );
+
+    // ...and Backspace removes exactly one character.
+    events.keypress('backspace');
+    expect(getScreen().split('\n')[0]?.trimEnd()).toBe(
+      '? Do you want to proceed? (Y/n) No',
+    );
 
     events.keypress('enter');
     await expect(answer).resolves.toEqual(false);

@@ -7,7 +7,7 @@ import { runBurgee } from 'burgee/testing';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { scratchDirs } from './__fixtures__/run/scratch-dir.js';
-import { command, DEFAULT_RULESETS, levelsOf, runLint, scoreOf, toSarif, toText } from './command-lint.js';
+import { command, DEFAULT_RULESETS, levelsOf, readRulesets, runLint, scoreOf, toSarif, toText } from './command-lint.js';
 import { rulesets } from './lint-rules.js';
 import { ConfigError, validateConfig } from './run-config.js';
 
@@ -35,7 +35,7 @@ describe('levelsOf', () => {
   });
 
   it('refuses a ruleset or a rule that does not exist, naming the ones that do', () => {
-    expect(() => levelsOf(['strict'])).toThrow('there is no ruleset `strict`. fix: use one of recommended, agent-ready');
+    expect(() => levelsOf(['strict'])).toThrow('there is no ruleset `strict`. fix: use one of recommended, agent-ready, or a .spectral.yaml file');
     expect(() => levelsOf(['other:recommended'])).toThrow('there is no ruleset `other:recommended`');
     expect(() => levelsOf(['recommendedapicontract:'])).toThrow('there is no ruleset `recommendedapicontract:`');
     expect(() => levelsOf([], { nope: 'warn' })).toThrow('`lint.rules` names `nope`, which is not a rule. fix: use one of description-length, description-overlap, example-valid,');
@@ -117,7 +117,7 @@ describe('runLint', () => {
     expect(data.exitCode).toBe(ExitCode.RUNTIME);
     expect(data.fix).toBe('correct each error as its own fix line says, or set its rule to "warn" in `lint.rules`');
     expect(data.findings).toEqual([{ rule: 'path-no-trailing-slash', level: 'error', file: 'api.yaml', pointer: '#', message: 'path `/b/` ends with a slash', fix: 'drop the trailing slash' }]);
-    expect(text(data).split('\n').at(-2)).toBe('1 error(s), 0 warning(s). Checked 11 rule(s) on 1 input(s), 13 node(s); not carried: none.');
+    expect(text(data).split('\n').at(-2)).toBe('1 error(s), 0 warning(s). Checked 11 rule(s) on 1 input(s), 13 node(s); not carried: none; warn first not checked: not a git repository.');
     const flagged = await runLint({ cwd: dir, specs: ['api.yaml'], rulesets: [], config: validateConfig({ lint: { rules: { 'path-no-trailing-slash': 'off' } } }, join(dir, 'apicontract.config.json')) });
     expect(flagged.findings).toEqual([]);
     expect(text(flagged).split('\n')).toEqual(['0 error(s), 0 warning(s). Checked 10 rule(s) on 1 input(s), 12 node(s); not carried: none.', 'recommended: 100% (12 of 12 checks passed)']);
@@ -139,6 +139,76 @@ describe('runLint', () => {
     expect(Object.keys(fromRoot.scores as object)).toEqual(['recommended']);
     const fromCwd = await runLint({ cwd: FIXTURES, specs: ['tools.mcp.json'], config: validateConfig({}, join(dir, 'apicontract.config.json')) });
     expect(fromCwd.inputs).toEqual(['tools.mcp.json']);
+  });
+
+  it('carries a .spectral.yaml from `extends`, lists what it does not carry, and scores it', async () => {
+    const spectral = [
+      'extends: spectral:oas',
+      'rules:',
+      '  operation-tags: off',
+      '  ids-camel:',
+      '    description: Operation ids are camel case',
+      '    given: $.paths.*.*',
+      '    severity: error',
+      '    then: { field: operationId, function: casing, functionOptions: { type: camel } }',
+      '  custom:',
+      '    given: $',
+      '    then: { function: myCheck }',
+    ].join('\n');
+    const api = "openapi: 3.1.0\ninfo: { title: t, version: '1', description: d }\npaths:\n  /a:\n    get: { operationId: Get_A, description: d, responses: { '200': { description: ok } } }\n";
+    const redocly = [
+      'rules:',
+      '  rule/summary-set:',
+      '    subject: { type: Operation, property: summary }',
+      '    assertions: { defined: true }',
+      '    message: Operations have a summary',
+      '    severity: warn',
+      '  rule/where:',
+      '    subject: { type: Operation }',
+      '    where: []',
+      '    assertions: { defined: true }',
+    ].join('\n');
+    const dir = scratch({ 'api.yaml': api, '.spectral.yaml': spectral, 'redocly.yaml': redocly });
+    const config = validateConfig({ input: 'api.yaml', lint: { extends: ['.spectral.yaml', 'redocly.yaml'], rules: { 'ids-camel': 'warn' } } }, join(dir, 'apicontract.config.json'));
+    const data = await runLint({ cwd: '/elsewhere', specs: [], config, sarif: true });
+    expect((data.findings as { rule: string; level: string; message: string }[]).map((finding) => [finding.rule, finding.level, finding.message])).toEqual([
+      ['ids-camel', 'warn', '`operationId` "Get_A" is not camel case'],
+      ['rule/summary-set', 'warn', '`summary` is missing'],
+    ]);
+    expect((data.notCarried as { id: string }[]).map((entry) => entry.id)).toEqual(['spectral:oas', 'custom', 'rule/where']);
+    expect(Object.keys(data.scores as object)).toEqual(['.spectral.yaml', 'redocly.yaml']);
+    expect(JSON.stringify(data.sarif)).toContain('Operation ids are camel case');
+    const lines = text({ ...data, [TEXT]: () => toText(data as never, data.scores as never, data.notCarried as never) }).split('\n');
+    expect(lines.slice(0, 3)).toEqual(['.spectral.yaml', expect.stringMatching(/^  warn   rule-not-carried  #\/extends\/0  spectral:oas: carries 9 of its rules/u), '         fix: add the others you rely on as rules in this file, or run `apicontract lint --ruleset recommended` for the built-in set']);
+    expect(lines).toContain('  warn   rule-not-carried  #/rules/custom  custom: function `myCheck` is not a core function apicontract carries (truthy, falsy, defined, undefined, pattern, casing, enumeration, length, xor, schema)');
+    expect(lines.slice(3, 10)).toEqual([
+      '  warn   rule-not-carried  #/rules/custom  custom: function `myCheck` is not a core function apicontract carries (truthy, falsy, defined, undefined, pattern, casing, enumeration, length, xor, schema)',
+      '         fix: rewrite it with core functions and a `given` inside the JSONPath subset, or turn it off here and keep it in Spectral',
+      '',
+      'redocly.yaml',
+      '  warn   rule-not-carried  #/rules/rule~1where  rule/where: `where` is not carried',
+      '         fix: rewrite it as a `rule/…` with a subject apicontract selects and assertions it carries, or keep it in Redocly',
+      '',
+    ]);
+    expect(lines.at(-3)).toMatch(/; not carried: 3 \(spectral:oas, custom, rule\/where\)\.$/u);
+  });
+
+  it('reads only names that end in .json, .yaml or .yml as ruleset files', () => {
+    const dir = scratch({ 'a.yml': 'rules: {}', 'b.json': '{}', 'c.yaml': 'rules: {}' });
+    expect(Object.keys(readRulesets(['recommended', 'a.yml', 'b.json', 'c.yaml', 'd.yaml.old', 'e.yamlx'], dir))).toEqual(['a.yml', 'b.json', 'c.yaml']);
+  });
+
+  it('refuses a ruleset file it cannot read, as a config to fix', async () => {
+    const dir = scratch({ 'api.yaml': 'openapi: 3.1.0\ninfo: { title: t, version: "1" }\npaths: {}\n', 'bad.spectral.yaml': 'rules: [' });
+    await Promise.all(
+      ['missing.spectral.yaml', 'bad.spectral.yaml'].map(async (name) => {
+        const config = validateConfig({ input: 'api.yaml', lint: { extends: [name] } }, join(dir, 'apicontract.config.json'));
+        const error = await runLint({ cwd: dir, specs: [], config }).catch((caught: unknown) => caught);
+        expect(error).toBeInstanceOf(ConfigError);
+        expect((error as Error).message).toContain(`- \`lint.extends\` names ${name}, which cannot be read (`);
+        expect((error as Error).message).toContain("fix: correct its path; it is read from the config's folder");
+      }),
+    );
   });
 
   it('refuses a file it cannot read or a format it does not know', async () => {
@@ -173,9 +243,9 @@ describe('apicontract lint, through burgee', () => {
     await runBurgee(program, { argv: ['--version'] });
   });
 
-  it('is described for --help and the MCP tool list, and only reads', () => {
+  it('is described for --help and the MCP tool list, and writes only with --stats', () => {
     expect(command.description).toBe("A contract's form checked by rules: standards, and whether an agent can use it as tools");
-    expect(command.effects).toBe('read_only');
+    expect(command.effects).toBe('idempotent');
     expect(command.examples).toEqual([
       { command: 'apicontract lint openapi.yaml', description: 'the recommended rules, as warnings' },
       { command: 'apicontract lint openapi.yaml --ruleset agent-ready', description: 'can an agent call this API as tools: descriptions, examples, ids' },
@@ -184,6 +254,16 @@ describe('apicontract lint, through burgee', () => {
     expect(command.options).toEqual({
       ruleset: { type: 'string', multiple: true, choices: ['recommended', 'agent-ready'], description: "a ruleset to run, over the config's lint.extends (default recommended)" },
       sarif: { type: 'boolean', description: 'print SARIF 2.1.0 for code scanning instead of text' },
+      rulesFrom: {
+        type: 'string',
+        description: 'read the config and its ruleset files at this git ref, so a change to the rules is judged by the old ones; `merge-base` is the base with origin/main',
+      },
+      since: {
+        type: 'string',
+        description: "lint in full only the operations added or changed since this git ref; the rest run lint.legacy (default: none). `merge-base` is the base with origin/main; over the config's lint.since",
+      },
+      stats: { type: 'string', description: 'count this run into a JSON file of per-rule runs, findings and last finding date, once per commit; meant for a CI cache' },
+      idle: { type: 'string', description: 'with --stats: list the rules that ran and found nothing in this many days, e.g. 90d, as rule-idle' },
     });
   });
 

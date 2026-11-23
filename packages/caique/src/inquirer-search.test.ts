@@ -269,15 +269,15 @@ describe('search', () => {
     await tabbed.nextRender();
     expect(source).toHaveBeenLastCalledWith('bananas', expect.anything());
 
-    // An arrow clears readline's line, as `@inquirer/search` does: the next key starts a new term.
+    // An arrow leaves the term in readline's line (@inquirer/search 4.4.1): the next key extends it.
     const arrowed = await render(search, { message: 'Fruit', source });
     await arrowed.nextRender();
     arrowed.events.type('a');
     await arrowed.nextRender();
     arrowed.events.keypress('down');
-    arrowed.events.type('c');
+    arrowed.events.type('n');
     await arrowed.nextRender();
-    expect(source).toHaveBeenLastCalledWith('c', expect.anything());
+    expect(source).toHaveBeenLastCalledWith('an', expect.anything());
   });
 
   it('moves up and down by one answerable choice, and pages without wrapping', async () => {

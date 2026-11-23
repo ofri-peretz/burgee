@@ -178,7 +178,14 @@ export function breakLines(content: string, width: number): string {
  * that ends exactly at the edge would otherwise read one column short (@inquirer/core 12.1.1).
  */
 export function wrapContent(content: string, width: number): { text: string; lastRow: string; finalLineRows: number } {
-  const wrappedLines = content.split('\n').map((line) => wrap(line, width, { trim: false, wordWrap: false }).split('\n'));
+  // A tab is written as a tab, as the incumbent's wrapper leaves it, not spread into spaces the way
+  // `wrap` does: a Tab typed into an answer is in readline's line, and the screen shows that line.
+  // It rides through `wrap` as a NUL, which is as wide as nothing and which no prompt draws.
+  const wrappedLines = content.split('\n').map((line) =>
+    wrap(line.replaceAll('\t', '\0'), width, { trim: false, wordWrap: false })
+      .replaceAll('\0', '\t')
+      .split('\n'),
+  );
   // `split` always returns at least one element, here and on each wrapped line, so the last of each exists.
   const finalLine = wrappedLines.at(-1) as string[];
   return {

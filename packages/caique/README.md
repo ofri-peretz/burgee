@@ -28,7 +28,7 @@
 <p align="center">
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/%40clack%2Fprompts%20suite-23%2F23-0a6b47?style=flat-square" alt="caique/clack passes 23 of 23 cases of the @clack/prompts test suite" /></a>
   <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/%40inquirer%2Fcore%20suite-47%2F47-0a6b47?style=flat-square" alt="caique/inquirer passes 47 of 47 cases of the @inquirer/core test suite" /></a>
-  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/%40inquirer%2Fprompts%20suite-228%2F228-0a6b47?style=flat-square" alt="caique/inquirer passes 228 of 228 cases of the @inquirer/prompts test suite" /></a>
+  <a href="https://burgee.interlace.tools/docs/compatibility"><img src="https://img.shields.io/badge/%40inquirer%2Fprompts%20suite-290%2F290-0a6b47?style=flat-square" alt="caique/inquirer passes 290 of 290 cases of the @inquirer/prompts test suite" /></a>
 </p>
 
 <p align="center">
@@ -359,9 +359,9 @@ Graded by the incumbent's own test suite:
 | :-- | --: |
 | `clack` | 23 / 23 |
 | `inquirer-core` | 47 / 47 |
-| `inquirer-prompts` | 228 / 228 |
+| `inquirer-prompts` | 290 / 290 |
 
-Weight, installed and tree-inclusive: **304,657 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.7831** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
+Weight, installed and tree-inclusive: **306,645 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.7882** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## For agents
 
@@ -413,14 +413,15 @@ Plugins register under the `widgets` and `locales` keys, against the one schema 
 
 ## The family
 
-Eleven packages, one repository, one release pipeline. Each installs and works on its own, and each
+Twelve packages, one repository, one release pipeline. Each installs and works on its own, and each
 owns one job. Six of them — `bellpull`, `closeout`, `linegauge`, `paratext`, `roundel`, `seniority`
 — depend on nothing; the others depend only on packages in this table, and every dependency points
 one way, down the [layers](https://burgee.interlace.tools/docs/concepts/family).
 
 No package declares a dependency from outside the family; `react` and `react-reconciler` are
 optional peers of `controlroom`, which npm does not install; `vitest` is an optional peer of
-`oxmutate`, which npm does not install.
+`oxmutate`, which npm does not install; `eslint` is an optional peer of `truemark`, which npm does
+not install.
 [`package-shape-lock`](https://github.com/ofri-peretz/burgee/blob/main/scripts/package-shape-lock.test.ts)
 holds that for every manifest, and
 [`independence-install-lock`](https://github.com/ofri-peretz/burgee/blob/main/scripts/independence-install-lock.test.ts)
@@ -444,6 +445,7 @@ keeps both true.
 | [bellpull](https://bellpull.interlace.tools/docs) | Subprocesses, and which executable actually ran | cross-spawn and which |
 | [controlroom](https://controlroom.interlace.tools/docs) | Keyboard-driven terminal screens, inline or full-screen | ink |
 | [oxmutate](https://oxmutate.interlace.tools/docs) | Mutation testing on the oxc engine, inside your own Vitest | Stryker |
+| [truemark](https://burgee.interlace.tools/docs/packages/truemark) | Lint rules and a pre-push check that keep a test suite honest | @vitest/eslint-plugin |
 
 Every migration guide, and the family-wide [compatibility](https://burgee.interlace.tools/docs/compatibility)
 and [benchmarks](https://burgee.interlace.tools/docs/benchmarks) pages, are on

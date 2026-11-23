@@ -775,7 +775,7 @@ section is read by people and not by `npx tsx scripts/plan-progress.ts`.
 | S5 | **Built** | `names.ts` — one canonical camelCase key, kebab derived; `checkDefinition` refuses two keys that meet on the command line | `schema-dsl.test.ts` |
 | S6 | **Built** | `dispatch()` calls `checkRelations` before `coerce`, and `coerce` checks choices before the Standard Schema | `option-relations.test.ts` |
 | S7 | **Built** | `toParseConfig` maps `boolean` to parseArgs' `type: 'boolean'`, which never consumes a value | `negation.test.ts`, `parsing-edges.test.ts` |
-| S8 | **Built** | `splitMultiple` with `separator` defaulting to `,`; repetition accumulates | `schema-dsl.test.ts` |
+| S8 | **Built** | `splitMultiple` with `separator` defaulting to `,`, or `false` to keep each value whole; repetition accumulates | `schema-dsl.test.ts` |
 
 ### Prompts
 

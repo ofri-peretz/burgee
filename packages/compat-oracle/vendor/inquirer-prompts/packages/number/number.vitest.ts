@@ -1,8 +1,28 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render } from '@inquirer/testing';
+import { withResolver } from '@inquirer/type';
 import number from '../../shim-5.js';
 
 describe('number prompt', () => {
+  it('discards keys typed during validation before restoring a rejected answer', async () => {
+    const { promise, resolve } = withResolver<string>();
+    const { answer, events, nextRender } = await render(number, {
+      message: 'Value',
+      validate: (value?: number) => value !== 12 || promise,
+    });
+
+    events.type('12');
+    events.keypress('enter');
+    await nextRender();
+    events.type('9');
+    resolve('Try again');
+    await nextRender();
+    events.type('3');
+    events.keypress('enter');
+
+    await expect(answer).resolves.toBe(123);
+  });
+
   it('handle simple use case', async () => {
     const { answer, events, getScreen } = await render(number, {
       message: 'What is your age',
@@ -49,6 +69,46 @@ describe('number prompt', () => {
     events.keypress('enter');
     await expect(answer).resolves.toEqual(2);
     expect(getScreen()).toMatchInlineSnapshot(`"✔ What is your age 2"`);
+  });
+
+  // `Number()` alone would accept these as hex, binary, octal and
+  // underscore-separated literals; a person typing them almost certainly
+  // does not mean 16, 3, 7 and 1000. `1e999` is a plain decimal form that
+  // overflows to Infinity — a value the user could never type as a literal.
+  it.each(['0x10', '0b11', '0o7', '1_000', 'Infinity', '1e999'])(
+    'rejects the JS-only numeric literal %s',
+    async (input) => {
+      const abort = new AbortController();
+      const { answer, events, getScreen, nextRender } = await render(
+        number,
+        { message: 'What is your age' },
+        { signal: abort.signal },
+      );
+
+      events.type(input);
+      events.keypress('enter');
+      await nextRender();
+      expect(getScreen()).toBe(
+        `? What is your age ${input}\n> You must provide a valid numeric value`,
+      );
+
+      // Rejected input keeps the prompt open; close it through its signal.
+      abort.abort();
+      await answer.catch(() => {});
+    },
+  );
+
+  it('accepts scientific notation as a plain decimal form', async () => {
+    // Unlike radix literals, scientific notation is a legitimate way to
+    // type a large number (and defaults stringify to it past 1e21).
+    const { answer, events } = await render(number, {
+      message: 'How big',
+    });
+
+    events.type('1e3');
+    events.keypress('enter');
+
+    await expect(answer).resolves.toEqual(1000);
   });
 
   it('supports min/max options', async () => {
@@ -487,5 +547,79 @@ describe('number prompt', () => {
     events.keypress('enter');
     await expect(answer).resolves.toEqual(1.001);
     expect(getScreen()).toMatchInlineSnapshot(`"✔ Enter a value 1.001"`);
+  });
+
+  // The displayed answer and readline's line must stay in sync: after any
+  // handler rewrites the shown value, the next keystroke edits what is shown
+  // — typing appends, Backspace removes one character.
+  describe('the shown answer stays editable after the prompt rewrites it', () => {
+    type Step = 'enter' | 'backspace' | 'tab' | { type: string };
+
+    const cases: Array<{
+      after: string;
+      steps: Step[];
+      shown: string;
+      probe: string;
+      typed: string;
+      edited: string;
+      settle: Step[];
+      answer: number;
+      validate?: (value?: number) => boolean | string;
+      default?: number;
+    }> = [
+      {
+        after: 'a rejected answer',
+        steps: [{ type: '12' }, 'enter'],
+        shown: '12',
+        probe: '3',
+        typed: '123',
+        edited: '12',
+        settle: [{ type: '3' }, 'enter'],
+        answer: 123,
+        validate: (value?: number) => value !== 12,
+      },
+      {
+        after: 'the tab-completed default',
+        steps: ['tab'],
+        shown: '35',
+        probe: '7',
+        typed: '357',
+        edited: '35',
+        settle: ['enter'],
+        answer: 35,
+        default: 35,
+      },
+    ];
+
+    it.each(cases)('after $after', async (row) => {
+      const { answer, events, getScreen, nextRender } = await render(number, {
+        message: 'What is your age',
+        ...(row.validate === undefined ? {} : { validate: row.validate }),
+        ...(row.default === undefined ? {} : { default: row.default }),
+      });
+
+      const send = async (steps: Step[]) => {
+        for (const step of steps) {
+          if (typeof step === 'string') events.keypress(step);
+          else events.type(step.type);
+          await nextRender();
+        }
+      };
+      const promptLine = () => (getScreen().split('\n')[0] ?? '').trimEnd();
+
+      await send(row.steps);
+      expect(promptLine()).toBe(`? What is your age ${row.shown}`);
+
+      // Typing appends to the shown value...
+      await send([{ type: row.probe }]);
+      expect(promptLine()).toBe(`? What is your age ${row.typed}`);
+
+      // ...and Backspace removes exactly one character.
+      await send(['backspace']);
+      expect(promptLine()).toBe(`? What is your age ${row.edited}`);
+
+      await send(row.settle);
+      await expect(answer).resolves.toBe(row.answer);
+    });
   });
 });

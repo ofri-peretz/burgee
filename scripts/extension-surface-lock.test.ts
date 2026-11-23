@@ -79,6 +79,9 @@ const DECLARED = {
   // extension point is data in its config (`ignore` rules, `specOracles`), not a plugin host:
   // no `./plugin`, no `check`, no eval case — the honest empty row, as linegauge's once was.
   oxmutate: { plugin: false, check: false, eval: false },
+  // Its rules are an ESLint plugin, which extends ESLint rather than truemark; truemark itself
+  // has no plugin host, no `check` command and no eval case.
+  truemark: { plugin: false, check: false, eval: false },
 } as const;
 
 type Declared = (typeof DECLARED)[keyof typeof DECLARED];

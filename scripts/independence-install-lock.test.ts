@@ -48,7 +48,7 @@ const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
  * `private: false` (its pending docs app is built ahead of its first release), so the flip edits
  * nothing here: until then it is not packed, and its cases are not declared.
  */
-const PUBLISHED = ['bellpull', 'burgee', 'caique', 'closeout', 'controlroom', 'flagstaff', 'linegauge', 'oxmutate', 'paratext', 'roundel', 'seniority'];
+const PUBLISHED = ['bellpull', 'burgee', 'caique', 'closeout', 'controlroom', 'flagstaff', 'linegauge', 'oxmutate', 'paratext', 'roundel', 'seniority', 'truemark'];
 
 /** One pack of ten packages, then ten installs and their probes side by side. */
 const SETUP_TIMEOUT_MS = 240_000;

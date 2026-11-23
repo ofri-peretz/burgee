@@ -61,6 +61,7 @@ const program = defineProgram({
         stage: { type: 'string', choices: ['dev', 'prod'] },
         level: { type: 'number', multiple: true, separator: ':' },
         ports: { type: 'number', multiple: true },
+        sizes: { type: 'number', multiple: true, separator: false },
         region: { type: 'string', short: 'r', complete: (p: string) => ['eu-west', 'us-east'].filter((r) => r.startsWith(p)) },
       },
       effects: 'withheld',
@@ -141,6 +142,8 @@ describe('R1, R2 — a completer is handed the line before the cursor', () => {
     expect(lastCall()?.context.options).toStrictEqual({ level: [1, 2] });
     await complete('deploy', '--ports', '1', '--ports', 'x', '--branch', '');
     expect(lastCall()?.context.raw).toStrictEqual({ ports: '1,x' });
+    await complete('deploy', '--sizes', '1', '--sizes', 'x', '--branch', '');
+    expect(lastCall()?.context.raw).toStrictEqual({ sizes: '1\nx' });
   });
 
   it('`--no-<name>` negates only a boolean, and an option the command does not declare is not in the context', async () => {

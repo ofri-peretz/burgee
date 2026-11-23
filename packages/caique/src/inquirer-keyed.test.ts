@@ -227,7 +227,8 @@ describe('rawlist', () => {
     expect(getScreen()).toBe(frame('? Fruit', '  1) [object Object]', '  2) none'));
   });
 
-  it('clears the line on an arrow, so the next key starts a new answer, and clears an error on a key', async () => {
+  it('puts the arrow-picked key in the line, so the next key edits it, and clears an error on a key', async () => {
+    // @inquirer/rawlist 5.4.1: the shown key and readline's line agree after an arrow.
     const { events, getScreen } = await render(rawlist, { message: 'Fruit', choices: fruits });
     events.keypress('enter');
     expect(getScreen()).toContain('> Please input a value');
@@ -236,7 +237,7 @@ describe('rawlist', () => {
     events.keypress('down');
     expect(getScreen()).toContain('? Fruit 3');
     events.type('1');
-    expect(getScreen()).toContain('? Fruit 1');
+    expect(getScreen()).toContain('? Fruit 31');
   });
 
   it('starts from the bottom on Up when nothing is picked, even without a separator', async () => {

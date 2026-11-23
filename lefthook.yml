@@ -47,8 +47,22 @@ pre-push:
     mutation-changed:
       priority: 3
       run: npm run mutation:changed
+    # truemark diff, dogfooded: an assertion moved to a weaker matcher, or a snapshot changed with
+    # no `Snapshot: <why>` line, in the commits since origin/main. The battery built its dist.
+    # A deliberate weakening is accepted by an `Assertion: <why>` line in the commit message.
+    truemark-diff:
+      priority: 4
+      run: node packages/truemark/dist/bin.js diff --base origin/main
     # The battery's verdict on the five-second budget, the same script as CI's `No test case over
     # 5 s` step. The root suite judges its own cases as it runs, alone already.
     case-budget:
-      priority: 4
+      priority: 5
       run: npx --no tsx scripts/case-budget.ts node_modules/.cache/case-budget
+    # The weight page (/docs/weight) is measured from the battery's build and committed, and the
+    # Ratchet job fails when it is stale. That cost six CI cycles in one week (2026-11-23): a change
+    # to one package moved another's row, and nothing local said so. The same check as compat.yml's
+    # `The published weight page is the one this build generates`, run after the battery has built
+    # every package (about 40 s of esbuild); fix a failure with `npm run weight:page`.
+    weight-page:
+      priority: 5
+      run: npm run weight:page -- --check

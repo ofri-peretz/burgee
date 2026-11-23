@@ -62,13 +62,15 @@ export interface SearchConfig<Value> {
 export const search = createPrompt(<Value>(config: SearchConfig<Value>, done: (value: Value) => void) => {
   const { pageSize = DEFAULT_PAGE_SIZE, validate = alwaysValid } = config;
   const theme = makeTheme<SearchTheme>(searchTheme, config.theme);
-  const [status, setStatus] = useState<Status>('loading');
+  // `validating` is drawn as `loading`, but unlike it lets no key edit the term (@inquirer/search 4.4.1).
+  const [status, setStatus] = useState<Status | 'validating'>('loading');
   const [term, setTerm] = useState<string>(config.initialValue ?? '');
   const [results, setResults] = useState<readonly Item<Value>[]>([]);
   const [searchError, setSearchError] = useState<string>();
   // `default` places the cursor on the first result list only; later lists start at the top.
   const defaultApplied = useRef(false);
-  const prefix = usePrefix({ status, theme });
+  const shownStatus = status === 'validating' ? 'loading' : status;
+  const prefix = usePrefix({ status: shownStatus, theme });
 
   const bounds = useMemo(() => ({ first: results.findIndex(isSelectable), last: results.findLastIndex(isSelectable) }), [results]);
   const [active = bounds.first, setActive] = useState<number>();
@@ -97,12 +99,19 @@ export const search = createPrompt(<Value>(config: SearchConfig<Value>, done: (v
         defaultApplied.current = true;
       }
       setActive(start);
+      // No error to clear here: the effect cleared it as it started, and only this fetch sets one.
       setResults(normalized);
       setStatus('idle');
     };
-    // A failed search is shown as the error of the term it was for; an aborted one, never.
+    // A failed search is shown as the error of the term it was for; an aborted one, never. The
+    // results empty and the cursor with them, and the prompt is idle again, to search anew (4.4.1).
     fetchResults().catch((error: unknown) => {
-      if (!controller.signal.aborted && error instanceof Error) setSearchError(error.message);
+      if (controller.signal.aborted) return;
+      setSearchError(error instanceof Error && error.message ? error.message : 'Search failed');
+      setActive(undefined);
+      setResults([]);
+      // Stryker disable next-line StringLiteral: any status but `loading` and `validating` draws and reads keys as idle does, with no results to answer
+      setStatus('idle');
     });
     return () => {
       controller.abort();
@@ -114,14 +123,19 @@ export const search = createPrompt(<Value>(config: SearchConfig<Value>, done: (v
 
   /** Enter on a choice: validate it; a refused choice not already typed becomes the term. */
   const submit = async (rl: PromptReadline, answer: NormalizedChoice<Value>): Promise<void> => {
-    setStatus('loading');
+    setStatus('validating');
     const verdict = await validate(answer.value);
     setStatus('idle');
     if (verdict === true) {
       setStatus('done');
       done(answer.value);
-    } else if (answer.name === term) setSearchError(verdict || 'You must provide a valid value');
-    else {
+    } else if (answer.name === term) {
+      // The line event emptied readline's line: the refused term goes back, to edit.
+      rl.write(term);
+      setSearchError(verdict || 'You must provide a valid value');
+    } else {
+      // Stryker disable next-line NumericLiteral: readline's `Interface#clearLine()` takes no argument; the 0 is `@inquirer/core`'s call shape
+      rl.clearLine(0);
       rl.write(answer.name);
       setTerm(answer.name);
     }
@@ -131,10 +145,19 @@ export const search = createPrompt(<Value>(config: SearchConfig<Value>, done: (v
   const move = (rl: PromptReadline, up: boolean): void => {
     // Stryker disable next-line NumericLiteral: readline's `Interface#clearLine()` takes no argument; the 0 is `@inquirer/core`'s call shape
     rl.clearLine(0);
+    // The arrow landed in the line too: the term goes back, so the next key edits it.
+    rl.write(term);
     if (canMove(false, up, active, bounds)) setActive(step(results, active, up ? -1 : 1, isSelectable));
   };
 
   useKeypress(async (key, rl) => {
+    if (status === 'validating') {
+      // readline took the key into its line; the term the choice is being judged by stays.
+      // Stryker disable next-line NumericLiteral: readline's `Interface#clearLine()` takes no argument; the 0 is `@inquirer/core`'s call shape
+      rl.clearLine(0);
+      rl.write(term);
+      return;
+    }
     if (isEnterKey(key)) {
       // readline cleared the line on Enter; with nothing to answer, the term goes back.
       if (chosen && status === 'idle') await submit(rl, chosen);
@@ -148,7 +171,7 @@ export const search = createPrompt(<Value>(config: SearchConfig<Value>, done: (v
     else setTerm(rl.line);
   });
 
-  const message = theme.style.message(config.message, status);
+  const message = theme.style.message(config.message, shownStatus);
   const page = usePagination<Item<Value>>({
     items: results,
     active,

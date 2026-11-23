@@ -338,7 +338,10 @@ export function containerPlan(c: Container, p: PlanInput): { volumes: string[][]
   const bases = p.bases ?? [];
   const source = p.fetch ? fetchSteps(p.fetch, p.keep, bases) : [...(p.sync ? copySteps(p.sync) : []), ...baseSteps(bases)];
   // The install on a line of its own: a `#` in it comments out the rest of its line, not the `fi`.
-  const install = p.install ? [`if [ "$(cat ${WORK}/installed 2>/dev/null)" != ${quote(p.key)} ]; then`, p.install, `echo ${quote(p.key)} > ${WORK}/installed; fi`] : [];
+  // A brace group with `|| exit`: errexit ignores a failing command in the middle of an `&&` chain, so a
+  // `corepack enable && pnpm install && ...` that failed at pnpm went on to write the stamp, and the volume
+  // was never installed again (a pnpm install aborted for want of a TTY left an old oxmutate in use, 2026-11-22).
+  const install = p.install ? [`if [ "$(cat ${WORK}/installed 2>/dev/null)" != ${quote(p.key)} ]; then`, '{', p.install, '} || exit "$?"', `echo ${quote(p.key)} > ${WORK}/installed; fi`] : [];
   // The host's own oxmutate, once per version: the project need not depend on it, and it reads the argv the host wrote.
   const self = c.command === undefined ? [`[ -x ${SELF_BIN} ] || npm install --no-save --no-audit --no-fund --prefix ${SELF} oxmutate@${VERSION} || { echo 'oxmutate: the container could not install oxmutate@${VERSION} from the registry. fix: set container.command to an oxmutate the image or the project has, and container.install to an install that needs no network' >&2; exit 5; }`] : [];
   const sync = ['set -e', `mkdir -p ${SRC} && cd ${SRC}`, ...source, ...install, ...self].join('\n');
