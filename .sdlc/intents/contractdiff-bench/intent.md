@@ -24,8 +24,8 @@ defaults; publishing and naming stay with the owner)
 - **R3. One reading, per tool.** Missed breaks (D2), false breaks (D3), agreement with oasdiff
   (D1), median time on the timing pairs (D4), crashes, and formats covered (D5), with every
   disagreement listed by pair and tool, losing rows included.
-- **R4. Run where the other benchmarks run.** A `--sample N` mode for a pull request, the full
-  corpus nightly, results under `benchmarks/apicontract/results/`.
+- **R4. Run where the other benchmarks run.** A `--sample N` mode nightly, a larger sample
+  weekly, results under `benchmarks/apicontract/results/`.
 
 ## Why now
 
