@@ -75,6 +75,22 @@ describe('options with no config file', () => {
     expect([await at(1), await at(2), await at(9), await at(10), await at(64)]).toEqual([1, 1, 8, 8, 8]);
     cores.n = 4;
   });
+  it('use every core but one inside the container, with no cap of eight', async () => {
+    const root = project();
+    const at = async (c: number): Promise<number> => {
+      cores.n = c;
+      return (await loadOptions(root)).concurrency;
+    };
+    vi.stubEnv('OXMUTATE_CONTAINER', 'inside');
+    try {
+      expect([await at(1), await at(2), await at(9), await at(14), await at(64)]).toEqual([1, 1, 8, 13, 63]);
+    } finally {
+      vi.unstubAllEnvs();
+      cores.n = 4;
+    }
+    expect(await at(14)).toBe(8);
+    cores.n = 4;
+  });
   it('take overrides over everything', async () => {
     const root = project({ 'oxmutate.config.json': { concurrency: 2 } });
     expect((await loadOptions(root, { concurrency: 7, since: 'main' })).concurrency).toBe(7);
