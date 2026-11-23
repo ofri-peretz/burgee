@@ -2,13 +2,14 @@
  * `apicontract props <contract>` (contract-properties R3, R4): property tests drawn from the
  * contract, run against apicontract's own validator, normaliser and classifier, with no server.
  * Exit 1 on any counterexample, printed with the seed that replays it and the smallest value found.
+ * `--sarif` (R5) prints the counterexamples as SARIF 2.1.0, as `diff --sarif` does its findings.
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
 import { defineCommand, ExitCode } from 'burgee';
 
-import { type GitReader, noGit, readContract } from './command-diff.js';
+import { type GitReader, noGit, readContract, uriOf } from './command-diff.js';
 import { MODES, type Mode, type Side, SIDES } from './diff-classify.js';
 import { emitArbitraries } from './props-emit.js';
 import { type Counterexample, PROPERTIES, type Report, runProps, type Subject } from './props-run.js';
@@ -34,6 +35,8 @@ export interface PropsCommandOptions {
   readonly side?: Side | undefined;
   /** Write the arbitraries module here. */
   readonly emit?: string | undefined;
+  /** Render SARIF 2.1.0 as the text output, for code scanning. */
+  readonly sarif?: boolean | undefined;
   readonly git?: GitReader;
   readonly subject?: Partial<Subject>;
 }
@@ -61,6 +64,23 @@ export const toText = (report: Report, label: string, emitted: string | undefine
   return lines.join('\n');
 };
 
+/** SARIF 2.1.0: one `error` per counterexample, at the contract file and the operation and payload it was drawn for. */
+export const toSarif = (report: Report, file: string): object => ({
+  version: '2.1.0',
+  $schema: 'https://json.schemastore.org/sarif-2.1.0.json',
+  runs: [
+    {
+      tool: { driver: { name: 'apicontract props', rules: PROPERTIES.map((property) => ({ id: `props/${property}` })) } },
+      results: report.counterexamples.map((found) => ({
+        ruleId: `props/${found.property}`,
+        level: 'error',
+        message: { text: `${found.property}: ${found.operation} ${found.payload}: ${found.detail}. value: ${cut(found.value)}. fix: replay with --seed ${String(report.seed)}` },
+        locations: [{ physicalLocation: { artifactLocation: { uri: uriOf(file) } }, logicalLocations: [{ fullyQualifiedName: `${found.operation} ${found.payload}` }] }],
+      })),
+    },
+  ],
+});
+
 export const props = (options: PropsCommandOptions): Record<string | symbol, unknown> => {
   const git = options.git ?? noGit;
   const side = readContract(options.contract, options.cwd, git);
@@ -78,15 +98,17 @@ export const props = (options: PropsCommandOptions): Record<string | symbol, unk
     }
   }
   const failed = report.counterexamples.length > 0;
+  const sarif = options.sarif === true ? toSarif(report, side.file) : undefined;
   const data: Record<string | symbol, unknown> = {
     ...report,
     contract: side.label,
     ...(options.against === undefined ? {} : { against: options.against }),
     ...(options.emit === undefined ? {} : { emitted: options.emit }),
     changed: wrote,
+    ...(sarif === undefined ? {} : { sarif }),
     ...(failed ? { exitCode: ExitCode.RUNTIME, fix: `each counterexample is a bug in the code its property names: replay it with --seed ${String(report.seed)}` } : {}),
   };
-  data[TEXT] = () => toText(report, side.label, options.emit, wrote);
+  data[TEXT] = () => (sarif === undefined ? toText(report, side.label, options.emit, wrote) : JSON.stringify(sarif, undefined, 2));
   return data;
 };
 
@@ -104,6 +126,7 @@ export const command = defineCommand({
     { command: 'apicontract props openapi.yaml', description: 'the properties on every payload, 1000 values each' },
     { command: 'apicontract props new.yaml --against old.yaml --seed 7', description: 'also check that what diff calls compatible is, replayably' },
     { command: 'apicontract props openapi.yaml --emit test/arbitraries.ts --runs 0', description: 'write fast-check arbitraries for your own tests' },
+    { command: 'apicontract props openapi.yaml --seed 7 --sarif', description: 'counterexamples as SARIF, for code scanning' },
   ],
   arguments: [{ name: 'contract', description: 'the contract: a file, or git:<ref>:<path>' }],
   options: {
@@ -113,6 +136,7 @@ export const command = defineCommand({
     mode: { type: 'string', choices: MODES, description: 'the compatibility question soundness checks, as in diff (default backward)' },
     side: { type: 'string', choices: SIDES, description: 'whose code the question is about, as in diff (default caller)' },
     emit: { type: 'string', description: 'write the fast-check arbitraries to this file', placeholder: 'file' },
+    sarif: { type: 'boolean', description: 'print SARIF 2.1.0 for code scanning instead of text' },
   },
   run: ({ args, options }) =>
     props({
@@ -124,5 +148,6 @@ export const command = defineCommand({
       mode: options.mode as Mode | undefined,
       side: options.side as Side | undefined,
       emit: options.emit,
+      sarif: options.sarif as boolean | undefined,
     }),
 });
