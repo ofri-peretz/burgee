@@ -464,14 +464,14 @@ async function specsMode(write: Write, paths: Paths, recording: boolean): Promis
   try {
     if (recording) {
       write('\nrecording specification releases\n\n');
-      const failures = await recordSpecs(paths.packages, write);
+      const failures = await recordSpecs(paths.packages, write, { token: process.env.GITHUB_TOKEN });
       // A record run reports nothing: an empty list, so a stale report cannot open an issue.
       writeFileSync(paths.specs, `${JSON.stringify({ checked: new Date().toISOString(), updates: [], unchecked: [] }, null, 2)}\n`);
       write(failures === 0 ? '\n  every specification recorded\n' : `\n\u2716 ${failures} specification(s) unchecked, not recorded\n`);
       return failures === 0 ? 0 : 1;
     }
     write('\nspecification releases\n\n');
-    const result = await checkSpecs(paths.packages, write);
+    const result = await checkSpecs(paths.packages, write, { token: process.env.GITHUB_TOKEN });
     writeFileSync(paths.specs, `${JSON.stringify({ checked: new Date().toISOString(), updates: result.updates, unchecked: result.unchecked }, null, 2)}\n`);
     if (result.unrecorded.length > 0) {
       write(`\n  ${result.unrecorded.length} specification(s) have nothing recorded yet, so none is reported: ${result.unrecorded.map((u) => u.name).join(', ')}\n  fix: run \`compat-oracle --specs --record\` and commit the specs.json diff\n`);

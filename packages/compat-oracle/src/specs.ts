@@ -398,13 +398,12 @@ function memo(token: string | undefined, get: Get): (spec: Spec) => Promise<Publ
 }
 
 export interface Options {
-  /** `GITHUB_TOKEN`, when set; the request is authenticated with it. */
+  /** `GITHUB_TOKEN`, when set; the request is authenticated with it. The CLI entry reads the environment and hands it in. */
   token?: string | undefined;
   /** `fetch`, or a fixture standing in for it. */
   get?: Get;
 }
 
-const tokenOf = (options: Options): string | undefined => (options.token === undefined ? process.env.GITHUB_TOKEN : options.token);
 
 /** The versions newer than `seen`, oldest first, or the reason this entry cannot be compared. */
 function newerThanSeen(spec: Spec, published: Published[]): { seen: Version | null; comparable: Published[] } {
@@ -455,7 +454,7 @@ function judge(file: SpecFile, spec: Spec, published: Published[], sink: { resul
  */
 export async function check(packagesDir: string, write: Write, options: Options = {}): Promise<SpecsResult> {
   const result: SpecsResult = { updates: [], unrecorded: [], unchecked: [] };
-  const fetched = memo(tokenOf(options), options.get ?? liveGet);
+  const fetched = memo(options.token, options.get ?? liveGet);
   for (const file of readSpecFiles(packagesDir)) {
     for (const spec of file.specs) {
       try {
@@ -499,7 +498,7 @@ function recorded(spec: Spec, published: Published[], today: string, write: Writ
  * counted; the others are still recorded. Returns how many could not be.
  */
 export async function record(packagesDir: string, write: Write, options: RecordOptions = {}): Promise<number> {
-  const fetched = memo(tokenOf(options), options.get ?? liveGet);
+  const fetched = memo(options.token, options.get ?? liveGet);
   const today = options.today ?? new Date().toISOString().slice(0, ISO_DATE_LENGTH);
   let failures = 0;
   for (const file of readSpecFiles(packagesDir)) {

@@ -473,7 +473,7 @@ describe('--specs and --specs --record', () => {
   it('reports a clean pass, writes the empty update list, and exits 0', async () => {
     checkedSpecs.mockResolvedValue({ updates: [], unrecorded: [], unchecked: [] });
     expect(await main(['--specs'], write, paths)).toBe(0);
-    expect(checkedSpecs.mock.calls).toEqual([[paths.packages, write]]);
+    expect(checkedSpecs.mock.calls).toEqual([[paths.packages, write, { token: process.env.GITHUB_TOKEN }]]);
     expect(out).toBe('\nspecification releases\n\n\n  every specification checked is at its recorded release\n');
     expect(json<{ updates: unknown[]; unchecked: unknown[] }>(paths.specs)).toMatchObject({ updates: [], unchecked: [] });
   });
@@ -517,7 +517,7 @@ describe('--specs and --specs --record', () => {
     // A report left by an earlier run must not survive a record run into an issue.
     writeFileSync(paths.specs, JSON.stringify({ updates: [update] }));
     expect(await main(['--specs', '--record'], write, paths)).toBe(0);
-    expect(recorded.mock.calls).toEqual([[paths.packages, write]]);
+    expect(recorded.mock.calls).toEqual([[paths.packages, write, { token: process.env.GITHUB_TOKEN }]]);
     expect(checkedSpecs).not.toHaveBeenCalled();
     expect(out).toBe('\nrecording specification releases\n\n\n  every specification recorded\n');
     expect(json<{ updates: unknown[] }>(paths.specs).updates).toEqual([]);

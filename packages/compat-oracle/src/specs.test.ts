@@ -524,15 +524,13 @@ describe('R7 — a repo that cannot be read is unchecked, never up to date', () 
     expect(without.asked[0]?.headers['User-Agent']).toBe('burgee-compat-oracle');
   });
 
-  it('reads GITHUB_TOKEN from the environment and the global fetch when nothing is handed in', async () => {
+  it('uses the global fetch when none is handed in, with the token it is given', async () => {
     const heard: string[] = [];
     vi.stubGlobal('fetch', (_url: string, init: { headers: Record<string, string> }) => {
       heard.push(init.headers.Authorization ?? 'none');
       return Promise.resolve(new Response(JSON.stringify(releases('3.1.1')), { status: 200 }));
     });
-    vi.stubEnv('GITHUB_TOKEN', 'from-env');
-    const result = await check(packages([entry({ seen })]), () => undefined);
-    vi.unstubAllEnvs();
+    const result = await check(packages([entry({ seen })]), () => undefined, { token: 'from-env' });
     vi.unstubAllGlobals();
     expect(result.updates).toEqual([]);
     expect(heard).toEqual(['Bearer from-env']);
