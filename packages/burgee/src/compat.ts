@@ -175,7 +175,7 @@ export const DROP_INS: readonly DropIn[] = [
 export const GRADED_VERSIONS: Readonly<Record<string, string>> = {
   '@clack/prompts': '1.9.0',
   '@commander-js/extra-typings': '15.1.0',
-  '@inquirer/core': '12.1.0',
+  '@inquirer/core': '12.1.1',
   '@inquirer/prompts': '8.8.0',
   'ansi-escapes': '7.3.0',
   boxen: '9.0.0',

@@ -48,7 +48,18 @@ interface Store {
   hooksEffect: (() => void)[];
   index: number;
   handleChange: () => void;
+  /**
+   * A paint `withUpdates` could not run inside the flush that asked for it, or `null`. Settling
+   * empties it, so a settled prompt never draws again.
+   */
+  deferredPaint: (() => void) | null;
 }
+
+/**
+ * The real `queueMicrotask`, taken at load: a test on fake timers mocks it, and a deferred paint
+ * must never wait on a mocked clock (@inquirer/core 12.1.1).
+ */
+const nativeQueueMicrotask = globalThis.queueMicrotask;
 
 const hookStorage = new AsyncLocalStorage<Store>();
 
@@ -60,7 +71,7 @@ const hookStorage = new AsyncLocalStorage<Store>();
  */
 export function withHooks<T>(rl: PromptReadline, cb: (cycle: (render: () => void) => void) => T): T {
   // Stryker disable next-line NumericLiteral: `cycle` sets the index before the first render, so the starting value is never read
-  const store: Store = { rl, hooks: [], hooksCleanup: [], hooksEffect: [], index: 0, handleChange: () => undefined };
+  const store: Store = { rl, hooks: [], hooksCleanup: [], hooksEffect: [], index: 0, handleChange: () => undefined, deferredPaint: null };
   return hookStorage.run(store, () =>
     cb((render: () => void) => {
       store.handleChange = () => {
@@ -84,6 +95,17 @@ export function readline(): PromptReadline {
   return getStore().rl;
 }
 
+/** A `handleChange` that only notes that something changed, and the question it answers. */
+function changeRecorder(): { record: () => void; changed: () => boolean } {
+  let changed = false;
+  return {
+    record: () => {
+      changed = true;
+    },
+    changed: () => changed,
+  };
+}
+
 /**
  * Wrap a function so every state change it makes collapses into a single re-render, and so
  * it stays reachable from whatever async context later calls it.
@@ -91,17 +113,45 @@ export function readline(): PromptReadline {
 export function withUpdates<Args extends unknown[], R>(fn: (...args: Args) => R): (...args: Args) => R {
   const wrapped = (...args: Args): R => {
     const store = getStore();
-    let shouldUpdate = false;
+    const update = changeRecorder();
     const previous = store.handleChange;
-    store.handleChange = () => {
-      shouldUpdate = true;
-    };
+    store.handleChange = update.record;
     const returnValue = fn(...args);
-    if (shouldUpdate) previous();
-    store.handleChange = previous;
+    if (update.changed()) {
+      // Flush the merged render, and record any change made *while* it flushes — the effects
+      // that render runs setting state — into a fresh flag. The effect runner is itself a
+      // `withUpdates`, so it captures this recorder as its `previous` and never renders inside
+      // this flush.
+      const flushed = changeRecorder();
+      store.handleChange = flushed.record;
+      previous();
+      store.handleChange = previous;
+      // That change was recorded after the one flush ran, so nothing drew it: the canonical
+      // symptom is a search prompt still drawn idle while the fetch its last key started is
+      // pending. It cannot be drawn here either, or a second key in the same synchronous batch
+      // reads the effect's state (tab autocomplete would stop submitting). One paint goes to a
+      // microtask instead: after this batch, before any next input, timer or I/O
+      // (@inquirer/core 12.1.1).
+      if (flushed.changed()) scheduleDeferredPaint(store, previous);
+    } else store.handleChange = previous;
     return returnValue;
   };
   return AsyncResource.bind(wrapped);
+}
+
+/**
+ * The store's one pending deferred paint. One is enough: a paint draws the current state, so a
+ * newer request only has to find the slot already filled.
+ */
+function scheduleDeferredPaint(store: Store, paint: () => void): void {
+  if (store.deferredPaint !== null) return;
+  store.deferredPaint = AsyncResource.bind(paint);
+  nativeQueueMicrotask(() => {
+    const pending = store.deferredPaint;
+    if (pending === null) return;
+    store.deferredPaint = null;
+    pending();
+  });
 }
 
 /** One hook's slot in the store, addressed by the order the render function called it in. */
@@ -175,6 +225,8 @@ export const effectScheduler = {
   /** Run every cleanup and forget both lists. Idempotent, because settling can race. */
   clearAll(): void {
     const store = getStore();
+    // A settling prompt must not draw once more after its screen is gone.
+    store.deferredPaint = null;
     for (const cleanup of store.hooksCleanup) cleanup?.();
     store.hooksEffect.length = 0;
     store.hooksCleanup.length = 0;

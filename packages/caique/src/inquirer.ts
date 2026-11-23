@@ -360,9 +360,23 @@ function runPrompt<Value, Config>(view: ViewFunction<Value, Config>, origin: str
         forceClosed('SIGINT');
       }),
     );
-    // stdin reaching EOF closes readline without settling anything; without this, an
-    // effect's timer would keep the process alive after there is nobody left to ask.
-    cleanups.add(listenTo(rl, 'close', clearEffects));
+    // A terminal closes readline on Ctrl+D (EOF on an empty line): reject now, as SIGINT does,
+    // so the caller handles it while the process is still alive (@inquirer/core 12.1.1). A pipe
+    // closes as soon as it drains, possibly mid-validation, so there only the effects' timers
+    // are cleared, or one would keep the process alive with nobody left to ask, and the prompt
+    // settles on its own. Settling removes this listener before the screen closes readline.
+    const isTerminal = (input as { isTTY?: boolean }).isTTY === true;
+    cleanups.add(
+      listenTo(
+        rl,
+        'close',
+        isTerminal
+          ? () => {
+              forceClosed('EOF');
+            }
+          : clearEffects,
+      ),
+    );
 
     const startCycle = (): void => {
       // Registered after the first cycle is armed, not before: readline moves the cursor
@@ -403,7 +417,7 @@ function runPrompt<Value, Config>(view: ViewFunction<Value, Config>, origin: str
     // Only a terminal's early bytes are stale keystrokes. A pipe's are the answer itself, written
     // before the prompt started, and a deferred render would drop them and wait forever
     // (@inquirer/core 12.0.6).
-    if ('readableFlowing' in input && (input as { isTTY?: boolean }).isTTY === true) {
+    if ('readableFlowing' in input && isTerminal) {
       // A prompt settled before its first render never draws it: a cancel or an abort in the
       // same tick would otherwise leave readline listening on an input nobody reads
       // (@inquirer/core 12.0.5).

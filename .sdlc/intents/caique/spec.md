@@ -512,6 +512,11 @@ prevent, so it is named here instead. It is the one thing standing between this 
 a full drop-in for `@inquirer/prompts`' `select` and `checkbox`, and the way to close it is
 to grade it — `@inquirer/core`'s repository has a pagination suite that is not vendored yet.
 
+**Closed since.** `usePagination` is built in `src/inquirer-pagination.ts` and graded by
+`select`'s pagination suite in the `inquirer-prompts` row, where upstream moved it
+(D-20261011-inquirer-pagination-suite-is-selects). The paragraph above is kept as the reason
+it waited for a suite.
+
 ### R8 — `caique/clack`, and the ceiling
 
 D-001 is executed: the seventeen files of `@clack/prompts`' suite that carry
