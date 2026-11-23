@@ -226,6 +226,22 @@ const quote = (s: string): string => `'${s.replaceAll("'", String.raw`'\''`)}'`;
 /** The sync script's exit when the volume is not the one the host last synced: send it whole. */
 export const RESYNC = 75;
 
+/** The sync script's exit code when it failed with its volume (nearly) full. */
+export const FULL = 6;
+
+/** What the engine, tar, npm or the kernel say when a disk has no room. */
+const DISK_FULL = /no space left on device|ENOSPC|disk quota exceeded/iu;
+
+/** The one line a full engine disk gives: the engine's disk (Docker Desktop's or the Podman machine's image holds every volume), and what frees it. */
+export const fullDisk = (what: string, engine: string): string => {
+  const base = path.basename(engine).startsWith('podman') ? 'podman' : 'docker';
+  return `${what}: the engine's disk is full. fix: run \`oxmutate prune\` to remove oxmutate's volumes and \`${base} system prune\` for the rest, or give Docker Desktop or the Podman machine a bigger disk (\`podman machine set --disk-size\`)`;
+};
+
+/** The one line a full host disk gives: the temporary directory that holds the run's staging. */
+export const fullHostDisk = (what: string): string => `${what}: the host's disk is full (${tmpdir()} holds the run's staging). fix: free space there, or set TMPDIR to a disk with room`;
+
+
 /** A git ref the run names (`--since`, `--frozen-oracle`), the commit it is, and the tag it becomes inside. */
 export interface Base {
   ref: string;
@@ -264,6 +280,16 @@ const removals = (files: readonly string[]): string[] => {
   for (let i = 0; i < files.length; i += REMOVALS_PER_LINE) lines.push(`rm -f -- ${files.slice(i, i + REMOVALS_PER_LINE).map(quote).join(' ')}`);
   return lines;
 };
+
+/** Below this much room on the volume (KiB), a failed sync is reported as a full volume. */
+export const MIN_FREE_KIB = 65536;
+
+/**
+ * Installed first in the sync script: when the script fails (not for RESYNC, which is a request) and the volume
+ * has under \`MIN_FREE_KIB\` left, the exit code is \`FULL\`. The install's own output goes to the terminal, where
+ * the host cannot read it, so the volume itself says whether a failed install ran out of room.
+ */
+export const FULL_TRAP = `trap 'rc=$?; if [ "$rc" -ne 0 ] && [ "$rc" -ne ${String(RESYNC)} ]; then set -- $(df -Pk ${WORK} 2>/dev/null | tail -n 1); [ "\${4:-999999}" -ge ${String(MIN_FREE_KIB)} ] || { echo "oxmutate: the volume has no room left" >&2; exit ${String(FULL)}; }; fi; exit "$rc"' EXIT`;
 
 /** How the copy gets into the volume: whole (unpacked, then pruned to the host's listing), or a delta on the volume last synced. */
 function copySteps(sync: Sending): string[] {
@@ -344,7 +370,7 @@ export function containerPlan(c: Container, p: PlanInput): { volumes: string[][]
   const install = p.install ? [`if [ "$(cat ${WORK}/installed 2>/dev/null)" != ${quote(p.key)} ]; then`, '{', p.install, '} || exit "$?"', `echo ${quote(p.key)} > ${WORK}/installed; fi`] : [];
   // The host's own oxmutate, once per version: the project need not depend on it, and it reads the argv the host wrote.
   const self = c.command === undefined ? [`[ -x ${SELF_BIN} ] || npm install --no-save --no-audit --no-fund --prefix ${SELF} oxmutate@${VERSION} || { echo 'oxmutate: the container could not install oxmutate@${VERSION} from the registry. fix: set container.command to an oxmutate the image or the project has, and container.install to an install that needs no network' >&2; exit 5; }`] : [];
-  const sync = ['set -e', `mkdir -p ${SRC} && cd ${SRC}`, ...source, ...install, ...self].join('\n');
+  const sync = ['set -e', FULL_TRAP, `mkdir -p ${SRC} && cd ${SRC}`, ...source, ...install, ...self].join('\n');
   const run = ['set -e', ...(c.setup ? [c.setup] : []), `cd ${quote(path.posix.join(SRC, p.rel))}`, `exec ${c.command ?? SELF_BIN} ${p.argv.map(quote).join(' ')}`].join('\n');
   // The volume's label is how a second run on it sees this one running (`waitForVolume`).
   const volume = ['-v', `${p.volume}:${WORK}`, '--label', `${VOLUME_LABEL}=${p.volume}`];
@@ -372,7 +398,7 @@ export function engineOf(c: Container): { global: string[]; env: Record<string, 
 }
 
 /** What Docker and Podman say when the CLI is there and the daemon it talks to is not. */
-const DAEMON_DOWN = ['Cannot connect to the Docker daemon', 'Is the docker daemon running', 'connection refused', 'Cannot connect to Podman'];
+const DAEMON_DOWN = ['Cannot connect to the Docker daemon', 'Is the docker daemon running', 'connection refused', 'Cannot connect to Podman', 'unable to connect to Podman', 'podman machine start'];
 
 /** Runs the engine, with the fix line when the engine itself is missing or its daemon is not running. */
 function engineRunner(spawn: Spawn, c: Container) {
@@ -403,16 +429,24 @@ export async function withRuntime(c: Container, engine: Engine): Promise<Contain
   return info.code === 0 && info.stdout.includes('"runsc"') ? { ...c, runtime: 'runsc' } : c;
 }
 
+/** The line a container that could not be created gives: a full disk and a Podman short name have their own fix. */
+const createFailed = (stderr: string, name: string): string => {
+  if (DISK_FULL.test(stderr)) return fullDisk('the container could not be created', name);
+  // Podman refuses a name with no registry when its registries.conf names none and there is no TTY to ask on.
+  if (/short-name/iu.test(stderr)) return `the container could not be created: ${stderr.trim()}. fix: set container.image to a full name, such as docker.io/library/node:${String(nodeMajor)}-bookworm-slim`;
+  return `the container could not be created: ${stderr.trim()}. fix: check container.image and the engine's own error`;
+};
+
 /** Creates a container, copies `files` (host path, container path) into it, starts it attached, and returns its exit code and id. */
-async function startWith(engine: Engine, create: readonly string[], files: readonly (readonly [string, string])[], o: { stdio?: 'inherit' } = {}): Promise<{ code: number | null; id: string }> {
+async function startWith(engine: Engine, create: readonly string[], files: readonly (readonly [string, string])[], o: { stdio?: 'inherit'; name: string }): Promise<{ code: number | null; id: string }> {
   const made = await engine(create);
-  if (made.code !== 0) throw new Error(`the container could not be created: ${made.stderr.trim()}. fix: check container.image and the engine's own error`);
+  if (made.code !== 0) throw new Error(`${createFailed(made.stderr, o.name)}`);
   const id = made.stdout.trim();
   const copied = await Promise.all(files.map(async ([from, to]) => engine(['cp', from, `${id}:${to}`])));
   const failed = copied.find((r) => r.code !== 0);
   if (failed) {
     await engine(['rm', '-f', id]);
-    throw new Error(`the copy into the container failed: ${failed.stderr.trim()}`);
+    throw new Error(DISK_FULL.test(failed.stderr) ? fullDisk('the copy into the container failed', o.name) : `the copy into the container failed: ${failed.stderr.trim()}. fix: run \`oxmutate prune\` and try again; if it repeats, check the engine's own error and container.image`);
   }
   const started = await engine(['start', '-a', id], o.stdio ? { stdio: o.stdio } : {});
   return { code: started.code, id };
@@ -438,7 +472,7 @@ async function pack({ spawn, top, io, host }: Host, sync: Sending, listing: read
     writeFileSync(path.join(io, 'files'), send.join('\0'));
     // The archive is named relative to `io`: GNU tar (Git Bash's on Windows) reads `C:/…` as a remote host.
     const tar = await spawn('tar', ['-cf', 'in.tar', ...tarFlags(host), '-C', top, '--null', '-T', path.join(io, 'files')], { cwd: io, runtime, timeout: 0 });
-    if (tar.code !== 0) throw new Error(`tar could not pack ${top}: ${tar.stderr.trim()}`);
+    if (tar.code !== 0) throw new Error(DISK_FULL.test(tar.stderr) ? fullHostDisk(`tar could not pack ${top}`) : `tar could not pack ${top}: ${tar.stderr.trim()}. fix: check the tar error above and that every listed file is readable`);
     files.push([path.join(io, 'in.tar'), `${WORK}/in.tar`]);
   }
   if (sync.mode === 'whole') {
@@ -479,17 +513,22 @@ function installKey(c: Container, top: string, install: string, lock: string | u
  * One `<engine> cp` per file, into the host's own temporary directory first, so a file the run did
  * not write leaves nothing behind, not even its directory. No tar runs on the host.
  */
-async function copyBack({ engine, back, keep, io, top }: { engine: Engine; back: readonly string[]; keep: readonly string[]; io: string; top: string }): Promise<void> {
+async function copyBack({ engine, name, back, keep, io, top }: { engine: Engine; name: string; back: readonly string[]; keep: readonly string[]; io: string; top: string }): Promise<void> {
   const made = await engine(back);
-  if (made.code !== 0) throw new Error(`the container could not be created: ${made.stderr.trim()}. fix: check container.image and the engine's own error`);
+  if (made.code !== 0) throw new Error(`${createFailed(made.stderr, name)}`);
   const id = made.stdout.trim();
   try {
     await Promise.all(
       keep.map(async (file, i) => {
         const staged = path.join(io, `kept-${String(i)}`);
         if ((await engine(['cp', `${id}:${SRC}/${file}`, staged])).code !== 0) return;
-        mkdirSync(path.dirname(path.join(top, file)), { recursive: true });
-        copyFileSync(staged, path.join(top, file));
+        try {
+          mkdirSync(path.dirname(path.join(top, file)), { recursive: true });
+          copyFileSync(staged, path.join(top, file));
+        } catch (e) {
+          if ((e as NodeJS.ErrnoException).code === 'ENOSPC') throw new Error(`${fullHostDisk(`${file} could not be written to ${top}`)}`);
+          throw e;
+        }
       }),
     );
   } finally {
@@ -541,8 +580,8 @@ function registryAuth(io: string): { files: [string, string][]; create: string[]
 async function syncVolume(h: Host & { engine: Engine; c: Container; plan: (sync: Sending | undefined) => ReturnType<typeof containerPlan>; key: string; volume: string; keep: readonly string[]; bases: readonly Base[]; auth: readonly [string, string][] }): Promise<void> {
   const { engine, c, key, volume, bases, auth } = h;
   if (c.source === 'git') {
-    const synced = await startWith(engine, h.plan(undefined).sync, auth, { stdio: 'inherit' });
-    if (synced.code !== 0) throw new Error(`${installFailed(synced.code)}`);
+    const synced = await startWith(engine, h.plan(undefined).sync, auth, { stdio: 'inherit', name: c.engine });
+    if (synced.code !== 0) throw new Error(`${installFailed(synced.code, c.engine)}`);
     return;
   }
   const names = await listed(h.spawn, h.top, h.keep, c.include);
@@ -550,21 +589,21 @@ async function syncVolume(h: Host & { engine: Engine; c: Container; plan: (sync:
   const volumeExisted = (await engine(['volume', 'inspect', volume])).code === 0;
   let sync = planSync(now, c.ephemeral ? undefined : readState(volume), { volumeExisted, install: key, mustRun: bases.length > 0 });
   if (sync.mode !== 'skip') {
-    const send = async (s: Sending): Promise<number | null> => (await startWith(engine, h.plan(s).sync, [...(await pack(h, s, names, bases)), ...auth], { stdio: 'inherit' })).code;
+    const send = async (s: Sending): Promise<number | null> => (await startWith(engine, h.plan(s).sync, [...(await pack(h, s, names, bases)), ...auth], { stdio: 'inherit', name: c.engine })).code;
     let code = await send(sync);
     // A volume that is not the one last synced refuses the delta: it gets everything, once.
     if (code === RESYNC && sync.mode === 'delta') {
       sync = wholeSync(now);
       code = await send(sync);
     }
-    if (code !== 0) throw new Error(`${installFailed(code)}`);
+    if (code !== 0) throw new Error(`${installFailed(code, c.engine)}`);
   }
   if (!c.ephemeral) writeState(volume, nextState(sync, key, now));
 }
 
 /** The one line a failed sync or install gives: what its output above most often means, and what to set. */
-export const installFailed = (code: number | null): string =>
-  `the sync into the container or its install failed (exit ${String(code)}); its output is above. fix: for "out of date" or "frozen", update the lockfile on the host (npm, pnpm or yarn install) and commit it; for 401, 403 or 404, log in to the registry on the host (~/.npmrc, ~/.yarnrc.yml; container.installEnv for a token variable); otherwise set container.install, or container.image to one with what the install needs`;
+export const installFailed = (code: number | null, engine: string): string =>
+  code === FULL ? fullDisk(`the sync into the container or its install failed (exit ${String(code)})`, engine) : `the sync into the container or its install failed (exit ${String(code)}); its output is above. fix: for "out of date" or "frozen", update the lockfile on the host (npm, pnpm or yarn install) and commit it; for 401, 403 or 404, log in to the registry on the host (~/.npmrc, ~/.yarnrc.yml; container.installEnv for a token variable); otherwise set container.install, or container.image to one with what the install needs`;
 
 /** How often a run waiting for the volume asks again, and how many times before it gives up (10 minutes). */
 const BUSY_POLL_MS = 2000;
@@ -624,14 +663,14 @@ export async function runInContainer(
       // eslint-disable-next-line reliability/no-await-in-loop -- the run's volume and the shared cache, in order
       const made = await engine(v);
       // Podman, unlike Docker, refuses to create a volume that exists.
-      if (made.code !== 0 && !made.stderr.includes('already exists')) throw new Error(`the volume ${String(v.at(-1))} could not be created: ${made.stderr.trim()}. fix: check the engine's own error, or set container.volume`);
+      if (made.code !== 0 && !made.stderr.includes('already exists')) throw new Error(DISK_FULL.test(made.stderr) ? fullDisk(`the volume ${String(v.at(-1))} could not be created`, runnable.engine) : `the volume ${String(v.at(-1))} could not be created: ${made.stderr.trim()}. fix: check the engine's own error, or set container.volume`);
     }
     await waitForVolume(engine, volume, wait);
     try {
       await syncVolume({ spawn, top, io, host, engine, c: runnable, plan, key, volume, keep, bases, auth: auth.files });
       const ran = await engine(steps.run, { stdio: 'inherit' });
       // Exit 0 and 1 end with a report (1: a threshold missed). Any other code failed before writing one, and what the volume holds is an earlier run's.
-      if (keep.length > 0 && (ran.code === 0 || ran.code === 1)) await copyBack({ engine, back: steps.back, keep, io, top });
+      if (keep.length > 0 && (ran.code === 0 || ran.code === 1)) await copyBack({ engine, name: runnable.engine, back: steps.back, keep, io, top });
       return ran.code ?? 1;
     } finally {
       if (runnable.ephemeral) await engine(steps.drop);

@@ -132,6 +132,14 @@ for it (it says so once, and gives up after 10 minutes) instead of syncing into 
 When the engine's CLI is installed and its daemon is not running, the run stops at the first call
 with that fix: start Docker Desktop, or `podman machine start`.
 
+**A full disk.** The engine's disk holds every volume (Docker Desktop's and the Podman machine's
+image). When it runs out, the volume, container or copy that hit it, or a sync or install that
+failed with under 64 MiB left on the volume, stops the run with one line: run `oxmutate prune`,
+then `docker system prune` (`podman system prune`), or give the engine a bigger disk
+(`podman machine set --disk-size`). A full disk on the host names the host's temporary
+directory instead. Podman's refusal of an image name with no registry says to set
+`container.image` to a full name, such as `docker.io/library/node:22-bookworm-slim`.
+
 **Installing.** The install is chosen by the lockfile: `npm ci`, pnpm, yarn 1 with
 `--frozen-lockfile`, and Yarn 2 or later (a `.yarnrc.yml`, or `packageManager: "yarn@4…"`) with
 `yarn install --immutable`. A bun lockfile chooses nothing: set `image` to one with bun and
