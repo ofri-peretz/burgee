@@ -48,6 +48,12 @@ describe('parseLog', () => {
       { sha: 'cccc', parent: '', subject: 'init', body: '', size: 0 },
     ]);
     expect(parseLog('')).toEqual([]);
+    expect(parseLog('\0dddd\tp\ts\t\u0001\n\n 1 file changed, 1 insertion(+)\n')[0]?.size).toBe(1);
+    // Linear in the stat's length: a long run of digits is read at once.
+    const long = `\0eeee\tp\ts\t\u0001\n\n ${'0'.repeat(100_000)}7 insertions(+)\n`;
+    const started = performance.now();
+    expect(parseLog(long)[0]?.size).toBe(7);
+    expect(performance.now() - started).toBeLessThan(500);
     expect(parseLog('\0abc\u0001')).toEqual([{ sha: 'abc', parent: '', subject: '', body: '', size: 0 }]);
   });
 

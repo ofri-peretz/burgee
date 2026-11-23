@@ -24,7 +24,14 @@ const PR_IN_SUBJECT = /\(#(\d+)\)$/;
 /** A revert, pushed straight or squash-merged with its own pull request number after it. */
 const REVERTED = /^Revert "(.*)"(?: \(#\d+\))?$/;
 const FIXES = /\b(?:fixes|regressed in|introduced in|broken by|shipped in|since)\s+#(\d+)/i;
-const LINES = /(\d+) (?:insertion|deletion)/g;
+
+/** Lines added and removed, from a `--shortstat` line such as ` 2 files changed, 10 insertions(+), 3 deletions(-)`. Split, not matched: a regex over the digits would be slow on a long run of them. */
+const linesIn = (stat: string): number =>
+  stat
+    .split(',')
+    .map((part) => part.trim().split(' '))
+    .filter(([, word]) => word !== undefined && (word.startsWith('insertion') || word.startsWith('deletion')))
+    .reduce((sum, [count]) => sum + Number(count), 0);
 
 export const prOf = (subject: string): number | undefined => {
   const found = PR_IN_SUBJECT.exec(subject.trim())?.[1];
@@ -52,8 +59,7 @@ export const parseLog = (log: string): Commit[] =>
       const [fields = '', stat = ''] = record.split('\u0001');
       // A split always gives the first field, the sha.
       const [sha, parents = '', subject = '', ...body] = fields.split('\t') as [string, ...string[]];
-      const size = [...stat.matchAll(LINES)].reduce((sum, found) => sum + Number(found[1]), 0);
-      return { sha, parent: parents.split(' ')[0] as string, subject, body: body.join('\t').trim(), size };
+      return { sha, parent: parents.split(' ')[0] as string, subject, body: body.join('\t').trim(), size: linesIn(stat) };
     });
 
 export interface Proposal {
