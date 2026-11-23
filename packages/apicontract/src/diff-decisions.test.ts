@@ -17,6 +17,18 @@ const BODY = 'response:200:application/json';
 const problems = (name: string) =>
   readDecisions(fixture(name)).problems.map((finding) => [finding.id, finding.source, finding.payload ?? '', finding.pointer, finding.before, finding.after]);
 
+describe('a marker is read, never diffed (R1)', () => {
+  it('makes no change finding of its own, however it was added, moved or misspelled', () => {
+    for (const name of ['placed', 'misspelled', 'invalid', 'misplaced', 'sunsetting', 'stale', 'overdue', 'replacement-missing']) {
+      expect(compareContracts(fixture('base'), fixture(name)).findings, name).toEqual([]);
+    }
+  });
+
+  it('and a marker that changes value on a member is no change either', () => {
+    expect(compareContracts(fixture('stale'), fixture('base')).findings).toEqual([]);
+  });
+});
+
 describe('decisionsOf (R1, R2)', () => {
   it('reads a marker on a schema member, an operation and a parameter, and nothing off the three', () => {
     const decisions = decisionsOf(fixture('placed'));
