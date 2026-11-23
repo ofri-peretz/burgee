@@ -11,7 +11,6 @@ export interface Source {
   readonly text: string;
 }
 
-const COMMENT = /\/\*\*([\s\S]*?)\*\//g;
 const LOCK_PREFIX = /^Lock\s*[—–-]\s*/;
 const FRONTMATTER = /^---\n[\s\S]*?\n---/;
 
@@ -34,9 +33,25 @@ const firstSentence = (comment: string): string => {
   return end === -1 ? flat : flat.slice(0, end + 1);
 };
 
+const OPEN = '/**';
+const CLOSE = '*/';
+
+/** Each closed `/** … *\/` comment's body, in order. A scan, not a regex: a lazy regex over `/**` is quadratic on a file of unclosed openers. */
+export const docComments = (text: string): string[] => {
+  const bodies: string[] = [];
+  let open = text.indexOf(OPEN);
+  while (open !== -1) {
+    const close = text.indexOf(CLOSE, open + OPEN.length);
+    if (close === -1) break;
+    bodies.push(text.slice(open + OPEN.length, close));
+    open = text.indexOf(OPEN, close + CLOSE.length);
+  }
+  return bodies;
+};
+
 /** A lock test's header (the first doc comment that is not the licence) as a draft item. */
 export const fromLockTest = ({ path, text }: Source): Item | undefined => {
-  const header = [...text.matchAll(COMMENT)].map((found) => found[1] as string).find((body) => !body.includes('Copyright'));
+  const header = docComments(text).find((body) => !body.includes('Copyright'));
   if (header === undefined) return undefined;
   const name = (path.split('/').pop() as string).slice(0, -'.test.ts'.length);
   return {

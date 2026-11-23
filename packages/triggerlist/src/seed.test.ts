@@ -1,8 +1,26 @@
 import { describe, expect, it } from 'vitest';
 
-import { fromDecision, fromLockTest, idOf, toYaml } from './seed.js';
+import { docComments, fromDecision, fromLockTest, idOf, toYaml } from './seed.js';
 
 const LICENCE = '/**\n * Copyright (c) 2026 Ofri Peretz\n */\n';
+
+describe('docComments', () => {
+  it('returns each closed doc comment body in order and stops at an unclosed one', () => {
+    expect(docComments('x /**a*/ y /** b */ /**c')).toEqual(['a', ' b ']);
+    expect(docComments('/**/ /**x*/')).toEqual(['/ /**x']);
+    expect(docComments('/***/')).toEqual(['']);
+    expect(docComments('/**a*/*/ /**b*/')).toEqual(['a', 'b']);
+    // The next opener is looked for after the closer, so `*/**` does not open again.
+    expect(docComments('/**a*/**b*/')).toEqual(['a']);
+    expect(docComments('no comment')).toEqual([]);
+  });
+
+  it('stays linear on many unclosed openers', () => {
+    const started = performance.now();
+    expect(docComments(`/**${'/**a'.repeat(200_000)}`)).toEqual([]);
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
+});
 
 describe('fromLockTest', () => {
   it('drafts from the first doc comment after the licence, its first sentence on one line', () => {
