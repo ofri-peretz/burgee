@@ -59,6 +59,8 @@ jobs:
         with:
           turbo-cache: "false"
           node-modules-cache: "false"
+      # The config loads truemark's rules from its dist (dogfooded, not installed from npm).
+      - run: npm run lint:prereq
       - run: npx eslint . --max-warnings 0
 
   # The four cheap checks share one job. Each used to be its own job, and each spent more

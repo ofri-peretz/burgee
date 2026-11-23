@@ -87,8 +87,10 @@ describe('expand prompt', () => {
 
     events.type('h');
     events.keypress('enter');
+    // The typed "h" doesn't stay on the line after expanding the help, so
+    // the next keystroke starts fresh instead of appending to it.
     expect(getScreen()).toMatchInlineSnapshot(`
-      "? Overwrite this file? h
+      "? Overwrite this file?
         y) Overwrite
         a) Overwrite this one and all next
         d) Show diff
@@ -165,7 +167,7 @@ describe('expand prompt', () => {
     events.type('h');
     events.keypress('enter');
     expect(getScreen()).toMatchInlineSnapshot(`
-      "? Overwrite this file? h
+      "? Overwrite this file?
         y) Yarn
        ──────────────
         n) npm"
@@ -337,6 +339,32 @@ describe('expand prompt', () => {
     await expect(answer).rejects.toThrow();
   });
 
+  it('lets the user edit the rejected choice with Backspace', async () => {
+    const { answer, events, getScreen } = await render(expand, {
+      message: 'Overwrite this file?',
+      choices: overwriteChoices,
+    });
+
+    events.type('yq');
+    events.keypress('enter');
+    expect(getScreen()).toContain('"yq" isn\'t an available option');
+
+    // The rejected input stays on the line, so typing appends to it and
+    // Backspace edits it instead of starting over.
+    events.type('z');
+    expect(getScreen()).toContain('? Overwrite this file? (yadxH) yqz');
+
+    events.keypress('backspace');
+    events.keypress('backspace');
+    expect(getScreen()).toMatchInlineSnapshot(`
+      "? Overwrite this file? (yadxH) y
+      >> Overwrite"
+    `);
+
+    events.keypress('enter');
+    await expect(answer).resolves.toBe('overwrite');
+  });
+
   it('selects without name', async () => {
     const { answer, events, getScreen } = await render(expand, {
       message: 'Overwrite this file?',
@@ -374,6 +402,33 @@ describe('expand prompt', () => {
 
     abortController.abort();
     await expect(answer).rejects.toThrow();
+  });
+
+  // The displayed answer and readline's line must stay in sync: after any
+  // handler rewrites the shown value, the next keystroke edits what is shown
+  // — typing appends, Backspace removes one character. The rejection path is
+  // covered above ("lets the user edit the rejected choice with Backspace").
+  it('starts the answer fresh after the help is expanded', async () => {
+    const { answer, events, getScreen } = await render(expand, {
+      message: 'Overwrite this file?',
+      choices: overwriteChoices,
+    });
+
+    events.type('h');
+    events.keypress('enter');
+    expect(getScreen().split('\n')[0]).toBe('? Overwrite this file?');
+
+    // Typing after expanding doesn't append to a stale "h"...
+    events.type('y');
+    expect(getScreen().split('\n')[0]).toBe('? Overwrite this file? y');
+
+    // ...and Backspace removes exactly one character.
+    events.keypress('backspace');
+    expect(getScreen().split('\n')[0]).toBe('? Overwrite this file?');
+
+    events.type('d');
+    events.keypress('enter');
+    await expect(answer).resolves.toEqual('diff');
   });
 });
 

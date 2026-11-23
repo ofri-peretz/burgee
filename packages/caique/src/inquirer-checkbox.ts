@@ -107,6 +107,19 @@ export const checkbox = createPrompt(<Value>(config: CheckboxConfig<Value>, done
     } else setError(isValid || 'You must select a valid value');
   };
 
+  /** A digit: the nth choice toggled; on a disabled one, the error space shows, and nothing moves (5.3.1). */
+  const pickNth = (nth: number): void => {
+    const position = nthChoice(items, nth);
+    const chosen = items[position];
+    if (!isNavigable(chosen)) return;
+    if (chosen.disabled) setError(theme.i18n.disabledError);
+    else {
+      setError(undefined);
+      setActive(position);
+      toggleAt(position);
+    }
+  };
+
   useKeypress(async (key) => {
     if (status !== 'idle') return;
     const moved = moveCursor(key, keybindings, { items, active, loop, bounds });
@@ -123,16 +136,15 @@ export const checkbox = createPrompt(<Value>(config: CheckboxConfig<Value>, done
         toggleAt(active);
       }
     } else if (key.name === shortcuts.all) {
+      // A shortcut that toggles clears the error, as space does (@inquirer/checkbox 5.3.1).
+      setError(undefined);
       setItems(items.map(check(items.some((choice) => isSelectable(choice) && !choice.checked))));
-    } else if (key.name === shortcuts.invert) setItems(items.map(toggle));
-    // Stryker disable next-line ConditionalExpression: any other key is no number, and `nthChoice` finds no choice at NaN
-    else if (isNumberKey(key)) {
-      const position = nthChoice(items, Number(key.name));
-      if (isSelectable(items[position])) {
-        setActive(position);
-        toggleAt(position);
-      }
+    } else if (key.name === shortcuts.invert) {
+      setError(undefined);
+      setItems(items.map(toggle));
     }
+    // Stryker disable next-line ConditionalExpression: any other key is no number, and `nthChoice` finds no choice at NaN
+    else if (isNumberKey(key)) pickNth(Number(key.name));
   });
 
   const message = theme.style.message(config.message, status);
