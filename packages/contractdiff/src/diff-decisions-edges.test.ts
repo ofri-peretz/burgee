@@ -278,6 +278,56 @@ describe('where decisions are read, member by member', () => {
     });
   });
 
+  it('skips a referenced schema graph that holds no marker, and still knows every member in it', () => {
+    const components = {
+      schemas: {
+        A: { type: 'object', properties: { b: { $ref: '#/components/schemas/B' } } },
+        B: { allOf: [{ type: 'object', properties: { deep: { type: 'string' } } }], properties: { c: { $ref: '#/components/schemas/A' } } },
+        M: { type: 'object', properties: { marked: { type: 'string', 'x-change': 'kept' } } },
+      },
+    };
+    const contract = api({ type: 'object', properties: { a: { $ref: '#/components/schemas/A' }, m: { $ref: '#/components/schemas/M' } } }, { components });
+    const { decisions, members } = readDecisions(contract);
+    expect([...decisions.keys()]).toEqual([keyOf('a', R, '/properties/m/properties/marked')]);
+    expect(
+      ['/properties/a/properties/b', '/properties/a/properties/b/properties/deep', '/properties/a/properties/b/properties/c/properties/b', '/properties/a/properties/missing', '/properties/a/items'].map((pointer) => members.has(keyOf('a', R, pointer))),
+    ).toEqual([true, true, true, false, false]);
+    expect(members.has(keyOf('nobody', R, ''))).toBe(false);
+  });
+
+  it('finds a marker any chain of references reaches, through arrays and past a cycle that does not include the start', () => {
+    const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` });
+    const components = {
+      schemas: {
+        // The marker sits in the second allOf branch of a schema reached from inside another allOf.
+        A: { allOf: [{ type: 'object' }, { properties: { b: ref('B') } }] },
+        B: { allOf: [{ type: 'object' }, { properties: { marked: { type: 'string', 'x-change': 'kept' } } }] },
+        // C reaches a loop D -> E -> D that never comes back to C, and holds no marker.
+        C: { type: 'object', properties: { d: ref('D') } },
+        D: { type: 'object', properties: { e: ref('E') } },
+        E: { type: 'object', properties: { d: ref('D') } },
+        // A loop made only of references: asking for a member under it still ends.
+        X: ref('Y'),
+        Y: ref('X'),
+      },
+    };
+    const contract = api({ type: 'object', properties: { a: ref('A'), c: ref('C'), x: ref('X') } }, { components });
+    const { decisions, members } = readDecisions(contract);
+    expect([...decisions.keys()]).toContain(keyOf('a', R, '/properties/a/properties/b/properties/marked'));
+    expect(['/properties/c/properties/d/properties/e', '/properties/x', '/properties/x/properties/z'].map((pointer) => members.has(keyOf('a', R, pointer)))).toEqual([true, true, false]);
+  });
+
+  it('reads a schema graph that doubles at every level without walking each path', () => {
+    // 2^40 paths from the root: only a walk that skips a part with no marker ends.
+    const schemas = Object.fromEntries(
+      Array.from({ length: 40 }, (_, level) => [`S${level}`, { type: 'object', properties: { left: { $ref: `#/components/schemas/S${level + 1}` }, right: { $ref: `#/components/schemas/S${level + 1}` } } }]),
+    );
+    const contract = api({ $ref: '#/components/schemas/S0' }, { components: { schemas: { ...schemas, S40: { type: 'string' } } } });
+    const { decisions, members } = readDecisions(contract);
+    expect(decisions.size).toBe(0);
+    expect(members.has(keyOf('a', R, '/properties/left/properties/right/properties/left'))).toBe(true);
+  });
+
   it('knows a payload root that has no schema to walk', () => {
     const contract = api({}, { parameters: [{ name: 'q', in: 'query' }] });
     expect(readDecisions(contract).members.has(keyOf('a', 'param:query:q', ''))).toBe(true);
@@ -288,7 +338,7 @@ describe('where decisions are read, member by member', () => {
     const lost = bare([operation('o', '#/x/o', [{ name: 'p' }])]);
     const { decisions, members, problems } = readDecisions(lost);
     expect([decisions.size, problems.length]).toEqual([0, 0]);
-    expect([...members].sort()).toEqual([keyOf('o', '', ''), keyOf('o', 'p', '')].sort());
+    expect([keyOf('o', '', ''), keyOf('o', 'p', ''), keyOf('o', 'p', '/properties/x'), keyOf('o', 'q', '')].map((key) => members.has(key))).toEqual([true, true, false, false]);
   });
 
   it('reads a marker on a JSON Schema document that is its own operation, without a parameters list to look in', () => {
