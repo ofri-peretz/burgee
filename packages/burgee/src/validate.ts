@@ -43,10 +43,11 @@ async function checkSchema(key: string, spec: OptionSpec, value: unknown): Promi
   return result.value;
 }
 
-/** Split a repeatable option's raw values on its separator; arrays from config pass through (S8, yargs #846). */
+/** Split a repeatable option's raw values on its separator; arrays from config pass through (S8, yargs #846). `separator: false` keeps each value whole. */
 export function splitMultiple(spec: OptionSpec, raw: unknown): unknown[] {
-  const sep = spec.separator ?? ',';
   const parts = Array.isArray(raw) ? raw : [raw];
+  if (spec.separator === false) return parts;
+  const sep = spec.separator ?? ',';
   return parts.flatMap((p) => (typeof p === 'string' ? p.split(sep).map((s) => s.trim()).filter((s) => s !== '') : [p]));
 }
 

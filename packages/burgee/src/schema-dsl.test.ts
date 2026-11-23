@@ -33,6 +33,7 @@ const deploy = defineCommand({
         dryRun: { type: 'boolean' },
         tags: { type: 'string', multiple: true },
         ports: { type: 'number', multiple: true, separator: ':' },
+        notes: { type: 'string', multiple: true, separator: false },
         code: { type: 'string', schema: upperCase },
         config: { type: 'string' },
         inline: { type: 'string' },
@@ -130,6 +131,10 @@ describe('repeatable options with a separator (S8, yargs #846, #1318)', () => {
     expect(await data(['--env', 'dev', '--ports', '80:443'])).toMatchObject({ ports: [80, 443] });
     expect(await data(['--env', 'dev'], { APP_TAGS: 'x, y' })).toMatchObject({ tags: ['x', 'y'] });
     expect((await failure(['--env', 'dev', '--ports', '80:x'])).message).toMatch(/expects a number/);
+  });
+  it('keeps each value whole with separator: false, so prose with commas stays one item', async () => {
+    expect(await data(['--env', 'dev', '--notes', 'a, b or false', '--notes', 'd'])).toMatchObject({ notes: ['a, b or false', 'd'] });
+    expect(await data(['--env', 'dev'], { APP_NOTES: 'x, y' })).toMatchObject({ notes: ['x, y'] });
   });
 });
 

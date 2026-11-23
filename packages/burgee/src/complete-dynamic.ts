@@ -82,7 +82,7 @@ async function contextOf(specs: Specs, path: string[], tokens: Token[]): Promise
       const spec = specs[key] as OptionSpec;
       return await coerce({ [key]: spec }, { [key]: value }).then(
         (coerced) => ({ key, ok: true, value: coerced[key] }),
-        () => ({ key, ok: false, value: Array.isArray(value) ? value.join(spec.separator ?? ',') : String(value) }),
+        () => ({ key, ok: false, value: Array.isArray(value) ? value.join(spec.separator === false ? '\n' : (spec.separator ?? ',')) : String(value) }),
       );
     }),
   );
