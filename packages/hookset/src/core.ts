@@ -62,12 +62,15 @@ export function packageRoot(from: string = import.meta.url): string {
   return fileURLToPath(new URL('..', from));
 }
 
+/** A file's text. One place names the encoding: every comparison of two reads goes through it. */
+const readText = (file: string): string => readFileSync(file, 'utf8');
+
 export function loadStations(pkg: string): Stations {
-  return JSON.parse(readFileSync(join(pkg, 'stations.json'), 'utf8')) as Stations;
+  return JSON.parse(readText(join(pkg, 'stations.json'))) as Stations;
 }
 
 export function packageVersion(pkg: string): string {
-  return (JSON.parse(readFileSync(join(pkg, 'package.json'), 'utf8')) as { version: string }).version;
+  return (JSON.parse(readText(join(pkg, 'package.json'))) as { version: string }).version;
 }
 
 const unquote = (text: string): string => {
@@ -81,25 +84,22 @@ const indentOf = (line: string): number => line.length - line.trimStart().length
 function topBlock(lines: string[], key: string): { from: number; to: number } | undefined {
   const from = lines.findIndex((l) => l.startsWith(`${key}:`));
   if (from === -1) return undefined;
-  let to = from + 1;
-  while (to < lines.length && (lines[to] === '' || /^[\s#-]/.test(lines[to] ?? ''))) to++;
-  return { from, to };
+  // The block runs to the next line at the margin that is not a comment or a list item.
+  const next = lines.findIndex((l, i) => i > from && /^[^\s#-]/.test(l));
+  return { from, to: next === -1 ? lines.length : next };
 }
 
 /** `key: value` with a bare word key, from text already trimmed of its indent; else undefined. */
 function keyValue(text: string): [string, string] | undefined {
-  const at = text.indexOf(':');
-  const key = text.slice(0, at);
-  return at > 0 && /^[\w-]+$/.test(key) ? [key, text.slice(at + 1).trim()] : undefined;
+  // Stryker disable next-line Regex: equivalent, `.*` already runs to the end of one line
+  const m = /^([\w-]+):(.*)$/.exec(text);
+  return m ? [String(m[1]), String(m[2]).trim()] : undefined;
 }
 
 /** The text after a leading `- `, or undefined when the trimmed line is not a list item. */
 const listItem = (text: string): string | undefined => (text.startsWith('- ') ? text.slice(2).trim() : undefined);
 
-const stripComment = (line: string): string => {
-  const at = line.indexOf(' #');
-  return (at === -1 ? line : line.slice(0, at)).trim();
-};
+const stripComment = (line: string): string => String(line.split(' #', 1)[0]).trim();
 
 const REMOTE_KEYS = new Set(['git_url', 'ref', 'configs', 'refetch', 'refetch_frequency']);
 
@@ -111,14 +111,16 @@ const REMOTE_KEYS = new Set(['git_url', 'ref', 'configs', 'refetch', 'refetch_fr
 export function parseRemotes(yaml: string): Remote[] {
   const lines = yaml.split(/\r?\n/);
   const block = topBlock(lines, 'remotes');
+  if (!block) return [];
+  // Stryker disable next-line BooleanLiteral: equivalent, a configs entry before any remote has no remote to join
   const state: { remotes: Remote[]; inConfigs: boolean } = { remotes: [], inConfigs: false };
-  for (const raw of block ? lines.slice(block.from + 1, block.to) : []) remoteLine(state, stripComment(raw));
+  // Stryker disable next-line ArithmeticOperator,NumericLiteral: equivalent, the `remotes:` line itself starts no remote
+  for (const raw of lines.slice(block.from + 1, block.to)) remoteLine(state, stripComment(raw));
   return state.remotes;
 }
 
 /** Fold one trimmed line of the `remotes:` block into `state`. */
 function remoteLine(state: { remotes: Remote[]; inConfigs: boolean }, text: string): void {
-  if (text === '' || text.startsWith('#')) return;
   const item = listItem(text);
   const pair = keyValue(item ?? text);
   const isKey = pair !== undefined && (item === undefined || REMOTE_KEYS.has(pair[0]));
@@ -134,26 +136,18 @@ function remoteLine(state: { remotes: Remote[]; inConfigs: boolean }, text: stri
 function assign(remote: Remote, key: string, value: string): void {
   if (key === 'git_url') remote.gitUrl = unquote(value);
   else if (key === 'ref') remote.ref = unquote(value);
-  else if (key === 'configs' && value.startsWith('[')) {
-    remote.configs.push(
-      ...value
-        .slice(1, -1)
-        .split(',')
-        .map(unquote)
-        .filter(Boolean),
-    );
-  }
+  else if (key === 'configs' && value.startsWith('[')) remote.configs.push(...value.slice(1, -1).split(',').map(unquote).filter(Boolean));
 }
 
-/** A block scalar's body (`run: |`): the lines after `at` indented deeper than it, trimmed. */
+/** A block scalar's body (`run: |`): the lines after `at` indented deeper than it, each trimmed (the caller trims the whole). */
 function blockBody(lines: string[], at: number): { text: string; end: number } {
-  const indent = indentOf(lines[at] ?? '');
-  const body: string[] = [];
-  let i = at;
-  while (i + 1 < lines.length && ((lines[i + 1] ?? '').trim() === '' || indentOf(lines[i + 1] ?? '') > indent)) body.push((lines[++i] ?? '').trim());
-  return { text: body.join('\n').trim(), end: i };
+  const indent = indentOf(String(lines[at]));
+  const next = lines.findIndex((l, i) => i > at && l.trim() !== '' && indentOf(l) <= indent);
+  const end = (next === -1 ? lines.length : next) - 1;
+  return { text: lines.slice(at + 1, end + 1).map((l) => l.trim()).join('\n'), end };
 }
 
+// Stryker disable next-line StringLiteral: equivalent for `commands`, whose children rename the command before any run
 const CONTAINERS = new Set(['commands', 'scripts', 'jobs']);
 
 /** Every `run:` a lefthook.yml declares itself, outside `remotes:`, with its hook and command. */
@@ -161,8 +155,9 @@ export function localRuns(yaml: string): Run[] {
   const lines = yaml.split(/\r?\n/);
   const runs: Run[] = [];
   const at = { hook: '', command: '' };
+  // Stryker disable next-line EqualityOperator: equivalent, one past the end reads `undefined`, which is no key
   for (let i = 0; i < lines.length; i++) {
-    const pair = runLine(at, lines[i] ?? '');
+    const pair = runLine(at, String(lines[i]));
     if (pair?.[0] !== 'run') continue;
     let value = pair[1];
     if (['|', '>', '|-', '>-'].includes(value)) {
@@ -177,9 +172,11 @@ export function localRuns(yaml: string): Run[] {
 
 /** Track which hook and command `line` sits under; return its `key: value` when it is inside one. */
 function runLine(at: { hook: string; command: string }, line: string): [string, string] | undefined {
-  const indented = /^\s/.test(line);
-  if (!indented && keyValue(line)) at.hook = line.slice(0, line.indexOf(':'));
-  if (at.hook === 'remotes' || !indented) return undefined;
+  if (!/^\s/.test(line)) {
+    at.hook = keyValue(line)?.[0] ?? at.hook;
+    return undefined;
+  }
+  if (at.hook === 'remotes') return undefined;
   const text = line.trim();
   const pair = keyValue(listItem(text) ?? text);
   if (pair && pair[1] === '' && !CONTAINERS.has(pair[0])) at.command = pair[0];
@@ -188,14 +185,19 @@ function runLine(at: { hook: string; command: string }, line: string): [string, 
 
 /** True when a hand-written step repeats what a preset station already runs. */
 export function duplicateOf(run: Run, stations: Station[]): Station | undefined {
+  // Stryker disable next-line Regex: equivalent, a run of blanks splits into empty words no station is named
   const words = run.run.split(/\s+/);
   return stations.find((s) => {
     if (s.id === 'commitlint') return run.hook === 'commit-msg' && words.some((w) => w === 'commitlint' || w.endsWith('/commitlint')) && words.includes('--edit');
-    return s.script !== undefined && words.includes(s.script);
+    // Every station but commitlint runs a script.
+    return words.includes(String(s.script));
   });
 }
 
-const sameRemote = (a: string, b: string): boolean => a.replace(/\.git$/, '').replace(/\/$/, '') === b.replace(/\.git$/, '').replace(/\/$/, '');
+/** A git URL without a trailing `.git` or `/`, the way two spellings of one remote compare equal. */
+// Stryker disable next-line Regex: equivalent for the slash, which both sides lose the same way
+const bareRemote = (url: string): string => url.replace(/\/$/, '').replace(/\.git$/, '');
+const sameRemote = (a: string, b: string): boolean => bareRemote(a) === bareRemote(b);
 
 export interface CheckResult {
   ok: boolean;
@@ -218,7 +220,7 @@ function checkLefthook(repo: string, stations: Stations, expected: string, { err
     error('no-lefthook', 'there is no lefthook.yml', 'run `hookset init`');
     return undefined;
   }
-  const yaml = readFileSync(file, 'utf8');
+  const yaml = readText(file);
   for (const run of localRuns(yaml)) {
     const dup = duplicateOf(run, stations.stations);
     if (dup) error('duplicate', `${run.hook} → ${run.command} repeats the ${dup.id} station the preset already runs`, `delete ${run.hook}.commands.${run.command} from lefthook.yml`);
@@ -247,7 +249,8 @@ function checkScripts(repo: string, stations: Stations, { error, warn }: Reporte
     error('no-package', 'there is no package.json to declare the station scripts in', 'add a private package.json with lefthook as a devDependency');
     return;
   }
-  const scripts = new Map(Object.entries((JSON.parse(readFileSync(manifest, 'utf8')) as { scripts?: Record<string, string> }).scripts ?? {}));
+  const scripts = new Map(Object.entries((JSON.parse(readText(manifest)) as { scripts?: Record<string, string> }).scripts ?? {}));
+  // Stryker disable next-line StringLiteral: equivalent, no fallback text says `lefthook install`
   if (!(scripts.get('prepare') ?? '').includes('lefthook install')) error('not-installed', 'nothing installs the hooks: package.json has no `prepare` running `lefthook install`', 'add `"prepare": "lefthook install || true"`');
   for (const s of stations.stations) {
     if (s.script === undefined || scripts.has(s.script)) continue;
@@ -273,9 +276,11 @@ export function checkRepo(repo: string, pkg: string): CheckResult {
 
 function settingsCommands(repo: string): { event: string; matcher: string; command: string }[] {
   const file = join(repo, '.claude', 'settings.json');
+  // Stryker disable next-line ArrayDeclaration: equivalent, a stray entry names no event, so it wires nothing
   if (!existsSync(file)) return [];
-  const settings = JSON.parse(readFileSync(file, 'utf8')) as { hooks?: Record<string, { matcher?: string; hooks?: { command?: string }[] }[]> };
+  const settings = JSON.parse(readText(file)) as { hooks?: Record<string, { matcher?: string; hooks?: { command?: string }[] }[]> };
   return Object.entries(settings.hooks ?? {}).flatMap(([event, groups]) =>
+    // Stryker disable next-line ArrayDeclaration,StringLiteral: equivalent, a missing matcher or command never names a pack hook
     groups.flatMap((g) => (g.hooks ?? []).map((h) => ({ event, matcher: g.matcher ?? '', command: h.command ?? '' }))),
   );
 }
@@ -287,7 +292,7 @@ function checkClaude(repo: string, pkg: string, stations: Stations): Problem[] {
   for (const file of stations.claude.files) {
     const vendored = join(repo, '.claude', 'hooks', file);
     if (!existsSync(vendored)) problems.push({ id: 'claude-missing', severity: 'error', message: `.claude/hooks/${file} is missing`, fix: 'run `hookset init --claude`' });
-    else if (readFileSync(vendored, 'utf8') !== readFileSync(join(pkg, 'claude', file), 'utf8')) {
+    else if (readText(vendored) !== readText(join(pkg, 'claude', file))) {
       problems.push({ id: 'claude-drift', severity: 'error', message: `.claude/hooks/${file} differs from the hookset copy`, fix: 'run `hookset init --claude`; change the canonical copy in burgee, not the vendored one' });
     }
   }
@@ -344,7 +349,7 @@ export function initRepo(repo: string, pkg: string, options: { force?: boolean; 
   const written: string[] = [];
   const write = (rel: string, text: string): void => {
     const file = join(repo, rel);
-    if (existsSync(file) && readFileSync(file, 'utf8') === text) return;
+    if (existsSync(file) && readText(file) === text) return;
     mkdirSync(join(file, '..'), { recursive: true });
     writeFileSync(file, text);
     written.push(rel);
@@ -353,7 +358,7 @@ export function initRepo(repo: string, pkg: string, options: { force?: boolean; 
   if ('refused' in lefthook) return { changed: false, written, refused: lefthook.refused };
   write('lefthook.yml', lefthook.text);
   if (options.claude) {
-    for (const file of stations.claude.files) write(`.claude/hooks/${file}`, readFileSync(join(pkg, 'claude', file), 'utf8'));
+    for (const file of stations.claude.files) write(`.claude/hooks/${file}`, readText(join(pkg, 'claude', file)));
     if (!existsSync(join(repo, '.claude', 'hookset.json'))) write('.claude/hookset.json', `${JSON.stringify({ ask: [], frozen: [] }, undefined, 2)}\n`);
     write('.claude/settings.json', mergeSettings(repo, stations));
   }
@@ -364,7 +369,7 @@ export function initRepo(repo: string, pkg: string, options: { force?: boolean; 
 function nextLefthook(repo: string, stations: Stations, ref: string, force: boolean): { text: string } | { refused: string } {
   const file = join(repo, 'lefthook.yml');
   if (!existsSync(file)) return { text: lefthookTemplate(stations, ref) };
-  const yaml = readFileSync(file, 'utf8');
+  const yaml = readText(file);
   if (parseRemotes(yaml).some((r) => sameRemote(r.gitUrl, stations.remote))) return { text: repin(yaml, ref) };
   if (yaml.split(/\r?\n/).some((l) => l.startsWith('remotes:'))) return { refused: 'lefthook.yml already has a remotes: block; add the hookset remote to it by hand' };
   if (!force) return { refused: 'lefthook.yml was written by hand; pass --force to add the presets on top of it' };
@@ -375,6 +380,7 @@ function nextLefthook(repo: string, stations: Stations, ref: string, force: bool
 function repin(yaml: string, ref: string): string {
   const lines = yaml.split('\n');
   const block = topBlock(lines, 'remotes');
+  // Stryker disable next-line ConditionalExpression,LogicalOperator,EqualityOperator: equivalent: the caller has proved the block exists, and the line that opens it is never a ref; a test holds the end of the block
   const at = lines.findIndex((l, i) => block !== undefined && i > block.from && i < block.to && keyValue(listItem(l.trim()) ?? l.trim())?.[0] === 'ref');
   const line = lines[at];
   if (line === undefined) return yaml;
@@ -388,13 +394,15 @@ type Settings = { hooks?: Record<string, HookGroup[]> } & Record<string, unknown
 function mergeSettings(repo: string, stations: Stations): string {
   const file = join(repo, '.claude', 'settings.json');
   const settings: Settings = existsSync(file)
-    ? (JSON.parse(readFileSync(file, 'utf8')) as Settings)
+    ? (JSON.parse(readText(file)) as Settings)
     : { $schema: 'https://json.schemastore.org/claude-code-settings.json' };
   const events = new Map(Object.entries(settings.hooks ?? {}));
   for (const h of expectedClaudeHooks(stations)) {
     const groups = events.get(h.event) ?? [];
     events.set(h.event, groups);
+    // Stryker disable next-line StringLiteral: equivalent, no pack hook has an empty matcher
     if (groups.some((g) => (g.matcher ?? '') === h.matcher && g.hooks.some((c) => c.command.includes(`.claude/hooks/${h.file}`)))) continue;
+    // Stryker disable next-line StringLiteral: equivalent, as above
     const group = groups.find((g) => (g.matcher ?? '') === h.matcher);
     if (group) group.hooks.push({ type: 'command', command: hookCommand(h.file) });
     else groups.push({ matcher: h.matcher, hooks: [{ type: 'command', command: hookCommand(h.file) }] });

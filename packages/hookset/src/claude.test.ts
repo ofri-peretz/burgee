@@ -1,11 +1,13 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { packageRoot } from './core.js';
+
+const scratch = scratchDirs();
 
 const CLAUDE = join(packageRoot(), 'claude');
 
@@ -36,8 +38,7 @@ describe('guard-bash', () => {
   });
 
   it("asks before a command the repo lists and denies an edit under a frozen glob, from the repo's hookset.json", () => {
-    const dir = mkdtempSync(join(tmpdir(), 'hookset-claude-'));
-    try {
+    const dir = scratch('hookset-claude-');
       mkdirSync(join(dir, '.claude'));
       writeFileSync(join(dir, '.claude/hookset.json'), JSON.stringify({ ask: ['vercel deploy --prod'], frozen: ['content/**/*.md', 'sdlc/baseline/*.json'] }));
       const env = { CLAUDE_PROJECT_DIR: dir };
@@ -45,9 +46,6 @@ describe('guard-bash', () => {
       expect(decision(hook('guard-bash.mjs', { tool_input: { file_path: join(dir, 'content/a/b.md') } }, env))).toBe('deny');
       expect(decision(hook('guard-bash.mjs', { tool_input: { file_path: 'sdlc/baseline/unscored.json' } }, env))).toBe('deny');
       expect(decision(hook('guard-bash.mjs', { tool_input: { file_path: join(dir, 'content/a/b.ts') } }, env))).toBeUndefined();
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
   });
 
   it('has no opinion on a payload it cannot read', () => {

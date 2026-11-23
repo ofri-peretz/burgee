@@ -6,11 +6,12 @@
 import { defineCommand, defineProgram, ExitCode } from 'burgee';
 
 import { checkRepo, checkText, initRepo, packageRoot, packageVersion } from './core.js';
+import { cwd } from './runtime.js';
 
 const TEXT = Symbol.for('burgee.text');
 const PKG = packageRoot();
 
-const repoOf = (options: Record<string, unknown>): string => (typeof options['cwd'] === 'string' ? options['cwd'] : process.cwd());
+const repoOf = (options: Record<string, unknown>): string => (typeof options['cwd'] === 'string' ? options['cwd'] : cwd());
 
 const initCommand = defineCommand({
   name: 'init',
