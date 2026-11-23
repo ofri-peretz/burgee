@@ -1,6 +1,6 @@
 # Design — every contract specification apicontract reads is watched for new releases
 
-Intent: [`intent.md`](./intent.md). **Status:** draft.
+Intent: [`intent.md`](./intent.md). **Status:** approved.
 
 ---
 
@@ -40,7 +40,8 @@ Initial list (repos only; versions are recorded by the first `--record` run, not
 OAI/OpenAPI-Specification, OAI/Overlay-Specification, OAI/Arazzo-Specification, asyncapi/spec,
 json-schema-org/json-schema-spec, modelcontextprotocol/modelcontextprotocol, graphql/graphql-spec,
 open-rpc/spec, cloudevents/spec, standard-schema/standard-schema, asyncapi/bindings,
-protocolbuffers/protobuf, apache/avro, a2aproject/A2A, and the test suite
+protocolbuffers/protobuf, apache/avro, a2aproject/A2A, open-telemetry/semantic-conventions,
+open-telemetry/opentelemetry-proto, and the test suite
 json-schema-org/JSON-Schema-Test-Suite (an entry with `kind: 'test-suite'`, titled `suite:` in R4).
 
 ## Verification

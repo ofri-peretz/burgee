@@ -5,7 +5,8 @@
 > [`../foundation-claims-watched/`](../foundation-claims-watched/)), which already does this for npm
 > packages we are compatible with or measured against, but not for the specifications themselves.
 
-**Status:** draft · **Opened:** `2026-11-22` · **Owner:** `@ofri-peretz` · **Lane:** `ac-inputs`
+**Status:** approved · **Opened:** `2026-11-22` · **Owner:** `@ofri-peretz` · **Lane:** `ac-inputs` ·
+**Accepted by:** [`D-20261122-open-formats`](../../decisions/D-20261122-open-formats.md)
 
 ---
 
@@ -25,7 +26,9 @@ are every format apicontract reads or plans to read:
 - AsyncAPI bindings (asyncapi/bindings): Kafka, MQTT, AMQP and WebSocket version on their own;
 - Protocol Buffers (protocolbuffers/protobuf, editions), Avro (apache/avro): the program's
   request/response and messages families;
-- A2A (a2aproject/A2A), beside MCP in the agent-tools family.
+- A2A (a2aproject/A2A), beside MCP in the agent-tools family;
+- OpenTelemetry semantic conventions (open-telemetry/semantic-conventions), the contract for
+  telemetry names a dashboard depends on, and OTLP (open-telemetry/opentelemetry-proto).
 
 And the official **test suites** our graders run, because a new suite release moves a published
 score as surely as a new spec does: the JSON Schema Test Suite
