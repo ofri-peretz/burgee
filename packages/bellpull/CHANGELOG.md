@@ -1,5 +1,14 @@
 # bellpull
 
+## 2.0.3
+
+### Patch Changes
+
+- [#1728](https://github.com/ofri-peretz/burgee/pull/1728) [`2c0b40e`](https://github.com/ofri-peretz/burgee/commit/2c0b40eb01d0243609a6d23a5740161be5f20fbf) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `run()` with `shell: true` on Windows no longer turns a command's exit 1 into `NotFoundError`.
+  The inference that `cmd.exe`'s exit 1 means "not found" needs a file bellpull resolved, and with a
+  shell bellpull resolves nothing, so every failing shell command read as a missing one. The shell
+  resolved it, and its exit code now stands. The `cross-spawn` drop-in keeps `cross-spawn`'s behaviour.
+
 ## 2.0.2
 
 ### Patch Changes
