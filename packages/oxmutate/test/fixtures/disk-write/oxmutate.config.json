@@ -1,1 +1,1 @@
-{ "mutate": ["src/stage.ts"], "concurrency": 1, "flakyReruns": 0, "reporters": ["json"], "timeoutMS": 3000 }
+{ "mutate": ["src/stage.ts:8-8", "src/stage.ts:21-21"], "concurrency": 1, "flakyReruns": 0, "reporters": ["json"], "timeoutMS": 3000 }

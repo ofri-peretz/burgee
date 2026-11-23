@@ -9,6 +9,10 @@ commit-msg:
   commands:
     commitlint:
       run: npx --no -- commitlint --edit {1}
+    # proofline intent R5, observe step: never blocks, logs to .git/proofline/gate.jsonl what
+    # `enforce` would have blocked. Moving to enforce takes a decision file (intent, Constraints).
+    proofline:
+      run: '[ ! -f packages/proofline/dist/bin.js ] || node packages/proofline/dist/bin.js gate {1} --mode observe --quiet || true'
 
 pre-commit:
   parallel: true
@@ -54,3 +58,11 @@ pre-push:
     case-budget:
       priority: 5
       run: npx --no tsx scripts/case-budget.ts node_modules/.cache/case-budget
+    # The weight page (/docs/weight) is measured from the battery's build and committed, and the
+    # Ratchet job fails when it is stale. That cost six CI cycles in one week (2026-11-23): a change
+    # to one package moved another's row, and nothing local said so. The same check as compat.yml's
+    # `The published weight page is the one this build generates`, run after the battery has built
+    # every package (about 40 s of esbuild); fix a failure with `npm run weight:page`.
+    weight-page:
+      priority: 5
+      run: npm run weight:page -- --check

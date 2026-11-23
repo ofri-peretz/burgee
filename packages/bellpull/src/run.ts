@@ -218,7 +218,10 @@ export async function run(command: string, args: readonly unknown[] = [], option
   } catch (cause) {
     throw new SpawnError(original.command, cause);
   }
-  hookChildProcess(child, parsed, runtime);
+  // cmd.exe exits 1 for a missing command and for one that failed; the hook tells them apart
+  // by a file bellpull resolved. With a shell nothing is resolved, so the hook would call every
+  // exit 1 "not found" (as `cross-spawn` does): the shell resolved, and its exit code stands.
+  if (!shell) hookChildProcess(child, parsed, runtime);
 
   const out: Buffer[] = [];
   const err: Buffer[] = [];

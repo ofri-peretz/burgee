@@ -30,6 +30,8 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PACKAGE = path.resolve(HERE, '..');
 const ROOT = path.join(homedir(), '.cache', 'oxmutate-bench');
 const MS_PER_S = 1000;
+/** Part of the install's key, so each invocation installs its tarball on its uncounted first run: a volume another run used keeps the engine it was left with otherwise. */
+const INVOCATION = Date.now();
 /** Hex digits kept of a verdict digest, and of the candidate tarball's hash in the install line. */
 const DIGEST_HEX = 16;
 const TGZ_HEX = 12;
@@ -90,7 +92,8 @@ function runOne(name, dir, candidate, host) {
   const tgz = path.join(dir, '.oxmutate-candidate.tgz');
   copyFileSync(candidate, tgz);
   const sum = createHash('sha256').update(readFileSync(tgz)).digest('hex').slice(0, TGZ_HEX);
-  const install = `${TARGETS[name].install} && npm i --no-save --no-audit --no-fund --prefix /w/tools /w/src/.oxmutate-candidate.tgz && : ${sum}`;
+  // `|| exit 1`: errexit ignores a failing command in the middle of an `&&` chain, so without it a failed pnpm install was swallowed, the install stamp written, and the volume kept the engine it had.
+  const install = `export CI=true && ${TARGETS[name].install} && rm -rf /w/tools/node_modules /w/tools/package-lock.json && npm i --no-save --no-audit --no-fund --prefix /w/tools /w/src/.oxmutate-candidate.tgz && : ${sum}-${INVOCATION} || exit 1`;
   writeFileSync(path.join(dir, 'oxmutate.config.json'), JSON.stringify({ reporters: ['json'], ...(opt('concurrency') ? { concurrency: Number(opt('concurrency')) } : {}), ...(opt('mutate') ? { mutate: [opt('mutate')] } : {}), container: { install, command: '/w/tools/node_modules/.bin/oxmutate', network: 'none', env: args.flatMap((a, i) => (args[i - 1] === '--env' ? [a] : [])) } }));
   // Container mode sends git's files: stage the tarball, so no .gitignore of the project can drop it.
   execFileSync('git', ['add', '-f', '.oxmutate-candidate.tgz', 'oxmutate.config.json'], { cwd: dir });
@@ -104,6 +107,8 @@ function runOne(name, dir, candidate, host) {
   if (r.status !== 0 && r.status !== 1) return { wallMs, error: tail() };
   if (!existsSync(reportFile)) return { wallMs, error: `no report (exit ${String(r.status)}): ${tail()}` };
   const report = JSON.parse(readFileSync(reportFile, 'utf8'));
+  // An engine that exits 1 at once (a config key it does not know) leaves the volume's old report to be copied back: a run cannot have taken longer than the wall time it was measured over.
+  if ((report['x-oxmutate']?.stats?.wallMs ?? 0) > wallMs) return { wallMs, error: `stale report: its run took ${String(Math.round(report['x-oxmutate'].stats.wallMs))} ms of a ${String(Math.round(wallMs))} ms wall; the engine inside exited at once: ${tail()}` };
   // Each verdict with its reason: a RuntimeError says how the worker ended (a signal, an exit code).
   const detail = Object.entries(report.files).flatMap(([f, x]) => x.mutants.map((m) => `${f}:${m.location.start.line}:${m.location.start.column}:${m.mutatorName}:${m.replacement ?? ''} = ${m.status}${m.statusReason ? ` (${m.statusReason})` : ''}`)).sort();
   return { wallMs, stats: report['x-oxmutate']?.stats ?? {}, digest: digest(report), detail };
@@ -147,6 +152,11 @@ function bench() {
       ...Object.fromEntries(PHASES.map((p) => [p, median(ok.map((r) => r.stats[p] ?? 0))])),
       isolatedByCause: ok.at(-1)?.stats.isolatedByCause,
       confirmLive: ok.at(-1)?.stats.confirmLive,
+      isolatedStages: ok.at(-1)?.stats.isolatedStages,
+      warmByFile: ok.at(-1)?.stats.warmByFile,
+      dryFiles: ok.at(-1)?.stats.dryFiles,
+      freshByFile: ok.at(-1)?.stats.freshByFile,
+      freshFirst: ok.at(-1)?.stats.freshFirst,
       mutants: ok.at(-1)?.digest.rows.length,
       digest: shas.length === 1 ? shas[0] : `unstable: ${shas.join(',')}`,
       rows: ok.at(-1)?.digest.rows,

@@ -1,5 +1,32 @@
 # burgee
 
+## 2.2.0
+
+### Minor Changes
+
+- [#1728](https://github.com/ofri-peretz/burgee/pull/1728) [`2c0b40e`](https://github.com/ofri-peretz/burgee/commit/2c0b40eb01d0243609a6d23a5740161be5f20fbf) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A repeatable option can now keep each value whole: declare `separator: false` and
+  `--note "a, b" --note c` reads as `['a, b', 'c']`, from flags and from the environment alike.
+  Before, every `multiple` option was split on `,` unless another separator was declared, so prose
+  that carries commas came apart. In a completer's `raw` context, a failed kept-whole option's
+  values are joined by a newline.
+
+### Patch Changes
+
+- [#1720](https://github.com/ofri-peretz/burgee/pull/1720) [`6a69ea5`](https://github.com/ofri-peretz/burgee/commit/6a69ea56bd6900cb4610b56e703c90092fed4aaf) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `caique/inquirer/prompts` follows `@inquirer/prompts` 8.8.1 (290 / 290, level with the control):
+
+  - A refused answer stays in the line to edit, in `expand`, `rawlist` and `search` as in the line prompts. An arrow pick in `rawlist` and `search` lands in the line, so the next key edits it.
+  - Keys typed while an async `validate` runs are dropped (`input`, `number`, `password`, `search`).
+  - `number` takes plain decimals only: `0x10`, `0b11`, `0o7`, `Infinity` and `1e999` are refused.
+  - `confirm` matches whole keywords and the built-in `y`/`n` before prefixes, and its hint shows whole graphemes.
+  - `checkbox` shows the disabled error for a digit on a disabled choice, and its `a`/`i` shortcuts clear an error.
+  - A failed `search` empties its results, says `Search failed` when the error has no message, and searches again on the next key.
+  - `input` leaves a `g` or `y` pattern's `lastIndex` alone, and a Tab typed into an answer is drawn as a tab.
+
+  `burgee migrate` names 8.8.1 as the `@inquirer/prompts` release graded level.
+
+- Updated dependencies [[`2c0b40e`](https://github.com/ofri-peretz/burgee/commit/2c0b40eb01d0243609a6d23a5740161be5f20fbf)]:
+  - bellpull@2.0.3
+
 ## 2.1.5
 
 ### Patch Changes

@@ -4,5 +4,6 @@ import { command as explain } from './command-explain.js';
 import { command as lint } from './command-lint.js';
 import { command as migrate } from './command-migrate.js';
 import { command as plugin } from './command-plugin.js';
+import { command as props } from './command-props.js';
 
-export const commands = [explain, diff, lint, migrate, plugin] as const;
+export const commands = [explain, diff, lint, migrate, plugin, props] as const;

@@ -1,5 +1,14 @@
 # truemark
 
+## 0.1.1
+
+### Patch Changes
+
+- [#1721](https://github.com/ofri-peretz/burgee/pull/1721) [`d0a6443`](https://github.com/ofri-peretz/burgee/commit/d0a6443a999ad28196f5bac7b0ec843f00dd112e) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - truemark is public: its README, its page on burgee.interlace.tools, and `@vitest/eslint-plugin` as the incumbent it is measured against.
+- Updated dependencies [[`2c0b40e`](https://github.com/ofri-peretz/burgee/commit/2c0b40eb01d0243609a6d23a5740161be5f20fbf), [`2c0b40e`](https://github.com/ofri-peretz/burgee/commit/2c0b40eb01d0243609a6d23a5740161be5f20fbf), [`6a69ea5`](https://github.com/ofri-peretz/burgee/commit/6a69ea56bd6900cb4610b56e703c90092fed4aaf)]:
+  - bellpull@2.0.3
+  - burgee@2.2.0
+
 ## 0.1.0
 
 ### Minor Changes

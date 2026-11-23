@@ -6,7 +6,9 @@
  * and not only "0 problems" (R3).
  */
 import { type Contract } from './core/model.js';
+import { applyCode, type CodeIndex, type Handler, isRead, NO_HANDLER_FIX, type ReadHandler, NOT_FOUND_FIX } from './lint-code.js';
 import { apply, type FunctionName } from './lint-functions.js';
+import { CODE_FUNCTIONS, type CodeFunctionName, type ThenName } from './lint-names.js';
 import { type Given, type LintNode, select } from './lint-select.js';
 
 export const LEVELS = ['error', 'warn', 'off'] as const;
@@ -15,7 +17,7 @@ export type Level = (typeof LEVELS)[number];
 export interface Then {
   /** A member of the node, dotted for a nested one (`info.description`); the node itself when absent. */
   readonly field?: string;
-  readonly function: FunctionName;
+  readonly function: ThenName;
   readonly functionOptions?: Readonly<Record<string, unknown>>;
 }
 
@@ -56,6 +58,8 @@ export interface LintFinding {
   readonly pointer: string;
   readonly message: string;
   readonly fix: string;
+  /** For a rule on code (R14): the handler's line, the finding's location; `file` and `pointer` are the spec's, related. */
+  readonly code?: { readonly file: string; readonly line: number };
 }
 
 /** How a rule did on one run: the nodes it looked at and how many failed. */
@@ -64,9 +68,26 @@ export interface RuleCount {
   readonly failed: number;
 }
 
+/** The operations a run lints in full: their ids, and their pointers for a node that names no operation. */
+export interface Touched {
+  readonly ids: ReadonlySet<string>;
+  readonly sources: readonly string[];
+}
+
+/** A pointer at or under `source`: the operation's own node, or one of its members. */
+const under = (pointer: string, source: string): boolean => pointer === source || pointer.startsWith(`${source}/`);
+
+/** Whether a node belongs to a touched operation: by its operation, else by where it is. */
+export const touches = (touched: Touched, node: LintNode): boolean =>
+  node.operation === undefined ? touched.sources.some((source) => under(node.pointer, source)) : touched.ids.has(node.operation.id);
+
 export interface LintInput {
   readonly file: string;
   readonly contract: Contract;
+  /** With `--since` (R12): the operations linted in full; a node of any other runs only `lint.legacy`. */
+  readonly touched?: Touched;
+  /** The handlers the user owns, for the rules on code (R14); none when absent. */
+  readonly code?: CodeIndex;
 }
 
 export interface LintResult {
@@ -87,11 +108,20 @@ const thensOf = (rule: Rule): readonly Then[] => {
   return Array.isArray(rule.then) ? (rule.then as readonly Then[]) : [rule.then as Then];
 };
 
-/** One `then` on one node: what is wrong, named by the field it read. */
-const problemOf = (then: Then, node: LintNode): string[] => {
-  const problem = apply(then.function, fieldOf('matched' in node ? node.matched : node.value, then.field), then.functionOptions as Record<string, unknown> | undefined);
+/** A `then`'s problem, if any, named by the field it read. */
+const named = (then: Then, problem: string | undefined): string[] => {
   if (problem === undefined) return [];
   return [then.field === undefined ? problem : `\`${then.field}\` ${problem}`];
+};
+
+const isCode = (name: ThenName): name is CodeFunctionName => (CODE_FUNCTIONS as readonly string[]).includes(name);
+
+/** One `then` on one node: what is wrong, named by the field it read. */
+const problemOf = (then: Then, node: LintNode): string[] => {
+  // A code function on a node that is not a handler is refused where the rule is read; here it finds nothing.
+  // Stryker disable next-line ConditionalExpression: a value function by a code function's name finds nothing either; the check says so in the types.
+  if (isCode(then.function)) return [];
+  return named(then, apply(then.function, fieldOf('matched' in node ? node.matched : node.value, then.field), then.functionOptions as Record<string, unknown> | undefined));
 };
 
 /** What is wrong with one node under one rule, each a message. */
@@ -102,28 +132,99 @@ export const problemsOf = (rule: Rule, node: LintNode, context: LintContext): st
 
 const RANK: Readonly<Record<Exclude<Level, 'off'>, number>> = { error: 0, warn: 1 };
 
+/** One rule to run: its id, its level, and whether it is one `lint.legacy` names (R12). */
+interface Run {
+  readonly id: string;
+  readonly rule: Rule;
+  readonly level: Exclude<Level, 'off'>;
+  readonly legacy: boolean;
+}
+
+/** The nodes a rule checks on one input: under `--since`, only a touched operation's, unless the rule is a legacy one. */
+const nodesOf = (input: LintInput, run: Run): LintNode[] => {
+  const nodes = select(input.contract, run.rule.given);
+  const { touched } = input;
+  return run.legacy || touched === undefined ? nodes : nodes.filter((node) => touches(touched, node));
+};
+
+/** One thing a rule checked: where, what is wrong with it, and, for a handler, its line and its own fix. */
+interface Check {
+  readonly pointer: string;
+  /** What each message is about: a property's or a parameter's name, a handler's symbol. */
+  readonly name?: string | undefined;
+  readonly problems: readonly string[];
+  readonly fix?: string;
+  readonly code?: { readonly file: string; readonly line: number };
+}
+
+/** What every `then` finds on one handler: a code function reads it, a value function reads its summary. */
+const handlerProblems = (rule: Rule, handler: ReadHandler, contract: Contract): string[] =>
+  thensOf(rule).flatMap((then) => {
+    const options = (then.functionOptions ?? {}) as Readonly<Record<string, unknown>>;
+    const problem = isCode(then.function) ? applyCode(then.function, handler, contract, options) : apply(then.function, fieldOf(handler.summary, then.field), options);
+    return named(then, problem);
+  });
+
+/** A rule on code over one operation: each handler the map names for it, or what is missing (R14, R15). */
+const codeChecks = (rule: Rule, node: LintNode, input: LintInput): Check[] => {
+  const operation = node.operation as NonNullable<LintNode['operation']>;
+  const handlers = input.code?.handlersOf(operation.id) ?? [];
+  if (handlers.length === 0) {
+    return [{ pointer: node.pointer, problems: [`map-has-no-handler: \`${operation.id}\` has no handler you own in apicontract.map.json`], fix: NO_HANDLER_FIX }];
+  }
+  return handlers.map((handler): Check => {
+    const where = { pointer: node.pointer, name: handler.symbol };
+    if (!isRead(handler)) return { ...where, problems: [`handler-not-found: ${handler.missing as string}`], fix: NOT_FOUND_FIX };
+    return { ...where, problems: handlerProblems(rule, handler, input.contract), code: { file: handler.file, line: handler.line } };
+  });
+};
+
+/** Everything one rule checks on one input. */
+const checksOf = (input: LintInput, run: Run): Check[] =>
+  nodesOf(input, run).flatMap((node) =>
+    run.rule.given.implementation === true ? codeChecks(run.rule, node, input) : [{ pointer: node.pointer, name: node.name, problems: problemsOf(run.rule, node, { contract: input.contract }) }],
+  );
+
+/** A check's problems as findings of one rule on one input. */
+const findingsOf = (check: Check, of: Pick<LintFinding, 'rule' | 'level' | 'file' | 'fix'>): LintFinding[] =>
+  check.problems.map((message) => ({
+    ...of,
+    pointer: check.pointer,
+    message: check.name === undefined ? message : `${check.name}: ${message}`,
+    fix: check.fix ?? of.fix,
+    ...(check.code === undefined ? {} : { code: check.code }),
+  }));
+
 /** One rule over every input: its findings, and how many nodes it checked and failed. */
-const runRule = (id: string, rule: Rule, level: Exclude<Level, 'off'>, inputs: readonly LintInput[]): { findings: LintFinding[]; count: RuleCount } => {
+const runRule = (run: Run, inputs: readonly LintInput[]): { findings: LintFinding[]; count: RuleCount } => {
+  const { id, rule, level } = run;
   const findings: LintFinding[] = [];
   let checked = 0;
   let failed = 0;
-  for (const { file, contract } of inputs) {
-    for (const node of select(contract, rule.given)) {
+  for (const input of inputs) {
+    for (const check of checksOf(input, run)) {
       checked += 1;
-      const problems = problemsOf(rule, node, { contract });
-      if (problems.length > 0) failed += 1;
-      for (const message of problems) findings.push({ rule: id, level, file, pointer: node.pointer, message: node.name === undefined ? message : `${node.name}: ${message}`, fix: rule.fix });
+      if (check.problems.length > 0) failed += 1;
+      findings.push(...findingsOf(check, { rule: id, level, file: input.file, fix: rule.fix }));
     }
   }
   return { findings, count: { checked, failed } };
 };
 
-/** Run `rules` at `levels` over every input. A rule at `off`, or absent from `levels`, is not run. */
-export const lint = (inputs: readonly LintInput[], rules: Readonly<Record<string, Rule>>, levels: Readonly<Record<string, Level>>): LintResult => {
+/**
+ * Run `rules` at `levels` over every input. A rule at `off`, or absent from `levels`, is not run.
+ * On an input with `touched`, only the rules in `legacy` see the untouched operations (R12).
+ */
+export const lint = (
+  inputs: readonly LintInput[],
+  rules: Readonly<Record<string, Rule>>,
+  levels: Readonly<Record<string, Level>>,
+  legacy: ReadonlySet<string> = new Set(),
+): LintResult => {
   const runs = Object.entries(levels)
     .flatMap(([id, level]) => {
       const rule = new Map(Object.entries(rules)).get(id);
-      return level === 'off' || rule === undefined ? [] : [{ id, ...runRule(id, rule, level, inputs) }];
+      return level === 'off' || rule === undefined ? [] : [{ id, ...runRule({ id, rule, level, legacy: legacy.has(id) }, inputs) }];
     })
     .sort((a, b) => a.id.localeCompare(b.id, 'en'));
   const findings = runs.flatMap((run) => run.findings);

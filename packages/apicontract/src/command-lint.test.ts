@@ -117,7 +117,7 @@ describe('runLint', () => {
     expect(data.exitCode).toBe(ExitCode.RUNTIME);
     expect(data.fix).toBe('correct each error as its own fix line says, or set its rule to "warn" in `lint.rules`');
     expect(data.findings).toEqual([{ rule: 'path-no-trailing-slash', level: 'error', file: 'api.yaml', pointer: '#', message: 'path `/b/` ends with a slash', fix: 'drop the trailing slash' }]);
-    expect(text(data).split('\n').at(-2)).toBe('1 error(s), 0 warning(s). Checked 11 rule(s) on 1 input(s), 13 node(s); not carried: none.');
+    expect(text(data).split('\n').at(-2)).toBe('1 error(s), 0 warning(s). Checked 11 rule(s) on 1 input(s), 13 node(s); not carried: none; warn first not checked: not a git repository.');
     const flagged = await runLint({ cwd: dir, specs: ['api.yaml'], rulesets: [], config: validateConfig({ lint: { rules: { 'path-no-trailing-slash': 'off' } } }, join(dir, 'apicontract.config.json')) });
     expect(flagged.findings).toEqual([]);
     expect(text(flagged).split('\n')).toEqual(['0 error(s), 0 warning(s). Checked 10 rule(s) on 1 input(s), 12 node(s); not carried: none.', 'recommended: 100% (12 of 12 checks passed)']);
@@ -243,9 +243,9 @@ describe('apicontract lint, through burgee', () => {
     await runBurgee(program, { argv: ['--version'] });
   });
 
-  it('is described for --help and the MCP tool list, and only reads', () => {
+  it('is described for --help and the MCP tool list, and writes only with --stats', () => {
     expect(command.description).toBe("A contract's form checked by rules: standards, and whether an agent can use it as tools");
-    expect(command.effects).toBe('read_only');
+    expect(command.effects).toBe('idempotent');
     expect(command.examples).toEqual([
       { command: 'apicontract lint openapi.yaml', description: 'the recommended rules, as warnings' },
       { command: 'apicontract lint openapi.yaml --ruleset agent-ready', description: 'can an agent call this API as tools: descriptions, examples, ids' },
@@ -254,6 +254,16 @@ describe('apicontract lint, through burgee', () => {
     expect(command.options).toEqual({
       ruleset: { type: 'string', multiple: true, choices: ['recommended', 'agent-ready'], description: "a ruleset to run, over the config's lint.extends (default recommended)" },
       sarif: { type: 'boolean', description: 'print SARIF 2.1.0 for code scanning instead of text' },
+      rulesFrom: {
+        type: 'string',
+        description: 'read the config and its ruleset files at this git ref, so a change to the rules is judged by the old ones; `merge-base` is the base with origin/main',
+      },
+      since: {
+        type: 'string',
+        description: "lint in full only the operations added or changed since this git ref; the rest run lint.legacy (default: none). `merge-base` is the base with origin/main; over the config's lint.since",
+      },
+      stats: { type: 'string', description: 'count this run into a JSON file of per-rule runs, findings and last finding date, once per commit; meant for a CI cache' },
+      idle: { type: 'string', description: 'with --stats: list the rules that ran and found nothing in this many days, e.g. 90d, as rule-idle' },
     });
   });
 

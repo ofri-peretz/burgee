@@ -64,6 +64,12 @@ describe.each(TARGETS)('the $name plugin', ({ name, plugin, framework, run, desc
     expect(files.map((file) => file.path)).toEqual(SAMPLE_PATHS);
     for (const file of files) expect(file.content, file.path).toBe(golden(file.path));
     expect(files.filter((file) => file.owner === 'user').map((file) => file.path)).toEqual(['handlers.ts']);
+    // The member the user owns for each operation, so a rule on code can find it through the map.
+    expect(files.find((file) => file.path === 'handlers.ts')?.symbols).toEqual([
+      { operation: 'createPet', symbol: 'handlers.createPet' },
+      { operation: 'get /pets', symbol: 'handlers.getPets' },
+      { operation: 'getPet', symbol: 'handlers.getPet' },
+    ]);
     expect(files.find((file) => file.path === 'routes.ts')?.symbols).toEqual([
       { operation: 'createPet', symbol: 'Handlers' },
       { operation: 'get /pets', symbol: 'Handlers' },

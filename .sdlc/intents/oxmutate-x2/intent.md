@@ -41,7 +41,7 @@ fast enough to run on every push.
   mutant's verdict from a fresh worker, not the old digest: `OXMUTATE_ISOLATE_ALL=1` (with
   `OXMUTATE_ISOLATE_STATIC=1`, `OXMUTATE_ISOLATE_POLLUTION=1`) runs each
   covered mutant armed from process start. `bench/container.mjs --compare a.json b.json --fresh
-  ref.json` lists every differing row with its fresh-worker verdict and exits 1 for any it does not
+ref.json` lists every differing row with its fresh-worker verdict and exits 1 for any it does not
   confirm; the PR carries that list.
 - The repository's rules hold: no new dependency, every changed line held by a test (the pre-push
   mutation gate), a fix proven by a check that fails without it.
@@ -170,6 +170,40 @@ for two to four mutants, present in 2.9.0 too).
 4. Lever 6 as its own decision; levers 4 and 8 as spikes.
 
 Next action: the 4 alternating rounds with stages, when the machine is free. Owner: me. Date: 2026-11-20.
+
+### What fresh-first measured (2026-11-22 to 23)
+
+`pathe` is 85% of the sum, and a fresh worker per mutant beats the warm machinery on it, not on the others.
+Container mode, 8 workers, alternating, every candidate digest equal to the fresh-worker reference's
+(`d54b6cce576533ac` on `pathe`); 2.9.0's `pathe` digest is not stable between rounds (four distinct digests in
+eight runs), which is why each differing row is proven against a fresh worker (`--compare a b --fresh ref`).
+
+| Target  | 2.9.0 (2 rounds) | candidate (2 rounds) | Notes                                                                   |
+| :------ | ---------------: | -------------------: | :---------------------------------------------------------------------- |
+| `pathe` |  199.3 / 230.0 s |        92.2 / 90.6 s | 2.16x, 2.54x; 3 and 4 rows differ, each a fresh worker's verdict        |
+| `ufo`   |    15.9 / 16.2 s |        14.5 / 14.3 s | 1.10x, 1.13x                                                            |
+| `defu`  |      2.4 / 2.5 s |          2.5 / 2.5 s | flat                                                                    |
+| `gen`   |      5.9 / 5.7 s |          5.9 / 5.8 s | flat                                                                    |
+| total   |  223.5 / 254.3 s |      115.1 / 113.2 s | **1.94x, 2.25x**: 3.00x is not reached; at 13 workers `pathe` is 84.3 s |
+
+What the stages said (`isolatedStages`, `warmByFile`, `freshByFile`, `dryFiles`, the new report figures):
+
+- A fresh worker starts in 248 ms on `pathe`, 94 on `ufo`, 78 on `gen`. Warm costs 6 to 34 ms a mutant on every
+  file but one: `pathe`'s `glob.spec.ts`, 599 ms (443 of it armed), against 78 ms fresh, which stops at the
+  first failing test. All-fresh is 121 s on `pathe` and loses 8 to 20 s on `ufo` and `gen`; a per-mutant choice
+  from the dry run (a covering time over 49 ms, and over 278 ms for a static mutant) wins on both (`fresh-first.ts`).
+- Two figures behind those constants are single points (the warm blow-up from `glob.spec.ts`; the static line
+  through `ufo` and `pathe`); a project that sits between them runs the way it did.
+- What is left on `pathe`: 78 s of fresh runs at 8 workers, 60% of them worker start-up (`freshFirst`: 713 s of
+  unit time against 276 s inside Vitest at 13 workers). Lever 4 (workers from a snapshot) or a worker that
+  outlives its run is the way to the 3x; more workers give 91 s at 8 and 84 s at 13.
+- Found on the way: a failed `pnpm install` in the container's install chain was swallowed (the shell ignores a
+  failing command mid-chain under `set -e`), so a volume kept an old oxmutate for hours: several bench rows here
+  measured 2.9.0 under the candidate's label. Fixed in `container.ts`; the bench now installs on its first run
+  and refuses a report longer than its wall time.
+
+Next action: lever 3 or 4 on the fresh start-up (the 250 ms), measured on `pathe`, with `freshFirst.unitMs` as the
+figure. Owner: me. Date: 2026-11-24.
 
 ## Definition of done (the owner, 2026-11-19)
 

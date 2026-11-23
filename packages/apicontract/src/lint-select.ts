@@ -26,6 +26,8 @@ export interface Given {
   readonly method?: string;
   /** With `select: 'path'`: JSONPath into the source document (the R9 subset), one or several. */
   readonly path?: string | readonly string[];
+  /** With `select: 'operation'`: judge each operation's handler, the code the user owns (R14), not the spec. */
+  readonly implementation?: boolean;
 }
 
 export interface LintNode {

@@ -27,6 +27,7 @@ import { dryFix, emptyDryRun, firstError } from './dry-failure.js';
 import { agrees, entriesOf, keepable, merge, type DryCache, type DryEntry, type DryResult } from './dry-reuse.js';
 import { globToRegExp, matchFiles } from './files.js';
 import { flakyCandidates } from './flaky.js';
+import { freshIsCheaper, staticFreshIsCheaper } from './fresh-first.js';
 import type { FrozenOracle } from './frozen.js';
 import { createGovernor } from './governor.js';
 import { changedLines, parseMutateSpec, shardOf, touches, withinRange, type MutateRange } from './lanes.js';
@@ -90,6 +91,18 @@ export interface RunStats {
   testExecutions: number;
   /** Warm units, send to outcome, summed over servers: what `mutationMs` is in server time. */
   warmUnitMs: number;
+  /** Each test file in the dry run: its own load time (collection and setup), its tests and their summed time, ms. */
+  dryFiles?: Record<string, { loadMs: number; tests: number; testMs: number }> | undefined;
+  /** Warm units by test file: the mutants they decided, how many units, the unit time (summed over workers) and the time inside armed runs. The data the fresh-or-warm rule is read against. */
+  warmByFile?: Record<string, { mutants: number; units: number; ms: number; armedMs: number }> | undefined;
+  /** Isolated runs of the first stage: the mutants, the unit time (summed over workers) and the time the Vitest files themselves ran, so the rest is worker start-up. */
+  /** Mutants sent to a fresh worker before any warm run, because it costs less there (fresh-first.ts). */
+  freshChosen?: number | undefined;
+  /** Static mutants sent to a fresh worker before any live run, because it costs less there (fresh-first.ts). */
+  staticFresh?: number | undefined;
+  freshFirst?: { mutants: number; unitMs: number; runMs: number } | undefined;
+  /** Isolated first-stage runs of mutants that run in one test file, by that file: the runs and the time the Vitest file ran, ms. */
+  freshByFile?: Record<string, { runs: number; ms: number }> | undefined;
   /** Of `warmUnitMs`, the time inside armed test runs. The rest is starting workers, collecting files, canaries and hooks. */
   warmArmedMs: number;
   /** Isolated runs by what sent the mutant there: the parts of `isolatedRuns`. */
@@ -214,7 +227,7 @@ interface ChildRecord {
   failed?: string[];
   /** `isolated`: every test that failed did so by its own timeout: on a loaded machine, a slow test and not a kill. */
   slow?: boolean;
-  /** `mutant`: how long this execution took. */
+  /** `mutant`: how long this execution took. `isolated`: the Vitest files' own run time in the worker, without its start. */
   ms?: number;
   /** `mutant`, `isolated`: a Timeout the worker called itself: its wait could never end (quiescence.ts). */
   deadlock?: boolean;
@@ -236,6 +249,8 @@ interface ChildRecord {
   /** `dry` with `trackReads`: the tracked static values each test (or each file's collection) read. */
   reads?: { static: Record<string, number>; perTest: Record<string, Record<string, number>> };
   fileErrors?: { file: string; error: string }[];
+  /** `dry`: each test file's own load time, collection plus setup (runner.ts). */
+  loadMs?: Record<string, number>;
   /** `dry`: suites whose own hook failed, so Vitest skipped their tests (runner.ts). */
   hookErrors?: { file: string; suite: string; error: string }[];
   /** `dry`: unhandled rejections and uncaught errors the unmutated suite raised (runner.ts). */
@@ -542,7 +557,7 @@ export async function run(options: Options): Promise<RunResult> {
       // A mutant that raises one is Killed (runner.ts), so a suite that raises one unmutated would kill every mutant it covers.
       const unhandled = recs.reduce((n, r) => n + (r.unhandled ?? 0), 0);
       if (unhandled > 0) throw new InstrumentFault(`the suite raised ${String(unhandled)} unhandled error(s) with no mutant active, so no verdict can be trusted. fix: make \`vitest run\` pass with no "Unhandled Errors" first`);
-      return { tests: recs.flatMap((r) => r.tests ?? []), perTest, static: stat, runOnce: recs.flatMap((r) => r.runOnce ?? []), modules: Object.assign({}, ...recs.map((r) => r.modules ?? {})) as Record<string, string[]>, reads };
+      return { tests: recs.flatMap((r) => r.tests ?? []), perTest, static: stat, runOnce: recs.flatMap((r) => r.runOnce ?? []), loadMs: Object.assign({}, ...recs.map((r) => r.loadMs ?? {})) as Record<string, number>, modules: Object.assign({}, ...recs.map((r) => r.modules ?? {})) as Record<string, string[]>, reads };
     };
     progress.phase('dry run');
     const d0 = performance.now();
@@ -563,6 +578,12 @@ export async function run(options: Options): Promise<RunResult> {
     const keptFiles = Object.keys(kept);
     const dry = merge(fresh, kept);
     stats.dryRunMs = performance.now() - d0;
+    stats.dryFiles = {};
+    for (const t of dry.tests) {
+      const mine = (stats.dryFiles[t.file] ??= { loadMs: dry.loadMs?.[t.file] ?? 0, tests: 0, testMs: 0 });
+      mine.tests++;
+      mine.testMs += t.ms;
+    }
     // `static.readers: 'report'`: the same suite once more with reads tracked, before the flaky check
     // takes the dry pool. Its verdicts are not used; a test that fails only here (a Proxy it did not
     // expect) makes every static mutant count its loaders.
@@ -835,6 +856,15 @@ export async function run(options: Options): Promise<RunResult> {
       if (wrote) return wrote;
       // Verdicts a failed canary cannot vouch for are dropped; their pairs are re-queued below.
       const raw = readRecords(unit.results);
+      const unitFile = planUnits.get(unit.results)?.file;
+      if (unitFile) {
+        const mine = ((stats.warmByFile ??= {})[unitFile] ??= { mutants: 0, units: 0, ms: 0, armedMs: 0 });
+        const armed = raw.filter((r) => r.type === 'mutant');
+        mine.units++;
+        mine.ms += outcome.ms ?? 0;
+        mine.mutants += new Set(armed.map((r) => r.id)).size;
+        mine.armedMs += armed.reduce((sum, r) => sum + (r.ms ?? 0), 0);
+      }
       const suspect = new Set(raw.filter((r) => r.type === 'polluted').flatMap((r) => (r.suspects ?? []).map((id) => `${id}|${r.test ?? ''}`)));
       const recs = withoutSuspects(raw.filter((r) => !(r.type === 'mutant' && suspect.has(`${r.id ?? ''}|${r.test ?? ''}`))));
       stats.pollutionRecovered += recs.filter((r) => r.type === 'recovered').length;
@@ -910,7 +940,16 @@ export async function run(options: Options): Promise<RunResult> {
       return true;
     };
     pool.stats.stops = [];
-    await pool.drain(unitsForRound(toRun, (m) => fileOrder.get(m.id) ?? []), (_, id, testMs) => warmBudget(id, testMs), afterUnit, { prepare: beforeUnit, grace: (_, id, testMs) => warmGrace(id, testMs) });
+    // A mutant that costs less in a fresh worker than warm goes there at once (fresh-first.ts); its verdict is the
+    // reference one, so nothing about it is confirmed later. OXMUTATE_FRESH_FIRST=1 sends every covered mutant, the
+    // static ones too (OXMUTATE_ISOLATE_ALL without the warm phase whose results it discards); =0 sends none.
+    const freshFirst = env['OXMUTATE_FRESH_FIRST'] === '1';
+    const coverMs = (m: MutantResult): number => [...new Set(m.coveredBy)].reduce((sum, t) => sum + (testInfo.get(t)?.ms ?? 0), 0);
+    const goesFresh = (m: MutantResult): boolean => m.coveredBy.length > 0 && (freshFirst || (env['OXMUTATE_FRESH_FIRST'] !== '0' && !m.specCoveredBy && freshIsCheaper(coverMs(m))));
+    const freshNow = new Set(toRun.filter(goesFresh).map((m) => m.id));
+    stats.freshChosen = freshNow.size;
+    const warmNow = toRun.filter((m) => !freshNow.has(m.id));
+    if (warmNow.length > 0) await pool.drain(unitsForRound(warmNow, (m) => fileOrder.get(m.id) ?? []), (_, id, testMs) => warmBudget(id, testMs), afterUnit, { prepare: beforeUnit, grace: (_, id, testMs) => warmGrace(id, testMs) });
     stats.warmStopsMs = pool.stats.stops;
     stats.mutationMs = performance.now() - m0;
 
@@ -926,7 +965,7 @@ export async function run(options: Options): Promise<RunResult> {
       const all = byMutant.get(m.id) ?? [];
       const recs = all.filter((r) => !r.spec);
       // OXMUTATE_ISOLATE_ALL=1: no warm verdict is used; each covered mutant runs armed from process start, Vitest running its covering files normally. The reference a verdict is proven against.
-      if (env['OXMUTATE_ISOLATE_ALL'] && m.coveredBy.length > 0) {
+      if ((freshNow.has(m.id) || env['OXMUTATE_ISOLATE_ALL']) && m.coveredBy.length > 0) {
         isolatedQueue.push(m);
         continue;
       }
@@ -1220,7 +1259,24 @@ export async function run(options: Options): Promise<RunResult> {
           const chased = chasing.has(unit.results);
           const into = chased && chase ? chase.into : verdicts;
           // Vitest reports per test file: a mutant is killed if any of its files failed.
-          for (const rec of readRecords(unit.results)) {
+          const recs = readRecords(unit.results);
+          if (stage === 'first') {
+            const mine = (stats.freshFirst ??= { mutants: 0, unitMs: 0, runMs: 0 });
+            mine.unitMs += outcome.ms ?? 0;
+            for (const rec of recs) {
+              if (rec.type !== 'isolated') continue;
+              mine.mutants++;
+              mine.runMs += rec.ms ?? 0;
+              // A mutant that runs in one file tells what that file costs fresh; one that runs in several is not split.
+              const only = rec.id ? filesFor(byId.get(rec.id) as MutantResult) : [];
+              if (only.length === 1) {
+                const f = ((stats.freshByFile ??= {})[only[0] as string] ??= { runs: 0, ms: 0 });
+                f.runs++;
+                f.ms += rec.ms ?? 0;
+              }
+            }
+          }
+          for (const rec of recs) {
             if (rec.type !== 'isolated' || !rec.id) continue;
             const prev = into.get(rec.id);
             const testsCompleted = (prev?.testsCompleted ?? 0) + (rec.ran ?? 0);
@@ -1269,7 +1325,15 @@ export async function run(options: Options): Promise<RunResult> {
     // OXMUTATE_ISOLATE_STATIC=1 sends every static mutant down the fresh-worker path, as before.
     if (tracking) stats.staticReaders = { ...readersOf(staticMutants), dryRunMs: readersDryRunMs };
     const s0 = performance.now();
-    const staticBack = env['OXMUTATE_ISOLATE_STATIC'] ? staticMutants : await decideStaticLive(staticMutants);
+    // A static mutant whose loader files' tests cost enough that the live run is the dearer goes straight to a fresh worker.
+    const staticCover = (m: MutantResult): number => {
+      const fs = new Set(filesFor(m));
+      return dry.tests.filter((t) => fs.has(t.file)).reduce((sum, t) => sum + t.ms, 0);
+    };
+    const staticNow = env['OXMUTATE_FRESH_FIRST'] === '0' ? [] : staticMutants.filter((m) => freshFirst || staticFreshIsCheaper(staticCover(m)));
+    stats.staticFresh = staticNow.length;
+    const staticLive = staticMutants.filter((m) => !staticNow.includes(m));
+    const staticBack = env['OXMUTATE_ISOLATE_STATIC'] || freshFirst ? staticMutants : [...staticNow, ...(await decideStaticLive(staticLive))];
     // `static.readers: 'on'`: one survivor in twenty that ran in fewer files than load its module
     // runs again in all of them. One that fails there is Killed, and the run fails (cli.ts).
     if (options.staticReaders === 'on' && stats.staticReaders) {
@@ -1349,6 +1413,7 @@ export async function run(options: Options): Promise<RunResult> {
     // Live is the opt-in because it is not faster everywhere (2026-11-20, one build, alternating): ufo's
     // 100 confirmations took 1.2 s live against 3.9 s fresh, pathe's 122 took 57.7 s live against 21.7 s
     // fresh (0.47 s a mutant against 0.18; the run took 360.7 s against 280.5 s).
+    // A mutant that ran fresh first was armed across each whole file already: that run is its confirmation.
     // A warm survivor is confirmed from cold modules whatever its covering tests. Its armed run came after
     // other runs in the same module instance, and a memo they filled (pathe's glob cache) hides a mutant in
     // the code that computed the value: it survives there and is killed on the cold modules of a fresh
@@ -1357,7 +1422,7 @@ export async function run(options: Options): Promise<RunResult> {
     // whose code was reached can be hidden through the value it returned. The old rule, only survivors with
     // two covering tests, is OXMUTATE_TRUST_WARM_SURVIVORS=1.
     const stale = new Set(env['OXMUTATE_TRUST_WARM_SURVIVORS'] ? [] : toRun.filter((m) => m.status === 'Survived' && new Set(m.coveredBy).size <= 1).map((m) => m.id));
-    const survivors = toRun.filter((m) => m.status === 'Survived' && (new Set(m.coveredBy).size > 1 || stale.has(m.id)));
+    const survivors = toRun.filter((m) => m.status === 'Survived' && !freshNow.has(m.id) && (new Set(m.coveredBy).size > 1 || stale.has(m.id)));
     stats.staleSurvivors = survivors.filter((m) => stale.has(m.id)).length;
     const live = env['OXMUTATE_LIVE_CONFIRM'] ? await decideLive(survivors, filesFor, true) : { verdicts: new Map<string, Verdict>(), undecided: survivors };
     stats.confirmLive += live.verdicts.size;

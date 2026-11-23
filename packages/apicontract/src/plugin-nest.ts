@@ -40,7 +40,13 @@ export const run = (contract: Contract, options: Options): GeneratorResult => {
         content: baseFile(controller, checked),
         symbols: controller.routes.map((route) => ({ operation: route.id, symbol: `${controller.name}ControllerBase` })),
       },
-      { path: `${controller.file}.controller.ts`, owner: 'user', content: controllerFile(controller) },
+      {
+        path: `${controller.file}.controller.ts`,
+        owner: 'user',
+        content: controllerFile(controller),
+        // The method that answers each operation: the base declares it abstract, so its name holds while the class is the user's.
+        symbols: controller.routes.map((route) => ({ operation: route.id, symbol: `${controller.name}Controller.${route.name}` })),
+      },
       ...controller.routes.map((route): GeneratedFile => ({ path: `${route.name}.contract.test.ts`, owner: 'generated', content: contractTest(route, checked, checked.testRunner) })),
     ]),
   ];

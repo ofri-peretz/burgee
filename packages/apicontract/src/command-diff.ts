@@ -69,7 +69,7 @@ export interface DiffOptions {
   readonly git?: GitReader;
 }
 
-interface Side_ {
+export interface Side_ {
   readonly label: string;
   /** The file a SARIF location names. */
   readonly file: string;
@@ -80,7 +80,7 @@ interface Side_ {
 const GIT = /^git:(?<ref>[^:]+):(?<path>.+)$/;
 
 /** Read one side: a file, or a file at a git ref, into the model through the first adapter that detects it. */
-const read = (spec: string, cwd: string, git: GitReader): Side_ => {
+export const readContract = (spec: string, cwd: string, git: GitReader): Side_ => {
   const match = GIT.exec(spec);
   const { ref, path } = (match?.groups ?? {}) as { ref?: string; path?: string };
   const file = path ?? spec;
@@ -291,12 +291,12 @@ const sidesOf = (options: DiffOptions, git: GitReader): { readonly olds: readonl
   const more = options.more ?? [];
   if (options.transitive !== true) {
     if (more.length > 0) throw new UsageError(`diff compares two contracts, and was given ${String(more.length + 2)}. fix: pass --transitive to compare the last one with each before it, oldest first`);
-    return { olds: [read(options.old, options.cwd, git)], nu: read(options.new, options.cwd, git) };
+    return { olds: [readContract(options.old, options.cwd, git)], nu: readContract(options.new, options.cwd, git) };
   }
   const specs = [options.old, options.new, ...more];
   const olds = specs.slice(0, -1).flatMap((spec) => releasesOf(spec, options.cwd));
   if (olds.length === 0) throw new UsageError(`no contract to compare with: ${specs.slice(0, -1).join(', ')} holds no .json, .yaml or .yml file. fix: pass the past releases' files, oldest first`);
-  return { olds: olds.map((spec) => read(spec, options.cwd, git)), nu: read(specs.at(-1) as string, options.cwd, git) };
+  return { olds: olds.map((spec) => readContract(spec, options.cwd, git)), nu: readContract(specs.at(-1) as string, options.cwd, git) };
 };
 
 /** The usage file, read. */

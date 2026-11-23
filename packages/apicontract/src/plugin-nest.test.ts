@@ -54,6 +54,12 @@ describe('the nest plugin', () => {
     expect(files.map((file) => file.path)).toEqual(SAMPLE_PATHS);
     for (const file of files) expect(file.content, file.path).toBe(golden(file.path));
     expect(files.filter((file) => file.owner === 'user').map((file) => file.path)).toEqual(['pets.controller.ts']);
+    // The method the user owns for each operation, so a rule on code can find it through the map.
+    expect(files.find((file) => file.path === 'pets.controller.ts')?.symbols).toEqual([
+      { operation: 'createPet', symbol: 'PetsController.createPet' },
+      { operation: 'get /pets', symbol: 'PetsController.getPets' },
+      { operation: 'getPet', symbol: 'PetsController.getPet' },
+    ]);
     expect(files.find((file) => file.path === 'pets.controller.base.ts')?.symbols).toEqual([
       { operation: 'createPet', symbol: 'PetsControllerBase' },
       { operation: 'get /pets', symbol: 'PetsControllerBase' },

@@ -27,10 +27,12 @@ and `chalk` (wave 0.4, the red ratchet) is roundel's incumbent, not anyone else'
 | `ac-servers` | `lane/ac-servers` | `packages/apicontract/src/plugin-nest*.ts`, `packages/apicontract/src/plugin-hono*.ts`, `packages/apicontract/src/plugin-fastify*.ts`, `packages/apicontract/src/plugin-express*.ts`, `packages/apicontract/src/plugin-server-*.ts`, `.sdlc/intents/apicontract-servers/**`, `packages/apicontract/src/__fixtures__/servers/**` | 6.0 |
 | `ac-clients` | `lane/ac-clients` | `packages/apicontract/src/plugin-fetch*.ts`, `packages/apicontract/src/plugin-tanstack-query*.ts`, `packages/apicontract/src/plugin-msw*.ts`, `packages/apicontract/src/plugin-swr*.ts`, `.sdlc/intents/apicontract-clients/**`, `packages/apicontract/src/__fixtures__/clients/**` | 6.0 |
 | `ac-agents` | `lane/ac-agents` | `packages/apicontract/src/plugin-mcp*.ts`, `packages/apicontract/src/plugin-markdown*.ts`, `packages/apicontract/src/command-explain*.ts`, `.sdlc/intents/apicontract-agents/**`, `packages/apicontract/src/__fixtures__/agents/**` | 6.0 |
-| `ac-diff` | `lane/ac-diff` | `packages/apicontract/src/diff-*.ts`, `packages/apicontract/src/command-diff*.ts`, `.sdlc/intents/apicontract-diff/**`, `.sdlc/intents/apicontract-diff-decisions/**`, `packages/apicontract/src/__fixtures__/diff/**` | 6.0 |
+| `ac-diff` | `lane/ac-diff` | `packages/apicontract/src/diff-*.ts`, `packages/apicontract/src/command-diff*.ts`, `.sdlc/intents/apicontract-diff/**`, `.sdlc/intents/contractdiff-compat-depth/**`, `.sdlc/intents/apicontract-diff-decisions/**`, `packages/apicontract/src/__fixtures__/diff/**` | 6.0 |
+| `rulehome` | `lane/rulehome` | `packages/rulehome/**`, `.sdlc/intents/rulehome/**` | 6.0 |
 | `ac-lint` | `lane/ac-lint` | `packages/apicontract/src/lint-*.ts`, `packages/apicontract/src/command-lint*.ts`, `packages/apicontract/src/plugin-lint-*.ts`, `.sdlc/intents/apicontract-lint/**`, `packages/apicontract/src/__fixtures__/lint/**` | 6.0 |
 | `ac-kit` | `lane/ac-kit` | `packages/apicontract/src/testing*.ts`, `packages/apicontract/src/migrate-*.ts`, `packages/apicontract/src/scaffold*.ts`, `packages/apicontract/src/command-migrate*.ts`, `packages/apicontract/src/command-plugin*.ts`, `packages/apicontract/AGENTS.md`, `.sdlc/intents/apicontract-kit/**`, `packages/apicontract/src/__fixtures__/kit/**` | 6.0 |
 | `ac-corpus` | `lane/ac-corpus` | `benchmarks/apicontract/**`, `.sdlc/intents/apicontract-corpus/**` | — |
+| `ac-props` | `lane/ac-props` | `packages/apicontract/src/props-*.ts`, `packages/apicontract/src/command-props*.ts`, `.sdlc/intents/contract-properties/**`, `packages/apicontract/src/__fixtures__/props/**` | — |
 | `validator` | `lane/validator` | `packages/validator/**`, `.sdlc/intents/validator/**`, `benchmarks/validator/**` | harness 2.0 |
 | `replay` | `lane/replay` | `packages/replay/**`, `.sdlc/intents/replay/**`, `.sdlc/replay/**` | triggerlist's checklist (R4 firing table) |
 | `triggerlist` | `lane/triggerlist` | `packages/triggerlist/**`, `.sdlc/intents/triggerlist/**`, `.sdlc/checklist.yaml`, `REVIEW.md` | — |
@@ -39,6 +41,7 @@ and `chalk` (wave 0.4, the red ratchet) is roundel's incumbent, not anyone else'
 | `hookset` | `lane/hookset` | `packages/hookset/**`, `.sdlc/intents/hookset/**`, `.github/workflows/hookset-check.yml`, `.github/workflows/changeset-gate.yml` | — |
 | `controlroom` | `lane/controlroom` | `packages/controlroom/**`, `.sdlc/intents/controlroom/**` | closeout R4 (controlroom spec R1); caique `./keys` and flagstaff's seam (R2, R3) |
 | `oxmutate` | `lane/oxmutate` | `packages/oxmutate/**`, `.sdlc/intents/oxmutate/**` | — |
+| `proofline` | `lane/proofline` | `packages/proofline/**`, `.sdlc/intents/proofline/**` | — |
 | `truemark` | `lane/truemark` | `packages/truemark/**`, `.sdlc/intents/truemark/**` | — |
 | `output` | `lane/output` | `packages/roundel/**`, `packages/flagstaff/**`, `.sdlc/intents/roundel/**`, `.sdlc/intents/flagstaff/**` | — (0.4 is urgent) |
 | `engine` | `lane/engine` | `packages/burgee/**`, `packages/commander-harness/**`, `packages/yargs-harness/**`, `.sdlc/intents/commander-*/**`, `.sdlc/intents/yargs-*/**` | — |
