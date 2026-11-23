@@ -1,6 +1,6 @@
 /* eslint-disable maintainability/consistent-function-scoping -- a test's helpers sit beside the case they serve */
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { delimiter, join } from 'node:path';
 
 import { ambientRuntime } from 'bellpull';
 import { ExitCode } from 'burgee';
@@ -26,19 +26,30 @@ const retyped = (): string => {
 };
 
 /**
- * A folder holding a fake `buf`: it writes its arguments to `args`, fails on a path naming `bad`,
- * and prints `<file>.image.json` for a `.proto` file or `<folder>/image.json` for a module.
+ * A folder holding a fake `buf` written in node, run as npm runs a bin: a `#!` script on POSIX and a
+ * `.cmd` shim on Windows. It writes its arguments to `args`, fails on a file named `bad*`, and
+ * prints `<file>.image.json` for a `.proto` file or `<folder>/image.json` for a module.
  */
 const fakeBuf = (): string => {
   const bin = makeDir('apicontract-buf-bin-');
   const script = [
-    '#!/bin/sh',
-    'echo "$@" > "$(dirname "$0")/args"',
-    'case "$2" in *bad*) echo "bad.proto:3:1: syntax error" >&2; exit 1;; esac',
-    'if [ -d "$2" ]; then cat "$2/image.json"; else cat "${2%.proto}.image.json"; fi',
+    "import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';",
+    "import { basename, dirname, join } from 'node:path';",
+    "import { fileURLToPath } from 'node:url';",
+    'const args = process.argv.slice(2);',
+    "writeFileSync(join(dirname(fileURLToPath(import.meta.url)), 'args'), `${args.join(' ')}\\n`);",
+    'const target = args[1];',
+    "if (basename(target).startsWith('bad')) { process.stderr.write('bad.proto:3:1: syntax error\\n'); process.exit(1); }",
+    "const image = existsSync(target) && statSync(target).isDirectory() ? join(target, 'image.json') : target.replace(/\\.proto$/, '.image.json');",
+    'process.stdout.write(readFileSync(image));',
   ].join('\n');
-  writeFileSync(join(bin, 'buf'), `${script}\n`);
-  chmodSync(join(bin, 'buf'), 0o755);
+  writeFileSync(join(bin, 'buf.mjs'), `${script}\n`);
+  if (process.platform === 'win32') {
+    writeFileSync(join(bin, 'buf.cmd'), '@echo off\r\nnode "%~dp0buf.mjs" %*\r\n');
+  } else {
+    writeFileSync(join(bin, 'buf'), `#!/usr/bin/env node\nimport './buf.mjs';\n`);
+    chmodSync(join(bin, 'buf'), 0o755);
+  }
   return bin;
 };
 
@@ -54,8 +65,17 @@ const sources = (): string => {
   return dir;
 };
 
+/** `folder` in front of the PATH, on any platform. */
+const before = (folder: string): string => `${folder}${delimiter}${process.env.PATH ?? ''}`;
+
 /** The PATH with a fake buf in front. */
-const withBuf = (): string => `${fakeBuf()}:${process.env.PATH ?? ''}`;
+const withBuf = (): string => before(fakeBuf());
+
+/** The ambient runtime with this PATH, under the one key (Windows spells it `Path`, and a second spelling would be ambiguous). */
+const runtimeOn = (path: string): ReturnType<typeof ambientRuntime> => ({
+  ...ambientRuntime(),
+  env: { ...Object.fromEntries(Object.entries(process.env).filter(([key]) => key.toUpperCase() !== 'PATH')), PATH: path },
+});
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -76,12 +96,10 @@ describe('isBufSource', () => {
 });
 
 describe('bufIn', () => {
-  const runtimeOn = (path: string): ReturnType<typeof ambientRuntime> => ({ ...ambientRuntime(), env: { ...process.env, PATH: path } });
-
   it('builds a source to the JSON image buf prints, in the folder given', async () => {
     const bin = fakeBuf();
     const dir = sources();
-    expect(await bufIn(runtimeOn(`${bin}:${process.env.PATH ?? ''}`))('old.proto', dir)).toBe(IMAGE);
+    expect(await bufIn(runtimeOn(before(bin)))('old.proto', dir)).toBe(IMAGE);
     expect(readFileSync(join(bin, 'args'), 'utf8')).toBe('build old.proto -o -#format=json\n');
   });
 
