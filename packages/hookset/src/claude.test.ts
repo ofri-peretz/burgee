@@ -49,7 +49,8 @@ describe('guard-bash', () => {
   });
 
   it('denies an edit under a frozen glob when the paths come with Windows backslashes', () => {
-    const dir = join(scratch('hookset-claude-'), 'C:\\proj');
+    // A backslash in a directory name stands in for a Windows path on POSIX; Windows reads it as two folders.
+    const dir = join(scratch('hookset-claude-'), 'win\\proj');
     mkdirSync(join(dir, '.claude'), { recursive: true });
     writeFileSync(join(dir, '.claude/hookset.json'), JSON.stringify({ frozen: ['content/**/*.md'] }));
     const file = `${dir}\\content\\a\\b.md`;
