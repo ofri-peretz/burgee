@@ -55,6 +55,21 @@ Keyword coverage is `GENERATED` and `REPORTED` in `props-generate.ts`; `props-ke
 validator's reader and fails on any keyword it reads that is in neither
 (`npx vitest run packages/apicontract/src/props-keywords.test.ts`).
 
+## Corpus lane (success criterion 1)
+
+`benchmarks/apicontract/props-corpus.ts` runs the built `apicontract props --json` at 1,000 values per payload and
+property: agreement, round-trip and normalise on each pinned OpenAPI document, and diff soundness `--against` the
+old side of the planted pairs `diff-pairs.ts` builds for the contractdiff reading. `bench.yml`'s `props` job runs it
+nightly on a seeded sample (200 documents, 50 pairs) and on the weekly cron on every pinned OpenAPI document and
+500 pairs; a counterexample fails the run. A contract that is unread, crashes or times out is counted apart and the
+summary calls it unmeasured, never passed (`props-corpus.test.ts`, seen red with no module, then green).
+
+First reading, 2026-11-23, seed 1, on the cloud box (`--sample 50 --pairs 20`; [`benchmarks/apicontract/results/2026-11-23-303fe1d1cc-props/summary.md`](../../../benchmarks/apicontract/results/2026-11-23-303fe1d1cc-props/summary.md)): 50 of 50 documents and 20 of 20
+sampled pairs ran with no counterexample (12,484,487 values per single-document property, 4,888,460 for soundness;
+median 1,900 ms per contract). The six timing pairs on the GitHub and Stripe descriptions timed out at 300 s each,
+so props on the two largest specs is _unmeasured_; the criterion is met on every pinned document only once the
+weekly run reports no timeouts.
+
 The diff-soundness success criterion is met by `props-run.test.ts` ("a classifier that calls a breaking change
 compatible"): with the classifier's findings removed, `old` against `new` in `__fixtures__/props/` gives three
 counterexamples, shrunk to the boundary value (`quantity: 11` under a maximum of 10); with the real classifier, none.

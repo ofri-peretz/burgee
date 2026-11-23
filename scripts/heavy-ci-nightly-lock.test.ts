@@ -60,6 +60,7 @@ const HEAVY: { file: string; job: string }[] = [
   { file: 'bench.yml', job: 'cheap' },
   { file: 'bench.yml', job: 'floor' },
   { file: 'bench.yml', job: 'agent' },
+  { file: 'bench.yml', job: 'props' },
   { file: 'compat.yml', job: 'controls' },
   { file: 'compat.yml', job: 'floor' },
   { file: 'evals.yml', job: 'evals' },
