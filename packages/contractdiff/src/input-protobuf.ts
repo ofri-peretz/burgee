@@ -121,11 +121,18 @@ class Schemas {
   /** Every message and enum a payload reaches, as `$defs`, each read once. */
   defs(): Readonly<Record<string, JsonSchema>> {
     const defs = new Map<string, JsonSchema>();
+    // Queued once: a type two messages reach is read, and its findings made, only once.
+    const seen = new Set(this.reached);
     const todo = [...this.reached];
     for (let next = todo.pop(); next !== undefined; next = todo.pop()) {
       const def = this.definition(next);
       defs.set(defKey(next), def.schema);
-      todo.push(...[...def.refs].filter((ref) => !defs.has(defKey(ref))));
+      for (const ref of def.refs) {
+        if (!seen.has(ref)) {
+          seen.add(ref);
+          todo.push(ref);
+        }
+      }
     }
     return Object.fromEntries(defs);
   }
@@ -171,7 +178,7 @@ class Schemas {
   private oneofsOf(name: string, node: Dict, pointer: string, oneofs: ReadonlyMap<number, readonly string[]>): object {
     const decls = new Map(indexed(node.oneofDecl));
     const groups = [...oneofs].map(([index, members]) => {
-      const group = String(decls.get(index)?.name);
+      const group = String(decls.get(index)?.name ?? index);
       this.finding('oneof-not-enforced', `${pointer}/oneofDecl/${index}`, `\`${defKey(name)}.${group}\` holds at most one of ${members.map((member) => `\`${member}\``).join(', ')}; the schema does not enforce that`, 'check the choice in code, or read the group from `x-protobuf-oneof`');
       return [group, members] as const;
     });

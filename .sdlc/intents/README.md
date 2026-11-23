@@ -571,6 +571,7 @@ execution order. The selection is
 | 112 | [`rulehome/`](./rulehome/) | **every rule has a home, in the family**: rulehome moves in on burgee (`audit`, `skills`, `agents`); its decision-marker check folds into contractdiff | approved 2026-11-22 (D-20261122-toolkit-intents-accepted) |
 | 113 | [`contractdiff-compat-depth/`](./contractdiff-compat-depth/) | **diff as deep as the registries**: transitive, dangerous, usage-aware, frozen, protobuf levels; operation selection and an agent-ready ruleset | approved 2026-11-22 (D-20261122-toolkit-intents-accepted) |
 | 114 | [`apicontract-protobuf/`](./apicontract-protobuf/) | **protobuf in the one model, through buf**: a descriptor-image adapter, `.proto` compiled by the user's buf, `diff --level` passing buf's breaking verdicts through | approved 2026-11-23 (owner's standing delegation) |
+| 115 | [`contractdiff-bench/`](./contractdiff-bench/) | **contractdiff against its competitors**: a labelled corpus of planted changes, oasdiff, openapi-diff, optic, buf, Spectral and Redocly at pinned versions, D1–D4 per tool | approved 2026-11-23 (owner's request) |
 
 Rows 73–78 come from [`adoption-barriers-2026-10.md`](../research/adoption-barriers-2026-10.md),
 a field trial of the published `burgee migrate` on 9 CLIs we did not write, plus population

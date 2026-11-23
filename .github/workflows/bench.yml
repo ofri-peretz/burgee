@@ -324,6 +324,43 @@ jobs:
           if-no-files-found: ignore
           retention-days: 30
 
+  # contractdiff against its competitors (.sdlc/intents/contractdiff-bench/): planted OpenAPI edits
+  # whose label is known, every differ asked the backward-compatibility question, the linters timed.
+  # 50 pairs nightly and 1,000 on the weekly cron; each competitor installed at its pin into a
+  # temporary folder, never the lockfile. The reading is an artifact: what is committed, and what is
+  # said in public about it, is the owner's call on a reading (intent, out of scope).
+  contractdiff:
+    name: contractdiff against its competitors
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+      - name: Build contractdiff (the reading measures what is built)
+        run: npx turbo run build --filter=contractdiff
+      - name: Run every tool on the pairs
+        shell: bash
+        env:
+          SAMPLE: ${{ github.event.schedule == '40 5 * * 2' && '1000' || '50' }}
+          APICONTRACT_CORPUS_CACHE: ${{ runner.temp }}/apicontract-corpus
+        run: npx tsx benchmarks/apicontract/diff-bench.ts --sample "$SAMPLE" --seed 1 --out "benchmarks/apicontract/results/$(date -u +%F)-${GITHUB_SHA::10}-diff" 2> diff-bench.log
+      - name: Summary
+        if: always()
+        run: |
+          { cat benchmarks/apicontract/results/*-diff/summary.md 2>/dev/null || { echo '## contractdiff against its competitors'; echo; echo '```'; tail -50 diff-bench.log; echo '```'; }; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: contractdiff-bench
+          path: |
+            benchmarks/apicontract/results/*-diff/
+            diff-bench.log
+          if-no-files-found: ignore
+          retention-days: 30
+
   agent:
     name: B1 agent cost (skips loudly without a credential)
     # Never on a PR by default: it spends money per run, it is noisy over short

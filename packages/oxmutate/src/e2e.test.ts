@@ -1334,6 +1334,34 @@ describe.skipIf(!native || !existsSync(bin))('fresh or warm, by what the coverin
   });
 });
 
+// A hang is stopped at the limit of the test it hangs, not at the budget of the slowest test that covers the
+// mutant, on a fresh worker as in a warm one (#1704 did the warm one). The fixture's 1 ms test never returns while
+// its mutant is armed; a second test of 0.8 s sizes the whole mutant's budget (about 3.5 s) and sends the mutant
+// to a fresh worker first. The stop comes at the 1 ms test's limit (about 0.5 s), well inside that.
+describe.skipIf(!native || !existsSync(bin))('a hang on a fresh worker is stopped at its test\'s limit', () => {
+  type Run = { verdicts: string[]; stops: number[] };
+  const dir = path.join(pkg, 'test/fixtures/per-test-limit');
+  const once = (env: Record<string, string>): Run => {
+    const reportDir = mkdtempSync(path.join(tmpdir(), 'oxmutate-per-test-limit-'));
+    spawnSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: dir, stdio: 'pipe', env: { ...process.env, ...env } });
+    const report = JSON.parse(readFileSync(path.join(reportDir, 'mutation.json'), 'utf8')) as { files: Record<string, { mutants: ReportMutant[] }>; 'x-oxmutate': { stats: { warmStopsMs: number[] } } };
+    discard(reportDir);
+    return { verdicts: Object.values(report.files).flatMap((f) => f.mutants.map((m) => m.status)), stops: report['x-oxmutate'].stats.warmStopsMs };
+  };
+  const runs = {} as { fresh: Run; warm: Run };
+  beforeAll(() => {
+    runs.fresh = once({ OXMUTATE_FRESH_FIRST: '1', OXMUTATE_ISOLATE_STATIC: '1' });
+    runs.warm = once({ OXMUTATE_FRESH_FIRST: '0' });
+  }, 120_000);
+
+  it.each([['fresh first', 'fresh'], ['warm', 'warm']] as const)('%s: every hang is a Timeout, stopped inside 1.5 s', (_, which) => {
+    const run = runs[which];
+    expect(run.verdicts.length).toBeGreaterThan(0);
+    expect(run.stops.length).toBeGreaterThan(0);
+    expect(Math.min(...run.stops)).toBeLessThan(1500);
+  });
+});
+
 describe.skipIf(!native || !existsSync(bin))("Stryker's mutate ranges", () => {
   const registry = path.join(pkg, 'test/fixtures/registry');
   afterAll(() => discard(path.join(registry, 'reports')));

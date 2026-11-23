@@ -1,5 +1,27 @@
 # oxmutate
 
+## 2.18.0
+
+### Minor Changes
+
+- [#1752](https://github.com/ofri-peretz/burgee/pull/1752) [`b9540f3`](https://github.com/ofri-peretz/burgee/commit/b9540f38739543f1099b3a791dc5b3666ee57b1b) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - In container mode the default worker count is every core of the container but one, with no cap of eight
+  (13 on a 14-core Docker VM, where the host default stays 8). The container's cores are its own, and a
+  worker the kernel kills for memory is run again alone, so a neighbour's crash is no longer a verdict.
+  `--concurrency` and the config's `concurrency` still win.
+
+## 2.17.0
+
+### Minor Changes
+
+- [#1734](https://github.com/ofri-peretz/burgee/pull/1734) [`c70714b`](https://github.com/ofri-peretz/burgee/commit/c70714b91a0396ceef0fe3ff4120c98a46c5f921) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A mutant whose worker went down is run once more, alone in a fresh worker with no sibling, before it
+  is a RuntimeError. The crash may be a neighbour's: a mutant that allocates until the kernel kills a
+  worker takes down whichever one is biggest, and the mutant it was running got the blame (pathe at 10
+  and 13 workers: `_glob.ts:49:11` RuntimeError where a fresh worker says Killed). The lone run's verdict
+  stands, a crash included, so a mutant that really takes its worker down stays a RuntimeError. A warm
+  crash goes straight to its own isolated unit; a crash in an isolated unit or a confirmation is run
+  again in the same pool. New cause `crashed` in `isolatedByCause` and in the summary line. Also: the
+  re-runs of the 3x stages now count in `isolatedRuns`, so every isolated run has a cause again.
+
 ## 2.16.0
 
 ### Minor Changes

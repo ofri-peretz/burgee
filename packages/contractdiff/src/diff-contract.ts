@@ -13,9 +13,9 @@ import { ruleId } from './diff-rules.js';
 import { compareSchemas, type Effect, isFrozen, serverReceives } from './diff-schema.js';
 
 export interface Finding {
-  /** oasdiff's rule id where the change is one oasdiff names, else ours, `ac-`-prefixed. */
+  /** oasdiff's rule id where the change is one oasdiff names, buf's `buf:`-prefixed with `--level`, else ours, `ac-`-prefixed. */
   readonly id: string;
-  readonly scheme: 'oasdiff' | 'contractdiff';
+  readonly scheme: 'oasdiff' | 'contractdiff' | 'buf';
   readonly verdict: Verdict;
   readonly effect: Effect;
   readonly operation: string;
