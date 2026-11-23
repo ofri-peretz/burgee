@@ -20,7 +20,6 @@ import { noFocusedTest } from './no-focused-test.js';
 import { noTestRetry } from './no-test-retry.js';
 import { noUnexplainedSkip } from './no-unexplained-skip.js';
 
-
 export const rules: Record<string, Rule.RuleModule> = {
   'no-fixed-sleep': noFixedSleep,
   'no-focused-test': noFocusedTest,

@@ -8,7 +8,8 @@ import type { Git } from './git.js';
 export async function check(base: string, git: Git): Promise<Finding[]> {
   const [diff, names, messages] = await Promise.all([
     git(['diff', '--unified=0', '--no-color', '--no-ext-diff', `${base}...HEAD`]),
-    git(['diff', '--name-only', `${base}...HEAD`]),
+    // A deleted snapshot asserts nothing new: only files that still exist are read.
+    git(['diff', '--name-only', '--diff-filter=d', `${base}...HEAD`]),
     git(['log', '--format=%B', `${base}..HEAD`]),
   ]);
   // An empty line names no file, and no snapshot pattern matches it.

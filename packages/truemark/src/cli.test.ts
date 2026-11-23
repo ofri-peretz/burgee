@@ -38,7 +38,7 @@ describe('truemark diff', () => {
     await runBurgee(createProgram(git), { argv: ['diff'] });
     expect(git.calls).toEqual([
       ['diff', '--unified=0', '--no-color', '--no-ext-diff', 'origin/main...HEAD'],
-      ['diff', '--name-only', 'origin/main...HEAD'],
+      ['diff', '--name-only', '--diff-filter=d', 'origin/main...HEAD'],
       ['log', '--format=%B', 'origin/main..HEAD'],
     ]);
   });
