@@ -1,5 +1,11 @@
 # oxmutate
 
+## 2.18.2
+
+### Patch Changes
+
+- [#1757](https://github.com/ofri-peretz/burgee/pull/1757) [`272adb7`](https://github.com/ofri-peretz/burgee/commit/272adb7262a292830f4e3a7e5dfc700052aeedf2) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Container mode: a full disk now gives one line naming the fix. A sync or install that fails with the volume nearly out of room exits with its own code and says so; `docker create`, `cp`, `volume create`, the host's `tar` and the copy back each name `oxmutate prune`, `docker|podman system prune` or the Podman machine's disk size. Podman's short-name refusal tells you to use a full image name, and "unable to connect to Podman socket" is reported as a daemon that is not running.
+
 ## 2.18.1
 
 ### Patch Changes
