@@ -89,7 +89,7 @@ const thensOf = (rule: Rule): readonly Then[] => {
 
 /** One `then` on one node: what is wrong, named by the field it read. */
 const problemOf = (then: Then, node: LintNode): string[] => {
-  const problem = apply(then.function, fieldOf(node.value, then.field), then.functionOptions as Record<string, unknown> | undefined);
+  const problem = apply(then.function, fieldOf('matched' in node ? node.matched : node.value, then.field), then.functionOptions as Record<string, unknown> | undefined);
   if (problem === undefined) return [];
   return [then.field === undefined ? problem : `\`${then.field}\` ${problem}`];
 };
