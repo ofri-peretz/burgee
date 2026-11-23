@@ -92,7 +92,7 @@ reviewer at Deploy should accept or send back.
   [`compat-traces.qnt`](./compat-traces.qnt) imports it and records `{ old, nu, verdict }` per
   state, the verdicts computed by `compat.qnt`'s own `backward`/`forward`/`full`. Generated once
   with Quint 0.33.0 (command in that file's header): 24 traces, 384 pairs, committed under
-  `packages/apicontract/src/__fixtures__/diff/traces/`. `diff-classify.test.ts` checks, on every
+  `packages/contractdiff/src/__fixtures__/diff/traces/`. `diff-classify.test.ts` checks, on every
   pair, that `compareSchemas` reads BACKWARD and FORWARD as Quint does (`s ⊆ r` through `enum`
   schemas), and on every single-schema pair that `classify` agrees with `compat.qnt` for all 7
   directions × 3 modes × 2 sides, plus `reversalSwaps`.

@@ -155,6 +155,14 @@ export function parseChangedLines(diff: string): Map<string, LineRange[]> {
   return out;
 }
 
+/**
+ * The `git diff` that names a pull request's changed lines. Renames are detected
+ * (`--find-renames`), so a file moved with a few edits contributes those edits, not every
+ * line: with `--no-renames` a folder rename planned the whole package and ran past the lane's
+ * 45-minute budget (burgee#1751, apicontract → contractdiff).
+ */
+export const changedDiffArgs = (range: string): string[] => ['diff', '-U0', '--no-color', '--find-renames', '--diff-filter=AMR', range];
+
 /** Stryker `mutate` entries (`src/x.ts:10-12`) for each package, from the changed lines. */
 export function mutateSpecs(changed: ReadonlyMap<string, readonly LineRange[]>, packages: ReadonlySet<string>): Map<string, string[]> {
   const out = new Map<string, string[]>();
@@ -634,7 +642,7 @@ function changedSpecs(event: string, base: string): { specs: Map<string, string[
     return { none: `Not a pull request (\`${event || 'none'}\`): nothing changed to mutate here. The weekly full run (\`npm run mutation:weekly\`) measures \`main\`.`, code: 0 };
   }
   const set = affected({ root: REPO_ROOT, event: 'pull_request', base, log: (l) => process.stderr.write(`${l}\n`) });
-  const diff = spawnSync('git', ['diff', '-U0', '--no-color', '--no-renames', '--diff-filter=AMR', `${base}...HEAD`, '--', 'packages/'], { cwd: REPO_ROOT, encoding: 'utf8', maxBuffer: DIFF_BUFFER_BYTES });
+  const diff = spawnSync('git', [...changedDiffArgs(`${base}...HEAD`), '--', 'packages/'], { cwd: REPO_ROOT, encoding: 'utf8', maxBuffer: DIFF_BUFFER_BYTES });
   if (diff.status !== 0) return { none: `\`git diff ${base}...HEAD\` failed: ${diff.stderr.trim()}`, code: 1 };
   const specs = mutateSpecs(parseChangedLines(diff.stdout), new Set(set.packages));
   if (specs.size === 0) return { none: `No source line under \`packages/*/src\` changed against \`${base}\`; nothing to mutate.`, code: 0 };

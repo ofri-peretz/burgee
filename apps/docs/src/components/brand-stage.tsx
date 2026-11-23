@@ -52,6 +52,8 @@ const MARKS = [
   'controlroom',
   'oxmutate',
   'truemark',
+  'contractdiff',
+  'loadline',
 ] as const;
 
 /** Extrusion, in the marks' own 100-unit space. */

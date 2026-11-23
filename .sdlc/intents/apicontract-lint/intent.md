@@ -1,7 +1,7 @@
 # Intent — `apicontract lint`: a team's standards and governance rules, checked on the contract and the code that implements it
 
-> The program's `lint` row ([`../apicontract/intent.md`](../apicontract/intent.md), "only on pull")
-> and its governance requirements R-BL1–R-BL9 ([`../apicontract/spec.md`](../apicontract/spec.md)).
+> The program's `lint` row ([`../contractdiff/intent.md`](../contractdiff/intent.md), "only on pull")
+> and its governance requirements R-BL1–R-BL9 ([`../contractdiff/spec.md`](../contractdiff/spec.md)).
 > The pull arrived on 2026-11-22: the owner asked for "linting for standards, applying linting rules and
 > governance rules on contracts". Pairs with [`../apicontract-diff-decisions/`](../apicontract-diff-decisions/):
 > lint checks the *form* of a contract, diff checks the *change*, decision markers record the *intent*.
@@ -88,9 +88,9 @@ Each becomes a requirement, not a slogan:
 
 ## Affected users and systems
 
-- New: `packages/apicontract/src/lint-*.ts`, `command-lint.ts`, a `rules` key in the plugin
+- New: `packages/contractdiff/src/lint-*.ts`, `command-lint.ts`, a `rules` key in the plugin
   schema and in `conformance`.
-- `packages/apicontract/src/cli.ts`: `lint` joins `gen`, `extract`, `diff`; the planned `check`
+- `packages/contractdiff/src/cli.ts`: `lint` joins `gen`, `extract`, `diff`; the planned `check`
   (call sites, Phase 7) stays separate.
 - Teams running Spectral, Redocly CLI or vacuum in CI.
 

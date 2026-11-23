@@ -20,13 +20,13 @@ pressed on a word that had not been explained. Both are withdrawn here.
 What follows from it in this tree:
 
 - The validator is a product of its own with its own intent
-  ([`validator/intent.md`](../intents/validator/intent.md)), not `apicontract-schema`. Its bar is Zod,
+  ([`validator/intent.md`](../intents/loadline/intent.md)), not `apicontract-schema`. Its bar is Zod,
   on every metric; the other validators are read beside it and published, and are not the bar.
   Widened by the owner on 2026-11-12: "we need to beat them both on features, value and latency",
   read as Zod and ajv, the two validators he had named; the metrics are grouped that way.
-- [`apicontract/metrics.md`](../intents/apicontract/metrics.md) states the metrics bar as a rule, its
+- [`apicontract/metrics.md`](../intents/contractdiff/metrics.md) states the metrics bar as a rule, its
   targets that allowed a tie now require a win, and `extract` has metrics.
-- Naming leaves Phase 0 of [`apicontract/roadmap.md`](../intents/apicontract/roadmap.md). `apicontract`
+- Naming leaves Phase 0 of [`apicontract/roadmap.md`](../intents/contractdiff/roadmap.md). `apicontract`
   and `validator` stay working names.
 - **People use `apicontract` with the protocols and spec formats they already have** (owner,
   2026-11-11): the tool reads their files as they are, with no conversion step.

@@ -77,8 +77,8 @@ This intent is the playbook's "Agreements between systems" concept (Contract) ma
 
 ## Affected users and systems
 
-- `packages/apicontract/src/diff-*.ts`: read markers, pair them with findings.
-- `packages/apicontract/src/command-diff.ts`: `--today`, the new finding codes, SARIF locations.
+- `packages/contractdiff/src/diff-*.ts`: read markers, pair them with findings.
+- `packages/contractdiff/src/command-diff.ts`: `--today`, the new finding codes, SARIF locations.
 - Anyone running `apicontract diff` in CI: a breaking change that passed before (exit 1 already)
   now says what to add to pass on purpose.
 

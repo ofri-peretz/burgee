@@ -1,0 +1,8 @@
+/**
+ * The handler each tool runs. contractdiff wrote this file once and never rewrites it: change it freely.
+ * `defaults` (client.ts, regenerated) calls the API for every tool, a new one included; replace an
+ * entry to do something else, e.g. `{ ...defaults, delete_pet: async () => { throw new Error("not here") } }`.
+ */
+import { defaults, type Handler } from './client.js';
+
+export const handlers: Readonly<Record<string, Handler | undefined>> = { ...defaults };

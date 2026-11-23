@@ -1,5 +1,5 @@
 /**
- * Phase 0 baselines for apicontract's `gen` metrics (`.sdlc/intents/apicontract/metrics.md`
+ * Phase 0 baselines for apicontract's `gen` metrics (`.sdlc/intents/contractdiff/metrics.md`
  * G2–G5), measured on the incumbent alone. Installs openapi-typescript into a throwaway directory,
  * then reads install size, dependency count, generation time (median of 5) and whether it runs under
  * TypeScript 5, 6 and 7, and

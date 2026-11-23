@@ -128,6 +128,8 @@ const MARK_SHARE = {
   controlroom: 0.9,
   oxmutate: 0.8,
   truemark: 0.75,
+  contractdiff: 0.7,
+  loadline: 0.8,
 } as const;
 
 /**
@@ -363,6 +365,30 @@ const TRUEMARK = `${PLATE} ${STRUCK}`;
 /** In the plate's upper left, clear of the tick. */
 const ASSAY = { x: 32, y: 30 } as const;
 
+/**
+ * contractdiff: a card split down its middle with the right half moved down a step — the same
+ * contract, before and after, and the change between them. The split is a cut, absence as the
+ * other marks' markings are; the mark rides on the half that did not move.
+ */
+const CARD = 'M10 14 H50 V22 H90 V86 H50 V78 H10 Z';
+/** The split, a slit inside the card so it cuts through it. */
+const SPLIT = 'M48 22 H52 V78 H48 Z';
+const CONTRACTDIFF = `${CARD} ${SPLIT}`;
+/** On the half that stayed, clear of the split. */
+const BEFORE = { x: 29, y: 40 } as const;
+
+/**
+ * loadline: the load line painted on a hull — a disc with the line struck through it. The bar
+ * runs past the disc as ink and through it as a cut, so what is over the line reads apart from
+ * what is under it; the mark rides on the disc above the line.
+ */
+const DISC = 'M10 50 A40 40 0 1 0 90 50 A40 40 0 1 0 10 50 Z';
+/** The line, wound over the disc so it cuts through it and stands as ink past it. */
+const LINE = 'M2 46 H98 V54 H2 Z';
+const LOADLINE = `${DISC} ${LINE}`;
+/** Above the line, on the disc. */
+const FREEBOARD = { x: 50, y: 30 } as const;
+
 type Sibling = {
   name: keyof typeof MARK_SHARE;
   tagline: string;
@@ -384,6 +410,8 @@ const SIBLINGS: readonly Sibling[] = [
   { name: 'controlroom', tagline: 'Where a system is run from.', shape: CONTROLROOM, at: PANEL },
   { name: 'oxmutate', tagline: 'The test of the tests.', shape: OXMUTATE, at: SPECIMEN },
   { name: 'truemark', tagline: 'Green that still means it.', shape: TRUEMARK, at: ASSAY },
+  { name: 'contractdiff', tagline: 'What changed, and who it breaks.', shape: CONTRACTDIFF, at: BEFORE },
+  { name: 'loadline', tagline: 'What is over the line stays.', shape: LOADLINE, at: FREEBOARD },
 ];
 
 const siblings = SIBLINGS.map(({ name, tagline, shape, at, markings }) => ({

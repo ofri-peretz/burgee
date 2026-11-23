@@ -27,7 +27,7 @@ import { bin, install } from './install.js';
 import { readPins } from './net.js';
 
 const REPO = path.resolve(import.meta.dirname, '../..');
-const APICONTRACT_DIST = path.join(REPO, 'packages', 'apicontract', 'dist');
+const APICONTRACT_DIST = path.join(REPO, 'packages', 'contractdiff', 'dist');
 const DEFAULT_TIMEOUT_MS = 120_000;
 const MAX_BUFFER = 64 * 1024 * 1024;
 const ISO_DATE = 10;
@@ -59,7 +59,7 @@ export const INCUMBENTS: Readonly<Record<string, Incumbent>> = {
 };
 
 /**
- * Our side: a child process that loads the built CLI's host the way `apicontract gen` does, reads
+ * Our side: a child process that loads the built CLI's host the way `contractdiff gen` does, reads
  * the document (the `read` column), then runs the target and writes its files.
  */
 const RUNNER = `
@@ -213,7 +213,7 @@ export async function grade(options: GradeOptions): Promise<{ file: string; rows
   const ours = tool.startsWith('ours:');
   const incumbent = INCUMBENTS[tool];
   if (!ours && incumbent === undefined) throw new Error(`no tool is named "${tool}". fix: pass ours:<target> or one of ${Object.keys(INCUMBENTS).join(', ')}`);
-  if (ours && !existsSync(path.join(APICONTRACT_DIST, 'run-load.js'))) throw new Error('apicontract is not built. fix: npx turbo run build --filter=apicontract');
+  if (ours && !existsSync(path.join(APICONTRACT_DIST, 'run-load.js'))) throw new Error('contractdiff is not built. fix: npx turbo run build --filter=contractdiff');
   const family = options.family ?? incumbent?.family ?? 'openapi';
   const pins = select(expandPins(readPins()), { family, source: options.source, sample: options.sample, seed: options.seed });
   const fetched = await fetchAll(pins);
@@ -249,7 +249,7 @@ export async function grade(options: GradeOptions): Promise<{ file: string; rows
 `);
   writeFileSync(
     file.replace(/\.jsonl$/, '.meta.json'),
-    `${JSON.stringify({ tool, packages: incumbent?.packages ?? ['file:packages/apicontract'], family, source: options.source ?? null, sample: options.sample ?? null, seed: options.seed ?? 1, typescripts: TYPESCRIPTS, node: process.version, date: new Date().toISOString() }, undefined, 2)}\n`,
+    `${JSON.stringify({ tool, packages: incumbent?.packages ?? ['file:packages/contractdiff'], family, source: options.source ?? null, sample: options.sample ?? null, seed: options.seed ?? 1, typescripts: TYPESCRIPTS, node: process.version, date: new Date().toISOString() }, undefined, 2)}\n`,
   );
   rmSync(work, { recursive: true, force: true });
   return { file, rows };

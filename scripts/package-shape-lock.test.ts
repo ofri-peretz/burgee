@@ -89,6 +89,9 @@ const published = readdirSync(join(root, 'packages'))
  * a caller installs still comes from one repo and one supply chain to audit.
  */
 const FAMILY_ORDER = [
+  // A validator with no dependencies at all: nothing in the family sits under it, and
+  // contractdiff compiles the validators it generates against it.
+  'loadline',
   'linegauge',
   'seniority',
   'bellpull',
@@ -107,6 +110,9 @@ const FAMILY_ORDER = [
   // The same kind as oxmutate: a burgee program (`truemark diff`) that spawns git through bellpull,
   // plus an ESLint plugin. Nothing in the family depends on it.
   'truemark',
+  // A burgee program (`contractdiff diff`, `lint`, `gen`) that loads its config through seniority,
+  // spawns git through bellpull, and compiles validators against loadline. Nothing depends on it.
+  'contractdiff',
 ];
 
 /**

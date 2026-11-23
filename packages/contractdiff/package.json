@@ -1,0 +1,110 @@
+{
+  "name": "contractdiff",
+  "version": "0.2.0",
+  "private": false,
+  "description": "Breaking-change diff, lint and code generation for API contracts (OpenAPI, JSON Schema, AsyncAPI, MCP), and the spec back from the code. No dependency outside the burgee family. An openapi-typescript migration path.",
+  "license": "MIT",
+  "author": "Ofri Peretz <ofriperetzdev@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ofri-peretz/burgee.git",
+    "directory": "packages/contractdiff"
+  },
+  "bugs": {
+    "url": "https://github.com/ofri-peretz/burgee/issues"
+  },
+  "homepage": "https://burgee.interlace.tools",
+  "type": "module",
+  "sideEffects": [
+    "./dist/bin.js"
+  ],
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./core": {
+      "types": "./dist/core/index.d.ts",
+      "import": "./dist/core/index.js",
+      "default": "./dist/core/index.js"
+    },
+    "./openapi": {
+      "types": "./dist/openapi.d.ts",
+      "import": "./dist/openapi.js",
+      "default": "./dist/openapi.js"
+    },
+    "./openapi-typescript": {
+      "types": "./dist/openapi-typescript.d.ts",
+      "import": "./dist/openapi-typescript.js",
+      "default": "./dist/openapi-typescript.js"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js",
+      "default": "./dist/testing.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "typesVersions": {
+    "*": {
+      "core": [
+        "./dist/core/index.d.ts"
+      ],
+      "openapi": [
+        "./dist/openapi.d.ts"
+      ],
+      "openapi-typescript": [
+        "./dist/openapi-typescript.d.ts"
+      ],
+      "testing": [
+        "./dist/testing.d.ts"
+      ]
+    }
+  },
+  "bin": {
+    "contractdiff": "./dist/bin.js"
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.map",
+    "!dist/**/*.test.*"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && node ../../scripts/strip-comments.mjs dist && node ../../scripts/declaration-reach.mts --prune",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage.enabled",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "bellpull": "^2.0.3",
+    "burgee": "^2.2.0",
+    "seniority": "^2.0.0",
+    "loadline": "^0.0.1"
+  },
+  "devDependencies": {
+    "vitest": "^5.0.1"
+  },
+  "keywords": [
+    "openapi",
+    "api-contract",
+    "breaking-changes",
+    "openapi-diff",
+    "openapi-lint",
+    "codegen",
+    "openapi-typescript",
+    "json-schema",
+    "asyncapi",
+    "mcp",
+    "cli"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

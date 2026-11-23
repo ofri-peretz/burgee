@@ -65,7 +65,7 @@ const PLACE_HEADING = '## Where it sits';
  * this list is the published packages plus only such a package. `compat-oracle` is internal
  * tooling and is not one of them.
  */
-export const FAMILY = ['burgee', 'roundel', 'flagstaff', 'caique', 'linegauge', 'paratext', 'seniority', 'closeout', 'bellpull', 'controlroom', 'oxmutate', 'truemark'];
+export const FAMILY = ['burgee', 'roundel', 'flagstaff', 'caique', 'linegauge', 'paratext', 'seniority', 'closeout', 'bellpull', 'controlroom', 'oxmutate', 'truemark', 'contractdiff', 'loadline'];
 
 interface Ceiling {
   ours: number;
@@ -395,6 +395,8 @@ const ROLE: Readonly<Record<string, string>> = {
   controlroom: 'Keyboard-driven terminal screens, inline or full-screen',
   oxmutate: 'Mutation testing on the oxc engine, inside your own Vitest',
   truemark: 'Lint rules and a pre-push check that keep a test suite honest',
+  contractdiff: 'API contracts: breaking-change diff, lint, and code from the spec',
+  loadline: 'Validation whose schemas are data, with no eval',
 };
 
 /** The column generated prose is broken at — the width the hand-written READMEs keep. */

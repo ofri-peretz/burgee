@@ -1,6 +1,6 @@
 # Intent — the TypeScript types target closes Phase 1: a plugin, 61 of 61 upstream cases, three TypeScript majors
 
-> Opened from the 2026-11-18 program ([`../apicontract/program.md`](../apicontract/program.md)).
+> Opened from the 2026-11-18 program ([`../contractdiff/program.md`](../contractdiff/program.md)).
 > On `main` (#1560) the compiler-free types generator matches 196 of 203 extracted openapi-typescript
 > expectations byte for byte, and the `apicontract/openapi-typescript` drop-in passes 37 of 61 of
 > upstream's own gated cases. It is not yet registered as a plugin, so `gen` cannot reach it.
@@ -35,7 +35,7 @@ hey-api closes it first, so time matters more here than anywhere else in the pro
 
 ## Affected users and systems
 
-`packages/apicontract/src/gen-ts-*.ts`, `src/openapi-typescript*.ts`, `src/plugin-types*.ts`, `src/__fixtures__/types/**`, and the
+`packages/contractdiff/src/gen-ts-*.ts`, `src/openapi-typescript*.ts`, `src/plugin-types*.ts`, `src/__fixtures__/types/**`, and the
 compat-oracle host it vendors: `packages/compat-oracle/vendor/openapi-typescript/**`,
 `baseline/openapi-typescript.json` and its own lines in `src/hosts.ts`. Read 2026-11-18: that host is
 not on `main` (#1560's description names it, the tree does not), so vendoring it is this lane's first step.
@@ -59,7 +59,7 @@ not on `main` (#1560's description names it, the tree does not), so vendoring it
 
 ## Evidence sweep 2026-11-22
 
-Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/apicontract` (2,545 tests) and `packages/validator` (1,153) is green there. 1 of 4 criteria met (G5). G1 is short of 61 / 61; G2, G3 and the json-schema-to-typescript grade are unread.
+Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/contractdiff` (2,545 tests) and `packages/loadline` (1,153) is green there. 1 of 4 criteria met (G5). G1 is short of 61 / 61; G2, G3 and the json-schema-to-typescript grade are unread.
 
 | # | criterion | held by | state |
 | --: | :-- | :-- | :-- |

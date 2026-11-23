@@ -14,7 +14,7 @@ execute them in parallel move to implementation. Do NOT ask me anything you have
 do whatever you find following best practices and OSS standards."
 
 Read as, for the intents of Wave 6 in [`PLAN.md`](../PLAN.md) and the program in
-[`apicontract/program.md`](../intents/apicontract/program.md):
+[`apicontract/program.md`](../intents/contractdiff/program.md):
 
 - the Design→Build accept for each workstream intent whose `spec.md` lands in the program PR, so
   those intents are `approved`. The reading is the agent's; the words are the owner's.

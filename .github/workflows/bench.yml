@@ -339,8 +339,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup
-      - name: Build apicontract (the reading measures what is built)
-        run: npx turbo run build --filter=apicontract
+      - name: Build contractdiff (the reading measures what is built)
+        run: npx turbo run build --filter=contractdiff
       - name: Run every tool on the pairs
         shell: bash
         env:

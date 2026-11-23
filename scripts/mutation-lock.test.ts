@@ -15,7 +15,7 @@
  * reason, and the ratchet file only moves up.
  */
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -25,6 +25,7 @@ import { describe, expect, it } from 'vitest';
 import { readDecisions } from './ledgers.js';
 import { widenTestNamePattern } from './mutation-vitest-setup.js';
 import {
+  changedDiffArgs,
   changedReport,
   disableProblems,
   floorOf,
@@ -43,7 +44,8 @@ import {
   writeWrapper,
 } from './mutation.js';
 import { decisionNumber } from './ratchet-steps.js';
-import { scratchDirs } from './scratch-dir.js';
+import { discard, scratchDirs } from './scratch-dir.js';
+
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PACKAGES = readdirSync(join(REPO_ROOT, 'packages'), { withFileTypes: true })
@@ -91,6 +93,28 @@ describe('which lines a pull request changed (R1)', () => {
     const changed = parseChangedLines(diff);
     expect(Object.fromEntries(mutateSpecs(changed, new Set(['roundel'])))).toEqual({ roundel: ['src/contrast.ts:11-13', 'src/contrast.ts:44-44'] });
     expect(mutateSpecs(changed, new Set(['burgee'])).size).toBe(0);
+  });
+
+  it('a moved file contributes only the lines it edits, not every line (burgee#1751)', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mutation-rename-'));
+    try {
+      const git = (...a: string[]): string => execFileSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', '-c', 'commit.gpgsign=false', ...a], { cwd: dir, encoding: 'utf8' });
+      git('init', '-q', '-b', 'main');
+      mkdirSync(join(dir, 'packages', 'old', 'src'), { recursive: true });
+      const body = Array.from({ length: 40 }, (_, i) => `export const v${String(i)} = ${String(i)};`);
+      writeFileSync(join(dir, 'packages', 'old', 'src', 'a.ts'), `${body.join('\n')}\n`);
+      git('add', '.');
+      git('commit', '-q', '-m', 'base');
+      git('mv', 'packages/old', 'packages/new');
+      body[19] = 'export const v19 = 190;';
+      writeFileSync(join(dir, 'packages', 'new', 'src', 'a.ts'), `${body.join('\n')}\n`);
+      git('add', '.');
+      git('commit', '-q', '-m', 'move');
+      const diff = git(...changedDiffArgs('HEAD~1...HEAD'), '--', 'packages/');
+      expect(Object.fromEntries(parseChangedLines(diff))).toEqual({ 'packages/new/src/a.ts': [[20, 20]] });
+    } finally {
+      discard(dir);
+    }
   });
 
   it('mutates what coverage measures, and nothing else', () => {

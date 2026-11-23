@@ -40,6 +40,20 @@
       ]
     },
     {
+      "name": "contractdiff",
+      "count": 8,
+      "installed": [
+        "bellpull",
+        "burgee",
+        "closeout",
+        "contractdiff",
+        "linegauge",
+        "loadline",
+        "roundel",
+        "seniority"
+      ]
+    },
+    {
       "name": "controlroom",
       "count": 8,
       "installed": [
@@ -69,6 +83,13 @@
       "count": 1,
       "installed": [
         "linegauge"
+      ]
+    },
+    {
+      "name": "loadline",
+      "count": 1,
+      "installed": [
+        "loadline"
       ]
     },
     {

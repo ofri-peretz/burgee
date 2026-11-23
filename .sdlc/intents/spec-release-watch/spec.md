@@ -6,7 +6,7 @@ Intent: [`intent.md`](./intent.md). **Status:** approved.
 
 ## Requirements
 
-- **R1. The watch list.** `packages/apicontract/specs.json`: an array of
+- **R1. The watch list.** `packages/contractdiff/specs.json`: an array of
   `{ name, repo, kind?: 'spec' | 'test-suite', source: 'releases' | 'tags', tagPattern?, reads: string[], seen?: { version, at } }`.
   `reads` names the versions apicontract's adapters accept (from `inputs.ts`), `seen` is the
   newest version the watch has recorded.
@@ -23,7 +23,7 @@ Intent: [`intent.md`](./intent.md). **Status:** approved.
 - **R5. Record without noise.** `compat-oracle --specs --record` writes the newest version into
   `seen` for each spec and opens nothing. An entry with no `seen` is recorded, not reported, on any
   run (warn first: the first run never files a backlog).
-- **R6. Coverage lock.** A test fails when a built-in adapter in `packages/apicontract/src/inputs.ts`
+- **R6. Coverage lock.** A test fails when a built-in adapter in `packages/contractdiff/src/inputs.ts`
   has no `specs.json` entry naming its format, or when a test suite a grader vendors has no
   `test-suite` entry.
 - **R7. Rate and failure.** Requests use `GITHUB_TOKEN` when set; a repo that errors or is

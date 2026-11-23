@@ -25,7 +25,7 @@ Intent: [`intent.md`](./intent.md). **Status:** R1 to R5 built (`apicontract pro
 
 ## Verification
 
-- `packages/apicontract/src/props-*.test.ts`: each property on fixture contracts, plus one planted
+- `packages/contractdiff/src/props-*.test.ts`: each property on fixture contracts, plus one planted
   bug per property shown red then green.
 - A keyword-coverage lock comparing the generator's keyword list to the validator's.
 - oxmutate through `mutation:changed`.
@@ -53,7 +53,7 @@ Intent: [`intent.md`](./intent.md). **Status:** R1 to R5 built (`apicontract pro
 
 Keyword coverage is `GENERATED` and `REPORTED` in `props-generate.ts`; `props-keywords.test.ts` reads the
 validator's reader and fails on any keyword it reads that is in neither
-(`npx vitest run packages/apicontract/src/props-keywords.test.ts`).
+(`npx vitest run packages/contractdiff/src/props-keywords.test.ts`).
 
 The diff-soundness success criterion is met by `props-run.test.ts` ("a classifier that calls a breaking change
 compatible"): with the classifier's findings removed, `old` against `new` in `__fixtures__/props/` gives three

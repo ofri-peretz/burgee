@@ -113,7 +113,7 @@ conformance suite (rule rules), `command-plugin.ts` (`--kind rules`, `--from`), 
 
 ## Verification
 
-- **One command per step:** `npx vitest run packages/apicontract/src/lint-*.test.ts`.
+- **One command per step:** `npx vitest run packages/contractdiff/src/lint-*.test.ts`.
 - **Each rule and requirement proven to fail on the unfixed state:** every built-in rule's
   `sample` is its test (conformance runs it); R10, R11 and R12 each have a planted git history
   in a temp repo (the `install-graph-lock` pattern) with the exact expected findings.

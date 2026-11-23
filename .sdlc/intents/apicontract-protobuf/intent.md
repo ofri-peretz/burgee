@@ -1,7 +1,7 @@
 # Intent — protobuf in apicontract, through buf
 
 > Opened from [`D-20261122-open-formats`](../../decisions/D-20261122-open-formats.md) ("each 'no'
-> becomes its own intent before it is built") and roadmap Phase 8 ([`../apicontract/roadmap.md`](../apicontract/roadmap.md)):
+> becomes its own intent before it is built") and roadmap Phase 8 ([`../contractdiff/roadmap.md`](../contractdiff/roadmap.md)):
 > protobuf arrives through its owner's engine, spawned from the user's install, never a dependency.
 > Unblocks [`contractdiff-compat-depth`](../contractdiff-compat-depth/intent.md) R5.
 

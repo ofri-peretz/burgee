@@ -9,9 +9,9 @@ superseded_by: —
 **Yes to both. Generating MSW handlers and generating an MCP server from a spec are reopened as
 generator plugins.** The owner was shown the question "Should MSW handlers and MCP-server generation
 be reopened as generators?" with both sides stated in
-[`roadmap.md`](../intents/apicontract/roadmap.md), and answered "Reopen both" on 2026-11-13.
+[`roadmap.md`](../intents/contractdiff/roadmap.md), and answered "Reopen both" on 2026-11-13.
 
-[`spec.md` § Rejected alternatives](../intents/apicontract/spec.md#rejected-alternatives) had
+[`spec.md` § Rejected alternatives](../intents/contractdiff/spec.md#rejected-alternatives) had
 rejected "building mocking, Pact-style consumer tests, or SDK/MCP-server generation" on 2026-11-06,
 five days before the owner defined the product as a generator
 ([`D-20261112-apicontract-is-a-generator`](./D-20261112-apicontract-is-a-generator.md)).
