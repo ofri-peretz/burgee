@@ -64,6 +64,12 @@ beforeAll(async () => {
 });
 
 describe('stamp', () => {
+  it('keeps a command and a gap whole when they carry commas', async () => {
+    const r = await run(repo(), ['stamp', '--run', 'echo a,b true', '--not-checked', 'the docs, and true of the site']);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toMatch(/^Verified-by: echo a,b true -> exit 0 \(sha256:[\da-f]{12}\)\nNot-checked: the docs, and true of the site\n$/u);
+  });
+
   it('runs each command and prints the trailers, recording the stamps on this branch', async () => {
     const dir = repo();
     const r = await run(dir, ['stamp', '--run', 'echo hi', '--capture', 'a.png', '--not-checked', 'docs', '--not-checked', 'nothing']);

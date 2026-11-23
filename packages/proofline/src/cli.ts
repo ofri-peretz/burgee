@@ -240,6 +240,7 @@ const stampCommand = defineCommand({
     run: {
       type: 'string',
       multiple: true,
+      separator: false,
       description: 'a command that proves the change; run here, its exit code and output digest recorded',
     },
     capture: {
@@ -250,6 +251,7 @@ const stampCommand = defineCommand({
     notChecked: {
       type: 'string',
       multiple: true,
+      separator: false,
       description: 'what was not checked; required, "nothing" when nothing',
     },
     none: {
