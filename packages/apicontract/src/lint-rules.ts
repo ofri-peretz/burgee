@@ -10,6 +10,7 @@
  *
  * Every rule decides a fact; none asks whether a name is clear (intent, "code decides facts").
  */
+import { type Operation } from './core/model.js';
 import { inline } from './core/resolve.js';
 import { type Level, type Rule } from './lint-engine.js';
 import { validAgainst } from './lint-functions.js';
@@ -186,7 +187,9 @@ export const rules: Readonly<Record<string, Rule>> = {
     given: { select: 'operation' },
     check: (node, { contract }) => {
       const mine = wordsOf(proseOf(node));
-      const earlier = contract.operations.slice(0, contract.operations.findIndex((operation) => operation === node.operation));
+      // The operations listed before this one; none when it is not one of them, never all but the last.
+      const index = contract.operations.indexOf(node.operation as Operation);
+      const earlier = contract.operations.filter((_, position) => position < index);
       return earlier.flatMap((other) => {
         const share = overlapOf(mine, wordsOf(proseOf({ pointer: other.source, value: membersOf(at(contract.document, other.source)) })));
         return share >= OVERLAP ? [`description shares ${String(Math.round(share * PERCENT))}% of its words with \`${other.id}\``] : [];

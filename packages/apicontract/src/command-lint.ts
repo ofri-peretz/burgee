@@ -14,7 +14,7 @@ import { uriOf } from './command-diff.js';
 import { builtinAdapters } from './inputs.js';
 import { type Level, lint, type Rule, type LintFinding, type LintInput, type LintResult } from './lint-engine.js';
 import { rules, rulesets } from './lint-rules.js';
-import { type Config, loadConfig, UsageError } from './run-config.js';
+import { type Config, ConfigError, loadConfig, UsageError } from './run-config.js';
 
 const TEXT = Symbol.for('burgee.text');
 
@@ -23,6 +23,8 @@ export const DEFAULT_RULESETS: readonly string[] = ['recommended'];
 /** A ruleset may be named with the product's prefix, as a config written for a later name would. */
 const PREFIX = /^(?:apicontract|contractdiff):/u;
 const PERCENT = 100;
+/** The file `lint.rules` is read from. */
+const CONFIG_FILE = 'apicontract.config.json';
 const RULESETS = new Map(Object.entries(rulesets));
 const RULES = new Map(Object.entries(rules));
 /** The width of the level column in text output: `error` and two spaces. */
@@ -54,8 +56,13 @@ export const levelsOf = (names: readonly string[], overrides: Readonly<Record<st
     if (ruleset === undefined) throw new UsageError(`there is no ruleset \`${name}\`. fix: use one of ${Object.keys(rulesets).join(', ')}`);
     return ruleset;
   });
-  for (const id of Object.keys(overrides)) {
-    if (!RULES.has(id)) throw new UsageError(`\`lint.rules\` names \`${id}\`, which is not a rule. fix: use one of ${Object.keys(rules).sort().join(', ')}`);
+  // The overrides come from the config, so a rule it misnames is a config to fix: exit 3, not 2 (R-A2).
+  const unknown = Object.keys(overrides).filter((id) => !RULES.has(id));
+  if (unknown.length > 0) {
+    throw new ConfigError(
+      CONFIG_FILE,
+      unknown.map((id) => `\`lint.rules\` names \`${id}\`, which is not a rule. fix: use one of ${Object.keys(rules).sort().join(', ')}`),
+    );
   }
   return Object.fromEntries([...chosen, overrides].flatMap((levels) => Object.entries(levels)));
 };

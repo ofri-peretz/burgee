@@ -241,6 +241,15 @@ describe('rules', () => {
     expect(run('description-overlap', contract)).toEqual(['#/paths/~1a/head description shares 80% of its words with `seventh`', '#/paths/~1a/put description shares 100% of its words with `first`']);
   });
 
+  it('description-overlap compares an operation it cannot place in the contract with nothing, not with all but the last', () => {
+    const contract = read({
+      paths: { '/a': { get: op({ operationId: 'first', description: 'Return every order placed today' }), put: op({ operationId: 'second', description: 'Create one order' }) } },
+    });
+    const stranger = { id: 'x', source: '#/paths/~1b/get', payloads: [] };
+    const check = (rules['description-overlap'] as Rule).check as NonNullable<Rule['check']>;
+    expect(check({ pointer: '#/paths/~1b/get', value: { description: 'Return every order placed today' }, operation: stranger }, { contract })).toEqual([]);
+  });
+
   it('measures overlap as shared words over all words, ignoring short ones', () => {
     expect([...wordsOf('The cat, the CAT and a dog-house 42x')]).toEqual(['house']);
     expect(overlapOf(new Set(['a', 'b', 'c', 'd']), new Set(['a', 'b', 'c', 'e']))).toBe(3 / 5);

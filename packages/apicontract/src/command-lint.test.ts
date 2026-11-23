@@ -9,7 +9,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { scratchDirs } from './__fixtures__/run/scratch-dir.js';
 import { command, DEFAULT_RULESETS, levelsOf, runLint, scoreOf, toSarif, toText } from './command-lint.js';
 import { rulesets } from './lint-rules.js';
-import { validateConfig } from './run-config.js';
+import { ConfigError, validateConfig } from './run-config.js';
 
 import { program } from './index.js';
 
@@ -39,6 +39,8 @@ describe('levelsOf', () => {
     expect(() => levelsOf(['other:recommended'])).toThrow('there is no ruleset `other:recommended`');
     expect(() => levelsOf(['recommendedapicontract:'])).toThrow('there is no ruleset `recommendedapicontract:`');
     expect(() => levelsOf([], { nope: 'warn' })).toThrow('`lint.rules` names `nope`, which is not a rule. fix: use one of description-length, description-overlap, example-valid,');
+    expect(() => levelsOf([], { nope: 'warn', nor: 'warn' })).toThrow(ConfigError);
+    expect(() => levelsOf([], { nope: 'warn', nor: 'warn' })).toThrow(/^apicontract\.config\.json cannot be used:\n {2}- `lint\.rules` names `nope`.*\n {2}- `lint\.rules` names `nor`/u);
   });
 });
 
