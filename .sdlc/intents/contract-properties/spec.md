@@ -1,6 +1,6 @@
 # Design — `contract-properties`
 
-Intent: [`intent.md`](./intent.md). **Status:** R1 to R4 built (`apicontract props`); R5 open.
+Intent: [`intent.md`](./intent.md). **Status:** R1 to R5 built (`apicontract props`).
 
 ---
 
@@ -49,7 +49,7 @@ Intent: [`intent.md`](./intent.md). **Status:** R1 to R4 built (`apicontract pro
 | R2 one broken constraint | `props-mutate.ts`: only on typed schemas with no union or reported keyword beside them                                           | `props-mutate.test.ts`: each break is refused at the path it was made                                    |
 | R3 four properties       | `props-run.ts`; `command-props.ts` exits 1 with the seed and the shrunk value                                                    | `props-run.test.ts`: one planted bug per property, red, and the same run green on apicontract's own code |
 | R4 `--emit`              | `props-emit.ts`: a fast-check module, `notGenerated` listing each keyword an arbitrary does not hold to, passed along references | `props-emit.test.ts`: the written module imported and sampled, each value checked by the validator       |
-| R5 SARIF                 | not yet                                                                                                                          |                                                                                                          |
+| R5 `--json`, SARIF       | `command-props.ts`: `--json` is burgee's envelope; `--sarif` prints `toSarif`, one `error` per counterexample at the contract file, rule `props/<property>` | `command-props.test.ts` "props --sarif" and "toSarif": seen red (no `toSarif`), then green; a planted classifier bug comes out as a `props/soundness` error and exit 1 |
 
 Keyword coverage is `GENERATED` and `REPORTED` in `props-generate.ts`; `props-keywords.test.ts` reads the
 validator's reader and fails on any keyword it reads that is in neither

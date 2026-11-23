@@ -7,7 +7,7 @@ import { runBurgee } from 'burgee/testing';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { scratchDirs } from './__fixtures__/run/scratch-dir.js';
-import { command, DEFAULT_RUNS, props, toText } from './command-props.js';
+import { command, DEFAULT_RUNS, props, toSarif, toText } from './command-props.js';
 import { compareContracts } from './diff-contract.js';
 import { runProps } from './props-run.js';
 
@@ -41,6 +41,7 @@ describe('apicontract props, through burgee', () => {
       { command: 'apicontract props openapi.yaml', description: 'the properties on every payload, 1000 values each' },
       { command: 'apicontract props new.yaml --against old.yaml --seed 7', description: 'also check that what diff calls compatible is, replayably' },
       { command: 'apicontract props openapi.yaml --emit test/arbitraries.ts --runs 0', description: 'write fast-check arbitraries for your own tests' },
+      { command: 'apicontract props openapi.yaml --seed 7 --sarif', description: 'counterexamples as SARIF, for code scanning' },
     ]);
     expect(command.arguments).toEqual([{ name: 'contract', description: 'the contract: a file, or git:<ref>:<path>' }]);
     expect(command.options).toEqual({
@@ -50,6 +51,7 @@ describe('apicontract props, through burgee', () => {
       mode: { type: 'string', choices: ['backward', 'forward', 'full'], description: 'the compatibility question soundness checks, as in diff (default backward)' },
       side: { type: 'string', choices: ['caller', 'server'], description: 'whose code the question is about, as in diff (default caller)' },
       emit: { type: 'string', description: 'write the fast-check arbitraries to this file', placeholder: 'file' },
+      sarif: { type: 'boolean', description: 'print SARIF 2.1.0 for code scanning instead of text' },
     });
     expect(DEFAULT_RUNS).toBe(1000);
   });
@@ -138,6 +140,58 @@ describe('props, with a planted classifier bug', () => {
     expect(shown).toMatch(/^failed: .*shop-old\.yaml, 100 run\(s\) per payload, seed 4\n {2}agreement {3}\d+ checked, 0 discarded, 0 failed\n/);
     expect(shown).toContain('\n\ncounterexamples (replay with the same --seed):\n  soundness  placeOrder body:application/json: called compatible (backward)');
     expect(shown).toMatch(/\n {4}value: \{"items":\[\{"sku":".*","quantity":11\}\]\}/);
+  });
+});
+
+describe('props --sarif (contract-properties R5)', () => {
+  it('prints SARIF 2.1.0 and exits 0 when the properties hold', async () => {
+    const r = await runBurgee(program, { argv: ['props', ONE, '--runs', '5', '--seed', '1', '--sarif'] });
+    expect(r.code).toBe(ExitCode.OK);
+    const sarif = JSON.parse(r.stdout) as { version: string; runs: { tool: { driver: { name: string; rules: { id: string }[] } }; results: unknown[] }[] };
+    expect(sarif.version).toBe('2.1.0');
+    expect(sarif.runs[0]?.tool.driver).toMatchObject({ name: 'apicontract props', rules: [{ id: 'props/agreement' }, { id: 'props/round-trip' }, { id: 'props/normalise' }, { id: 'props/soundness' }] });
+    expect(sarif.runs[0]?.results).toEqual([]);
+  });
+
+  it('puts each counterexample in the data and the text as an error, and exits 1', () => {
+    const blind = { compare: (...args: Parameters<typeof compareContracts>) => ({ ...compareContracts(...args), findings: [] }) };
+    const data = props({ cwd: '.', contract: OLD, against: NEW, runs: 100, seed: 4, subject: blind, sarif: true });
+    expect(data.exitCode).toBe(ExitCode.RUNTIME);
+    expect(text(data)).toBe(JSON.stringify(data.sarif, undefined, 2));
+    const results = (data.sarif as { runs: { results: { ruleId: string; level: string; message: { text: string } }[] }[] }).runs[0]!.results;
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0]).toMatchObject({ ruleId: 'props/soundness', level: 'error' });
+    expect(results[0]!.message.text).toMatch(/^soundness: placeOrder body:application\/json: called compatible \(backward\), .*\. value: .*"quantity":11.*\. fix: replay with --seed 4$/);
+  });
+
+  it('leaves SARIF out of the data without --sarif', () => {
+    expect(props({ cwd: '.', contract: ONE, runs: 1, seed: 1 })).not.toHaveProperty('sarif');
+  });
+});
+
+describe('toSarif', () => {
+  it('names the contract file and the operation and payload of each counterexample', () => {
+    const report = {
+      ...runProps({ format: 'x', document: {}, operations: [] }, { runs: 1, seed: 9 }),
+      counterexamples: [{ property: 'round-trip' as const, operation: 'getPet', payload: 'response:200', value: { id: 1 }, detail: 'decoded differently' }],
+    };
+    expect(toSarif(report, 'specs\\pets.yaml')).toEqual({
+      version: '2.1.0',
+      $schema: 'https://json.schemastore.org/sarif-2.1.0.json',
+      runs: [
+        {
+          tool: { driver: { name: 'apicontract props', rules: [{ id: 'props/agreement' }, { id: 'props/round-trip' }, { id: 'props/normalise' }, { id: 'props/soundness' }] } },
+          results: [
+            {
+              ruleId: 'props/round-trip',
+              level: 'error',
+              message: { text: 'round-trip: getPet response:200: decoded differently. value: {"id":1}. fix: replay with --seed 9' },
+              locations: [{ physicalLocation: { artifactLocation: { uri: 'specs/pets.yaml' } }, logicalLocations: [{ fullyQualifiedName: 'getPet response:200' }] }],
+            },
+          ],
+        },
+      ],
+    });
   });
 });
 
