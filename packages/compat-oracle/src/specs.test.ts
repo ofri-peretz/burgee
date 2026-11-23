@@ -73,7 +73,7 @@ const releases = (...tags: (string | [string, { prerelease?: boolean; draft?: bo
 const tagged = (...names: string[]): unknown[] => names.map((name) => ({ name }));
 
 /** A `packages/` directory holding one package's `specs.json`. */
-function packages(specs: unknown, owner = 'apicontract'): string {
+function packages(specs: unknown, owner = 'contractdiff'): string {
   const dir = scratch('specs-');
   mkdirSync(join(dir, owner), { recursive: true });
   writeFileSync(join(dir, owner, 'specs.json'), JSON.stringify(specs));
@@ -121,11 +121,11 @@ describe('R1 — the watch list is read from the packages that own one', () => {
   ])('refuses %s, naming the file and the entry, and says how to fix it', (_why, raw, reason) => {
     let message = '';
     try {
-      parseSpecs(raw, 'packages/apicontract/specs.json');
+      parseSpecs(raw, 'packages/contractdiff/specs.json');
     } catch (error) {
       message = (error as Error).message;
     }
-    expect(message).toContain('packages/apicontract/specs.json');
+    expect(message).toContain('packages/contractdiff/specs.json');
     expect(message).toContain(reason);
     expect(message).toContain('fix:');
   });
@@ -317,9 +317,9 @@ describe('R4 — the title, and the body the workflow files', () => {
     const ran = await run([entry({ seen, adapters: ['openapi', 'swagger2', 'extract-standard.ts'] })], { [URL_RELEASES]: { body: releases('3.1.0') } });
     const report = ran.updates[0]?.report ?? '';
     expect(report).toContain('https://github.com/x/releases/tag/3.1.0');
-    expect(report).toContain('`packages/apicontract/src/openapi.ts`');
-    expect(report).toContain('`packages/apicontract/src/input-swagger2.ts`');
-    expect(report).toContain('`packages/apicontract/src/extract-standard.ts`');
+    expect(report).toContain('`packages/contractdiff/src/openapi.ts`');
+    expect(report).toContain('`packages/contractdiff/src/input-swagger2.ts`');
+    expect(report).toContain('`packages/contractdiff/src/extract-standard.ts`');
     expect(ran.updates[0]?.title).toBe('spec: OpenAPI 3.1.0 released (we read 3.0, 3.1)');
   });
 
@@ -369,7 +369,7 @@ describe('R5 — recording, without noise', () => {
     let out = '';
     const failures = await record(dir, (s) => (out += s), { token: '', get: github(replies).get, today: '2026-11-23' });
     expect(failures).toBe(0);
-    const written = JSON.parse(readFileSync(join(dir, 'apicontract', 'specs.json'), 'utf8')) as Spec[];
+    const written = JSON.parse(readFileSync(join(dir, 'contractdiff', 'specs.json'), 'utf8')) as Spec[];
     expect(written).toEqual([entry({ adapters: ['openapi'], tagPattern: '^(.+)$', seen: { version: '3.2.0', at: '2026-11-23' } })]);
     expect(out).toContain('3.2.0  recorded');
   });
@@ -394,14 +394,14 @@ describe('R5 — recording, without noise', () => {
     const dir = packages([entry({ seen: { version: '3.3.0', at: '2026-01-01' } })]);
     let out = '';
     await record(dir, (s) => (out += s), { token: '', get: github(replies).get, today: '2026-11-23' });
-    expect((JSON.parse(readFileSync(join(dir, 'apicontract', 'specs.json'), 'utf8')) as Spec[])[0]?.seen).toEqual({ version: '3.3.0', at: '2026-01-01' });
+    expect((JSON.parse(readFileSync(join(dir, 'contractdiff', 'specs.json'), 'utf8')) as Spec[])[0]?.seen).toEqual({ version: '3.3.0', at: '2026-01-01' });
     expect(out).toContain('already the newest');
   });
 
   it('advances `seen` when the recorded one is older', async () => {
     const dir = packages([entry({ seen: { version: '3.0.0', at: '2026-01-01' } })]);
     await record(dir, () => undefined, { token: '', get: github(replies).get, today: '2026-11-23' });
-    expect((JSON.parse(readFileSync(join(dir, 'apicontract', 'specs.json'), 'utf8')) as Spec[])[0]?.seen).toEqual({ version: '3.2.0', at: '2026-11-23' });
+    expect((JSON.parse(readFileSync(join(dir, 'contractdiff', 'specs.json'), 'utf8')) as Spec[])[0]?.seen).toEqual({ version: '3.2.0', at: '2026-11-23' });
   });
 
   it('keeps what a repo it could not read had, records the others, and counts the failure', async () => {
@@ -410,7 +410,7 @@ describe('R5 — recording, without noise', () => {
     let out = '';
     const failures = await record(dir, (s) => (out += s), { token: '', get: github({ [URL_RELEASES]: { status: 500 }, 'o/other/releases?per_page=20': { body: releases('1.0.0') } }).get, today: '2026-11-23' });
     expect(failures).toBe(1);
-    const written = JSON.parse(readFileSync(join(dir, 'apicontract', 'specs.json'), 'utf8')) as Spec[];
+    const written = JSON.parse(readFileSync(join(dir, 'contractdiff', 'specs.json'), 'utf8')) as Spec[];
     expect(written.map((s) => s.seen)).toEqual([{ version: '3.0.0', at: 'x' }, { version: '1.0.0', at: '2026-11-23' }]);
     expect(out).toContain('✖ unchecked');
   });
@@ -427,7 +427,7 @@ describe('R5 — recording, without noise', () => {
     vi.stubGlobal('fetch', (url: string) => Promise.resolve(new Response(JSON.stringify(url.includes('releases') ? releases('3.2.0') : []), { status: 200 })));
     expect(await record(dir, () => undefined, { token: '' })).toBe(0);
     vi.unstubAllGlobals();
-    const seen = (JSON.parse(readFileSync(join(dir, 'apicontract', 'specs.json'), 'utf8')) as Spec[])[0]?.seen;
+    const seen = (JSON.parse(readFileSync(join(dir, 'contractdiff', 'specs.json'), 'utf8')) as Spec[])[0]?.seen;
     expect(seen?.version).toBe('3.2.0');
     expect(seen?.at).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
@@ -619,8 +619,8 @@ describe('the package directory listing', () => {
   });
 
   it('skips anything that is not a directory, even one named for a package that has a specs.json', () => {
-    const dir = packages([entry()], 'apicontract');
-    vi.mocked(readdirSync).mockImplementationOnce(listing('apicontract', false));
+    const dir = packages([entry()], 'contractdiff');
+    vi.mocked(readdirSync).mockImplementationOnce(listing('contractdiff', false));
     expect(readSpecFiles(dir)).toEqual([]);
   });
 
@@ -752,7 +752,7 @@ describe('the log and the report, in full', () => {
         '- Release: https://github.com/x/releases/tag/3.0.5',
         '- Recorded before this: 3.0.0',
         '- We read: 3.0, Swagger 2.0',
-        '- Adapter: `packages/apicontract/src/openapi.ts`, `packages/apicontract/src/input-swagger2.ts`',
+        '- Adapter: `packages/contractdiff/src/openapi.ts`, `packages/contractdiff/src/input-swagger2.ts`',
         '- Read the release notes for constructs the adapter does not accept yet; that is a design decision, not a version bump.',
         '',
       ].join('\n'),
@@ -765,7 +765,7 @@ describe('the log and the report, in full', () => {
         '- Release: https://github.com/x/releases/tag/3.1.0-rc1',
         '- Recorded before this: 3.0.0',
         '- We read: 3.0, Swagger 2.0',
-        '- Adapter: `packages/apicontract/src/openapi.ts`, `packages/apicontract/src/input-swagger2.ts`',
+        '- Adapter: `packages/contractdiff/src/openapi.ts`, `packages/contractdiff/src/input-swagger2.ts`',
         '- Read the release notes for constructs the adapter does not accept yet; that is a design decision, not a version bump.',
         '- A pre-release: read it early, but it is not a release, and nothing should be changed to match it yet.',
         '',
@@ -775,7 +775,7 @@ describe('the log and the report, in full', () => {
 
   it('writes the report of a single adapter, of none, and of a suite, word for word', async () => {
     const one = await run([entry({ seen: { version: '3.0.0', at: 'x' }, adapters: ['mcp'] })], { [URL_RELEASES]: { body: releases('3.0.1') } });
-    expect(one.updates[0]?.report).toContain('- Adapter: `packages/apicontract/src/input-mcp.ts`\n- Read the release notes');
+    expect(one.updates[0]?.report).toContain('- Adapter: `packages/contractdiff/src/input-mcp.ts`\n- Read the release notes');
     const none = await run([entry({ seen: { version: '3.0.0', at: 'x' } })], { [URL_RELEASES]: { body: releases('3.0.1') } });
     expect(none.updates[0]?.report).toBe(
       ['## OpenAPI 3.0.1', '', '- Release: https://github.com/x/releases/tag/3.0.1', '- Recorded before this: 3.0.0', '- We read: 3.0, 3.1', '- No adapter reads this format yet; `.sdlc/decisions/D-20261122-open-formats.md` lists it as planned.', ''].join('\n'),
@@ -805,7 +805,7 @@ describe('recording, in full', () => {
     const dir = packages(specs);
     let out = '';
     const failures = await record(dir, (s) => (out += s), { token: '', get: github(replies).get, today: '2026-11-23' });
-    return { out, text: readFileSync(join(dir, 'apicontract', 'specs.json'), 'utf8'), failures };
+    return { out, text: readFileSync(join(dir, 'contractdiff', 'specs.json'), 'utf8'), failures };
   };
 
   it('writes the file with two-space indentation and a newline, and logs each line', async () => {

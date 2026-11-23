@@ -46,7 +46,7 @@ Order: R4 → R2 → R1 → R3 → R6 → R7 (with lint) → R5 (with protobuf).
 
 ## Verification
 
-- `npx vitest run packages/apicontract/src/diff-*.test.ts` per step, with one fixture per requirement
+- `npx vitest run packages/contractdiff/src/diff-*.test.ts` per step, with one fixture per requirement
   that fails without it (the three-release fixture for R1, the enum fixture for R2, an unused-removal
   fixture for R3, a frozen-member fixture for R4).
 - `models.yml` stays green: `compat.qnt` invariants hold with `dangerous` added.

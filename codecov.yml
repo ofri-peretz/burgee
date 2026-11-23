@@ -45,12 +45,12 @@ component_management:
     - component_id: caique
       name: caique
       paths: [packages/caique/**]
-    - component_id: apicontract
-      name: apicontract
-      paths: [packages/apicontract/**]
-    - component_id: validator
-      name: validator
-      paths: [packages/validator/**]
+    - component_id: contractdiff
+      name: contractdiff
+      paths: [packages/contractdiff/**]
+    - component_id: loadline
+      name: loadline
+      paths: [packages/loadline/**]
     - component_id: proofline
       name: proofline
       paths: [packages/proofline/**]

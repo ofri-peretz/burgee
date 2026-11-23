@@ -32,7 +32,7 @@ property tests for its handlers from the same contract.
 ## Why now
 
 - apicontract's own comparison table marks "Fuzz / property-based tests" as `—`, not planned
-  (`.sdlc/intents/apicontract/comparison.md`, the testing table). Schemathesis is the one
+  (`.sdlc/intents/contractdiff/comparison.md`, the testing table). Schemathesis is the one
   incumbent with it, and it needs a running server.
 - fast-check is used in 5 files across this repository (`grep -rl fast-check --include=*.ts packages scripts`
   without `node_modules`, 2026-11-23), none of them in apicontract, whose classifier is the code
@@ -42,7 +42,7 @@ property tests for its handlers from the same contract.
 
 ## Affected users and systems
 
-`packages/apicontract` (a `props` command and an arbitraries generator); consumer test suites that
+`packages/contractdiff` (a `props` command and an arbitraries generator); consumer test suites that
 import the generated arbitraries.
 
 ## Constraints

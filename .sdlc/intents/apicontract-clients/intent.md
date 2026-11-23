@@ -1,6 +1,6 @@
 # Intent — typed clients and MSW mocks from the same model as the server
 
-> Opened from the 2026-11-18 program ([`../apicontract/program.md`](../apicontract/program.md)).
+> Opened from the 2026-11-18 program ([`../contractdiff/program.md`](../contractdiff/program.md)).
 > Roadmap Phase 4, client half, and the MSW row reopened by
 > [`D-20261113-apicontract-mocks-and-mcp-generation`](../../decisions/D-20261113-apicontract-mocks-and-mcp-generation.md).
 
@@ -29,7 +29,7 @@ one model are vision row 1 ("cannot disagree"); orval generates both but from it
 
 ## Affected users and systems
 
-`packages/apicontract/src/plugin-fetch*.ts, src/plugin-tanstack-query*.ts, src/plugin-msw*.ts`.
+`packages/contractdiff/src/plugin-fetch*.ts, src/plugin-tanstack-query*.ts, src/plugin-msw*.ts`.
 
 ## Constraints
 
@@ -56,7 +56,7 @@ one model are vision row 1 ("cannot disagree"); orval generates both but from it
 
 ## Evidence sweep 2026-11-22
 
-Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/apicontract` (2,545 tests) and `packages/validator` (1,153) is green there. 3 of 4 criteria met in-lane. The consumer-harness readings are open.
+Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/contractdiff` (2,545 tests) and `packages/loadline` (1,153) is green there. 3 of 4 criteria met in-lane. The consumer-harness readings are open.
 
 | # | criterion | held by | state |
 | --: | :-- | :-- | :-- |

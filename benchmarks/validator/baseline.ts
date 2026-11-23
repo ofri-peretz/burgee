@@ -1,5 +1,5 @@
 /**
- * Baselines for the validator intent's metrics (`.sdlc/intents/validator/intent.md` Z3, Z4, Z5,
+ * Baselines for the validator intent's metrics (`.sdlc/intents/loadline/intent.md` Z3, Z4, Z5,
  * Z7), measured on the incumbents alone: Zod is the bar, the others are read beside it. One order
  * schema is written once per library; each reading runs the same payloads through every library on
  * this machine, in one go.
@@ -40,7 +40,7 @@ interface Library {
 }
 
 /** Our own validator, installed from this checkout's build so it is read by the same code as the rest. */
-const OURS = path.resolve(import.meta.dirname, '../../packages/validator');
+const OURS = path.resolve(import.meta.dirname, '../../packages/loadline');
 const OURS_IMPORTS = `import { array, boolean, check, discriminated, enumOf, literal, number, object, optional, string } from 'loadline';`;
 const oursSchema = (i: string): string => `
 const Item${i} = object({ sku: string({ min: 1, max: 32 }), qty: number({ int: true, min: 1 }), price: number({ min: 0 }) });
@@ -224,7 +224,7 @@ for (const [name, library] of Object.entries(LIBRARIES)) {
     }));
   }
   // A local path says where this checkout is, not what was measured.
-  readings[name] = { package: library.pkg === `file:${OURS}` ? 'file:packages/validator' : library.pkg, ...runtime, bundleMinBytes: bundled.length, bundleGzipBytes: gzipSync(bundled).length, types };
+  readings[name] = { package: library.pkg === `file:${OURS}` ? 'file:packages/loadline' : library.pkg, ...runtime, bundleMinBytes: bundled.length, bundleGzipBytes: gzipSync(bundled).length, types };
 }
 
 console.log(JSON.stringify({

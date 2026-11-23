@@ -82,6 +82,12 @@ const DECLARED = {
   // Its rules are an ESLint plugin, which extends ESLint rather than truemark; truemark itself
   // has no plugin host, no `check` command and no eval case.
   truemark: { plugin: false, check: false, eval: false },
+  // Its plugin host loads `contractdiff-plugin-*` packages and local files named in its config,
+  // through `contractdiff/testing`, not a `./plugin` subpath; `contractdiff check` is its check, and
+  // `contractdiff-baseline-*` its eval cases.
+  contractdiff: { plugin: false, check: true, eval: true },
+  // A library with no CLI: schemas are values, so there is no plugin host and no `check`.
+  loadline: { plugin: false, check: false, eval: false },
 } as const;
 
 type Declared = (typeof DECLARED)[keyof typeof DECLARED];

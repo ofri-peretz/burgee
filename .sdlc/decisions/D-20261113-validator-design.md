@@ -8,7 +8,7 @@ superseded_by: —
 
 **A schema is data, read three ways: interpreted with no `eval` by default, emitted as straight-line
 code ahead of time, and written out as JSON Schema.** The reason is a measurement, in
-[`spec.md`](../intents/validator/spec.md): on the intent's bench schema, two different no-`eval`
+[`spec.md`](../intents/loadline/spec.md): on the intent's bench schema, two different no-`eval`
 engines both reach about 4.4M validations a second (3.4 times Zod, a third of ajv), and straight-line
 code written as a generator would write it reaches 22M (1.7 times ajv). Read on a loaded machine, so
 the ratios are the finding, not the absolutes.

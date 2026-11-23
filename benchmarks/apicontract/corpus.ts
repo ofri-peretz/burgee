@@ -27,7 +27,7 @@ import { bin, install } from './install.js';
 import { readPins } from './net.js';
 
 const REPO = path.resolve(import.meta.dirname, '../..');
-const APICONTRACT_DIST = path.join(REPO, 'packages', 'apicontract', 'dist');
+const APICONTRACT_DIST = path.join(REPO, 'packages', 'contractdiff', 'dist');
 const DEFAULT_TIMEOUT_MS = 120_000;
 const MAX_BUFFER = 64 * 1024 * 1024;
 const ISO_DATE = 10;
@@ -249,7 +249,7 @@ export async function grade(options: GradeOptions): Promise<{ file: string; rows
 `);
   writeFileSync(
     file.replace(/\.jsonl$/, '.meta.json'),
-    `${JSON.stringify({ tool, packages: incumbent?.packages ?? ['file:packages/apicontract'], family, source: options.source ?? null, sample: options.sample ?? null, seed: options.seed ?? 1, typescripts: TYPESCRIPTS, node: process.version, date: new Date().toISOString() }, undefined, 2)}\n`,
+    `${JSON.stringify({ tool, packages: incumbent?.packages ?? ['file:packages/contractdiff'], family, source: options.source ?? null, sample: options.sample ?? null, seed: options.seed ?? 1, typescripts: TYPESCRIPTS, node: process.version, date: new Date().toISOString() }, undefined, 2)}\n`,
   );
   rmSync(work, { recursive: true, force: true });
   return { file, rows };

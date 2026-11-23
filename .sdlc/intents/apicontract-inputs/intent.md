@@ -1,6 +1,6 @@
 # Intent — every contract a team already has reads into the one model
 
-> Opened from the 2026-11-18 program ([`../apicontract/program.md`](../apicontract/program.md)).
+> Opened from the 2026-11-18 program ([`../contractdiff/program.md`](../contractdiff/program.md)).
 > On `main` only OpenAPI 3.x reads into the model. The vision's first promise is "in the format it
 > already uses", and three of the roadmap's generator families (validators from JSON Schema,
 > AsyncAPI servers, MCP tools) cannot start until their format reads.
@@ -32,13 +32,13 @@ requests. Overlay and Arazzo are unclaimed. 3.2 and Overlay are cheap to read an
 
 ## Why now
 
-Read 2026-11-13 ([`../apicontract/vision.md`](../apicontract/vision.md)): json-schema-to-typescript
+Read 2026-11-13 ([`../contractdiff/vision.md`](../contractdiff/vision.md)): json-schema-to-typescript
 6.4M weekly, @asyncapi/modelina 0.2M, @modelcontextprotocol/sdk 87.5M. The JSON Schema adapter is
 on the critical path of `gen validator` (Phase 2); the MCP adapter of `gen mcp` and MCP drift.
 
 ## Affected users and systems
 
-`packages/apicontract/src/input-*.ts` and `src/openapi.ts`. The corpus lane grades each adapter on
+`packages/contractdiff/src/input-*.ts` and `src/openapi.ts`. The corpus lane grades each adapter on
 real documents.
 
 ## Constraints
@@ -70,7 +70,7 @@ real documents.
 
 ## Evidence sweep 2026-11-22
 
-Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/apicontract` (2,545 tests) and `packages/validator` (1,153) is green there. 4 of 6 criteria met. The MCP snapshots of the ten SC10 servers and the mutation floor are open.
+Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/contractdiff` (2,545 tests) and `packages/loadline` (1,153) is green there. 4 of 6 criteria met. The MCP snapshots of the ten SC10 servers and the mutation floor are open.
 
 | # | criterion | held by | state |
 | --: | :-- | :-- | :-- |

@@ -51,7 +51,7 @@ they can be read early but not mistaken for a release.
   like `competitors.json`. No external tracker.
 - Zero new dependencies. GitHub's REST API with the job's token; no scraping of web pages.
 - One issue per (spec, version), never duplicated; the same dedupe as the other two passes.
-- The list is owned by the package that reads the format (`packages/apicontract/specs.json`), so a
+- The list is owned by the package that reads the format (`packages/contractdiff/specs.json`), so a
   format added to apicontract adds its watch in the same PR (intent constraint 5 of
   `upstream-watch`: data a package owns, not a central table).
 - New checks warn first: the first run records every spec's current version without opening

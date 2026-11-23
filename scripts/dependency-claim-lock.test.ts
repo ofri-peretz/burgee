@@ -106,9 +106,19 @@ const surfaces = (name: string): Surface[] => {
     ...read(`packages/${name}/README.md`),
     ...(name === 'burgee' ? read('README.md') : []),
     { file: `packages/${name}/package.json#description`, text: description },
-    ...(site ? pages(join(ROOT, site, 'content')).flatMap((f) => read(f.slice(ROOT.length + 1))) : []),
+    ...(site ? pages(join(ROOT, site, 'content')).filter((f) => ownPage(f, name)).flatMap((f) => read(f.slice(ROOT.length + 1))) : []),
   ];
 };
+
+/**
+ * A package with no site of its own (an `excluded` entry in `.github/vercel-apps.json`) has its
+ * README projected into the front door's `docs/packages/<name>.md`. That page speaks for its own
+ * package, so loadline's "Zero dependencies" there is not a claim about burgee's manifest.
+ */
+function ownPage(file: string, name: string): boolean {
+  const other = /[\\/]docs[\\/]packages[\\/]([\w-]+)\.mdx?$/u.exec(file)?.[1];
+  return other === undefined || other === 'index' || other === name;
+}
 
 const WORDS = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
 
@@ -194,7 +204,7 @@ describe('a README may not claim a dependency count its manifest contradicts', (
    * a count is unambiguous, and it was the count that gave the sentence away.
    */
   it('the root README counts the published packages correctly', () => {
-    const COUNTS = [...WORDS, 'Ten', 'Eleven', 'Twelve'];
+    const COUNTS = [...WORDS, 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen'];
     const stated = /^\s*(\w+) packages, one repository/m.exec(readFileSync(join(ROOT, 'README.md'), 'utf8'))?.[1];
     expect(stated, 'the root README no longer opens with "<N> packages, one repository" — update this case with it').toBeDefined();
     expect(stated, `the root README says "${String(stated)} packages" and there are ${String(names.length)}`).toBe(COUNTS[names.length]);

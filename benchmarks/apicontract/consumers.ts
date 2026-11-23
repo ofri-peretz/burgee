@@ -27,7 +27,7 @@ import { errorLine, parseFlags, TYPESCRIPTS, type TsKey } from './corpus-lib.js'
 import { bin, install } from './install.js';
 
 const REPO = path.resolve(import.meta.dirname, '../..');
-const APICONTRACT_DIST = path.join(REPO, 'packages', 'apicontract', 'dist');
+const APICONTRACT_DIST = path.join(REPO, 'packages', 'contractdiff', 'dist');
 const BOOT_TIMEOUT_MS = 60_000;
 const MAX_BUFFER = 16 * 1024 * 1024;
 /** At most this many tsc errors are kept per compiler: enough to see the pattern. */

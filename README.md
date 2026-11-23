@@ -146,8 +146,8 @@ prints one envelope on stdout, and --explain <option> says where a value came fr
 
 <p align="center">
   <strong>One supply chain.</strong>
-  Twelve packages, one repository, one release pipeline, and no dependency outside the burgee
-  family in any of them. Six take nothing at all; the other six take only each other.
+  Fourteen packages, one repository, one release pipeline, and no dependency outside the burgee
+  family in any of them. Seven take nothing at all; the other seven take only each other.
 </p>
 
 <p align="center">
@@ -534,6 +534,8 @@ the family, and what it does not claim.
   <img src="./brand-assets/controlroom-flag-alive.svg" alt="controlroom" width="70" />
   <img src="./brand-assets/oxmutate-flag-alive.svg" alt="oxmutate" width="70" />
   <img src="./brand-assets/truemark-flag-alive.svg" alt="truemark" width="70" />
+  <img src="./brand-assets/contractdiff-flag-alive.svg" alt="contractdiff" width="70" />
+  <img src="./brand-assets/loadline-flag-alive.svg" alt="loadline" width="70" />
 </p>
 
 <p align="center">
@@ -555,8 +557,8 @@ the family, and what it does not claim.
 stands on. Each package is an independent product with its own README, installs on its own,
 and declares no dependency outside the burgee family.
 
-Twelve packages, one repository, one release pipeline and one supply chain to audit, with a
-single schema byte-identical in every tarball. Six leaves depend on nothing, and every other
+Fourteen packages, one repository, one release pipeline and one supply chain to audit, with a
+single schema byte-identical in every tarball. Seven leaves depend on nothing, and every other
 dependency points one way, down the [layers](https://burgee.interlace.tools/docs/concepts/family);
 the locks that hold each rule are named there. Releases are published through npm trusted
 publishing, with SLSA provenance and no npm token (`trusted-publishing-lock`). The case for one

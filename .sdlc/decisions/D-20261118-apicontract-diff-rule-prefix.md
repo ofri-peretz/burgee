@@ -14,7 +14,7 @@ oasdiff's id wherever a change is one oasdiff names, and `--json` carries the sc
 
 The prefix names the tool, and the tool is `apicontract`. The diff spec
 ([`apicontract-diff/spec.md`](../intents/apicontract-diff/spec.md) R6) and the code
-(`packages/apicontract/src/diff-rules.ts`) already said `ac-` when the lane built it; this record makes
+(`packages/contractdiff/src/diff-rules.ts`) already said `ac-` when the lane built it; this record makes
 the decision say the same. Reversible until the first release: the prefix is one template in `ruleId`,
 pinned by `diff-rules.test.ts`. After release it is a suppression-list break, and is not changed again
 without one.

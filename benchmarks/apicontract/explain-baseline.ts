@@ -1,5 +1,5 @@
 /**
- * Phase 0 baseline for apicontract metric A1 (`.sdlc/intents/apicontract/metrics.md`): the bytes
+ * Phase 0 baseline for apicontract metric A1 (`.sdlc/intents/contractdiff/metrics.md`): the bytes
  * an agent reads to understand one operation without `explain` — the operation object from the raw
  * spec with every local `$ref` inlined (a cycle keeps its `$ref`). Reports the distribution over
  * every operation in the spec.

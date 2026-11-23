@@ -451,14 +451,14 @@ Three consequences, none of which the draft anticipated:
 
 ## Wave 6 — the contracts program
 
-Vision, workstreams and the dependency graph: [`intents/apicontract/program.md`](./intents/apicontract/program.md).
+Vision, workstreams and the dependency graph: [`intents/contractdiff/program.md`](./intents/contractdiff/program.md).
 Each step is one lane and one intent with its design; the intent's `## Success criteria` is the full
 bar, and the "Done when" here is the command a lane runs before it pushes. Every generator and
 extractor also meets the shared definition of done in `program.md`. Accepted by
 [`D-20261118-contracts-program-go-ahead`](./decisions/D-20261118-contracts-program-go-ahead.md);
 nothing here publishes to npm.
 
-- **6.0 Shard `packages/apicontract` for the lanes.** Create `src/inputs.ts`, `src/plugins.ts` and `src/commands.ts`, each importing a flat stub (`input-<name>.ts`, `plugin-<name>.ts`, `command-<name>.ts`, exporting `undefined` or a refusing command) for every file prefix `LANES.md` gives an `ac-*` lane; pattern exports `./plugin-*`, `./input-*`, `./testing`; `validator` as a workspace dependency of `apicontract` (the one lockfile edit, by script); `cli.ts` registers `src/commands.ts`. Done when: `npx vitest run scripts/lane-boundaries-lock.test.ts` and `npm run typecheck -w apicontract` pass, and every `ac-*` lane brief from `scripts/dispatch-lanes.ts` lists its Wave 6 step with its paragraph.
+- **6.0 Shard `packages/contractdiff` for the lanes.** Create `src/inputs.ts`, `src/plugins.ts` and `src/commands.ts`, each importing a flat stub (`input-<name>.ts`, `plugin-<name>.ts`, `command-<name>.ts`, exporting `undefined` or a refusing command) for every file prefix `LANES.md` gives an `ac-*` lane; pattern exports `./plugin-*`, `./input-*`, `./testing`; `validator` as a workspace dependency of `apicontract` (the one lockfile edit, by script); `cli.ts` registers `src/commands.ts`. Done when: `npx vitest run scripts/lane-boundaries-lock.test.ts` and `npm run typecheck -w apicontract` pass, and every `ac-*` lane brief from `scripts/dispatch-lanes.ts` lists its Wave 6 step with its paragraph.
 - **6.1 `gen` and `extract` run for real** ([`apicontract-gen-command`](./intents/apicontract-gen-command/intent.md)). Done when: `npm test -w apicontract -- src/run-` passes, including the regeneration-safety test (N1 = 0) and an envelope test in `src/run-gen.test.ts` that parses `gen --json --dry-run` with burgee's `runBurgee` and checks `{ ok, data, meta }`.
 - **6.2 The types target closes Phase 1** ([`apicontract-types`](./intents/apicontract-types/intent.md)): the `types` plugin, 61 / 61 upstream cases, TypeScript 5.9 / 6.0 / 7.0. Done when: the types plugin passes `npm test -w apicontract -- src/plugin-types src/gen-ts src/openapi-typescript`, and the openapi-typescript compat-oracle host (vendored by this lane) reads 61 / 61.
 - **6.3 Input adapters** ([`apicontract-inputs`](./intents/apicontract-inputs/intent.md)): JSON Schema and MCP first, then AsyncAPI, Swagger 2.0, Overlay, OpenAPI 3.2. Done when: `npm test -w apicontract -- src/input- src/openapi.test` passes, and each adapter's test asserts it read at least 20 documents from `src/__fixtures__/inputs/<name>/`.
@@ -470,7 +470,7 @@ nothing here publishes to npm.
 - **6.9 `diff`** ([`apicontract-diff`](./intents/apicontract-diff/intent.md)): schema compare and classification against `compat.qnt` first. Done when: `npm test -w apicontract -- src/diff- src/command-diff` passes, including the property test over the committed `compat.qnt` traces.
 - **6.10 Conformance suite, scaffold, migrations** ([`apicontract-kit`](./intents/apicontract-kit/intent.md)): the suite first, so other lanes adopt it. Done when: `npm test -w apicontract -- src/testing src/migrate- src/scaffold src/command-migrate src/command-plugin` passes, and all seven broken fixture plugins fail the suite.
 - **6.11 Corpus, grader, consumer harness** ([`apicontract-corpus`](./intents/apicontract-corpus/intent.md)). Done when: `npm test -w benchmarks -- apicontract` passes and `npx tsx benchmarks/apicontract/corpus.ts --sample 20 --tool openapi-typescript` writes a results folder.
-- **6.12 Validator parity 143 → 154 and the benchmark after parity** ([`validator/parity.md`](./intents/validator/parity.md) § The build list). Done when: the parity probe reads 154 yes or partial-with-reason for ours, and `benchmarks/validator/baseline.ts` reads every library at the same feature count.
+- **6.12 Validator parity 143 → 154 and the benchmark after parity** ([`validator/parity.md`](./intents/loadline/parity.md) § The build list). Done when: the parity probe reads 154 yes or partial-with-reason for ours, and `benchmarks/validator/baseline.ts` reads every library at the same feature count.
 - **6.13 The corpus scoreboard is public.** A nightly workflow runs `corpus.ts` on the full corpus and the docs site renders `summary.md`. Done when: the workflow has one green scheduled run and the page links from the apicontract README.
 
 

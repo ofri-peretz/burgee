@@ -1,6 +1,6 @@
 # Intent — code → spec: a contract from the schemas and servers a team already wrote, with the round trip proven
 
-> Opened from the 2026-11-18 program ([`../apicontract/program.md`](../apicontract/program.md)).
+> Opened from the 2026-11-18 program ([`../contractdiff/program.md`](../contractdiff/program.md)).
 > Owner, 2026-11-12: "for both directions also code to specs". Roadmap Phase 2 (extract core and
 > R-RT) and Phase 3/4 (NestJS, Hono, tRPC/oRPC extraction).
 
@@ -45,7 +45,7 @@ library, which turns B5 from a per-framework grind into one plugin.
 
 ## Affected users and systems
 
-`packages/apicontract/src/extract-*.ts`, `src/plugin-extract-*.ts` (Standard Schema, OpenAPI from schemas, NestJS, Hono, tRPC / oRPC, ts-rest).
+`packages/contractdiff/src/extract-*.ts`, `src/plugin-extract-*.ts` (Standard Schema, OpenAPI from schemas, NestJS, Hono, tRPC / oRPC, ts-rest).
 
 ## Constraints
 
@@ -74,7 +74,7 @@ library, which turns B5 from a per-framework grind into one plugin.
 
 ## Evidence sweep 2026-11-22
 
-Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/apicontract` (2,545 tests) and `packages/validator` (1,153) is green there. 1 of 4 criteria met (B2). B1 is read on five fixtures, not the corpus; NestJS, Hono and tRPC/oRPC extractors are stubs.
+Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/contractdiff` (2,545 tests) and `packages/loadline` (1,153) is green there. 1 of 4 criteria met (B2). B1 is read on five fixtures, not the corpus; NestJS, Hono and tRPC/oRPC extractors are stubs.
 
 | # | criterion | held by | state |
 | --: | :-- | :-- | :-- |

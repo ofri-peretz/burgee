@@ -10,8 +10,8 @@
  * D-20261122-open-formats: "a format is supported when it is on the watch list and an adapter
  * reads it; a format that is not watched is not supported." This is that sentence as a check.
  *
- *   1. every built-in adapter in `packages/apicontract/src/inputs.ts` is named by an entry of
- *      `packages/apicontract/specs.json`, so a format added to apicontract adds its watch in the
+ *   1. every built-in adapter in `packages/contractdiff/src/inputs.ts` is named by an entry of
+ *      `packages/contractdiff/specs.json`, so a format added to apicontract adds its watch in the
  *      same PR (a new reader with no watch is a reader that goes stale in silence);
  *   2. every official test suite a grader vendors has an entry with `kind: 'test-suite'`, because a
  *      new suite release moves a published score as surely as a new spec does;
@@ -29,13 +29,13 @@ import { describe, expect, it } from 'vitest';
 
 // eslint-disable-next-line import-next/no-relative-packages -- by path, never by name: the corpus pins are the graders' own list of vendored suites
 import { SOURCES } from '../benchmarks/apicontract/corpus/sources.js';
-// eslint-disable-next-line import-next/no-relative-packages -- same: the adapter list is read from the source, not from a published build
-import { builtinAdapters } from '../packages/apicontract/src/inputs.js';
 // eslint-disable-next-line import-next/no-relative-packages -- same: by path, a bare `compat-oracle/*` resolves from another checkout's dist/ in an uninstalled worktree (compat-oracle R6)
 import { adapterFile, parseSpecs, type Spec } from '../packages/compat-oracle/src/specs.js';
+// eslint-disable-next-line import-next/no-relative-packages -- same: the adapter list is read from the source, not from a published build
+import { builtinAdapters } from '../packages/contractdiff/src/inputs.js';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const OWNER = 'apicontract';
+const OWNER = 'contractdiff';
 const SPECS_FILE = join(ROOT, 'packages', OWNER, 'specs.json');
 
 /** A repository named like a test suite: `JSON-Schema-Test-Suite`, `json-schema-test-suite`. */
