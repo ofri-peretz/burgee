@@ -107,7 +107,7 @@ describe('validateConfig', () => {
     );
     expect(message.split('\n')).toEqual([
       '/r/c.json cannot be used:',
-      '  - `inptu` is not a setting. fix: remove it; the settings are $schema, input, overlays, plugins, targets, extract',
+      '  - `inptu` is not a setting. fix: remove it; the settings are $schema, input, overlays, plugins, targets, extract, diff',
       '  - `input` must be a file inside the project. fix: write `"input": "openapi.yaml"`',
       '  - `overlays` must be a list of non-empty strings. fix: write `"overlays": ["…"]`',
       '  - `plugins` must be a list of non-empty strings. fix: write `"plugins": ["…"]`',
@@ -140,7 +140,7 @@ describe('validateConfig', () => {
 
 describe('configSchema', () => {
   it('names every setting validateConfig reads, and only those', () => {
-    expect(Object.keys(configSchema.properties)).toEqual(['$schema', 'input', 'overlays', 'plugins', 'targets', 'extract']);
+    expect(Object.keys(configSchema.properties)).toEqual(['$schema', 'input', 'overlays', 'plugins', 'targets', 'extract', 'diff']);
     expect(configSchema).toMatchObject({ $schema: 'https://json-schema.org/draft/2020-12/schema', title: 'apicontract.config.json', type: 'object', additionalProperties: false });
     expect(configSchema.properties.targets.additionalProperties).toEqual({
       type: 'object',
