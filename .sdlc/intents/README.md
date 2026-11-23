@@ -570,6 +570,7 @@ execution order. The selection is
 | 111 | [`spec-release-watch/`](./spec-release-watch/) | **every contract spec apicontract reads is watched for new releases**: OpenAPI, Overlay, Arazzo, AsyncAPI, JSON Schema, MCP, GraphQL, OpenRPC, CloudEvents, Standard Schema, protobuf, Avro, A2A, OpenTelemetry, the JSON Schema Test Suite; one issue per (spec, version), pre-releases labelled apart | approved 2026-11-22 (D-20261122-open-formats) |
 | 112 | [`rulehome/`](./rulehome/) | **every rule has a home, in the family**: rulehome moves in on burgee (`audit`, `skills`, `agents`); its decision-marker check folds into contractdiff | approved 2026-11-22 (D-20261122-toolkit-intents-accepted) |
 | 113 | [`contractdiff-compat-depth/`](./contractdiff-compat-depth/) | **diff as deep as the registries**: transitive, dangerous, usage-aware, frozen, protobuf levels; operation selection and an agent-ready ruleset | approved 2026-11-22 (D-20261122-toolkit-intents-accepted) |
+| 114 | [`apicontract-protobuf/`](./apicontract-protobuf/) | **protobuf in the one model, through buf**: a descriptor-image adapter, `.proto` compiled by the user's buf, `diff --level` passing buf's breaking verdicts through | approved 2026-11-23 (owner's standing delegation) |
 
 Rows 73–78 come from [`adoption-barriers-2026-10.md`](../research/adoption-barriers-2026-10.md),
 a field trial of the published `burgee migrate` on 9 CLIs we did not write, plus population
