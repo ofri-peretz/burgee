@@ -117,6 +117,15 @@ to run still starts and passes in one step. `npm run lint:workflows` holds the l
 | :-- | :-- |
 | [`oxmutate-native.yml`](./oxmutate-native.yml) | Called by `release.yml`, or dispatched alone (builds, publishes nothing): one `oxmutate.node` per `packages/oxmutate/npm/<platform>` — macOS 14 for both darwin targets (x64 cross-compiled, header-checked), Ubuntu 22.04 x64 and arm64 for glibc, musl via `x86_64-unknown-linux-musl` built in `rust:<version>-alpine` and loaded in `node:<.nvmrc>-alpine`, Windows for msvc. Each leg checks the binary's header, `process.dlopen`s it and calls `nativeVersion()` where the runner can, and uploads `oxmutate-native-<platform>`, which `release.yml` places in oxmutate's `binding/`. `scripts/oxmutate-platforms-lock.test.ts` holds the matrix to the directories |
 
+## Reusable (called by the other Interlace repos)
+
+`on: workflow_call` only; burgee itself does not run them. Callers reference `@main`.
+
+| Workflow | Role |
+| :-- | :-- |
+| [`hookset-check.yml`](./hookset-check.yml) | `hookset check` on the caller against the presets at the `hookset@<version>` tag its `lefthook.yml` pins: a sparse checkout of `packages/hookset`, run by Node's type stripping, no install |
+| [`changeset-gate.yml`](./changeset-gate.yml) | A PR that changes package source or a manifest adds a changeset that `changeset status` accepts; `skip-changeset` opts out, the Version PR passes. The rule `changesets-pr.yml` holds here, for repos that had none |
+
 ## Security
 
 | Workflow | Role |
