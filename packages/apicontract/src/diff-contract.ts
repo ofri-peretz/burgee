@@ -31,6 +31,8 @@ export interface Finding {
   readonly before: unknown;
   readonly after: unknown;
   readonly fix: string;
+  /** With `--transitive`: the past release this finding was found against, the oldest where it is worst. */
+  readonly against?: string;
 }
 
 export interface Comparison {
@@ -48,6 +50,15 @@ export interface Comparison {
    * only at level `error`, and never in `summary` or `findings`.
    */
   readonly decisions?: readonly Finding[];
+  /** With `--transitive` (contractdiff-compat-depth R1): what the new contract was compared with. */
+  readonly transitive?: Transitive;
+}
+
+export interface Transitive {
+  /** Every release compared, oldest first. */
+  readonly against: readonly string[];
+  /** The oldest release a breaking change breaks; absent when none does. */
+  readonly oldestBroken?: string;
 }
 
 export interface CompareOptions {
@@ -59,7 +70,7 @@ export interface CompareOptions {
 
 /** The order findings are listed in. */
 // Stryker disable next-line StringLiteral: equivalent for the first, which `indexOf` ranks first whether found (0) or not (-1)
-const SEVERITY: readonly Verdict[] = ['breaking', 'unknown', 'dangerous', 'non-breaking'];
+export const SEVERITY: readonly Verdict[] = ['breaking', 'unknown', 'dangerous', 'non-breaking'];
 
 /** `get /pets/{}` from `#/paths/~1pets~1{id}/get`: what an operation is when its id changes. Path parameter names do not count. */
 export const routeOf = (source: string): string | undefined => {
@@ -209,7 +220,7 @@ const fixFor = (raw: Raw, verdict: Verdict, operation: string): string => {
   return `keep ${where} within what the old contract allowed, or release this as a major version`;
 };
 
-const overall = (summary: Readonly<Record<Verdict, number>>): Verdict => {
+export const overall = (summary: Readonly<Record<Verdict, number>>): Verdict => {
   return SEVERITY.find((verdict) => summary[verdict] > 0) ?? 'non-breaking';
 };
 
@@ -231,6 +242,14 @@ const frozenOperation = (a: Contract, old: Operation | undefined): boolean => is
 
 // Stryker disable next-line StringLiteral: equivalent, an operation-level finding never shares its operation with a payload's
 const whereOf = (finding: Finding): string => `${finding.source} ${finding.payload ?? ''} ${finding.pointer} ${finding.id}`;
+
+/** `findings` in the order they are listed: by verdict, then where. Sorts in place, and returns them. */
+export const sortFindings = (findings: Finding[]): Finding[] =>
+  findings.sort((x, y) => SEVERITY.indexOf(x.verdict) - SEVERITY.indexOf(y.verdict) || whereOf(x).localeCompare(whereOf(y), 'en'));
+
+/** How many findings have each verdict. */
+export const summaryOf = (findings: readonly Finding[]): Record<Verdict, number> =>
+  Object.fromEntries(SEVERITY.map((verdict) => [verdict, findings.filter((finding) => finding.verdict === verdict).length])) as Record<Verdict, number>;
 
 /** A change under `x-frozen` has one id, whatever changed; its fix line names the change. */
 const FROZEN = { id: 'ac-frozen-changed', scheme: 'apicontract' } as const;
@@ -261,8 +280,7 @@ export const compareContracts = (a: Contract, b: Contract, options: CompareOptio
       };
     });
   });
-  findings.sort((x, y) => SEVERITY.indexOf(x.verdict) - SEVERITY.indexOf(y.verdict) || whereOf(x).localeCompare(whereOf(y), 'en'));
-  const count = (verdict: Verdict): number => findings.filter((finding) => finding.verdict === verdict).length;
-  const summary = { breaking: count('breaking'), unknown: count('unknown'), dangerous: count('dangerous'), 'non-breaking': count('non-breaking') };
+  sortFindings(findings);
+  const summary = summaryOf(findings);
   return { mode, side, verdict: overall(summary), summary, findings };
 };
