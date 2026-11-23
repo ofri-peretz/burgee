@@ -1,0 +1,8 @@
+# feat: log-update, the built-ins, the importers, the gallery, the vitest runner and caique (#66)
+id: bug-66
+kind: bug
+pr: 66
+base: "131d566d8cfd"
+head: "b43e1d3ccd62"
+answer: "flagstaff/log-update restores the cursor only from a process 'exit' listener, which Node does not run when a signal kills the process, so Ctrl+C mid-frame leaves the terminal with a hidden cursor."
+set: tune
