@@ -378,14 +378,15 @@ function nextLefthook(repo: string, stations: Stations, ref: string, force: bool
 
 /** Move the first `ref:` inside `remotes:` to `ref`. */
 function repin(yaml: string, ref: string): string {
-  const lines = yaml.split('\n');
+  const eol = yaml.includes('\r\n') ? '\r\n' : '\n';
+  const lines = yaml.split(/\r?\n/);
   const block = topBlock(lines, 'remotes');
   // Stryker disable next-line ConditionalExpression,LogicalOperator,EqualityOperator: equivalent: the caller has proved the block exists, and the line that opens it is never a ref; a test holds the end of the block
   const at = lines.findIndex((l, i) => block !== undefined && i > block.from && i < block.to && keyValue(listItem(l.trim()) ?? l.trim())?.[0] === 'ref');
   const line = lines[at];
   if (line === undefined) return yaml;
   lines.splice(at, 1, `${line.slice(0, line.indexOf('ref:'))}ref: ${ref}`);
-  return lines.join('\n');
+  return lines.join(eol);
 }
 
 type HookGroup = { matcher?: string; hooks: { type: string; command: string }[] };

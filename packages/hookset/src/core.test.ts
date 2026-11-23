@@ -362,6 +362,13 @@ describe('initRepo', () => {
     expect(initRepo(dir, PKG)).toEqual({ changed: false, written: [] });
   });
 
+  it('keeps CRLF line endings when it moves the pin', () => {
+    const before = lefthookTemplate(STATIONS, 'hookset@0.0.1').replaceAll('\n', '\r\n');
+    const dir = repo({ 'lefthook.yml': before });
+    initRepo(dir, PKG);
+    expect(read(dir, 'lefthook.yml')).toBe(before.replace('ref: hookset@0.0.1', `ref: ${REF}`));
+  });
+
   it('moves the ref of the hookset remote where it is a list item, and leaves a remote with no ref', () => {
     const dir = repo({ 'lefthook.yml': `remotes:\n  - ref: old\n    git_url: ${REMOTE}\n` });
     initRepo(dir, PKG);
