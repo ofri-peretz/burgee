@@ -8,6 +8,12 @@
 <!-- F1–F4, O1–O5, E1–E5, V1–V5, S1–S4, P1–P2, D1–D2, T1 — see
      .sdlc/intents/burgee/spec.md. "None" is a valid answer. -->
 
+## How this was checked
+
+<!-- Paste the block `npx proofline stamp --run "<command>" --not-checked "<gap>" --pr` prints:
+     the Checked: line and its Verified-by: lines. `proofline done <slug>` prints the line for an
+     intent's success criteria. "Verified-by: none (<reason>)" is a valid answer. -->
+
 ## Test plan
 
 - [ ] `npm run lint` — 11 Interlace plugins, zero warnings

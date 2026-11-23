@@ -51,6 +51,9 @@ component_management:
     - component_id: validator
       name: validator
       paths: [packages/validator/**]
+    - component_id: proofline
+      name: proofline
+      paths: [packages/proofline/**]
     - component_id: bellpull
       name: bellpull
       paths: [packages/bellpull/**]
