@@ -1,5 +1,14 @@
 # oxmutate
 
+## 2.18.0
+
+### Minor Changes
+
+- [#1752](https://github.com/ofri-peretz/burgee/pull/1752) [`b9540f3`](https://github.com/ofri-peretz/burgee/commit/b9540f38739543f1099b3a791dc5b3666ee57b1b) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - In container mode the default worker count is every core of the container but one, with no cap of eight
+  (13 on a 14-core Docker VM, where the host default stays 8). The container's cores are its own, and a
+  worker the kernel kills for memory is run again alone, so a neighbour's crash is no longer a verdict.
+  `--concurrency` and the config's `concurrency` still win.
+
 ## 2.17.0
 
 ### Minor Changes
