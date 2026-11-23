@@ -11,8 +11,9 @@
 import { tagsOf } from './command-explain-operation.js';
 import { type Contract, type Operation } from './core/model.js';
 import { pointerGet } from './core/resolve.js';
+import { parse, query } from './lint-jsonpath.js';
 
-export const SELECTS = ['document', 'operation', 'parameter', 'property', 'schema'] as const;
+export const SELECTS = ['document', 'operation', 'parameter', 'property', 'schema', 'path'] as const;
 export type Select = (typeof SELECTS)[number];
 
 export interface Given {
@@ -23,6 +24,8 @@ export interface Given {
   readonly tag?: string;
   /** Only operations, or members of operations, with this HTTP method, upper case. */
   readonly method?: string;
+  /** With `select: 'path'`: JSONPath into the source document (the R9 subset), one or several. */
+  readonly path?: string | readonly string[];
 }
 
 export interface LintNode {
@@ -33,6 +36,8 @@ export interface LintNode {
   readonly operation?: Operation;
   /** A property's or parameter's name. */
   readonly name?: string;
+  /** What a `path` selected, as it is: a `then` with no `field` reads this, not `value`. */
+  readonly matched?: unknown;
 }
 
 /** A value's own members, read as a record: `{}` for null and undefined, so a missing member reads as `undefined`. */
@@ -150,6 +155,22 @@ const schemaWalk = (contract: Contract, given: Given): Walk => {
   return state;
 };
 
+/** Every value a `path` given selects in the source document, each once; nothing for a path outside the subset. */
+const pathNodes = (contract: Contract, given: Given): LintNode[] => {
+  const seen = new Set<string>();
+  // Stryker disable next-line ArrayDeclaration: equivalent, a path that is not one parses to an error and selects nothing
+  return [given.path ?? []].flat().flatMap((path) => {
+    let steps;
+    // A path outside the subset is refused where the rule is read; here it selects nothing.
+    try { steps = parse(path); } catch { return []; }
+    return query(contract.document, steps).flatMap((match): LintNode[] => {
+      if (seen.has(match.pointer)) return [];
+      seen.add(match.pointer);
+      return [{ pointer: match.pointer, value: isRecord(match.value) ? match.value : {}, matched: match.value }];
+    });
+  });
+};
+
 /** The nodes a `given` selects in a contract. */
 export const select = (contract: Contract, given: Given): LintNode[] => {
   if (given.formats !== undefined && !given.formats.includes(contract.format)) return [];
@@ -168,6 +189,9 @@ export const select = (contract: Contract, given: Given): LintNode[] => {
     }
     case 'schema': {
       return schemaWalk(contract, given).schemas;
+    }
+    case 'path': {
+      return pathNodes(contract, given);
     }
   }
 };

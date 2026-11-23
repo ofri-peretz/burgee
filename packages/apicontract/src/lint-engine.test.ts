@@ -17,8 +17,15 @@ const twoOperations = contract({
 const ids = (given: Parameters<typeof select>[1]) => select(twoOperations, given).map((node) => node.operation?.id);
 
 describe('select', () => {
-  it('knows five selectors', () => {
-    expect(SELECTS).toEqual(['document', 'operation', 'parameter', 'property', 'schema']);
+  it('knows five model selectors and a path', () => {
+    expect(SELECTS).toEqual(['document', 'operation', 'parameter', 'property', 'schema', 'path']);
+  });
+
+  it('selects what a path names in the source document, each once, and nothing for a path outside the subset', () => {
+    const pets = contract({ paths: { '/pets': { get: { operationId: 'a' } } } });
+    expect(select(pets, { select: 'path', path: ['$.info.title', '$..title', '$.paths[*~]'] })).toEqual([{ pointer: '#/info/title', value: {}, matched: 't' }]);
+    expect(select(pets, { select: 'path' })).toEqual([]);
+    expect(select(pets, { select: 'path', path: '$.info' })[0]).toMatchObject({ pointer: '#/info', value: { title: 't', version: '1' } });
   });
 
   it('selects nothing from a format the given does not name', () => {
