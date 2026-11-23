@@ -515,6 +515,34 @@ it.skipIf(!native || !existsSync(bin) || !nightly)('queues a stopped mutant\'s 3
   }
 }, 120_000);
 
+// A warm run's limit is the running test's own, not the budget of the slowest test that covers the
+// mutant. The fixture's two tests cover one line; the slower takes 1.5 s, which sized every limit on
+// that line (5 s, and a 10 s grace for a worker blocked in a call). A mutant that blocks the 1 ms test
+// for ever is now stopped at that test's limit (about 0.8 s, and 2.3 s with the grace). Both builds
+// reach the same verdicts: the two hangs are Timeout, the survivor survives.
+it.skipIf(!native || !existsSync(bin) || !nightly)('stops a mutant at the limit of the test it hangs, not of the slowest test that covers it', () => {
+  const dir = path.join(pkg, 'test/fixtures/budget');
+  const reportDir = path.join(dir, 'reports');
+  rmSync(reportDir, { recursive: true, force: true });
+  mkdirSync(reportDir, { recursive: true });
+  try {
+    // A survivor makes the run exit 1: the report is what is read.
+    spawnSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: dir, stdio: 'pipe' });
+    const report = JSON.parse(readFileSync(path.join(reportDir, 'mutation.json'), 'utf8')) as {
+      files: Record<string, { mutants: (ReportMutant & { mutatorName: string })[] }>;
+      'x-oxmutate': { stats: { warmStopsMs: number[] } };
+    };
+    const verdicts = (report.files['src/pause.ts']?.mutants ?? []).map((m) => `${m.mutatorName} ${String(m.replacement)}: ${m.status}`);
+    expect(verdicts).toEqual(expect.arrayContaining(['BooleanLiteral fast: Timeout', 'ConditionalExpression true: Timeout', 'ConditionalExpression false: Survived']));
+    // The hang in the 1 ms test is stopped at that test's limit; the same mutant in the 1.5 s test, in the other file, at that one's.
+    const stops = report['x-oxmutate'].stats.warmStopsMs;
+    expect(stops.length).toBeGreaterThan(0);
+    expect(Math.min(...stops)).toBeLessThan(5000);
+  } finally {
+    discard(reportDir);
+  }
+}, 120_000);
+
 // A mutant that loops with no switch in the loop (no hit count can stop it) is stopped by the watchdog in
 // the warm run. That stop was then run isolated at 1x, stopped again, and run at 3x: ufo's punycode.ts
 // spent 2.3 s of its 9.2 on the 1x run (2026-11-20). The warm stop is the first look, so the isolated

@@ -40,6 +40,13 @@ export interface Comparison {
   readonly summary: Readonly<Record<Verdict, number>>;
   /** Sorted by verdict (breaking, unknown, non-breaking), then where. */
   readonly findings: readonly Finding[];
+  /**
+   * What the markers in the contract say about these changes (`diff-decisions.ts`). Absent from
+   * `compareContracts`, so a caller that builds or compares a `Comparison` as it was keeps working;
+   * set by `withDecisions`, and empty when `--decisions off`. They count in `verdict`
+   * only at level `error`, and never in `summary` or `findings`.
+   */
+  readonly decisions?: readonly Finding[];
 }
 
 export interface CompareOptions {
@@ -60,7 +67,7 @@ export const routeOf = (source: string): string | undefined => {
 };
 
 /** Pairs of operations, old with new; an unpaired one was removed or added. Ids first, then routes. */
-const pair = (a: readonly Operation[], b: readonly Operation[]): [Operation | undefined, Operation | undefined][] => {
+export const pair = (a: readonly Operation[], b: readonly Operation[]): [Operation | undefined, Operation | undefined][] => {
   const rest = [...b];
   const take = (match: (operation: Operation) => boolean): Operation | undefined => {
     const index = rest.findIndex(match);

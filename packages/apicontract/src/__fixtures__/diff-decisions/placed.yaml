@@ -1,0 +1,23 @@
+openapi: 3.1.0
+info: { title: Wallet, version: 3.0.0 }
+paths:
+  /v3/wallet:
+    get:
+      operationId: getBalance
+      x-change: ADR-2
+      parameters:
+        - { name: limit, in: query, schema: { type: integer }, x-change: ADR-3 }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Balance' }
+components:
+  schemas:
+    Balance:
+      type: object
+      required: [amount]
+      properties:
+        amount: { type: number, x-change: ADR-1 }
+        currency: { type: string, enum: [USD, EUR, GBP] }
+        note: { type: string }
