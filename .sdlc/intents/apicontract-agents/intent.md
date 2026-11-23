@@ -62,3 +62,16 @@ agent claim to measure (A1, A5–A7) and needs nothing that is not on `main`.
 
 - Tool names are `operationId` in snake_case, truncated to 64 characters with a stable hash suffix.
 - Transport: stdio by default, `--transport http` emits the Streamable HTTP setup.
+
+## Evidence sweep 2026-11-22
+
+Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/apicontract` (2,545 tests) and `packages/validator` (1,153) is green there. 1 of 4 criteria met (A2/A3 through tests). The boot, A1 and the agent eval are unread.
+
+| # | criterion | held by | state |
+| --: | :-- | :-- | :-- |
+| 1 | `gen mcp` on the three bench specs: the server boots, `tools/list` validates, every `inputSchema` passes the `mcp` dialect | `consumers.ts` has an MCP boot contract; no reading committed. Output pinned by golden tests (#1627) | **open** |
+| 2 | A1: `explain --json` bytes for the median bench operation ≤ the raw slice, published | `benchmarks/apicontract/explain-baseline.ts` exists; no reading in `benchmarks/apicontract/results/` | **open** |
+| 3 | A2 = 100% for `explain --json`; A3 = 100% | the explain test parses `explain --json` with `runBurgee` (PLAN 6.8 done-when); refusals carry `fix:` | met |
+| 4 | The agent eval (A5–A7) with and without `explain`, published | no `evals/cases/apicontract-explain-*` | **open** |
+
+Status stays `approved`: `apicontract` is `private` and unpublished, and [`D-20261119-apicontract-stays-private`](../../decisions/D-20261119-apicontract-stays-private.md) reserves `shipped` for published work; a lane that meets every criterion is recorded as "criteria met, unpublished".

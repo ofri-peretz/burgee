@@ -69,6 +69,7 @@ const E2E = 'packages/oxmutate/src/e2e.test.ts';
 const MUTATION_RUN = 'a whole oxmutate run on a fixture — the CLI, its Vitest servers, every mutant — 6.5–15 s on a contended CI runner, and only oxmutate source can make it faster (follow-up in the PR that moved it)';
 export const NIGHTLY_ONLY: Readonly<Record<string, string>> = {
   [`${E2E} > keeps a test file's dry run until its source, its test, its mutants or the config change`]: `${MUTATION_RUN}, eight runs in a row over one fixture, each changing what one test file depends on`,
+  [`${E2E} > queues a stopped mutant's 3x run while the first stage is still running`]: `${MUTATION_RUN}, one mutant stalled 8 s on purpose beside one running 7 s; 22 s`,
   [`${E2E} > gives a blocked warm run its 3x in place, with no server restart and the same verdicts`]: `${MUTATION_RUN}, its mutant blocking 1.2 s past its budget on purpose; 8.5 s`,
   [`${E2E} > takes the processes a test started with a server the watchdog kills`]: `${MUTATION_RUN}, through a watchdog kill and its 3x re-run, each starting a child; 20.3 s`,
   [`${E2E} > restarts a polluted context and judges later mutants from a clean state`]: `${MUTATION_RUN}; 8.2 s`,
