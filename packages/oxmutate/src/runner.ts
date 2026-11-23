@@ -141,6 +141,8 @@ const specTests = new Set(plan.specTests ?? []);
 const decidedBySpec = new Set<string>();
 /** `isolated`: when set, only these tests run (the mutant's covering tests); the rest pass untouched. */
 const only = mode === 'isolated' && env['OXMUTATE_ONLY_TESTS'] ? new Set(JSON.parse(env['OXMUTATE_ONLY_TESTS']) as string[]) : undefined;
+/** `isolated`: each covering test's dry-run time, for the watchdog's limit on the test that is running (a hang in a fast test is not held to the budget of the slowest). */
+const testMs = mode === 'isolated' && env['OXMUTATE_TEST_MS'] ? (JSON.parse(env['OXMUTATE_TEST_MS']) as Record<string, number>) : undefined;
 /** `static`: the static mutants this file run decides in the live worker. */
 const staticIds = mode === 'static' && env['OXMUTATE_STATIC'] ? (JSON.parse(env['OXMUTATE_STATIC']) as string[]) : [];
 /**
@@ -536,6 +538,9 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
       if (only && !only.has(test.id)) return;
       // Only a wait inside a test body can be an idle stall; collection at low CPU is a slow machine.
       markTest(true);
+      // The real clock, as in a warm run. The mark names the test, so the watchdog holds it to that test's limit; after it, the mutant's whole budget from then on.
+      const armed = mode === 'isolated' ? env[ACTIVE_MUTANT_ENV] : undefined;
+      if (armed && testMs?.[test.id] !== undefined) mark(markText(armed, realNow(), testMs[test.id]));
       try {
         await guarded(test.id, fn);
         if (mode === 'dry') await probe(test, fn, () => this.retryReset(test, 1));
@@ -544,6 +549,7 @@ export default class OxmutateRunner extends (Base as new (config: unknown) => {
         throw e;
       } finally {
         markTest(false);
+        if (armed && testMs?.[test.id] !== undefined) mark(markText(armed, realNow()));
       }
       return;
     }
