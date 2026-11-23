@@ -696,6 +696,14 @@ export default [
     },
   },
   {
+    // truemark reads its AST types from `eslint` (an optional peer) and `estree` (types only,
+    // no runtime module). Under verbatimModuleSyntax an inline type specifier emits
+    // `import {} from 'estree'`, which fails to resolve at run time, and would load ESLint
+    // into the `truemark diff` CLI that never needs it. Type-only imports stay top-level.
+    files: ["packages/truemark/src/**/*.ts"],
+    rules: { "import-next/consistent-type-specifier-style": "off" },
+  },
+  {
     // Measured 2026-09-07: under verbatimModuleSyntax an inline type specifier
     // (`import { type X } from './m.js'`) emits `import {} from './m.js'` — a real
     // module load for no value, worth ~5ms of startup here. A type-only import must

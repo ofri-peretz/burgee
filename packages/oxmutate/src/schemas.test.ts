@@ -72,7 +72,10 @@ describe.skipIf(!ready)('the reports validate against their schemas (SC4)', () =
 
   it("mutation.json validates against Stryker's mutation-testing-report-schema 3.8.4", () => {
     const statuses = new Set(Object.values(report.files).flatMap((f) => f.mutants.map((m) => m['status'])));
-    expect([...statuses].sort()).toEqual(['Killed', 'Survived']);
+    // Both kinds the SARIF needs are there. A loaded CI runner can also stop a mutant at its warm
+    // limit and score it Timeout, which the schema allows: this test checks the schema, not timing.
+    expect(statuses).toContain('Killed');
+    expect(statuses).toContain('Survived');
     expect(problems(validateReport, report)).toEqual([]);
   });
 

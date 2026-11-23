@@ -1,0 +1,8 @@
+# feat(seniority): dotenv 18 drop-in, level at 179 / 179 against dotenv 18.0.5 (#828)
+id: bug-828
+kind: bug
+pr: 828
+base: "1945d65f22aa"
+head: "8118d5c8754a"
+answer: "seniority grows about 14.6% gzipped with dotenv 18 and the artifact-size baseline is not updated, so release.yml's artifact gate refuses the release of this and later commits."
+set: test
