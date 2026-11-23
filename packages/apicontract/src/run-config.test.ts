@@ -107,7 +107,7 @@ describe('validateConfig', () => {
     );
     expect(message.split('\n')).toEqual([
       '/r/c.json cannot be used:',
-      '  - `inptu` is not a setting. fix: remove it; the settings are $schema, input, overlays, plugins, targets, extract',
+      '  - `inptu` is not a setting. fix: remove it; the settings are $schema, input, overlays, plugins, targets, extract, diff, lint',
       '  - `input` must be a file inside the project. fix: write `"input": "openapi.yaml"`',
       '  - `overlays` must be a list of non-empty strings. fix: write `"overlays": ["…"]`',
       '  - `plugins` must be a list of non-empty strings. fix: write `"plugins": ["…"]`',
@@ -140,7 +140,15 @@ describe('validateConfig', () => {
 
 describe('configSchema', () => {
   it('names every setting validateConfig reads, and only those', () => {
-    expect(Object.keys(configSchema.properties)).toEqual(['$schema', 'input', 'overlays', 'plugins', 'targets', 'extract']);
+    expect(Object.keys(configSchema.properties)).toEqual(['$schema', 'input', 'overlays', 'plugins', 'targets', 'extract', 'diff', 'lint']);
+    expect(configSchema.properties.lint).toEqual({
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        extends: { type: 'array', items: { type: 'string', minLength: 1 }, description: 'Rulesets, in order: `recommended`, `agent-ready`' },
+        rules: { type: 'object', additionalProperties: { enum: ['error', 'warn', 'off'] }, description: 'A level per rule id, over the rulesets' },
+      },
+    });
     expect(configSchema).toMatchObject({ $schema: 'https://json-schema.org/draft/2020-12/schema', title: 'apicontract.config.json', type: 'object', additionalProperties: false });
     expect(configSchema.properties.targets.additionalProperties).toEqual({
       type: 'object',
@@ -158,6 +166,32 @@ describe('configSchema', () => {
     expect(configSchema.properties.plugins).toEqual({ type: 'array', items: { type: 'string', minLength: 1 }, description: 'Package names or relative paths; nothing else is loaded' });
     expect(configSchema.properties.$schema).toEqual({ type: 'string' });
     expect(configSchema.properties.targets.type).toBe('object');
+  });
+});
+
+describe('validateConfig, the lint section', () => {
+  const file = '/project/apicontract.config.json';
+
+  it('reads extends and rules, and leaves out what is not given', () => {
+    expect(validateConfig({ lint: { extends: ['agent-ready'], rules: { 'operation-tags': 'error' } } }, file).lint).toEqual({ extends: ['agent-ready'], rules: { 'operation-tags': 'error' } });
+    expect(validateConfig({ lint: {} }, file).lint).toStrictEqual({});
+    expect('lint' in validateConfig({}, file)).toBe(false);
+  });
+
+  it.each([
+    [{ lint: [] }, '`lint` must be an object. fix: write `{ "extends": ["recommended"], "rules": { … } }`'],
+    [{ lint: 'recommended' }, '`lint` must be an object'],
+    [{ lint: { other: 1 } }, '`lint.other` is not a lint setting. fix: remove it; lint takes extends and rules'],
+    [{ lint: { extends: 'recommended' } }, '`lint.extends` must be a list of non-empty strings'],
+    [{ lint: { rules: { a: 'fatal' } } }, '`lint.rules` must map rule ids to "error", "warn" or "off". fix: write `"rules": { "operation-tags": "error" }`'],
+    [{ lint: { rules: ['warn'] } }, '`lint.rules` must map rule ids'],
+    [{ lint: { rules: { a: 'warn', b: 'fatal' } } }, '`lint.rules` must map rule ids'],
+  ])('refuses %j', (value, problem) => {
+    expect(() => validateConfig(value, file)).toThrow(problem);
+  });
+
+  it('accepts every level', () => {
+    expect(validateConfig({ lint: { rules: { a: 'error', b: 'warn', c: 'off' } } }, file).lint?.rules).toEqual({ a: 'error', b: 'warn', c: 'off' });
   });
 });
 

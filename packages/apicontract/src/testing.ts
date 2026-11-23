@@ -12,6 +12,7 @@
 import { type Contract } from './core/model.js';
 import { checkPlugin, createHost, type Extractor, type Generator, type Host, type Plugin } from './host.js';
 import { builtinAdapters } from './inputs.js';
+import { ruleFailures } from './testing-lint.js';
 import { changed, hostile } from './testing-probe.js';
 import {
   type Checked,
@@ -131,6 +132,7 @@ export const conformance = async (plugin: unknown, options: ConformanceOptions =
     ...(options.extractor === undefined ? [] : await roundtrip(host, paired, options.extractor)),
     ...fixLines(report, runs),
     ...paths(runs),
+    ...ruleFailures(host, valid.rules ?? {}, options.corpus ?? []),
   ];
   refuse(label, failures);
 };
@@ -139,4 +141,6 @@ export { type Failure, type Rule, RULES } from './testing-rules.js';
 // The shapes a plugin is written against. The package has no public subpath for the host yet, and a
 // plugin's own file and its conformance test both import from here (the `plugin new` scaffold does).
 export { type Contract, type ContractFinding, type Operation, type Payload } from './core/model.js';
+export { type Rule as LintRule, type RuleSample, type SampleFinding } from './lint-engine.js';
+export { type LintNode } from './lint-select.js';
 export { type Adapter, type Extractor, type GeneratedFile, type Generator, type GeneratorResult, type Options, type Plugin, PluginError } from './host.js';

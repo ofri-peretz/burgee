@@ -4,8 +4,8 @@
  * user's, written once, and starts as "call the API for every tool".
  *
  * Options: `include` (operation ids or `tag:<name>`), `transport` (`stdio`, the default, or
- * `http` for Streamable HTTP). The generated code imports `@modelcontextprotocol/sdk`, which the
- * user installs; apicontract does not depend on it.
+ * `http` for Streamable HTTP), `budget` (the most tokens the tool list may take). The generated
+ * code imports `@modelcontextprotocol/sdk`, which the user installs; apicontract does not depend on it.
  */
 import { type ContractFinding } from './core/model.js';
 import { type GeneratedFile, type Generator, type GeneratorResult, type Plugin } from './host.js';
@@ -113,6 +113,7 @@ const mcp: Generator = {
   options: {
     include: { type: 'string', multiple: true, description: 'only these operation ids, or `tag:<name>`; required past 40 operations' },
     transport: { type: 'string', choices: ['stdio', 'http'], description: 'stdio (default) or Streamable HTTP' },
+    budget: { type: 'number', description: 'the most tokens the tool list may take (estimated as characters ÷ 4); over it, no tool is generated' },
   },
   sample: {
     document,

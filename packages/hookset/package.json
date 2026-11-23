@@ -1,0 +1,44 @@
+{
+  "name": "hookset",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The verification stations as git and Claude hooks: lefthook presets pulled by pinned tag, a Claude hook pack, and `hookset init` / `hookset check`. Working name; unpublished.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "bin": {
+    "hookset": "./dist/bin.js"
+  },
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.map",
+    "!dist/**/*.test.*",
+    "presets",
+    "claude",
+    "stations.json"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage.enabled",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "burgee": "^2.1.3"
+  },
+  "devDependencies": {
+    "vitest": "^5.0.1"
+  }
+}

@@ -163,6 +163,10 @@ export default [
       // Agent worktrees are whole copies of this repo. Linting them lints every
       // file twice and fails on whatever a stale copy still contains.
       ".claude/**",
+      // hookset's Claude hook pack: standalone hook programs vendored byte-identical into each
+      // repo's `.claude/hooks/` (ignored above), where a process exit IS the protocol. Their
+      // deny/allow cases run as `--self-test` from `packages/hookset/src/claude.test.ts`.
+      "packages/hookset/claude/**",
       // oxmutate's sandbox: a copy of the project while the command runner or the type checker
       // runs, removed after it. Linting it lints the project twice, mid-copy.
       "**/.oxmutate-tmp/**",
@@ -690,6 +694,14 @@ export default [
       "maintainability/no-missing-error-context": "off",
       "reliability/no-missing-error-context": "off",
     },
+  },
+  {
+    // truemark reads its AST types from `eslint` (an optional peer) and `estree` (types only,
+    // no runtime module). Under verbatimModuleSyntax an inline type specifier emits
+    // `import {} from 'estree'`, which fails to resolve at run time, and would load ESLint
+    // into the `truemark diff` CLI that never needs it. Type-only imports stay top-level.
+    files: ["packages/truemark/src/**/*.ts"],
+    rules: { "import-next/consistent-type-specifier-style": "off" },
   },
   {
     // Measured 2026-09-07: under verbatimModuleSyntax an inline type specifier

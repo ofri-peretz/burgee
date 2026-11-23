@@ -1,0 +1,7 @@
+# feat(docs): deploy the docs site from main only, and give agents llms.txt (#79)
+id: control-79
+kind: control
+pr: 79
+base: "4a872fec885c"
+head: "7198316079e0"
+set: test

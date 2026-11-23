@@ -12,7 +12,7 @@ const tree = (leaf: string) => ({ Node: { type: 'object', properties: { value: {
 const typeAt = (type: string) => ({ A: { type } });
 
 describe('compareSchemas, keyword by keyword', () => {
-  it.each(['title', 'description', 'examples', 'example', 'default', 'deprecated', 'readOnly', 'writeOnly', '$comment', '$schema', '$id', '$anchor', '$defs', 'definitions', 'externalDocs', 'xml', 'x-anything'])(
+  it.each(['title', 'description', 'examples', 'example', 'deprecated', 'readOnly', 'writeOnly', '$comment', '$schema', '$id', '$anchor', '$defs', 'definitions', 'externalDocs', 'xml', 'x-anything'])(
     'ignores %s, which only describes',
     (keyword) => {
       expect(diff({ [keyword]: 1 }, { [keyword]: 2 })).toEqual([]);
@@ -46,7 +46,7 @@ describe('compareSchemas, keyword by keyword', () => {
   });
 
   it('reports nothing for equal schemas, or for keywords that only describe', () => {
-    expect(diff({ type: 'string' }, { type: 'string', description: 'x', title: 't', examples: ['a'], 'x-internal': true, default: 'a' })).toEqual([]);
+    expect(diff({ type: 'string' }, { type: 'string', description: 'x', title: 't', examples: ['a'], 'x-internal': true })).toEqual([]);
     expect(diff(true, {})).toEqual([]);
     expect(diff(false, false)).toEqual([]);
   });

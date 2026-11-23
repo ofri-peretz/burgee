@@ -5,7 +5,7 @@ import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 
 import { discard } from './__fixtures__/scratch-dir.js';
-import { markReader, markWriter } from './progress-file.js';
+import { markReader, markText, markWriter, parseMark } from './progress-file.js';
 
 // This runs on Linux, macOS and Windows in CI, which the end-to-end runs do not: two descriptors
 // on one file, one of them opened with truncation while the other is held, is where they differ.
@@ -86,5 +86,21 @@ describe('a progress file, read in place while it is rewritten', () => {
     writer.close();
     reader.close();
     expect(() => rmSync(file)).not.toThrow();
+  });
+});
+
+describe('marks', () => {
+  it('writes a cold run as `<id> <since>` and a warm run with the running test’s dry-run time', () => {
+    expect(markText('m1', 1700, undefined)).toBe('m1 1700\n');
+    expect(markText('m1', 1700)).toBe('m1 1700\n');
+    expect(markText('m1', 1700, 0)).toBe('m1 1700 0\n');
+    expect(markText('m1', 1700, 12)).toBe('m1 1700 12\n');
+  });
+
+  it('reads what it wrote: the id, the start, and the test time when there is one', () => {
+    expect(parseMark('m1 1700 12')).toEqual({ id: 'm1', since: 1700, testMs: 12 });
+    expect(parseMark('m1 1700 0')).toEqual({ id: 'm1', since: 1700, testMs: 0 });
+    expect(parseMark('m1 1700')).toEqual({ id: 'm1', since: 1700, testMs: undefined });
+    expect(parseMark('m1')).toEqual({ id: 'm1', since: 0, testMs: undefined });
   });
 });

@@ -54,6 +54,18 @@ component_management:
     - component_id: proofline
       name: proofline
       paths: [packages/proofline/**]
+    - component_id: hookset
+      name: hookset
+      paths: [packages/hookset/**]
+    - component_id: truemark
+      name: truemark
+      paths: [packages/truemark/**]
+    - component_id: triggerlist
+      name: triggerlist
+      paths: [packages/triggerlist/**]
+    - component_id: replay
+      name: replay
+      paths: [packages/replay/**]
     - component_id: bellpull
       name: bellpull
       paths: [packages/bellpull/**]

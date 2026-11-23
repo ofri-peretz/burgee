@@ -1,0 +1,74 @@
+openapi: 3.1.0
+info:
+  title: Pets
+  version: 1.0.0
+paths:
+  /pets:
+    parameters:
+      - $ref: '#/components/parameters/Trace'
+    get:
+      operationId: listPets
+      tags: [pets]
+      description: List every pet in the store, newest first.
+      parameters:
+        - name: limit
+          in: query
+          description: The most pets to return.
+          schema: { type: integer, example: 10 }
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Pet' }
+    post:
+      operationId: createPet
+      summary: Add a pet to the store.
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Pet' }
+      responses:
+        '201': { description: created }
+  /pets/{id}/:
+    get:
+      operationId: getPet
+      tags: [pets]
+      description: List every pet in the store, newest first!
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '404': { description: missing }
+    delete:
+      operationId: listPets
+      tags: [pets]
+      responses:
+        '204': { description: gone }
+components:
+  parameters:
+    Trace:
+      name: trace
+      in: header
+      schema: { type: string }
+  schemas:
+    Pet:
+      type: object
+      description: A pet.
+      properties:
+        id: { type: string, description: The pet's id. }
+        name: { type: string, example: 7 }
+        owner:
+          $ref: '#/components/schemas/Owner'
+          description: Who keeps it.
+        tags: { type: array, items: { type: string }, examples: [[a], [1]] }
+    Owner:
+      type: object
+      properties:
+        email: { type: string }
+        friend: { $ref: '#/components/schemas/Missing' }
+    Unused: { type: string }

@@ -1,0 +1,22 @@
+# hookset preset — pre-push. `hook:verify` is required (typecheck, the affected tests, the build:
+# the repo decides how). The rest are wired with --if-present: a station a repo has not declared
+# yet passes, and `hookset check` lists it. Stations in observe ship that way until they pass on a
+# clean main everywhere.
+pre-push:
+  commands:
+    hookset-verify:
+      priority: 1
+      run: PATH="$PATH:/opt/homebrew/bin:/usr/local/bin" npm run --silent hook:verify
+      fail_text: "typecheck, tests or build failed. Fix what it reports; never push with --no-verify."
+    hookset-mutation:
+      priority: 2
+      run: PATH="$PATH:/opt/homebrew/bin:/usr/local/bin" npm run --silent --if-present hook:mutation
+    hookset-test-integrity:
+      priority: 3
+      run: PATH="$PATH:/opt/homebrew/bin:/usr/local/bin" npm run --silent --if-present hook:test-integrity
+    hookset-proofline:
+      priority: 4
+      run: PATH="$PATH:/opt/homebrew/bin:/usr/local/bin" npm run --silent --if-present hook:proofline
+    hookset-triggerlist:
+      priority: 5
+      run: PATH="$PATH:/opt/homebrew/bin:/usr/local/bin" npm run --silent --if-present hook:triggerlist
