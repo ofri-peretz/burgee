@@ -91,7 +91,7 @@ const annotationOf = (line: string): BufAnnotation => {
 
 /** buf breaking, found on the runtime's PATH, with a config that uses the level's category alone. */
 export const breakingIn = (runtime: Runtime = ambientRuntime()): BufBreaking => async (nu, old, level, cwd) => {
-  const config = JSON.stringify({ version: 'v2', breaking: { use: [level.replace('-', '_').toUpperCase()] } });
+  const config = JSON.stringify({ version: 'v2', breaking: { use: [level.replaceAll('-', '_').toUpperCase()] } });
   const result = await run('buf', ['breaking', nu, '--against', old, '--error-format', 'json', '--config', config], { cwd, runtime }).catch(async (error: unknown) => (error instanceof NotFoundError ? undefined : Promise.reject(error as Error)));
   if (result === undefined) throw new UsageError(`cannot judge ${nu} at --level ${level}: buf is not on the PATH. fix: install buf (https://buf.build/docs/installation), or drop --level`);
   if (!result.ok && result.code !== FOUND) throw new UsageError(`buf breaking could not compare ${nu} with ${old}: ${result.stderr.trim()}. fix: correct what buf reports, then run again`);

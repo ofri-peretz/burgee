@@ -50,7 +50,8 @@ Intent: [`intent.md`](./intent.md). **Status:** approved.
   refuses: protobuf is the one with a wire encoding). Runs
   `buf breaking <new> --against <old> --error-format json --config <v2 config using that category>`,
   and turns each line into a `breaking` finding: rule id `buf:<type>`, scheme `buf`, its `path` as
-  the operation and `path:line` as the source, its message verbatim at the head of the fix line.
+  the operation and `path:line` as the source (`buf:<type>` for both when buf names no file, as for a
+  deleted one), its message verbatim at the head of the fix line.
   apicontract's own model findings are reported beside them; the verdict and exit code are the worse
   of the two. buf's exit 100 means it found changes; any other failure passes its stderr through.
   `--level` compares two contracts, so `--transitive` is refused, and so is a side at a git ref

@@ -333,6 +333,24 @@ describe('diff --level', () => {
     expect(diff(sides)).toMatchObject({ verdict: 'non-breaking', findings: [] });
   });
 
+  it('prints buf\'s findings by file, and one that names no file under its rule', async () => {
+    const dir = sources();
+    const sides = { cwd: dir, old: join(dir, 'old.proto'), new: join(dir, 'mod'), built: built(dir) };
+    const both: BufBreaking = async () => [...(await judge('', '', 'wire', '')), { path: '', line: 0, type: 'FILE_NO_DELETE', message: 'file deleted' }];
+    const text = (diff({ ...sides, breaking: await bufFindings(sides, 'wire', both) })[Symbol.for('burgee.text')] as () => string)();
+    expect(text.split('\n')).toEqual([
+      'breaking: 2 breaking, 0 unknown, 0 non-breaking (--mode backward --side caller)',
+      '',
+      'buf:FILE_NO_DELETE  buf:FILE_NO_DELETE',
+      '  breaking      buf:FILE_NO_DELETE    - -> -',
+      '                fix: file deleted (buf breaking at --level wire): restore what changed, or release it as a new major version',
+      '',
+      'pets/v1/pets.proto  pets/v1/pets.proto:12',
+      '  breaking      buf:FIELD_SAME_TYPE    - -> -',
+      '                fix: changed type (buf breaking at --level wire): restore what changed, or release it as a new major version',
+    ]);
+  });
+
   it('runs buf breaking from the command, new against old', async () => {
     const bin = fakeBuf();
     vi.stubEnv('PATH', before(bin));

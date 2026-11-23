@@ -112,20 +112,24 @@ const withBreaking = (comparison: Comparison, breaking: readonly Finding[]): Com
 };
 
 /** One buf breaking annotation as a breaking finding: buf's rule id, at its file and line, with its message. */
-const findingOf = (annotation: BufAnnotation, level: Level): Finding => ({
+const findingOf = (annotation: BufAnnotation, level: Level): Finding => {
+  // A whole-file change (a file deleted) names no file buf can point into: it is grouped under its rule.
+  const where = annotation.path === '' ? `buf:${annotation.type}` : annotation.path;
+  return {
   id: `buf:${annotation.type}`,
   scheme: 'buf',
   verdict: 'breaking',
   effect: 'narrows',
-  operation: annotation.path,
-  source: `${annotation.path}:${String(annotation.line)}`,
+  operation: where,
+  source: annotation.path === '' ? where : `${annotation.path}:${String(annotation.line)}`,
   document: 'new',
   direction: 'request',
   pointer: '',
   before: undefined,
   after: undefined,
   fix: `${annotation.message} (buf breaking at --level ${level}): restore what changed, or release it as a new major version`,
-});
+  };
+};
 
 /**
  * buf breaking's findings for `--level` (apicontract-protobuf R3): both sides must read as
