@@ -19,6 +19,8 @@ export interface DryResult {
   /** Hits with no test current (a setup file loading a source): they cannot be split by file. */
   static: Record<string, number>;
   runOnce: string[];
+  /** Each test file's own load time (collection and setup), ms. */
+  loadMs?: Record<string, number> | undefined;
   modules: Record<string, string[]>;
   reads: { static: Record<string, number>; perTest: Hits };
 }
@@ -31,6 +33,8 @@ export interface DryEntry {
   perTest: Hits;
   modules: string[];
   runOnce: boolean;
+  /** The file's own load time, ms, when the run that kept it measured it. */
+  loadMs?: number | undefined;
   flaky: string[];
   /** Present when the run that kept it tracked reads (`static.readers`). */
   reads?: Hits | undefined;
@@ -52,7 +56,7 @@ export function entriesOf(dry: DryResult, keyOf: (file: string, modules: readonl
     const tests = dry.tests.filter((t) => t.file === file);
     const ids = [...tests.map((t) => t.id), `${FILE_KEY}${file}`];
     const modules = dry.modules[file] ?? [];
-    return { key: keyOf(file, modules), tests, perTest: pick(dry.perTest, ids), modules, runOnce: dry.runOnce.includes(file), flaky: tests.filter((t) => flaky.has(t.id)).map((t) => t.id), ...(reads && { reads: pick(reads, ids) }) };
+    return { key: keyOf(file, modules), tests, perTest: pick(dry.perTest, ids), modules, runOnce: dry.runOnce.includes(file), ...(dry.loadMs?.[file] !== undefined && { loadMs: dry.loadMs[file] }), flaky: tests.filter((t) => flaky.has(t.id)).map((t) => t.id), ...(reads && { reads: pick(reads, ids) }) };
   };
   return { static: false, files: Object.fromEntries([...files].map((file) => [file, entry(file)])) };
 }
@@ -77,6 +81,7 @@ export function merge(fresh: DryResult, kept: Record<string, DryEntry>): DryResu
     tests: [...fresh.tests, ...entries.flatMap(([, e]) => e.tests)],
     perTest: union([fresh.perTest, ...entries.map(([, e]) => e.perTest)]),
     static: fresh.static,
+    loadMs: { ...fresh.loadMs, ...Object.fromEntries(entries.filter(([, e]) => e.loadMs !== undefined).map(([f, e]) => [f, e.loadMs as number])) },
     runOnce: [...fresh.runOnce, ...entries.filter(([, e]) => e.runOnce).map(([f]) => f)],
     modules: Object.fromEntries([...Object.entries(fresh.modules), ...entries.map(([f, e]): [string, string[]] => [f, e.modules])]),
     reads: { static: fresh.reads.static, perTest: union([fresh.reads.perTest, ...entries.map(([, e]) => e.reads ?? {})]) },
