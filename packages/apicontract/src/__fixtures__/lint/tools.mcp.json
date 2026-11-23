@@ -1,0 +1,6 @@
+{
+  "tools": [
+    { "name": "get_weather", "description": "Current weather for a city.", "inputSchema": { "type": "object", "properties": { "city": { "type": "string", "description": "City name." }, "units": { "type": "string" } } } },
+    { "name": "get_forecast", "inputSchema": { "type": "object", "properties": {} } }
+  ]
+}

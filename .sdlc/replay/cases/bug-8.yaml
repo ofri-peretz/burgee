@@ -1,0 +1,8 @@
+# feat(burgee): --schema and --mcp served from the manifest (wave 3, slice 1) (#8)
+id: bug-8
+kind: bug
+pr: 8
+base: "f5e9f893ad1c"
+head: "4ac4eaeaafa5"
+answer: "The commander façade's parse() and parseAsync() now run an async surface check before dispatch, so a synchronous action runs only after parse() has returned and a preAction hook only after parseAsync() hands back its promise."
+set: test

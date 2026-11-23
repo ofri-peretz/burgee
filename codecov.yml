@@ -51,9 +51,15 @@ component_management:
     - component_id: validator
       name: validator
       paths: [packages/validator/**]
+    - component_id: truemark
+      name: truemark
+      paths: [packages/truemark/**]
     - component_id: triggerlist
       name: triggerlist
       paths: [packages/triggerlist/**]
+    - component_id: replay
+      name: replay
+      paths: [packages/replay/**]
     - component_id: bellpull
       name: bellpull
       paths: [packages/bellpull/**]

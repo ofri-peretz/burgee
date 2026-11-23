@@ -1,0 +1,8 @@
+# fix(burgee): fix lines quoted for the shell that runs them; exit codes only the program can produce; SD-5 held on N10 (#1139)
+id: bug-1139
+kind: bug
+pr: 1139
+base: "1a10843933d8"
+head: "28843a536a3e"
+answer: "The change adds 5 B to every commander entry but the generated /docs/weight page is not regenerated, so it publishes the old sizes."
+set: tune

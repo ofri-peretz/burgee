@@ -1,0 +1,7 @@
+# feat(burgee): static completions for bash, zsh, fish, PowerShell and Fig (wave 3, slice 2) (#9)
+id: control-9
+kind: control
+pr: 9
+base: "4ac4eaeaafa5"
+head: "4bb0f78c23f9"
+set: test
