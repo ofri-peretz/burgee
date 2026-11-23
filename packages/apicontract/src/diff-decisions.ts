@@ -107,7 +107,8 @@ const DATE = /(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})/;
 
 /** `YYYY-MM-DD` naming a day that exists: `2027-02-30` is not one. */
 export const isDate = (value: unknown): value is string => {
-  const parts = typeof value === 'string' ? DATE.exec(value)?.groups : undefined;
+  // A value that is not text can still read as a date here; the comparison at the end refuses it.
+  const parts = DATE.exec(String(value))?.groups;
   if (parts === undefined) return false;
   const day = new Date(Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day)));
   // The round trip is the whole check: it refuses a day that does not exist and any text around the date.
