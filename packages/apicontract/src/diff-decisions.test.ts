@@ -215,9 +215,13 @@ describe('a bad value is decision-invalid (R4)', () => {
   });
 });
 
-const compare = (before: string, after: string, today = '2027-01-01', level: 'warn' | 'error' = 'warn') => {
+const compare = (
+  before: string,
+  after: string,
+  { today = '2027-01-01', level = 'warn', changeset = false }: { today?: string; level?: 'warn' | 'error'; changeset?: boolean } = {},
+) => {
   const [old, nu] = [fixture(before), fixture(after)];
-  return checkDecisions(old, nu, compareContracts(old, nu), { today, level });
+  return checkDecisions(old, nu, compareContracts(old, nu), { today, level, changeset });
 };
 
 /** [id, payload, pointer] of each decision finding. */
@@ -240,22 +244,23 @@ describe('a breaking change needs a decision (R5)', () => {
   });
 
   it('passes with an x-change on the member', () => {
-    expect(compare('base', 'decided')).toEqual([]);
+    // --changeset moves the version (R10), so only R5 is in question here.
+    expect(compare('base', 'decided', { changeset: true })).toEqual([]);
   });
 
   it('passes with an x-change on an ancestor, up to the payload root', () => {
-    expect(compare('base', 'decided-above')).toEqual([]);
+    expect(compare('base', 'decided-above', { changeset: true })).toEqual([]);
   });
 
   it('passes with an x-change on the operation', () => {
     const [old, nu] = [fixture('base'), fixture('undecided')];
     const document = structuredClone(nu.document) as { paths: Record<string, { get: Record<string, unknown> }> };
     (document.paths['/v3/wallet'] as { get: Record<string, unknown> }).get['x-change'] = 'ADR-1';
-    expect(checkDecisions(old, read(document), compareContracts(old, read(document)), { today: '2027-01-01', level: 'warn' })).toEqual([]);
+    expect(checkDecisions(old, read(document), compareContracts(old, read(document)), { today: '2027-01-01', level: 'warn', changeset: true })).toEqual([]);
   });
 
   it('is graded at the level it is asked at', () => {
-    expect(compare('base', 'undecided', '2027-01-01', 'error')[0]?.verdict).toBe('breaking');
+    expect(compare('base', 'undecided', { level: 'error' })[0]?.verdict).toBe('breaking');
   });
 
   it('holds a removal to the old side, which has no member on the new one to carry a marker', () => {
@@ -265,13 +270,13 @@ describe('a breaking change needs a decision (R5)', () => {
 
 describe('a removal on schedule needs no new marker (R8)', () => {
   it('passes when the old member was deprecated and its sunset is on or before today', () => {
-    expect(compare('sunsetting', 'removed', '2027-03-01')).toEqual([]);
-    expect(compare('sunsetting', 'removed', '2027-04-01')).toEqual([]);
+    expect(compare('sunsetting', 'removed', { today: '2027-03-01' })).toEqual([]);
+    expect(compare('sunsetting', 'removed', { today: '2027-04-01' })).toEqual([]);
   });
 
   it('fails before the sunset date, and when the old member was never deprecated', () => {
-    expect(rows(compare('sunsetting', 'removed', '2027-02-28'))).toEqual([['ac-decision-missing', BODY, '/properties/amount']]);
-    expect(rows(compare('base', 'removed', '2027-04-01'))).toEqual([['ac-decision-missing', BODY, '/properties/amount']]);
+    expect(rows(compare('sunsetting', 'removed', { today: '2027-02-28' }))).toEqual([['ac-decision-missing', BODY, '/properties/amount']]);
+    expect(rows(compare('base', 'removed', { today: '2027-04-01' }))).toEqual([['ac-decision-missing', BODY, '/properties/amount']]);
   });
 });
 
@@ -324,8 +329,8 @@ describe('a sunset is carried out (R7)', () => {
   });
 
   it('is not overdue on the day itself', () => {
-    expect(rows(compare('base', 'overdue', '2026-06-01'))).toEqual([]);
-    expect(rows(compare('base', 'overdue', '2026-05-31'))).toEqual([]);
+    expect(rows(compare('base', 'overdue', { today: '2026-06-01' }))).toEqual([]);
+    expect(rows(compare('base', 'overdue', { today: '2026-05-31' }))).toEqual([]);
   });
 });
 
@@ -369,5 +374,47 @@ describe('a replacement exists (R9)', () => {
       ['ac-decision-replacement-missing', '', ''],
       ['ac-decision-replacement-missing', 'param:query:old', ''],
     ]);
+  });
+});
+
+describe('a decided breaking change moves the version (R10)', () => {
+  it('is unversioned when the same path and the same info.version carry it', () => {
+    const findings = compare('base', 'decided');
+    expect(rows(findings)).toEqual([['ac-decision-unversioned', BODY, '/properties/currency']]);
+    expect(findings[0]).toMatchObject({ before: '3.0.0', after: '3.0.0' });
+    expect(findings[0]?.fix).toBe(
+      '`x-change: ADR-0091` at getBalance response:200:application/json /properties/currency decides a breaking change, and the major version did not move. fix: move the path to a new major segment (/v3/ to /v4/), raise the major of `info.version`, or pass `--changeset` to write a major bump',
+    );
+  });
+
+  it('is versioned by a new major segment in the path', () => {
+    expect(compare('base', 'decided-v4')).toEqual([]);
+  });
+
+  it('is versioned by a new major in info.version', () => {
+    expect(compare('base', 'decided-major')).toEqual([]);
+  });
+
+  it('is not versioned by a minor, a patch or the same major', () => {
+    const [old, nu] = [fixture('base'), fixture('decided')];
+    const document = structuredClone(nu.document) as { info: { version: string } };
+    document.info.version = '3.9.1';
+    const minor = read(document);
+    expect(rows(checkDecisions(old, minor, compareContracts(old, minor), { today: '2027-01-01', level: 'warn' }))).toEqual([
+      ['ac-decision-unversioned', BODY, '/properties/currency'],
+    ]);
+  });
+
+  it('is versioned when --changeset is given, which writes the major bump itself', () => {
+    const [old, nu] = [fixture('base'), fixture('decided')];
+    expect(checkDecisions(old, nu, compareContracts(old, nu), { today: '2027-01-01', level: 'warn', changeset: true })).toEqual([]);
+  });
+
+  it('is asked once per decision, however many breaking changes it covers', () => {
+    expect(rows(compare('base', 'decided-above')).filter(([id]) => id === 'ac-decision-unversioned')).toHaveLength(1);
+  });
+
+  it('is not asked of a sunset carried out, which was decided when it was dated', () => {
+    expect(compare('sunsetting', 'removed', { today: '2027-04-01' })).toEqual([]);
   });
 });

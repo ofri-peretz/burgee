@@ -401,11 +401,14 @@ export interface DecisionOptions {
   /** `YYYY-MM-DD`: the day a sunset is judged against. The caller pins it; nothing here reads the clock. */
   readonly today: string;
   readonly level: DecisionLevel;
+  /** `--changeset` was given: it writes a major bump for a breaking verdict, which is the version move R10 asks for. */
+  readonly changeset?: boolean | undefined;
 }
 
 interface Sides {
   readonly old: Decisions;
   readonly nu: Decisions;
+  readonly oldContract: Contract;
   readonly newContract: Contract;
   /** The old operation each new operation id was paired with (ids first, then routes), as the diff paired them. */
   readonly oldIdOf: ReadonlyMap<string, string>;
@@ -549,6 +552,46 @@ const holdReplacements = (sides: Sides): Finding[] =>
       }),
     );
 
+/** A `/v3/` or `/v3` segment of a path: its number. */
+const MAJOR_SEGMENT = /\/v(?<major>\d+)(?=\/|$)/;
+
+/** The path an OpenAPI operation is declared under, from its `source` pointer. */
+const pathOf = (operation: Operation | undefined): string =>
+  /^#\/(?:paths|webhooks)\/(?<path>[^/]+)\//
+    .exec(operation?.source ?? '')
+    ?.groups?.path?.replaceAll('~1', '/')
+    .replaceAll('~0', '~') ?? '';
+
+const infoVersion = (contract: Contract): string | undefined => {
+  const version = isDict(contract.document) && isDict(contract.document.info) ? contract.document.info.version : undefined;
+  return typeof version === 'string' || typeof version === 'number' ? String(version) : undefined;
+};
+
+const majorOf = (version: string | undefined): string | undefined => /^v?(?<major>\d+)/.exec(version ?? '')?.groups?.major;
+
+/** R10: the operation's path gained a new major segment, or `info.version`'s major moved, or `--changeset` writes the bump. */
+const versionMoved = (sides: Sides, decision: Decision): boolean => {
+  if (sides.options.changeset === true) return true;
+  const [before, after] = [sides.oldIdOf.get(decision.operation) ?? decision.operation, decision.operation].map((id, index) =>
+    (index === 0 ? sides.oldContract : sides.newContract).operations.find((operation) => operation.id === id),
+  );
+  const [was, is] = [pathOf(before), pathOf(after)].map((path) => MAJOR_SEGMENT.exec(path)?.groups?.major);
+  const [oldMajor, newMajor] = [majorOf(infoVersion(sides.oldContract)), majorOf(infoVersion(sides.newContract))];
+  return (is !== undefined && is !== was) || (oldMajor !== undefined && newMajor !== undefined && oldMajor !== newMajor);
+};
+
+/** R10: a breaking change let through by an `x-change` is a new major version, in the path, in `info.version` or in the changeset. */
+const holdVersions = (sides: Sides, decidedBy: ReadonlyMap<string, Decision>): Finding[] =>
+  [...decidedBy.values()]
+    .filter((decision) => !versionMoved(sides, decision))
+    .map((decision) =>
+      decisionFinding(sides.options.level, 'unversioned', placeOfDecision(sides, decision), {
+        before: infoVersion(sides.oldContract),
+        after: infoVersion(sides.newContract),
+        fix: `\`x-change: ${decision.change as string}\` at ${wordsOfDecision(decision)} decides a breaking change, and the major version did not move. fix: move the path to a new major segment (/v3/ to /v4/), raise the major of \`info.version\`, or pass \`--changeset\` to write a major bump`,
+      }),
+    );
+
 /**
  * Hold a comparison to the decisions written in the contracts. Markers are read on the new side,
  * because they are the decision; the old side is read for a sunset carried out (R8) and for a
@@ -556,9 +599,16 @@ const holdReplacements = (sides: Sides): Finding[] =>
  */
 export const checkDecisions = (old: Contract, nu: Contract, comparison: Comparison, options: DecisionOptions): Finding[] => {
   const oldIdOf = new Map(pair(old.operations, nu.operations).flatMap(([before, after]) => (before === undefined ? [] : [[(after ?? before).id, before.id] as const])));
-  const sides: Sides = { old: readDecisions(old, options.level), nu: readDecisions(nu, options.level), newContract: nu, oldIdOf, options };
+  const sides: Sides = { old: readDecisions(old, options.level), nu: readDecisions(nu, options.level), oldContract: old, newContract: nu, oldIdOf, options };
   const held = holdBreaking(sides, comparison);
-  return sorted([...sides.nu.problems, ...held.findings, ...holdStale(sides, comparison), ...holdOverdue(sides), ...holdReplacements(sides)]);
+  return sorted([
+    ...sides.nu.problems,
+    ...held.findings,
+    ...holdStale(sides, comparison),
+    ...holdOverdue(sides),
+    ...holdReplacements(sides),
+    ...holdVersions(sides, held.decidedBy),
+  ]);
 };
 
 /** `comparison` with its decision findings, and, at level `error` only, a verdict that counts them. */
