@@ -224,6 +224,29 @@ describe('hidden tags and the budget (contractdiff-compat-depth R6)', () => {
     expect(names({ ...stdio, include: ['tag:pets'] })).toEqual(['listPets']);
     expect(names({ ...stdio, include: ['health', 'tag:internal'] })).toEqual(['health', 'reindex']);
     expect(toolsOf(tagged, { ...stdio, include: ['one'] }).findings).toEqual([]);
+    expect(toolsOf(tagged, { ...stdio, include: ['tag:pets', 'one'] }).findings).toEqual([
+      { code: 'mcp-hidden', pointer: '#/paths', message: 'left out 1 operation(s) tagged internal or health: reindex', fix: 'name one in `include` (its id, or `tag:internal`) if an agent should call it' },
+    ]);
+    const both = openapi.read({ openapi: '3.1.0', paths: { '/x': { get: { operationId: 'probe', tags: ['internal', 'health'], responses: {} } } } });
+    expect(toolsOf(both, { ...stdio, include: ['tag:health'] }).tools.map((tool) => tool.name)).toEqual(['probe']);
+  });
+
+  it('names the three largest tools over budget, largest first, a tie by name', () => {
+    const sized = openapi.read({
+      openapi: '3.1.0',
+      paths: {
+        '/t': { get: { operationId: 'tiny', responses: {} } },
+        '/z': { get: { operationId: 'zz', description: 'z'.repeat(200), responses: {} } },
+        '/m': { get: { operationId: 'mid', description: 'm'.repeat(100), responses: {} } },
+        '/a': { get: { operationId: 'aa', description: 'a'.repeat(200), responses: {} } },
+      },
+    });
+    const all = toolsOf(sized, stdio).tools;
+    const size = (name: string) => String(tokensOf(all.filter((tool) => tool.name === name)));
+    expect(size('aa')).toBe(size('zz'));
+    expect(toolsOf(sized, { ...stdio, budget: 1 }).findings.at(-1)?.message).toBe(
+      `no tool was generated: 4 tool(s) take about ${String(tokensOf(all))} of 1 tokens (estimate: characters ÷ 4); the largest are aa (${size('aa')}), zz (${size('zz')}), mid (${size('mid')})`,
+    );
   });
 
   it('reports the size against the budget, and generates nothing over it, naming the largest tools', () => {
@@ -244,7 +267,9 @@ describe('hidden tags and the budget (contractdiff-compat-depth R6)', () => {
   });
 
   it('refuses a budget that is not a whole number of tokens above 0', () => {
-    expect(optionsOf({ budget: 10 })).toEqual({ transport: 'stdio', budget: 10 });
+    expect(optionsOf({ budget: 1 })).toStrictEqual({ transport: 'stdio', budget: 1 });
+    expect(optionsOf({ include: ['a'] })).toStrictEqual({ transport: 'stdio', include: ['a'] });
+    expect(optionsOf({})).toStrictEqual({ transport: 'stdio' });
     for (const budget of [0, -1, 1.5, '10', Number.NaN]) expect(() => optionsOf({ budget })).toThrow('fix: set `budget` to a whole number of tokens above 0');
   });
 });
