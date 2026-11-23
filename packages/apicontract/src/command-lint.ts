@@ -15,6 +15,7 @@ import { builtinAdapters } from './inputs.js';
 import { type Level, lint, type Rule, type LintFinding, type LintInput, type LintResult } from './lint-engine.js';
 import { rules, rulesets } from './lint-rules.js';
 import { type Config, ConfigError, loadConfig, UsageError } from './run-config.js';
+import { loadPlugins } from './run-load.js';
 
 const TEXT = Symbol.for('burgee.text');
 
@@ -48,8 +49,11 @@ export interface Score {
   readonly percent: number;
 }
 
-/** Each rule's level: the rulesets in order, a later one winning, then the config's `rules`. */
-export const levelsOf = (names: readonly string[], overrides: Readonly<Record<string, Level>> = {}): Record<string, Level> => {
+/**
+ * Each rule's level: the rulesets in order, a later one winning, then every rule a plugin
+ * contributes at `warn` (installing it is asking for it), then the config's `rules`.
+ */
+export const levelsOf = (names: readonly string[], overrides: Readonly<Record<string, Level>> = {}, contributed: Readonly<Record<string, Rule>> = {}): Record<string, Level> => {
   const chosen = names.map((name) => {
     const key = name.replace(PREFIX, '');
     const ruleset = RULESETS.get(key);
@@ -57,14 +61,16 @@ export const levelsOf = (names: readonly string[], overrides: Readonly<Record<st
     return ruleset;
   });
   // The overrides come from the config, so a rule it misnames is a config to fix: exit 3, not 2 (R-A2).
-  const unknown = Object.keys(overrides).filter((id) => !RULES.has(id));
+  const known = new Set([...RULES.keys(), ...Object.keys(contributed)]);
+  const unknown = Object.keys(overrides).filter((id) => !known.has(id));
   if (unknown.length > 0) {
     throw new ConfigError(
       CONFIG_FILE,
-      unknown.map((id) => `\`lint.rules\` names \`${id}\`, which is not a rule. fix: use one of ${Object.keys(rules).sort().join(', ')}`),
+      unknown.map((id) => `\`lint.rules\` names \`${id}\`, which is not a rule. fix: use one of ${[...known].sort().join(', ')}, or add the plugin that contributes it to \`plugins\``),
     );
   }
-  return Object.fromEntries([...chosen, overrides].flatMap((levels) => Object.entries(levels)));
+  const plugins = Object.fromEntries(Object.keys(contributed).map((id): [string, Level] => [id, 'warn']));
+  return Object.fromEntries([...chosen, plugins, overrides].flatMap((levels) => Object.entries(levels)));
 };
 
 /** A ruleset's score on a run: how many of the checks its rules made passed. */
@@ -76,7 +82,7 @@ export const scoreOf = (ruleset: Readonly<Record<string, Level>>, counts: LintRe
 };
 
 /** One input read through the first adapter that detects it. */
-const read = (file: string, cwd: string): LintInput => {
+export const readInput = (file: string, cwd: string): LintInput => {
   let document: unknown;
   try {
     // YAML 1.2 reads JSON too.
@@ -92,12 +98,12 @@ const read = (file: string, cwd: string): LintInput => {
 const LEVEL: Readonly<Record<LintFinding['level'], string>> = { error: 'error', warn: 'warning' };
 
 /** SARIF 2.1.0: one result per finding, at its file and pointer. */
-export const toSarif = (result: LintResult): object => ({
+export const toSarif = (result: LintResult, all: Readonly<Record<string, Rule>> = rules): object => ({
   version: '2.1.0',
   $schema: 'https://json.schemastore.org/sarif-2.1.0.json',
   runs: [
     {
-      tool: { driver: { name: 'apicontract lint', rules: Object.keys(result.counts).map((id) => ({ id, shortDescription: { text: (RULES.get(id) as Rule).description } })) } },
+      tool: { driver: { name: 'apicontract lint', rules: Object.keys(result.counts).map((id) => ({ id, shortDescription: { text: (new Map(Object.entries(all)).get(id) as Rule).description } })) } },
       results: result.findings.map((finding) => ({
         ruleId: finding.rule,
         level: LEVEL[finding.level],
@@ -135,15 +141,18 @@ export const runLint = async (options: LintOptions): Promise<Record<string | sym
   const specs = options.specs.length > 0 ? options.specs : configured;
   if (specs.length === 0) throw new UsageError('nothing to lint. fix: pass a spec, e.g. `apicontract lint openapi.yaml`, or set `input` in apicontract.config.json');
   const names = options.rulesets !== undefined && options.rulesets.length > 0 ? options.rulesets : (config?.lint?.extends ?? DEFAULT_RULESETS);
-  const levels = levelsOf(names, config?.lint?.rules);
+  // The rules the config's plugins contribute (R4); none without a config.
+  const contributed = config === undefined ? {} : (await loadPlugins(config)).rules();
+  const all = { ...rules, ...contributed };
+  const levels = levelsOf(names, config?.lint?.rules, contributed);
   const result = lint(
-    specs.map((spec) => read(spec, options.specs.length > 0 ? options.cwd : root)),
-    rules,
+    specs.map((spec) => readInput(spec, options.specs.length > 0 ? options.cwd : root)),
+    all,
     levels,
   );
   const scores = Object.fromEntries(names.map((name) => [name.replace(PREFIX, ''), scoreOf(RULESETS.get(name.replace(PREFIX, '')) as Record<string, Level>, result.counts)]));
   const errors = result.findings.filter((finding) => finding.level === 'error').length;
-  const sarif = options.sarif === true ? toSarif(result) : undefined;
+  const sarif = options.sarif === true ? toSarif(result, all) : undefined;
   const data: Record<string | symbol, unknown> = {
     ...result,
     scores,

@@ -31,6 +31,22 @@ export interface Rule {
   /** What must hold, when no built-in function says it: the problems on one node, each a message. Pure. */
   readonly check?: (node: LintNode, context: LintContext) => readonly string[];
   readonly fix: string;
+  /**
+   * A document and exactly what the rule finds on it (R4): the rule's own test, which the
+   * conformance suite runs. Required of a rule a plugin contributes.
+   */
+  readonly sample?: RuleSample;
+}
+
+/** Where a rule finds a problem on its sample, and what it says. */
+export interface SampleFinding {
+  readonly pointer: string;
+  readonly message: string;
+}
+
+export interface RuleSample {
+  readonly document: unknown;
+  readonly findings: readonly SampleFinding[];
 }
 
 export interface LintFinding {
@@ -114,3 +130,8 @@ export const lint = (inputs: readonly LintInput[], rules: Readonly<Record<string
   findings.sort((a, b) => RANK[a.level] - RANK[b.level] || a.file.localeCompare(b.file, 'en') || a.pointer.localeCompare(b.pointer, 'en') || a.rule.localeCompare(b.rule, 'en'));
   return { findings, counts: Object.fromEntries(runs.map((run) => [run.id, run.count])), inputs: inputs.map((input) => input.file) };
 };
+
+/** What one rule finds on one contract, as a sample states it: pointer and message, in pointer order. */
+export const findingsOn = (rule: Rule, contract: Contract): SampleFinding[] =>
+  // Stryker disable next-line StringLiteral: equivalent, the file name and the level are dropped from what this returns
+  lint([{ file: 'sample', contract }], { rule }, { rule: 'warn' }).findings.map(({ pointer, message }) => ({ pointer, message }));

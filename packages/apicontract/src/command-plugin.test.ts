@@ -1,4 +1,4 @@
-import { readFileSync, rmSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { ExitCode } from 'burgee';
@@ -32,12 +32,14 @@ describe('`apicontract plugin new`', () => {
       { name: 'name', description: 'the plugin name: lowercase letters, digits and single dashes', required: true },
     ]);
     expect(command.options).toEqual({
-      kind: { type: 'string', choices: ['generator', 'extractor', 'adapter'], default: 'generator', description: 'what the plugin contributes: spec to code, code to spec, or an input format' },
+      kind: { type: 'string', choices: ['generator', 'extractor', 'adapter', 'rules'], default: 'generator', description: 'what the plugin contributes: spec to code, code to spec, an input format, or lint rules' },
+      from: { type: 'string', placeholder: 'finding.json', description: 'with --kind rules: seed the rule from one finding of `apicontract lint --json`' },
       out: { type: 'string', placeholder: 'dir', description: 'directory to write into. Defaults to the current directory' },
     });
     expect(command.examples).toEqual([
       { command: 'apicontract plugin new my-target', description: 'a generator plugin, its conformance test and a README' },
       { command: 'apicontract plugin new my-source --kind extractor --out plugins', description: 'an extractor, written under plugins/' },
+      { command: 'apicontract plugin new no-bare-ids --kind rules --from finding.json', description: 'a lint rule that finds the mistake one finding named, with that as its sample' },
     ]);
   });
 
@@ -77,6 +79,24 @@ describe('`apicontract plugin new`', () => {
       const r = await runBurgee(program, { argv: ['plugin', 'new', 'here', '--json'] });
       expect(data(r)).toMatchObject({ written: ['plugin-here.ts', 'plugin-here.test.ts', 'README.md'] });
       expect(readFileSync(join(out, 'README.md'), 'utf8')).toBe(scaffold('here', 'generator')[2]?.content);
+    } finally {
+      cwd.mockReturnValue(join(directory, 'elsewhere'));
+    }
+  });
+
+  it('seeds a rule from a finding, read from the current directory, and refuses --from for another kind', async () => {
+    const out = join(directory, 'seeded');
+    mkdirSync(out, { recursive: true });
+    writeFileSync(join(out, 'api.json'), JSON.stringify({ openapi: '3.1.0', info: { title: 't', version: '1' }, paths: {} }));
+    writeFileSync(join(out, 'finding.json'), JSON.stringify({ file: 'api.json', pointer: '#', message: '`info.description` is missing', fix: 'add it' }));
+    const cwd = vi.spyOn(process, 'cwd').mockReturnValue(out);
+    try {
+      const r = await runBurgee(program, { argv: ['plugin', 'new', 'info-says', '--kind', 'rules', '--from', 'finding.json', '--json'] });
+      expect(r.code).toBe(ExitCode.OK);
+      expect(readFileSync(join(out, 'plugin-info-says.ts'), 'utf8')).toContain("given: { select: 'document' },");
+      const wrong = await runBurgee(program, { argv: ['plugin', 'new', 'x', '--from', 'finding.json', '--json'] });
+      expect(wrong.code).toBe(ExitCode.USAGE);
+      expect(JSON.stringify(wrong.json)).toContain('--from seeds a rule, and --kind is generator. fix: pass --kind rules with --from');
     } finally {
       cwd.mockReturnValue(join(directory, 'elsewhere'));
     }

@@ -7,8 +7,7 @@
 import { check } from 'validator';
 import { fromJsonSchema, type ImportDraft } from 'validator/json-schema';
 
-export const FUNCTIONS = ['truthy', 'falsy', 'defined', 'undefined', 'pattern', 'casing', 'enumeration', 'length', 'xor', 'schema'] as const;
-export type FunctionName = (typeof FUNCTIONS)[number];
+import { type FunctionName } from './lint-names.js';
 
 export const CASINGS = ['camel', 'pascal', 'kebab', 'snake', 'macro', 'flat'] as const;
 export type Casing = (typeof CASINGS)[number];
@@ -110,3 +109,5 @@ export const apply = (name: FunctionName, value: unknown, options: Record<string
     }
   }
 };
+
+export { FUNCTIONS, type FunctionName } from './lint-names.js';

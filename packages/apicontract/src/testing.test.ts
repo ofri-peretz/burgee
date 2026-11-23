@@ -79,7 +79,7 @@ describe('conformance', () => {
   });
 
   it('reports a plugin that contributes nothing, by its name', async () => {
-    await expect(conformance({ name: 'idle' })).rejects.toThrow('plugin "idle" breaks 1 conformance rule(s) in 1 place(s):\n- schema: plugin "idle": it contributes no adapter, generator or extractor\n  fix: add `generators`, `extractors` or `adapters`');
+    await expect(conformance({ name: 'idle' })).rejects.toThrow('plugin "idle" breaks 1 conformance rule(s) in 1 place(s):\n- schema: plugin "idle": it contributes no adapter, generator, extractor or rule\n  fix: add `generators`, `extractors`, `adapters` or `rules`');
   });
 
   it('runs every generator with its sample options, its own adapters, and asks for `mutate` on a format it cannot change', async () => {
