@@ -7,9 +7,10 @@
  * AsyncAPI or MCP, the same way.
  */
 import { type Contract, type Direction, type Operation, type Payload } from './core/model.js';
-import { classify, type Mode, type Side, type Verdict } from './diff-classify.js';
+import { pointerGet } from './core/resolve.js';
+import { classify, type Mode, refine, type Side, type Verdict } from './diff-classify.js';
 import { ruleId } from './diff-rules.js';
-import { compareSchemas, type Effect, serverReceives } from './diff-schema.js';
+import { compareSchemas, type Effect, isFrozen, serverReceives } from './diff-schema.js';
 
 export interface Finding {
   /** oasdiff's rule id where the change is one oasdiff names, else ours, `ac-`-prefixed. */
@@ -30,15 +31,21 @@ export interface Finding {
   readonly before: unknown;
   readonly after: unknown;
   readonly fix: string;
+  /** With `--transitive`: the past release this finding was found against, the oldest where it is worst. */
+  readonly against?: string;
+  /** With `--usage`: `unused` when no caller uses what changed, so it breaks nobody. */
+  readonly note?: 'unused';
+  /** With `--usage`: the callers of what changed, when the usage file names them. */
+  readonly usedBy?: readonly string[];
 }
 
 export interface Comparison {
   readonly mode: Mode;
   readonly side: Side;
-  /** `breaking` if any finding is; else `unknown` if any is; else `non-breaking`. */
+  /** `breaking` if any finding is; else `unknown` if any is; else `dangerous` if any is; else `non-breaking`. */
   readonly verdict: Verdict;
   readonly summary: Readonly<Record<Verdict, number>>;
-  /** Sorted by verdict (breaking, unknown, non-breaking), then where. */
+  /** Sorted by verdict (breaking, unknown, dangerous, non-breaking), then where. */
   readonly findings: readonly Finding[];
   /**
    * What the markers in the contract say about these changes (`diff-decisions.ts`). Absent from
@@ -47,16 +54,27 @@ export interface Comparison {
    * only at level `error`, and never in `summary` or `findings`.
    */
   readonly decisions?: readonly Finding[];
+  /** With `--transitive` (contractdiff-compat-depth R1): what the new contract was compared with. */
+  readonly transitive?: Transitive;
+}
+
+export interface Transitive {
+  /** Every release compared, oldest first. */
+  readonly against: readonly string[];
+  /** The oldest release a breaking change breaks; absent when none does. */
+  readonly oldestBroken?: string;
 }
 
 export interface CompareOptions {
   readonly mode?: Mode | undefined;
   readonly side?: Side | undefined;
+  /** Report `dangerous` changes as `breaking` (`--dangerous-breaking`). */
+  readonly dangerousBreaking?: boolean | undefined;
 }
 
 /** The order findings are listed in. */
 // Stryker disable next-line StringLiteral: equivalent for the first, which `indexOf` ranks first whether found (0) or not (-1)
-const SEVERITY: readonly Verdict[] = ['breaking', 'unknown', 'non-breaking'];
+export const SEVERITY: readonly Verdict[] = ['breaking', 'unknown', 'dangerous', 'non-breaking'];
 
 /** `get /pets/{}` from `#/paths/~1pets~1{id}/get`: what an operation is when its id changes. Path parameter names do not count. */
 export const routeOf = (source: string): string | undefined => {
@@ -118,6 +136,7 @@ interface Raw {
   readonly before: unknown;
   readonly after: unknown;
   readonly effect: Effect;
+  readonly frozen?: true;
 }
 
 interface Pair {
@@ -189,21 +208,51 @@ const compareOperation = (old: Operation | undefined, nu: Operation | undefined)
   };
 };
 
+/** What a reader risks from a dangerous change, and what to do about it. */
+const dangerFix = (raw: Raw, where: string): string =>
+  raw.rule === 'default-changed'
+    ? `a caller that leaves ${where} out now gets ${JSON.stringify(raw.after) ?? 'no default'} instead of ${JSON.stringify(raw.before) ?? 'no default'}: keep the old default, or say so in the release notes`
+    : `a reader that rejects values it did not expect at ${where} may fail on this: make readers tolerate it, or say so in the release notes`;
+
 const fixFor = (raw: Raw, verdict: Verdict, operation: string): string => {
   const where = [operation, raw.payload, raw.pointer].filter((part) => part !== undefined && part !== '').join(' ');
+  if (raw.frozen === true) return `${where} is under \`x-frozen\`, so nothing under it may change (\`${raw.rule}\`): revert it, or publish the change as a new version of the contract`;
+  if (verdict === 'dangerous') return dangerFix(raw, where);
   if (verdict === 'unknown') return `review ${where} by hand: apicontract cannot tell what \`${raw.rule}\` does to the values it accepts`;
   if (verdict === 'non-breaking') return 'nothing to do';
   if (raw.effect === 'narrows') return `keep accepting at ${where} what the old contract accepted, or release this as a major version`;
   return `keep ${where} within what the old contract allowed, or release this as a major version`;
 };
 
-const overall = (summary: Readonly<Record<Verdict, number>>): Verdict => {
-  if (summary.breaking > 0) return 'breaking';
-  return summary.unknown > 0 ? 'unknown' : 'non-breaking';
+export const overall = (summary: Readonly<Record<Verdict, number>>): Verdict => {
+  return SEVERITY.find((verdict) => summary[verdict] > 0) ?? 'non-breaking';
 };
+
+/** What a JSON Pointer names in a document, or `undefined`. */
+const nodeAt = (document: unknown, pointer: string): unknown => {
+  // Stryker disable next-line BlockStatement: equivalent, an empty handler returns the same undefined
+  try { return pointerGet(document, pointer); } catch { return undefined; }
+};
+
+/**
+ * Whether the old contract froze an operation, or itself (R4): a change to a frozen operation,
+ * or any operation of a frozen document, is breaking whatever it does.
+ */
+const frozenOperation = (a: Contract, old: Operation | undefined): boolean => isFrozen(a.document) || (old !== undefined && isFrozen(nodeAt(a.document, old.source)));
 
 // Stryker disable next-line StringLiteral: equivalent, an operation-level finding never shares its operation with a payload's
 const whereOf = (finding: Finding): string => `${finding.source} ${finding.payload ?? ''} ${finding.pointer} ${finding.id}`;
+
+/** `findings` in the order they are listed: by verdict, then where. Sorts in place, and returns them. */
+export const sortFindings = (findings: Finding[]): Finding[] =>
+  findings.sort((x, y) => SEVERITY.indexOf(x.verdict) - SEVERITY.indexOf(y.verdict) || whereOf(x).localeCompare(whereOf(y), 'en'));
+
+/** How many findings have each verdict. */
+export const summaryOf = (findings: readonly Finding[]): Record<Verdict, number> =>
+  Object.fromEntries(SEVERITY.map((verdict) => [verdict, findings.filter((finding) => finding.verdict === verdict).length])) as Record<Verdict, number>;
+
+/** A change under `x-frozen` has one id, whatever changed; its fix line names the change. */
+const FROZEN = { id: 'ac-frozen-changed', scheme: 'apicontract' } as const;
 
 /** Compare `a` (old) with `b` (new): every change, classified. */
 export const compareContracts = (a: Contract, b: Contract, options: CompareOptions = {}): Comparison => {
@@ -211,11 +260,12 @@ export const compareContracts = (a: Contract, b: Contract, options: CompareOptio
   const side = options.side ?? 'caller';
   const findings = pair(a.operations, b.operations).flatMap(([old, nu]) => {
     const operation = (nu ?? old) as Operation;
-    const raws = old === undefined || nu === undefined ? [compareOperation(old, nu)] : comparePayloads(a, b, { old, nu });
+    const compared = old === undefined || nu === undefined ? [compareOperation(old, nu)] : comparePayloads(a, b, { old, nu });
+    const raws = frozenOperation(a, old) ? compared.map((raw): Raw => ({ ...raw, frozen: true })) : compared;
     return raws.map((raw): Finding => {
-      const verdict = classify(raw, raw.direction, mode, side);
+      const verdict = refine(raw, raw.direction, classify(raw, raw.direction, mode, side), options.dangerousBreaking);
       return {
-        ...ruleId(raw.rule, raw.direction, raw.payload, raw.pointer),
+        ...(raw.frozen === true ? FROZEN : ruleId(raw.rule, raw.direction, raw.payload, raw.pointer)),
         verdict,
         effect: raw.effect,
         operation: operation.id,
@@ -230,8 +280,7 @@ export const compareContracts = (a: Contract, b: Contract, options: CompareOptio
       };
     });
   });
-  findings.sort((x, y) => SEVERITY.indexOf(x.verdict) - SEVERITY.indexOf(y.verdict) || whereOf(x).localeCompare(whereOf(y), 'en'));
-  const count = (verdict: Verdict): number => findings.filter((finding) => finding.verdict === verdict).length;
-  const summary = { breaking: count('breaking'), unknown: count('unknown'), 'non-breaking': count('non-breaking') };
+  sortFindings(findings);
+  const summary = summaryOf(findings);
   return { mode, side, verdict: overall(summary), summary, findings };
 };

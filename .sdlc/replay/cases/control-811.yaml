@@ -1,0 +1,7 @@
+# test(workspace): hold every foundation layer's recorded weight with a test (#811)
+id: control-811
+kind: control
+pr: 811
+base: "2158b43cfd39"
+head: "f07edf060724"
+set: test

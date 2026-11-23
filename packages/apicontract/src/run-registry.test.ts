@@ -19,6 +19,6 @@ describe('the 6.0 registries', () => {
   });
 
   it('declares every lane command once', () => {
-    expect(commands.map((c) => c.name)).toEqual(['explain', 'diff', 'migrate', 'plugin']);
+    expect(commands.map((c) => c.name)).toEqual(['explain', 'diff', 'lint', 'migrate', 'plugin']);
   });
 });

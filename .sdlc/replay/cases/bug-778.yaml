@@ -1,0 +1,8 @@
+# feat(seniority): cosmiconfig reads YAML with seniority/yaml — 240 / 243, level (2/2) (#778)
+id: bug-778
+kind: bug
+pr: 778
+base: "1ae89f5c709b"
+head: "24300f424558"
+answer: "seniority's cosmiconfig drop-in derives the global config directory from the home directory alone and ignores XDG_CONFIG_HOME, so on Linux a user with a non-default XDG_CONFIG_HOME silently loses their global config after migrating."
+set: test
