@@ -34,11 +34,16 @@ Intent: [`intent.md`](./intent.md). **Status:** approved.
     method, `any-payload-unread` for `google.protobuf.Any`, `oneof-not-enforced` for a oneof,
     `type-not-found` for a type the image does not hold (read as anything),
     `group-read-as-message` for a proto2 group, `no-service` for an image with no service.
-- **R2. `.proto` inputs.** An input path ending `.proto`, or a directory holding `buf.yaml`, is
-  compiled with `buf build <path> -o -#format=json` run through bellpull in the input's folder; its
-  stdout is the image. No `buf` on the PATH refuses with
-  `fix: install buf (https://buf.build/docs/installation), or hand over \`buf build -o image.json\``.
-  buf's own errors pass through with its exit status.
+- **R2. `.proto` inputs.** An input path ending `.proto`, or a directory holding `buf.yaml` or
+  `buf.work.yaml`, is compiled with `buf build <path> -o -#format=json` run through bellpull in the
+  input's folder; its stdout is the image. No `buf` on the PATH refuses with
+  ``fix: install buf (https://buf.build/docs/installation), or hand over `buf build -o image.json` ``.
+  buf's own errors pass through as a usage error (exit 2) quoting its stderr. `diff` (each side,
+  and each release with `--transitive`, where a buf module is one release, not a folder of files),
+  `props` (the contract and `--against`) and `lint` build their protobuf inputs this way. A
+  protobuf source at a git ref (`git:<ref>:x.proto`) is refused with
+  ``fix: `buf build '.git#ref=<ref>' -o old.json` and pass old.json``; `lint --since` reads a
+  `.proto` at the ref as new. `gen` and `explain` read images only for now.
 - **R3. `diff --level <file|package|wire-json|wire>`.** Only for protobuf inputs (any other format
   refuses, naming the formats that have a wire encoding). Runs
   `buf breaking <new> --against <old> --error-format json` with a config using that category, and

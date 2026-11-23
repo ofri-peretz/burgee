@@ -22,6 +22,7 @@ import { type Comparison, compareContracts, type Finding } from './diff-contract
 import { checkDecisions, isDate, withDecisions } from './diff-decisions.js';
 import { compareTransitive } from './diff-transitive.js';
 import { applyUsage, parseUsage } from './diff-usage.js';
+import { bufIn, builtImages } from './input-buf.js';
 import { builtinAdapters } from './inputs.js';
 import { DECISION_SETTINGS, type DecisionSetting, decisionSettingOf, UsageError } from './run-config.js';
 
@@ -67,6 +68,8 @@ export interface DiffOptions {
   /** Report dangerous changes as breaking (contractdiff-compat-depth R2). */
   readonly dangerousBreaking?: boolean | undefined;
   readonly git?: GitReader;
+  /** The image text buf built for each protobuf source given (apicontract-protobuf R2), by spec. */
+  readonly built?: ReadonlyMap<string, string> | undefined;
 }
 
 export interface Side_ {
@@ -80,11 +83,11 @@ export interface Side_ {
 const GIT = /^git:(?<ref>[^:]+):(?<path>.+)$/;
 
 /** Read one side: a file, or a file at a git ref, into the model through the first adapter that detects it. */
-export const readContract = (spec: string, cwd: string, git: GitReader): Side_ => {
+export const readContract = (spec: string, cwd: string, git: GitReader, built: ReadonlyMap<string, string> = new Map()): Side_ => {
   const match = GIT.exec(spec);
   const { ref, path } = (match?.groups ?? {}) as { ref?: string; path?: string };
   const file = path ?? spec;
-  const text = ref === undefined ? readFileSync(resolve(cwd, spec), 'utf8') : git(ref, file, cwd);
+  const text = built.get(spec) ?? (ref === undefined ? readFileSync(resolve(cwd, spec), 'utf8') : git(ref, file, cwd));
   let document: unknown;
   try {
     // YAML 1.2 reads JSON too.
@@ -276,10 +279,10 @@ const VERSION_ORDER = new Intl.Collator('en', { numeric: true });
 const CONTRACT_FILE = /\.(?:json|ya?ml)$/u;
 
 /** One old side as given: a file or `git:` spec, or a directory's contract files in version order. */
-const releasesOf = (spec: string, cwd: string): string[] => {
+const releasesOf = (spec: string, cwd: string, built: ReadonlyMap<string, string>): string[] => {
   const path = resolve(cwd, spec);
-  // A `git:` spec names no path here, so it is one release as it is.
-  if (!existsSync(path) || !statSync(path).isDirectory()) return [spec];
+  // A `git:` spec names no path here, and a buf module is one image, so each is one release as it is.
+  if (built.has(spec) || !existsSync(path) || !statSync(path).isDirectory()) return [spec];
   return readdirSync(path)
     .filter((name) => CONTRACT_FILE.test(name))
     .sort(VERSION_ORDER.compare)
@@ -289,14 +292,15 @@ const releasesOf = (spec: string, cwd: string): string[] => {
 /** The old sides, oldest first, and the new one: two positionals, or with `--transitive` as many as given. */
 const sidesOf = (options: DiffOptions, git: GitReader): { readonly olds: readonly Side_[]; readonly nu: Side_ } => {
   const more = options.more ?? [];
+  const built = options.built ?? new Map<string, string>();
   if (options.transitive !== true) {
     if (more.length > 0) throw new UsageError(`diff compares two contracts, and was given ${String(more.length + 2)}. fix: pass --transitive to compare the last one with each before it, oldest first`);
-    return { olds: [readContract(options.old, options.cwd, git)], nu: readContract(options.new, options.cwd, git) };
+    return { olds: [readContract(options.old, options.cwd, git, built)], nu: readContract(options.new, options.cwd, git, built) };
   }
   const specs = [options.old, options.new, ...more];
-  const olds = specs.slice(0, -1).flatMap((spec) => releasesOf(spec, options.cwd));
+  const olds = specs.slice(0, -1).flatMap((spec) => releasesOf(spec, options.cwd, built));
   if (olds.length === 0) throw new UsageError(`no contract to compare with: ${specs.slice(0, -1).join(', ')} holds no .json, .yaml or .yml file. fix: pass the past releases' files, oldest first`);
-  return { olds: olds.map((spec) => readContract(spec, options.cwd, git)), nu: readContract(specs.at(-1) as string, options.cwd, git) };
+  return { olds: olds.map((spec) => readContract(spec, options.cwd, git, built)), nu: readContract(specs.at(-1) as string, options.cwd, git, built) };
 };
 
 /** The usage file, read. */
@@ -382,8 +386,9 @@ export const command = defineCommand({
     dangerousBreaking: { type: 'boolean', description: 'report dangerous changes (a default changed, a value a reader may not expect) as breaking, so they fail the run' },
     today: { type: 'string', description: 'the date x-sunset is judged against (default: today, UTC)', placeholder: 'YYYY-MM-DD' },
   },
-  run: ({ args, options }) =>
+  run: async ({ args, options }) =>
     diff({
+      built: await builtImages([args.old, args.new, ...args.more], HERE, bufIn()),
       cwd: HERE,
       old: args.old,
       new: args.new,

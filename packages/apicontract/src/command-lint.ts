@@ -12,6 +12,7 @@ import { parse as parseYaml } from 'seniority/yaml';
 
 import { uriOf } from './command-diff.js';
 import { type Contract } from './core/model.js';
+import { type BufBuild, bufIn, builtImages } from './input-buf.js';
 import { builtinAdapters } from './inputs.js';
 import { codeIndexOf, mapIn, typescriptIn } from './lint-code-read.js';
 import { type Level, lint, type Rule, type LintFinding, type LintInput, type LintResult } from './lint-engine.js';
@@ -50,6 +51,8 @@ export interface LintOptions {
   readonly rulesFrom?: string | undefined;
   /** git in the config's folder, when a test gives its own. */
   readonly git?: LintGit | undefined;
+  /** buf, when a test gives its own (apicontract-protobuf R2); found on the PATH otherwise. */
+  readonly buf?: BufBuild | undefined;
   /** The time warn-first counts from (R10), when a test gives its own. */
   readonly now?: Date | undefined;
   /** Lint in full only the operations added or changed since this ref (R12), over the config's `lint.since`. */
@@ -126,11 +129,11 @@ export const scoreOf = (ruleset: Readonly<Record<string, Level>>, counts: LintRe
 const contractOf = (document: unknown): Contract | undefined => Object.values(builtinAdapters).find((adapter) => adapter.detect(document))?.read(document);
 
 /** One input read through the first adapter that detects it. */
-export const readInput = (file: string, cwd: string): LintInput => {
+export const readInput = (file: string, cwd: string, built: ReadonlyMap<string, string> = new Map()): LintInput => {
   let document: unknown;
   try {
     // YAML 1.2 reads JSON too.
-    document = parseYaml(readFileSync(resolve(cwd, file), 'utf8'));
+    document = parseYaml(built.get(file) ?? readFileSync(resolve(cwd, file), 'utf8'));
   } catch (error) {
     throw new UsageError(`cannot read ${file}: ${(error as Error).message}. fix: pass a JSON or YAML document that exists`);
   }
@@ -284,11 +287,13 @@ interface Read {
   readonly root: string;
   readonly git: LintGit;
   readonly since: string | undefined;
+  readonly buf: BufBuild | undefined;
 }
 
 /** Each spec read, with what it touched since `--since`'s ref when one is given (R12). */
 const inputsOf = async (read: Read): Promise<{ readonly inputs: readonly LintInput[]; readonly since?: Since }> => {
-  const inputs = read.specs.map((spec) => readInput(spec, read.base));
+  const built = await builtImages(read.specs, read.base, read.buf ?? bufIn());
+  const inputs = read.specs.map((spec) => readInput(spec, read.base, built));
   if (read.since === undefined) return { inputs };
   return sinceOf({ git: read.git, ref: read.since, inputs: inputs.map((input) => ({ input, path: relative(read.root, resolve(read.base, input.file)) })), read: contractAt });
 };
@@ -382,7 +387,7 @@ export const runLint = async (options: LintOptions): Promise<Record<string | sym
   const { names, files } = history.sources;
   const notCarried = Object.values(files).flatMap((file) => file.notCarried);
   const legacy = legacyOf(config?.lint?.legacy ?? [], all);
-  const { inputs, since } = await inputsOf({ specs, base: options.specs.length > 0 ? options.cwd : root, root, git, since: options.since ?? config?.lint?.since });
+  const { inputs, since } = await inputsOf({ specs, base: options.specs.length > 0 ? options.cwd : root, root, git, since: options.since ?? config?.lint?.since, buf: options.buf });
   const result = lint(withCode(inputs, root, options.typescript), all, levels, legacy);
   const scores = Object.fromEntries(names.map((name) => [name.replace(PREFIX, ''), scoreOf(rulesetOf(name, files) as Record<string, Level>, result.counts)]));
   const stats = await recordOf({ options, result, git, now }, days);
