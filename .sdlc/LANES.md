@@ -8,7 +8,7 @@ textually. This file is the contract; `scripts/lane-boundaries-lock.test.ts` enf
 layer of their own — the output stack sits between the foundation six and the engine,
 and `chalk` (wave 0.4, the red ratchet) is roundel's incumbent, not anyone else's.
 `controlroom` made it eleven on 2026-09-27, when its skeleton landed (D-158, D-166), and
-`oxmutate` twelve on 2026-10-27.
+`oxmutate` twelve on 2026-10-27, and `truemark` one more on 2026-11-23.
 
 ## The lanes
 
@@ -37,6 +37,7 @@ and `chalk` (wave 0.4, the red ratchet) is roundel's incumbent, not anyone else'
 | `bellpull` | `lane/bellpull` | `packages/bellpull/**`, `.sdlc/intents/bellpull/**` | harness 2.0 |
 | `controlroom` | `lane/controlroom` | `packages/controlroom/**`, `.sdlc/intents/controlroom/**` | closeout R4 (controlroom spec R1); caique `./keys` and flagstaff's seam (R2, R3) |
 | `oxmutate` | `lane/oxmutate` | `packages/oxmutate/**`, `.sdlc/intents/oxmutate/**` | — |
+| `truemark` | `lane/truemark` | `packages/truemark/**`, `.sdlc/intents/truemark/**` | — |
 | `output` | `lane/output` | `packages/roundel/**`, `packages/flagstaff/**`, `.sdlc/intents/roundel/**`, `.sdlc/intents/flagstaff/**` | — (0.4 is urgent) |
 | `engine` | `lane/engine` | `packages/burgee/**`, `packages/commander-harness/**`, `packages/yargs-harness/**`, `.sdlc/intents/commander-*/**`, `.sdlc/intents/yargs-*/**` | — |
 | `integrator` | `lane/integrator` | everything else: `.sdlc/PLAN.md`, `.sdlc/intents/README.md`, `.github/**`, root `README.md`, `scripts/*-lock.test.ts` | all lanes |
