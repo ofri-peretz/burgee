@@ -5,7 +5,7 @@
  * ends with what it checked, and each ruleset's score: the share of its checks that passed.
  */
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { basename, resolve } from 'node:path';
 
 import { defineCommand, ExitCode } from 'burgee';
 import { parse as parseYaml } from 'seniority/yaml';
@@ -14,6 +14,7 @@ import { uriOf } from './command-diff.js';
 import { builtinAdapters } from './inputs.js';
 import { type Level, lint, type Rule, type LintFinding, type LintInput, type LintResult } from './lint-engine.js';
 import { rules, rulesets } from './lint-rules.js';
+import { type NotCarried, type ReadRuleset, readSpectral } from './lint-spectral.js';
 import { type Config, ConfigError, loadConfig, UsageError } from './run-config.js';
 import { loadPlugins } from './run-load.js';
 
@@ -49,19 +50,49 @@ export interface Score {
   readonly percent: number;
 }
 
+/** A ruleset named by its file: a `.spectral.yaml`, `.spectral.json` or `redocly.yaml` (R9). */
+const RULESET_FILE = /\.(?:json|ya?ml)$/u;
+
+/** A ruleset file read from the config's folder; one that cannot be read is a config to fix. */
+const readRulesetFile = (name: string, root: string): ReadRuleset => {
+  let document: unknown;
+  try {
+    // YAML 1.2 reads JSON too.
+    document = parseYaml(readFileSync(resolve(root, name), 'utf8'));
+  } catch (error) {
+    throw new ConfigError(CONFIG_FILE, [`\`lint.extends\` names ${name}, which cannot be read (${(error as Error).message}). fix: correct its path; it is read from the config's folder`]);
+  }
+  if (/redocly/iu.test(basename(name))) {
+    return { rules: {}, levels: {}, notCarried: [{ id: name, file: name, pointer: '#', reason: 'a Redocly ruleset, which lint does not read yet', fix: 'write the rules you need as a .spectral.yaml, or keep running them in Redocly for now' }] };
+  }
+  return readSpectral(document, name, new Set(RULES.keys()));
+};
+
+/** Every ruleset file `names` lists, read from `root`, by its name. */
+export const readRulesets = (names: readonly string[], root: string): Record<string, ReadRuleset> =>
+  Object.fromEntries(names.filter((name) => RULESET_FILE.test(name)).map((name) => [name, readRulesetFile(name, root)]));
+
+/** A ruleset's levels by its name: a file read already, else a built-in one. */
+const rulesetOf = (name: string, files: Readonly<Record<string, ReadRuleset>>): Readonly<Record<string, Level>> | undefined =>
+  new Map(Object.entries(files)).get(name)?.levels ?? RULESETS.get(name.replace(PREFIX, ''));
+
 /**
  * Each rule's level: the rulesets in order, a later one winning, then every rule a plugin
  * contributes at `warn` (installing it is asking for it), then the config's `rules`.
  */
-export const levelsOf = (names: readonly string[], overrides: Readonly<Record<string, Level>> = {}, contributed: Readonly<Record<string, Rule>> = {}): Record<string, Level> => {
+export const levelsOf = (
+  names: readonly string[],
+  overrides: Readonly<Record<string, Level>> = {},
+  contributed: Readonly<Record<string, Rule>> = {},
+  files: Readonly<Record<string, ReadRuleset>> = {},
+): Record<string, Level> => {
   const chosen = names.map((name) => {
-    const key = name.replace(PREFIX, '');
-    const ruleset = RULESETS.get(key);
-    if (ruleset === undefined) throw new UsageError(`there is no ruleset \`${name}\`. fix: use one of ${Object.keys(rulesets).join(', ')}`);
+    const ruleset = rulesetOf(name, files);
+    if (ruleset === undefined) throw new UsageError(`there is no ruleset \`${name}\`. fix: use one of ${Object.keys(rulesets).join(', ')}, or a .spectral.yaml file`);
     return ruleset;
   });
   // The overrides come from the config, so a rule it misnames is a config to fix: exit 3, not 2 (R-A2).
-  const known = new Set([...RULES.keys(), ...Object.keys(contributed)]);
+  const known = new Set([...RULES.keys(), ...Object.values(files).flatMap((file) => Object.keys(file.rules)), ...Object.keys(contributed)]);
   const unknown = Object.keys(overrides).filter((id) => !known.has(id));
   if (unknown.length > 0) {
     throw new ConfigError(
@@ -115,8 +146,13 @@ export const toSarif = (result: LintResult, all: Readonly<Record<string, Rule>> 
 });
 
 /** Text grouped by file, then what was checked and each ruleset's score. */
-export const toText = (result: LintResult, scores: Readonly<Record<string, Score>>): string => {
+export const toText = (result: LintResult, scores: Readonly<Record<string, Score>>, notCarried: readonly NotCarried[] = []): string => {
   const lines: string[] = [];
+  for (const file of [...new Set(notCarried.map((entry) => entry.file))]) {
+    lines.push(file);
+    for (const entry of notCarried.filter((each) => each.file === file)) lines.push(`  ${'warn'.padEnd(COLUMN)}  rule-not-carried  ${entry.pointer}  ${entry.id}: ${entry.reason}`, `  ${''.padEnd(COLUMN)}  fix: ${entry.fix}`);
+    lines.push('');
+  }
   for (const file of result.inputs) {
     const findings = result.findings.filter((finding) => finding.file === file);
     if (findings.length === 0) continue;
@@ -127,7 +163,7 @@ export const toText = (result: LintResult, scores: Readonly<Record<string, Score
   const errors = result.findings.filter((finding) => finding.level === 'error').length;
   const nodes = Object.values(result.counts).reduce((sum, count) => sum + count.checked, 0);
   lines.push(
-    `${String(errors)} error(s), ${String(result.findings.length - errors)} warning(s). Checked ${String(Object.keys(result.counts).length)} rule(s) on ${String(result.inputs.length)} input(s), ${String(nodes)} node(s); not carried: none.`,
+    `${String(errors)} error(s), ${String(result.findings.length - errors)} warning(s). Checked ${String(Object.keys(result.counts).length)} rule(s) on ${String(result.inputs.length)} input(s), ${String(nodes)} node(s); not carried: ${notCarried.length === 0 ? 'none' : `${String(notCarried.length)} (${notCarried.map((entry) => entry.id).join(', ')})`}.`,
     ...Object.entries(scores).map(([name, score]) => `${name}: ${String(score.percent)}% (${String(score.passed)} of ${String(score.checked)} checks passed)`),
   );
   return lines.join('\n');
@@ -143,24 +179,26 @@ export const runLint = async (options: LintOptions): Promise<Record<string | sym
   const names = options.rulesets !== undefined && options.rulesets.length > 0 ? options.rulesets : (config?.lint?.extends ?? DEFAULT_RULESETS);
   // The rules the config's plugins contribute (R4); none without a config.
   const contributed = config === undefined ? {} : (await loadPlugins(config)).rules();
-  const all = { ...rules, ...contributed };
-  const levels = levelsOf(names, config?.lint?.rules, contributed);
+  const files = readRulesets(names, root);
+  const all = { ...rules, ...Object.assign({}, ...Object.values(files).map((file) => file.rules)), ...contributed } as Record<string, Rule>;
+  const levels = levelsOf(names, config?.lint?.rules, contributed, files);
+  const notCarried = Object.values(files).flatMap((file) => file.notCarried);
   const result = lint(
     specs.map((spec) => readInput(spec, options.specs.length > 0 ? options.cwd : root)),
     all,
     levels,
   );
-  const scores = Object.fromEntries(names.map((name) => [name.replace(PREFIX, ''), scoreOf(RULESETS.get(name.replace(PREFIX, '')) as Record<string, Level>, result.counts)]));
+  const scores = Object.fromEntries(names.map((name) => [name.replace(PREFIX, ''), scoreOf(rulesetOf(name, files) as Record<string, Level>, result.counts)]));
   const errors = result.findings.filter((finding) => finding.level === 'error').length;
   const sarif = options.sarif === true ? toSarif(result, all) : undefined;
   const data: Record<string | symbol, unknown> = {
     ...result,
     scores,
-    notCarried: [],
+    notCarried,
     ...(sarif === undefined ? {} : { sarif }),
     ...(errors > 0 ? { exitCode: ExitCode.RUNTIME, fix: 'correct each error as its own fix line says, or set its rule to "warn" in `lint.rules`' } : {}),
   };
-  data[TEXT] = () => (sarif === undefined ? toText(result, scores) : JSON.stringify(sarif, undefined, 2));
+  data[TEXT] = () => (sarif === undefined ? toText(result, scores, notCarried) : JSON.stringify(sarif, undefined, 2));
   return data;
 };
 
