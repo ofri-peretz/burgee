@@ -41,6 +41,7 @@ import sqliteSecurity from "eslint-plugin-sqlite-security";
 import supabaseSecurity from "eslint-plugin-supabase-security";
 import typeormSecurity from "eslint-plugin-typeorm-security";
 import vercelAiSecurity from "eslint-plugin-vercel-ai-security";
+import { configs as truemark } from "truemark/eslint";
 
 // Library-surface plugins. burgee imports none of these libraries, so each one
 // should stay silent here — a finding from one is a false positive to fix in the
@@ -339,6 +340,15 @@ export default [
       "import-next/no-barrel-import": "off",
       "import-next/no-unused-modules": ["error", { allowImportOnly: true }],
     },
+  },
+  {
+    // truemark, dogfooded: focused, unexplained-skip, fixed-sleep and retried tests, at error
+    // like every other rule. The findings that predate it sit in eslint-suppressions.json, a
+    // per-file count ESLint enforces: a new finding fails, and a fixed one fails until
+    // `npm run lint:prune` drops it, so the counts only go down. Built from dist, so `npm run
+    // lint` builds truemark first.
+    ...truemark.recommended,
+    files: ["**/*.test.{ts,tsx,mts,cts,mjs,js}", "**/vitest.config.{ts,mts}", "**/vitest.*.config.{ts,mts}", "**/playwright.config.ts"],
   },
   {
     // Scripts are process entry points; their exit code is their contract (E1). They also
