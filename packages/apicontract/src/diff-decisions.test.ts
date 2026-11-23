@@ -4,7 +4,8 @@ import { parse } from 'seniority/yaml';
 import { describe, expect, it } from 'vitest';
 
 import { type Contract } from './core/model.js';
-import { decisionsOf, isDate, keyOf, readDecisions } from './diff-decisions.js';
+import { compareContracts, type Finding } from './diff-contract.js';
+import { checkDecisions, decisionsOf, isDate, keyOf, readDecisions } from './diff-decisions.js';
 import { read as readJsonSchema } from './input-jsonschema.js';
 import { read } from './openapi.js';
 
@@ -211,5 +212,65 @@ describe('a bad value is decision-invalid (R4)', () => {
       },
     };
     expect(readDecisions(read(document)).problems).toEqual([]);
+  });
+});
+
+const compare = (before: string, after: string, today = '2027-01-01', level: 'warn' | 'error' = 'warn') => {
+  const [old, nu] = [fixture(before), fixture(after)];
+  return checkDecisions(old, nu, compareContracts(old, nu), { today, level });
+};
+
+/** [id, payload, pointer] of each decision finding. */
+const rows = (findings: readonly Finding[]) => findings.map((finding) => [finding.id, finding.payload ?? '', finding.pointer]);
+
+describe('a breaking change needs a decision (R5)', () => {
+  it('fails without one: the enum value ILS was added to a response, and nobody wrote down why', () => {
+    const findings = compare('base', 'undecided');
+    expect(rows(findings)).toEqual([['ac-decision-missing', BODY, '/properties/currency']]);
+    expect(findings[0]).toMatchObject({
+      verdict: 'unknown',
+      scheme: 'apicontract',
+      operation: 'getBalance',
+      source: '#/paths/~1v3~1wallet/get',
+      document: 'new',
+      before: undefined,
+      after: 'ILS',
+      fix: 'breaking change (`response-property-enum-value-added`) at getBalance response:200:application/json /properties/currency with no decision. fix: add `x-change: <the decision>` to getBalance response:200:application/json /properties/currency, or an ancestor or its operation, naming who decided it; or revert the change',
+    });
+  });
+
+  it('passes with an x-change on the member', () => {
+    expect(compare('base', 'decided')).toEqual([]);
+  });
+
+  it('passes with an x-change on an ancestor, up to the payload root', () => {
+    expect(compare('base', 'decided-above')).toEqual([]);
+  });
+
+  it('passes with an x-change on the operation', () => {
+    const [old, nu] = [fixture('base'), fixture('undecided')];
+    const document = structuredClone(nu.document) as { paths: Record<string, { get: Record<string, unknown> }> };
+    (document.paths['/v3/wallet'] as { get: Record<string, unknown> }).get['x-change'] = 'ADR-1';
+    expect(checkDecisions(old, read(document), compareContracts(old, read(document)), { today: '2027-01-01', level: 'warn' })).toEqual([]);
+  });
+
+  it('is graded at the level it is asked at', () => {
+    expect(compare('base', 'undecided', '2027-01-01', 'error')[0]?.verdict).toBe('breaking');
+  });
+
+  it('holds a removal to the old side, which has no member on the new one to carry a marker', () => {
+    expect(rows(compare('base', 'removed'))).toEqual([['ac-decision-missing', BODY, '/properties/amount']]);
+  });
+});
+
+describe('a removal on schedule needs no new marker (R8)', () => {
+  it('passes when the old member was deprecated and its sunset is on or before today', () => {
+    expect(compare('sunsetting', 'removed', '2027-03-01')).toEqual([]);
+    expect(compare('sunsetting', 'removed', '2027-04-01')).toEqual([]);
+  });
+
+  it('fails before the sunset date, and when the old member was never deprecated', () => {
+    expect(rows(compare('sunsetting', 'removed', '2027-02-28'))).toEqual([['ac-decision-missing', BODY, '/properties/amount']]);
+    expect(rows(compare('base', 'removed', '2027-04-01'))).toEqual([['ac-decision-missing', BODY, '/properties/amount']]);
   });
 });

@@ -12,7 +12,7 @@
  */
 import { type Contract, type Direction, type Operation } from './core/model.js';
 import { pointerGet } from './core/resolve.js';
-import { type Finding } from './diff-contract.js';
+import { type Comparison, type Finding, pair } from './diff-contract.js';
 import { isDict } from './diff-normalise.js';
 
 type Dict = Readonly<Record<string, unknown>>;
@@ -394,3 +394,103 @@ export const readDecisions = (contract: Contract, level: DecisionLevel = 'warn')
 
 /** Each member of `contract` that carries a marker (R1): operation id, payload and pointer to its decision. */
 export const decisionsOf = (contract: Contract): ReadonlyMap<string, Decision> => readDecisions(contract).decisions;
+
+// --- Holding a change to its decision (R5 to R10) ---
+
+export interface DecisionOptions {
+  /** `YYYY-MM-DD`: the day a sunset is judged against. The caller pins it; nothing here reads the clock. */
+  readonly today: string;
+  readonly level: DecisionLevel;
+}
+
+interface Sides {
+  readonly old: Decisions;
+  readonly nu: Decisions;
+  /** The old operation each new operation id was paired with (ids first, then routes), as the diff paired them. */
+  readonly oldIdOf: ReadonlyMap<string, string>;
+  readonly options: DecisionOptions;
+}
+
+/** `/a/b` and every ancestor of it, down to the root `''`. */
+const prefixes = (pointer: string): string[] => {
+  const parts = pointer.split('/');
+  return parts.map((_, index) => parts.slice(0, parts.length - index).join('/'));
+};
+
+/** A member a finding or a decision is at: `payload` is absent for the operation itself. */
+interface Member {
+  readonly operation: string;
+  readonly payload?: string | undefined;
+  readonly pointer: string;
+}
+
+/** The decision in force at a member `wanted` accepts: its own, an ancestor's up to the payload root, or the operation's. */
+const inForce = (side: Decisions, member: Member, wanted: (decision: Decision) => boolean): Decision | undefined => {
+  const keys = [
+    ...(member.payload === undefined ? [] : prefixes(member.pointer).map((pointer) => keyOf(member.operation, member.payload as string, pointer))),
+    keyOf(member.operation, '', ''),
+  ];
+  return keys.map((key) => side.decisions.get(key)).find((decision) => decision !== undefined && wanted(decision));
+};
+
+/** A member whose sunset date has come: it was deprecated, and the date is on or before today (R8). */
+const carriedOut = (today: string) => (decision: Decision) => decision.deprecated === true && decision.sunset !== undefined && decision.sunset <= today;
+
+const hasChange = (decision: Decision): boolean => decision.change !== undefined;
+
+const placeOf = (finding: Finding): Place => ({
+  operation: finding.operation,
+  source: finding.source,
+  document: finding.document,
+  payload: finding.payload,
+  direction: finding.direction,
+  pointer: finding.pointer,
+});
+
+interface Held {
+  readonly findings: Finding[];
+  /** The `x-change` decisions that let a breaking change through (R10 asks each for a version move). */
+  readonly decidedBy: Map<string, Decision>;
+}
+
+/** R5, R8: a breaking change needs an `x-change` on the new side, or a sunset carried out on the old one. */
+const holdBreaking = (sides: Sides, comparison: Comparison): Held => {
+  const held: Held = { findings: [], decidedBy: new Map() };
+  for (const finding of comparison.findings.filter((candidate) => candidate.verdict === 'breaking')) {
+    const oldMember = { ...finding, operation: sides.oldIdOf.get(finding.operation) ?? finding.operation };
+    if (inForce(sides.old, oldMember, carriedOut(sides.options.today)) !== undefined) continue;
+    const decision = inForce(sides.nu, finding, hasChange);
+    if (decision !== undefined) {
+      held.decidedBy.set(keyOf(decision.operation, decision.payload, decision.pointer), decision);
+      continue;
+    }
+    const where = wordsFor(finding.operation, finding.payload, finding.pointer);
+    held.findings.push(
+      decisionFinding(sides.options.level, 'missing', placeOf(finding), {
+        before: finding.before,
+        after: finding.after,
+        fix: `breaking change (\`${finding.id}\`) at ${where} with no decision. fix: add \`x-change: <the decision>\` to ${where}, or an ancestor or its operation, naming who decided it; or revert the change`,
+      }),
+    );
+  }
+  return held;
+};
+
+/**
+ * Hold a comparison to the decisions written in the contracts. Markers are read on the new side,
+ * because they are the decision; the old side is read for a sunset carried out (R8) and for a
+ * marker carried over (R6). Returns every decision finding, graded at `options.level`.
+ */
+export const checkDecisions = (old: Contract, nu: Contract, comparison: Comparison, options: DecisionOptions): Finding[] => {
+  const oldIdOf = new Map(pair(old.operations, nu.operations).flatMap(([before, after]) => (before === undefined ? [] : [[(after ?? before).id, before.id] as const])));
+  const sides: Sides = { old: readDecisions(old, options.level), nu: readDecisions(nu, options.level), oldIdOf, options };
+  const held = holdBreaking(sides, comparison);
+  return sorted([...sides.nu.problems, ...held.findings]);
+};
+
+/** `comparison` with its decision findings, and, at level `error` only, a verdict that counts them. */
+export const withDecisions = (comparison: Comparison, decisions: readonly Finding[], level: DecisionLevel): Comparison => ({
+  ...comparison,
+  decisions,
+  verdict: level === 'error' && decisions.length > 0 ? 'breaking' : comparison.verdict,
+});
