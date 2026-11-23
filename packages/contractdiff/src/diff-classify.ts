@@ -57,8 +57,11 @@ export const classify = (change: Pick<Change, 'effect'>, direction: Direction, m
   return payloadRules(direction, mode, side).every((rule) => keeps(rule, effect)) ? 'non-breaking' : 'breaking';
 };
 
-/** A changed default: a caller that leaves the value out now gets another one, in any direction. */
-const DANGEROUS_ANYWHERE: ReadonlySet<string> = new Set(['default-changed']);
+/**
+ * A changed default: a caller that leaves the value out now gets another one, in any direction.
+ * A renamed path parameter: the same URL, but a client generated from the old contract names it.
+ */
+const DANGEROUS_ANYWHERE: ReadonlySet<string> = new Set(['default-changed', 'path-parameter-renamed']);
 
 /**
  * Changes that only add values a reader on the client's side gets: a reader written as an

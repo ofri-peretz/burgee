@@ -693,6 +693,18 @@ describe('where a replacement is looked for (R9)', () => {
   });
 });
 
+describe('a replacement inside a referenced schema the walk skipped', () => {
+  it('is found there when it exists, and missed when it does not', () => {
+    const contract = (inner: boolean) =>
+      api(
+        { properties: { old: { type: 'string', 'x-replaced-by': '/properties/n/properties/inner' }, n: { $ref: '#/components/schemas/N' } } },
+        { components: { schemas: { N: { type: 'object', properties: inner ? { inner: { type: 'string' } } : {} } } } },
+      );
+    expect(check(contract(true), contract(true))).toEqual([]);
+    expect(ids(check(contract(true), contract(false)))).toContainEqual(['ac-decision-replacement-missing', 'a', R, '/properties/old']);
+  });
+});
+
 describe('a decided breaking change moves the version, at the edges (R10)', () => {
   const old = (path: string, version: unknown) => api({ properties: { k: { enum: ['a'] } } }, { path, version });
   const decided = (path: string, version: unknown) => api({ properties: { k: { enum: ['a', 'b'], 'x-change': 'ADR-1' } } }, { path, version });

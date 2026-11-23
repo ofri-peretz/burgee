@@ -36,11 +36,12 @@ describe('compareContracts on two OpenAPI documents', () => {
       ['breaking', 'response-property-enum-value-added', 'addPet', 'response:201:application/json', '/properties/kind'],
       ['breaking', 'api-removed-without-deprecation', 'deletePet', '', ''],
       ['breaking', 'response-property-enum-value-added', 'fetchPet', 'response:200:application/json', '/properties/kind'],
+      ['dangerous', 'ac-path-parameter-renamed', 'fetchPet', 'param:path:petId', ''],
       ['non-breaking', 'request-property-enum-value-added', 'addPet', 'body:application/json', '/properties/kind'],
       ['non-breaking', 'response-optional-property-added', 'addPet', 'response:201:application/json', '/properties/age'],
       ['non-breaking', 'response-optional-property-added', 'fetchPet', 'response:200:application/json', '/properties/age'],
     ]);
-    expect(result).toMatchObject({ mode: 'backward', side: 'caller', verdict: 'breaking', summary: { breaking: 4, unknown: 0, 'non-breaking': 3 } });
+    expect(result).toMatchObject({ mode: 'backward', side: 'caller', verdict: 'breaking', summary: { breaking: 4, unknown: 0, dangerous: 1, 'non-breaking': 3 } });
     expect(result.findings[2]).toStrictEqual({
       id: 'api-removed-without-deprecation',
       scheme: 'oasdiff',
@@ -56,7 +57,9 @@ describe('compareContracts on two OpenAPI documents', () => {
       fix: 'keep accepting at deletePet what the old contract accepted, or release this as a major version',
     });
     expect(result.findings[1]).toMatchObject({ document: 'new', fix: 'keep addPet response:201:application/json /properties/kind within what the old contract allowed, or release this as a major version' });
-    expect(result.findings[4]?.fix).toBe('nothing to do');
+    expect(result.findings[4]).toMatchObject({ direction: 'request', before: 'id', after: 'petId' });
+    expect(result.findings[4]?.fix).toBe('a client generated from the old contract passes `id` by name, and it is now `petId`: keep the old name, or say so in the release notes');
+    expect(result.findings[5]?.fix).toBe('nothing to do');
   });
 
   it('reversed under forward, the same documents break the same places: reversing a diff swaps the modes', () => {
@@ -116,7 +119,7 @@ describe('payloads', () => {
   it('pairs only the path parameters one side lacks', () => {
     const before = [payload('param:path:a', 'request'), payload('param:path:b', 'request')];
     const after = [payload('param:path:a', 'request', { type: 'integer' }), payload('param:path:c', 'request', { type: 'integer' })];
-    expect(rows(pairOf(before, after).findings).map((row) => row[3])).toEqual(['param:path:a', 'param:path:c', 'param:path:a', 'param:path:c']);
+    expect(rows(pairOf(before, after).findings).map((row) => row[3])).toEqual(['param:path:a', 'param:path:c', 'param:path:c', 'param:path:a', 'param:path:c']);
   });
 
   it('lists breaking first, then unknown, then non-breaking, whatever their place', () => {
@@ -143,10 +146,11 @@ describe('payloads', () => {
     const after = [payload('param:path:x', 'request', { type: 'integer' })];
     expect(rows(pairOf(before, after).findings)).toEqual([
       ['breaking', 'request-parameter-type-changed', 'o', 'param:path:x', ''],
+      ['dangerous', 'ac-path-parameter-renamed', 'o', 'param:path:x', ''],
       ['non-breaking', 'request-parameter-removed', 'o', 'param:path:b', ''],
       ['non-breaking', 'request-parameter-type-changed', 'o', 'param:path:x', ''],
     ]);
-    expect(rows(pairOf(after, before).findings).map((row) => row[1])).toEqual(['request-parameter-type-changed', 'new-required-request-parameter', 'request-parameter-type-changed']);
+    expect(rows(pairOf(after, before).findings).map((row) => row[1])).toEqual(['request-parameter-type-changed', 'new-required-request-parameter', 'ac-path-parameter-renamed', 'request-parameter-type-changed']);
   });
 
   it('a changed keyword it cannot judge is unknown, with a fix that says to look', () => {

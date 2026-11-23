@@ -369,7 +369,8 @@ const unchanged = (documents: Documents, ref: string): boolean => {
     // Stryker disable next-line ConditionalExpression: equivalent, the cache only saves repeating the same walk
     if (known !== undefined) return known;
     const [before, after] = [reach(old, one), reach(nu, one)];
-    // One side naming nothing already differs from the other in canonical form.
+    // `after` naming nothing needs no guard of its own: the canonical text of a symbol is `undefined`,
+    // which no JSON value's text is, so it never equals `before`'s (diff-schema.test.ts locks it).
     const result = before !== DANGLING && canonical(before) === canonical(after);
     // Stryker disable next-line StringLiteral: equivalent, the cache only saves repeating the same walk
     memo.set(`=${one}`, result);
