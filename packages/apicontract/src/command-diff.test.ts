@@ -62,6 +62,7 @@ describe('apicontract diff, through burgee', () => {
         choices: ['warn', 'error', 'off'],
         description: "hold a change to the decision written in the contract: warn (default; prints, exit code unchanged), error (fails the run) or off. Read from the base ref's apicontract.config.json first",
       },
+      dangerousBreaking: { type: 'boolean', description: 'report dangerous changes (a default changed, a value a reader may not expect) as breaking, so they fail the run' },
       today: { type: 'string', description: 'the date x-sunset is judged against (default: today, UTC)', placeholder: 'YYYY-MM-DD' },
     });
   });

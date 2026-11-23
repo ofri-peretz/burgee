@@ -2,7 +2,8 @@
  * `apicontract diff <old> <new>` (apicontract-diff spec.md R4, R5): what a contract change breaks,
  * for whom, under the mode chosen. Each side is a file or `git:<ref>:<path>`, read through the
  * same built-in adapters (`inputs.ts`), so an OpenAPI document, a JSON Schema, an AsyncAPI
- * document and an MCP snapshot are all diffed by one engine. Exit 1 on a breaking or unknown change.
+ * document and an MCP snapshot are all diffed by one engine. Exit 1 on a breaking or unknown change; a
+ * dangerous one is listed and fails the run only under `--dangerous-breaking`.
  *
  * It also holds a change to the decision written in the contract (apicontract-diff-decisions
  * spec.md R11, R12): `--decisions warn|error|off`, read from the base ref's config first.
@@ -52,6 +53,8 @@ export interface DiffOptions {
   readonly decisions?: DecisionSetting | undefined;
   /** The date `x-sunset` is judged against, `YYYY-MM-DD`; default today's UTC date. Tests pin it. */
   readonly today?: string | undefined;
+  /** Report dangerous changes as breaking (contractdiff-compat-depth R2). */
+  readonly dangerousBreaking?: boolean | undefined;
   readonly git?: GitReader;
 }
 
@@ -90,7 +93,7 @@ const COLUMN = 'non-breaking'.length;
 /** Hex digits of the changeset's content hash in its file name, as `changeset add` names its own. */
 const HASH_DIGITS = 8;
 
-const LEVEL: Readonly<Record<Verdict, string>> = { breaking: 'error', unknown: 'warning', 'non-breaking': 'note' };
+const LEVEL: Readonly<Record<Verdict, string>> = { breaking: 'error', unknown: 'warning', dangerous: 'warning', 'non-breaking': 'note' };
 
 const where = (finding: Finding): string => [finding.payload ?? '', finding.pointer].filter((part) => part !== '').join(' ');
 
@@ -148,7 +151,7 @@ export const toText = (comparison: Comparison, old: string, nu: string): string 
   const decisions = comparison.decisions ?? [];
   if (comparison.findings.length === 0) return [`no changes between ${old} and ${nu}`, ...decisionLines(decisions)].join('\n');
   const lines = [
-    `${comparison.verdict}: ${String(summary.breaking)} breaking, ${String(summary.unknown)} unknown, ${String(summary['non-breaking'])} non-breaking (--mode ${mode} --side ${side})`,
+    `${comparison.verdict}: ${String(summary.breaking)} breaking, ${String(summary.unknown)} unknown, ${summary.dangerous > 0 ? `${String(summary.dangerous)} dangerous, ` : ''}${String(summary['non-breaking'])} non-breaking (--mode ${mode} --side ${side})`,
   ];
   const operations = [...new Set(comparison.findings.map((finding) => finding.operation))];
   for (const operation of operations) {
@@ -162,7 +165,7 @@ export const toText = (comparison: Comparison, old: string, nu: string): string 
   return [...lines, ...decisionLines(decisions)].join('\n');
 };
 
-const BUMP: Readonly<Record<Verdict, string>> = { breaking: 'major', unknown: 'major', 'non-breaking': 'minor' };
+const BUMP: Readonly<Record<Verdict, string>> = { breaking: 'major', unknown: 'major', dangerous: 'minor', 'non-breaking': 'minor' };
 
 /**
  * `.changeset/<hash>.md` bumping `pkg` by the verdict, and whether it is new; `undefined` when the
@@ -220,9 +223,12 @@ const todayOf = (given: string | undefined): string => {
   return given;
 };
 
+/** Whether a verdict fails the run: a dangerous change is listed, and fails it only as `--dangerous-breaking` makes it breaking. */
+const fails = (verdict: Verdict): boolean => verdict === 'breaking' || verdict === 'unknown';
+
 /** What to do about a failed run: the changes' own fix, or, when only the decisions fail it, theirs. */
 const fixOf = (changed: Verdict, verdict: Verdict): string =>
-  changed === 'non-breaking'
+  !fails(changed)
     ? 'resolve each decision finding as its own fix line says, or run with `--decisions warn` while the contract catches up'
     : `make each ${verdict} change compatible as its own fix line says, or release it as a major version`;
 
@@ -231,14 +237,14 @@ export const diff = (options: DiffOptions): Record<string | symbol, unknown> => 
   const git = options.git ?? noGit;
   const old = read(options.old, options.cwd, git);
   const nu = read(options.new, options.cwd, git);
-  const changes = compareContracts(old.contract, nu.contract, { mode: options.mode, side: options.side });
+  const changes = compareContracts(old.contract, nu.contract, { mode: options.mode, side: options.side, dangerousBreaking: options.dangerousBreaking });
   const level = settingFor(options, git);
   const today = todayOf(options.today);
   const comparison =
     level === 'off' ? { ...changes, decisions: [] } : withDecisions(changes, checkDecisions(old.contract, nu.contract, changes, { today, level, changeset: options.changeset !== undefined }), level);
   const sarif = options.sarif === true ? toSarif(comparison, old, nu) : undefined;
   const written = options.changeset === undefined ? undefined : writeChangeset(options.cwd, options.changeset, comparison, { old: old.label, nu: nu.label });
-  const failed = comparison.verdict !== 'non-breaking';
+  const failed = fails(comparison.verdict);
   const data: Record<string | symbol, unknown> = {
     ...comparison,
     old: old.label,
@@ -289,6 +295,7 @@ export const command = defineCommand({
       choices: DECISION_SETTINGS,
       description: 'hold a change to the decision written in the contract: warn (default; prints, exit code unchanged), error (fails the run) or off. Read from the base ref\'s apicontract.config.json first',
     },
+    dangerousBreaking: { type: 'boolean', description: 'report dangerous changes (a default changed, a value a reader may not expect) as breaking, so they fail the run' },
     today: { type: 'string', description: 'the date x-sunset is judged against (default: today, UTC)', placeholder: 'YYYY-MM-DD' },
   },
   run: ({ args, options }) =>
@@ -302,5 +309,6 @@ export const command = defineCommand({
       changeset: options.changeset,
       decisions: options.decisions as DecisionSetting | undefined,
       today: options.today,
+      dangerousBreaking: options.dangerousBreaking,
     }),
 });

@@ -22,7 +22,11 @@ export type Mode = (typeof MODES)[number];
 export const SIDES = ['caller', 'server'] as const;
 export type Side = (typeof SIDES)[number];
 
-export type Verdict = 'breaking' | 'non-breaking' | 'unknown';
+/**
+ * `dangerous` (contractdiff-compat-depth R2) is a refinement of `non-breaking`: every value an old
+ * peer sends or reads is still valid, but a reader that assumed more than the contract said may fail.
+ */
+export type Verdict = 'breaking' | 'non-breaking' | 'unknown' | 'dangerous';
 
 /** `compat.qnt`'s two payload rules. */
 export type PayloadRule = 'backward' | 'forward';
@@ -51,4 +55,28 @@ export const classify = (change: Pick<Change, 'effect'>, direction: Direction, m
   if (effect === 'unknown') return 'unknown';
   if (effect === 'neutral') return 'non-breaking';
   return payloadRules(direction, mode, side).every((rule) => keeps(rule, effect)) ? 'non-breaking' : 'breaking';
+};
+
+/** A changed default: a caller that leaves the value out now gets another one, in any direction. */
+const DANGEROUS_ANYWHERE: ReadonlySet<string> = new Set(['default-changed']);
+
+/**
+ * Changes that only add values a reader on the client's side gets: a reader written as an
+ * exhaustive switch, or that validated the old pattern or format, may reject them.
+ */
+const DANGEROUS_TO_READERS: ReadonlySet<string> = new Set(['enum-value-added', 'became-nullable', 'pattern-unset', 'format-unset']);
+
+/** Whether a change is dangerous to a peer even when no value it handled stopped being valid. */
+export const isDangerous = (rule: string, direction: Direction): boolean =>
+  DANGEROUS_ANYWHERE.has(rule) || (DANGEROUS_TO_READERS.has(rule) && !serverReceives(direction));
+
+/**
+ * The verdict after the contract's own promises and the reader risks: a change under `x-frozen`
+ * is `breaking` whatever it does (R4); a dangerous change that `classify` let through is
+ * `dangerous`, or `breaking` when the run asks so (`--dangerous-breaking`, R2).
+ */
+export const refine = (change: Pick<Change, 'rule' | 'frozen'>, direction: Direction, verdict: Verdict, dangerousBreaking = false): Verdict => {
+  if (change.frozen === true) return 'breaking';
+  if (verdict !== 'non-breaking' || !isDangerous(change.rule, direction)) return verdict;
+  return dangerousBreaking ? 'breaking' : 'dangerous';
 };

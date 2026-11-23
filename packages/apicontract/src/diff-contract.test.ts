@@ -76,7 +76,7 @@ describe('compareContracts on two OpenAPI documents', () => {
       mode: 'backward',
       side: 'caller',
       verdict: 'non-breaking',
-      summary: { breaking: 0, unknown: 0, 'non-breaking': 0 },
+      summary: { breaking: 0, unknown: 0, dangerous: 0, 'non-breaking': 0 },
       findings: [],
     });
   });
