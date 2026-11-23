@@ -61,7 +61,7 @@ const LIBRARIES: Record<string, Library> = {
     check: (s) => `(d) => check(${s}, d)`,
     infer: (i) => `import('loadline').Infer<typeof S${i}>`,
   },
-  // The emitter's code, compiled at run time as ajv compiles: what \`apicontract gen validator\` writes ahead of time.
+  // The emitter's code, compiled at run time as ajv compiles: what \`contractdiff gen validator\` writes ahead of time.
   oursEmitted: {
     pkg: `file:${OURS}`,
     imports: `${OURS_IMPORTS}\nimport { compile } from 'loadline/jit';`,

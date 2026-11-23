@@ -1,3 +1,4 @@
+import { enumOf, number, object, optional, parse, string } from 'loadline';
 /**
  * A replay case (replay spec R1): one pull request, at the commits it had at review time. A bug case
  * carries a one-sentence answer key, and a finding counts only when it describes that bug. A control
@@ -5,7 +6,6 @@
  * `set` keeps the cases a change is tuned on apart from the ones it is judged on.
  */
 import { parse as parseYaml } from 'seniority/yaml';
-import { enumOf, number, object, optional, parse, string } from 'loadline';
 
 export const KINDS = ['bug', 'control'] as const;
 export const SETS = ['tune', 'test'] as const;

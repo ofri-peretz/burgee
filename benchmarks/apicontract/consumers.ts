@@ -7,7 +7,7 @@
  *   npx tsx benchmarks/apicontract/consumers.ts --framework mcp --spec <file> [--target mcp]
  *   npx tsx benchmarks/apicontract/consumers.ts --framework hono --output <dir> --route /pets
  *
- * `--spec` generates the output first with this checkout's built `apicontract` (`--target`
+ * `--spec` generates the output first with this checkout's built `contractdiff` (`--target`
  * defaults to the framework's generator). Each framework names the module it boots from the
  * output, the export it reads, and what "serves one route" means for it:
  *
@@ -105,9 +105,9 @@ console.log(JSON.stringify({ route: 'tools/list', tools: listed.tools.length }))
   },
 };
 
-/** Generates `target` from `spec` with this checkout's built apicontract, through its public CLI. */
+/** Generates `target` from `spec` with this checkout's built contractdiff, through its public CLI. */
 function generate(spec: string, target: string, out: string): void {
-  if (!existsSync(path.join(APICONTRACT_DIST, 'bin.js'))) throw new Error('apicontract is not built. fix: npx turbo run build --filter=apicontract');
+  if (!existsSync(path.join(APICONTRACT_DIST, 'bin.js'))) throw new Error('contractdiff is not built. fix: npx turbo run build --filter=contractdiff');
   mkdirSync(out, { recursive: true });
   const config = path.join(out, '..', 'contractdiff.config.json');
   // The config takes paths relative to itself, so the spec is copied in beside it.
@@ -115,7 +115,7 @@ function generate(spec: string, target: string, out: string): void {
   cpSync(spec, path.join(out, '..', input));
   writeFileSync(config, JSON.stringify({ input, targets: { [target]: { generator: target, out: path.basename(out) } } }));
   const ran = spawnSync(process.execPath, [path.join(APICONTRACT_DIST, 'bin.js'), 'gen', '--config', config, '--force'], { cwd: path.dirname(config), encoding: 'utf8' });
-  if (ran.status !== 0) throw new Error(`apicontract gen ${target} failed: ${`${ran.stderr}\n${ran.stdout}`.trim()}`);
+  if (ran.status !== 0) throw new Error(`contractdiff gen ${target} failed: ${`${ran.stderr}\n${ran.stdout}`.trim()}`);
 }
 
 export interface ConsumerReading {

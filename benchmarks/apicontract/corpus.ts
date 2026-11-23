@@ -59,7 +59,7 @@ export const INCUMBENTS: Readonly<Record<string, Incumbent>> = {
 };
 
 /**
- * Our side: a child process that loads the built CLI's host the way `apicontract gen` does, reads
+ * Our side: a child process that loads the built CLI's host the way `contractdiff gen` does, reads
  * the document (the `read` column), then runs the target and writes its files.
  */
 const RUNNER = `
@@ -213,7 +213,7 @@ export async function grade(options: GradeOptions): Promise<{ file: string; rows
   const ours = tool.startsWith('ours:');
   const incumbent = INCUMBENTS[tool];
   if (!ours && incumbent === undefined) throw new Error(`no tool is named "${tool}". fix: pass ours:<target> or one of ${Object.keys(INCUMBENTS).join(', ')}`);
-  if (ours && !existsSync(path.join(APICONTRACT_DIST, 'run-load.js'))) throw new Error('apicontract is not built. fix: npx turbo run build --filter=apicontract');
+  if (ours && !existsSync(path.join(APICONTRACT_DIST, 'run-load.js'))) throw new Error('contractdiff is not built. fix: npx turbo run build --filter=contractdiff');
   const family = options.family ?? incumbent?.family ?? 'openapi';
   const pins = select(expandPins(readPins()), { family, source: options.source, sample: options.sample, seed: options.seed });
   const fetched = await fetchAll(pins);
