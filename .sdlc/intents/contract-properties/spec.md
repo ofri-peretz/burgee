@@ -61,11 +61,12 @@ validator's reader and fails on any keyword it reads that is in neither
 property: agreement, round-trip and normalise on each pinned OpenAPI document, and diff soundness `--against` the
 old side of the planted pairs `diff-pairs.ts` builds for the contractdiff reading. `bench.yml`'s `props` job runs it
 nightly on a seeded sample (200 documents, 50 pairs) and on the weekly cron on every pinned OpenAPI document and
-500 pairs; a counterexample fails the run. A contract that is unread, crashes or times out is counted apart and the
+500 pairs; a counterexample fails the run, and on the nightly cron `nightly-report.yml` opens or updates the
+"Nightly benchmarks failed" issue naming it. A contract that is unread, crashes or times out is counted apart and the
 summary calls it unmeasured, never passed (`props-corpus.test.ts`, seen red with no module, then green).
 
 First reading, 2026-11-23, seed 1, on the cloud box (`--sample 50 --pairs 20`; [`benchmarks/apicontract/results/2026-11-23-303fe1d1cc-props/summary.md`](../../../benchmarks/apicontract/results/2026-11-23-303fe1d1cc-props/summary.md)): 50 of 50 documents and 20 of 20
-sampled pairs ran with no counterexample (12,484,487 values per single-document property, 4,888,460 for soundness;
+sampled pairs (26 rows: `buildPairs` always adds the six timing pairs) ran with no counterexample (12,484,487 values per single-document property, 4,888,460 for soundness;
 median 1,900 ms per contract). The six timing pairs on the GitHub and Stripe descriptions timed out at 300 s each,
 so props on the two largest specs is _unmeasured_; the criterion is met on every pinned document only once the
 weekly run reports no timeouts.

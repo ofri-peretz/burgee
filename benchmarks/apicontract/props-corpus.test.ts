@@ -110,6 +110,7 @@ describe('foldProps', () => {
     const text = renderPropsSummary(foldProps(rows.slice(0, 1), { runs: 1000, seed: 1 }), 'r');
     expect(text).toContain('Every property held on every contract that ran:');
     expect(text).not.toContain('did not run');
+    expect(text.endsWith('|\n')).toBe(true);
   });
 
   it('says every property held only when something ran and nothing broke', () => {

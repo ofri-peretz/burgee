@@ -365,7 +365,7 @@ jobs:
   # agreement, round-trip and normalise on each OpenAPI document, and diff soundness on the planted
   # pairs, 1,000 values per payload and property. Nightly a seeded sample (200 documents, 50 pairs);
   # the weekly cron runs every pinned OpenAPI document and 500 pairs. A counterexample fails the
-  # run (a nightly failure opens an issue); the reading is an artifact, never committed from here.
+  # run (nightly-report.yml opens an issue on a nightly failure); the reading is an artifact, never committed from here.
   props:
     name: apicontract props on the corpus
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
