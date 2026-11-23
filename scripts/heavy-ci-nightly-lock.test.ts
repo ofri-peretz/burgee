@@ -60,6 +60,7 @@ const HEAVY: { file: string; job: string }[] = [
   { file: 'bench.yml', job: 'cheap' },
   { file: 'bench.yml', job: 'floor' },
   { file: 'bench.yml', job: 'agent' },
+  { file: 'bench.yml', job: 'props' },
   { file: 'compat.yml', job: 'controls' },
   { file: 'compat.yml', job: 'floor' },
   { file: 'evals.yml', job: 'evals' },
@@ -118,7 +119,7 @@ const minuteOfDay = (cron: string): number => {
 const REPORTER = 'nightly-report.yml';
 const REPORTED: { file: string; reporter: string; title: string; jobs: Record<string, string> }[] = [
   { file: 'compat.yml', reporter: 'compat', title: 'Nightly compatibility matrix failed', jobs: { MATRIX_JOBS: 'matrix', FLOOR_JOBS: 'floor' } },
-  { file: 'bench.yml', reporter: 'bench', title: 'Nightly benchmarks failed', jobs: { CHEAP_JOBS: 'cheap', FLOOR_JOBS: 'floor' } },
+  { file: 'bench.yml', reporter: 'bench', title: 'Nightly benchmarks failed', jobs: { CHEAP_JOBS: 'cheap', FLOOR_JOBS: 'floor', PROPS_JOBS: 'props' } },
 ];
 const nameOf = (file: string): string => (read(file) as Workflow & { name?: string }).name ?? file;
 

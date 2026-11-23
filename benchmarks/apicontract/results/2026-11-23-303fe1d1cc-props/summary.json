@@ -1,0 +1,35 @@
+{
+  "runs": 1000,
+  "seed": 1,
+  "held": true,
+  "documents": {
+    "total": 50,
+    "ran": 50,
+    "held": 50,
+    "failed": 0,
+    "unread": 0,
+    "crashed": 0
+  },
+  "pairs": {
+    "total": 26,
+    "ran": 20,
+    "held": 20,
+    "failed": 0,
+    "unread": 0,
+    "crashed": 6
+  },
+  "checked": {
+    "agreement": 12484487,
+    "round-trip": 12484487,
+    "normalise": 12484487,
+    "soundness": 4888460
+  },
+  "counterexamples": {
+    "agreement": 0,
+    "round-trip": 0,
+    "normalise": 0,
+    "soundness": 0
+  },
+  "failing": [],
+  "medianMs": 1900
+}
