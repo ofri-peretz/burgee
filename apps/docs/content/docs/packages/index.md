@@ -1,6 +1,6 @@
 ---
 title: Packages
-description: "burgee and the 10 packages it is built from: what each migrates from, and the site its docs live on."
+description: "burgee and the 11 packages it is built from: what each migrates from, and the site its docs live on."
 ---
 
 Every package in the family is published on its own, depends on nothing outside this
@@ -21,6 +21,7 @@ is its README, projected; the family-wide pages — [compatibility](/docs/compat
 | [paratext](https://paratext.interlace.tools/docs) | ansi-escapes, terminal-link and term-img | [paratext.interlace.tools](https://paratext.interlace.tools) |
 | [roundel](https://roundel.interlace.tools/docs) | chalk, colorette, kleur, picocolors, supports-color and yoctocolors | [roundel.interlace.tools](https://roundel.interlace.tools) |
 | [seniority](https://seniority.interlace.tools/docs) | cosmiconfig, lilconfig, dotenv and rc | [seniority.interlace.tools](https://seniority.interlace.tools) |
+| [truemark](https://burgee.interlace.tools/docs/packages/truemark) | @vitest/eslint-plugin | [burgee.interlace.tools](https://burgee.interlace.tools) |
 
 ## Which one do I need?
 

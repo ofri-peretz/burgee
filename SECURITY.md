@@ -13,7 +13,8 @@ otherwise.
 
 ## Supported versions
 
-Every published package is at 1.0 or later, and its public API is under semver. A fix, a
+Every published package but `truemark`, which is pre-1.0, is at 1.0 or later, and its public API
+is under semver; `truemark` may change its API in a minor release until it reaches 1.0. A fix, a
 security fix included, ships as a patch or minor release of the current major, so a caret
 range on that major installs it without a breaking change. Only the latest release of each
 package is supported, and there are no long-term support branches: a fix lands on the newest
@@ -38,11 +39,11 @@ release and is not backported.
 → Code scanning, so every check it fails is an open alert. Three of them cannot be closed by
 anything in this repository, and are recorded here so the next person does not re-derive that:
 
-| Check | Why it is open | What closes it |
-| --- | --- | --- |
-| Maintained | The repository was created inside the last 90 days. Scorecard scores that 0 regardless of commit activity. | Time. |
-| Code-Review | 0 of 28 changesets carry an approval — a solo maintainer merging their own pull requests. | A branch protection rule on `main` requiring an approving review, which is a repository setting and not a file. |
-| CII-Best-Practices | No OpenSSF Best Practices badge. | Registering the project at [bestpractices.dev](https://www.bestpractices.dev) and putting the badge in the README. A pull request cannot do the registering half. |
+| Check              | Why it is open                                                                                             | What closes it                                                                                                                                                    |
+| ------------------ | ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Maintained         | The repository was created inside the last 90 days. Scorecard scores that 0 regardless of commit activity. | Time.                                                                                                                                                             |
+| Code-Review        | 0 of 28 changesets carry an approval — a solo maintainer merging their own pull requests.                  | A branch protection rule on `main` requiring an approving review, which is a repository setting and not a file.                                                   |
+| CII-Best-Practices | No OpenSSF Best Practices badge.                                                                           | Registering the project at [bestpractices.dev](https://www.bestpractices.dev) and putting the badge in the README. A pull request cannot do the registering half. |
 
 The rest are code, and are treated as bugs: Vulnerabilities is kept at zero against
 `npm audit` (with `overrides` where an upstream pins a vulnerable version, as it does for

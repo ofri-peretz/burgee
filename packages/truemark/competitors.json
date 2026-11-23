@@ -1,0 +1,30 @@
+{
+  "$comment": "upstream-watch R1, written 2026-11-23 ahead of truemark's first release. See packages/flagstaff/competitors.json for the field meanings. @vitest/eslint-plugin is `surface`: truemark/eslint covers its no-focused-tests and no-disabled-tests rules under truemark's own names, and no suite of it is graded through compat-oracle. `seen` is what `npm run compat -- --fingerprint --missing` records.",
+  "./eslint": [
+    {
+      "package": "@vitest/eslint-plugin",
+      "claim": "surface",
+      "seen": {
+        "registry": "@vitest/eslint-plugin",
+        "version": "1.6.28",
+        "shasum": "20b53fca887ea7af9db8f00c90fbf9df02958673",
+        "weight": 2301618,
+        "self": 521859,
+        "packages": 22,
+        "files": {
+          "dist/index.cjs": "a8b57fa938ee8376cb55a0dacb78629bd917295a5893543f4413b3aa290d2c07",
+          "dist/index.d.cts": "632a2937e10e82c4d2e3bdbb64801350db0ab7a7297f45b0967a885a80be8a12",
+          "dist/index.d.mts": "570bbb45cf5a538e464df24968019486b3c31052c505d256b6b7bc4464e93b6f",
+          "dist/index.mjs": "c1629143ab1093563c24624c6ca9f337431922c0226b94351133b687316fdc0b",
+          "LICENSE": "9a5663b6ae3e7554d0652faf7de109aca19d13defac22b2a230d5a4f2980b4b8",
+          "package.json": "9b937b0e6f97771a86dd2f55fd03b2ed0b20c6b5d5e7306d5a8efe24db3baf69",
+          "README.md": "6349c583689a1b9d7fdc1bb68031a02480160244c221f5814c03b946a270b9b9"
+        },
+        "exports": [
+          "default"
+        ],
+        "measured": "2026-11-23"
+      }
+    }
+  ]
+}

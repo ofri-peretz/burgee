@@ -99,7 +99,7 @@ export function guidesOf(name: string, packagesDir: string = PACKAGES_DIR): Guid
  * "Drop-in alternative to cross-spawn and which.", "drop-in compatible with commander and
  * yargs.", "a chalk migration path", and paratext's "Covers the OSC half of ansi-escapes, …".
  */
-const REPLACES = [/drop-in (?:alternative to|compatible with) ([^.;]+)/i, /\ban? ([\w-]+) migration path\b/i, /\bcovers (?:the [\w-]+ half of )?([^.;]+)/i] as const;
+const REPLACES = [/drop-in (?:alternative to|compatible with) ([^.;]+)/i, /\ban? ([\w@/.-]+) migration path\b/i, /\bcovers (?:the [\w-]+ half of )?([^.;]+)/i] as const;
 
 /** The incumbents a description names, or a build failure that says which package is silent. */
 export function replacesOf(name: string, description: string): string {

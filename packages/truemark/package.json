@@ -1,7 +1,7 @@
 {
   "name": "truemark",
   "version": "0.0.0",
-  "description": "Test-suite integrity: ESLint rules for focused, unexplained-skipped, sleeping and retried tests, and a pre-push check for assertions moved to a weaker matcher and snapshots changed with no reason. No dependency outside the burgee family.",
+  "description": "Test integrity for JS and TS: lint rules for focused, skipped, sleeping and retried tests, and a pre-push check for weakened assertions and unexplained snapshots. No dependency outside the burgee family. A @vitest/eslint-plugin migration path.",
   "license": "MIT",
   "author": "Ofri Peretz <ofriperetzdev@gmail.com>",
   "repository": {
@@ -12,9 +12,9 @@
   "bugs": {
     "url": "https://github.com/ofri-peretz/burgee/issues"
   },
-  "homepage": "https://github.com/ofri-peretz/burgee/tree/main/packages/truemark#readme",
+  "homepage": "https://burgee.interlace.tools",
   "type": "module",
-  "private": true,
+  "private": false,
   "sideEffects": [
     "./dist/bin.js"
   ],
