@@ -380,6 +380,10 @@ describe('merge, told apart', () => {
   it('picks a branch of a second any-of, and leaves a first one be', () => {
     expect(merge(draw(), [{ anyOf: [{ type: 'string' }] }, { anyOf: [{ maxLength: 2 }] }], '')).toEqual({ anyOf: [{ type: 'string' }], maxLength: 2 });
     expect(merge(draw(), [{ type: 'string' }, { anyOf: [{ maxLength: 2 }] }], '')).toEqual({ type: 'string', anyOf: [{ maxLength: 2 }] });
+    // Keywords beside the second list, before or after it, are all kept.
+    expect(merge(draw(), [{ anyOf: [{ type: 'integer' }] }, { anyOf: [{ minimum: 10 }], maximum: 20 }], '')).toEqual({ anyOf: [{ type: 'integer' }], minimum: 10, maximum: 20 });
+    expect(merge(draw(), [{ anyOf: [{ type: 'integer' }] }, { maximum: 20, anyOf: [{ minimum: 10 }] }], '')).toEqual({ anyOf: [{ type: 'integer' }], maximum: 20, minimum: 10 });
+    agrees({ allOf: [{ anyOf: [{ type: 'integer' }] }, { anyOf: [{ minimum: 10 }], maximum: 20 }] });
   });
 
   it('follows references: alone in any dialect, beside keywords as both in 2020-12, and the reference alone before it', () => {

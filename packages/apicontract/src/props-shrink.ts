@@ -33,13 +33,15 @@ function* smallerString(value: string): Generator<unknown> {
 
 function* smallerNumber(value: number): Generator<unknown> {
   if (value === 0) return;
-  yield 0;
-  if (!Number.isInteger(value)) yield Math.trunc(value);
-  if (Math.abs(value) > 1) yield Math.trunc(value / 2);
+  const candidates = [0];
+  if (!Number.isInteger(value)) candidates.push(Math.trunc(value));
+  candidates.push(Math.trunc(value / 2));
   // One step nearer zero: halving alone stops at 12 when only more than 9 fails.
-  if (Number.isInteger(value) && Math.abs(value) > 2) yield value - Math.sign(value);
+  if (Number.isInteger(value)) candidates.push(value - Math.sign(value));
   // Stryker disable next-line EqualityOperator: equivalent, zero returned above
-  if (value < 0) yield -value;
+  if (value < 0) candidates.push(-value);
+  // Near zero the whole part, the half and the step are values already listed: each is tried once.
+  yield* new Set(candidates);
 }
 
 /** Values a step smaller than `value`, smallest first. */

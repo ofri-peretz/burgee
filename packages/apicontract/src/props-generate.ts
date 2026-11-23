@@ -195,16 +195,16 @@ export function merge(draw: Draw, parts: readonly unknown[], pointer: string, de
 
 const mergeTwo = (draw: Draw, [mine, theirs]: readonly [Dict, Dict], pointer: string, depth: number): Dict => {
   const entries = new Map(Object.entries(mine));
+  let second: readonly unknown[] | undefined;
   for (const [key, value] of Object.entries(theirs)) {
-    if (key === 'anyOf' && Array.isArray(value) && entries.has('anyOf')) {
-      // Picking one branch of a second list now is exact: a value of that branch satisfies the list.
-      // Stryker disable next-line ArithmeticOperator,NumericLiteral: equivalent for ending, a schema can only reach itself through a `$ref`, and resolvePart counts each
-      const branch = merge(draw, [Object.fromEntries(entries), draw.random.pick(value)], pointer, depth + 1);
-      return branch === false ? { type: false } : branch;
-    }
-    entries.set(key, entries.has(key) ? mergeKey(draw, key, [entries.get(key), value], pointer) : value);
+    if (key === 'anyOf' && Array.isArray(value) && entries.has('anyOf')) second = value;
+    else entries.set(key, entries.has(key) ? mergeKey(draw, key, [entries.get(key), value], pointer) : value);
   }
-  return Object.fromEntries(entries);
+  if (second === undefined) return Object.fromEntries(entries);
+  // Picking one branch of a second list, once every other keyword is in, is exact: a value of that branch satisfies the list.
+  // Stryker disable next-line ArithmeticOperator,NumericLiteral: equivalent for ending, a schema can only reach itself through a `$ref`, and resolvePart counts each
+  const branch = merge(draw, [Object.fromEntries(entries), draw.random.pick(second)], pointer, depth + 1);
+  return branch === false ? { type: false } : branch;
 };
 
 const TYPES = ['null', 'boolean', 'integer', 'number', 'string', 'array', 'object'] as const;

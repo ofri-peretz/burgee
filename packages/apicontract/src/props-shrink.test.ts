@@ -23,7 +23,9 @@ describe('smaller', () => {
     expect([...smaller([5])]).toEqual([[], [0], [2], [4]]);
     expect([...smaller('abcd')]).toEqual(['', 'ab', 'abc']);
     expect([...smaller(3)]).toEqual([0, 1, 2]);
-    expect([...smaller(0.5)]).toEqual([0, 0]);
+    expect([...smaller(0.5)]).toEqual([0]);
+    expect([...smaller(-0.5)]).toEqual([0, 0.5]);
+    expect([...smaller(1.5)]).toEqual([0, 1]);
   });
 });
 
