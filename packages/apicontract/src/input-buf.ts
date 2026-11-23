@@ -41,3 +41,43 @@ export const builtImages = async (specs: readonly (string | undefined)[], cwd: s
   const images = await Promise.all(sources.map(async (spec) => [spec, await build(spec, cwd)] as const));
   return new Map(images);
 };
+
+/** `diff --level`: the buf breaking category each level names (apicontract-protobuf R3). */
+export const LEVELS = ['file', 'package', 'wire-json', 'wire'] as const;
+export type Level = (typeof LEVELS)[number];
+
+/** One change buf breaking reports, as `--error-format json` prints it, one per line. */
+export interface BufAnnotation {
+  readonly path: string;
+  readonly line: number;
+  readonly type: string;
+  readonly message: string;
+}
+
+/** What buf breaking reports for `nu` against `old` at `level`, relative to `cwd`. */
+export type BufBreaking = (nu: string, old: string, level: Level, cwd: string) => Promise<readonly BufAnnotation[]>;
+
+/** buf's exit status when it found what it checks for, as opposed to failing. */
+const FOUND = 100;
+
+/** A line's JSON, or `undefined` when it is not JSON. */
+const jsonOf = (line: string): unknown => {
+  // Stryker disable next-line BlockStatement: equivalent, an empty handler returns the same undefined
+  try { return JSON.parse(line) as unknown; } catch { return undefined; }
+};
+
+const annotationOf = (line: string): BufAnnotation => {
+  const parsed = jsonOf(line);
+  const { path, start_line: start, type, message } = (typeof parsed === 'object' && parsed !== null ? parsed : {}) as Record<string, unknown>;
+  if (typeof type !== 'string' || typeof message !== 'string') throw new UsageError(`buf breaking printed what is not an annotation: ${line}. fix: run a buf that has --error-format json, then run again`);
+  return { path: typeof path === 'string' ? path : '', line: typeof start === 'number' ? start : 0, type, message };
+};
+
+/** buf breaking, found on the runtime's PATH, with a config that uses the level's category alone. */
+export const breakingIn = (runtime: Runtime = ambientRuntime()): BufBreaking => async (nu, old, level, cwd) => {
+  const config = JSON.stringify({ version: 'v2', breaking: { use: [level.replace('-', '_').toUpperCase()] } });
+  const result = await run('buf', ['breaking', nu, '--against', old, '--error-format', 'json', '--config', config], { cwd, runtime }).catch(async (error: unknown) => (error instanceof NotFoundError ? undefined : Promise.reject(error as Error)));
+  if (result === undefined) throw new UsageError(`cannot judge ${nu} at --level ${level}: buf is not on the PATH. fix: install buf (https://buf.build/docs/installation), or drop --level`);
+  if (!result.ok && result.code !== FOUND) throw new UsageError(`buf breaking could not compare ${nu} with ${old}: ${result.stderr.trim()}. fix: correct what buf reports, then run again`);
+  return result.stdout.split('\n').filter((line) => line.trim() !== '').map(annotationOf);
+};

@@ -45,11 +45,14 @@ Intent: [`intent.md`](./intent.md). **Status:** approved.
   ``fix: `buf build '.git#ref=<ref>' -o old.json` and pass old.json``; `lint --since` reads a
   `.proto` at the ref as new. `gen` and `explain` read images only for now.
 - **R3. `diff --level <file|package|wire-json|wire>`.** Only for protobuf inputs (any other format
-  refuses, naming the formats that have a wire encoding). Runs
-  `buf breaking <new> --against <old> --error-format json` with a config using that category, and
-  turns each line into a `breaking` finding: rule id `buf:<type>`, its message verbatim, its
-  `path:line` as the location. apicontract's own model findings are reported beside them; the exit
-  code is the worse of the two. `git:<ref>:<path>` old sides become buf's own `.git#ref=<ref>,subdir=…`.
+  refuses: protobuf is the one with a wire encoding). Runs
+  `buf breaking <new> --against <old> --error-format json --config <v2 config using that category>`,
+  and turns each line into a `breaking` finding: rule id `buf:<type>`, scheme `buf`, its `path` as
+  the operation and `path:line` as the source, its message verbatim at the head of the fix line.
+  apicontract's own model findings are reported beside them; the verdict and exit code are the worse
+  of the two. buf's exit 100 means it found changes; any other failure passes its stderr through.
+  `--level` compares two contracts, so `--transitive` is refused, and so is a side at a git ref
+  (``fix: `buf build '.git#ref=<ref>' -o old.json` and pass old.json``).
 
 ## Design
 
