@@ -11,7 +11,6 @@
  * a marker and a finding at the same member meet under the same key.
  */
 import { type Contract, type Direction, type Operation } from './core/model.js';
-import { pointerGet } from './core/resolve.js';
 import { type Comparison, type Finding, pair } from './diff-contract.js';
 import { isDict } from './diff-normalise.js';
 
@@ -77,7 +76,7 @@ export interface Place {
  * path. `warn` is the `unknown` verdict (SARIF `warning`), `error` is `breaking` (SARIF `error`).
  */
 export const decisionFinding = (
-  level: DecisionLevel,
+  level: DecisionLevel | undefined,
   rule: string,
   place: Place,
   detail: {
@@ -116,12 +115,12 @@ export const isDate = (value: unknown): value is string => {
 const POINTER = /^(?:\/(?:[^~/]|~[01])*)*$/;
 
 /** A JSON Pointer (`/properties/amountCents`), or a sibling's name (no `/`). */
-const isReplacement = (value: unknown): value is string => {
+export const isReplacement = (value: unknown): value is string => {
   if (typeof value !== 'string' || value === '') return false;
   return value.startsWith('/') ? POINTER.test(value) : !value.includes('/');
 };
 
-const isText = (value: unknown): value is string => typeof value === 'string' && value.trim() !== '';
+export const isText = (value: unknown): value is string => typeof value === 'string' && value.trim() !== '';
 
 const FORMS: Readonly<Record<Marker, readonly [accepts: (value: unknown) => boolean, fix: string]>> = {
   'x-change': [isText, 'write `x-change: <the decision>`: an ADR id, a ticket or a URL, as non-empty text'],
@@ -153,7 +152,7 @@ const markersOf = (holder: Dict, invalid: (marker: Marker, value: unknown, fix: 
 // --- Spelling (R3) ---
 
 /** Levenshtein distance, row by row. */
-const distance = (a: string, b: string): number => {
+export const distance = (a: string, b: string): number => {
   const last = [...a].reduce(
     (row, left, i) =>
       [...b].reduce<number[]>((next, right, j) => [...next, Math.min((row[j + 1] as number) + 1, (next[j] as number) + 1, (row[j] as number) + (left === right ? 0 : 1))], [i + 1]),
@@ -163,17 +162,17 @@ const distance = (a: string, b: string): number => {
 };
 
 /** The marker a near-miss `x-` key was meant for: within edit distance 2, and not a marker already. */
-const meant = (key: string): Marker | undefined => {
+export const meant = (key: string): Marker | undefined => {
   if (!key.startsWith('x-') || (MARKERS as readonly string[]).includes(key)) return undefined;
-  const near = MARKERS.map((marker) => [marker, distance(key, marker)] as const).filter(([, steps]) => steps <= 2);
-  return near.sort((x, y) => x[1] - y[1])[0]?.[0];
+  // The markers are further than 4 edits from each other, so at most one is within 2 of a key.
+  return MARKERS.find((marker) => distance(key, marker) <= 2);
 };
 
 // --- The walk ---
 
 interface Scan {
   readonly contract: Contract;
-  readonly level: DecisionLevel;
+  readonly level: DecisionLevel | undefined;
   readonly decisions: Map<string, Decision>;
   readonly members: Set<string>;
   readonly problems: Finding[];
@@ -197,13 +196,27 @@ const place = (at: At, pointer: string): Place => ({
   pointer,
 });
 
-const lookup = (document: unknown, ref: string): unknown => {
-  try {
-    return pointerGet(document, ref);
-  } catch {
-    // A pointer that leads nowhere is a document the adapter reports on; here it is no member.
-    return undefined;
-  }
+/** A reference in a URI fragment with a `%` that is not an escape cannot be decoded. */
+const BAD_ESCAPE = /%(?![\dA-Fa-f]{2})/;
+
+/**
+ * What a local reference (`#`, `#/a/b`) points at, or nothing. `diff` reads a document an adapter
+ * already accepted, so a reference that leads nowhere (outside the document, a missing member, a
+ * bad escape) is no member here, and is not an error.
+ */
+export const lookup = (document: unknown, ref: string): unknown => {
+  const fragment = ref.slice(1);
+  if (!ref.startsWith('#') || BAD_ESCAPE.test(fragment)) return undefined;
+  if (fragment === '') return document;
+  if (!fragment.startsWith('/')) return undefined;
+  return decodeURIComponent(fragment)
+    .slice(1)
+    .split('/')
+    .reduce((node, part) => {
+      const key = part.replaceAll('~1', '/').replaceAll('~0', '~');
+      // eslint-disable-next-line conventions/consistent-existence-index-check -- Own members only: `#/toString` must not resolve to an inherited function
+      return (isDict(node) || Array.isArray(node)) && Object.hasOwn(node, key) ? (node as Record<string, unknown>)[key] : undefined;
+    }, document);
 };
 
 /** A Reference Object followed to the thing it names, as the OpenAPI reader does. */
@@ -250,19 +263,24 @@ const childrenOf = (schema: Dict, pointer: string): (readonly [unknown, string])
   ...COMPOSITIONS.flatMap((keyword) => arrayOf(schema[keyword]).map((child, index) => [child, `${pointer}/${keyword}/${String(index)}`] as const)),
 ];
 
-const localRef = (schema: Dict): string | undefined => (typeof schema.$ref === 'string' && schema.$ref.startsWith('#') ? schema.$ref : undefined);
+const localRef = (schema: Dict): string | undefined => (typeof schema.$ref === 'string' ? schema.$ref : undefined);
 
 /**
  * Every member of a payload's schema, as `diff-schema.ts` names them: local references followed
  * (the target's markers belong to the member that points at it), and an `allOf` branch read both
  * where it is and as merged into its parent, where `normalise` puts it.
  */
+const follow = (scan: Scan, at: At, schema: Dict, pointer: string): void => {
+  const ref = localRef(schema);
+  if (ref === undefined) return;
+  if (!at.open.has(ref)) walk(scan, { ...at, open: new Set([...at.open, ref]) }, lookup(scan.contract.document, ref), pointer);
+};
+
 const walk = (scan: Scan, at: At, schema: unknown, pointer: string): void => {
   if (!isDict(schema)) return;
   scan.members.add(keyOf(at.operation.id, at.payload, pointer));
   record(scan, at, pointer, schema);
-  const ref = localRef(schema);
-  if (ref !== undefined && !at.open.has(ref)) walk(scan, { ...at, open: new Set([...at.open, ref]) }, lookup(scan.contract.document, ref), pointer);
+  follow(scan, at, schema, pointer);
   for (const [child, where] of childrenOf(schema, pointer)) walk(scan, at, child, where);
   for (const branch of arrayOf(schema.allOf)) walk(scan, at, branch, pointer);
 };
@@ -281,7 +299,9 @@ const parametersOf = (document: unknown, operation: Operation, declared: Dict): 
 
 /** Every object under `node`, references followed: where a marker is read from a schema. */
 const markSubtree = (document: unknown, node: unknown, marked: Set<object>): void => {
-  if (typeof node !== 'object' || node === null || marked.has(node)) return;
+  // Stryker disable next-line ConditionalExpression: equivalent, a primitive that is marked anyway has no children to walk and is never looked up
+  if (!(isDict(node) || Array.isArray(node))) return;
+  if (marked.has(node)) return;
   marked.add(node);
   const ref = isDict(node) ? localRef(node) : undefined;
   if (ref !== undefined) markSubtree(document, lookup(document, ref), marked);
@@ -337,20 +357,18 @@ const scanDocument = (scan: Scan, holders: Holders, node: unknown, pointer: stri
   }
 };
 
-const sorted = (findings: readonly Finding[]): Finding[] => {
-  const unique = new Map(
-    findings.map((finding) => [[finding.id, finding.operation, finding.source, finding.payload ?? '', finding.pointer, String(finding.before)].join('\n'), finding] as const),
-  );
-  return [...unique.values()].sort((x, y) =>
-    `${x.operation} ${x.source} ${x.payload ?? ''} ${x.pointer} ${x.id}`.localeCompare(`${y.operation} ${y.source} ${y.payload ?? ''} ${y.pointer} ${y.id}`, 'en'),
-  );
-};
+/** The findings in the order found, each once: an `allOf` branch is read twice, and says what is wrong with it twice. */
+const unique = (findings: readonly Finding[]): Finding[] => [
+  ...new Map(
+    findings.map((finding) => [JSON.stringify([finding.id, finding.operation, finding.source, finding.payload, finding.pointer, finding.before]), finding] as const),
+  ).values(),
+];
 
 /**
  * Read one contract's markers (R1 to R4). Pure: the same contract gives the same result.
- * `level` only decides how the problems are graded.
+ * `level` only decides how the problems are graded; without one they are warnings.
  */
-export const readDecisions = (contract: Contract, level: DecisionLevel = 'warn'): Decisions => {
+export const readDecisions = (contract: Contract, level?: DecisionLevel): Decisions => {
   const scan: Scan = {
     contract,
     level,
@@ -388,7 +406,7 @@ export const readDecisions = (contract: Contract, level: DecisionLevel = 'warn')
   return {
     decisions: scan.decisions,
     members: scan.members,
-    problems: sorted(scan.problems),
+    problems: unique(scan.problems),
   };
 };
 
@@ -410,13 +428,13 @@ interface Sides {
   readonly nu: Decisions;
   readonly oldContract: Contract;
   readonly newContract: Contract;
-  /** The old operation each new operation id was paired with (ids first, then routes), as the diff paired them. */
-  readonly oldIdOf: ReadonlyMap<string, string>;
+  /** The old operation each operation id of the new contract was paired with (ids first, then routes), as the diff paired them; one that was added is its own. */
+  readonly oldOf: ReadonlyMap<string, Operation>;
   readonly options: DecisionOptions;
 }
 
 /** `/a/b` and every ancestor of it, down to the root `''`. */
-const prefixes = (pointer: string): string[] => {
+export const prefixes = (pointer: string): string[] => {
   const parts = pointer.split('/');
   return parts.map((_, index) => parts.slice(0, parts.length - index).join('/'));
 };
@@ -451,6 +469,24 @@ const placeOf = (finding: Finding): Place => ({
   pointer: finding.pointer,
 });
 
+/** The operation of the new contract a decision is on: it was read from there. */
+const operationOf = (sides: Sides, decision: Decision): Operation => sides.newContract.operations.find((candidate) => candidate.id === decision.operation) as Operation;
+
+/** Where a decision was written, for a finding about it: the new document, at the operation that carries it. */
+const placeOfDecision = (sides: Sides, decision: Decision): Place => {
+  const operation = operationOf(sides, decision);
+  return {
+    operation: operation.id,
+    source: operation.source,
+    document: 'new',
+    ...(decision.payload === '' ? {} : { payload: decision.payload }),
+    direction: operation.payloads.find((payload) => payload.name === decision.payload)?.direction ?? 'request',
+    pointer: decision.pointer,
+  };
+};
+
+const wordsOfDecision = (decision: Decision): string => wordsFor(decision.operation, decision.payload, decision.pointer);
+
 interface Held {
   readonly findings: Finding[];
   /** The `x-change` decisions that let a breaking change through (R10 asks each for a version move). */
@@ -461,7 +497,7 @@ interface Held {
 const holdBreaking = (sides: Sides, comparison: Comparison): Held => {
   const held: Held = { findings: [], decidedBy: new Map() };
   for (const finding of comparison.findings.filter((candidate) => candidate.verdict === 'breaking')) {
-    const oldMember = { ...finding, operation: sides.oldIdOf.get(finding.operation) ?? finding.operation };
+    const oldMember = { ...finding, operation: (sides.oldOf.get(finding.operation) as Operation).id };
     if (inForce(sides.old, oldMember, carriedOut(sides.options.today)) !== undefined) continue;
     const decision = inForce(sides.nu, finding, hasChange);
     if (decision !== undefined) {
@@ -480,23 +516,8 @@ const holdBreaking = (sides: Sides, comparison: Comparison): Held => {
   return held;
 };
 
-/** Where a decision was written, for a finding about it: the new document, at the operation that carries it. */
-const placeOfDecision = (sides: Sides, decision: Decision): Place => {
-  const operation = sides.newContract.operations.find((candidate) => candidate.id === decision.operation) as Operation;
-  return {
-    operation: operation.id,
-    source: operation.source,
-    document: 'new',
-    ...(decision.payload === '' ? {} : { payload: decision.payload }),
-    direction: operation.payloads.find((payload) => payload.name === decision.payload)?.direction ?? 'request',
-    pointer: decision.pointer,
-  };
-};
-
-const wordsOfDecision = (decision: Decision): string => wordsFor(decision.operation, decision.payload, decision.pointer);
-
 /** Whether a change in the diff is at the member a decision is on, or inside it. */
-const covers = (decision: Decision, finding: Finding): boolean => {
+export const covers = (decision: Decision, finding: Finding): boolean => {
   if (finding.operation !== decision.operation) return false;
   if (decision.payload === '' || finding.payload === undefined) return true;
   return finding.payload === decision.payload && (decision.pointer === '' || finding.pointer === decision.pointer || finding.pointer.startsWith(`${decision.pointer}/`));
@@ -506,9 +527,7 @@ const covers = (decision: Decision, finding: Finding): boolean => {
 const holdStale = (sides: Sides, comparison: Comparison): Finding[] =>
   [...sides.nu.decisions.values()]
     .filter((decision) => decision.change !== undefined && !comparison.findings.some((finding) => covers(decision, finding)))
-    .filter(
-      (decision) => sides.old.decisions.get(keyOf(sides.oldIdOf.get(decision.operation) ?? decision.operation, decision.payload, decision.pointer))?.change !== decision.change,
-    )
+    .filter((decision) => sides.old.decisions.get(keyOf((sides.oldOf.get(decision.operation) as Operation).id, decision.payload, decision.pointer))?.change !== decision.change)
     .map((decision) =>
       decisionFinding(sides.options.level, 'stale', placeOfDecision(sides, decision), {
         before: undefined,
@@ -520,6 +539,7 @@ const holdStale = (sides: Sides, comparison: Comparison): Finding[] =>
 /** R7: a sunset date before today on a member that is still in the contract. */
 const holdOverdue = (sides: Sides): Finding[] =>
   [...sides.nu.decisions.values()]
+    // Stryker disable next-line ConditionalExpression: equivalent, `undefined < today` is false whichever way the first test goes
     .filter((decision) => decision.sunset !== undefined && decision.sunset < sides.options.today)
     .map((decision) =>
       decisionFinding(sides.options.level, 'overdue', placeOfDecision(sides, decision), {
@@ -530,7 +550,7 @@ const holdOverdue = (sides: Sides): Finding[] =>
     );
 
 /** The member a decision's `x-replaced-by` names: a sibling by name, or a JSON Pointer from the member's parent. */
-const replacementKey = (decision: Decision): string => {
+export const replacementKey = (decision: Decision): string => {
   const value = decision.replacedBy as string;
   if (decision.payload === '') return keyOf(value, '', '');
   if (decision.pointer === '')
@@ -552,30 +572,18 @@ const holdReplacements = (sides: Sides): Finding[] =>
       }),
     );
 
-/** A `/v3/` or `/v3` segment of a path: its number. */
-const MAJOR_SEGMENT = /\/v(?<major>\d+)(?=\/|$)/;
+/** The major in a `/v3/` segment of the path an operation is declared under, from its `source` (`#/paths/~1v3~1wallet/get`). */
+export const segmentOf = (operation: Operation): string | undefined => /^#\/(?:paths|webhooks)\/[^/]*?~1v(?<major>\d+)(?=~1|\/|$)/.exec(operation.source)?.groups?.major;
 
-/** The path an OpenAPI operation is declared under, from its `source` pointer. */
-const pathOf = (operation: Operation | undefined): string =>
-  /^#\/(?:paths|webhooks)\/(?<path>[^/]+)\//
-    .exec(operation?.source ?? '')
-    ?.groups?.path?.replaceAll('~1', '/')
-    .replaceAll('~0', '~') ?? '';
+const infoVersion = (contract: Contract): unknown => (isDict(contract.document) && isDict(contract.document.info) ? contract.document.info.version : undefined);
 
-const infoVersion = (contract: Contract): string | undefined => {
-  const version = isDict(contract.document) && isDict(contract.document.info) ? contract.document.info.version : undefined;
-  return typeof version === 'string' || typeof version === 'number' ? String(version) : undefined;
-};
-
-const majorOf = (version: string | undefined): string | undefined => /^v?(?<major>\d+)/.exec(version ?? '')?.groups?.major;
+/** The major of a version: `4.0.0`, `v4`, or the number `4`. */
+export const majorOf = (version: unknown): string | undefined => /^v?(?<major>\d+)/.exec(String(version))?.groups?.major;
 
 /** R10: the operation's path gained a new major segment, or `info.version`'s major moved, or `--changeset` writes the bump. */
 const versionMoved = (sides: Sides, decision: Decision): boolean => {
-  if (sides.options.changeset === true) return true;
-  const [before, after] = [sides.oldIdOf.get(decision.operation) ?? decision.operation, decision.operation].map((id, index) =>
-    (index === 0 ? sides.oldContract : sides.newContract).operations.find((operation) => operation.id === id),
-  );
-  const [was, is] = [pathOf(before), pathOf(after)].map((path) => MAJOR_SEGMENT.exec(path)?.groups?.major);
+  if (sides.options.changeset) return true;
+  const [was, is] = [segmentOf(sides.oldOf.get(decision.operation) as Operation), segmentOf(operationOf(sides, decision))];
   const [oldMajor, newMajor] = [majorOf(infoVersion(sides.oldContract)), majorOf(infoVersion(sides.newContract))];
   return (is !== undefined && is !== was) || (oldMajor !== undefined && newMajor !== undefined && oldMajor !== newMajor);
 };
@@ -598,10 +606,10 @@ const holdVersions = (sides: Sides, decidedBy: ReadonlyMap<string, Decision>): F
  * marker carried over (R6). Returns every decision finding, graded at `options.level`.
  */
 export const checkDecisions = (old: Contract, nu: Contract, comparison: Comparison, options: DecisionOptions): Finding[] => {
-  const oldIdOf = new Map(pair(old.operations, nu.operations).flatMap(([before, after]) => (before === undefined ? [] : [[(after ?? before).id, before.id] as const])));
-  const sides: Sides = { old: readDecisions(old, options.level), nu: readDecisions(nu, options.level), oldContract: old, newContract: nu, oldIdOf, options };
+  const oldOf = new Map(pair(old.operations, nu.operations).map(([before, after]) => [((after ?? before) as Operation).id, (before ?? after) as Operation] as const));
+  const sides: Sides = { old: readDecisions(old, options.level), nu: readDecisions(nu, options.level), oldContract: old, newContract: nu, oldOf, options };
   const held = holdBreaking(sides, comparison);
-  return sorted([
+  return unique([
     ...sides.nu.problems,
     ...held.findings,
     ...holdStale(sides, comparison),

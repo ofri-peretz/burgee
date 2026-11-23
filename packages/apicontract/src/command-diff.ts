@@ -146,7 +146,7 @@ const decisionLines = (decisions: readonly Finding[]): string[] => {
 export const toText = (comparison: Comparison, old: string, nu: string): string => {
   const { summary, mode, side } = comparison;
   const decisions = comparison.decisions ?? [];
-  if (comparison.findings.length === 0) return decisions.length === 0 ? `no changes between ${old} and ${nu}` : [`no changes between ${old} and ${nu}`, ...decisionLines(decisions)].join('\n');
+  if (comparison.findings.length === 0) return [`no changes between ${old} and ${nu}`, ...decisionLines(decisions)].join('\n');
   const lines = [
     `${comparison.verdict}: ${String(summary.breaking)} breaking, ${String(summary.unknown)} unknown, ${String(summary['non-breaking'])} non-breaking (--mode ${mode} --side ${side})`,
   ];
@@ -195,11 +195,8 @@ const DATE_LENGTH = 10;
  * read as one, sets nothing: it is history this run cannot fix, and the next source down answers.
  */
 const settingAt = (ref: string, cwd: string, git: GitReader): DecisionSetting | undefined => {
-  try {
-    return decisionSettingOf(git(ref, CONFIG, cwd), `git:${ref}:${CONFIG}`);
-  } catch {
-    return undefined;
-  }
+  // Stryker disable next-line BlockStatement: equivalent, an empty handler leaves the function returning the same undefined
+  try { return decisionSettingOf(git(ref, CONFIG, cwd), CONFIG); } catch { return undefined; }
 };
 
 /**
@@ -209,10 +206,11 @@ const settingAt = (ref: string, cwd: string, git: GitReader): DecisionSetting | 
  */
 const settingFor = (options: DiffOptions, git: GitReader): DecisionSetting => {
   if (options.decisions !== undefined) return options.decisions;
-  const ref = GIT.exec(options.old)?.groups?.ref;
+  const { ref } = (GIT.exec(options.old)?.groups ?? {}) as { ref?: string };
   const atBase = ref === undefined ? undefined : settingAt(ref, options.cwd, git);
   const file = resolve(options.cwd, CONFIG);
-  return atBase ?? (existsSync(file) ? decisionSettingOf(readFileSync(file, 'utf8'), CONFIG) : undefined) ?? 'warn';
+  // Stryker disable next-line StringLiteral: equivalent, a level that is neither `error` nor `off` grades as `warn`
+  return atBase ?? (existsSync(file) ? decisionSettingOf(String(readFileSync(file)), CONFIG) : undefined) ?? 'warn';
 };
 
 /** The date sunsets are judged against: the one given, checked, or today's UTC date. */

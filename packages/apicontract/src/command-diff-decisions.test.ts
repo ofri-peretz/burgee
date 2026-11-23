@@ -1,3 +1,4 @@
+/* eslint-disable maintainability/consistent-function-scoping -- a test's helpers sit beside the case they serve */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -231,10 +232,20 @@ describe('the setting comes from the base ref (R12)', () => {
 
 describe('diff.decisions in apicontract.config.json', () => {
   it('is a documented setting of the schema, and validated with the rest of the config', () => {
-    expect(configSchema.properties.diff.properties.decisions.enum).toEqual(['warn', 'error', 'off']);
+    expect(configSchema.properties.diff).toStrictEqual({
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        decisions: {
+          enum: ['warn', 'error', 'off'],
+          description:
+            "How `apicontract diff` holds a change to the decision written in the contract. The base ref's value wins over the working tree's; `--decisions` wins over both",
+        },
+      },
+    });
     expect(validateConfig({ diff: { decisions: 'error' } }, '/p/apicontract.config.json').diff).toEqual({ decisions: 'error' });
     expect(validateConfig({}, '/p/apicontract.config.json')).not.toHaveProperty('diff');
-    expect(validateConfig({ diff: {} }, '/p/apicontract.config.json').diff).toEqual({});
+    expect(validateConfig({ diff: {} }, '/p/apicontract.config.json').diff).toStrictEqual({});
   });
 
   it('reports every problem with it, with its fix', () => {
@@ -246,6 +257,10 @@ describe('diff.decisions in apicontract.config.json', () => {
       ].join('\n'),
     );
     expect(() => validateConfig({ diff: 'warn' }, '/p/apicontract.config.json')).toThrow('`diff` must be an object. fix: write `{ "decisions": "warn" }`');
+  });
+
+  it('refuses a config that is not JSON, naming the file', () => {
+    expect(() => decisionSettingOf('{', 'c.json')).toThrow(/^c\.json cannot be used:\n {2}- it is not JSON \(.+\)\. fix: correct the JSON, or validate it against `configSchema`$/);
   });
 
   it('is read on its own from a config this build may not otherwise know', () => {
@@ -307,5 +322,59 @@ describe('the text and SARIF of a comparison that has no decisions field', () =>
     const comparison = compareContracts(read(parse(readFileSync(at('base'), 'utf8'))), read(parse(readFileSync(at('base'), 'utf8'))));
     expect(toText(comparison, 'a', 'b')).toBe('no changes between a and b');
     expect(toSarif(comparison, { file: 'a' }, { file: 'b' })).toMatchObject({ runs: [{ results: [] }] });
+  });
+});
+
+describe('the text of a comparison with decisions', () => {
+  const finding = (verdict: 'unknown' | 'breaking'): Finding => ({
+    id: 'ac-decision-stale',
+    scheme: 'apicontract',
+    verdict,
+    effect: 'neutral',
+    operation: 'getBalance',
+    source: '#/paths/~1v3~1wallet/get',
+    document: 'new',
+    direction: 'response',
+    pointer: '/properties/note',
+    before: undefined,
+    after: 'ADR-7',
+    fix: 'remove it',
+  });
+  const empty = compareContracts(read(parse(readFileSync(at('base'), 'utf8'))), read(parse(readFileSync(at('base'), 'utf8'))));
+
+  it('lists them after the changes, at the level they were graded', () => {
+    expect(toText({ ...empty, decisions: [finding('unknown')] }, 'a', 'b')).toBe(
+      [
+        'no changes between a and b',
+        '',
+        'decisions: 1 (--decisions warn)',
+        '  warn          ac-decision-stale  getBalance  /properties/note  - -> "ADR-7"',
+        '                fix: remove it',
+      ].join('\n'),
+    );
+    expect(toText({ ...empty, decisions: [finding('breaking'), finding('breaking')] }, 'a', 'b')).toContain('decisions: 2 (--decisions error)\n  error         ac-decision-stale');
+  });
+
+  it('follows the changes when there are some', () => {
+    const [old, nu] = ['base', 'undecided'].map((name) => read(parse(readFileSync(at(name), 'utf8'))));
+    const comparison = { ...compareContracts(old as Contract, nu as Contract), decisions: [finding('unknown')] };
+    const lines = toText(comparison, 'a', 'b').split('\n');
+    expect(lines.slice(-4)).toEqual([
+      '',
+      'decisions: 1 (--decisions warn)',
+      '  warn          ac-decision-stale  getBalance  /properties/note  - -> "ADR-7"',
+      '                fix: remove it',
+    ]);
+    expect(lines[0]).toMatch(/^breaking: 1 breaking/);
+  });
+});
+
+describe('--changeset moves the version for a decided breaking change (R10)', () => {
+  it('is no decision-unversioned with a changeset, and is one without', () => {
+    const dir = makeDir('apicontract-diff-decisions-');
+    const without = diff({ cwd: dir, old: at('base'), new: at('decided'), today: '2027-01-01' });
+    expect(decisionsOf(without).map((finding) => finding.id)).toEqual(['ac-decision-unversioned']);
+    const withSet = diff({ cwd: dir, old: at('base'), new: at('decided'), today: '2027-01-01', changeset: 'apicontract' });
+    expect(decisionsOf(withSet)).toEqual([]);
   });
 });
