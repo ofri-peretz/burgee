@@ -3,7 +3,7 @@
  * contract, run against apicontract's own validator, normaliser and classifier, with no server.
  * Exit 1 on any counterexample, printed with the seed that replays it and the smallest value found.
  */
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
 import { defineCommand, ExitCode } from 'burgee';
@@ -45,7 +45,7 @@ const cut = (value: unknown): string => {
 
 const line = (found: Counterexample): string[] => [`  ${found.property}  ${found.operation} ${found.payload}: ${found.detail}`, `    value: ${cut(found.value)}`];
 
-export const toText = (report: Report, label: string, emitted: string | undefined): string => {
+export const toText = (report: Report, label: string, emitted: string | undefined, wrote: boolean): string => {
   const lines = [`${report.counterexamples.length === 0 ? 'ok' : 'failed'}: ${label}, ${String(report.runs)} run(s) per payload, seed ${String(report.seed)}`];
   for (const property of PROPERTIES) {
     const { checked, discarded, failed } = report.tallies[property];
@@ -57,7 +57,7 @@ export const toText = (report: Report, label: string, emitted: string | undefine
     for (const { keyword, at } of report.reported) lines.push(`  ${keyword}  ${at.slice(0, NAMED).join(', ')}${at.length > NAMED ? ` and ${String(at.length - NAMED)} more` : ''}`);
   }
   if (report.skipped.length > 0) lines.push('', 'not checked:', ...report.skipped.map((skipped) => `  ${skipped.operation} ${skipped.payload}: ${skipped.reason}`));
-  if (emitted !== undefined) lines.push('', `arbitraries written to ${emitted}`);
+  if (emitted !== undefined) lines.push('', wrote ? `arbitraries written to ${emitted}` : `arbitraries in ${emitted} already up to date`);
   return lines.join('\n');
 };
 
@@ -66,10 +66,16 @@ export const props = (options: PropsCommandOptions): Record<string | symbol, unk
   const side = readContract(options.contract, options.cwd, git);
   const against = options.against === undefined ? undefined : readContract(options.against, options.cwd, git).contract;
   const report = runProps(side.contract, { runs: options.runs, seed: options.seed, against, mode: options.mode, side: options.side, subject: options.subject });
+  let wrote = false;
   if (options.emit !== undefined) {
     const file = resolve(options.cwd, options.emit);
-    mkdirSync(dirname(file), { recursive: true });
-    writeFileSync(file, emitArbitraries(side.contract, side.label).text);
+    const text = emitArbitraries(side.contract, side.label).text;
+    // burgee N7: an idempotent command says whether it changed anything, so a module already as emitted is left alone.
+    wrote = !existsSync(file) || readFileSync(file, 'utf8') !== text;
+    if (wrote) {
+      mkdirSync(dirname(file), { recursive: true });
+      writeFileSync(file, text);
+    }
   }
   const failed = report.counterexamples.length > 0;
   const data: Record<string | symbol, unknown> = {
@@ -77,11 +83,10 @@ export const props = (options: PropsCommandOptions): Record<string | symbol, unk
     contract: side.label,
     ...(options.against === undefined ? {} : { against: options.against }),
     ...(options.emit === undefined ? {} : { emitted: options.emit }),
-    // burgee N7: an idempotent command says whether it changed anything; only --emit writes.
-    changed: options.emit !== undefined,
+    changed: wrote,
     ...(failed ? { exitCode: ExitCode.RUNTIME, fix: `each counterexample is a bug in the code its property names: replay it with --seed ${String(report.seed)}` } : {}),
   };
-  data[TEXT] = () => toText(report, side.label, options.emit);
+  data[TEXT] = () => toText(report, side.label, options.emit, wrote);
   return data;
 };
 

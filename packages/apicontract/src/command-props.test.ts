@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -84,6 +84,20 @@ describe('apicontract props, through burgee', () => {
     expect(readFileSync(join(dir, 'test/arbitraries.mjs'), 'utf8')).toContain("import fc from 'fast-check';");
     expect(text(data)).toMatch(/\n\narbitraries written to test\/arbitraries\.mjs$/);
   });
+
+  it('leaves an emitted module that is already up to date alone, and says nothing changed', () => {
+    const dir = makeDir('apicontract-props-');
+    props({ cwd: dir, contract: NEW, runs: 0, seed: 1, emit: 'arbitraries.mjs' });
+    const file = join(dir, 'arbitraries.mjs');
+    const before = statSync(file).mtimeMs;
+    const again = props({ cwd: dir, contract: NEW, runs: 0, seed: 1, emit: 'arbitraries.mjs' });
+    expect(again).toMatchObject({ emitted: 'arbitraries.mjs', changed: false });
+    expect(statSync(file).mtimeMs).toBe(before);
+    expect(text(again)).toMatch(/\n\narbitraries in arbitraries\.mjs already up to date$/);
+    writeFileSync(file, 'stale');
+    expect(props({ cwd: dir, contract: NEW, runs: 0, seed: 1, emit: 'arbitraries.mjs' })).toMatchObject({ changed: true });
+    expect(readFileSync(file, 'utf8')).toContain("import fc from 'fast-check';");
+  });
 });
 
 describe('props, with no bug', () => {
@@ -138,12 +152,12 @@ describe('toText', () => {
       skipped: [{ operation: 'op', payload: 'body', reason: 'why' }],
       counterexamples: [{ property: 'agreement' as const, operation: 'op', payload: 'body', value: 'x'.repeat(400), detail: 'd' }],
     };
-    const shown = toText(report, 'c.yaml', undefined);
+    const shown = toText(report, 'c.yaml', undefined, false);
     expect(shown).toContain('\n  pattern  /a, /b, /c and 2 more\n  not  /\n');
     expect(shown).toContain('\n\nnot checked:\n  op body: why');
     expect(shown).toContain(`value: "${'x'.repeat(299)}…`);
-    expect(toText({ ...report, counterexamples: [{ ...report.counterexamples[0]!, value: 'x'.repeat(298) }] }, 'c.yaml', undefined)).toContain(`value: "${'x'.repeat(298)}"\n`);
-    expect(toText({ ...report, reported: [{ keyword: 'pattern', at: ['/a', '/b', '/c'] }] }, 'c.yaml', undefined)).toContain('\n\nvalues made without these keywords, and kept only where the validator accepted them:\n  pattern  /a, /b, /c\n');
-    expect(toText({ ...report, counterexamples: [{ ...report.counterexamples[0]!, value: undefined }] }, 'c.yaml', undefined)).toContain('value: undefined');
+    expect(toText({ ...report, counterexamples: [{ ...report.counterexamples[0]!, value: 'x'.repeat(298) }] }, 'c.yaml', undefined, false)).toContain(`value: "${'x'.repeat(298)}"\n`);
+    expect(toText({ ...report, reported: [{ keyword: 'pattern', at: ['/a', '/b', '/c'] }] }, 'c.yaml', undefined, false)).toContain('\n\nvalues made without these keywords, and kept only where the validator accepted them:\n  pattern  /a, /b, /c\n');
+    expect(toText({ ...report, counterexamples: [{ ...report.counterexamples[0]!, value: undefined }] }, 'c.yaml', undefined, false)).toContain('value: undefined');
   });
 });
