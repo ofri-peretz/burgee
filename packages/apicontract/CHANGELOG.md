@@ -1,5 +1,17 @@
 # apicontract
 
+## 0.2.0
+
+### Minor Changes
+
+- [#1732](https://github.com/ofri-peretz/burgee/pull/1732) [`094be08`](https://github.com/ofri-peretz/burgee/commit/094be08f2acf0c8b2d603fbe55105e246eb2eaab) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `apicontract props <contract>`: property tests drawn from the contract, with no server. Values are made from each payload's JSON Schema by a generator written apart from the validator, and four properties are checked: the validator accepts every value made and refuses each with one constraint broken, at the place broken; values survive JSON and back; `normalise` is idempotent and accepts what the schema accepts; and, with `--against <old>`, every payload the classifier calls compatible passes the receiver for any value the sender may send. Runs replay from the printed `--seed`, counterexamples are shrunk, keywords the generator does not hold to are reported, and `--emit <file>` writes fast-check arbitraries for a consumer's own tests.
+
+### Patch Changes
+
+- Updated dependencies [[`2c0b40e`](https://github.com/ofri-peretz/burgee/commit/2c0b40eb01d0243609a6d23a5740161be5f20fbf), [`2c0b40e`](https://github.com/ofri-peretz/burgee/commit/2c0b40eb01d0243609a6d23a5740161be5f20fbf), [`6a69ea5`](https://github.com/ofri-peretz/burgee/commit/6a69ea56bd6900cb4610b56e703c90092fed4aaf)]:
+  - bellpull@2.0.3
+  - burgee@2.2.0
+
 ## 0.1.0
 
 ### Minor Changes
