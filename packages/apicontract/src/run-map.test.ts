@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { digest } from './run-header.js';
-import { emptyMap, MAP_FILE, parseMap, recordedFor, serializeMap, updateMap } from './run-map.js';
+import { emptyMap, handlersOf, MAP_FILE, parseMap, recordedFor, serializeMap, updateMap } from './run-map.js';
 
 const refusal = (attempt: () => unknown): { message: string; code: unknown } => {
   try {
@@ -63,7 +63,7 @@ describe('updateMap', () => {
             addPet: [{ file: 'gen/z.ts', symbol: 'AddPet', target: 'types' }],
             listPets: [
               { file: 'gen/b.ts', symbol: 'A', target: 'types' },
-              { file: 'gen/user.ts', symbol: 'Handler', target: 'types' },
+              { file: 'gen/user.ts', symbol: 'Handler', target: 'types', owner: 'user' },
               { file: 'gen/z.ts', symbol: 'ListPets', target: 'types' },
               { file: 'v.ts', symbol: 'listPets', target: 'validator' },
             ],
@@ -93,5 +93,22 @@ describe('recordedFor', () => {
   it('returns the hashes of the given targets only', () => {
     const map = { version: 1 as const, operations: {}, files: { 'a.ts': { target: 'a', sha: '1' }, 'b.ts': { target: 'b', sha: '2' }, 'c.ts': { target: 'c', sha: '3' } } };
     expect([...recordedFor(map, ['a', 'c'])]).toEqual([['a.ts', '1'], ['c.ts', '3']]);
+  });
+});
+
+describe('handlersOf', () => {
+  it('is the symbols the user owns for an operation, and none for an operation the map does not have', () => {
+    const map = updateMap(emptyMap(), [
+      {
+        target: 'nest',
+        files: [
+          { path: 'pets.controller.base.ts', content: 'B', owner: 'generated', symbols: [{ operation: 'listPets', symbol: 'PetsControllerBase' }] },
+          { path: 'pets.controller.ts', content: 'U', owner: 'user', symbols: [{ operation: 'listPets', symbol: 'PetsController.listPets' }] },
+        ],
+      },
+    ]);
+    expect(handlersOf(map, 'listPets')).toStrictEqual([{ file: 'pets.controller.ts', symbol: 'PetsController.listPets', target: 'nest', owner: 'user' }]);
+    expect(handlersOf(map, 'nope')).toStrictEqual([]);
+    expect(handlersOf(map, 'toString')).toStrictEqual([]);
   });
 });

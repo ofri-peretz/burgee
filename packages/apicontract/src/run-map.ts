@@ -17,6 +17,11 @@ export interface MapEntry {
   readonly file: string;
   readonly symbol: string;
   readonly target: string;
+  /**
+   * `user` for the symbol the user owns that implements the operation (R-BL1): a method of the
+   * controller class or a member of the handlers object a target wrote once. Absent for a generated one.
+   */
+  readonly owner?: 'user';
 }
 
 export interface MapFile {
@@ -88,12 +93,17 @@ export const updateMap = (previous: ContractMap, produced: readonly Produced[]):
   for (const { target, files: written } of produced) {
     for (const file of written) {
       if (file.owner === 'generated') files.set(file.path, { target, sha: digest(file.content) });
-      for (const { operation, symbol } of file.symbols ?? []) add(operation, [{ file: file.path, symbol, target }]);
+      const owned = file.owner === 'user' ? { owner: 'user' as const } : {};
+      for (const { operation, symbol } of file.symbols ?? []) add(operation, [{ file: file.path, symbol, target, ...owned }]);
     }
   }
   const kept = [...operations].filter(([, entries]) => entries.length > 0).map(([id, entries]): [string, MapEntry[]] => [id, entries.toSorted(byTargetFileSymbol)]);
   return { version: 1, operations: sorted(kept), files: sorted(files) };
 };
+
+/** The symbols the user owns that implement an operation: what a rule on code reads (apicontract-lint R14). */
+export const handlersOf = (map: ContractMap, operation: string): MapEntry[] =>
+  (new Map(Object.entries(map.operations)).get(operation) ?? []).filter((entry) => entry.owner === 'user');
 
 /** The bytes the map is written as. */
 export const serializeMap = (map: ContractMap): string => `${JSON.stringify(map, undefined, 2)}\n`;
