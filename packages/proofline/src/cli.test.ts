@@ -410,6 +410,7 @@ describe('intent check', () => {
       'r/intent.md': INTENT('review', '| Criterion | Command | Output |\n| - | - | - |\n| C1 | `exit 9` | x |'),
     });
     const r = await json(dir, ['intent', 'check', '--evidence', '--command-timeout', '30']);
+    expect(r.error).toBeUndefined();
     expect(r.code).toBe(1);
     expect(r.data['reruns']).toEqual([
       {
