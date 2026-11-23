@@ -87,7 +87,10 @@ const DAY = 86_400_000;
 /** The moment a rule must have been in the ruleset since to run at its own level: `now` less `warnFor`. */
 export const cutoffOf = (warnFor: string, now: Date): Date => new Date(now.getTime() - Number(WARN_FOR.exec(warnFor)?.[1]) * DAY);
 
-/** The rules at `error` that did not run at the cutoff: they warn first (R10). */
+/**
+ * The rules at `error` that did not run at the cutoff: they warn first (R10). A rule that ran at
+ * `warn` then is not new, so moving it to `error` takes effect at once: its findings were already shown.
+ */
 export const newRulesOf = (levels: Readonly<Record<string, Level>>, then: Readonly<Record<string, Level>>): string[] => {
   const before = new Map(Object.entries(then));
   return Object.entries(levels).flatMap(([id, level]) => (level === 'error' && (before.get(id) ?? 'off') === 'off' ? [id] : []));
@@ -141,7 +144,7 @@ const sourcesAt = async (git: LintGit, commit: string, config: { readonly file: 
     } catch (error) {
       throw new ConfigError(where, [`it is not JSON (${(error as Error).message}). fix: correct it in a commit, or pass a later ref`]);
     }
-    lint = validateConfig(value, config.file).lint;
+    lint = validateConfig(value, where).lint;
   }
   const names = (flagged ?? lint?.extends ?? DEFAULT_RULESETS).filter((name) => RULESET_FILE.test(name));
   const texts = new Map(await Promise.all(names.map(async (name) => [name, await git.show(commit, name)] as const)));

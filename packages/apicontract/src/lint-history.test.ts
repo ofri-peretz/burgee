@@ -149,7 +149,7 @@ describe('--rules-from (R11)', () => {
       '`lint.extends` names .spectral.yaml, which cannot be read (it is not in commit abc1234). fix: correct its path',
     );
     const invalid = planted({ commits: { [BASE]: { 'apicontract.config.json': JSON.stringify({ lint: { rules: { [SLASH]: 'fatal' } } }) } } });
-    await expect(lintIn({}, invalid, { rulesFrom: BASE })).rejects.toThrow('`lint.rules` must map rule ids');
+    await expect(lintIn({}, invalid, { rulesFrom: BASE })).rejects.toThrow(/^apicontract\.config\.json at abc1234 cannot be used:\n {2}- `lint\.rules` must map rule ids/u);
   });
 });
 
