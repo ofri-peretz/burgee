@@ -232,16 +232,14 @@ export const FULL = 6;
 /** What the engine, tar, npm or the kernel say when a disk has no room. */
 const DISK_FULL = /no space left on device|ENOSPC|disk quota exceeded/iu;
 
-/**
- * The one line a full disk gives: the engine's disk (Docker Desktop's or the Podman machine's image
- * holds every volume), or the host's own temporary directory, and what frees it.
- */
-export const fullDisk = (what: string, engine: string, where: 'engine' | 'host' = 'engine'): string => {
+/** The one line a full engine disk gives: the engine's disk (Docker Desktop's or the Podman machine's image holds every volume), and what frees it. */
+export const fullDisk = (what: string, engine: string): string => {
   const base = path.basename(engine).startsWith('podman') ? 'podman' : 'docker';
-  return where === 'host'
-    ? `${what}: the host's disk is full (${tmpdir()} holds the run's staging). fix: free space there, or set TMPDIR to a disk with room`
-    : `${what}: the engine's disk is full. fix: run \`oxmutate prune\` to remove oxmutate's volumes and \`${base} system prune\` for the rest, or give Docker Desktop or the Podman machine a bigger disk (\`podman machine set --disk-size\`)`;
+  return `${what}: the engine's disk is full. fix: run \`oxmutate prune\` to remove oxmutate's volumes and \`${base} system prune\` for the rest, or give Docker Desktop or the Podman machine a bigger disk (\`podman machine set --disk-size\`)`;
 };
+
+/** The one line a full host disk gives: the temporary directory that holds the run's staging. */
+export const fullHostDisk = (what: string): string => `${what}: the host's disk is full (${tmpdir()} holds the run's staging). fix: free space there, or set TMPDIR to a disk with room`;
 
 
 /** A git ref the run names (`--since`, `--frozen-oracle`), the commit it is, and the tag it becomes inside. */
@@ -474,7 +472,7 @@ async function pack({ spawn, top, io, host }: Host, sync: Sending, listing: read
     writeFileSync(path.join(io, 'files'), send.join('\0'));
     // The archive is named relative to `io`: GNU tar (Git Bash's on Windows) reads `C:/…` as a remote host.
     const tar = await spawn('tar', ['-cf', 'in.tar', ...tarFlags(host), '-C', top, '--null', '-T', path.join(io, 'files')], { cwd: io, runtime, timeout: 0 });
-    if (tar.code !== 0) throw new Error(DISK_FULL.test(tar.stderr) ? fullDisk(`tar could not pack ${top}`, '', 'host') : `tar could not pack ${top}: ${tar.stderr.trim()}. fix: check the tar error above and that every listed file is readable`);
+    if (tar.code !== 0) throw new Error(DISK_FULL.test(tar.stderr) ? fullHostDisk(`tar could not pack ${top}`) : `tar could not pack ${top}: ${tar.stderr.trim()}. fix: check the tar error above and that every listed file is readable`);
     files.push([path.join(io, 'in.tar'), `${WORK}/in.tar`]);
   }
   if (sync.mode === 'whole') {
@@ -528,7 +526,7 @@ async function copyBack({ engine, name, back, keep, io, top }: { engine: Engine;
           mkdirSync(path.dirname(path.join(top, file)), { recursive: true });
           copyFileSync(staged, path.join(top, file));
         } catch (e) {
-          if ((e as NodeJS.ErrnoException).code === 'ENOSPC') throw new Error(fullDisk(`${file} could not be written to ${top}`, name, 'host'));
+          if ((e as NodeJS.ErrnoException).code === 'ENOSPC') throw new Error(fullHostDisk(`${file} could not be written to ${top}`));
           throw e;
         }
       }),
@@ -604,7 +602,7 @@ async function syncVolume(h: Host & { engine: Engine; c: Container; plan: (sync:
 }
 
 /** The one line a failed sync or install gives: what its output above most often means, and what to set. */
-export const installFailed = (code: number | null, engine = 'docker'): string =>
+export const installFailed = (code: number | null, engine: string): string =>
   code === FULL ? fullDisk(`the sync into the container or its install failed (exit ${String(code)})`, engine) : `the sync into the container or its install failed (exit ${String(code)}); its output is above. fix: for "out of date" or "frozen", update the lockfile on the host (npm, pnpm or yarn install) and commit it; for 401, 403 or 404, log in to the registry on the host (~/.npmrc, ~/.yarnrc.yml; container.installEnv for a token variable); otherwise set container.install, or container.image to one with what the install needs`;
 
 /** How often a run waiting for the volume asks again, and how many times before it gives up (10 minutes). */

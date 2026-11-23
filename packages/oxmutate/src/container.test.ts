@@ -10,7 +10,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vites
 
 import { discard } from './__fixtures__/scratch-dir.js';
 import { MAX_DELETES, planSync, PRUNE, readState, signatures, syncDir, type SyncPlan, writeState } from './container-sync.js';
-import { type Container, containerDefaults, containerOf, containerPlan, defaultInstall, engineOf, FULL, FULL_TRAP, fullDisk, installFailed, machineDefault, MIN_FREE_KIB, pruneContainers, RESYNC, runInContainer, tarFlags, VERSION, withFlags, withoutContainerFlags, withRuntime } from './container.js';
+import { type Container, containerDefaults, containerOf, containerPlan, defaultInstall, engineOf, FULL, FULL_TRAP, fullDisk, fullHostDisk, installFailed, machineDefault, MIN_FREE_KIB, pruneContainers, RESYNC, runInContainer, tarFlags, VERSION, withFlags, withoutContainerFlags, withRuntime } from './container.js';
 import { nodeMajor } from './runtime.js';
 
 // The home directory a case may move (os.homedir() does not follow HOME inside every test runner).
@@ -24,13 +24,13 @@ vi.mock('node:os', async (original) => {
 const withoutGit = (): NodeJS.ProcessEnv => Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')));
 
 // A copy to the host that finds the disk full (a case sets `full` to the file name that fails).
-const hostDisk = vi.hoisted((): { full: string | undefined } => ({ full: undefined }));
+const hostDisk = vi.hoisted((): { full: string | undefined; code: string } => ({ full: undefined, code: 'ENOSPC' }));
 vi.mock('node:fs', async (original) => {
   const fs = await original<typeof import('node:fs')>();
   return {
     ...fs,
     copyFileSync: (from: string, to: string, ...rest: [number?]): void => {
-      if (hostDisk.full !== undefined && to.endsWith(hostDisk.full)) throw Object.assign(new Error('ENOSPC: no space left on device, copyfile'), { code: 'ENOSPC' });
+      if (hostDisk.full !== undefined && to.endsWith(hostDisk.full)) throw Object.assign(new Error(`${hostDisk.code}: copyfile failed`), { code: hostDisk.code });
       fs.copyFileSync(from, to, ...rest);
     },
   };
@@ -1064,24 +1064,32 @@ describe('a full disk says what to free', () => {
     expect(f.verbs().at(-1)).toBe('create');
   });
 
+  it('keeps the engine’s own words, with its fix, for a volume that could not be created for another reason', async () => {
+    await expect(runInContainer({ ...C, volume: 'v' }, { root: top(), keep: [] }, [], { spawn: fake({ volumeSays: ' permission denied \n' }).spawn })).rejects.toThrow("the volume v could not be created: permission denied. fix: check the engine's own error, or set container.volume");
+  });
+
   it('says it for the host’s disk when a kept file cannot be written back', async () => {
     const f = fake({ out: fileURLToPath(import.meta.url) });
     const root = top();
     hostDisk.full = 'm.json';
     try {
-      await expect(runInContainer(C, { root, keep: [path.join(root, 'reports/m.json')] }, [], { spawn: f.spawn })).rejects.toThrow(/^reports\/m\.json could not be written to .+: the host's disk is full/u);
+      await expect(runInContainer(C, { root, keep: [path.join(root, 'reports/m.json')] }, [], { spawn: f.spawn })).rejects.toThrow(`${fullHostDisk(`reports/m.json could not be written to ${root}`)}`);
+      // Any other error on that copy is the host's own, said as it is.
+      hostDisk.code = 'EACCES';
+      await expect(runInContainer(C, { root, keep: [path.join(root, 'reports/m.json')] }, [], { spawn: f.spawn })).rejects.toThrow('EACCES: copyfile failed');
     } finally {
       hostDisk.full = undefined;
+      hostDisk.code = 'ENOSPC';
     }
   });
 
   it('says it for the host’s disk when tar cannot pack', async () => {
-    await expect(runInContainer(C, { root: top(), keep: [] }, [], { spawn: fake({ tarSays: 'tar: in.tar: Cannot write: No space left on device' }).spawn })).rejects.toThrow(/: the host's disk is full \(.+ holds the run's staging\)\. fix: free space there, or set TMPDIR to a disk with room$/u);
+    await expect(runInContainer(C, { root: top(), keep: [] }, [], { spawn: fake({ tarSays: 'tar: in.tar: Cannot write: No space left on device' }).spawn })).rejects.toThrow(new RegExp(`^${fullHostDisk('tar could not pack .+').replaceAll('(', '\\(').replaceAll(')', '\\)')}$`, 'u'));
   });
 
   it('tells a Podman short-name refusal to use a full image name, and keeps the engine’s own words', async () => {
     const said = 'Error: short-name resolution enforced but cannot prompt without a TTY';
-    await expect(runInContainer(C, { root: top(), keep: [] }, [], { spawn: fake({ createSays: said }).spawn })).rejects.toThrow(`the container could not be created: ${said}. fix: set container.image to a full name, such as docker.io/library/node:${String(nodeMajor)}-bookworm-slim`);
+    await expect(runInContainer(C, { root: top(), keep: [] }, [], { spawn: fake({ createSays: ` ${said}\n` }).spawn })).rejects.toThrow(`the container could not be created: ${said}. fix: set container.image to a full name, such as docker.io/library/node:${String(nodeMajor)}-bookworm-slim`);
   });
 
   it('keeps the old line, now with a fix, for a copy that failed for another reason', async () => {
@@ -1101,20 +1109,30 @@ describe('a full disk says what to free', () => {
       writeFileSync(file, ['set -e', FULL_TRAP, body].join('\n'));
       return spawnSync('sh', [file], { encoding: 'utf8', env: { ...process.env, PATH: `${bin}:${process.env['PATH'] ?? ''}` } }).status;
     };
-    df(MIN_FREE_KIB - 1);
+    expect(MIN_FREE_KIB).toBe(65536);
+    df(65535);
     expect(ran('exit 1')).toBe(FULL);
     expect(ran('true')).toBe(0);
     expect(ran(`exit ${String(RESYNC)}`)).toBe(RESYNC);
-    df(MIN_FREE_KIB);
+    df(65536);
     expect(ran('exit 1')).toBe(1);
     expect(ran('exit 3')).toBe(3);
   });
 
+  it('words the host’s line and attaches the sync container, as literals', async () => {
+    expect(fullHostDisk('x')).toBe(`x: the host's disk is full (${tmpdir()} holds the run's staging). fix: free space there, or set TMPDIR to a disk with room`);
+    const f = fake({});
+    await runInContainer(C, { root: top(), keep: [] }, [], { spawn: f.spawn });
+    expect(f.ofEngine().find((c) => c.args[0] === 'start')!.args).toEqual(['start', '-a', 'c1']);
+  });
+
   it('has a line of its own for FULL, and Podman’s own prune in it', () => {
     expect(installFailed(FULL, 'engine')).toBe(fullDisk('the sync into the container or its install failed (exit 6)', 'engine'));
-    expect(installFailed(FULL)).toContain('`docker system prune`');
+    expect(installFailed(FULL, 'docker')).toContain('`docker system prune`');
     expect(installFailed(FULL, '/usr/local/bin/podman')).toContain('`podman system prune`');
-    expect(installFailed(1)).toContain('its output is above');
+    expect(fullDisk('x', 'podman-remote')).toContain('`podman system prune`');
+    expect(fullDisk('x', '/opt/docker-podman')).toContain('`docker system prune`');
+    expect(installFailed(1, 'engine')).toContain('its output is above');
   });
 
   it('turns the exit code of a sync that ran out of room into that line', async () => {
