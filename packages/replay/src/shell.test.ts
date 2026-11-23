@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { ambientRuntime, run } from 'bellpull';
@@ -42,19 +42,26 @@ describe('sh', () => {
   });
 });
 
+// Every git process and every file it writes is slow where an endpoint scanner inspects each new
+// file: `git init` with its sample hooks and a worktree checkout took 17 to 22 s each on a starved
+// machine, and the single case that did all of it timed out the pre-push suite three times. So
+// a repository here has no template files, its commit is empty, and the error paths (which need a
+// repository, not a commit) run in a case of their own with their own budget.
 describe('worktreesIn and logOf', () => {
   it('adds a detached worktree at a ref, removes it, and reads the log', async () => {
     const repo = scratch('replay-repo-');
-    await git(repo, 'init', '-q', '-b', 'main');
-    writeFileSync(join(repo, 'a.txt'), 'one\n');
-    await git(repo, 'add', '.');
-    await git(repo, 'commit', '-qm', 'first (#1)');
-    const sha = await git(repo, 'rev-parse', 'HEAD');
-    const { dir, remove } = await worktreesIn(repo).add(sha);
-    expect(existsSync(join(dir, 'a.txt'))).toBe(true);
+    await git(repo, 'init', '-q', '--template=', '-b', 'main');
+    await git(repo, 'commit', '-q', '--allow-empty', '-m', 'first (#1)');
+    const { dir, remove } = await worktreesIn(repo).add('HEAD');
+    expect(existsSync(join(dir, '.git'))).toBe(true);
     await remove();
     expect(existsSync(dir)).toBe(false);
     expect(await logOf(repo, ['log', '--format=%s'])).toBe('first (#1)\n');
+  });
+
+  it('says what to do when the ref or the history is not there', async () => {
+    const repo = scratch('replay-repo-');
+    await git(repo, 'init', '-q', '--template=', '-b', 'main');
     await expect(worktreesIn(repo).add('nope')).rejects.toThrow(/^git worktree add --detach .+ nope failed: fatal: [^\n]+[^\s]\. fix: fetch the commit the case names$/);
     await expect(logOf(repo, ['log', 'nope'])).rejects.toThrow(/^git log nope failed: fatal: [\s\S]+[^\s]\. fix: run it inside a clone with history \(not a shallow one\)$/);
   });
