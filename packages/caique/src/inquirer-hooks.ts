@@ -144,6 +144,7 @@ export function withUpdates<Args extends unknown[], R>(fn: (...args: Args) => R)
  * newer request only has to find the slot already filled.
  */
 function scheduleDeferredPaint(store: Store, paint: () => void): void {
+  // Stryker disable next-line ConditionalExpression: a second microtask finds the slot the first one emptied and draws nothing, so skipping it only saves a no-op
   if (store.deferredPaint !== null) return;
   store.deferredPaint = AsyncResource.bind(paint);
   nativeQueueMicrotask(() => {
