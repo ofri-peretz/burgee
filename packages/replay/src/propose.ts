@@ -21,7 +21,8 @@ export interface Commit {
 export const LOG_ARGS = ['log', '--first-parent', '--shortstat', '--format=%x00%H%x09%P%x09%s%x09%b%x01'] as const;
 
 const PR_IN_SUBJECT = /\(#(\d+)\)$/;
-const REVERTED = /^Revert "(.*)"$/;
+/** A revert, pushed straight or squash-merged with its own pull request number after it. */
+const REVERTED = /^Revert "(.*)"(?: \(#\d+\))?$/;
 const FIXES = /\b(?:fixes|regressed in|introduced in|broken by|shipped in|since)\s+#(\d+)/i;
 const LINES = /(\d+) (?:insertion|deletion)/g;
 

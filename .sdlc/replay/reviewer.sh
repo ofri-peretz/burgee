@@ -4,7 +4,7 @@
 # its head, with REPLAY_BASE set, and prints the findings as a JSON array on stdout.
 #
 # REPLAY_REVIEWER sets the reviewer's command line (default `claude -p`); point it at the model CI
-# uses. A rule a base commit has no REVIEW.md or checklist for is simply absent from the prompt.
+# uses. It is split on spaces, so its words cannot be quoted or hold spaces. A rule a base commit has no REVIEW.md or checklist for is simply absent from the prompt.
 set -euo pipefail
 : "${REPLAY_BASE:?replay sets REPLAY_BASE; run this through replay run}"
 reviewer=${REPLAY_REVIEWER:-claude -p}

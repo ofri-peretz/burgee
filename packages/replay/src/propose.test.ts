@@ -16,7 +16,8 @@ describe('prOf', () => {
 describe('blamed', () => {
   it('names the pull request a revert undoes', () => {
     expect(blamed(commit('a', 'Revert "feat(x): y (#12)"', 1))).toEqual([12]);
-    expect(blamed(commit('a', 'Revert "feat(x): y (#12)" (#13)', 1))).toEqual([]);
+    expect(blamed(commit('a', 'Revert "feat(x): y (#12)" (#13)', 1))).toEqual([12]);
+    expect(blamed(commit('a', 'Revert "feat(x): y (#12)" (#13) more', 1))).toEqual([]);
     expect(blamed(commit('a', 'Revert "feat(x): y"', 1))).toEqual([]);
     expect(blamed(commit('a', 'chore: Revert "feat(x): y (#12)"', 1))).toEqual([]);
   });
@@ -57,7 +58,7 @@ describe('parseLog', () => {
 
 describe('propose', () => {
   const HISTORY: Commit[] = [
-    commit('r1aaaaaaaaaaaaa', 'Revert "feat: big (#10)"', 5),
+    commit('r1aaaaaaaaaaaaa', 'Revert "feat: big (#10)" (#43)', 5),
     commit('f1aaaaaaaaaaaaa', 'fix: thing (#30)', 4, 'Fixes #11'),
     commit('c1aaaaaaaaaaaaa', 'feat: clean small (#40)', 12),
     commit('c2aaaaaaaaaaaaa', 'feat: clean big (#41)', 95),

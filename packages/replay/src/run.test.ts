@@ -76,8 +76,12 @@ describe('replayCase', () => {
   });
 
   it('needs a model when the grader takes one, and not otherwise', async () => {
-    const { shell, worktrees } = fake({ review: { code: 0, stdout: JSON.stringify(FINDINGS.slice(0, 1)) } });
+    const { shell, worktrees, calls, trees } = fake({ review: { code: 0, stdout: JSON.stringify(FINDINGS.slice(0, 1)) } });
     await expect(replayCase({ shell, worktrees, config: CONFIG, model: undefined }, BUG)).rejects.toThrow('the grader command takes {model} and none was given. fix: pass --model with the cheapest current model, or set model in the replay config');
+    // Before anything runs, so the review is not paid for.
+    expect([calls, trees]).toEqual([[], []]);
+    const control = fake({ review: { code: 0, stdout: '[]' } });
+    expect((await replayCase({ shell: control.shell, worktrees: control.worktrees, config: CONFIG, model: undefined }, { ...BUG, kind: 'control', answer: undefined })).findings).toEqual([]);
     const fixed = fake({ review: { code: 0, stdout: JSON.stringify(FINDINGS.slice(0, 1)) }, 'grade fixed': { code: 0, stdout: 'yes' } });
     const result = await replayCase({ shell: fixed.shell, worktrees: fixed.worktrees, config: { ...CONFIG, grader: 'grade fixed', checks: [] }, model: undefined }, BUG);
     expect(result.findings[0]?.matches).toBe(true);

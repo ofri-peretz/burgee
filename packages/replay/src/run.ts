@@ -44,7 +44,6 @@ export interface Replayer {
 }
 
 const grade = async ({ shell, config, model }: Replayer, cwd: string, answer: string, findings: readonly Finding[]): Promise<{ graded: Graded[]; capped: boolean }> => {
-  if (model === undefined && config.grader.includes('{model}')) throw new Error('the grader command takes {model} and none was given. fix: pass --model with the cheapest current model, or set model in the replay config');
   const command = config.grader.replaceAll('{model}', String(model));
   const graded: Graded[] = [];
   for (const [index, finding] of findings.entries()) {
@@ -62,6 +61,10 @@ const grade = async ({ shell, config, model }: Replayer, cwd: string, answer: st
 
 export const replayCase = async (replayer: Replayer, found: Case): Promise<CaseResult> => {
   const { shell, config } = replayer;
+  // Before the reviewer runs: a run that cannot be graded should not pay for the review first.
+  if (found.answer !== undefined && replayer.model === undefined && config.grader.includes('{model}')) {
+    throw new Error('the grader command takes {model} and none was given. fix: pass --model with the cheapest current model, or set model in the replay config');
+  }
   const { dir, remove } = await replayer.worktrees.add(found.head);
   try {
     const env = { REPLAY_BASE: found.base, REPLAY_HEAD: found.head, REPLAY_PR: String(found.pr) };
