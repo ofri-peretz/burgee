@@ -46,7 +46,8 @@ export interface CompletionContext {
   /**
    * An option whose value failed coercion, as typed, and not in `options` (R2). A repeatable
    * option is coerced whole, so one bad element puts every value it was given here, joined by its
-   * separator (`--level 1 --level x` is `level: '1,x'`).
+   * separator (`--level 1 --level x` with `separator: ':'` is `level: '1:x'`), or by a newline
+   * when it declares `separator: false`, whose values may carry commas.
    */
   readonly raw: Readonly<Record<string, string>>;
 }

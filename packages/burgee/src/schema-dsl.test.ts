@@ -128,6 +128,7 @@ describe('a flag never consumes a value (S7, yargs #1532, #933)', () => {
 describe('repeatable options with a separator (S8, yargs #846, #1318)', () => {
   it('collects repetitions and splits on the separator, from flags and from env', async () => {
     expect(await data(['--env', 'dev', '--tags', 'a', '--tags', 'b,c'])).toMatchObject({ tags: ['a', 'b', 'c'] });
+    expect(await data(['--env', 'dev', '--tags', 'a,,b,'])).toMatchObject({ tags: ['a', 'b'] });
     expect(await data(['--env', 'dev', '--ports', '80:443'])).toMatchObject({ ports: [80, 443] });
     expect(await data(['--env', 'dev'], { APP_TAGS: 'x, y' })).toMatchObject({ tags: ['x', 'y'] });
     expect((await failure(['--env', 'dev', '--ports', '80:x'])).message).toMatch(/expects a number/);
