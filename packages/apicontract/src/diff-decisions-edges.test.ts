@@ -92,6 +92,7 @@ describe('lookup follows a local reference, and finds nothing otherwise', () => 
   it('finds nothing for a reference outside the document, a fragment that is not a pointer, a bad escape or a missing member', () => {
     expect(lookup(document, 'other.yaml#/a')).toBeUndefined();
     expect(lookup(document, 'a/b')).toBeUndefined();
+    expect(lookup(document, 'x/a')).toBeUndefined();
     expect(lookup(document, '#a')).toBeUndefined();
     expect(lookup(document, '#/x%2')).toBeUndefined();
     expect(lookup(document, '#/x%zz')).toBeUndefined();
@@ -183,6 +184,8 @@ describe('the small readers', () => {
     expect(at('#/webhooks/~1v3~1hook/post')).toBe('3');
     expect(at('#/paths/~1api~1v10~1x/get')).toBe('10');
     expect(at('#/paths/~1v3/get')).toBe('3');
+    expect(at('#/paths/~1v3')).toBe('3');
+    expect(at('x#/paths/~1v3/get')).toBeUndefined();
     expect(at('#/paths/~1v3x/get')).toBeUndefined();
     expect(at('#/paths/~1video~1x/get')).toBeUndefined();
     expect(at('#/paths/~1x/get')).toBeUndefined();
@@ -397,6 +400,10 @@ describe('what is wrong with a marker, said exactly', () => {
     expect(readDecisions(bare([operation('o', '#/x/o')], { x: { o: { deeper: { 'x-chnage': 1 } } } })).problems[0]?.operation).toBe('o');
   });
 
+  it('walks past a null in the document', () => {
+    expect(readDecisions(api({}, { info: { description: null, nested: { also: null } } })).problems).toEqual([]);
+  });
+
   it('does not read an example, a default, an enum or a const as contract', () => {
     const contract = api(
       { properties: { x: { example: { 'x-chnage': 1 }, examples: [{ 'x-chnage': 1 }], default: { 'x-chnage': 1 }, enum: [{ 'x-chnage': 1 }], const: { 'x-chnage': 1 } } } },
@@ -516,6 +523,12 @@ describe('a marker must match a change, at the edges (R6)', () => {
         },
       });
     expect(ids(check(two(false, false), two(true, true)))).toEqual([['ac-decision-stale', 'b', '', '']]);
+  });
+
+  it('a marker that lost its change and kept a sunset is not stale, though the old side had a change', () => {
+    const before = api({ ...base, 'x-change': 'ADR-1' });
+    const after = api({ ...base, deprecated: true, 'x-sunset': '2030-01-01' });
+    expect(check(before, after)).toEqual([]);
   });
 
   it('a marker with no change of its own, only a sunset or a replacement, is never stale', () => {

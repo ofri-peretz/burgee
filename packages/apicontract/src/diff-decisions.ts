@@ -53,6 +53,7 @@ export const keyOf = (operation: string, payload: string, pointer: string): stri
 
 const token = (key: string): string => key.replaceAll('~', '~0').replaceAll('/', '~1');
 
+// Stryker disable next-line ArrayDeclaration: equivalent, a value that is not an array reads as a list whose one entry is no schema, parameter or branch, and every reader skips what is not a dict
 const arrayOf = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
 
 /** Words a reader quotes back: where a finding is, for its `fix:` line. */
@@ -102,14 +103,15 @@ export const decisionFinding = (
 
 // --- Values (R4) ---
 
-const DATE = /^(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})$/;
+const DATE = /(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})/;
 
 /** `YYYY-MM-DD` naming a day that exists: `2027-02-30` is not one. */
 export const isDate = (value: unknown): value is string => {
   const parts = typeof value === 'string' ? DATE.exec(value)?.groups : undefined;
   if (parts === undefined) return false;
   const day = new Date(Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day)));
-  return day.toISOString().startsWith(String(value));
+  // The round trip is the whole check: it refuses a day that does not exist and any text around the date.
+  return day.toISOString().slice(0, 'YYYY-MM-DD'.length) === value;
 };
 
 const POINTER = /^(?:\/(?:[^~/]|~[01])*)*$/;
@@ -317,41 +319,44 @@ interface Holders {
   readonly schemas: Set<object>;
 }
 
+/** R2 and R3 for one object: each of its keys that is a near-miss spelling, or a marker where none may be. */
+const audit = (scan: Scan, holders: Holders, node: object, pointer: string): void => {
+  const here = `#${pointer}`;
+  const enclosing = scan.contract.operations.find((operation) => here === operation.source || here.startsWith(`${operation.source}/`));
+  const where = (): Place => ({
+    operation: enclosing?.id ?? '(document)',
+    source: here,
+    document: 'new',
+    direction: 'request',
+    pointer: '',
+  });
+  const allowed = holders.objects.has(node) || holders.schemas.has(node);
+  for (const key of Object.keys(node)) {
+    const right = meant(key);
+    if (right !== undefined) {
+      scan.problems.push(
+        decisionFinding(scan.level, 'misspelled', where(), {
+          before: key,
+          after: right,
+          fix: `\`${key}\` at ${here} is not a marker. fix: rename it \`${right}\``,
+        }),
+      );
+    } else if (!allowed && (MARKERS as readonly string[]).includes(key)) {
+      scan.problems.push(
+        decisionFinding(scan.level, 'misplaced', where(), {
+          before: key,
+          after: (node as Dict)[key],
+          fix: `\`${key}\` at ${here} is not on a schema member, an operation or a parameter. fix: move it onto the member it describes, or remove it`,
+        }),
+      );
+    }
+  }
+};
+
 /** R2 and R3 over the whole document: a marker off its positions, a near-miss spelling anywhere. */
 const scanDocument = (scan: Scan, holders: Holders, node: unknown, pointer: string): void => {
   if (typeof node !== 'object' || node === null) return;
-  if (isDict(node)) {
-    const here = `#${pointer}`;
-    const enclosing = scan.contract.operations.find((operation) => here === operation.source || here.startsWith(`${operation.source}/`));
-    const where = (): Place => ({
-      operation: enclosing?.id ?? '(document)',
-      source: here,
-      document: 'new',
-      direction: 'request',
-      pointer: '',
-    });
-    const allowed = holders.objects.has(node) || holders.schemas.has(node);
-    for (const key of Object.keys(node)) {
-      const right = meant(key);
-      if (right !== undefined) {
-        scan.problems.push(
-          decisionFinding(scan.level, 'misspelled', where(), {
-            before: key,
-            after: right,
-            fix: `\`${key}\` at ${here} is not a marker. fix: rename it \`${right}\``,
-          }),
-        );
-      } else if (!allowed && (MARKERS as readonly string[]).includes(key)) {
-        scan.problems.push(
-          decisionFinding(scan.level, 'misplaced', where(), {
-            before: key,
-            after: node[key],
-            fix: `\`${key}\` at ${here} is not on a schema member, an operation or a parameter. fix: move it onto the member it describes, or remove it`,
-          }),
-        );
-      }
-    }
-  }
+  audit(scan, holders, node, pointer);
   for (const [key, child] of Object.entries(node)) {
     if (!DATA.has(key)) scanDocument(scan, holders, child, `${pointer}/${token(key)}`);
   }
@@ -448,14 +453,14 @@ interface Member {
 
 /** The decision in force at a member `wanted` accepts: its own, an ancestor's up to the payload root, or the operation's. */
 const inForce = (side: Decisions, member: Member, wanted: (decision: Decision) => boolean): Decision | undefined => {
-  const keys = [
-    ...(member.payload === undefined ? [] : prefixes(member.pointer).map((pointer) => keyOf(member.operation, member.payload as string, pointer))),
-    keyOf(member.operation, '', ''),
-  ];
+  // Stryker disable next-line ConditionalExpression,ArrayDeclaration: equivalent, a finding on the operation has no payload, and the keys built for a payload that is absent find no decision; the operation's own key follows either way
+  const own = member.payload === undefined ? [] : prefixes(member.pointer).map((pointer) => keyOf(member.operation, member.payload as string, pointer));
+  const keys = [...own, keyOf(member.operation, '', '')];
   return keys.map((key) => side.decisions.get(key)).find((decision) => decision !== undefined && wanted(decision));
 };
 
 /** A member whose sunset date has come: it was deprecated, and the date is on or before today (R8). */
+// Stryker disable next-line ConditionalExpression: equivalent, `undefined <= today` is false whichever way the check for a sunset goes
 const carriedOut = (today: string) => (decision: Decision) => decision.deprecated === true && decision.sunset !== undefined && decision.sunset <= today;
 
 const hasChange = (decision: Decision): boolean => decision.change !== undefined;
@@ -520,7 +525,7 @@ const holdBreaking = (sides: Sides, comparison: Comparison): Held => {
 export const covers = (decision: Decision, finding: Finding): boolean => {
   if (finding.operation !== decision.operation) return false;
   if (decision.payload === '' || finding.payload === undefined) return true;
-  return finding.payload === decision.payload && (decision.pointer === '' || finding.pointer === decision.pointer || finding.pointer.startsWith(`${decision.pointer}/`));
+  return finding.payload === decision.payload && (finding.pointer === decision.pointer || finding.pointer.startsWith(`${decision.pointer}/`));
 };
 
 /** R6: an `x-change` whose member did not change, and that is not one carried over from the old side. */
@@ -573,12 +578,18 @@ const holdReplacements = (sides: Sides): Finding[] =>
     );
 
 /** The major in a `/v3/` segment of the path an operation is declared under, from its `source` (`#/paths/~1v3~1wallet/get`). */
-export const segmentOf = (operation: Operation): string | undefined => /^#\/(?:paths|webhooks)\/[^/]*?~1v(?<major>\d+)(?=~1|\/|$)/.exec(operation.source)?.groups?.major;
+export const segmentOf = (operation: Operation): string | undefined => {
+  const { major } = (/^#\/(?:paths|webhooks)\/[^/]*?~1v(?<major>\d+)(?=~1|\/|$)/.exec(operation.source)?.groups ?? {}) as { major?: string };
+  return major;
+};
 
 const infoVersion = (contract: Contract): unknown => (isDict(contract.document) && isDict(contract.document.info) ? contract.document.info.version : undefined);
 
 /** The major of a version: `4.0.0`, `v4`, or the number `4`. */
-export const majorOf = (version: unknown): string | undefined => /^v?(?<major>\d+)/.exec(String(version))?.groups?.major;
+export const majorOf = (version: unknown): string | undefined => {
+  const { major } = (/^v?(?<major>\d+)/.exec(String(version))?.groups ?? {}) as { major?: string };
+  return major;
+};
 
 /** R10: the operation's path gained a new major segment, or `info.version`'s major moved, or `--changeset` writes the bump. */
 const versionMoved = (sides: Sides, decision: Decision): boolean => {
