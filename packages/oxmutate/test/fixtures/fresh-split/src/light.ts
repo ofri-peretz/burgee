@@ -1,3 +1,6 @@
-export const triple = (n: number): number => n * 3;
+const FACTOR = 3;
+const LONG = 3;
 
-export const label = (s: string): string => (s.length > 3 ? s.toUpperCase() : `${s}!`);
+export const triple = (n: number): number => n * FACTOR;
+
+export const label = (s: string): string => (s.length > LONG ? s.toUpperCase() : `${s}!`);

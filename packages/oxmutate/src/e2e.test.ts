@@ -1234,6 +1234,10 @@ describe.skipIf(!native || !existsSync(bin) || !nightly)('warm state that hides 
   });
 });
 
+/** Four oxmutate runs of a small fixture, in one hook: a few seconds each on a busy runner. */
+const FRESH_SPLIT_RUNS_MS = 120_000;
+const byName = <T,>(rec: Record<string, T> | undefined): Record<string, T> => Object.fromEntries(Object.entries(rec ?? {}).map(([f, x]) => [path.basename(f), x]));
+
 // A mutant goes to a fresh worker first when its covering tests cost enough that warm is the dearer (fresh-first.ts):
 // `heavy.ts`'s tests take 120 ms each in the dry run, `light.ts`'s a millisecond. Both sorts keep a fresh worker's verdict.
 describe.skipIf(!native || !existsSync(bin))('fresh or warm, by what the covering tests cost', () => {
@@ -1255,9 +1259,18 @@ describe.skipIf(!native || !existsSync(bin))('fresh or warm, by what the coverin
     return { verdicts: rows.sort(), stats: report['x-oxmutate'].stats, mutants: Object.fromEntries(Object.entries(report.files).map(([f, x]) => [f, x.mutants.length])) };
   };
 
+  // The four runs are made once, here: each takes a few seconds, and a case holds the per-case budget.
+  type Run = ReturnType<typeof split>;
+  const runs = {} as { chosen: Run; reference: Run; off: Run; all: Run };
+  beforeAll(() => {
+    runs.chosen = split();
+    runs.reference = split({ OXMUTATE_ISOLATE_ALL: '1', OXMUTATE_ISOLATE_STATIC: '1' });
+    runs.off = split({ OXMUTATE_FRESH_FIRST: '0' });
+    runs.all = split({ OXMUTATE_FRESH_FIRST: '1' });
+  }, FRESH_SPLIT_RUNS_MS);
+
   it('sends the mutants of the slow file to a fresh worker and runs the fast file warm, with the verdicts of a fresh worker for both', () => {
-    const chosen = split();
-    const reference = split({ OXMUTATE_ISOLATE_ALL: '1', OXMUTATE_ISOLATE_STATIC: '1' });
+    const { chosen, reference } = runs;
     expect(chosen.verdicts).toEqual(reference.verdicts);
     // Every mutant of heavy.ts, and none of light.ts's.
     expect((chosen.stats.freshChosen ?? 0) + (chosen.stats.staticFresh ?? 0)).toBe(chosen.mutants['src/heavy.ts']);
@@ -1265,7 +1278,6 @@ describe.skipIf(!native || !existsSync(bin))('fresh or warm, by what the coverin
     expect(Object.keys(chosen.stats.freshByFile ?? {}).map((f) => path.basename(f))).toEqual(['heavy.spec.ts']);
     expect(Object.keys(chosen.stats.warmByFile ?? {}).map((f) => path.basename(f))).toEqual(['light.spec.ts']);
     // What the choice is read from, and what it cost: the dry run's per-file figures, the fresh runs' and the warm units'.
-    const byName = <T,>(rec: Record<string, T> | undefined): Record<string, T> => Object.fromEntries(Object.entries(rec ?? {}).map(([f, x]) => [path.basename(f), x]));
     const dryFiles = byName(chosen.stats.dryFiles);
     expect([dryFiles['heavy.spec.ts']?.tests, dryFiles['light.spec.ts']?.tests]).toEqual([3, 2]);
     expect(dryFiles['heavy.spec.ts']?.testMs).toBeGreaterThanOrEqual(360);
@@ -1285,10 +1297,9 @@ describe.skipIf(!native || !existsSync(bin))('fresh or warm, by what the coverin
   });
 
   it('keeps every mutant warm when OXMUTATE_FRESH_FIRST=0, and sends every one when it is 1', () => {
-    const warm = split({ OXMUTATE_FRESH_FIRST: '0' });
+    const { off: warm, all } = runs;
     expect([warm.stats.freshChosen, warm.stats.staticFresh]).toEqual([0, 0]);
     expect(Object.keys(warm.stats.warmByFile ?? {}).map((f) => path.basename(f)).sort()).toEqual(['heavy.spec.ts', 'light.spec.ts']);
-    const all = split({ OXMUTATE_FRESH_FIRST: '1' });
     expect(all.stats.freshChosen).toBeGreaterThan(all.mutants['src/heavy.ts'] ?? 0);
     expect(all.stats.warmByFile).toBeUndefined();
     expect(all.verdicts).toEqual(warm.verdicts);

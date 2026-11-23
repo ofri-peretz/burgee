@@ -2,8 +2,11 @@ import { expect, it } from 'vitest';
 
 import { label, triple } from './light.js';
 
+const FOUR = 4;
+const TWELVE = 12;
+
 it('triples', () => {
-  expect(triple(4)).toBe(12);
+  expect(triple(FOUR)).toBe(TWELVE);
 });
 
 it('labels', () => {

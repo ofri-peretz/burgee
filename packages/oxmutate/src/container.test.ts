@@ -350,7 +350,7 @@ describe('the container plan', () => {
   it('stops at a step that fails in the middle of an install chain and writes no stamp, so the install runs again', () => {
     const dir = scratch('oxmutate-install-');
     const ran = (install: string): number | null => {
-      const block = script(containerPlan(NPX, { ...input, install, sync: whole }).sync).slice(-5).join('\n').replaceAll('/w/', `${dir}/`);
+      const block = script(containerPlan(NPX, { ...input, install, sync: whole }).sync).slice(-5).join('\n').replaceAll('/w/', `${dir.replaceAll('\\', '/')}/`);
       return spawnSync('sh', ['-ec', block], { encoding: 'utf8' }).status;
     };
     // errexit ignores `false` here, since it is not the last command of its `&&` list: the stamp was written all the same.
