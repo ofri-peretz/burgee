@@ -406,6 +406,7 @@ export interface DecisionOptions {
 interface Sides {
   readonly old: Decisions;
   readonly nu: Decisions;
+  readonly newContract: Contract;
   /** The old operation each new operation id was paired with (ids first, then routes), as the diff paired them. */
   readonly oldIdOf: ReadonlyMap<string, string>;
   readonly options: DecisionOptions;
@@ -476,6 +477,78 @@ const holdBreaking = (sides: Sides, comparison: Comparison): Held => {
   return held;
 };
 
+/** Where a decision was written, for a finding about it: the new document, at the operation that carries it. */
+const placeOfDecision = (sides: Sides, decision: Decision): Place => {
+  const operation = sides.newContract.operations.find((candidate) => candidate.id === decision.operation) as Operation;
+  return {
+    operation: operation.id,
+    source: operation.source,
+    document: 'new',
+    ...(decision.payload === '' ? {} : { payload: decision.payload }),
+    direction: operation.payloads.find((payload) => payload.name === decision.payload)?.direction ?? 'request',
+    pointer: decision.pointer,
+  };
+};
+
+const wordsOfDecision = (decision: Decision): string => wordsFor(decision.operation, decision.payload, decision.pointer);
+
+/** Whether a change in the diff is at the member a decision is on, or inside it. */
+const covers = (decision: Decision, finding: Finding): boolean => {
+  if (finding.operation !== decision.operation) return false;
+  if (decision.payload === '' || finding.payload === undefined) return true;
+  return finding.payload === decision.payload && (decision.pointer === '' || finding.pointer === decision.pointer || finding.pointer.startsWith(`${decision.pointer}/`));
+};
+
+/** R6: an `x-change` whose member did not change, and that is not one carried over from the old side. */
+const holdStale = (sides: Sides, comparison: Comparison): Finding[] =>
+  [...sides.nu.decisions.values()]
+    .filter((decision) => decision.change !== undefined && !comparison.findings.some((finding) => covers(decision, finding)))
+    .filter(
+      (decision) => sides.old.decisions.get(keyOf(sides.oldIdOf.get(decision.operation) ?? decision.operation, decision.payload, decision.pointer))?.change !== decision.change,
+    )
+    .map((decision) =>
+      decisionFinding(sides.options.level, 'stale', placeOfDecision(sides, decision), {
+        before: undefined,
+        after: decision.change,
+        fix: `\`x-change: ${decision.change}\` at ${wordsOfDecision(decision)} records a change that is not in this diff. fix: remove the marker, or make the change it records`,
+      }),
+    );
+
+/** R7: a sunset date before today on a member that is still in the contract. */
+const holdOverdue = (sides: Sides): Finding[] =>
+  [...sides.nu.decisions.values()]
+    .filter((decision) => decision.sunset !== undefined && decision.sunset < sides.options.today)
+    .map((decision) =>
+      decisionFinding(sides.options.level, 'overdue', placeOfDecision(sides, decision), {
+        before: decision.sunset,
+        after: sides.options.today,
+        fix: `${wordsOfDecision(decision)} was to go after ${decision.sunset as string} and is still here. fix: remove it as decided, or move \`x-sunset\` to a date that still holds`,
+      }),
+    );
+
+/** The member a decision's `x-replaced-by` names: a sibling by name, or a JSON Pointer from the member's parent. */
+const replacementKey = (decision: Decision): string => {
+  const value = decision.replacedBy as string;
+  if (decision.payload === '') return keyOf(value, '', '');
+  if (decision.pointer === '')
+    return keyOf(decision.operation, decision.payload.startsWith('param:') ? `${decision.payload.slice(0, decision.payload.lastIndexOf(':') + 1)}${value}` : value, '');
+  const tokens = decision.pointer.split('/');
+  const parent = tokens.slice(0, tokens.at(-2) === 'properties' ? -2 : -1).join('/');
+  return keyOf(decision.operation, decision.payload, value.startsWith('/') ? `${parent}${value}` : `${parent}/properties/${token(value)}`);
+};
+
+/** R9: an `x-replaced-by` that names nothing in the new contract. */
+const holdReplacements = (sides: Sides): Finding[] =>
+  [...sides.nu.decisions.values()]
+    .filter((decision) => decision.replacedBy !== undefined && !sides.nu.members.has(replacementKey(decision)))
+    .map((decision) =>
+      decisionFinding(sides.options.level, 'replacement-missing', placeOfDecision(sides, decision), {
+        before: decision.replacedBy,
+        after: undefined,
+        fix: `${wordsOfDecision(decision)} is replaced by \`${decision.replacedBy as string}\`, which is not in the new contract. fix: add that member, or point \`x-replaced-by\` at one that exists`,
+      }),
+    );
+
 /**
  * Hold a comparison to the decisions written in the contracts. Markers are read on the new side,
  * because they are the decision; the old side is read for a sunset carried out (R8) and for a
@@ -483,9 +556,9 @@ const holdBreaking = (sides: Sides, comparison: Comparison): Held => {
  */
 export const checkDecisions = (old: Contract, nu: Contract, comparison: Comparison, options: DecisionOptions): Finding[] => {
   const oldIdOf = new Map(pair(old.operations, nu.operations).flatMap(([before, after]) => (before === undefined ? [] : [[(after ?? before).id, before.id] as const])));
-  const sides: Sides = { old: readDecisions(old, options.level), nu: readDecisions(nu, options.level), oldIdOf, options };
+  const sides: Sides = { old: readDecisions(old, options.level), nu: readDecisions(nu, options.level), newContract: nu, oldIdOf, options };
   const held = holdBreaking(sides, comparison);
-  return sorted([...sides.nu.problems, ...held.findings]);
+  return sorted([...sides.nu.problems, ...held.findings, ...holdStale(sides, comparison), ...holdOverdue(sides), ...holdReplacements(sides)]);
 };
 
 /** `comparison` with its decision findings, and, at level `error` only, a verdict that counts them. */

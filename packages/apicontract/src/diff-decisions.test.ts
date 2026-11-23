@@ -274,3 +274,100 @@ describe('a removal on schedule needs no new marker (R8)', () => {
     expect(rows(compare('base', 'removed', '2027-04-01'))).toEqual([['ac-decision-missing', BODY, '/properties/amount']]);
   });
 });
+
+describe('a marker must match a change (R6)', () => {
+  it('is stale when its member did not change', () => {
+    const findings = compare('base', 'stale');
+    expect(rows(findings)).toEqual([['ac-decision-stale', BODY, '/properties/note']]);
+    expect(findings[0]?.fix).toBe(
+      '`x-change: ADR-0007` at getBalance response:200:application/json /properties/note records a change that is not in this diff. fix: remove the marker, or make the change it records',
+    );
+  });
+
+  it('is not stale when the same marker was already on the old side: history, not a claim', () => {
+    expect(compare('stale', 'stale')).toEqual([]);
+  });
+
+  it('is stale again when the value changed with nothing else', () => {
+    const [old, nu] = [fixture('stale'), fixture('stale')];
+    const document = structuredClone(nu.document) as { components: { schemas: { Balance: { properties: { note: Record<string, unknown> } } } } };
+    document.components.schemas.Balance.properties.note['x-change'] = 'ADR-0008';
+    const moved = read(document);
+    expect(rows(checkDecisions(old, moved, compareContracts(old, moved), { today: '2027-01-01', level: 'warn' }))).toEqual([['ac-decision-stale', BODY, '/properties/note']]);
+  });
+
+  it('is not stale on a member that changed, with any verdict: a marker on a non-breaking change is allowed', () => {
+    const old = fixture('base');
+    const document = structuredClone(fixture('replacement-present').document) as { components: { schemas: { Balance: { properties: { amountCents: Record<string, unknown> } } } } };
+    document.components.schemas.Balance.properties.amountCents['x-change'] = 'ADR-3';
+    const nu = read(document);
+    const comparison = compareContracts(old, nu);
+    expect(comparison.findings.filter((finding) => finding.pointer === '/properties/amountCents').map((finding) => finding.verdict)).toEqual(['non-breaking']);
+    expect(checkDecisions(old, nu, comparison, { today: '2027-01-01', level: 'warn' })).toEqual([]);
+  });
+
+  it('is not stale inside an operation that is new: the operation-added finding covers it', () => {
+    const empty = read({ openapi: '3.1.0', paths: {} });
+    const nu = fixture('placed');
+    expect(checkDecisions(empty, nu, compareContracts(empty, nu), { today: '2027-01-01', level: 'warn' })).toEqual([]);
+  });
+});
+
+describe('a sunset is carried out (R7)', () => {
+  it('is overdue when its date is before today and the member is still there', () => {
+    const findings = compare('base', 'overdue');
+    expect(rows(findings)).toEqual([['ac-decision-overdue', BODY, '/properties/amount']]);
+    expect(findings[0]).toMatchObject({ before: '2026-06-01', after: '2027-01-01' });
+    expect(findings[0]?.fix).toBe(
+      'getBalance response:200:application/json /properties/amount was to go after 2026-06-01 and is still here. fix: remove it as decided, or move `x-sunset` to a date that still holds',
+    );
+  });
+
+  it('is not overdue on the day itself', () => {
+    expect(rows(compare('base', 'overdue', '2026-06-01'))).toEqual([]);
+    expect(rows(compare('base', 'overdue', '2026-05-31'))).toEqual([]);
+  });
+});
+
+const withReplacements = (replacedBy: string, parameter: string) =>
+  read({
+    openapi: '3.1.0',
+    paths: {
+      '/a': {
+        get: {
+          operationId: 'a',
+          'x-replaced-by': replacedBy,
+          parameters: [
+            { name: 'old', in: 'query', 'x-replaced-by': parameter, schema: {} },
+            { name: 'fresh', in: 'query', schema: {} },
+          ],
+          responses: {},
+        },
+      },
+      '/b': { get: { operationId: 'b', responses: {} } },
+    },
+  });
+
+describe('a replacement exists (R9)', () => {
+  it('is missing when x-replaced-by names no sibling', () => {
+    const findings = compare('base', 'replacement-missing');
+    expect(rows(findings)).toEqual([['ac-decision-replacement-missing', BODY, '/properties/amount']]);
+    expect(findings[0]?.fix).toBe(
+      'getBalance response:200:application/json /properties/amount is replaced by `amountCents`, which is not in the new contract. fix: add that member, or point `x-replaced-by` at one that exists',
+    );
+  });
+
+  it('is found by sibling name and by a JSON Pointer from the parent', () => {
+    expect(compare('base', 'replacement-present')).toEqual([]);
+    expect(compare('base', 'replacement-pointer')).toEqual([]);
+  });
+
+  it('is found for an operation and a parameter by their own kind of name', () => {
+    const [good, bad] = [withReplacements('b', 'fresh'), withReplacements('c', 'gone')];
+    expect(rows(checkDecisions(good, good, compareContracts(good, good), { today: '2027-01-01', level: 'warn' }))).toEqual([]);
+    expect(rows(checkDecisions(good, bad, compareContracts(good, bad), { today: '2027-01-01', level: 'warn' }))).toEqual([
+      ['ac-decision-replacement-missing', '', ''],
+      ['ac-decision-replacement-missing', 'param:query:old', ''],
+    ]);
+  });
+});
