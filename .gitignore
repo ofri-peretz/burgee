@@ -23,6 +23,9 @@ evals/results/
 # it is a build artifact, like packages/compat-oracle/upstream.json.
 packages/compat-oracle/competitors-upstream.json
 
+# The specification watch writes its report here on every run (spec-release-watch R2).
+packages/compat-oracle/specs-upstream.json
+
 # Agent worktrees: whole copies of this repo, several gigabytes of them, and one
 # `git add -A` from being committed. Every tool that walks the tree has to be
 # told to skip them — eslint and markdownlint are, and this stops git and
