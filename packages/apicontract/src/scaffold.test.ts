@@ -87,6 +87,11 @@ export const plugin: Plugin = {
 `);
   });
 
+  it('refuses a seed for a kind that is not rules', () => {
+    const seed = { document: {}, select: 'document', pointer: '#', message: 'm', fix: 'f', findings: [] } as const;
+    expect(() => scaffold('pets', 'generator', seed)).toThrow('a seed makes a rule, and the kind is generator. fix: pass --kind rules with --from');
+  });
+
   it('indents the sample document where it sits', () => {
     expect(scaffold('pets', 'rules')[0]?.content).toContain("        document: {\n          openapi: '3.1.0',\n          info: { title: 'pets sample', version: '1.0.0' },\n");
     expect(scaffold('pets', 'generator')[0]?.content).toContain("        document: {\n          openapi: '3.1.0',\n          info: { title: 'pets sample', version: '1.0.0' },\n");

@@ -43,7 +43,7 @@ const checkRule = (host: Host, id: string, rule: Rule, corpus: readonly unknown[
   return documents.flatMap(({ where: at, document }, index): Failure[] => {
     const first = runOn(host, rule, document);
     const again = runOn(host, rule, document);
-    if (first.fetched) return [{ rule: 'no-io', where: at, message: 'it called fetch', fix: NO_IO }];
+    if (first.fetched || again.fetched) return [{ rule: 'no-io', where: at, message: 'it called fetch', fix: NO_IO }];
     if ('error' in first) return [failureOf('sample', at, first.error, 'make the rule run on any document an adapter reads, without throwing')];
     const failures: Failure[] = [];
     if (index === 0 && show(first.findings) !== show(sample.findings)) {

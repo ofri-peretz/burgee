@@ -230,6 +230,7 @@ export const scaffold = (name: string, kind: Kind, seed?: RuleSeed): GeneratedFi
   checkName(name);
   const templates = { generator, extractor, adapter, rules: rule };
   if (!(KINDS as readonly string[]).includes(kind)) throw new Error(`"${String(kind)}" is not a plugin kind. fix: pass --kind ${KINDS.join(', --kind ')}`);
+  if (seed !== undefined && kind !== 'rules') throw new Error(`a seed makes a rule, and the kind is ${kind}. fix: pass --kind rules with --from`);
   const source = seed === undefined ? templates[kind](name) : seeded(name, seed);
   return [
     { path: `plugin-${name}.ts`, owner: 'user', content: source },

@@ -184,6 +184,9 @@ describe('conformance: a plugin rule', () => {
       ['no-io', 'rule "caught" on its sample', 'it called fetch'],
       ['no-io', 'rule "thrown" on its sample', 'it called fetch'],
     ]);
+    let calls = 0;
+    const second = rule({ then: undefined, check: () => ((calls += 1), calls % 2 === 0 && void fetch('https://example.com', { signal: AbortSignal.timeout(1) }), []) });
+    expect((await failures({ second })).map((failure) => failure.rule)).toEqual(['no-io']);
     expect(found[0]?.fix).toBe('a rule reads only the node and the contract it is given: no network, no files, no model');
     expect(globalThis.fetch).toBe(real);
   });
