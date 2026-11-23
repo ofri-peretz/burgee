@@ -4,8 +4,8 @@
  * user's, written once, and starts as "call the API for every tool".
  *
  * Options: `include` (operation ids or `tag:<name>`), `transport` (`stdio`, the default, or
- * `http` for Streamable HTTP), `budget` (the most tokens the tool list may take). The generated code imports `@modelcontextprotocol/sdk`, which the
- * user installs; apicontract does not depend on it.
+ * `http` for Streamable HTTP), `budget` (the most tokens the tool list may take). The generated
+ * code imports `@modelcontextprotocol/sdk`, which the user installs; apicontract does not depend on it.
  */
 import { type ContractFinding } from './core/model.js';
 import { type GeneratedFile, type Generator, type GeneratorResult, type Plugin } from './host.js';
