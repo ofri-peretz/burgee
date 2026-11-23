@@ -1,0 +1,56 @@
+openapi: 3.1.0
+info: { title: Shop, version: 1.1.0 }
+paths:
+  /orders:
+    post:
+      operationId: placeOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewOrder' }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Order' }
+  /orders/{id}:
+    get:
+      operationId: getOrder
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Order' }
+        '404': { description: none }
+components:
+  schemas:
+    NewOrder:
+      type: object
+      required: [items]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items: { $ref: '#/components/schemas/Line' }
+        note: { type: string, maxLength: 40 }
+        coupon: { type: [string, 'null'], minLength: 4 }
+    Line:
+      type: object
+      required: [sku, quantity]
+      properties:
+        sku: { type: string, minLength: 3, maxLength: 12 }
+        quantity: { type: integer, minimum: 1, maximum: 20 }
+    Order:
+      type: object
+      required: [id, status, total]
+      properties:
+        id: { type: string, format: uuid }
+        status: { enum: [open, paid] }
+        total: { type: number, minimum: 0, exclusiveMaximum: 10000 }
+        placed: { type: string, format: date-time }
+        tags: { type: array, items: { type: string }, maxItems: 2 }

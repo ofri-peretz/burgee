@@ -1,0 +1,13 @@
+openapi: 3.1.0
+info: { title: One, version: 1.0.0 }
+paths:
+  /count:
+    post:
+      operationId: setCount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: integer, maximum: 3 }
+      responses:
+        '204': { description: none }
