@@ -1042,19 +1042,24 @@ describe('when the engine cannot run', () => {
   });
 });
 
+/** The message of a rejected run: its start and a literal ending, so a path spelled two ways on Windows (`RUNNER~1`) compares. */
+const hostLine = async (run: Promise<unknown>, start: string): Promise<void> => {
+  const message = await run.then(() => '', (e: Error) => e.message);
+  const ending = `: the host's disk is full (${tmpdir()} holds the run's staging). fix: free space there, or set TMPDIR to a disk with room`;
+  expect(message.startsWith(start)).toBe(true);
+  expect(message.endsWith(ending)).toBe(true);
+  expect(message.length).toBeGreaterThan(start.length + ending.length);
+};
+
+/** A repository with one file. */
+const top = (): string => repo({ 'package.json': '{}' });
+
+/** The line a full engine disk gives, for the step it names. */
+const LINE = (what: string): string => fullDisk(what, 'engine');
+
 describe('a full disk says what to free', () => {
-  /** The message of a rejected run: its start and a literal ending, so a path spelled two ways on Windows (`RUNNER~1`) compares. */
-  const hostLine = async (run: Promise<unknown>, start: string): Promise<void> => {
-    const message = await run.then(() => '', (e: Error) => e.message);
-    const ending = `: the host's disk is full (${tmpdir()} holds the run's staging). fix: free space there, or set TMPDIR to a disk with room`;
-    expect(message.startsWith(start)).toBe(true);
-    expect(message.endsWith(ending)).toBe(true);
-    expect(message.length).toBeGreaterThan(start.length + ending.length);
-  };
 
   const C = { ...NPX, engine: 'engine' };
-  const top = (): string => repo({ 'package.json': '{}' });
-  const LINE = (what: string): string => fullDisk(what, 'engine');
 
   it('names the fix on one line for every engine step, in the engine’s own words', async () => {
     const full = 'write /w/in.tar: no space left on device';

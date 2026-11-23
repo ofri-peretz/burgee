@@ -440,7 +440,7 @@ const createFailed = (stderr: string, name: string): string => {
 /** Creates a container, copies `files` (host path, container path) into it, starts it attached, and returns its exit code and id. */
 async function startWith(engine: Engine, create: readonly string[], files: readonly (readonly [string, string])[], o: { stdio?: 'inherit'; name: string }): Promise<{ code: number | null; id: string }> {
   const made = await engine(create);
-  if (made.code !== 0) throw new Error(createFailed(made.stderr, o.name));
+  if (made.code !== 0) throw new Error(`${createFailed(made.stderr, o.name)}`);
   const id = made.stdout.trim();
   const copied = await Promise.all(files.map(async ([from, to]) => engine(['cp', from, `${id}:${to}`])));
   const failed = copied.find((r) => r.code !== 0);
@@ -515,7 +515,7 @@ function installKey(c: Container, top: string, install: string, lock: string | u
  */
 async function copyBack({ engine, name, back, keep, io, top }: { engine: Engine; name: string; back: readonly string[]; keep: readonly string[]; io: string; top: string }): Promise<void> {
   const made = await engine(back);
-  if (made.code !== 0) throw new Error(createFailed(made.stderr, name));
+  if (made.code !== 0) throw new Error(`${createFailed(made.stderr, name)}`);
   const id = made.stdout.trim();
   try {
     await Promise.all(
@@ -526,7 +526,7 @@ async function copyBack({ engine, name, back, keep, io, top }: { engine: Engine;
           mkdirSync(path.dirname(path.join(top, file)), { recursive: true });
           copyFileSync(staged, path.join(top, file));
         } catch (e) {
-          if ((e as NodeJS.ErrnoException).code === 'ENOSPC') throw new Error(fullHostDisk(`${file} could not be written to ${top}`));
+          if ((e as NodeJS.ErrnoException).code === 'ENOSPC') throw new Error(`${fullHostDisk(`${file} could not be written to ${top}`)}`);
           throw e;
         }
       }),
@@ -581,7 +581,7 @@ async function syncVolume(h: Host & { engine: Engine; c: Container; plan: (sync:
   const { engine, c, key, volume, bases, auth } = h;
   if (c.source === 'git') {
     const synced = await startWith(engine, h.plan(undefined).sync, auth, { stdio: 'inherit', name: c.engine });
-    if (synced.code !== 0) throw new Error(installFailed(synced.code, c.engine));
+    if (synced.code !== 0) throw new Error(`${installFailed(synced.code, c.engine)}`);
     return;
   }
   const names = await listed(h.spawn, h.top, h.keep, c.include);
@@ -596,7 +596,7 @@ async function syncVolume(h: Host & { engine: Engine; c: Container; plan: (sync:
       sync = wholeSync(now);
       code = await send(sync);
     }
-    if (code !== 0) throw new Error(installFailed(code, c.engine));
+    if (code !== 0) throw new Error(`${installFailed(code, c.engine)}`);
   }
   if (!c.ephemeral) writeState(volume, nextState(sync, key, now));
 }
