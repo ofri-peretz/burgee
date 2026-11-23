@@ -71,3 +71,16 @@ library, which turns B5 from a per-framework grind into one plugin.
 - Not the TypeScript compiler API: read 2026-11-18, TypeScript 7.0 (GA 2026-07-08) has no
   programmatic API and 7.1's differs from 6's, so a compiler-API extractor would be pinned to
   `@typescript/typescript6` and ported again.
+
+## Evidence sweep 2026-11-22
+
+Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/apicontract` (2,545 tests) and `packages/validator` (1,153) is green there. 1 of 4 criteria met (B2). B1 is read on five fixtures, not the corpus; NestJS, Hono and tRPC/oRPC extractors are stubs.
+
+| # | criterion | held by | state |
+| --: | :-- | :-- | :-- |
+| 1 | B1: round trip on 100% of corpus documents for `validator` and `json-schema` | extract fixture corpus: 5 / 5 non-breaking after #1640 (`extract-roundtrip.test.ts`); full corpus not read | **open** |
+| 2 | B2: zod-to-openapi's fixtures produce an equivalent document | 2 / 2 equivalent on `paths` (spec § As built, #1630) | met |
+| 3 | B3 = 0 on the fixture set; B4 below @nestjs/swagger on the NestJS bench | B3 = 0 (each case a finding with `fix`); `plugin-extract-nest.ts` is a 4-line stub, so B4 cannot be read | **open**: B4 |
+| 4 | B5 counted per extractor | landed: `standard-schema`, `openapi-from-schemas`, `ts-rest`; stubs: `nest`, `hono`, `trpc` | **open** |
+
+Status stays `approved`: `apicontract` is `private` and unpublished, and [`D-20261119-apicontract-stays-private`](../../decisions/D-20261119-apicontract-stays-private.md) reserves `shipped` for published work; a lane that meets every criterion is recorded as "criteria met, unpublished".

@@ -67,3 +67,18 @@ real documents.
   this adapter's output written by `gen`, so it needs no command of its own.
 - TypeSpec, RAML, API Blueprint, GraphQL SDL and protobuf are not adapters here; they arrive through
   their owners' compilers (TypeSpec emits OpenAPI) or the Phase 8 owners'-engine route.
+
+## Evidence sweep 2026-11-22
+
+Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/apicontract` (2,545 tests) and `packages/validator` (1,153) is green there. 4 of 6 criteria met. The MCP snapshots of the ten SC10 servers and the mutation floor are open.
+
+| # | criterion | held by | state |
+| --: | :-- | :-- | :-- |
+| 1 | Each adapter: a `sample` and ≥ 20 real documents read with zero throws | `apicontract-inputs/spec.md` § As built: jsonschema 46, mcp 30, asyncapi 45, swagger2 28, overlay 33, from `src/__fixtures__/inputs/<name>/` (#1621) | met |
+| 2 | `jsonschema`: the Test-Suite's `$ref`/`$defs` cases resolve through `core/resolve.ts` | graded on `ref.json`, `ref-legacy.json`, `anchor.json` | met |
+| 3 | `asyncapi`: every 2.6 and 3.0 example reads; `send`/`receive` mapping documented | 21 + 24 examples; 127 payloads checked; [`D-20261118-asyncapi-direction`](../../decisions/D-20261118-asyncapi-direction.md) | met |
+| 4 | `mcp`: the ten SC10 servers' `tools/list` snapshots read | No server publishes a snapshot; `benchmarks/apicontract/corpus/pins.json` has an `mcp` family with no documents | **open**: needs a snapshot recorder (corpus lane) |
+| 5 | `swagger2`: Petstore and 50 corpus documents; a finding per translated construct | Petstore among the 28 fixtures. Corpus: every APIs.guru `swagger.yaml` in `2026-11-18-types-losses-full` reads (4,265 / 4,265 read, #1637) | met |
+| 6 | Coverage 100% of `src/input-*.ts`; mutation floor | package thresholds 100%; ratchet `unmeasured` | **open**: floor |
+
+Status stays `approved`: `apicontract` is `private` and unpublished, and [`D-20261119-apicontract-stays-private`](../../decisions/D-20261119-apicontract-stays-private.md) reserves `shipped` for published work; a lane that meets every criterion is recorded as "criteria met, unpublished".

@@ -67,3 +67,16 @@ graded on the plugin authors see first, which is the NestJS one.
 - Contract tests use `node:test`-compatible `describe`/`it` imports from `vitest` by default, with
   `--test-runner node|vitest|jest`.
 - The `nest` plugin's extract half (spec from controllers) is the `ac-extract` lane's, not this one.
+
+## Evidence sweep 2026-11-22
+
+Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/apicontract` (2,545 tests) and `packages/validator` (1,153) is green there. 1 of 4 criteria met (N1 and golden files). N2 and N3 on the bench specs are unread.
+
+| # | criterion | held by | state |
+| --: | :-- | :-- | :-- |
+| 1 | N1 = 0: edit every user file, change the spec, regenerate, zero user bytes changed | `plugin-nest-regen.test.ts` (#1635); `plugin-server-router-regen.test.ts` for hono, fastify, express (#1641) | met |
+| 2 | N2 = 100%: output type-checks and boots on the server bench specs under TS 5.9 and 6.0 | one out-of-lockfile check of the NestJS sample (spec § As built), not committed; no `consumers.ts` reading | **open** |
+| 3 | N3 = 100%: every contract test passes against the example stubs | NestJS sample: 3 / 3 out of lockfile; bench specs not read | **open** |
+| 4 | Hono, Fastify, Express each with the same three readings | all three generators landed in #1641 with N1 and golden files; N2, N3 unread | **open** (as N2, N3) |
+
+Status stays `approved`: `apicontract` is `private` and unpublished, and [`D-20261119-apicontract-stays-private`](../../decisions/D-20261119-apicontract-stays-private.md) reserves `shipped` for published work; a lane that meets every criterion is recorded as "criteria met, unpublished".

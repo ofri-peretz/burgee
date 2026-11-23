@@ -246,3 +246,21 @@ published.
   emitter (build steps 1 to 3) land before `apicontract`'s Phase 2.
 - ~~Does it need a Quint model?~~ Answered in [`spec.md`](./spec.md): no, nothing in it has state or ordering;
   that changes if async refinement or streaming comes into scope.
+
+## Evidence sweep 2026-11-22
+
+Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/apicontract` (2,545 tests) and `packages/validator` (1,153) is green there. Four latency/value rows read ahead of both incumbents on one schema (Z3 emitted, Z4, Z5, Z7); every features row and the lagging rows are unread. Named `loadline`, not published (`npm view loadline` 404, `packages/validator` is `private`).
+
+| # | criterion | held by | state |
+| --: | :-- | :-- | :-- |
+| 1 | Z1 suite parity through drop-in façades | no Zod or ajv host in `packages/compat-oracle/vendor/` | **open** |
+| 2 | Z2 JSON-Schema-Test-Suite pass rate > both | not read; parity reads 143 yes, 4 partial, 7 no of 154 features (`parity.md` wave 4) | **open** |
+| 3 | Z3 throughput > both | 2026-11-13 (loaded machine): emitted 21.0M / 16.5M vs ajv 12.3M / 8.9M; interpreted 4.6M is **behind ajv** | met for generated validators only; re-read on a quiet machine |
+| 4 | Z4 construction < both | 1.1 ms interpreted, 6.3 ms emitted vs Zod 39.5 ms, ajv 520.5 ms | met (ratio) |
+| 5 | Z5 bundle < both | 1,114 B / 1,542 B vs Zod 27,454 B, ajv 38,819 B | met on one schema |
+| 6 | Z7 type-check cost < Zod on 5.9, 6.0, 7.0 | 163,836 instantiations vs 332,209 / 332,209 / 331,710 | met |
+| 7 | Z6, Z8, Z9, Z10, Z15, Z16 (install size, Standard Schema cases, error quality, lossless export, Zod and ajv requests) | `src/standard.ts` implements Standard Schema; no conformance count; the rest unread | **open** |
+| 8 | Z11–Z14 lagging readings | not started | **open** |
+| 9 | Mutation floor | 0 survivors in source at wave 4 (5,453 mutants); ratchet still `unmeasured` | **open**: record the floor |
+
+Status stays `approved`: rows are open, and `shipped` needs a publish under the accepted name.

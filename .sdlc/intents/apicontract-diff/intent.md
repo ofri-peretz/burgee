@@ -52,3 +52,18 @@ once, which no incumbent does (`D5`: oasdiff 1, mcpdiff 1).
 
 - Default mode `backward`, default side `caller`.
 - Text output groups by operation; `--json` is a flat list sorted by severity, then pointer.
+
+## Evidence sweep 2026-11-22
+
+Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/apicontract` (2,545 tests) and `packages/validator` (1,153) is green there. None of the 5 criteria is fully met: `D7`'s Quint half holds, but Q2 has no reading. Every corpus reading (`D1`, `D2`, `D3`, `D6`) is unread, and `D5` lacks an AsyncAPI document diffed end to end.
+
+| # | criterion | held by | state |
+| --: | :-- | :-- | :-- |
+| 1 | `D1`: verdict agreement with oasdiff on its own corpus, disagreements explained | rule ids mapped (`src/diff-rules.ts`, 91 rows); not graded on oasdiff's corpus | **open** |
+| 2 | `D2` = 0 missed planted breaks; `D3` below each incumbent | no planted corpus. Gap [`A-20261118-diff-false-breaking-equivalent-rewrites`](../../gaps/A-20261118-diff-false-breaking-equivalent-rewrites.md) still open on its corpus clause | **open** |
+| 3 | `D5` = 4 (OpenAPI, JSON Schema, AsyncAPI, MCP) | every side reads through the built-in adapters; command tests diff an MCP snapshot and a JSON Schema pair end to end; AsyncAPI only on hand-built contracts | **open**: one AsyncAPI document test |
+| 4 | `D6` ≥ 1 unannounced break in ten MCP servers' histories | no snapshots (see `apicontract-inputs`) | **open** |
+| 5 | `D7`: `compat.qnt` invariants green in `models.yml`; Q2 reported | `models.yml` runs every tracked `.qnt` (`compat.qnt`, `compat-traces.qnt`) and the `fullChains` vacuity check; the 384 trace pairs are a property test in `diff-classify.test.ts` | **open**: the Quint half holds; Q2 (mutants killed only by the traces, `apicontract/metrics.md`) needs a mutation run, and the ratchet is `unmeasured` |
+| 6 | Note: `git:<ref>:<path>` is refused with a `fix:` | apicontract does not depend on bellpull yet (spec § As built R4) | a gap in "Phase 6's no-spec-file diff", not a criterion |
+
+Status stays `approved`: `apicontract` is `private` and unpublished, and [`D-20261119-apicontract-stays-private`](../../decisions/D-20261119-apicontract-stays-private.md) reserves `shipped` for published work; a lane that meets every criterion is recorded as "criteria met, unpublished".
