@@ -13,6 +13,7 @@ import { type Container, containerOf, INSIDE, machineDefault } from './container
 import { MAX_LOAD_PER_CORE } from './governor.js';
 import { type IgnoreRule } from './native.js';
 import { resolveEsm } from './resolve.js';
+import { env } from './runtime.js';
 import { type SpecOracle } from './spec-oracle.js';
 
 export interface Thresholds {
@@ -194,7 +195,7 @@ const MAX_DEFAULT_CONCURRENCY = 8;
  */
 function defaultConcurrency(): number {
   const spare = availableParallelism() - 1;
-  return Math.max(1, process.env[INSIDE] === 'inside' ? spare : Math.min(MAX_DEFAULT_CONCURRENCY, spare));
+  return Math.max(1, env[INSIDE] === 'inside' ? spare : Math.min(MAX_DEFAULT_CONCURRENCY, spare));
 }
 const DEFAULT_TIMEOUT_MS = 500;
 const DEFAULT_TIMEOUT_FACTOR = 1.5;
