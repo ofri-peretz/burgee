@@ -1,0 +1,164 @@
+[
+  {
+    "name": "OpenAPI",
+    "repo": "OAI/OpenAPI-Specification",
+    "source": "releases",
+    "reads": [
+      "3.0",
+      "3.1",
+      "3.2",
+      "Swagger 2.0"
+    ],
+    "adapters": [
+      "openapi",
+      "swagger2"
+    ]
+  },
+  {
+    "name": "Overlay",
+    "repo": "OAI/Overlay-Specification",
+    "source": "releases",
+    "reads": [
+      "1.0",
+      "1.1",
+      "1.2"
+    ],
+    "adapters": [
+      "input-overlay.ts"
+    ]
+  },
+  {
+    "name": "Arazzo",
+    "repo": "OAI/Arazzo-Specification",
+    "source": "releases",
+    "reads": [],
+    "adapters": []
+  },
+  {
+    "name": "AsyncAPI",
+    "repo": "asyncapi/spec",
+    "source": "releases",
+    "reads": [
+      "2.6",
+      "3.0"
+    ],
+    "adapters": [
+      "asyncapi"
+    ]
+  },
+  {
+    "name": "JSON Schema",
+    "repo": "json-schema-org/json-schema-spec",
+    "source": "tags",
+    "tagPattern": "^draft-bhutton-json-schema-(\\d+)$",
+    "reads": [
+      "2020-12",
+      "2019-09",
+      "draft-07",
+      "draft-06",
+      "draft-04"
+    ],
+    "adapters": [
+      "jsonschema"
+    ]
+  },
+  {
+    "name": "MCP",
+    "repo": "modelcontextprotocol/modelcontextprotocol",
+    "source": "releases",
+    "reads": [
+      "tool, prompt and resource-template lists"
+    ],
+    "adapters": [
+      "mcp"
+    ]
+  },
+  {
+    "name": "GraphQL",
+    "repo": "graphql/graphql-spec",
+    "source": "releases",
+    "reads": [],
+    "adapters": []
+  },
+  {
+    "name": "OpenRPC",
+    "repo": "open-rpc/spec",
+    "source": "releases",
+    "reads": [],
+    "adapters": []
+  },
+  {
+    "name": "CloudEvents",
+    "repo": "cloudevents/spec",
+    "source": "releases",
+    "tagPattern": "^ce@(v.+)$",
+    "reads": [],
+    "adapters": []
+  },
+  {
+    "name": "Standard Schema",
+    "repo": "standard-schema/standard-schema",
+    "source": "releases",
+    "reads": [
+      "Standard JSON Schema (~standard.jsonSchema)"
+    ],
+    "adapters": [
+      "extract-standard.ts"
+    ]
+  },
+  {
+    "name": "AsyncAPI bindings",
+    "repo": "asyncapi/bindings",
+    "source": "releases",
+    "reads": [],
+    "adapters": []
+  },
+  {
+    "name": "Protocol Buffers",
+    "repo": "protocolbuffers/protobuf",
+    "source": "releases",
+    "reads": [],
+    "adapters": []
+  },
+  {
+    "name": "Avro",
+    "repo": "apache/avro",
+    "source": "releases",
+    "tagPattern": "^release-(.+)$",
+    "reads": [],
+    "adapters": []
+  },
+  {
+    "name": "A2A",
+    "repo": "a2aproject/A2A",
+    "source": "tags",
+    "reads": [],
+    "adapters": []
+  },
+  {
+    "name": "OpenTelemetry semantic conventions",
+    "repo": "open-telemetry/semantic-conventions",
+    "source": "releases",
+    "reads": [],
+    "adapters": []
+  },
+  {
+    "name": "OTLP",
+    "repo": "open-telemetry/opentelemetry-proto",
+    "source": "releases",
+    "reads": [],
+    "adapters": []
+  },
+  {
+    "name": "JSON Schema Test Suite",
+    "repo": "json-schema-org/JSON-Schema-Test-Suite",
+    "kind": "test-suite",
+    "source": "releases",
+    "reads": [
+      "the validation/tests files, pinned by commit"
+    ],
+    "adapters": [
+      "jsonschema"
+    ]
+  }
+]
