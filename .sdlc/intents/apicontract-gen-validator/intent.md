@@ -1,6 +1,6 @@
 # Intent — validators and JSON Schema from any contract, including the subsets model providers accept
 
-> Opened from the 2026-11-18 program ([`../apicontract/program.md`](../apicontract/program.md)).
+> Opened from the 2026-11-18 program ([`../contractdiff/program.md`](../contractdiff/program.md)).
 > Roadmap Phase 2. The validator package on `main` already compiles JSON Schema to straight-line
 > code (`from-json-schema.ts`, `emit.ts`) and reads 143 of 154 parity features. Nothing yet turns a
 > contract's payloads into those validators, or into plain JSON Schema for the ajv a team already runs.
@@ -41,8 +41,8 @@ generator with findings is a capability no incumbent has (roadmap row marked **n
 
 ## Affected users and systems
 
-`packages/apicontract/src/plugin-validator*.ts` and `src/plugin-json-schema*.ts`. Reads
-`packages/validator` through its public exports only (`validator`, `validator/emit`).
+`packages/contractdiff/src/plugin-validator*.ts` and `src/plugin-json-schema*.ts`. Reads
+`packages/loadline` through its public exports only (`validator`, `validator/emit`).
 
 ## Constraints
 
@@ -73,7 +73,7 @@ generator with findings is a capability no incumbent has (roadmap row marked **n
 
 ## Evidence sweep 2026-11-22
 
-Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/apicontract` (2,545 tests) and `packages/validator` (1,153) is green there. 4 of 6 rows met on fixtures. J1 on the corpus bench payloads and the mutation floor are open.
+Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/contractdiff` (2,545 tests) and `packages/loadline` (1,153) is green there. 4 of 6 rows met on fixtures. J1 on the corpus bench payloads and the mutation floor are open.
 
 | # | criterion | held by | state |
 | --: | :-- | :-- | :-- |

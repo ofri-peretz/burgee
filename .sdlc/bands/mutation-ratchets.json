@@ -1,10 +1,6 @@
 {
-  "$comment": "Mutation score per package (.sdlc/intents/mutation-tested/, D-20261018-mutation-tested): detected (killed + timeout) / (detected + survived + no coverage), Stryker over every mutation source, which is what coverage measures (src/**/*.ts minus tests, __fixtures__ and TESTED_IN_ANOTHER_PROCESS). `floor` only rises: `mutation.yml` measures main weekly, appends each observation, raises a floor the run beat (rounded down to one decimal) and fails on a run below it. Lowering one takes a newer decision in .sdlc/decisions/, cited in a new history step; scripts/mutation-lock.test.ts holds all of it. An `unmeasured` package says why, and its first weekly score becomes its first floor — no floor here is a number nobody measured.",
+  "$comment": "Mutation score per package (.sdlc/intents/mutation-tested/, D-20261018-mutation-tested): detected (killed + timeout) / (detected + survived + no coverage), Stryker over every mutation source, which is what coverage measures (src/**/*.ts minus tests, __fixtures__ and TESTED_IN_ANOTHER_PROCESS). `floor` only rises: `mutation.yml` measures main weekly, appends each observation, raises a floor the run beat (rounded down to one decimal) and fails on a run below it. Lowering one takes a newer decision in .sdlc/decisions/, cited in a new history step; scripts/mutation-lock.test.ts holds all of it. An `unmeasured` package says why, and its first weekly score becomes its first floor \u2014 no floor here is a number nobody measured.",
   "ratchets": {
-    "apicontract": {
-      "status": "unmeasured",
-      "reason": "Phase 0 skeleton: four declared commands that fail with a fix line; first measured run comes with the Phase 1 $ref resolver."
-    },
     "bellpull": {
       "status": "measured",
       "floor": 90.5,
@@ -212,7 +208,7 @@
         {
           "floor": 86.2,
           "setOn": "2026-11-15",
-          "why": "91.1 was set from oxmutate 1.1.0's run, whose hosts.ts kills were false (sc8-profile §6), on a different mutant set. After #1596 killed hosts.ts's real gaps, oxmutate 2.6.0 at eb995279a8 measured 86.22%, rounded down to one decimal.",
+          "why": "91.1 was set from oxmutate 1.1.0's run, whose hosts.ts kills were false (sc8-profile \u00a76), on a different mutant set. After #1596 killed hosts.ts's real gaps, oxmutate 2.6.0 at eb995279a8 measured 86.22%, rounded down to one decimal.",
           "decision": "D-20261115-compat-oracle-floor-restate"
         }
       ],
@@ -268,6 +264,10 @@
           "minutes": 322.14
         }
       ]
+    },
+    "contractdiff": {
+      "status": "unmeasured",
+      "reason": "Phase 0 skeleton: four declared commands that fail with a fix line; first measured run comes with the Phase 1 $ref resolver."
     },
     "controlroom": {
       "status": "measured",
@@ -377,6 +377,10 @@
         }
       ]
     },
+    "hookset": {
+      "status": "unmeasured",
+      "reason": "New on 2026-11-23: the lefthook presets, the Claude hook pack and init/check. The floor is set by its first full weekly run."
+    },
     "linegauge": {
       "status": "measured",
       "floor": 89.6,
@@ -424,6 +428,10 @@
           "minutes": 66.32
         }
       ]
+    },
+    "loadline": {
+      "status": "unmeasured",
+      "reason": "New on 2026-11-13: nodes, the check pass and the issues pass. The changed-lines run on its first commits scored 100% (437 killed, 0 survived); the floor is set by its first full weekly run."
     },
     "oxmutate": {
       "status": "measured",
@@ -677,17 +685,9 @@
         }
       ]
     },
-    "hookset": {
-      "status": "unmeasured",
-      "reason": "New on 2026-11-23: the lefthook presets, the Claude hook pack and init/check. The floor is set by its first full weekly run."
-    },
     "triggerlist": {
       "status": "unmeasured",
       "reason": "New on 2026-11-23: the checklist, the diff reader, match, compile, seed and protect. The changed-lines lane gates its first commits; the floor is set by its first full weekly run."
-    },
-    "validator": {
-      "status": "unmeasured",
-      "reason": "New on 2026-11-13: nodes, the check pass and the issues pass. The changed-lines run on its first commits scored 100% (437 killed, 0 survived); the floor is set by its first full weekly run."
     },
     "truemark": {
       "status": "unmeasured",

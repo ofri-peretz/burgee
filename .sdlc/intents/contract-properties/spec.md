@@ -25,7 +25,7 @@ Intent: [`intent.md`](./intent.md). **Status:** R1 to R5 built (`apicontract pro
 
 ## Verification
 
-- `packages/apicontract/src/props-*.test.ts`: each property on fixture contracts, plus one planted
+- `packages/contractdiff/src/props-*.test.ts`: each property on fixture contracts, plus one planted
   bug per property shown red then green.
 - A keyword-coverage lock comparing the generator's keyword list to the validator's.
 - oxmutate through `mutation:changed`.
@@ -53,11 +53,11 @@ Intent: [`intent.md`](./intent.md). **Status:** R1 to R5 built (`apicontract pro
 
 Keyword coverage is `GENERATED` and `REPORTED` in `props-generate.ts`; `props-keywords.test.ts` reads the
 validator's reader and fails on any keyword it reads that is in neither
-(`npx vitest run packages/apicontract/src/props-keywords.test.ts`).
+(`npx vitest run packages/contractdiff/src/props-keywords.test.ts`).
 
 ## Corpus lane (success criterion 1)
 
-`benchmarks/apicontract/props-corpus.ts` runs the built `apicontract props --json` at 1,000 values per payload and
+`benchmarks/apicontract/props-corpus.ts` runs the built `contractdiff props --json` at 1,000 values per payload and
 property: agreement, round-trip and normalise on each pinned OpenAPI document, and diff soundness `--against` the
 old side of the planted pairs `diff-pairs.ts` builds for the contractdiff reading. `bench.yml`'s `props` job runs it
 nightly on a seeded sample (200 documents, 50 pairs) and on the weekly cron on every pinned OpenAPI document and

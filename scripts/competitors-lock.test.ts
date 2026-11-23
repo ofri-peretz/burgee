@@ -91,6 +91,10 @@ const KNOWN = [
   'tinyexec',
   // truemark's incumbent (2026-11-23): its focused- and disabled-test rules, by surface.
   '@vitest/eslint-plugin',
+  // contractdiff's incumbent (2026-11-23): the `types` target and its migrate command.
+  'openapi-typescript',
+  // loadline's incumbent (2026-11-23): a Standard Schema validator with a code-first API.
+  'zod',
   'which',
   'widest-line',
   'wrap-ansi',

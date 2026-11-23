@@ -12,7 +12,7 @@ trip, type-level cost, a single-pass Standard Schema path, and release safety.**
 
 Zod had 105 open issues and 480 closed as not planned on 2026-11-12. Ranked by 👍, the open and the
 declined requests fall into those groups; the issue numbers and counts are in
-[`validator/intent.md`](../intents/validator/intent.md) § Where Zod is beatable. The declined ones
+[`validator/intent.md`](../intents/loadline/intent.md) § Where Zod is beatable. The declined ones
 matter most (PRINCIPLES rule 7): formats alone (latitude and longitude, phone, cron) were declined
 with 113 👍 between them, which is the evidence that a format should be a plugin.
 

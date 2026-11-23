@@ -339,8 +339,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup
-      - name: Build apicontract (the reading measures what is built)
-        run: npx turbo run build --filter=apicontract
+      - name: Build contractdiff (the reading measures what is built)
+        run: npx turbo run build --filter=contractdiff
       - name: Run every tool on the pairs
         shell: bash
         env:
@@ -361,13 +361,13 @@ jobs:
           if-no-files-found: ignore
           retention-days: 30
 
-  # apicontract props on the pinned corpus (.sdlc/intents/contract-properties/, criterion 1):
+  # contractdiff props on the pinned corpus (.sdlc/intents/contract-properties/, criterion 1):
   # agreement, round-trip and normalise on each OpenAPI document, and diff soundness on the planted
   # pairs, 1,000 values per payload and property. Nightly a seeded sample (200 documents, 50 pairs);
   # the weekly cron runs every pinned OpenAPI document and 500 pairs. A counterexample fails the
   # run (nightly-report.yml opens an issue on a nightly failure); the reading is an artifact, never committed from here.
   props:
-    name: apicontract props on the corpus
+    name: contractdiff props on the corpus
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 180
@@ -376,8 +376,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup
-      - name: Build apicontract (the reading measures what is built)
-        run: npx turbo run build --filter=apicontract
+      - name: Build contractdiff (the reading measures what is built)
+        run: npx turbo run build --filter=contractdiff
       - name: Run props on the corpus
         shell: bash
         env:
@@ -388,7 +388,7 @@ jobs:
       - name: Summary
         if: always()
         run: |
-          { cat benchmarks/apicontract/results/*-props/summary.md 2>/dev/null || { echo '## apicontract props on the corpus'; echo; echo '```'; tail -50 props-corpus.log; echo '```'; }; } >> "$GITHUB_STEP_SUMMARY"
+          { cat benchmarks/apicontract/results/*-props/summary.md 2>/dev/null || { echo '## contractdiff props on the corpus'; echo; echo '```'; tail -50 props-corpus.log; echo '```'; }; } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:

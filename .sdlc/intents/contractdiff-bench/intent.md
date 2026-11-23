@@ -2,7 +2,7 @@
 
 > Asked by the owner on 2026-11-23 ("we should ensure we can benchmark it to competitors"), after
 > [`apicontract-protobuf`](../apicontract-protobuf/intent.md). PRINCIPLES rule 4: measured or it is a
-> slogan. Gives the diff metrics D1–D5 in [`../apicontract/metrics.md`](../apicontract/metrics.md)
+> slogan. Gives the diff metrics D1–D5 in [`../contractdiff/metrics.md`](../contractdiff/metrics.md)
 > the harness they name and do not yet have.
 
 **Status:** approved · **Opened:** `2026-11-23` · **Owner:** `@ofri-peretz` · **Lane:** `ac-corpus` ·

@@ -1,8 +1,8 @@
 # Intent — `apicontract diff`: what a contract change breaks, for whom, in every format the model reads
 
-> Opened from the 2026-11-18 program ([`../apicontract/program.md`](../apicontract/program.md)).
+> Opened from the 2026-11-18 program ([`../contractdiff/program.md`](../contractdiff/program.md)).
 > Roadmap Phase 5 (diff half) and Phase 6's no-spec-file diff. The compatibility rule is already
-> modelled in [`../apicontract/compat.qnt`](../apicontract/compat.qnt) (R-Q1); oasdiff rule ids were
+> modelled in [`../contractdiff/compat.qnt`](../contractdiff/compat.qnt) (R-Q1); oasdiff rule ids were
 > chosen in [`D-20261106-apicontract-diff-rule-ids`](../../decisions/D-20261106-apicontract-diff-rule-ids.md).
 
 **Status:** approved · **Opened:** `2026-11-18` · **Owner:** `@ofri-peretz` · **Lane:** `ac-diff` ·
@@ -30,7 +30,7 @@ once, which no incumbent does (`D5`: oasdiff 1, mcpdiff 1).
 
 ## Affected users and systems
 
-`packages/apicontract/src/diff-*.ts`, `src/command-diff*.ts`.
+`packages/contractdiff/src/diff-*.ts`, `src/command-diff*.ts`.
 
 ## Constraints
 
@@ -55,7 +55,7 @@ once, which no incumbent does (`D5`: oasdiff 1, mcpdiff 1).
 
 ## Evidence sweep 2026-11-22
 
-Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/apicontract` (2,545 tests) and `packages/validator` (1,153) is green there. None of the 5 criteria is fully met: `D7`'s Quint half holds, but Q2 has no reading. Every corpus reading (`D1`, `D2`, `D3`, `D6`) is unread, and `D5` lacks an AsyncAPI document diffed end to end.
+Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/contractdiff` (2,545 tests) and `packages/loadline` (1,153) is green there. None of the 5 criteria is fully met: `D7`'s Quint half holds, but Q2 has no reading. Every corpus reading (`D1`, `D2`, `D3`, `D6`) is unread, and `D5` lacks an AsyncAPI document diffed end to end.
 
 | # | criterion | held by | state |
 | --: | :-- | :-- | :-- |

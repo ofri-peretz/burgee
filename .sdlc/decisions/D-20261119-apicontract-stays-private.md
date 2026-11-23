@@ -6,7 +6,7 @@ date: '2026-11-19'
 superseded_by: —
 ---
 **It stays `private`.** The lanes are built to their success criteria. The final name and the first
-publish remain the owner's call, made separately ([`apicontract/intent.md`](../intents/apicontract/intent.md),
+publish remain the owner's call, made separately ([`apicontract/intent.md`](../intents/contractdiff/intent.md),
 "the final name is decided before the first publish").
 
 Until then, a lane that meets every criterion is recorded as **criteria met, unpublished**, not

@@ -1,0 +1,106 @@
+{
+  "name": "loadline",
+  "version": "0.0.1",
+  "private": false,
+  "description": "A JS/TS validator whose schemas are data: checked with no eval, or compiled ahead of time from a contract. Zero dependencies. A zod migration path.",
+  "license": "MIT",
+  "author": "Ofri Peretz <ofriperetzdev@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ofri-peretz/burgee.git",
+    "directory": "packages/loadline"
+  },
+  "bugs": {
+    "url": "https://github.com/ofri-peretz/burgee/issues"
+  },
+  "homepage": "https://burgee.interlace.tools",
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./emit": {
+      "types": "./dist/emit.d.ts",
+      "import": "./dist/emit.js",
+      "default": "./dist/emit.js"
+    },
+    "./jit": {
+      "types": "./dist/jit.d.ts",
+      "import": "./dist/jit.js",
+      "default": "./dist/jit.js"
+    },
+    "./formats": {
+      "types": "./dist/formats.d.ts",
+      "import": "./dist/formats.js",
+      "default": "./dist/formats.js"
+    },
+    "./json-schema": {
+      "types": "./dist/json-schema.d.ts",
+      "import": "./dist/json-schema.js",
+      "default": "./dist/json-schema.js"
+    },
+    "./standard": {
+      "types": "./dist/standard.d.ts",
+      "import": "./dist/standard.js",
+      "default": "./dist/standard.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "typesVersions": {
+    "*": {
+      "emit": [
+        "./dist/emit.d.ts"
+      ],
+      "jit": [
+        "./dist/jit.d.ts"
+      ],
+      "formats": [
+        "./dist/formats.d.ts"
+      ],
+      "json-schema": [
+        "./dist/json-schema.d.ts"
+      ],
+      "standard": [
+        "./dist/standard.d.ts"
+      ]
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.map",
+    "!dist/**/*.test.*"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && node ../../scripts/strip-comments.mjs dist && node ../../scripts/declaration-reach.mts --prune",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage.enabled",
+    "lint": "eslint src"
+  },
+  "devDependencies": {
+    "vitest": "^5.0.1"
+  },
+  "keywords": [
+    "validator",
+    "validation",
+    "schema",
+    "standard-schema",
+    "json-schema",
+    "typescript",
+    "zod",
+    "ajv",
+    "parse",
+    "type-inference"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

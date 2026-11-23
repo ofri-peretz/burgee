@@ -7,10 +7,10 @@
  * Regenerate (the committed fixtures were made with exactly this):
  *   npx -y @informalsystems/quint@0.33.0 run .sdlc/intents/apicontract-diff/compat-traces.qnt \
  *     --max-steps=15 --max-samples=24 --n-traces=24 --seed=0x5eed \
- *     --out-itf='packages/apicontract/src/__fixtures__/diff/traces/compat-{seq}.itf.json'
+ *     --out-itf='packages/contractdiff/src/__fixtures__/diff/traces/compat-{seq}.itf.json'
  */
 module compatTraces {
-  import compat as C from "../apicontract/compat"
+  import compat as C from "../contractdiff/compat"
 
   var old: C::Ver
   var nu: C::Ver

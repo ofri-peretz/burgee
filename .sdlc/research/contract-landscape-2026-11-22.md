@@ -3,7 +3,7 @@
 > Read 2026-11-22 by four parallel web reviews (OpenAPI family; events and schema registries; RPC,
 > GraphQL, MCP and A2A; JSON Schema, OpenTelemetry and agent-facing CLI practice), for the open-formats
 > decision (`D-20261122-open-formats`, in review in ofri-peretz/burgee#1698). Extends
-> [`../intents/apicontract/landscape.md`](../intents/apicontract/landscape.md) (2026-11-06), which ranked
+> [`../intents/contractdiff/landscape.md`](../intents/contractdiff/landscape.md) (2026-11-06), which ranked
 > 46 JS/TS packages by downloads and stays the source for OpenAPI generator popularity.
 >
 > **Evidence quality.** Most rows came from docs and release pages; several from search snippets only.

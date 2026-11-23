@@ -6,7 +6,7 @@
 
 /**
  * The pure half of the props corpus lane (`.sdlc/intents/contract-properties/`, success criterion
- * 1): how one `apicontract props --json` run becomes a row, and how the rows fold into the reading.
+ * 1): how one `contractdiff props --json` run becomes a row, and how the rows fold into the reading.
  * The runner itself spawns the built CLI over the pinned set and is exercised by the lane.
  */
 import { describe, expect, it } from 'vitest';
@@ -121,9 +121,9 @@ describe('foldProps', () => {
 
   it('renders a summary that names each failing contract and the seed that replays it', () => {
     const text = renderPropsSummary(foldProps(rows, { runs: 1000, seed: 1 }), '2026-11-23-abc');
-    expect(text).toContain('# apicontract props on the corpus — 2026-11-23-abc');
+    expect(text).toContain('# contractdiff props on the corpus — 2026-11-23-abc');
     expect(text).toContain('| soundness | 2000 | 1 |');
     expect(text).toContain('2 contract(s) did not run (unread, crashed or timed out): unmeasured, not passed.');
-    expect(text).toContain('- `p` (replay: `apicontract props <new> --against <old> --runs 1000 --seed 1`)');
+    expect(text).toContain('- `p` (replay: `contractdiff props <new> --against <old> --runs 1000 --seed 1`)');
   });
 });

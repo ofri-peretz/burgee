@@ -45,7 +45,7 @@ export interface Tool {
 }
 
 const REPO = path.resolve(import.meta.dirname, '../..');
-const CONTRACTDIFF = path.join(REPO, 'packages', 'apicontract', 'dist', 'bin.js');
+const CONTRACTDIFF = path.join(REPO, 'packages', 'contractdiff', 'dist', 'bin.js');
 const ERROR_CHARS = 2000;
 
 const errorOf = (ran: Ran): string => errorLine(`${ran.stderr}\n${ran.stdout}`) || `exit ${String(ran.status)}, no output`;
@@ -112,9 +112,9 @@ export const TOOLS: readonly Tool[] = [
   {
     name: 'contractdiff',
     kind: 'diff',
-    pin: 'file:packages/apicontract',
+    pin: 'file:packages/contractdiff',
     prepare: () => {
-      if (!existsSync(CONTRACTDIFF)) throw new Error('apicontract is not built. fix: npx turbo run build --filter=apicontract');
+      if (!existsSync(CONTRACTDIFF)) throw new Error('contractdiff is not built. fix: npx turbo run build --filter=contractdiff');
       return REPO;
     },
     command: (_, old, nu) => ({ file: process.execPath, args: [CONTRACTDIFF, 'diff', old, nu, '--json'] }),

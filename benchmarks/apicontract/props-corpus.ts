@@ -6,7 +6,7 @@
 
 /**
  * The props corpus lane (`.sdlc/intents/contract-properties/`, success criterion 1): the built
- * `apicontract props` over the pinned corpus, at 1,000 values per payload and property.
+ * `contractdiff props` over the pinned corpus, at 1,000 values per payload and property.
  *
  * - every pinned OpenAPI document (or a seeded sample): agreement, round-trip and normalise;
  * - the planted pairs `diff-pairs.ts` builds for the contractdiff reading: the same three on the
@@ -14,7 +14,7 @@
  *
  * One process per contract, `--concurrency` at a time; one jsonl row per contract, then
  * `summary.json` and `summary.md`. Exit 1 when any property breaks on any contract: a
- * counterexample is a bug in apicontract's validator, normaliser or classifier, with the seed that
+ * counterexample is a bug in contractdiff's validator, normaliser or classifier, with the seed that
  * replays it. A contract the CLI cannot read, or that crashes it, is counted apart and never as a
  * pass.
  *
@@ -93,7 +93,7 @@ const envelope = (stdout: string): Envelope | undefined => {
   }
 };
 
-/** One `apicontract props --json` process, as a row. */
+/** One `contractdiff props --json` process, as a row. */
 export function propsRow(job: PropsJob, run: Spawned): PropsRow {
   const empty = { ...job, checked: zero(), counterexamples: {}, reported: 0, skipped: 0, ms: run.ms };
   if (run.timedOut === true) return { ...empty, read: null, ok: null, error: `timed out after ${String(run.ms)} ms` };
@@ -178,10 +178,10 @@ const notRun = (s: PropsSummary): number => s.documents.unread + s.documents.cra
 export function renderPropsSummary(summary: PropsSummary, run: string): string {
   const replay = ({ kind }: PropsJob): string =>
     kind === 'pair'
-      ? `apicontract props <new> --against <old> --runs ${String(summary.runs)} --seed ${String(summary.seed)}`
-      : `apicontract props <document> --runs ${String(summary.runs)} --seed ${String(summary.seed)}`;
+      ? `contractdiff props <new> --against <old> --runs ${String(summary.runs)} --seed ${String(summary.seed)}`
+      : `contractdiff props <document> --runs ${String(summary.runs)} --seed ${String(summary.seed)}`;
   return [
-    `# apicontract props on the corpus — ${run}`,
+    `# contractdiff props on the corpus — ${run}`,
     '',
     `${summary.held ? 'Every property held on every contract that ran' : 'Not every property held'}: ${String(summary.runs)} values per payload and property, seed ${String(summary.seed)}, median ${String(summary.medianMs ?? 'n/a')} ms per contract.${notRun(summary) === 0 ? '' : ` ${String(notRun(summary))} contract(s) did not run (unread, crashed or timed out): unmeasured, not passed.`}`,
     '',
@@ -199,7 +199,7 @@ export function renderPropsSummary(summary: PropsSummary, run: string): string {
 }
 
 const REPO = path.resolve(import.meta.dirname, '../..');
-const BIN = path.join(REPO, 'packages', 'apicontract', 'dist', 'bin.js');
+const BIN = path.join(REPO, 'packages', 'contractdiff', 'dist', 'bin.js');
 
 /** A child's output stream, kept up to `MAX_BUFFER`. */
 function collect(): { text: string; add: (chunk: Buffer) => void } {

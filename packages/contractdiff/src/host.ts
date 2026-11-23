@@ -1,0 +1,466 @@
+/**
+ * The plugin host for contractdiff's half of the family contract (spec.md R-PL; `plugin-contract`).
+ *
+ * A plugin is one plain object shared by the whole family. This host reads four of its keys,
+ * `adapters` (an input format), `generators` (spec → code), `extractors` (code → spec) and
+ * `rules` (`lint` rules, apicontract-lint R4), and ignores every other key
+ * without complaining, which is what lets one object also carry burgee `commands` or a flagstaff
+ * component. The shape is declared here, not imported from another layer.
+ *
+ * This file is `host.ts`, not the family's `plugin.ts`, until the schema gains `adapters` and
+ * `generators` and `burgee check` routes them here (R-PL8, its own PR): the family locks find a
+ * host by that file name, and a host they find must already be in the schema.
+ *
+ * Nothing here touches the file system. A generator returns files and the caller writes them
+ * (R-PL3), so a dry run, `--check` and overwrite safety live in one place and not in every plugin.
+ */
+import { type Contract, type ContractFinding } from './core/model.js';
+import { builtinAdapters } from './inputs.js';
+import { type Rule } from './lint-engine.js';
+import { parse } from './lint-jsonpath.js';
+import { CODE_FUNCTIONS, FUNCTIONS } from './lint-names.js';
+import { SELECTS } from './lint-select.js';
+
+/** The plugin contract version: one number for the family. */
+export const CONTRACT = 1;
+
+/** `generated` is rewritten on every run. `user` is written once and never touched again (R-PL4). */
+export type Owner = 'generated' | 'user';
+
+/** One symbol a generated file declares for an operation: what `contractdiff.map.json` records (R-BL1). */
+export interface GeneratedSymbol {
+  /** The operation's id in the contract. */
+  readonly operation: string;
+  /** The name the file declares for it, e.g. `ListPetsResponse`. */
+  readonly symbol: string;
+}
+
+export interface GeneratedFile {
+  /** Relative to the output folder, with `/` separators. */
+  readonly path: string;
+  /** The body: the writer adds the generated header, so a generator never writes one. */
+  readonly content: string;
+  readonly owner: Owner;
+  /** The symbols this file declares per operation. Optional: a file without them is still mapped by its path. */
+  readonly symbols?: readonly GeneratedSymbol[];
+}
+
+export type Options = Readonly<Record<string, unknown>>;
+
+/** An input format: a parsed document in, the model out. */
+export interface Adapter {
+  readonly description: string;
+  readonly detect: (document: unknown) => boolean;
+  readonly read: (document: unknown) => Contract;
+}
+
+/** The generator's static projection (R-PL5): a small document and exactly what it produces. */
+export interface Sample {
+  readonly document: unknown;
+  readonly options?: Options;
+  readonly files: readonly GeneratedFile[];
+}
+
+/** What a generator may return when it has something to report besides files. */
+export interface GeneratorResult {
+  readonly files: readonly GeneratedFile[];
+  readonly findings: readonly ContractFinding[];
+}
+
+/** Spec → code: data plus one function (R-PL2). */
+export interface Generator {
+  readonly description: string;
+  /** Names of the input formats it accepts, e.g. `openapi`. */
+  readonly inputs: readonly string[];
+  /** burgee option declarations, keyed by option name. */
+  readonly options?: Readonly<Record<string, unknown>>;
+  readonly sample: Sample;
+  readonly run: (
+    contract: Contract,
+    options: Options,
+  ) => readonly GeneratedFile[] | GeneratorResult | Promise<readonly GeneratedFile[] | GeneratorResult>;
+}
+
+/** An extractor's static projection: the options it is run with, and the document it returns. */
+export interface ExtractorSample {
+  readonly options: Options;
+  readonly document: unknown;
+}
+
+/** What an extractor may return when it has something to report besides the document: what the document could not say. */
+export interface ExtractorResult {
+  readonly document: unknown;
+  readonly findings: readonly ContractFinding[];
+}
+
+/** Code → spec (spec.md R-TE2): reads the user's code, named by its options, and returns a document, or `{ document, findings }`. */
+export interface Extractor {
+  readonly description: string;
+  readonly options?: Readonly<Record<string, unknown>>;
+  readonly sample: ExtractorSample;
+  readonly run: (options: Options) => unknown;
+}
+
+/** The keys contractdiff reads. Any object with these fields is a plugin here, whatever else it carries. */
+export interface Plugin {
+  readonly name: string;
+  readonly contract?: number;
+  readonly adapters?: Readonly<Record<string, Adapter>>;
+  readonly generators?: Readonly<Record<string, Generator>>;
+  readonly extractors?: Readonly<Record<string, Extractor>>;
+  /** `lint` rules (apicontract-lint R4): each with the sample that is its test. */
+  readonly rules?: Readonly<Record<string, Rule>>;
+}
+
+export type PluginErrorCode = 'E_PLUGIN_SCHEMA' | 'E_PLUGIN_CONTRACT' | 'E_NO_STATIC_PROJECTION' | 'E_NO_CONTRIBUTION';
+
+/** A refusal says what is wrong and what to do about it: the family's one vocabulary. */
+export class PluginError extends Error {
+  readonly code: PluginErrorCode;
+  readonly fix: string;
+
+  constructor(code: PluginErrorCode, message: string, fix: string) {
+    super(`${message}. fix: ${fix}`);
+    this.name = 'PluginError';
+    this.code = code;
+    this.fix = fix;
+  }
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+function refuse(message: string, fix: string, code: PluginErrorCode = 'E_PLUGIN_SCHEMA'): never {
+  throw new PluginError(code, message, fix);
+}
+
+const text = (value: unknown): value is string => typeof value === 'string' && value !== '';
+
+/** A generator's return value, with the files and the findings apart. */
+export const resultOf = (value: unknown): { files: unknown; findings: readonly ContractFinding[] } => {
+  if (!isRecord(value) || !('files' in value)) return { files: value, findings: [] };
+  return { files: value.files, findings: Array.isArray(value.findings) ? (value.findings as ContractFinding[]) : [] };
+};
+
+/**
+ * An extractor's return value, with the document and the findings apart. Only an object carrying
+ * both keys is a result: a spec may well have a `document` key of its own.
+ */
+export const documentOf = (value: unknown): { document: unknown; findings: readonly ContractFinding[] } => {
+  if (!isRecord(value) || !('document' in value) || !('findings' in value)) return { document: value, findings: [] };
+  return { document: value.document, findings: Array.isArray(value.findings) ? (value.findings as ContractFinding[]) : [] };
+};
+
+/**
+ * Whether a path stays inside the output folder. A generator is somebody else's code, and this is
+ * the one place its output meets the user's disk.
+ */
+const inside = (path: string): boolean =>
+  // An empty path and a leading `/` both show up as an empty part.
+  !path.includes('\\') && !path.includes(':') && !path.split('/').some((part) => part === '..' || part === '.' || part === '');
+
+/** No symbols, or a list of `{ operation, symbol }`, both non-empty. */
+const symbolsOk = (symbols: unknown): boolean =>
+  symbols === undefined || (Array.isArray(symbols) && symbols.every((entry) => isRecord(entry) && text(entry.operation) && text(entry.symbol)));
+
+/** Refuse a list of files a host must not write. `where` names who produced it. */
+export const validateFiles = (files: unknown, where: string): GeneratedFile[] => {
+  if (!Array.isArray(files)) refuse(`${where} did not return a list of files`, 'return `{ path, content, owner }[]`');
+  const seen = new Set<string>();
+  for (const file of files as unknown[]) {
+    if (!isRecord(file) || typeof file.path !== 'string' || typeof file.content !== 'string') {
+      refuse(`${where} returned a file without a path and content`, 'each file is `{ path, content, owner }`, both strings');
+    }
+    if (!inside(file.path)) {
+      refuse(`${where} returned the path "${file.path}", which leaves the output folder`, 'use a relative path with `/` separators and no `..`');
+    }
+    if (file.owner !== 'generated' && file.owner !== 'user') {
+      refuse(`${where} returned "${file.path}" without an owner`, 'say `owner: "generated"` (rewritten every run) or `owner: "user"` (written once)');
+    }
+    if (!symbolsOk(file.symbols)) {
+      refuse(`${where} returned "${file.path}" with malformed symbols`, 'each symbol is `{ operation, symbol }`, both non-empty strings');
+    }
+    if (seen.has(file.path)) refuse(`${where} returned "${file.path}" twice`, 'return each path once');
+    seen.add(file.path);
+  }
+  return files as GeneratedFile[];
+};
+
+const validateAdapter = (adapter: unknown, where: string): void => {
+  if (!isRecord(adapter) || !text(adapter.description) || typeof adapter.detect !== 'function' || typeof adapter.read !== 'function') {
+    refuse(`${where} is not an adapter`, 'an adapter is `{ description, detect(document), read(document) }`');
+  }
+};
+
+const validateGenerator = (generator: unknown, where: string): void => {
+  if (!isRecord(generator) || !text(generator.description) || typeof generator.run !== 'function') {
+    refuse(`${where} is not a generator`, 'a generator is `{ description, inputs, sample, run(contract, options) }`');
+  }
+  const { inputs, options, sample } = generator;
+  if (!Array.isArray(inputs) || inputs.length === 0 || !inputs.every((input) => text(input))) {
+    refuse(`${where} does not say which input formats it accepts`, 'add `inputs: ["openapi"]`');
+  }
+  if (options !== undefined && !isRecord(options)) refuse(`${where}: options must be an object`, 'map an option name to its burgee declaration');
+  if (!isRecord(sample) || !('document' in sample)) {
+    refuse(`${where} has no sample`, 'add `sample: { document, files }`: a small document and exactly the files it produces', 'E_NO_STATIC_PROJECTION');
+  }
+  if (sample.options !== undefined && !isRecord(sample.options)) refuse(`${where}: sample.options must be an object`, 'pass the options the sample was generated with');
+  validateFiles(sample.files, `${where}: sample`);
+};
+
+const validateExtractor = (extractor: unknown, where: string): void => {
+  if (!isRecord(extractor) || !text(extractor.description) || typeof extractor.run !== 'function') {
+    refuse(`${where} is not an extractor`, 'an extractor is `{ description, sample, run(options) }`');
+  }
+  const { sample } = extractor;
+  if (!isRecord(sample) || !isRecord(sample.options) || !('document' in sample)) {
+    refuse(`${where} has no sample`, 'add `sample: { options, document }`: the options it runs with and the document it returns', 'E_NO_STATIC_PROJECTION');
+  }
+};
+
+/** A `then` entry: a built-in function by name, its options an object. */
+const isThen = (then: unknown): boolean =>
+  isRecord(then) &&
+  [...FUNCTIONS, ...CODE_FUNCTIONS].includes(then.function as never) &&
+  (then.field === undefined || text(then.field)) &&
+  (then.functionOptions === undefined || isRecord(then.functionOptions));
+
+/** A rule on code (R14) selects operations, and only it names a code function. */
+const validateCode = (rule: Record<string, unknown>, given: Record<string, unknown>, thens: readonly unknown[], where: string): void => {
+  const code = thens.some((then) => (CODE_FUNCTIONS as readonly unknown[]).includes((then as Record<string, unknown>).function));
+  if (given.implementation === true && given.select !== 'operation') refuse(`${where} reads code but selects ${String(given.select)}`, 'a rule with `given.implementation` selects `operation`: it reads each operation\'s handler');
+  if (code && given.implementation !== true) refuse(`${where} names a function on code without \`given.implementation\``, `add \`implementation: true\` to \`given\` to judge each operation's handler with ${CODE_FUNCTIONS.join(', ')}`);
+  if (given.implementation === true && rule.check !== undefined) refuse(`${where} reads code with a \`check\``, 'a rule on code says what must hold with `then`, so the handler is read once, statically');
+};
+
+/** A `path` given's paths: one or several, each inside the JSONPath subset. */
+const pathsOf = (path: unknown, where: string): void => {
+  const paths = [path].flat();
+  if (paths.length === 0 || !paths.every((each) => text(each))) refuse(`${where} selects \`path\` and names none`, "add `given.path`: a JSONPath into the document, e.g. `$.info`");
+  for (const each of paths as string[]) {
+    try {
+      parse(each);
+    } catch (error) {
+      refuse(`${where} selects a path outside the subset`, `${(error as Error).message}; write it with \`.key\`, \`['key']\`, \`*\`, \`..\` and \`?(@.x == 'y')\``);
+    }
+  }
+};
+
+const validateRule = (rule: unknown, where: string): void => {
+  if (!isRecord(rule) || !text(rule.description) || !text(rule.fix) || !isRecord(rule.given) || !(SELECTS as readonly unknown[]).includes(rule.given.select)) {
+    refuse(`${where} is not a rule`, `a rule is \`{ description, given: { select }, then or check, fix, sample }\`, \`select\` one of ${SELECTS.join(', ')}`);
+  }
+  if (rule.given.select === 'path') pathsOf(rule.given.path, where);
+  const thens = rule.then === undefined ? [] : [rule.then].flat();
+  if (!thens.every((then) => isThen(then)) || (rule.check !== undefined && typeof rule.check !== 'function') || (thens.length === 0 && rule.check === undefined)) {
+    refuse(`${where} says nothing that must hold`, `give it \`then: { function }\`, \`function\` one of ${FUNCTIONS.join(', ')}, or a \`check(node, context)\` function`);
+  }
+  validateCode(rule, rule.given, thens, where);
+  const { sample } = rule;
+  if (!isRecord(sample) || !('document' in sample) || !Array.isArray(sample.findings) || !sample.findings.every((finding) => isRecord(finding) && typeof finding.pointer === 'string' && text(finding.message))) {
+    refuse(`${where} has no sample`, 'add `sample: { document, findings: [{ pointer, message }] }`: a small document and exactly what the rule finds on it', 'E_NO_STATIC_PROJECTION');
+  }
+};
+
+const each = (group: unknown, plugin: string, key: string, validateOne: (value: unknown, where: string) => void): void => {
+  if (group === undefined) return;
+  if (!isRecord(group)) refuse(`plugin "${plugin}": ${key} must be an object`, `map a name to each of the ${key}`);
+  for (const [name, value] of Object.entries(group)) validateOne(value, `plugin "${plugin}": ${key}.${name}`);
+};
+
+/** Refuse, at the door, a plugin this host cannot use. */
+export function validate(plugin: unknown): asserts plugin is Plugin {
+  if (!isRecord(plugin)) refuse('a plugin is a plain object', 'export an object, not a function or an array');
+  const { name, contract } = plugin;
+  if (!text(name)) refuse('a plugin needs a name', 'add `name: "…"`: it is how a refused plugin is reported');
+  if (contract !== undefined && (!Number.isInteger(contract) || (contract as number) < 1 || (contract as number) > CONTRACT)) {
+    refuse(`plugin "${name}" declares contract ${String(contract)}; this contractdiff knows ${String(CONTRACT)}`, "upgrade contractdiff, or lower the plugin's `contract`", 'E_PLUGIN_CONTRACT');
+  }
+  each(plugin.adapters, name, 'adapters', validateAdapter);
+  each(plugin.generators, name, 'generators', validateGenerator);
+  each(plugin.extractors, name, 'extractors', validateExtractor);
+  each(plugin.rules, name, 'rules', validateRule);
+}
+
+/** A set of registered plugins. One per program run; tests make their own. */
+export interface Host {
+  readonly register: (plugin: unknown) => void;
+  readonly plugins: () => readonly Plugin[];
+  /** Forget every registered plugin. */
+  readonly reset: () => void;
+  /** Read a parsed document with the adapter that recognises it. */
+  readonly read: (document: unknown) => Contract;
+  /** The generator registered under `target`. */
+  readonly generator: (target: string) => Generator;
+  /** The extractor registered under `name`. */
+  readonly extractor: (name: string) => Extractor;
+  /** Every rule the plugins contribute, by id: a later plugin wins an id. */
+  readonly rules: () => Readonly<Record<string, Rule>>;
+  /** Run a generator on a document and return the files it would write. `run` returns its findings too. */
+  readonly generate: (target: string, document: unknown, options?: Options) => Promise<GeneratedFile[]>;
+  /** Run a generator on a document: the files it would write, and what the reader and the generator report. */
+  readonly run: (target: string, document: unknown, options?: Options) => Promise<{ files: GeneratedFile[]; findings: ContractFinding[] }>;
+}
+
+export const createHost = (): Host => {
+  const order: Plugin[] = [];
+
+  // Later wins, like ESLint flat config: the last plugin to name a generator or recognise a document is used.
+  const latest = <T>(pick: (plugin: Plugin) => T | undefined): T | undefined => {
+    for (const plugin of order.toReversed()) {
+      const found = pick(plugin);
+      if (found !== undefined) return found;
+    }
+    return undefined;
+  };
+  const names = (key: 'adapters' | 'generators' | 'extractors'): string => {
+    const all = [...new Set(order.flatMap((plugin) => Object.keys(plugin[key] ?? {})))].toSorted();
+    return all.length === 0 ? 'none' : all.join(', ');
+  };
+
+  const read = (document: unknown, accepted?: readonly string[]): Contract => {
+    const adapter = latest((plugin) =>
+      Object.entries(plugin.adapters ?? {}).find(([name, candidate]) => (accepted?.includes(name) ?? true) && candidate.detect(document))?.[1],
+    );
+    if (adapter === undefined) {
+      const wanted = accepted === undefined ? names('adapters') : accepted.join(', ');
+      return refuse('no input format recognises this document', `pass one of: ${wanted}; or install the plugin that reads it`, 'E_NO_CONTRIBUTION');
+    }
+    return adapter.read(document);
+  };
+
+  const named = (key: 'generators' | 'extractors', name: string, kind: string): Generator | Extractor => {
+    const found = latest((plugin): Generator | Extractor | undefined => {
+      const group: Readonly<Record<string, Generator | Extractor>> | undefined = plugin[key];
+      // eslint-disable-next-line conventions/consistent-existence-index-check -- Own names only: `gen toString` must not find an inherited function
+      return group !== undefined && Object.hasOwn(group, name) ? group[name] : undefined;
+    });
+    if (found === undefined) {
+      return refuse(`no ${kind} is named "${name}"`, `use one of: ${names(key)}; or install the plugin that provides it and add it to \`plugins\``, 'E_NO_CONTRIBUTION');
+    }
+    return found;
+  };
+  const generator = (target: string): Generator => named('generators', target, 'generator') as Generator;
+  const extractor = (name: string): Extractor => named('extractors', name, 'extractor') as Extractor;
+
+  const run = async (target: string, document: unknown, options: Options = {}): Promise<{ files: GeneratedFile[]; findings: ContractFinding[] }> => {
+    const chosen = generator(target);
+    const contract = read(document, chosen.inputs);
+    const result = resultOf(await chosen.run(contract, options));
+    return { files: validateFiles(result.files, `generator "${target}"`), findings: [...(contract.findings ?? []), ...result.findings] };
+  };
+
+  return {
+    register: (plugin) => {
+      validate(plugin);
+      order.push(plugin);
+    },
+    plugins: () => order,
+    reset: () => {
+      order.length = 0;
+    },
+    read: (document) => read(document),
+    generator,
+    extractor,
+    rules: () => Object.fromEntries(order.flatMap((plugin) => Object.entries(plugin.rules ?? {}))),
+    generate: async (target, document, options) => (await run(target, document, options)).files,
+    run,
+  };
+};
+
+export interface Finding {
+  readonly generator: string;
+  readonly path: string;
+  readonly problem: 'missing' | 'unexpected' | 'different' | 'not deterministic';
+  readonly fix: string;
+}
+
+type Rendered = ReadonlyMap<string, string>;
+
+const FIXES = {
+  'not deterministic': 'remove whatever changes between runs: time, random values, iteration order',
+  unexpected: 'add the file to `sample.files`, or stop generating it',
+  different: 'update `sample.files` to what `run` returns, or fix `run`',
+  missing: 'generate the file, or remove it from `sample.files`',
+} as const;
+
+const problemWith = (content: string, again: string | undefined, declared: string | undefined): Finding['problem'] | undefined => {
+  if (again !== content) return 'not deterministic';
+  if (declared === undefined) return 'unexpected';
+  return declared === content ? undefined : 'different';
+};
+
+/** Data as text with its object keys sorted, so two equal documents compare equal whatever their key order. */
+const canonical = (value: unknown): string | undefined =>
+  JSON.stringify(value, (_key, inner: unknown) =>
+    isRecord(inner) ? Object.fromEntries(Object.entries(inner).toSorted(([a], [b]) => a.localeCompare(b))) : inner,
+  );
+
+/** Two runs of one generator against what its sample declares. */
+const compare = (generator: string, first: Rendered, second: Rendered, declared: Rendered): Finding[] => {
+  const findings: Finding[] = [];
+  for (const [path, content] of first) {
+    const problem = problemWith(content, second.get(path), declared.get(path));
+    if (problem !== undefined) findings.push({ generator, path, problem, fix: FIXES[problem] });
+  }
+  for (const path of second.keys()) {
+    if (!first.has(path)) findings.push({ generator, path, problem: 'not deterministic', fix: 'return the same files on every run' });
+  }
+  for (const path of declared.keys()) {
+    if (!first.has(path)) findings.push({ generator, path, problem: 'missing', fix: FIXES.missing });
+  }
+  return findings;
+};
+
+// The owner is part of what a file is: the same bytes under another owner is a different result.
+const render = (files: readonly GeneratedFile[]): Rendered => new Map(files.map((file) => [file.path, `${file.owner}\n${file.content}`]));
+
+// An extractor returns a document, not files: two runs must agree, and with the sample, as data. Its findings are not part of the sample.
+const checkExtractor = async ([name, extractor]: [string, Extractor]): Promise<Finding[]> => {
+  const first = canonical(documentOf(await extractor.run(extractor.sample.options)).document);
+  const second = canonical(documentOf(await extractor.run(extractor.sample.options)).document);
+  if (second !== first) return [{ generator: name, path: 'sample.document', problem: 'not deterministic', fix: FIXES['not deterministic'] }];
+  if (first === canonical(extractor.sample.document)) return [];
+  return [{ generator: name, path: 'sample.document', problem: 'different', fix: 'update `sample.document` to what `run(sample.options)` returns, or fix `run`' }];
+};
+
+/**
+ * `contractdiff check <plugin>` (R-PL5): run every generator on its own sample, twice, and compare
+ * both runs with the files the sample declares, byte for byte. It proves the output is what the
+ * author says it is, and that it is the same on every run.
+ */
+export const checkPlugin = async (plugin: unknown): Promise<Finding[]> => {
+  const host = createHost();
+  // The built-in formats first, so a generator's sample reads without the plugin carrying an adapter.
+  host.register({ name: 'contractdiff', adapters: builtinAdapters });
+  host.register(plugin);
+  const [, registered] = host.plugins() as [Plugin, Plugin];
+  const checkOne = async ([name, generator]: [string, Generator]): Promise<Finding[]> => {
+    const contract = host.read(generator.sample.document);
+    const run = async (): Promise<Rendered> =>
+      render(validateFiles(resultOf(await generator.run(contract, generator.sample.options ?? {})).files, `generator "${name}"`));
+    const first = await run();
+    return compare(name, first, await run(), render(generator.sample.files));
+  };
+  const findings = await Promise.all([
+    ...Object.entries(registered.generators ?? {}).map(async (entry) => checkOne(entry)),
+    ...Object.entries(registered.extractors ?? {}).map(async (entry) => checkExtractor(entry)),
+  ]);
+  return findings.flat();
+};
+
+/** The program's own host: what `contractdiff gen` reads, and what the family's `register()` fills. */
+const program = createHost();
+
+/** Register a plugin with the program's host. Later wins a name. */
+export const register = (plugin: unknown): void => {
+  program.register(plugin);
+};
+
+/** The plugins registered with the program's host, oldest first. */
+export const registered = (): readonly Plugin[] => program.plugins();
+
+/** Forget every plugin registered with the program's host. For tests, and a program that re-registers. */
+export const reset = (): void => {
+  program.reset();
+};

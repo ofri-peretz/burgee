@@ -5,7 +5,7 @@ taken: 'loadline — the owner, 2026-11-19, in the coordinating session'
 date: '2026-11-19'
 superseded_by: —
 ---
-**`loadline`.** The name proposed in [`validator/intent.md`](../intents/validator/intent.md) is accepted.
+**`loadline`.** The name proposed in [`validator/intent.md`](../intents/loadline/intent.md) is accepted.
 It was free on npm when read on 2026-11-19 (`curl https://registry.npmjs.org/loadline` → 404).
 
 The name does not change when the package publishes. The intent's rule still holds: no publish

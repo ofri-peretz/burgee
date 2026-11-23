@@ -85,7 +85,7 @@ jobs:
     env:
       CHEAP_JOBS: '^B2 cold start · B3 compatibility · B4 weight$'
       FLOOR_JOBS: '^N10 external floor '
-      PROPS_JOBS: '^apicontract props on the corpus$'
+      PROPS_JOBS: '^contractdiff props on the corpus$'
     steps:
       - name: Open or update the issue
         env:
@@ -113,6 +113,6 @@ jobs:
             exit 0
           fi
           TITLE="Nightly benchmarks failed"
-          BODY=$(printf 'The nightly benchmark run on `%s` failed: cheap axes `%s`, N10 floor `%s`, apicontract props on the corpus `%s`. Cold start, runtime and the compat suite no longer gate a pull request, so this is where their regressions show up; a props failure is a counterexample in the validator, normaliser or classifier, with its seed in the run'"'"'s props-corpus artifact.\n\n[Run](%s)\n' "$SHA" "$CHEAP" "$FLOOR" "$PROPS" "$RUN_URL")
+          BODY=$(printf 'The nightly benchmark run on `%s` failed: cheap axes `%s`, N10 floor `%s`, contractdiff props on the corpus `%s`. Cold start, runtime and the compat suite no longer gate a pull request, so this is where their regressions show up; a props failure is a counterexample in the validator, normaliser or classifier, with its seed in the run'"'"'s props-corpus artifact.\n\n[Run](%s)\n' "$SHA" "$CHEAP" "$FLOOR" "$PROPS" "$RUN_URL")
           EXISTING=$(gh issue list --state open --search "$TITLE in:title" --json number --jq '.[0].number // empty')
           if [ -n "$EXISTING" ]; then gh issue comment "$EXISTING" --body "$BODY"; else gh issue create --title "$TITLE" --body "$BODY"; fi

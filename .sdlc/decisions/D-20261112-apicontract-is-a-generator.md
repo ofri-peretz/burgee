@@ -16,9 +16,9 @@ convert spec to js/ts validator or json schema (ajv) our cli will allow them to 
 The intent had opened on 2026-11-06 with "one contract tool for every API in your repo" and led with
 `diff` and `explain`. The review of 2026-11-11 read the product from that text and recommended
 parking the plugin API and the NestJS generator; that recommendation is withdrawn
-([`review.md`](../intents/apicontract/review.md) § Correction).
+([`review.md`](../intents/contractdiff/review.md) § Correction).
 
-What changed in [`roadmap.md`](../intents/apicontract/roadmap.md): phases 1 to 4 are the generators
+What changed in [`roadmap.md`](../intents/contractdiff/roadmap.md): phases 1 to 4 are the generators
 (types and the plugin API; validators, ours or JSON Schema for ajv; NestJS modules and the plugin
 kit; more stacks), and code → spec lands in the same phases from Phase 2, with the round trip
 verified. `explain` + `diff`, MCP and code-first, `check`, the remaining protocols and

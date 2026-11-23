@@ -1,6 +1,6 @@
 # Intent — server modules from a contract that regenerate without touching your code
 
-> Opened from the 2026-11-18 program ([`../apicontract/program.md`](../apicontract/program.md)).
+> Opened from the 2026-11-18 program ([`../contractdiff/program.md`](../contractdiff/program.md)).
 > Roadmap Phases 3 and 4, server half. Vision row 3: generated servers get abandoned because
 > regeneration overwrites hand-written code; only fastify-openapi-glue is regeneration-safe today,
 > and openapi-generator's NestJS server is beta and overwrites.
@@ -40,7 +40,7 @@ graded on the plugin authors see first, which is the NestJS one.
 
 ## Affected users and systems
 
-`packages/apicontract/src/plugin-nest*.ts, src/plugin-hono*.ts, src/plugin-fastify*.ts, src/plugin-express*.ts`.
+`packages/contractdiff/src/plugin-nest*.ts, src/plugin-hono*.ts, src/plugin-fastify*.ts, src/plugin-express*.ts`.
 
 ## Constraints
 
@@ -70,7 +70,7 @@ graded on the plugin authors see first, which is the NestJS one.
 
 ## Evidence sweep 2026-11-22
 
-Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/apicontract` (2,545 tests) and `packages/validator` (1,153) is green there. 1 of 4 criteria met (N1 and golden files). N2 and N3 on the bench specs are unread.
+Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/contractdiff` (2,545 tests) and `packages/loadline` (1,153) is green there. 1 of 4 criteria met (N1 and golden files). N2 and N3 on the bench specs are unread.
 
 | # | criterion | held by | state |
 | --: | :-- | :-- | :-- |

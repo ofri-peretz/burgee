@@ -1113,15 +1113,14 @@ describe('a full disk says what to free', () => {
   it('turns a sync that failed with the volume nearly empty of room into exit FULL, and nothing else', () => {
     if (spawnSync('sh', ['-c', 'true']).status !== 0) return;
     const dir = scratch('oxmutate-df-');
-    // `df` is a shell function, not a stub file found on PATH: a function wins over any binary, so
-    // the trap reads it on every platform. A stub file was not run on windows-latest at times (#1764:
-    // Git Bash fell back to the real df, which saw room, and exit 1 stayed 1).
     let available = 0;
     const df = (availableKiB: number): void => {
       available = availableKiB;
     };
     const ran = (body: string): number | null => {
       const file = path.join(dir, 'sync.sh');
+      // df is a shell function, which the shell prefers to any command on PATH. A stub on PATH
+      // lost on Windows: Git's sh puts its own /usr/bin first, so the real df answered.
       const stub = `df() { echo 'Filesystem 1024-blocks Used Available Capacity Mounted on'; echo 'overlay 100 100 ${String(available)} 100% /w'; }`;
       writeFileSync(file, ['set -e', stub, FULL_TRAP, body].join('\n'));
       return spawnSync('sh', [file], { encoding: 'utf8' }).status;

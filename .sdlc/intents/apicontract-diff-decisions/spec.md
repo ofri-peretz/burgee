@@ -81,7 +81,7 @@ and parameter-level markers are read from `contract.document` at `operation.sour
 
 ## Verification
 
-- **One command:** `npx vitest run packages/apicontract/src/diff-decisions.test.ts` exits non-zero
+- **One command:** `npx vitest run packages/contractdiff/src/diff-decisions.test.ts` exits non-zero
   when any requirement breaks.
 - **Each rule proven to fail on the unfixed state** (working agreement rule 4): one fixture pair
   per requirement R3–R10, each asserting the finding id. Mutation testing on the changed lines
