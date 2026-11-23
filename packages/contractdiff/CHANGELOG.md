@@ -1,5 +1,19 @@
 # apicontract
 
+## 0.3.0
+
+### Minor Changes
+
+- [#1751](https://github.com/ofri-peretz/burgee/pull/1751) [`d218e73`](https://github.com/ofri-peretz/burgee/commit/d218e734a61c1c3f95f245f1fb784360db3861de) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - First publish. apicontract is now contractdiff (the package, the `contractdiff` command, the
+  `contractdiff/testing` import, and the `contractdiff.config.json` and `contractdiff.map.json`
+  files), and the validator is now loadline (`import { check } from 'loadline'`). Both are public,
+  with a README, a mark and their place in the family.
+
+### Patch Changes
+
+- Updated dependencies [[`d218e73`](https://github.com/ofri-peretz/burgee/commit/d218e734a61c1c3f95f245f1fb784360db3861de)]:
+  - loadline@0.1.0
+
 ## 0.2.0
 
 ### Minor Changes
