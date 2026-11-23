@@ -42,8 +42,8 @@ export interface Decision {
 export interface Decisions {
   /** Every member that carries a marker, by {@link keyOf}. */
   readonly decisions: ReadonlyMap<string, Decision>;
-  /** Every member the walk reached, with or without a marker, by {@link keyOf}. */
-  readonly members: ReadonlySet<string>;
+  /** Whether a member exists, with or without a marker, by {@link keyOf}. */
+  readonly members: { has: (key: string) => boolean };
   /** R2 to R4: markers misplaced, misspelled or holding a bad value. */
   readonly problems: readonly Finding[];
 }
@@ -179,6 +179,8 @@ interface Scan {
   readonly decisions: Map<string, Decision>;
   readonly members: Set<string>;
   readonly problems: Finding[];
+  /** Per `$ref`: whether nothing it reaches carries a marker, so walking it can record nothing. */
+  readonly markerFree: Map<string, boolean>;
 }
 
 interface At {
@@ -276,7 +278,65 @@ const localRef = (schema: Dict): string | undefined => (typeof schema.$ref === '
 const follow = (scan: Scan, at: At, schema: Dict, pointer: string): void => {
   const ref = localRef(schema);
   if (ref === undefined) return;
-  if (!at.open.has(ref)) walk(scan, { ...at, open: new Set([...at.open, ref]) }, lookup(scan.contract.document, ref), pointer);
+  if (!at.open.has(ref) && !isMarkerFree(scan, ref)) walk(scan, { ...at, open: new Set([...at.open, ref]) }, lookup(scan.contract.document, ref), pointer);
+};
+
+/** Whether any key under `node` (references not followed) is a marker. */
+const holdsMarker = (node: unknown): boolean => {
+  if (Array.isArray(node)) return node.some((item) => holdsMarker(item));
+  if (!isDict(node)) return false;
+  return Object.entries(node).some(([key, child]) => (MARKERS as readonly string[]).includes(key) || holdsMarker(child));
+};
+
+/**
+ * Whether no schema `ref` reaches, through any chain of references, carries a marker. The walk
+ * follows references path by path, which on a schema graph as shared as Stripe's reaches each
+ * schema along millions of paths (contractdiff-bench): a part that can record nothing is skipped,
+ * and {@link memberIn} answers for the members it would have listed.
+ */
+const isMarkerFree = (scan: Scan, ref: string): boolean => {
+  const known = scan.markerFree.get(ref);
+  if (known !== undefined) return known;
+  const seen = new Set<string>([ref]);
+  const queue = [ref];
+  let free = true;
+  while (free && queue.length > 0) {
+    const target = lookup(scan.contract.document, queue.pop() as string);
+    if (holdsMarker(target)) free = false;
+    for (const next of refsIn(target)) {
+      if (!seen.has(next)) {
+        seen.add(next);
+        queue.push(next);
+      }
+    }
+  }
+  scan.markerFree.set(ref, free);
+  return free;
+};
+
+/** The local references anywhere under a value. */
+const refsIn = (node: unknown, into: string[] = []): string[] => {
+  if (Array.isArray(node)) for (const item of node) refsIn(item, into);
+  else if (isDict(node)) {
+    const ref = localRef(node);
+    if (ref !== undefined) into.push(ref);
+    for (const child of Object.values(node)) refsIn(child, into);
+  }
+  return into;
+};
+
+/** The schemas a member's next step can be read from: itself, what it references, and its `allOf` branches, as the walk reads them. */
+const facesOf = (document: unknown, schema: unknown, seen: Set<unknown> = new Set()): Dict[] => {
+  if (!isDict(schema) || seen.has(schema)) return [];
+  seen.add(schema);
+  const ref = localRef(schema);
+  return [schema, ...(ref === undefined ? [] : facesOf(document, lookup(document, ref), seen)), ...arrayOf(schema.allOf).flatMap((branch) => facesOf(document, branch, seen))];
+};
+
+/** Whether `pointer` names a member under `schema`, in the walk's own pointer vocabulary ({@link childrenOf}). */
+const memberIn = (document: unknown, schema: unknown, pointer: string): boolean => {
+  if (pointer === '') return isDict(schema);
+  return facesOf(document, schema).some((face) => childrenOf(face, '').some(([child, where]) => (pointer === where || pointer.startsWith(`${where}/`)) && memberIn(document, child, pointer.slice(where.length))));
 };
 
 const walk = (scan: Scan, at: At, schema: unknown, pointer: string): void => {
@@ -286,6 +346,13 @@ const walk = (scan: Scan, at: At, schema: unknown, pointer: string): void => {
   follow(scan, at, schema, pointer);
   for (const [child, where] of childrenOf(schema, pointer)) walk(scan, at, child, where);
   for (const branch of arrayOf(schema.allOf)) walk(scan, at, branch, pointer);
+};
+
+/** Whether `key` names a member of `contract` that the walk skipped as unable to hold a marker. */
+const memberOf = (contract: Contract, key: string): boolean => {
+  const [id, payload, pointer] = key.split('\n') as [string, string, string];
+  const schema = contract.operations.find((operation) => operation.id === id)?.payloads.find((candidate) => candidate.name === payload)?.schema;
+  return schema !== undefined && memberIn(contract.document, schema, pointer);
 };
 
 /** The parameter objects of an operation, by the payload name the OpenAPI reader gives them. */
@@ -323,9 +390,10 @@ interface Holders {
 /** R2 and R3 for one object: each of its keys that is a near-miss spelling, or a marker where none may be. */
 const audit = (scan: Scan, holders: Holders, node: object, pointer: string): void => {
   const here = `#${pointer}`;
-  const enclosing = scan.contract.operations.find((operation) => here === operation.source || here.startsWith(`${operation.source}/`));
+  // Looked up only when a finding is made: a scan of every node against every operation is
+  // quadratic, minutes on a spec with a thousand operations (contractdiff-bench, Stripe).
   const where = (): Place => ({
-    operation: enclosing?.id ?? '(document)',
+    operation: scan.contract.operations.find((operation) => here === operation.source || here.startsWith(`${operation.source}/`))?.id ?? '(document)',
     source: here,
     document: 'new',
     direction: 'request',
@@ -381,6 +449,7 @@ export const readDecisions = (contract: Contract, level?: DecisionLevel): Decisi
     decisions: new Map(),
     members: new Set(),
     problems: [],
+    markerFree: new Map(),
   };
   const holders: Holders = { objects: new Set(), schemas: new Set() };
   for (const operation of contract.operations) {
@@ -411,7 +480,7 @@ export const readDecisions = (contract: Contract, level?: DecisionLevel): Decisi
   scanDocument(scan, holders, contract.document, '');
   return {
     decisions: scan.decisions,
-    members: scan.members,
+    members: { has: (key) => scan.members.has(key) || memberOf(contract, key) },
     problems: unique(scan.problems),
   };
 };

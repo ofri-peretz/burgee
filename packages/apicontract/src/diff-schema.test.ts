@@ -187,6 +187,26 @@ describe('compositions', () => {
     ]);
   });
 
+  it('skips a shared reference whose schemas are the same all the way down, and still finds a change two references deep', () => {
+    const shared = { type: 'object', properties: { b: { $ref: '#/B' }, again: { $ref: '#/B' } } };
+    const same = { old: { A: shared, B: { type: 'string' } }, new: { A: shared, B: { type: 'string' } } };
+    const twice = { properties: { x: { $ref: '#/A' }, y: { $ref: '#/A' } } };
+    expect(compareSchemas(twice, twice, 'request', same)).toEqual([]);
+    const deep = { old: same.old, new: { A: shared, B: { type: 'integer' } } };
+    expect(compareSchemas(twice, twice, 'request', deep).map((c) => [c.rule, c.pointer])).toEqual(
+      ['/properties/x/properties/again', '/properties/x/properties/b', '/properties/y/properties/again', '/properties/y/properties/b'].flatMap((pointer) => [
+        ['type-narrowed', pointer],
+        ['type-widened', pointer],
+      ]),
+    );
+    // A reference that names nothing is followed as before, and refused there.
+    expect(() => compareSchemas({ $ref: '#/A' }, { $ref: '#/A' }, 'request')).toThrow(/cannot resolve `#\/A`/);
+    expect(() => compareSchemas({ $ref: '#/A' }, { $ref: '#/A' }, 'request', { old: same.old, new: {} })).toThrow(/cannot resolve `#\/A`/);
+    // One that names nothing only inside an example is never followed: the schema is still the same.
+    const example = { type: 'string', example: { $ref: '#/nowhere' } };
+    expect(compareSchemas(twice, twice, 'request', { old: { A: example }, new: { A: example } })).toEqual([]);
+  });
+
   it('compares a branch kept by equal text when the count changed: its reference may point at a changed target', () => {
     const documents = { old: { A: { type: 'string' }, B: {}, C: {} }, new: { A: { type: 'string', maxLength: 5 }, B: {}, C: {} } };
     const changes = compareSchemas({ allOf: [{ $ref: '#/A' }, { $ref: '#/B' }] }, { allOf: [{ $ref: '#/A' }, { $ref: '#/B' }, { $ref: '#/C' }] }, 'request', documents);

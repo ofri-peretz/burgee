@@ -164,11 +164,13 @@ const compareValues = (pointer: string, a: Dict, b: Dict): Change[] => {
   const after = valuesAgainst(b, a);
   const set = presence('enum', pointer, before, after);
   if (set !== undefined) return set;
-  const kept = (after as unknown[]).map((value) => canonical(value));
-  const had = (before as unknown[]).map((value) => canonical(value));
+  // Sets, not arrays: an enum of thousands of values compared on every schema was quadratic
+  // (minutes on Stripe's spec, contractdiff-bench).
+  const kept = new Set((after as unknown[]).map((value) => canonical(value)));
+  const had = new Set((before as unknown[]).map((value) => canonical(value)));
   return [
-    ...(before as unknown[]).filter((value) => !kept.includes(canonical(value))).map((value) => at(pointer, value, undefined)('enum-value-removed', 'narrows')),
-    ...(after as unknown[]).filter((value) => !had.includes(canonical(value))).map((value) => at(pointer, undefined, value)('enum-value-added', 'widens')),
+    ...(before as unknown[]).filter((value) => !kept.has(canonical(value))).map((value) => at(pointer, value, undefined)('enum-value-removed', 'narrows')),
+    ...(after as unknown[]).filter((value) => !had.has(canonical(value))).map((value) => at(pointer, undefined, value)('enum-value-added', 'widens')),
   ];
 };
 
@@ -322,8 +324,76 @@ const follow = (schema: Dict, document: unknown): unknown => {
 
 const local = (schema: unknown): schema is Dict => isDict(schema) && typeof schema.$ref === 'string' && schema.$ref.startsWith('#');
 
+/** The local `$ref`s anywhere under a value. */
+const refsUnder = (value: unknown, into: Set<string> = new Set()): Set<string> => {
+  if (Array.isArray(value)) for (const item of value) refsUnder(item, into);
+  else if (isDict(value)) {
+    if (local(value)) into.add(String(value.$ref));
+    for (const child of Object.values(value)) refsUnder(child, into);
+  }
+  return into;
+};
+
+/** A reference that names nothing reads as a value no schema is: the walk then follows it, and says so. */
+const DANGLING = Symbol('dangling');
+const reach = (document: object, ref: string): unknown => {
+  try {
+    return pointerGet(document, ref);
+  } catch {
+    return DANGLING;
+  }
+};
+
+/** Per old document, per new document: whether each `$ref` names the same schema on both sides, all the way down. */
+const sameness = new WeakMap<object, WeakMap<object, Map<string, boolean>>>();
+
+/**
+ * Whether `ref` names a schema whose bytes, and the bytes of every schema it reaches through
+ * `$ref`s, are the same in both documents: then comparing it can find nothing. Without this the
+ * walk below follows every path through a shared schema graph, which never ends on a spec like
+ * Stripe's (contractdiff-bench) although the path-local cycle check keeps each path finite.
+ */
+const unchanged = (documents: Documents, ref: string): boolean => {
+  const { old, new: nu } = documents;
+  if (!isDict(old) || !isDict(nu)) return false;
+  const byNew = sameness.get(old) ?? new WeakMap<object, Map<string, boolean>>();
+  sameness.set(old, byNew);
+  const memo = byNew.get(nu) ?? new Map<string, boolean>();
+  byNew.set(nu, memo);
+  const equal = (one: string): boolean => {
+    const known = memo.get(`=${one}`);
+    if (known !== undefined) return known;
+    const [before, after] = [reach(old, one), reach(nu, one)];
+    const result = before !== DANGLING && after !== DANGLING && canonical(before) === canonical(after);
+    memo.set(`=${one}`, result);
+    return result;
+  };
+  const cached = memo.get(ref);
+  if (cached !== undefined) return cached;
+  const seen = new Set<string>([ref]);
+  const queue = [ref];
+  let result = true;
+  while (result && queue.length > 0) {
+    const next = queue.pop() as string;
+    if (!equal(next)) result = false;
+    for (const found of refsUnder(reach(old, next))) {
+      if (!seen.has(found)) {
+        seen.add(found);
+        queue.push(found);
+      }
+    }
+  }
+  memo.set(ref, result);
+  return result;
+};
+
+/** A bare `$ref` on both sides, to the same name: nothing beside it can differ. */
+const sameRef = (a: unknown, b: unknown): a is Dict =>
+  local(a) && local(b) && a.$ref === b.$ref && Object.keys(a).length === 1 && Object.keys(b).length === 1;
+
 /** Both sides with their local references followed, once per pair on the path. */
 const compareRefs = (walk: Walk, pointer: string, a: unknown, b: unknown): Change[] => {
+  if (sameRef(a, b) && unchanged(walk.documents, String(a.$ref))) return [];
   // The pair open on this path; an inline side is keyed by where it is, since it ends by itself.
   const key = `${local(a) ? String(a.$ref) : pointer}\n${local(b) ? String(b.$ref) : pointer}`;
   if (walk.open.has(key)) return [];
