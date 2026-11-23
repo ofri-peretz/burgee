@@ -179,8 +179,8 @@ export function parseVersion(text: string): Version | null {
 
 /** `rc2` against `rc10`: runs of digits compare as numbers, anything else as text. */
 function comparePre(a: string, b: string): number {
-  const left = a.match(/\d+|\D+/g) ?? [];
-  const right = b.match(/\d+|\D+/g) ?? [];
+  const left = [...a.matchAll(/\d+|\D+/g)].map((m) => m[0]);
+  const right = [...b.matchAll(/\d+|\D+/g)].map((m) => m[0]);
   for (let i = 0; i < Math.max(left.length, right.length); i += 1) {
     const x = left[i];
     const y = right[i];
@@ -196,7 +196,7 @@ function comparePre(a: string, b: string): number {
 /** Negative when `a` is older. Only meaningful for two versions of one scheme. */
 export function compareVersions(a: Version, b: Version): number {
   for (let i = 0; i < a.parts.length; i += 1) {
-    const order = (a.parts[i] ?? 0) - (b.parts[i] ?? 0);
+    const order = (a.parts[i] as number) - (b.parts[i] as number);
     if (order !== 0) return order;
   }
   if (a.pre === b.pre) return 0;
@@ -223,9 +223,6 @@ export interface Published {
 export type Get = (url: string, init: { headers: Record<string, string> }) => Promise<Pick<Response, 'ok' | 'status' | 'json' | 'headers'>>;
 
 const liveGet: Get = (url, init) => fetch(url, init);
-
-/** R3: a tag or version that says it is not a release yet. */
-const PRERELEASE = /rc|draft|beta/i;
 
 const HEADERS = { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'burgee-compat-oracle' };
 
@@ -301,7 +298,9 @@ export async function fetchPublished(spec: Spec, token: string | undefined, get:
     const version = raw === null ? null : versionOf(spec, raw.tag);
     const parsed = version === null ? null : parseVersion(version);
     if (raw === null || version === null || parsed === null) continue;
-    published.push({ version, parsed, prerelease: raw.prerelease || parsed.pre !== null || PRERELEASE.test(version), url: raw.url });
+    // R3: GitHub's own flag, or a suffix on the version (`-rc1`, `-draft`, `-beta.2`, `-next-major`).
+    // A suffix is how every one of these specs spells a candidate, so it is not listed by name.
+    published.push({ version, parsed, prerelease: raw.prerelease || parsed.pre !== null, url: raw.url });
   }
   if (published.length === 0) {
     throw new Error(`no version-shaped ${spec.source} among the ${body.length} ${spec.repo} returned; it is unchecked, not up to date. fix: set \`tagPattern\` in specs.json so its first group is the version`);
@@ -406,7 +405,7 @@ function newerThanSeen(spec: Spec, published: Published[]): { seen: Version | nu
   }
   const comparable = inScheme(published, seen?.scheme).sort(ascending);
   if (comparable.length === 0) {
-    throw new Error(`none of ${spec.repo}'s versions is in the scheme of seen ${spec.seen?.version ?? ''}; it is unchecked, not up to date. fix: delete \`seen\` and run \`compat-oracle --specs --record\``);
+    throw new Error(`none of ${spec.repo}'s versions is in the scheme of seen ${(spec.seen as SpecSeen).version}; it is unchecked, not up to date. fix: delete \`seen\` and run \`compat-oracle --specs --record\``);
   }
   return { seen, comparable };
 }
@@ -476,9 +475,9 @@ function recorded(spec: Spec, published: Published[], today: string, write: Writ
   const label = spec.name.padEnd(COL);
   const held = spec.seen === undefined ? null : parseVersion(spec.seen.version);
   const newest = inScheme(published, held?.scheme).sort(ascending).at(-1);
-  if (newest === undefined) throw new Error(`none of ${spec.repo}'s versions is in the scheme of seen ${spec.seen?.version ?? ''}. fix: delete \`seen\` and record again`);
+  if (newest === undefined) throw new Error(`none of ${spec.repo}'s versions is in the scheme of seen ${(spec.seen as SpecSeen).version}. fix: delete \`seen\` and record again`);
   if (held !== null && compareVersions(newest.parsed, held) <= 0) {
-    write(`  ${label} ${spec.seen?.version ?? ''} — already the newest\n`);
+    write(`  ${label} ${(spec.seen as SpecSeen).version} — already the newest\n`);
     return spec;
   }
   write(`  ${label} ${newest.version}  recorded\n`);

@@ -73,6 +73,7 @@ function packages(specs: unknown, owner = 'apicontract'): string {
 const unchecked = (ran: Ran): string => ran.unchecked.map((u) => u.error).join('\n');
 
 const entry = (over: Partial<Spec> = {}): Spec => ({ name: 'OpenAPI', repo: 'OAI/OpenAPI-Specification', source: 'releases', reads: ['3.0', '3.1'], ...over });
+const refuses: Get = () => Promise.reject('connection reset');
 const URL_RELEASES = 'OAI/OpenAPI-Specification/releases?per_page=20';
 
 type Ran = Awaited<ReturnType<typeof check>> & { out: string };
@@ -159,6 +160,13 @@ describe('versions compare by the specification’s own scheme', () => {
     expect(compareVersions(v('2025-11-25'), v('2025-11-25-RC'))).toBeGreaterThan(0);
     expect(compareVersions(v('1.0.0-rc.1'), v('1.0.0-rc.1'))).toBe(0);
   });
+
+  it('puts a candidate’s bare name before its numbered ones, and counts rc01 and rc1 as one', () => {
+    expect(compareVersions(v('1.0.0-rc'), v('1.0.0-rc1'))).toBeLessThan(0);
+    expect(compareVersions(v('1.0.0-rc1'), v('1.0.0-rc'))).toBeGreaterThan(0);
+    expect(compareVersions(v('1.0.0-rc01'), v('1.0.0-rc1'))).toBe(0);
+    expect(compareVersions(v('1.0.0-alpha'), v('1.0.0-beta'))).toBeLessThan(0);
+  });
 });
 
 describe('R2 — one update per version newer than `seen`', () => {
@@ -211,6 +219,13 @@ describe('R2 — one update per version newer than `seen`', () => {
   it('uses the whole match when the pattern has no group', async () => {
     const ran = await run([entry({ tagPattern: '^\\d+\\.\\d+\\.\\d+$', seen })], { [URL_RELEASES]: { body: releases('3.2.0', 'v9.9.9-x') } });
     expect(ran.updates.map((u) => u.to)).toEqual(['3.2.0']);
+  });
+
+  it('skips a tag with no name', async () => {
+    const spec = entry({ source: 'tags', seen });
+    const fake = github({ 'OAI/OpenAPI-Specification/tags?per_page=50': { body: [{}, { name: '3.2.0' }] } });
+    const result = await check(packages([spec]), () => undefined, { token: '', get: fake.get });
+    expect(result.updates.map((u) => u.to)).toEqual(['3.2.0']);
   });
 
   it('asks for a release’s page when GitHub sends none, and skips draft releases', async () => {
@@ -299,7 +314,8 @@ describe('R4 — the title, and the body the workflow files', () => {
   });
 
   it('says a format nothing reads yet has no adapter, and points at the decision that plans it', async () => {
-    const ran = await run([entry({ seen, adapters: [] })], { [URL_RELEASES]: { body: releases('3.1.0') } });
+    const ran = await run([entry({ seen, adapters: [], reads: [] })], { [URL_RELEASES]: { body: releases('3.1.0') } });
+    expect(ran.updates[0]?.report).toContain('- We read: nothing yet');
     expect(ran.updates[0]?.report).toContain('No adapter reads this format yet');
     expect(ran.updates[0]?.report).toContain('D-20261122-open-formats');
   });
@@ -443,6 +459,11 @@ describe('R7 — a repo that cannot be read is unchecked, never up to date', () 
     const ran = await run([entry({ seen })], { [URL_RELEASES]: { throws: 'getaddrinfo ENOTFOUND' } });
     expect(unchecked(ran)).toContain('could not reach GitHub for OAI/OpenAPI-Specification: getaddrinfo ENOTFOUND');
     expect(unchecked(ran)).toContain('fix: re-run the job');
+  });
+
+  it('names a failure that is not an Error by its string', async () => {
+    const result = await check(packages([entry({ seen })]), () => undefined, { token: '', get: refuses });
+    expect(result.unchecked[0]?.error).toContain('could not reach GitHub for OAI/OpenAPI-Specification: connection reset');
   });
 
   it('treats an answer that is not a list as unchecked', async () => {
