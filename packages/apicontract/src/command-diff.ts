@@ -21,6 +21,7 @@ import { MODES, type Mode, type Side, SIDES, type Verdict } from './diff-classif
 import { type Comparison, compareContracts, type Finding } from './diff-contract.js';
 import { checkDecisions, isDate, withDecisions } from './diff-decisions.js';
 import { compareTransitive } from './diff-transitive.js';
+import { applyUsage, parseUsage } from './diff-usage.js';
 import { builtinAdapters } from './inputs.js';
 import { DECISION_SETTINGS, type DecisionSetting, decisionSettingOf, UsageError } from './run-config.js';
 
@@ -49,6 +50,8 @@ export interface DiffOptions {
    * last one is the new contract. A directory among the old ones stands for its files, in version order.
    */
   readonly more?: readonly string[] | undefined;
+  /** A file saying which operations and members callers use (contractdiff-compat-depth R3). */
+  readonly usage?: string | undefined;
   /** Compare the new contract with every past release given, not only the last (contractdiff-compat-depth R1). */
   readonly transitive?: boolean | undefined;
   readonly mode?: Mode | undefined;
@@ -167,6 +170,14 @@ const decisionLines = (decisions: readonly Finding[]): string[] => {
   ];
 };
 
+/** What `--transitive` and `--usage` add to a finding's line: the release it breaks, and who uses it. */
+const notesOf = (finding: Finding): string =>
+  [
+    finding.against === undefined ? '' : `  (against ${finding.against})`,
+    finding.note === undefined ? '' : `  (${finding.note})`,
+    finding.usedBy === undefined ? '' : `  (used by ${finding.usedBy.join(', ')})`,
+  ].join('');
+
 /** What `--transitive` compared with, and the oldest release a breaking change breaks. */
 const transitiveLine = (transitive: NonNullable<Comparison['transitive']>): string =>
   `against ${String(transitive.against.length)} release(s), oldest first: ${transitive.against.join(', ')}; oldest broken: ${transitive.oldestBroken ?? 'none'}`;
@@ -185,8 +196,7 @@ export const toText = (comparison: Comparison, old: string, nu: string): string 
     const findings = comparison.findings.filter((finding) => finding.operation === operation);
     lines.push('', `${operation}  ${(findings[0] as Finding).source}`);
     for (const finding of findings) {
-      const against = finding.against === undefined ? '' : `  (against ${finding.against})`;
-      lines.push(`  ${finding.verdict.padEnd(COLUMN)}  ${finding.id}  ${where(finding)}  ${show(finding.before)} -> ${show(finding.after)}${against}`);
+      lines.push(`  ${finding.verdict.padEnd(COLUMN)}  ${finding.id}  ${where(finding)}  ${show(finding.before)} -> ${show(finding.after)}${notesOf(finding)}`);
       if (finding.verdict !== 'non-breaking') lines.push(`  ${''.padEnd(COLUMN)}  fix: ${finding.fix}`);
     }
   }
@@ -289,6 +299,13 @@ const sidesOf = (options: DiffOptions, git: GitReader): { readonly olds: readonl
   return { olds: olds.map((spec) => read(spec, options.cwd, git)), nu: read(specs.at(-1) as string, options.cwd, git) };
 };
 
+/** The usage file, read. */
+const usageOf = (file: string, cwd: string): ReturnType<typeof parseUsage> => {
+  const path = resolve(cwd, file);
+  if (!existsSync(path)) throw new UsageError(`there is no usage file ${file}. fix: pass the path of a JSON file that says which operations callers use, or an apicontract.map.json`);
+  return parseUsage(String(readFileSync(path)), file);
+};
+
 /** The command's work, with the folder and the git reader as inputs so a test can give its own. */
 export const diff = (options: DiffOptions): Record<string | symbol, unknown> => {
   const git = options.git ?? noGit;
@@ -298,7 +315,8 @@ export const diff = (options: DiffOptions): Record<string | symbol, unknown> => 
   const compare = { mode: options.mode, side: options.side, dangerousBreaking: options.dangerousBreaking };
   // The decisions are held against the release right before this one: the one the change is made to.
   const latest = compareContracts(last.contract, nu.contract, compare);
-  const changes = options.transitive === true ? compareTransitive(olds, nu.contract, compare) : latest;
+  const compared = options.transitive === true ? compareTransitive(olds, nu.contract, compare) : latest;
+  const changes = options.usage === undefined ? compared : applyUsage(compared, usageOf(options.usage, options.cwd));
   const level = settingFor(options, git);
   const today = todayOf(options.today);
   const comparison =
@@ -359,6 +377,7 @@ export const command = defineCommand({
       choices: DECISION_SETTINGS,
       description: 'hold a change to the decision written in the contract: warn (default; prints, exit code unchanged), error (fails the run) or off. Read from the base ref\'s apicontract.config.json first',
     },
+    usage: { type: 'string', description: 'a JSON file of the operations and members callers use (or an apicontract.map.json): a breaking change nobody uses is non-breaking', placeholder: 'file' },
     transitive: { type: 'boolean', description: 'compare the last contract with every one before it, not only the last: findings say which release they break' },
     dangerousBreaking: { type: 'boolean', description: 'report dangerous changes (a default changed, a value a reader may not expect) as breaking, so they fail the run' },
     today: { type: 'string', description: 'the date x-sunset is judged against (default: today, UTC)', placeholder: 'YYYY-MM-DD' },
@@ -370,6 +389,7 @@ export const command = defineCommand({
       new: args.new,
       more: args.more,
       transitive: options.transitive,
+      usage: options.usage,
       mode: options.mode as Mode | undefined,
       side: options.side as Side | undefined,
       sarif: options.sarif,

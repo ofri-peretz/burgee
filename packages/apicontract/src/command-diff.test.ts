@@ -69,6 +69,7 @@ describe('apicontract diff, through burgee', () => {
         choices: ['warn', 'error', 'off'],
         description: "hold a change to the decision written in the contract: warn (default; prints, exit code unchanged), error (fails the run) or off. Read from the base ref's apicontract.config.json first",
       },
+      usage: { type: 'string', description: 'a JSON file of the operations and members callers use (or an apicontract.map.json): a breaking change nobody uses is non-breaking', placeholder: 'file' },
       transitive: { type: 'boolean', description: 'compare the last contract with every one before it, not only the last: findings say which release they break' },
       dangerousBreaking: { type: 'boolean', description: 'report dangerous changes (a default changed, a value a reader may not expect) as breaking, so they fail the run' },
       today: { type: 'string', description: 'the date x-sunset is judged against (default: today, UTC)', placeholder: 'YYYY-MM-DD' },

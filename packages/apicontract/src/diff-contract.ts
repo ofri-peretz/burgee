@@ -33,6 +33,10 @@ export interface Finding {
   readonly fix: string;
   /** With `--transitive`: the past release this finding was found against, the oldest where it is worst. */
   readonly against?: string;
+  /** With `--usage`: `unused` when no caller uses what changed, so it breaks nobody. */
+  readonly note?: 'unused';
+  /** With `--usage`: the callers of what changed, when the usage file names them. */
+  readonly usedBy?: readonly string[];
 }
 
 export interface Comparison {
