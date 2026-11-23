@@ -3,13 +3,14 @@ import { createHash } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { run, type RunOptions } from 'bellpull';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { discard } from './__fixtures__/scratch-dir.js';
 import { MAX_DELETES, planSync, PRUNE, readState, signatures, syncDir, type SyncPlan, writeState } from './container-sync.js';
-import { type Container, containerDefaults, containerOf, containerPlan, defaultInstall, engineOf, machineDefault, pruneContainers, RESYNC, runInContainer, tarFlags, VERSION, withFlags, withoutContainerFlags, withRuntime } from './container.js';
+import { type Container, containerDefaults, containerOf, containerPlan, defaultInstall, engineOf, FULL, FULL_TRAP, fullDisk, installFailed, machineDefault, MIN_FREE_KIB, pruneContainers, RESYNC, runInContainer, tarFlags, VERSION, withFlags, withoutContainerFlags, withRuntime } from './container.js';
 import { nodeMajor } from './runtime.js';
 
 // The home directory a case may move (os.homedir() does not follow HOME inside every test runner).
@@ -21,6 +22,19 @@ vi.mock('node:os', async (original) => {
 
 /** The environment without git's own variables: lefthook's pre-push exports `GIT_DIR`, and a scratch `git init` must not inherit it (scripts/git-env-lock.test.ts). */
 const withoutGit = (): NodeJS.ProcessEnv => Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')));
+
+// A copy to the host that finds the disk full (a case sets `full` to the file name that fails).
+const hostDisk = vi.hoisted((): { full: string | undefined } => ({ full: undefined }));
+vi.mock('node:fs', async (original) => {
+  const fs = await original<typeof import('node:fs')>();
+  return {
+    ...fs,
+    copyFileSync: (from: string, to: string, ...rest: [number?]): void => {
+      if (hostDisk.full !== undefined && to.endsWith(hostDisk.full)) throw Object.assign(new Error('ENOSPC: no space left on device, copyfile'), { code: 'ENOSPC' });
+      fs.copyFileSync(from, to, ...rest);
+    },
+  };
+});
 
 const made: string[] = [];
 afterAll(() => discard(...made));
@@ -309,6 +323,7 @@ describe('the container plan', () => {
     const plan = containerPlan({ ...NPX, setup: 'npm run build' }, { ...input, sync: whole });
     expect(script(plan.sync)).toEqual([
       'set -e',
+      FULL_TRAP,
       'mkdir -p /w/src && cd /w/src',
       '[ ! -f /w/in.tar ] || tar -xovf /w/in.tar >/dev/null',
       'rm -f /w/in.tar',
@@ -319,19 +334,19 @@ describe('the container plan', () => {
     ]);
     expect(script(plan.run)).toEqual(['set -e', 'npm run build', "cd '/w/src/packages/a'", String.raw`exec npx --no oxmutate 'run' 'it'\''s'`]);
     const bare = containerPlan(NPX, { ...input, install: '', rel: '' });
-    expect(script(bare.sync)).toEqual(['set -e', 'mkdir -p /w/src && cd /w/src']);
+    expect(script(bare.sync)).toEqual(['set -e', FULL_TRAP, 'mkdir -p /w/src && cd /w/src']);
     expect(script(bare.run)).toEqual(['set -e', "cd '/w/src'", String.raw`exec npx --no oxmutate 'run' 'it'\''s'`]);
   });
 
   it('applies a delta only to the volume it was computed for, and removes what the host deleted', () => {
     const deleted = Array.from({ length: 51 }, (_, i) => `d${String(i)}`);
     const lines = script(containerPlan(NPX, { ...input, install: '', sync: { mode: 'delta', token: 'T', send: ['a'], deleted } }).sync);
-    expect(lines.slice(2, 5)).toEqual([
+    expect(lines.slice(3, 6)).toEqual([
       `[ "$(cat /w/synced 2>/dev/null)" = 'T' ] || { echo 'oxmutate: the volume is not the one last synced; sending the whole repository' >&2; exit ${String(RESYNC)}; }`,
       '[ ! -f /w/in.tar ] || tar -xovf /w/in.tar >/dev/null',
       'rm -f /w/in.tar',
     ]);
-    expect(lines.slice(5)).toEqual([`rm -f -- ${deleted.slice(0, 50).map((f) => `'${f}'`).join(' ')}`, "rm -f -- 'd50'"]);
+    expect(lines.slice(6)).toEqual([`rm -f -- ${deleted.slice(0, 50).map((f) => `'${f}'`).join(' ')}`, "rm -f -- 'd50'"]);
     expect(RESYNC).toBe(75);
     const lineCount = (n: number): number => script(containerPlan(NPX, { ...input, install: '', sync: { mode: 'delta', token: 'T', send: [], deleted: Array.from({ length: n }, (_, i) => `d${String(i)}`) } }).sync).filter((l) => l.startsWith('rm -f --')).length;
     expect([lineCount(0), lineCount(50)]).toEqual([0, 1]);
@@ -365,7 +380,7 @@ describe('the container plan', () => {
   it('turns each ref the run names into a commit and a tag inside, and stages the source so a diff sees new files', () => {
     const bases = [{ ref: 'origin/main', commit: 'abc', tag: 'oxmutate-base-0' }];
     const lines = script(containerPlan(NPX, { ...input, install: '', sync: whole, bases }).sync);
-    expect(lines.slice(7)).toEqual([
+    expect(lines.slice(8)).toEqual([
       `command -v git >/dev/null || { echo 'oxmutate: --since or --frozen-oracle in a container needs git in the image. fix: container.image node:${nodeMajor}' >&2; exit 3; }`,
       'rm -rf /w/base-0 && mkdir -p /w/base-0 && tar -xof /w/base-0.tar -C /w/base-0 && rm -f /w/base-0.tar',
       'rm -rf .git && git init -q',
@@ -379,7 +394,7 @@ describe('the container plan', () => {
   it('fetches the commit instead with source git, each base as a tag first, keeping node_modules and the kept files', () => {
     const bases = [{ ref: 'origin/main', commit: 'b0', tag: 'oxmutate-base-0' }];
     const plan = containerPlan(NPX, { ...input, fetch: { remote: 'https://example.com/r.git', commit: 'abc123' }, bases });
-    expect(script(plan.sync).slice(2, 14)).toEqual([
+    expect(script(plan.sync).slice(3, 15)).toEqual([
       `command -v git >/dev/null || { echo 'oxmutate: source git needs git in the image. fix: container.image node:${nodeMajor}' >&2; exit 3; }`,
       '[ -d .git ] || git init -q',
       fetch('b0'),
@@ -440,6 +455,14 @@ interface Outcome {
   code?: number | null; syncCodes?: number[]; volumeExists?: boolean; info?: string; out?: string; outFails?: boolean; fail?: Error; tarFails?: boolean; createFails?: boolean; backFails?: boolean; cpFails?: boolean; listFails?: boolean;
   /** `git archive` fails. */
   archiveFails?: boolean;
+  /** `create` (the sync's, or with `back` the copy back's) fails with this on stderr. */
+  createSays?: string;
+  /** The copy back's `create` fails with this on stderr. */
+  backSays?: string;
+  /** `cp` into the container fails with this on stderr. */
+  cpSays?: string;
+  /** `tar` fails with this on stderr. */
+  tarSays?: string;
   /** `volume create` fails with this on stderr. */
   volumeSays?: string;
   /** Every engine call fails with this on stderr. */
@@ -493,6 +516,7 @@ function fake(result: Outcome) {
     }
     if (to.endsWith('/oxmutate-npmrc')) npmrcs.push({ text: readFileSync(from, 'utf8'), mode: statSync(from).mode & MODE_BITS });
     if (path.basename(from) === 'in.tar') sent.push(spawnSync('tar', ['-tf', 'in.tar'], { cwd: path.dirname(from), encoding: 'utf8' }).stdout.split(/\r?\n/u).filter(Boolean).toSorted());
+    if (result.cpSays !== undefined) return { code: 1, stdout: '', stderr: result.cpSays };
     return answer(result.cpFails ? 1 : 0);
   };
   const copyOut = (to: string): Answer => {
@@ -502,6 +526,8 @@ function fake(result: Outcome) {
   };
   const handlers: Record<string, (rest: string[]) => Answer> = {
     create: (rest) => {
+      if (result.backSays !== undefined && rest.at(-1) === 'true') return { code: 1, stdout: '', stderr: result.backSays };
+      if (result.createSays !== undefined) return { code: 1, stdout: '', stderr: result.createSays };
       if (result.createFails || (result.backFails && rest.at(-1) === 'true')) return answer(1);
       const id = `c${String(scripts.size + 1)}`;
       scripts.set(id, rest.includes('-c') ? (rest[rest.indexOf('-c') + 1] ?? '') : '');
@@ -523,6 +549,7 @@ function fake(result: Outcome) {
   };
   const spawn = async (cmd: string, args: readonly string[], o: RunOptions) => {
     calls.push({ cmd, args, o });
+    if (cmd === 'tar' && result.tarSays !== undefined) return { code: 1, stdout: '', stderr: result.tarSays };
     if (cmd === 'tar' && result.tarFails) return { code: 2, stdout: '', stderr: ' tar: cannot open \n' };
     if (cmd === 'git' && args[0] === 'archive' && result.archiveFails) return { code: 128, stdout: '', stderr: ' fatal: not a tree object \n' };
     if (cmd !== 'engine') return run(cmd, args, { ...o, env: { ...withoutGit(), ...o.env } });
@@ -986,7 +1013,7 @@ describe('when the engine cannot run', () => {
   it('says the daemon is not running at the first engine call that finds it so, Docker’s and Podman’s', async () => {
     const top = repo({ 'package.json': '{}' });
     const down = 'engine is installed but its daemon is not running. fix: start Docker Desktop (or `podman machine start`), or set container.engine';
-    const says = ['Cannot connect to the Docker daemon at unix:///var/run/docker.sock.', 'error during connect: Is the docker daemon running?', 'dial tcp 10.0.0.2:2376: connect: connection refused', 'Error: Cannot connect to Podman. Please verify your connection'];
+    const says = ['Error: unable to connect to Podman socket: failed to connect: dial unix /run/user/501/podman/podman.sock: connect: no such file or directory', 'Cannot connect to Podman. Please verify your connection to the Linux system using `podman system connection list`, or try `podman machine init` and `podman machine start` to manage a new Linux VM', 'Cannot connect to the Docker daemon at unix:///var/run/docker.sock.', 'error during connect: Is the docker daemon running?', 'dial tcp 10.0.0.2:2376: connect: connection refused', 'Error: Cannot connect to Podman. Please verify your connection'];
     await Promise.all(
       says.map(async (said) => {
         const f = fake({ daemonSays: said });
@@ -1007,11 +1034,91 @@ describe('when the engine cannot run', () => {
   it('stops when the volume cannot be created, and goes on when Podman says it exists', async () => {
     const top = repo({ 'package.json': '{}' });
     const f = fake({ volumeSays: ' no space left on device \n' });
-    await expect(runInContainer(C, { root: top, keep: [] }, [], { spawn: f.spawn })).rejects.toThrow(/^the volume oxmutate-[0-9a-f]{12} could not be created: no space left on device\. fix: check the engine's own error, or set container\.volume$/u);
+    await expect(runInContainer(C, { root: top, keep: [] }, [], { spawn: f.spawn })).rejects.toThrow(/^the volume oxmutate-[0-9a-f]{12} could not be created: the engine's disk is full\. fix: run `oxmutate prune` to remove oxmutate's volumes and `docker system prune` for the rest, or give Docker Desktop or the Podman machine a bigger disk \(`podman machine set --disk-size`\)$/u);
     expect(f.verbs()).toEqual(['volume create']);
     const podman = fake({ volumeSays: 'Error: volume with name v already exists: volume already exists' });
     expect(await runInContainer({ ...C, volume: 'v' }, { root: top, keep: [] }, [], { spawn: podman.spawn })).toBe(0);
     expect(podman.verbs()).toContain('run');
+  });
+});
+
+describe('a full disk says what to free', () => {
+  const C = { ...NPX, engine: 'engine' };
+  const top = (): string => repo({ 'package.json': '{}' });
+  const LINE = (what: string): string => fullDisk(what, 'engine');
+
+  it('names the fix on one line for every engine step, in the engine’s own words', async () => {
+    const full = 'write /w/in.tar: no space left on device';
+    const sync = (f: ReturnType<typeof fake>): Promise<number> => runInContainer({ ...C, volume: 'v' }, { root: top(), keep: [] }, [], { spawn: f.spawn });
+    await expect(sync(fake({ volumeSays: 'Error: ENOSPC' }))).rejects.toThrow(LINE('the volume v could not be created'));
+    await expect(sync(fake({ createSays: full }))).rejects.toThrow(LINE('the container could not be created'));
+    await expect(sync(fake({ cpSays: full }))).rejects.toThrow(LINE('the copy into the container failed'));
+    const message = await sync(fake({ cpSays: full })).catch((e: Error) => e.message);
+    expect(message).not.toContain('\n');
+  });
+
+  it('says so for the copy back, which creates a container on the volume', async () => {
+    const f = fake({ backSays: 'Disk quota exceeded' });
+    const copyRoot = top();
+    await expect(runInContainer({ ...C, volume: 'v' }, { root: copyRoot, keep: [path.join(copyRoot, 'reports/m.json')] }, [], { spawn: f.spawn })).rejects.toThrow(LINE('the container could not be created'));
+    expect(f.verbs().at(-1)).toBe('create');
+  });
+
+  it('says it for the host’s disk when a kept file cannot be written back', async () => {
+    const f = fake({ out: fileURLToPath(import.meta.url) });
+    const root = top();
+    hostDisk.full = 'm.json';
+    try {
+      await expect(runInContainer(C, { root, keep: [path.join(root, 'reports/m.json')] }, [], { spawn: f.spawn })).rejects.toThrow(/^reports\/m\.json could not be written to .+: the host's disk is full/u);
+    } finally {
+      hostDisk.full = undefined;
+    }
+  });
+
+  it('says it for the host’s disk when tar cannot pack', async () => {
+    await expect(runInContainer(C, { root: top(), keep: [] }, [], { spawn: fake({ tarSays: 'tar: in.tar: Cannot write: No space left on device' }).spawn })).rejects.toThrow(/: the host's disk is full \(.+ holds the run's staging\)\. fix: free space there, or set TMPDIR to a disk with room$/u);
+  });
+
+  it('tells a Podman short-name refusal to use a full image name, and keeps the engine’s own words', async () => {
+    const said = 'Error: short-name resolution enforced but cannot prompt without a TTY';
+    await expect(runInContainer(C, { root: top(), keep: [] }, [], { spawn: fake({ createSays: said }).spawn })).rejects.toThrow(`the container could not be created: ${said}. fix: set container.image to a full name, such as docker.io/library/node:${String(nodeMajor)}-bookworm-slim`);
+  });
+
+  it('keeps the old line, now with a fix, for a copy that failed for another reason', async () => {
+    await expect(runInContainer(C, { root: top(), keep: [] }, [], { spawn: fake({ cpSays: 'no such container' }).spawn })).rejects.toThrow('the copy into the container failed: no such container. fix: run `oxmutate prune` and try again');
+  });
+
+  it('turns a sync that failed with the volume nearly empty of room into exit FULL, and nothing else', () => {
+    if (spawnSync('sh', ['-c', 'true']).status !== 0) return;
+    const dir = scratch('oxmutate-df-');
+    const bin = path.join(dir, 'bin');
+    mkdirSync(bin);
+    const df = (availableKiB: number): void => {
+      writeFileSync(path.join(bin, 'df'), `#!/bin/sh\necho 'Filesystem 1024-blocks Used Available Capacity Mounted on'\necho 'overlay 100 100 ${String(availableKiB)} 100% /w'\n`, { mode: 0o755 });
+    };
+    const ran = (body: string): number | null => {
+      const file = path.join(dir, 'sync.sh');
+      writeFileSync(file, ['set -e', FULL_TRAP, body].join('\n'));
+      return spawnSync('sh', [file], { encoding: 'utf8', env: { ...process.env, PATH: `${bin}:${process.env['PATH'] ?? ''}` } }).status;
+    };
+    df(MIN_FREE_KIB - 1);
+    expect(ran('exit 1')).toBe(FULL);
+    expect(ran('true')).toBe(0);
+    expect(ran(`exit ${String(RESYNC)}`)).toBe(RESYNC);
+    df(MIN_FREE_KIB);
+    expect(ran('exit 1')).toBe(1);
+    expect(ran('exit 3')).toBe(3);
+  });
+
+  it('has a line of its own for FULL, and Podman’s own prune in it', () => {
+    expect(installFailed(FULL, 'engine')).toBe(fullDisk('the sync into the container or its install failed (exit 6)', 'engine'));
+    expect(installFailed(FULL)).toContain('`docker system prune`');
+    expect(installFailed(FULL, '/usr/local/bin/podman')).toContain('`podman system prune`');
+    expect(installFailed(1)).toContain('its output is above');
+  });
+
+  it('turns the exit code of a sync that ran out of room into that line', async () => {
+    await expect(runInContainer(C, { root: top(), keep: [] }, [], { spawn: fake({ syncCodes: [FULL] }).spawn })).rejects.toThrow(LINE('the sync into the container or its install failed (exit 6)'));
   });
 });
 
