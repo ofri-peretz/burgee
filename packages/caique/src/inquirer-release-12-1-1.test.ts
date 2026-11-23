@@ -78,6 +78,30 @@ describe('@inquirer/core 12.1.1', () => {
     await expect(answer).resolves.toBe('a');
   });
 
+  it('keeps one deferred paint for two keys in the same tick, and draws the latest state', async () => {
+    const lookup = createPrompt<string, object>(() => {
+      const [term, setTerm] = useState('');
+      const [status, setStatus] = useState('idle');
+      useKeypress((key) => {
+        setTerm((current) => current + String(key.name));
+      });
+      useEffect(() => {
+        if (term !== '') setStatus(`loading ${term}`);
+      }, [term]);
+      return `${status} ${term}`;
+    });
+    const { answer, events, frames, getScreen } = await render(lookup, {});
+    events.keypress('a');
+    events.keypress('b');
+    await Promise.resolve();
+    expect(getScreen()).toBe('loading ab ab');
+    // The second key draws the first key's effect with its own term, as 12.1.1 does; the one
+    // paint left pending then draws the latest state, once.
+    expect(frames().filter((frame) => frame.startsWith('loading'))).toEqual(['loading a ab', 'loading ab ab']);
+    answer.cancel();
+    await answer.catch(() => undefined);
+  });
+
   it('cancels the deferred paint when the prompt settles before it runs', async () => {
     // The keypress schedules a paint for the effect's `loading`; a cancel in the same tick
     // empties the slot, and the microtask that finds it empty must draw nothing rather than

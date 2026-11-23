@@ -37,7 +37,7 @@ each was read off the real 12.1.1 with a probe, then held to literals in
   measured with `linegauge/wrap`'s `visibleWidth`, which the façade already reached, so the
   dependency set is unchanged.
 
-**Weight.** `npm run weight:converge` moved caique's band 303,281 -> 304,669 (ratio 0.7795 ->
+**Weight.** `npm run weight:converge` moved caique's band 303,281 -> 304,657 (ratio 0.7795 ->
 0.7831). The `@inquirer/core` incumbent figure is not re-fingerprinted: 12.1.1 adds
 `fast-string-width`, and no issue names it yet (D-20261026-fingerprint-missing-not-rerecord).
 

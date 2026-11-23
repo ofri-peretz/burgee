@@ -179,15 +179,14 @@ export function breakLines(content: string, width: number): string {
  */
 export function wrapContent(content: string, width: number): { text: string; lastRow: string; finalLineRows: number } {
   const wrappedLines = content.split('\n').map((line) => wrap(line, width, { trim: false, wordWrap: false }).split('\n'));
-  // Stryker disable next-line ArrayDeclaration: `split` always returns at least one element, so the fallback is never reached
-  const finalLine = wrappedLines.at(-1) ?? [];
+  // `split` always returns at least one element, here and on each wrapped line, so the last of each exists.
+  const finalLine = wrappedLines.at(-1) as string[];
   return {
     text: wrappedLines
       .flat()
       .map((row) => row.trimEnd())
       .join('\n'),
-    // Stryker disable next-line StringLiteral: as above, `finalLine` always has a row
-    lastRow: finalLine.at(-1) ?? '',
+    lastRow: finalLine.at(-1) as string,
     finalLineRows: finalLine.length,
   };
 }
