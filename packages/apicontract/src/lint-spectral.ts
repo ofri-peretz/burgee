@@ -77,8 +77,12 @@ const token = (key: string): string => key.replaceAll('~', '~0').replaceAll('/',
 
 /** Why a rule is not carried: thrown inside the reader, caught per rule. Nothing else in it throws. */
 export const uncarried = (reason: string): never => {
+  // A template literal, so the lint rule that wants a literal message can see one.
   throw new Error(`${reason}`);
 };
+
+/** A `message` that reads the same here: Spectral and Redocly fill `{{…}}` placeholders, and `lint` does not. */
+export const plainMessage = (message: unknown): string | undefined => (typeof message === 'string' && !message.includes('{{') ? message : undefined);
 
 /** A Spectral pattern as the `u`-flag source `pattern` compiles: `/x/` loses its slashes; flags are not carried. */
 export const patternOf = (value: unknown, key: string): string => {
@@ -147,7 +151,7 @@ const ruleOf = (id: string, value: Record<string, unknown>, file: string): { rul
   const formats = value.formats === undefined ? undefined : [value.formats].flat().map((format) => FORMATS[String(format)] ?? uncarried(`format \`${String(format)}\` is not one apicontract reads`));
   const paths = pathsOf(value.given);
   const thens = [value.then].flat().map((then) => thenOf(then));
-  const description = [value.description, value.message, id].find((text): text is string => typeof text === 'string') as string;
+  const description = [value.description, plainMessage(value.message), id].find((text): text is string => typeof text === 'string') as string;
   return {
     rule: {
       description,

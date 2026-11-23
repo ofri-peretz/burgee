@@ -6,7 +6,7 @@
  */
 import { type Level, type Rule, type Then } from './lint-engine.js';
 import { type Given } from './lint-select.js';
-import { type NotCarried, patternOf, type ReadRuleset, uncarried } from './lint-spectral.js';
+import { type NotCarried, patternOf, plainMessage, type ReadRuleset, uncarried } from './lint-spectral.js';
 
 /**
  * Redocly built-in rules with an apicontract equivalent, and the level `extends: [recommended]` gives each.
@@ -101,7 +101,7 @@ const ruleOf = (id: string, value: Record<string, unknown>, file: string): { rul
   const fields = subject.property === undefined ? [undefined] : [subject.property].flat().map((field) => (typeof field === 'string' ? field : uncarried('`subject.property` is not a name or a list of names')));
   const assertions = isRecord(value.assertions) && Object.keys(value.assertions).length > 0 ? value.assertions : uncarried('it has no `assertions`');
   const thens = fields.flatMap((field) => Object.entries(assertions).map(([name, option]): Then => ({ ...thenOf(name, option), ...(field === undefined ? {} : { field }) })));
-  const description = typeof value.message === 'string' ? value.message : id;
+  const description = plainMessage(value.message) ?? id;
   return {
     rule: { description, given, then: thens.length === 1 ? (thens[0] as Then) : thens, fix: `make it hold, as \`${id}\` in ${file} asks: ${description}` },
     level: levelOf(value.severity),

@@ -37,6 +37,10 @@ describe('readRedocly: a configurable rule it carries', () => {
     expect(findingsOn(rules['rule/r'] as Rule, contract)).toStrictEqual([{ pointer: '#/paths/~1pets/post', message: '`operationId` "AddPet" is not camel case' }]);
   });
 
+  it('skips a message with {{…}} placeholders for the id', () => {
+    expect((one({ subject: { type: 'Root' }, assertions: { defined: true }, message: '{{property}} is missing' }).rules['rule/r'] as Rule).description).toBe('rule/r');
+  });
+
   it('is an error by default and takes its id as its description', () => {
     const { rules, levels } = one({ subject: { type: 'Root' }, assertions: { defined: true } });
     expect(levels).toStrictEqual({ 'rule/r': 'error' });

@@ -40,6 +40,11 @@ describe('readSpectral: a rule it carries', () => {
     expect(findingsOn(rules.r as Rule, contract)).toEqual([{ pointer: '#/info/version', message: 'has 1, fewer than 2' }]);
   });
 
+  it('skips a message with {{…}} placeholders, which lint does not fill, for the id', () => {
+    expect((one({ message: '{{property}} should be camelCase', given: '$.info', then: { function: 'truthy' } }).rules.r as Rule).description).toBe('r');
+    expect((one({ message: '{{error}}', description: 'Plain', given: '$.info', then: { function: 'truthy' } }).rules.r as Rule).description).toBe('Plain');
+  });
+
   it('reads the message as the description when there is none, and several thens as a list', () => {
     const { rules } = one({ message: 'Summaries and ids', given: '$.paths.*.*', then: [{ field: 'summary', function: 'truthy' }, { field: 'operationId', function: 'defined' }] });
     expect(rules.r?.description).toBe('Summaries and ids');
