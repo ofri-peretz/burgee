@@ -71,6 +71,9 @@ npm run ledger -- new decision <slug>   # one file per decision or gap, never a 
 npm run weight:converge   # after editing a package README: re-measures the foundation weight band
 ```
 
+Editing a package README changes its packed size: run `npm run weight:converge`, or the
+foundation weight locks fail.
+
 Generated files each have a writer and a `--check` twin; the check names its writer. Never
 hand-edit them.
 
