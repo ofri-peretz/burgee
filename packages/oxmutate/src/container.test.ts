@@ -1121,7 +1121,10 @@ describe('a full disk says what to free', () => {
     const ran = (body: string): number | null => {
       const file = path.join(dir, 'sync.sh');
       writeFileSync(file, ['set -e', FULL_TRAP, body].join('\n'));
-      return spawnSync('sh', [file], { encoding: 'utf8', env: { ...process.env, PATH: `${bin}:${process.env['PATH'] ?? ''}` } }).status;
+      // The stub first, joined by the platform's delimiter, and one PATH key: Windows names it `Path`,
+      // and a second, differently cased key leaves which one the child reads to chance.
+      const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => key.toUpperCase() !== 'PATH'));
+      return spawnSync('sh', [file], { encoding: 'utf8', env: { ...env, PATH: `${bin}${path.delimiter}${process.env['PATH'] ?? ''}` } }).status;
     };
     expect(MIN_FREE_KIB).toBe(65536);
     df(65535);
