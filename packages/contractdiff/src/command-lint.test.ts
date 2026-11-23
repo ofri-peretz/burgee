@@ -27,7 +27,7 @@ const scratch = (files: Record<string, string>): string => {
 };
 
 describe('levelsOf', () => {
-  it('lays the rulesets over each other in order, then the config rules, with either prefix', () => {
+  it('lays the rulesets over each other in order, then the config rules, with or without the prefix', () => {
     expect(DEFAULT_RULESETS).toEqual(['recommended']);
     expect(levelsOf(['recommended'])).toEqual(rulesets.recommended);
     const both = levelsOf(['contractdiff:recommended', 'contractdiff:agent-ready'], { 'operation-tags': 'error', 'example-valid': 'off' });
@@ -37,7 +37,7 @@ describe('levelsOf', () => {
   it('refuses a ruleset or a rule that does not exist, naming the ones that do', () => {
     expect(() => levelsOf(['strict'])).toThrow('there is no ruleset `strict`. fix: use one of recommended, agent-ready, or a .spectral.yaml file');
     expect(() => levelsOf(['other:recommended'])).toThrow('there is no ruleset `other:recommended`');
-    expect(() => levelsOf(['recommendedapicontract:'])).toThrow('there is no ruleset `recommendedapicontract:`');
+    expect(() => levelsOf(['recommendedcontractdiff:'])).toThrow('there is no ruleset `recommendedcontractdiff:`');
     expect(() => levelsOf([], { nope: 'warn' })).toThrow('`lint.rules` names `nope`, which is not a rule. fix: use one of description-length, description-overlap, example-valid,');
     expect(() => levelsOf([], { nope: 'warn', nor: 'warn' })).toThrow(ConfigError);
     expect(() => levelsOf([], { nope: 'warn', nor: 'warn' })).toThrow(/^contractdiff\.config\.json cannot be used:\n {2}- `lint\.rules` names `nope`.*\n {2}- `lint\.rules` names `nor`/u);
