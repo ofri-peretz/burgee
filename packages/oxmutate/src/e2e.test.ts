@@ -543,6 +543,27 @@ it.skipIf(!native || !existsSync(bin) || !nightly)('stops a mutant at the limit 
   }
 }, 120_000);
 
+// A mutant whose run kills its worker's process (the kernel's out-of-memory kill, a signal from
+// outside) is a RuntimeError, and its reason says how the process ended: a SIGKILL reads as one, so a
+// crash the mutant did not cause (a neighbour's memory pressure) can be told from one it did.
+it.skipIf(!native || !existsSync(bin) || !nightly)('says how the worker ended when a mutant takes it down', () => {
+  const dir = path.join(pkg, 'test/fixtures/crash');
+  const reportDir = path.join(dir, 'reports');
+  // The warm run decides the crash, and with every mutant run in a fresh worker the isolated path does.
+  for (const env of [{}, { OXMUTATE_ISOLATE_ALL: '1' }]) {
+    rmSync(reportDir, { recursive: true, force: true });
+    mkdirSync(reportDir, { recursive: true });
+    try {
+      spawnSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: dir, stdio: 'pipe', env: { ...process.env, ...env } });
+      const report = JSON.parse(readFileSync(path.join(reportDir, 'mutation.json'), 'utf8')) as { files: Record<string, { mutants: (ReportMutant & { statusReason?: string })[] }> };
+      const crashed = (report.files['src/boom.ts']?.mutants ?? []).filter((m) => m.status === 'RuntimeError');
+      expect(crashed.map((m) => m.statusReason), JSON.stringify(env)).toEqual(['the worker crashed while this mutant ran (signal SIGKILL)']);
+    } finally {
+      discard(reportDir);
+    }
+  }
+}, 120_000);
+
 // A mutant that loops with no switch in the loop (no hit count can stop it) is stopped by the watchdog in
 // the warm run. That stop was then run isolated at 1x, stopped again, and run at 3x: ufo's punycode.ts
 // spent 2.3 s of its 9.2 on the 1x run (2026-11-20). The warm stop is the first look, so the isolated

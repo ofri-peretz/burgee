@@ -1,0 +1,27 @@
+{
+  "$comment": "The verification stations hookset wires, as data. proofline reads the same ids for its Checked line. A station in observe mode is wired with --if-present, so a repo that has not declared its script passes.",
+  "remote": "https://github.com/ofri-peretz/burgee",
+  "tagPrefix": "hookset@",
+  "presets": {
+    "commit-msg": "packages/hookset/presets/lefthook/commit-msg.yml",
+    "pre-commit": "packages/hookset/presets/lefthook/pre-commit.yml",
+    "pre-push": "packages/hookset/presets/lefthook/pre-push.yml"
+  },
+  "stations": [
+    { "id": "commitlint", "hook": "commit-msg", "mode": "enforce", "command": "hookset-commitlint", "detail": "the message follows the repo's commitlint config" },
+    { "id": "staged", "hook": "pre-commit", "mode": "enforce", "command": "hookset-staged", "script": "hook:staged", "detail": "lint and format the staged files only, under 10 s" },
+    { "id": "verify", "hook": "pre-push", "mode": "enforce", "command": "hookset-verify", "script": "hook:verify", "detail": "typecheck, the affected tests and the build" },
+    { "id": "mutation", "hook": "pre-push", "mode": "optional", "command": "hookset-mutation", "script": "hook:mutation", "detail": "changed-lines mutation testing" },
+    { "id": "test-integrity", "hook": "pre-push", "mode": "observe", "command": "hookset-test-integrity", "script": "hook:test-integrity", "detail": "no .only, .skip or weakened assertion in the diff" },
+    { "id": "proofline", "hook": "pre-push", "mode": "observe", "command": "hookset-proofline", "script": "hook:proofline", "detail": "the change carries its Checked line" },
+    { "id": "triggerlist", "hook": "pre-push", "mode": "observe", "command": "hookset-triggerlist", "script": "hook:triggerlist", "detail": "protected paths changed only with their trigger" }
+  ],
+  "claude": {
+    "files": ["guard-bash.mjs", "stop-after-3.mjs"],
+    "hooks": [
+      { "event": "PreToolUse", "matcher": "Bash", "file": "guard-bash.mjs" },
+      { "event": "PreToolUse", "matcher": "Edit|Write|MultiEdit|NotebookEdit", "file": "guard-bash.mjs" },
+      { "event": "PostToolUse", "matcher": "Bash", "file": "stop-after-3.mjs" }
+    ]
+  }
+}

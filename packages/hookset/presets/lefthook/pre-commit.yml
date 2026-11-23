@@ -1,0 +1,7 @@
+# hookset preset — pre-commit. Staged files only, under 10 seconds: anything slower belongs on
+# pre-push. The repo declares what `hook:staged` runs; lefthook hands it the staged paths.
+pre-commit:
+  commands:
+    hookset-staged:
+      run: PATH="$PATH:/opt/homebrew/bin:/usr/local/bin" npm run --silent hook:staged -- {staged_files}
+      fail_text: "A staged file fails lint or format. Run the repo's fix script, re-stage, and commit again."
