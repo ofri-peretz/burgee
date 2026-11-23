@@ -34,6 +34,7 @@ and `chalk` (wave 0.4, the red ratchet) is roundel's incumbent, not anyone else'
 | `validator` | `lane/validator` | `packages/validator/**`, `.sdlc/intents/validator/**`, `benchmarks/validator/**` | harness 2.0 |
 | `closeout` | `lane/closeout` | `packages/closeout/**`, `.sdlc/intents/closeout/**` | harness 2.0 |
 | `bellpull` | `lane/bellpull` | `packages/bellpull/**`, `.sdlc/intents/bellpull/**` | harness 2.0 |
+| `hookset` | `lane/hookset` | `packages/hookset/**`, `.sdlc/intents/hookset/**`, `.github/workflows/hookset-check.yml`, `.github/workflows/changeset-gate.yml` | — |
 | `controlroom` | `lane/controlroom` | `packages/controlroom/**`, `.sdlc/intents/controlroom/**` | closeout R4 (controlroom spec R1); caique `./keys` and flagstaff's seam (R2, R3) |
 | `oxmutate` | `lane/oxmutate` | `packages/oxmutate/**`, `.sdlc/intents/oxmutate/**` | — |
 | `output` | `lane/output` | `packages/roundel/**`, `packages/flagstaff/**`, `.sdlc/intents/roundel/**`, `.sdlc/intents/flagstaff/**` | — (0.4 is urgent) |

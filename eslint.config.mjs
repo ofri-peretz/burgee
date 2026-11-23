@@ -163,6 +163,10 @@ export default [
       // Agent worktrees are whole copies of this repo. Linting them lints every
       // file twice and fails on whatever a stale copy still contains.
       ".claude/**",
+      // hookset's Claude hook pack: standalone hook programs vendored byte-identical into each
+      // repo's `.claude/hooks/` (ignored above), where a process exit IS the protocol. Their
+      // deny/allow cases run as `--self-test` from `packages/hookset/src/claude.test.ts`.
+      "packages/hookset/claude/**",
       // oxmutate's sandbox: a copy of the project while the command runner or the type checker
       // runs, removed after it. Linting it lints the project twice, mid-copy.
       "**/.oxmutate-tmp/**",
