@@ -351,8 +351,8 @@ export const confirm = createPrompt<boolean, ConfirmConfig>((config, done) => {
     if (v === 'n' || v === 'no') return false;
     if (yes.toLowerCase().startsWith(v)) return true;
     if (no.toLowerCase().startsWith(v)) return false;
+    // `ye` is the one built-in prefix left: `n`, `no`, `y` and `yes` matched whole above.
     if ('yes'.startsWith(v)) return true;
-    if ('no'.startsWith(v)) return false;
     return undefined;
   };
 
