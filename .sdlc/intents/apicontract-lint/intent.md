@@ -6,7 +6,8 @@
 > governance rules on contracts". Pairs with [`../apicontract-diff-decisions/`](../apicontract-diff-decisions/):
 > lint checks the *form* of a contract, diff checks the *change*, decision markers record the *intent*.
 
-**Status:** draft · **Opened:** `2026-11-22` · **Owner:** `@ofri-peretz` · **Lane:** `ac-lint` (new)
+**Status:** approved · **Opened:** `2026-11-22` · **Owner:** `@ofri-peretz` · **Lane:** `ac-lint` (new) ·
+**Accepted by:** [`D-20261122-contracts-governance-accepted`](../../decisions/D-20261122-contracts-governance-accepted.md)
 
 ---
 

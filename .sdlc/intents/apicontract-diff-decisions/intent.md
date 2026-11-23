@@ -5,7 +5,8 @@
 > a contract pipeline for a talk: "Contracts make mistakes impossible to compile. Judgment decides
 > which changes are mistakes."
 
-**Status:** draft · **Opened:** `2026-11-22` · **Owner:** `@ofri-peretz` · **Lane:** `ac-diff`
+**Status:** approved · **Opened:** `2026-11-22` · **Owner:** `@ofri-peretz` · **Lane:** `ac-diff` ·
+**Accepted by:** [`D-20261122-contracts-governance-accepted`](../../decisions/D-20261122-contracts-governance-accepted.md)
 
 ---
 
