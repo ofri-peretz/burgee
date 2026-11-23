@@ -13,7 +13,7 @@ import { styleText } from 'node:util';
 
 import { canMove, step } from './inquirer-choices.js';
 import { ValidationError } from './inquirer-errors.js';
-import { useState } from './inquirer-hooks.js';
+import { type PromptReadline, useState } from './inquirer-hooks.js';
 import { isDownKey, isEnterKey, isUpKey } from './inquirer-keys.js';
 import { makeTheme, type PartialDeep, type Status, type Theme } from './inquirer-theme.js';
 import { createPrompt, Separator, useKeypress, usePrefix } from './inquirer.js';
@@ -85,6 +85,8 @@ export const expand = createPrompt(<Value>(config: ExpandConfig<Value>, done: (v
     }
     const answer = (value.trim() || defaultKey).toLowerCase();
     if (answer === 'h' && !expanded) {
+      // The line event emptied readline's line; the shown `h` goes too, so the next key starts fresh.
+      setValue('');
       setExpanded(true);
       return;
     }
@@ -94,7 +96,12 @@ export const expand = createPrompt(<Value>(config: ExpandConfig<Value>, done: (v
       // The default may have answered, and the done frame reads the key from here.
       setValue(answer);
       done(chosen.value);
-    } else setError(value === '' ? 'Please input a value' : notAnOption(value));
+    } else if (value === '') setError('Please input a value');
+    else {
+      // The line event emptied readline's line: put the refused answer back, to edit (@inquirer/expand 5.2.1).
+      rl.write(value);
+      setError(notAnOption(value));
+    }
   });
 
   const message = theme.style.message(config.message, status);
@@ -150,7 +157,7 @@ const isRow = <Value>(row: Separator | RawlistRow<Value> | undefined): row is Ra
 function picked<Value>(typed: string, rows: readonly (Separator | RawlistRow<Value>)[]): RawlistRow<Value> | undefined {
   const choices = rows.filter(isRow);
   const trimmed = typed.trim();
-  const byKey = choices.find((row) => row.key === trimmed);
+  const byKey = choices.find((row) => row.key === typed || row.key === trimmed);
   if (byKey !== undefined || !/^\d+$/u.test(trimmed)) return byKey;
   return choices[Number.parseInt(trimmed, DECIMAL) - 1];
 }
@@ -169,7 +176,7 @@ export const rawlist = createPrompt(<Value>(config: RawlistConfig<Value>, done: 
     return { value: choice.value, name, short: short ?? name, key: key ?? String(position), description };
   });
   const [status, setStatus] = useState<Status>('idle');
-  const [value, setValue] = useState<string>(() => (config.default == null ? '' : (rows.find((row): row is RawlistRow<Value> => isRow(row) && row.value === config.default)?.key ?? '')));
+  const [value, setValue] = useState<string>(() => (config.default === undefined ? '' : (rows.find((row): row is RawlistRow<Value> => isRow(row) && row.value === config.default)?.key ?? '')));
   const [errorMsg, setError] = useState<string>();
   const theme = makeTheme<RawlistTheme>({ style: { description: (text: string) => styleText('cyan', text) } }, config.theme);
   const { keybindings } = theme;
@@ -180,10 +187,15 @@ export const rawlist = createPrompt(<Value>(config: RawlistConfig<Value>, done: 
   if (first === -1) throw new ValidationError('[select prompt] No selectable choices. All choices are disabled.');
   const bounds = { first, last: rows.findLastIndex(isRow) };
 
-  const submit = (): void => {
+  const submit = (rl: PromptReadline): void => {
     const chosen = picked(value, rows);
     if (chosen === undefined) {
-      setError(value === '' ? 'Please input a value' : notAnOption(value));
+      if (value === '') setError('Please input a value');
+      else {
+        // The line event emptied readline's line: put the refused answer back, to edit (@inquirer/rawlist 5.4.1).
+        rl.write(value);
+        setError(notAnOption(value));
+      }
       return;
     }
     setValue(chosen.short);
@@ -191,25 +203,35 @@ export const rawlist = createPrompt(<Value>(config: RawlistConfig<Value>, done: 
     done(chosen.value);
   };
 
-  /** An arrow: the next choice's key into the line, or the first (last) one when none is picked. */
-  const move = (up: boolean): void => {
+  /**
+   * An arrow: the next choice's key into the line, or the first (last) one when none is picked.
+   * The key goes into readline's line as well as on screen, so the next key edits what is shown;
+   * stopped at the edge, the typed input the clear emptied is written back (@inquirer/rawlist 5.4.1).
+   */
+  const move = (up: boolean, rl: PromptReadline, hadInput: boolean): void => {
+    const show = (key: string): void => {
+      setValue(key);
+      rl.write(key);
+    };
     const chosen = picked(value, rows);
     if (chosen === undefined) {
       const start = up ? rows.findLast(isRow) : rows.find(isRow);
-      setValue((start as RawlistRow<Value>).key);
+      show((start as RawlistRow<Value>).key);
       return;
     }
     const at = rows.indexOf(chosen);
-    if (canMove(loop, up, at, bounds)) setValue((rows[step(rows, at, up ? -1 : 1, isRow)] as RawlistRow<Value>).key);
+    if (canMove(loop, up, at, bounds)) show((rows[step(rows, at, up ? -1 : 1, isRow)] as RawlistRow<Value>).key);
+    else if (hadInput) rl.write(value);
   };
 
   useKeypress((key, rl) => {
     const up = isUpKey(key, keybindings);
-    if (isEnterKey(key)) submit();
+    if (isEnterKey(key)) submit(rl);
     else if (up || isDownKey(key, keybindings)) {
+      const hadInput = rl.line !== '';
       // Stryker disable next-line NumericLiteral: readline's `Interface#clearLine()` takes no argument; the 0 is `@inquirer/core`'s call shape
       rl.clearLine(0);
-      move(up);
+      move(up, rl, hadInput);
     } else {
       setValue(rl.line);
       setError(undefined);
