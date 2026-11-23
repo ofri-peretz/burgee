@@ -45,13 +45,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 const token = (key: string): string => key.replaceAll('~', '~0').replaceAll('/', '~1');
 
 /** What a pointer names in the document, or `undefined` when it names nothing. */
-const at = (document: unknown, pointer: string): unknown => {
-  try {
-    return pointerGet(document, pointer);
-    // Stryker disable next-line BlockStatement: equivalent, an empty handler returns the same undefined
-  } catch {
-    return undefined;
-  }
+export const at = (document: unknown, pointer: string): unknown => {
+  // Stryker disable next-line BlockStatement: equivalent, an empty handler returns the same undefined
+  try { return pointerGet(document, pointer); } catch { return undefined; }
 };
 
 /** A local `$ref` followed to its target, with its target's pointer; anything else as it is. */

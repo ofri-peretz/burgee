@@ -10,10 +10,10 @@
  *
  * Every rule decides a fact; none asks whether a name is clear (intent, "code decides facts").
  */
-import { inline, pointerGet } from './core/resolve.js';
+import { inline } from './core/resolve.js';
 import { type Level, type Rule } from './lint-engine.js';
 import { validAgainst } from './lint-functions.js';
-import { type LintNode } from './lint-select.js';
+import { at, type LintNode } from './lint-select.js';
 
 const HTTP = ['openapi', 'swagger2'];
 
@@ -50,16 +50,6 @@ const refsIn = (value: unknown): string[] => {
   return Object.entries(value).flatMap(([key, child]) => (key === '$ref' && typeof child === 'string' ? [child] : refsIn(child)));
 };
 
-/** What a pointer names in the document, or `undefined` when it names nothing. */
-const at = (document: unknown, pointer: string): unknown => {
-  try {
-    return pointerGet(document, pointer);
-    // Stryker disable next-line BlockStatement: equivalent, an empty handler returns the same undefined
-  } catch {
-    return undefined;
-  }
-};
-
 const resolves = (document: unknown, ref: string): boolean => at(document, ref) !== undefined;
 
 const PERCENT = 100;
@@ -70,23 +60,24 @@ const draftOf = (document: unknown): '2020-12' | 'openapi-3.0' => {
   return swagger !== undefined || (typeof openapi === 'string' && openapi.startsWith('3.0')) ? 'openapi-3.0' : '2020-12';
 };
 
+/** A schema with its references inlined, or `undefined` when one of them names nothing. */
+const inlinedOf = (document: unknown, schema: unknown): ReturnType<typeof inline> | undefined => {
+  // Stryker disable next-line BlockStatement: equivalent, an empty handler returns the same undefined
+  try { return inline(document, schema); } catch { return undefined; }
+};
+
 /** Each `example` and `examples` item that its own schema refuses. */
 const badExamples = (node: LintNode, document: unknown): string[] => {
   const { example, examples } = node.value;
   const samples = [...(example === undefined ? [] : [example]), ...(Array.isArray(examples) ? (examples as unknown[]) : [])];
   // Stryker disable next-line ConditionalExpression: equivalent, no sample gives no finding; this only skips the inlining
   if (samples.length === 0) return [];
-  let schema: unknown;
-  try {
-    const inlined = inline(document, node.value);
-    // A schema that repeats or reaches another file cannot be checked on its own: said, never skipped.
-    const unreadable = [...inlined.cycles, ...inlined.external];
-    if (unreadable.length > 0) return [`example cannot be checked: its schema reaches ${unreadable.join(', ')}, which repeats or is in another file`];
-    schema = inlined.value;
-    // Stryker disable next-line BlockStatement: equivalent, a dangling reference leaves an empty schema, which every sample passes
-  } catch {
-    return [];
-  }
+  const inlined = inlinedOf(document, node.value);
+  if (inlined === undefined) return [];
+  // A schema that repeats or reaches another file cannot be checked on its own: said, never skipped.
+  const unreadable = [...inlined.cycles, ...inlined.external];
+  if (unreadable.length > 0) return [`example cannot be checked: its schema reaches ${unreadable.join(', ')}, which repeats or is in another file`];
+  const schema = inlined.value;
   return samples.flatMap((sample) => {
     try {
       const problem = validAgainst(schema, sample, draftOf(document));

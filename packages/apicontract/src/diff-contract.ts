@@ -230,12 +230,8 @@ export const overall = (summary: Readonly<Record<Verdict, number>>): Verdict => 
 
 /** What a JSON Pointer names in a document, or `undefined`. */
 const nodeAt = (document: unknown, pointer: string): unknown => {
-  try {
-    return pointerGet(document, pointer);
-    // Stryker disable next-line BlockStatement: equivalent, an empty handler returns the same undefined
-  } catch {
-    return undefined;
-  }
+  // Stryker disable next-line BlockStatement: equivalent, an empty handler returns the same undefined
+  try { return pointerGet(document, pointer); } catch { return undefined; }
 };
 
 /**
