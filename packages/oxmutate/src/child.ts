@@ -165,6 +165,19 @@ function killed(results: string, id: string): boolean {
   return text.split('\n').some((line) => line.includes(`"id":"${id}"`) && line.includes('"killed":true'));
 }
 
+/** The environment the next mutant's workers inherit: its limits and tests, each set or gone. */
+function armEnvironment(item: NonNullable<Unit['batch']>[number]): void {
+  env[ACTIVE_MUTANT_ENV] = item.id;
+  // The runaway guard warm runs have: a loop the mutant causes stops at the limit, not the watchdog.
+  if (item.hitLimit) env['OXMUTATE_HIT_LIMIT'] = String(item.hitLimit);
+  else delete env['OXMUTATE_HIT_LIMIT'];
+  if (item.tests) env['OXMUTATE_ONLY_TESTS'] = JSON.stringify(item.tests);
+  else delete env['OXMUTATE_ONLY_TESTS'];
+  // Each covering test's dry-run time, for the watchdog's limit on the test that is running.
+  if (item.testMs) env['OXMUTATE_TEST_MS'] = JSON.stringify(item.testMs);
+  else delete env['OXMUTATE_TEST_MS'];
+}
+
 /** An `isolated` unit: its mutants armed one after another, each across its files. */
 async function runIsolated(unit: Unit): Promise<void> {
   // Stop a file at its first failing test: one failure kills the mutant, and the rest of the
@@ -174,14 +187,7 @@ async function runIsolated(unit: Unit): Promise<void> {
   vitest.config.bail = 1;
   try {
     for (const item of unit.batch ?? []) {
-      env[ACTIVE_MUTANT_ENV] = item.id;
-      // The runaway guard warm runs have: a loop the mutant causes stops at the limit, not the watchdog.
-      if (item.hitLimit) env['OXMUTATE_HIT_LIMIT'] = String(item.hitLimit);
-      else delete env['OXMUTATE_HIT_LIMIT'];
-      if (item.tests) env['OXMUTATE_ONLY_TESTS'] = JSON.stringify(item.tests);
-      else delete env['OXMUTATE_ONLY_TESTS'];
-      if (item.testMs) env['OXMUTATE_TEST_MS'] = JSON.stringify(item.testMs);
-      else delete env['OXMUTATE_TEST_MS'];
+      armEnvironment(item);
       writeFileSync(unit.progress, `${item.id} ${String(Date.now())}\n`);
       // One file at a time, cheapest first (the coordinator orders them), stopping at the first
       // file that kills the mutant: Stryker runs every file for every isolated mutant.
