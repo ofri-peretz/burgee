@@ -215,7 +215,7 @@ describe('runLint', () => {
     const dir = scratch({ 'bad.yaml': 'a: [', 'list.json': '[1, 2]' });
     await expect(runLint({ cwd: dir, specs: ['gone.yaml'], config: undefined })).rejects.toThrow(/^cannot read gone\.yaml: .*\. fix: pass a JSON or YAML document that exists$/u);
     await expect(runLint({ cwd: dir, specs: ['bad.yaml'], config: undefined })).rejects.toThrow('cannot read bad.yaml');
-    await expect(runLint({ cwd: dir, specs: ['list.json'], config: undefined })).rejects.toThrow('no input format reads list.json. fix: pass a document one of these reads: openapi, swagger2, asyncapi, mcp, jsonschema');
+    await expect(runLint({ cwd: dir, specs: ['list.json'], config: undefined })).rejects.toThrow('no input format reads list.json. fix: pass a document one of these reads: openapi, swagger2, asyncapi, mcp, protobuf, jsonschema');
   });
 
   it('prints SARIF when asked, with each rule described', async () => {

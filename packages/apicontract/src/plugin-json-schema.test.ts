@@ -36,7 +36,7 @@ describe('the json-schema plugin', () => {
     expect(() => validate(plugin)).not.toThrow();
     expect(builtins).toContain(plugin);
     expect(plugin.name).toBe('json-schema');
-    expect(plugin.generators?.['json-schema']?.inputs).toEqual(['openapi', 'swagger2', 'asyncapi', 'mcp', 'jsonschema']);
+    expect(plugin.generators?.['json-schema']?.inputs).toEqual(['openapi', 'swagger2', 'asyncapi', 'mcp', 'protobuf', 'jsonschema']);
     expect(await checkPlugin(plugin)).toEqual([]);
   });
 

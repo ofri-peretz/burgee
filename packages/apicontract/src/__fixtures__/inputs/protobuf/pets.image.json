@@ -1,0 +1,58 @@
+{
+  "file": [
+    {
+      "name": "google/protobuf/timestamp.proto",
+      "package": "google.protobuf",
+      "messageType": [{ "name": "Timestamp", "field": [{ "name": "seconds", "number": 1, "label": "LABEL_OPTIONAL", "type": "TYPE_INT64", "jsonName": "seconds" }] }],
+      "syntax": "proto3",
+      "bufExtension": { "isImport": true }
+    },
+    {
+      "name": "pets/v1/pets.proto",
+      "package": "pets.v1",
+      "dependency": ["google/protobuf/timestamp.proto"],
+      "messageType": [
+        {
+          "name": "Pet",
+          "field": [
+            { "name": "id", "number": 1, "label": "LABEL_OPTIONAL", "type": "TYPE_INT64", "jsonName": "id" },
+            { "name": "display_name", "number": 2, "label": "LABEL_OPTIONAL", "type": "TYPE_STRING", "jsonName": "displayName" },
+            { "name": "kind", "number": 3, "label": "LABEL_OPTIONAL", "type": "TYPE_ENUM", "typeName": ".pets.v1.Pet.Kind", "jsonName": "kind" },
+            { "name": "tags", "number": 4, "label": "LABEL_REPEATED", "type": "TYPE_STRING", "jsonName": "tags" },
+            { "name": "born", "number": 5, "label": "LABEL_OPTIONAL", "type": "TYPE_MESSAGE", "typeName": ".google.protobuf.Timestamp", "jsonName": "born" },
+            { "name": "labels", "number": 6, "label": "LABEL_REPEATED", "type": "TYPE_MESSAGE", "typeName": ".pets.v1.Pet.LabelsEntry", "jsonName": "labels" },
+            { "name": "parent", "number": 7, "label": "LABEL_OPTIONAL", "type": "TYPE_MESSAGE", "typeName": ".pets.v1.Pet", "jsonName": "parent" },
+            { "name": "photo", "number": 8, "label": "LABEL_OPTIONAL", "type": "TYPE_BYTES", "jsonName": "photo" },
+            { "name": "weight", "number": 9, "label": "LABEL_OPTIONAL", "type": "TYPE_DOUBLE", "jsonName": "weight" },
+            { "name": "age", "number": 10, "label": "LABEL_OPTIONAL", "type": "TYPE_UINT32", "jsonName": "age" },
+            { "name": "alive", "number": 11, "label": "LABEL_OPTIONAL", "type": "TYPE_BOOL", "jsonName": "alive" }
+          ],
+          "nestedType": [
+            {
+              "name": "LabelsEntry",
+              "field": [
+                { "name": "key", "number": 1, "label": "LABEL_OPTIONAL", "type": "TYPE_STRING", "jsonName": "key" },
+                { "name": "value", "number": 2, "label": "LABEL_OPTIONAL", "type": "TYPE_INT32", "jsonName": "value" }
+              ],
+              "options": { "mapEntry": true }
+            }
+          ],
+          "enumType": [{ "name": "Kind", "value": [{ "name": "KIND_UNSPECIFIED", "number": 0 }, { "name": "KIND_DOG", "number": 1 }] }]
+        },
+        { "name": "GetPetRequest", "field": [{ "name": "id", "number": 1, "label": "LABEL_OPTIONAL", "type": "TYPE_INT64", "jsonName": "id" }] },
+        { "name": "WatchPetsRequest" }
+      ],
+      "service": [
+        {
+          "name": "PetService",
+          "method": [
+            { "name": "GetPet", "inputType": ".pets.v1.GetPetRequest", "outputType": ".pets.v1.Pet" },
+            { "name": "WatchPets", "inputType": ".pets.v1.WatchPetsRequest", "outputType": ".pets.v1.Pet", "serverStreaming": true },
+            { "name": "Ping", "inputType": ".google.protobuf.Empty", "outputType": ".google.protobuf.Empty" }
+          ]
+        }
+      ],
+      "syntax": "proto3"
+    }
+  ]
+}

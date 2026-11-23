@@ -181,7 +181,7 @@ describe('diff', () => {
     expect(() => diff({ cwd: dir, old: 'bad.yaml', new: 'bad.yaml' })).toThrow(/^cannot parse bad\.yaml: [\s\S]+\. fix: pass a JSON or YAML document$/);
     expect(() => diff({ cwd: dir, old: 'bad.yaml', new: 'bad.yaml' })).toThrow(expect.objectContaining({ cause: expect.any(Error) }));
     expect(() => diff({ cwd: dir, old: 'plain.yaml', new: 'plain.yaml' })).toThrow(
-      'no input format reads plain.yaml. fix: pass a document one of these reads: openapi, swagger2, asyncapi, mcp, jsonschema',
+      'no input format reads plain.yaml. fix: pass a document one of these reads: openapi, swagger2, asyncapi, mcp, protobuf, jsonschema',
     );
   });
 

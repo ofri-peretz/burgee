@@ -19,7 +19,7 @@ import { namedPayloads } from './plugin-validator-names.js';
 export const VALIDATORS_FILE = 'validators.ts';
 
 /** Every input format: a payload is a JSON Schema whichever document it came from. */
-export const INPUTS = ['openapi', 'swagger2', 'asyncapi', 'mcp', 'jsonschema'] as const;
+export const INPUTS = ['openapi', 'swagger2', 'asyncapi', 'mcp', 'protobuf', 'jsonschema'] as const;
 
 /** The validators of every payload of a contract, as one module. */
 export const generateValidators = (contract: Contract): GeneratorResult => {

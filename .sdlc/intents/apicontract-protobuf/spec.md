@@ -8,22 +8,32 @@ Intent: [`intent.md`](./intent.md). **Status:** approved.
 
 - **R1. The `protobuf` adapter** (`input-protobuf.ts`, imports only `apicontract/core`). Detects a
   JSON object whose `file` is a non-empty list of objects each with a string `name` ending `.proto`.
+  It is tried after `openapi`, `swagger2`, `asyncapi` and `mcp`, none of which has a `file` list, and
+  before `jsonschema`, which reads almost any object.
   - One operation per `file[i].service[j].method[k]`, id `<package>.<Service>.<Method>` (the
     package omitted when empty), source `/file/i/service/j/method/k`.
   - Payloads: `request` (direction `request`, required) and `response` (direction `response`,
-    required), each `{ $ref: '#/$defs/<full name>', $defs }` holding every message it reaches.
+    required), each `{ $ref: '#/$defs/<full name>' }`. The contract's document is the image with a
+    `$defs` beside it holding every message and enum a payload reaches, so the references resolve
+    where every generator and `diff` resolve them.
   - Messages to JSON Schema, by the proto3 JSON mapping: an object of properties keyed by `jsonName`
-    (else the field name), `additionalProperties: false`; 32-bit integers `integer`; 64-bit
-    integers `string` or `integer`; `float`/`double` `number`; `bool` `boolean`; `string` `string`;
-    `bytes` `string` with `contentEncoding: base64`; an enum the list of its value names; a repeated
-    field an array; a map entry an object of the value type. Well-known types as the mapping writes
-    them (`Timestamp` and `Duration` strings, wrappers nullable scalars, `Struct` an object, `Value`
-    anything, `Empty` an empty object, `FieldMask` a string, `Any` an object with `@type`).
+    (else the field name), left open, since adding a field is protobuf's safe change; 32-bit
+    integers `integer`; 64-bit integers `string` or `integer`; `float`/`double` `number`; `bool`
+    `boolean`; `string` `string`; `bytes` `string` with `contentEncoding: base64`; an enum the list
+    of its value names; a repeated field an array; a map entry an object of the value type; a proto2
+    `required` field required. Well-known types as the mapping writes them (`Timestamp` and
+    `Duration` strings, wrappers nullable scalars, `Struct` and `Empty` objects, `Value` anything,
+    `FieldMask` a string, `Any` an object with `@type`).
   - Each field's number is kept as `x-protobuf-field` so a reader can see it; the model's diff does
     not judge it (R3 does).
-  - Findings, never a silent loss: `stream-read-as-message` for a client- or server-streaming method,
-    `any-payload-unread` for `google.protobuf.Any`, `type-not-found` for a type the image does not
-    hold (read as anything), `group-read-as-message` for proto2 groups.
+  - A `oneof` is written as the JSON mapping writes it, each member an ordinary optional property;
+    the group is kept as `x-protobuf-oneof: { <group>: [<property>…] }` on the message, and its
+    "at most one" constraint, which the schema does not enforce, is the finding `oneof-not-enforced`.
+    A proto3 `optional` field's synthetic oneof is not a group.
+  - Findings, never a silent loss: `stream-read-as-message` for a client- or server-streaming
+    method, `any-payload-unread` for `google.protobuf.Any`, `oneof-not-enforced` for a oneof,
+    `type-not-found` for a type the image does not hold (read as anything),
+    `group-read-as-message` for a proto2 group, `no-service` for an image with no service.
 - **R2. `.proto` inputs.** An input path ending `.proto`, or a directory holding `buf.yaml`, is
   compiled with `buf build <path> -o -#format=json` run through bellpull in the input's folder; its
   stdout is the image. No `buf` on the PATH refuses with
