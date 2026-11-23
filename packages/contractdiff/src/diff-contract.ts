@@ -11,6 +11,7 @@ import { pointerGet } from './core/resolve.js';
 import { classify, type Mode, refine, type Side, type Verdict } from './diff-classify.js';
 import { ruleId } from './diff-rules.js';
 import { compareSchemas, type Effect, isFrozen, serverReceives } from './diff-schema.js';
+import { compareSecurity } from './diff-security.js';
 
 export interface Finding {
   /** oasdiff's rule id where the change is one oasdiff names, buf's `buf:`-prefixed with `--level`, else ours, `ac-`-prefixed. */
@@ -172,8 +173,10 @@ const comparePayload = (documents: { old: unknown; new: unknown }, before: Paylo
 };
 
 /** The path parameters `operation` declares and `other` does not, in order. */
+const PATH = 'param:path:';
+
 const pathParametersOnlyIn = (operation: Operation, other: Operation): string[] =>
-  operation.payloads.filter((payload) => payload.name.startsWith('param:path:') && !other.payloads.some((o) => o.name === payload.name)).map((payload) => payload.name);
+  operation.payloads.filter((payload) => payload.name.startsWith(PATH) && !other.payloads.some((o) => o.name === payload.name)).map((payload) => payload.name);
 
 /**
  * Path parameters renamed with their path (`/pets/{id}` to `/pets/{petId}`) are the same
@@ -184,15 +187,25 @@ const renamedPathParameters = ({ old, nu }: Pair): Map<string, string> => {
   return new Map(pathParametersOnlyIn(old, nu).flatMap((name, index) => (index < after.length ? [[after[index] as string, name] as const] : [])));
 };
 
+/** A path parameter renamed: the same on the wire, but a client generated from the old contract passes it by its old name. */
+const renameOf = (after: string, before: string): Raw => ({ rule: 'path-parameter-renamed', payload: after, direction: 'request', pointer: '', before: before.slice(PATH.length), after: after.slice(PATH.length), effect: 'neutral' });
+
+/** The security an operation asks for, when it turns callers away or lets more in. */
+const securityRaws = (a: Contract, b: Contract, { old, nu }: Pair): Raw[] => {
+  const change = compareSecurity(a, b, old, nu);
+  return change === undefined ? [] : [{ ...change, direction: 'request', pointer: '' }];
+};
+
 const comparePayloads = (a: Contract, b: Contract, pair: Pair): Raw[] => {
   const renamed = renamedPathParameters(pair);
   const names = [...new Set([...pair.old.payloads, ...pair.nu.payloads].map((payload) => payload.name))].filter((name) => ![...renamed.values()].includes(name));
-  return names.flatMap((name) => {
+  const renames = [...renamed].map(([after, before]) => renameOf(after, before));
+  return [...renames, ...securityRaws(a, b, pair)].concat(names.flatMap((name) => {
     const before = pair.old.payloads.find((payload) => payload.name === (renamed.get(name) ?? name));
     const after = pair.nu.payloads.find((payload) => payload.name === name);
     if (before === undefined || after === undefined) return comparePresence(name, pair);
     return comparePayload({ old: a.document, new: b.document }, before, after);
-  });
+  }));
 };
 
 /** The operation itself appeared or disappeared, judged in the direction it is called in. */
@@ -209,10 +222,11 @@ const compareOperation = (old: Operation | undefined, nu: Operation | undefined)
 };
 
 /** What a reader risks from a dangerous change, and what to do about it. */
-const dangerFix = (raw: Raw, where: string): string =>
-  raw.rule === 'default-changed'
-    ? `a caller that leaves ${where} out now gets ${JSON.stringify(raw.after) ?? 'no default'} instead of ${JSON.stringify(raw.before) ?? 'no default'}: keep the old default, or say so in the release notes`
-    : `a reader that rejects values it did not expect at ${where} may fail on this: make readers tolerate it, or say so in the release notes`;
+const dangerFix = (raw: Raw, where: string): string => {
+  if (raw.rule === 'default-changed') return `a caller that leaves ${where} out now gets ${JSON.stringify(raw.after) ?? 'no default'} instead of ${JSON.stringify(raw.before) ?? 'no default'}: keep the old default, or say so in the release notes`;
+  if (raw.rule === 'path-parameter-renamed') return `a client generated from the old contract passes \`${String(raw.before)}\` by name, and it is now \`${String(raw.after)}\`: keep the old name, or say so in the release notes`;
+  return `a reader that rejects values it did not expect at ${where} may fail on this: make readers tolerate it, or say so in the release notes`;
+};
 
 const fixFor = (raw: Raw, verdict: Verdict, operation: string): string => {
   const where = [operation, raw.payload, raw.pointer].filter((part) => part !== undefined && part !== '').join(' ');
@@ -220,6 +234,7 @@ const fixFor = (raw: Raw, verdict: Verdict, operation: string): string => {
   if (verdict === 'dangerous') return dangerFix(raw, where);
   if (verdict === 'unknown') return `review ${where} by hand: contractdiff cannot tell what \`${raw.rule}\` does to the values it accepts`;
   if (verdict === 'non-breaking') return 'nothing to do';
+  if (raw.rule === 'security-narrowed') return `keep letting into ${where} every caller the old security requirement let in, or release this as a major version`;
   if (raw.effect === 'narrows') return `keep accepting at ${where} what the old contract accepted, or release this as a major version`;
   return `keep ${where} within what the old contract allowed, or release this as a major version`;
 };

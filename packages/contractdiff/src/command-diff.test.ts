@@ -91,13 +91,13 @@ describe('contractdiff diff, through burgee', () => {
       exitCode: ExitCode.RUNTIME,
       fix: 'make each breaking change compatible as its own fix line says, or release it as a major version',
     });
-    expect((data.findings as unknown[]).length).toBe(7);
+    expect((data.findings as unknown[]).length).toBe(8);
   });
 
   it('prints text grouped by operation, each breaking finding with its fix', async () => {
     const r = await runBurgee(program, { argv: ['diff', OLD, NEW] });
     expect(r.code).toBe(ExitCode.RUNTIME);
-    expect(r.stdout).toContain('breaking: 4 breaking, 0 unknown, 3 non-breaking (--mode backward --side caller)');
+    expect(r.stdout).toContain('breaking: 4 breaking, 0 unknown, 1 dangerous, 3 non-breaking (--mode backward --side caller)');
     expect(r.stdout).toContain('deletePet  #/paths/~1pets~1{id}/delete\n  breaking      api-removed-without-deprecation    "deletePet" -> -\n');
   });
 
@@ -111,7 +111,7 @@ describe('contractdiff diff, through burgee', () => {
     const r = await runBurgee(program, { argv: ['diff', OLD, NEW, '--sarif', '--decisions', 'off'] });
     const sarif = JSON.parse(r.stdout) as { version: string; runs: { results: { level: string }[] }[] };
     expect(sarif.version).toBe('2.1.0');
-    expect(sarif.runs[0]?.results.map((result) => result.level)).toEqual(['error', 'error', 'error', 'error', 'note', 'note', 'note']);
+    expect(sarif.runs[0]?.results.map((result) => result.level)).toEqual(['error', 'error', 'error', 'error', 'warning', 'note', 'note', 'note']);
   });
 
   it('exits 0 when nothing breaks', async () => {
