@@ -70,7 +70,9 @@ Order: R1 → R2 → R3. Each a PR.
   messages, maps, oneofs, well-known types, and a streaming method; 100% coverage, mutation lane clean.
 - R2/R3 tests with a fake `buf` (bellpull runtime): the command lines are exact, a missing buf and a
   failing buf each refuse with a `fix:`.
-- A manual reading against a real `buf` before R3 merges, its output committed beside the fixtures.
+- A reading against a real `buf`, its output committed beside the fixtures: moved on 2026-11-23 from
+  "before R3 merges" to the first run of [`contractdiff-bench`](../contractdiff-bench/intent.md), which
+  pins buf in CI (no buf could be installed where R3 was built). Until then R3 rests on the fake buf.
 
 ## Rejected alternatives
 
