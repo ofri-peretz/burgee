@@ -1230,7 +1230,7 @@ export async function run(options: Options): Promise<RunResult> {
       if (items.length === 0) return verdicts;
       const t0 = performance.now();
       pool.stats.peak = 0;
-      const mk = (batch: MutantResult[]): Unit => ({ mode: 'isolated', files: [], results: fileFor('iso', 'jsonl'), progress: fileFor('iso', 'progress'), batch: batch.map((m) => ({ id: m.id, files: filesFor(m), tests: m.static ? undefined : m.coveredBy, hitLimit: hitLimitOf(m.id) })) });
+      const mk = (batch: MutantResult[]): Unit => ({ mode: 'isolated', files: [], results: fileFor('iso', 'jsonl'), progress: fileFor('iso', 'progress'), batch: batch.map((m) => ({ id: m.id, files: filesFor(m), tests: m.static ? undefined : m.coveredBy, hitLimit: hitLimitOf(m.id), testMs: m.static ? undefined : Object.fromEntries(m.coveredBy.map((t) => [t, testInfo.get(t)?.ms ?? 0])) })) });
       // Packed by estimated cost, heaviest first into the lightest bin, and the heaviest bins run
       // first. Equal mutant counts left one unit at 8.4 s while the others finished in under 3 s on
       // burgee/controlroom (2026-10-30): a mutant's cost is its files' dry-run time, not one.
@@ -1254,7 +1254,12 @@ export async function run(options: Options): Promise<RunResult> {
       let chaseFrom = 0;
       await pool.drain(
         units,
-        (unit, id) => isolatedCapped(id, chasing.has(unit.results) ? RERUN_SLACK : slackOf(id)),
+        // A mark that names a test holds the run to that test's own limit, as a warm run is: a hang in a 1 ms test is
+        // stopped in a fraction of the budget of the slowest test that covers the mutant; a mark without one, to the whole.
+        (unit, id, testMs) => {
+          const slackNow = chasing.has(unit.results) ? RERUN_SLACK : slackOf(id);
+          return testMs === undefined ? isolatedCapped(id, slackNow) : Math.min(slackNow * warmBudget(id, testMs), MAX_TEST_MS * slackNow);
+        },
         (unit, outcome) => {
           const chased = chasing.has(unit.results);
           const into = chased && chase ? chase.into : verdicts;

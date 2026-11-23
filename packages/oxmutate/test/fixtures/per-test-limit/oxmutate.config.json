@@ -1,0 +1,1 @@
+{ "mutate": ["src/hang.ts"], "concurrency": 2, "flakyReruns": 0, "reporters": ["json"], "timeoutMS": 200 }

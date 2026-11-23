@@ -45,7 +45,7 @@ export interface Unit {
   progress: string;
   plan?: string | undefined;
   /** `isolated`: mutants armed one after another from process start, each with its files. */
-  batch?: { id: string; files: string[]; tests?: string[] | undefined; hitLimit?: number | undefined }[] | undefined;
+  batch?: { id: string; files: string[]; tests?: string[] | undefined; hitLimit?: number | undefined; testMs?: Record<string, number> | undefined }[] | undefined;
   /** `static`: the static mutants this one file's run decides in its live worker. */
   staticIds?: string[] | undefined;
   /** `static`: the same mutants as groups armed together, for a file that is not their first (`static.group`). */
@@ -180,6 +180,8 @@ async function runIsolated(unit: Unit): Promise<void> {
       else delete env['OXMUTATE_HIT_LIMIT'];
       if (item.tests) env['OXMUTATE_ONLY_TESTS'] = JSON.stringify(item.tests);
       else delete env['OXMUTATE_ONLY_TESTS'];
+      if (item.testMs) env['OXMUTATE_TEST_MS'] = JSON.stringify(item.testMs);
+      else delete env['OXMUTATE_TEST_MS'];
       writeFileSync(unit.progress, `${item.id} ${String(Date.now())}\n`);
       // One file at a time, cheapest first (the coordinator orders them), stopping at the first
       // file that kills the mutant: Stryker runs every file for every isolated mutant.
