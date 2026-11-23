@@ -11,6 +11,7 @@ export async function check(base: string, git: Git): Promise<Finding[]> {
     git(['diff', '--name-only', `${base}...HEAD`]),
     git(['log', '--format=%B', `${base}..HEAD`]),
   ]);
-  const paths = names.split('\n').filter(Boolean);
+  // An empty line names no file, and no snapshot pattern matches it.
+  const paths = names.split('\n');
   return [...weakenedAssertions(parseUnifiedDiff(diff), messages), ...unexplainedSnapshots(paths, messages)];
 }

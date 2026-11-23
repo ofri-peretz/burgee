@@ -14,6 +14,36 @@ import { noTestRetry } from './no-test-retry.js';
 ruleTester.run('no-test-retry', noTestRetry, {
   valid: [
     {
+      name: 'a file that only looks like a config',
+      filename: 'myvitest.config.ts',
+      code: `export default { retry: 2 };`,
+    },
+    {
+      name: 'a workspace file that only looks like one',
+      filename: 'myvitest.workspace.ts',
+      code: `export default [{ retry: 2 }];`,
+    },
+    {
+      name: 'a workspace backup',
+      filename: 'vitest.workspace.ts.orig',
+      code: `export default [{ retry: 2 }];`,
+    },
+    {
+      name: 'a config backup',
+      filename: 'vitest.config.ts.orig',
+      code: `export default { retry: 2 };`,
+    },
+    {
+      name: 'a config whose middle name is not a word',
+      filename: 'vitest.@.config.ts',
+      code: `export default { retry: 2 };`,
+    },
+    {
+      name: 'a method on a config factory',
+      filename: 'src/setup.ts',
+      code: `defineConfig.call(null, { retry: 2 });`,
+    },
+    {
       name: 'an HTTP client retry is not a test retry',
       code: `const client = got.extend({ retry: { limit: 2 } });`,
     },
@@ -103,6 +133,48 @@ ruleTester.run('no-test-retry', noTestRetry, {
     },
   ],
   invalid: [
+    {
+      name: 'every config file spelling',
+      filename: 'apps/web/vitest.e2e-a.config.mts',
+      code: `export default { retry: 2 };`,
+      errors: [{ messageId: 'testRetry' }],
+    },
+    {
+      name: 'a vite config',
+      filename: 'vite.config.js',
+      code: `export default { retries: 2 };`,
+      errors: [{ messageId: 'testRetry' }],
+    },
+    {
+      name: 'a workspace file',
+      filename: 'packages/a/vitest.workspace.mts',
+      code: `export default [{ retry: 2 }];`,
+      errors: [{ messageId: 'testRetry' }],
+    },
+    {
+      name: 'a workspace file at the root',
+      filename: 'vitest.workspace.ts',
+      code: `export default [{ retry: 2 }];`,
+      errors: [{ messageId: 'testRetry' }],
+    },
+    {
+      name: 'every config factory',
+      filename: 'src/setup.ts',
+      code: `defineProject({ retry: 1 });\ndefineWorkspace([{ retry: 1 }]);\nmergeConfig(base, { retry: 1 });`,
+      errors: [{ messageId: 'testRetry' }, { messageId: 'testRetry' }, { messageId: 'testRetry' }],
+    },
+    {
+      name: 'a quoted retry key',
+      filename: 'src/a.test.ts',
+      code: `it('x', { 'retry': 2 }, () => {});`,
+      errors: [{ messageId: 'testRetry' }],
+    },
+    {
+      name: 'jest.retryTimes with no count still retries',
+      filename: 'src/a.test.ts',
+      code: `jest.retryTimes();`,
+      errors: [{ messageId: 'testRetry' }],
+    },
     {
       name: 'a test-level retry',
       code: `it('x', { retry: 3 }, () => {});`,

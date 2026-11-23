@@ -3,7 +3,7 @@
  * unexpired date in a comment on its line or the line above. A skip with no reason on record is
  * a test nobody is told to come back to.
  */
-import type { CallExpression, Node as EsNode } from 'estree';
+import type { CallExpression, Node as EsNode, UnaryExpression } from 'estree';
 
 import { defineRule, message } from './rule.js';
 import { calleeChain, cited, isTestApi, justification, todayUtc } from './test-api.js';
@@ -67,19 +67,26 @@ function isDeclaredSkip(node: CallExpression): boolean {
   if (second && (second.type === 'ArrowFunctionExpression' || second.type === 'FunctionExpression')) return true;
   // A title, however spelled, including a template with substitutions.
   if (first.type === 'TemplateLiteral') return true;
-  if (first.type === 'Literal' && typeof first.value === 'string') return true;
+  // Of the nodes that can stand here, only a string literal carries a string `value`.
+  if (typeof (first as { value?: unknown }).value === 'string') return true;
   return constantValue(first)?.value === true;
 }
 
 /**
- * The value of a literal, or of `!`/`-` applied to one, as a truthiness: `skipIf(true)`,
+ * The value of a literal, or of `!`, `-` or `+` applied to one, as a truthiness: `skipIf(true)`,
  * `runIf(!0)`, `test.skip(!0)`. `undefined` when the node is not constant.
  */
 function constantValue(node: EsNode | undefined): { value: boolean } | undefined {
   if (!node) return undefined;
   if (node.type === 'Literal') return { value: Boolean(node.value) };
-  if (node.type !== 'UnaryExpression') return undefined;
-  const inner = constantValue(node.argument);
+  // Only a unary operator over a constant gets past here: on any other node `argument` is missing
+  // or not constant, and `inner` is undefined.
+  const inner = constantValue((node as { argument?: EsNode }).argument);
   if (!inner) return undefined;
-  return { value: node.operator === '!' ? !inner.value : inner.value };
+  const { operator } = node as UnaryExpression;
+  if (operator === '!') return { value: !inner.value };
+  // `-1` and `+1` keep their operand's truthiness; `~0` (-1) and `void 1` do not, so they are
+  // not read as constants.
+  if (operator === '-' || operator === '+') return inner;
+  return undefined;
 }

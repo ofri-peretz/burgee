@@ -60,6 +60,16 @@ ruleTester.run('no-focused-test', noFocusedTest, {
   ],
   invalid: [
     {
+      name: 'ftest',
+      code: `ftest('x', () => {});`,
+      errors: [
+        {
+          messageId: 'focusedTest',
+          suggestions: [{ messageId: 'removeFocus', output: `test('x', () => {});` }],
+        },
+      ],
+    },
+    {
       name: 'it.only (global)',
       code: `it.only('adds', () => {});`,
       errors: [

@@ -12,6 +12,8 @@ import { noUnexplainedSkip } from './no-unexplained-skip.js';
 
 ruleTester.run('no-unexplained-skip', noUnexplainedSkip, {
   valid: [
+    { name: 'skipIf with no condition is not a constant', code: `it.skipIf()('x', () => {});` },
+    { name: 'a bitwise or void operand is not read as a constant', code: `test.skip(~0);\ntest.skip(void 1);\ntest.skip(-0);` },
     { name: 'test.skip(false) skips nothing', code: `test.skip(false);` },
     { name: 'a plain test', code: `it('x', () => {});` },
     {
@@ -64,6 +66,26 @@ ruleTester.run('no-unexplained-skip', noUnexplainedSkip, {
     },
   ],
   invalid: [
+    {
+      name: 'every skipped root',
+      code: `xtest('x', () => {});\nxdescribe('x', () => {});\nxcontext('x', () => {});`,
+      errors: [{ messageId: 'unexplainedSkip' }, { messageId: 'unexplainedSkip' }, { messageId: 'unexplainedSkip' }],
+    },
+    {
+      name: 'a skip whose title is a variable and whose body is a function expression',
+      code: `it.skip(title, function () {});\nit.skip(title, () => {});`,
+      errors: [{ messageId: 'unexplainedSkip' }, { messageId: 'unexplainedSkip' }],
+    },
+    {
+      name: 'an empty title is still a title',
+      code: `it.skip('');`,
+      errors: [{ messageId: 'unexplainedSkip' }],
+    },
+    {
+      name: 'a negated or signed truthy constant skips',
+      code: `test.skip(-1);\ntest.skip(+1);\ntest.skip(!0);`,
+      errors: [{ messageId: 'unexplainedSkip' }, { messageId: 'unexplainedSkip' }, { messageId: 'unexplainedSkip' }],
+    },
     { name: 'a titled skip with no body', code: `it.skip('waits for the API');`, errors: [{ messageId: 'unexplainedSkip' }] },
     {
       name: 'it.skip with no comment',

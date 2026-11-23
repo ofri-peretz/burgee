@@ -42,35 +42,36 @@ interface ParseState {
   newLine: number;
 }
 
-/** A file or hunk header: starts a file or a hunk, and says it was one. */
-function header(state: ParseState, raw: string): boolean {
-  if (raw.startsWith('diff --git ')) {
-    state.file = undefined;
-    state.hunk = undefined;
-    return true;
-  }
-  if (raw.startsWith(NEW_FILE)) {
-    const target = raw.slice(NEW_FILE.length);
-    if (target !== '/dev/null') {
-      state.file = { path: target.replace(/^b\//, ''), hunks: [] };
-      state.files.push(state.file);
-    }
-    return true;
-  }
-  if (raw.startsWith('--- ')) return true;
-  const match = HUNK_HEADER.exec(raw);
-  if (!match) return false;
-  if (state.file) {
-    state.hunk = { removed: [], added: [] };
-    state.file.hunks.push(state.hunk);
-    state.oldLine = Number(match[1]);
-    state.newLine = Number(match[2]);
-  }
-  return true;
+/** Start a hunk of the current file at the header's line numbers. */
+function startHunk(state: ParseState, header: RegExpExecArray): void {
+  if (!state.file) return;
+  state.hunk = { removed: [], added: [] };
+  state.file.hunks.push(state.hunk);
+  state.oldLine = Number(header[1]);
+  state.newLine = Number(header[2]);
 }
 
-/** A removed or added line of the current hunk. */
-function body(state: ParseState, raw: string): void {
+/**
+ * One line of the diff: a file or hunk header, or a removed or added line of the current hunk.
+ * `diff --git` and the metadata lines after it (index, mode, rename, binary) need no case: none
+ * starts with `+` or `-`, and the `+++` line that follows resets the file and the hunk.
+ */
+function read(state: ParseState, raw: string): void {
+  if (raw.startsWith(NEW_FILE)) {
+    const target = raw.slice(NEW_FILE.length);
+    state.file = undefined;
+    state.hunk = undefined;
+    if (target === '/dev/null') return;
+    state.file = { path: target.replace(/^b\//, ''), hunks: [] };
+    state.files.push(state.file);
+    return;
+  }
+  if (raw.startsWith('--- ')) return;
+  const header = HUNK_HEADER.exec(raw);
+  if (header) {
+    startHunk(state, header);
+    return;
+  }
   const { hunk } = state;
   if (!hunk) return;
   if (raw.startsWith('-')) hunk.removed.push({ line: state.oldLine++, text: raw.slice(1) });
@@ -79,10 +80,9 @@ function body(state: ParseState, raw: string): void {
 
 /** Parse `git diff --unified=0` output into files and hunks. */
 export function parseUnifiedDiff(diff: string): FileDiff[] {
+  // Stryker disable next-line NumericLiteral: no line is read into a hunk before its header sets both
   const state: ParseState = { files: [], file: undefined, hunk: undefined, oldLine: 0, newLine: 0 };
-  for (const raw of diff.split('\n')) {
-    if (!header(state, raw)) body(state, raw);
-  }
+  for (const raw of diff.split('\n')) read(state, raw);
   return state.files;
 }
 
@@ -99,18 +99,30 @@ export const MATCHER_RANK: Readonly<Record<string, number>> = {
   toBeDefined: 1,
 };
 
-const EXPECT = 'expect(';
-/** What follows `expect(subject)`: `.not.` (optional) and the matcher, up to its `(`. */
-const MATCHER_CALL = /^\s*\.\s*(not\s*\.\s*)?(\w+)\s*\(/;
+const EXPECT = /expect\(/g;
+/**
+ * What follows `expect(subject)`: the matcher, up to its `(`. `.not.toBe(` does not match —
+ * `not` is followed by a dot — so a negated assertion is never read: it is a different claim, not
+ * a weaker one.
+ */
+const MATCHER_CALL = /^\s*\.\s*(\w+)\s*\(/;
 
-/** The index just past the `)` that closes the `(` before `from`, or -1 when it never closes. */
-function closingParen(text: string, from: number): number {
+interface Call {
+  subject: string;
+  rest: string;
+}
+
+/** The subject inside `expect(` (which opens just before `open`) and the text after its `)`. */
+function expectCall(text: string, open: number): Call | undefined {
   let depth = 1;
-  for (let i = from; i < text.length; i++) {
-    if (text[i] === '(') depth++;
-    else if (text[i] === ')' && --depth === 0) return i + 1;
+  for (const [offset, char] of text.slice(open).split('').entries()) {
+    if (char === '(') depth++;
+    else if (char === ')' && --depth === 0) {
+      const close = open + offset;
+      return { subject: text.slice(open, close), rest: text.slice(close + 1) };
+    }
   }
-  return -1;
+  return undefined;
 }
 
 interface Assertion {
@@ -122,19 +134,15 @@ interface Assertion {
 function assertions(lines: ChangedLine[]): Assertion[] {
   const found: Assertion[] = [];
   for (const { line, text } of lines) {
-    for (let at = text.indexOf(EXPECT); at !== -1; at = text.indexOf(EXPECT, at + 1)) {
-      const open = at + EXPECT.length;
-      const close = closingParen(text, open);
-      if (close === -1) break;
-      const call = MATCHER_CALL.exec(text.slice(close));
-      // `.not.toBe` is a different claim, not a weaker one.
-      if (call === null) continue;
-      const [, negated, named] = call;
-      if (negated !== undefined) continue;
+    for (const at of text.matchAll(EXPECT)) {
+      const call = expectCall(text, at.index + at[0].length);
+      if (!call) break;
+      const matched = MATCHER_CALL.exec(call.rest);
+      if (matched === null) continue;
       // The matcher group always takes part in a match: it is not inside an optional group.
-      const matcher = named as string;
+      const matcher = matched[1] as string;
       if (!(matcher in MATCHER_RANK)) continue;
-      found.push({ subject: text.slice(open, close - 1).replace(/\s+/g, ''), matcher, line });
+      found.push({ subject: call.subject.replace(/\s/g, ''), matcher, line });
     }
   }
   return found;
@@ -151,10 +159,7 @@ const ASSERTION_REASON = /^Assertion:\s*\S/im;
  * Assertions on the same subject that moved to a weaker matcher. An
  * `Assertion: <why>` line in one of the range's commit messages accepts them.
  */
-export function weakenedAssertions(
-  files: FileDiff[],
-  commitMessages = '',
-): Finding[] {
+export function weakenedAssertions(files: FileDiff[], commitMessages: string): Finding[] {
   if (ASSERTION_REASON.test(commitMessages)) return [];
   const findings: Finding[] = [];
   for (const file of files) {
@@ -188,10 +193,7 @@ const SNAPSHOT_REASON = /^Snapshot:\s*\S/im;
  * commit messages — updating a snapshot is how a wrong output becomes the
  * expected one, so the change has to say what it accepts.
  */
-export function unexplainedSnapshots(
-  changedPaths: string[],
-  commitMessages: string,
-): Finding[] {
+export function unexplainedSnapshots(changedPaths: string[], commitMessages: string): Finding[] {
   if (SNAPSHOT_REASON.test(commitMessages)) return [];
   return changedPaths
     .filter((p) => SNAPSHOT_FILE.test(p))

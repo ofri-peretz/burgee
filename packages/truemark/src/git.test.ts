@@ -8,6 +8,9 @@ describe('git', () => {
   });
 
   it('rejects with git’s own words when git says no', async () => {
-    await expect(git(['no-such-command'])).rejects.toThrow(/git no-such-command failed: .*not a git command/);
+    const error = await git(['no-such-command', 'x']).catch((e: unknown) => e as Error);
+    expect((error as Error).message).toMatch(/^git no-such-command x failed: git: .*not a git command/);
+    // git's stderr ends in a newline; the message does not.
+    expect((error as Error).message).not.toMatch(/\s$/);
   });
 });

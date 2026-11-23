@@ -24,10 +24,13 @@ export const noTestRetry = defineRule('no-test-retry', {
   create(context) {
     const configFile = CONFIG_FILE.test(context.filename);
     const { sourceCode } = context;
+    // Only a citation excuses a retry, and a citation has no date: `today` is never read.
+    // Stryker disable next-line StringLiteral: as above
     const explained = (node: EsNode): boolean => cited(justification(node, sourceCode, ''));
     return {
       Property(node) {
-        if (!RETRY_KEYS.has(keyName(node) ?? '')) return;
+        // A Set of strings has no other member, so any other key is simply not in it.
+        if (!RETRY_KEYS.has(keyName(node) as string)) return;
         if (isZero(node.value)) return;
         if (!configFile && !inRetryContext(node as Property & Node, sourceCode)) return;
         if (explained(node)) return;
@@ -44,15 +47,16 @@ export const noTestRetry = defineRule('no-test-retry', {
 });
 
 /** `retry`, `'retry'` and `['retry']` as an object key. */
-function keyName(node: Property): string | undefined {
+function keyName(node: Property): unknown {
   const { key } = node;
   if (!node.computed && key.type === 'Identifier') return key.name;
-  if (key.type === 'Literal' && typeof key.value === 'string') return key.value;
-  return undefined;
+  // A literal key's value; any other computed key has none.
+  return (key as { value?: unknown }).value;
 }
 
 function isZero(node: EsNode | undefined): boolean {
-  return node?.type === 'Literal' && node.value === 0;
+  // Only a literal carries a numeric `value`.
+  return (node as { value?: unknown } | undefined)?.value === 0;
 }
 
 /**
@@ -78,7 +82,12 @@ function isRetryCall(node: CallExpression, sourceCode: SourceCode): boolean {
   if (callee.type !== 'MemberExpression') return false;
   const method = memberName(callee);
   if (method === 'retries') return callee.object.type === 'ThisExpression';
-  if (method !== 'retryTimes' || callee.object.type !== 'Identifier' || callee.object.name !== 'jest') return false;
+  if (method !== 'retryTimes') return false;
+  // Stryker disable next-line ConditionalExpression,EqualityOperator,StringLiteral: only an identifier has a `name` that could be 'jest'
+  if (callee.object.type !== 'Identifier') return false;
+  if (callee.object.name !== 'jest') return false;
   const bound = binding(callee.object, sourceCode);
-  return bound.kind === 'global' || (bound.kind === 'import' && bound.module === '@jest/globals');
+  if (bound.kind === 'global') return true;
+  // Stryker disable next-line ConditionalExpression,LogicalOperator,EqualityOperator,StringLiteral: a local binding has no module to equal '@jest/globals'
+  return bound.kind === 'import' && bound.module === '@jest/globals';
 }

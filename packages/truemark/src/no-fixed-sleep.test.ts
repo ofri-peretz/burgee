@@ -15,6 +15,26 @@ const T = 'src/app.test.ts';
 ruleTester.run('no-fixed-sleep', noFixedSleep, {
   valid: [
     {
+      name: 'a setTimeout first and something else after it',
+      filename: T,
+      code: `new Promise((r) => { setTimeout(r, 10); other(); });`,
+    },
+    {
+      name: 'an empty executor',
+      filename: T,
+      code: `new Promise((r) => {});`,
+    },
+    {
+      name: 'a duration only half of which is a number',
+      filename: T,
+      code: `await sleep(2 * x);\nawait sleep(x * 2);`,
+    },
+    {
+      name: 'a Cypress command that is not wait',
+      filename: T,
+      code: `cy.get(500);`,
+    },
+    {
       name: 'a sleep outside a test file is not read',
       filename: 'src/retry.ts',
       code: `await new Promise((r) => setTimeout(r, 500));`,
@@ -122,7 +142,7 @@ ruleTester.run('no-fixed-sleep', noFixedSleep, {
     {
       name: 'a wait method on another object',
       filename: T,
-      code: `await queue.wait(100);\nawait other.wait(100);`,
+      code: `await queue.wait(100);\nawait other.wait(100);\nawait make().wait(100);`,
     },
     {
       name: 'a setTimeout imported from elsewhere',
@@ -156,6 +176,15 @@ ruleTester.run('no-fixed-sleep', noFixedSleep, {
     },
   ],
   invalid: [
+    {
+      name: 'every sleep helper name',
+      filename: T,
+      code: `await wait(100);\nawait pause(100);`,
+      errors: [
+        { messageId: 'fixedSleep', data: { how: 'wait()' } },
+        { messageId: 'fixedSleep', data: { how: 'pause()' } },
+      ],
+    },
     {
       name: 'await new Promise((r) => setTimeout(r, 500))',
       filename: T,

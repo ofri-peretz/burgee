@@ -47,9 +47,10 @@ export interface CalleeChain {
 /** The static name of a member's property: `a.b` and `a['b']` → `'b'`, `a[b]` → `null`. */
 export function memberName(member: MemberExpression): string | null {
   const { property } = member;
-  if (!member.computed && property.type === 'Identifier') return property.name;
-  if (member.computed && property.type === 'Literal' && typeof property.value === 'string') return property.value;
-  return null;
+  if (!member.computed) return property.type === 'Identifier' ? property.name : null;
+  // Of the computed keys, only a string literal carries a string `value`.
+  const { value } = property as { value?: unknown };
+  return typeof value === 'string' ? value : null;
 }
 
 export function calleeChain(callee: EsNode): CalleeChain | null {
@@ -65,7 +66,11 @@ export function calleeChain(callee: EsNode): CalleeChain | null {
   if (current.type === 'CallExpression') {
     const inner = calleeChain(current.callee);
     if (!inner) return null;
-    return { root: inner.root, path: [...inner.path, ...path], throughCall: true };
+    return {
+      root: inner.root,
+      path: [...inner.path, ...path],
+      throughCall: true,
+    };
   }
   if (current.type !== 'Identifier') return null;
   return { root: current, path, throughCall: false };
@@ -97,7 +102,11 @@ export function binding(id: Identifier, sourceCode: SourceCode): Binding {
   if (!def) return { kind: 'global' };
   if (def.type !== 'ImportBinding') return { kind: 'local' };
   const declaration = def.parent as ImportDeclaration;
-  return { kind: 'import', module: String(declaration.source.value), name: importedName(def.node) };
+  return {
+    kind: 'import',
+    module: String(declaration.source.value),
+    name: importedName(def.node),
+  };
 }
 
 /**
@@ -108,6 +117,7 @@ export function binding(id: Identifier, sourceCode: SourceCode): Binding {
 export function isTestApi(identifier: Identifier, sourceCode: SourceCode): boolean {
   const bound = binding(identifier, sourceCode);
   if (bound.kind === 'global') return TEST_ROOTS.has(identifier.name);
+  // Stryker disable next-line ConditionalExpression,LogicalOperator,EqualityOperator,StringLiteral: a local binding has no module, so TEST_MODULES refuses it either way
   if (bound.kind === 'local' || !TEST_MODULES.has(bound.module)) return false;
   // `import test from '@playwright/test'`: Playwright's default export is `test`.
   return bound.name === 'default' || TEST_ROOTS.has(bound.name);
@@ -121,9 +131,9 @@ export function isTestFile(filename: string): boolean {
 }
 
 /** An issue or pull-request URL, or a Jira / Linear style key in a URL. */
-const ISSUE_URL = /https?:\/\/\S+\/(?:issues|pull|pulls|merge_requests|browse|issue)\/[\w-]+/i;
+const ISSUE_URL = /https?:\/\/\S+\/(?:issues|pull|pulls|merge_requests|browse|issue)\/\w/i;
 /** A repo decision id: `D-107`, `D-20261123-slug`. */
-const DECISION_ID = /\bD-\d+(?:-[\w-]+)?\b/;
+const DECISION_ID = /\bD-\d+\b/;
 const DATE = /\b\d{4}-\d{2}-\d{2}\b/;
 
 export type Justification = { kind: 'issue' } | { kind: 'decision' } | { kind: 'until'; date: string; expired: boolean } | { kind: 'none' };
