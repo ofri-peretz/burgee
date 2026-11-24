@@ -1,0 +1,69 @@
+# Tags each hookset release: `hookset@<version>` on the commit that set that version.
+#
+# hookset is private on npm. Other repositories take its lefthook presets as a lefthook remote
+# pinned by git tag (`ref: hookset@0.2.1`), and `hookset-check.yml` checks out that tag, so a
+# version that is never tagged is a preset nobody can pin. release.yml tags only what it
+# publishes, which leaves hookset out, and a cloud agent session cannot push tags. This does.
+#
+# On a push to main that changes packages/hookset/package.json, it tags the new version at that
+# commit. workflow_dispatch backfills one: `version` and the `sha` that set it (the sha must be
+# on main and its packages/hookset/package.json must carry that version). An existing tag is
+# left as it is, so a re-run changes nothing.
+name: hookset tag
+
+on:
+  push:
+    branches: [main]
+    paths: [packages/hookset/package.json]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "The hookset version to tag, e.g. 0.1.0"
+        required: true
+        type: string
+      sha:
+        description: "The commit on main whose packages/hookset/package.json carries that version"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hookset-tag
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    name: Tag hookset
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Tag the version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_SHA: ${{ inputs.sha }}
+        run: |
+          set -euo pipefail
+          sha="${INPUT_SHA:-$GITHUB_SHA}"
+          git merge-base --is-ancestor "$sha" origin/main || { echo "::error::$sha is not on main. fix: pass a commit main contains."; exit 1; }
+          have=$(git show "$sha:packages/hookset/package.json" | jq -r .version)
+          version="${INPUT_VERSION:-$have}"
+          if [ "$have" != "$version" ]; then
+            echo "::error::$sha sets hookset to $have, not $version. fix: pass the commit that set $version."
+            exit 1
+          fi
+          tag="hookset@$version"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
+            echo "$tag is already on origin; nothing to do."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$tag" "$sha" -m "hookset $version"
+          git push origin "refs/tags/$tag"
+          echo "Tagged $tag at $sha."
