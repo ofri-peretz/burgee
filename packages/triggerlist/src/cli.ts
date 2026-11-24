@@ -8,6 +8,7 @@ import { join, resolve } from 'node:path';
 
 import { defineCommand, defineProgram, ExitCode } from 'burgee';
 
+import { brief, previousRound, stale } from './brief.js';
 import { CHECKLIST, type Checklist, parseChecklist } from './checklist.js';
 import { compile, DEFAULT_BUDGET } from './compile.js';
 import { parseDiff } from './diff.js';
@@ -52,6 +53,44 @@ export const runMatch = async (options: RangeOptions): Promise<Data> => {
     fired: fired.map(({ item, at }) => ({ id: item.id, question: item.question, check: item.check, sources: item.sources, at: at.map(where) })),
   };
   data[TEXT] = () => matchText(fired, range(options.base));
+  return data;
+};
+
+export interface BriefOptions extends RangeOptions {
+  /** The head SHA the review is for; the summary records it so the next round, and the stale check, can read it. */
+  readonly head: string;
+  /** REVIEW.md's path, read from the base branch. */
+  readonly review: string;
+  /** A JSON file of the pull request's comments (`[{ "body": ... }]`, as the GitHub API lists them). */
+  readonly comments?: string | undefined;
+}
+
+/** The reviewer's prompt (spec R5): base REVIEW.md, the items the diff fires, the previous round, the head SHA. */
+export const runBrief = async (options: BriefOptions): Promise<Data> => {
+  const { checklist } = await loadChecklist(options.repo, options.git, options.checklist, options.worktree ? undefined : options.base);
+  const fired = match(checklist, parseDiff(await options.git.diff(range(options.base))));
+  const review = await options.git.show(options.base, options.review).then(
+    (text) => ({ source: `${options.base}:${options.review}`, text }),
+    () => ({ source: 'none', text: `The base branch has no ${options.review} yet: answer the items below alone.` }),
+  );
+  const comments = options.comments === undefined ? [] : (JSON.parse(readFileSync(resolve(options.repo, options.comments), 'utf8')) as { body: string }[]);
+  const previous = previousRound(comments);
+  const data: Data = {
+    range: range(options.base),
+    head: options.head,
+    review: review.source,
+    fired: fired.map(({ item }) => item.id),
+    ...(previous === undefined ? {} : { previous: previous.sha }),
+  };
+  data[TEXT] = () => brief({ review: review.text, fired: matchText(fired, range(options.base)), head: options.head, range: range(options.base), previous });
+  return data;
+};
+
+/** Whether a review is of the head: exit 1 when the head moved, so an old result is never green. */
+export const runStale = (reviewed: string, head: string): Data => {
+  const why = stale(reviewed, head);
+  const data: Data = { reviewed, head, stale: why !== undefined, ...(why === undefined ? {} : { exitCode: ExitCode.RUNTIME, fix: `the run on ${head} reviews it` }) };
+  data[TEXT] = () => why ?? `the review is of the head, ${head}`;
   return data;
 };
 
@@ -170,6 +209,34 @@ export const program = defineProgram({
       arguments: [{ name: 'base', description: 'the base ref; the checklist is read from it too' }],
       options: { repo: repoOption, checklist: checklistOption, worktree: worktreeOption },
       run: ({ args, options }) => runMatch(rangeOptions(args, options)),
+    }),
+    defineCommand({
+      name: 'brief',
+      description: "The reviewer's prompt: REVIEW.md and the checklist from <base>, the items the diff fires, the previous round",
+      effects: 'read_only',
+      examples: [{ command: 'triggerlist brief origin/main --head "$HEAD_SHA" --comments comments.json', description: 'the prompt for this round of review' }],
+      arguments: [{ name: 'base', description: 'the base ref; REVIEW.md and the checklist are read from it' }],
+      options: {
+        repo: repoOption,
+        checklist: checklistOption,
+        worktree: worktreeOption,
+        head: { type: 'string', required: true, description: 'the head SHA under review', placeholder: 'sha' },
+        review: { type: 'string', default: 'REVIEW.md', description: 'the rules file, read from the base', placeholder: 'path' },
+        comments: { type: 'string', description: "a JSON file of the pull request's comments, for the previous round's findings", placeholder: 'path' },
+      },
+      run: ({ args, options }) =>
+        runBrief({ ...rangeOptions(args, options), head: options.head as string, review: options.review as string, comments: options.comments as string | undefined }),
+    }),
+    defineCommand({
+      name: 'stale',
+      description: 'Exit 1 when the head moved past the SHA a review was given',
+      effects: 'read_only',
+      examples: [{ command: 'triggerlist stale "$REVIEWED_SHA" "$HEAD_SHA"', description: 'fail a review whose head moved' }],
+      arguments: [
+        { name: 'reviewed', description: 'the SHA the review was given' },
+        { name: 'head', description: "the pull request's head now" },
+      ],
+      run: ({ args }) => runStale(args.reviewed as string, args.head as string),
     }),
     defineCommand({
       name: 'protect',

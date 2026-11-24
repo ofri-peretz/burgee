@@ -5,4 +5,5 @@ export { type Git, gitIn } from './git.js';
 export { type Fired, type Hit, match } from './match.js';
 export { protect, type Protection } from './protect.js';
 export { fromDecision, fromLockTest, toYaml } from './seed.js';
-export { loadChecklist, program, runCompile, runMatch, runProtect, runSeed, VERSION } from './cli.js';
+export { brief, marker, PREVIOUS_BUDGET, previousRound, reviewedSha, type Round, stale } from './brief.js';
+export { loadChecklist, program, runBrief, runCompile, runMatch, runProtect, runSeed, runStale, VERSION } from './cli.js';

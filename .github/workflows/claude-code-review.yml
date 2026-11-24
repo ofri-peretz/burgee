@@ -1,8 +1,11 @@
 name: Claude Code Review
 
-# AI code review on pull requests. Ported from ofri-peretz/eslint. The `review`
-# job is a required status check; it no-ops green until CLAUDE_CODE_OAUTH_TOKEN
-# exists, so branch protection can require it before the secret is wired.
+# AI code review on pull requests, through the reusable review.yml (triggerlist R5):
+# REVIEW.md and the checklist come from the base branch, the prompt carries only the
+# checklist items the diff fires and the previous round, and a review whose head moved
+# fails as stale. triggerlist is built from the base SHA, so a pull request cannot change
+# the tool that briefs its own review. It no-ops green until CLAUDE_CODE_OAUTH_TOKEN
+# exists.
 #   1. Install the Claude GitHub App: https://github.com/apps/claude
 #   2. `claude setup-token` locally
 #   3. Add the token as the repo secret CLAUDE_CODE_OAUTH_TOKEN
@@ -33,62 +36,21 @@ permissions:
 
 jobs:
   review:
-    if: github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - name: Is there anything to review, and a token to review it with?
-        id: token
-        env:
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          EVENT_NAME: ${{ github.event_name }}
-        run: |
-          if [ "$EVENT_NAME" = "merge_group" ]; then
-            echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "::notice title=Claude review skipped::A queue entry is code that was already reviewed on its pull request. The job reports green so the queue can drain."
-          elif [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "::notice title=Claude review skipped::A dispatched run has no pull request to review — it is the Version PR's GITHUB_TOKEN fallback, whose changesets were reviewed on their own PRs."
-          elif [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
-            echo "present=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "::notice title=Claude review skipped::CLAUDE_CODE_OAUTH_TOKEN is not set."
-          fi
+    uses: ./.github/workflows/review.yml
+    with:
+      triggerlist-ref: ${{ github.event.pull_request.base.sha || github.sha }}
+      preamble: |
+        You are reviewing a pull request in the Interlace CLI repo: extensions
+        for commander and yargs that give CLIs a machine-readable, agent-friendly
+        floor. Read README.md and .sdlc/intents/burgee/spec.md
+        for the floor requirements (F/O/E/V/S/P/D/T ids) and honour them.
 
-      - name: Checkout repository
-        if: steps.token.outputs.present == 'true'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 1
-
-      - name: Claude Code Review
-        if: steps.token.outputs.present == 'true'
-        uses: anthropics/claude-code-action@4d75e5f390ee76b2e09c1980ecc99ff3a2e088c8 # v1
-        with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          track_progress: true
-          prompt: |
-            REPO: ${{ github.repository }}
-            PR NUMBER: ${{ github.event.pull_request.number }}
-
-            You are reviewing a pull request in the Interlace CLI repo: extensions
-            for commander and yargs that give CLIs a machine-readable, agent-friendly
-            floor. Read README.md and .sdlc/intents/burgee/spec.md
-            for the floor requirements (F/O/E/V/S/P/D/T ids) and honour them.
-
-            Prioritise, in order:
-            1. Correctness & security — real bugs, broken edge cases, regressions,
-               injection through argv/env/config, secrets in output.
-            2. Floor conformance — a change that adds a command, option, error or
-               output path must keep every requirement it touches (cite the id).
-            3. Regression locks — a fix with no test that fails on the unfixed code.
-            4. Host idiom — extensions use commander/yargs public APIs, never fork or
-               re-parse argv.
-
-            Be precise and low-noise: post a finding only with file:line and the
-            reason. Inline comments for issues, one top-level summary.
-          claude_args: |
-            --model claude-sonnet-4-6
-            --max-turns 50
-            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
+        Prioritise, in order:
+        1. Correctness & security — real bugs, broken edge cases, regressions,
+           injection through argv/env/config, secrets in output.
+        2. Floor conformance — a change that adds a command, option, error or
+           output path must keep every requirement it touches (cite the id).
+        3. Regression locks — a fix with no test that fails on the unfixed code.
+        4. Host idiom — extensions use commander/yargs public APIs, never fork or
+           re-parse argv.
+    secrets: inherit

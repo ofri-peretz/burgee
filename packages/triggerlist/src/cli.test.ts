@@ -9,7 +9,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { type Git } from './git.js';
 
-import { loadChecklist, program, runCompile, runMatch, runProtect, runSeed, VERSION } from './index.js';
+import { loadChecklist, program, runBrief, runCompile, runMatch, runProtect, runSeed, runStale, VERSION } from './index.js';
 
 const TEXT = Symbol.for('burgee.text');
 const text = (data: Record<string | symbol, unknown>): string => (data[TEXT] as () => string)();
@@ -126,6 +126,50 @@ describe('runProtect', () => {
   });
 });
 
+describe('runBrief', () => {
+  const REVIEW_BASE = '# REVIEW.md\n- the base rule';
+
+  it('briefs from the base REVIEW.md and checklist, not the copies the change edited', async () => {
+    const dir = folder({ 'REVIEW.md': '# REVIEW.md\n- a rule this change wrote', 'c.yaml': 'gates: []\nitems: []\n' });
+    const git = fakeGit(DIFF, { 'b:c.yaml': CHECKLIST, 'b:REVIEW.md': REVIEW_BASE });
+    const data = await runBrief({ repo: dir, git, base: 'b', checklist: 'c.yaml', worktree: false, head: 'f00d', review: 'REVIEW.md' });
+    expect(git.calls).toEqual(['show b:c.yaml', 'diff b...HEAD', 'show b:REVIEW.md']);
+    expect(data).toMatchObject({ range: 'b...HEAD', head: 'f00d', review: 'b:REVIEW.md', fired: ['spawn'] });
+    expect(data).not.toHaveProperty('previous');
+    expect(text(data)).toContain('- the base rule');
+    expect(text(data)).not.toContain('a rule this change wrote');
+    expect(text(data)).toContain('spawn: Does it spawn through bellpull?');
+    expect(text(data)).toContain('<!-- triggerlist:reviewed f00d -->');
+  });
+
+  it('carries the last marked comment from a comments file as the previous round', async () => {
+    const dir = folder({ 'comments.json': JSON.stringify([{ body: 'round one: src/a.ts:1 spawns directly\n<!-- triggerlist:reviewed beef -->' }, { body: 'ok' }]) });
+    const git = fakeGit(DIFF, { 'b:c.yaml': CHECKLIST, 'b:REVIEW.md': REVIEW_BASE });
+    const data = await runBrief({ repo: dir, git, base: 'b', checklist: 'c.yaml', worktree: false, head: 'f00d', review: 'REVIEW.md', comments: 'comments.json' });
+    expect(data).toMatchObject({ previous: 'beef' });
+    expect(text(data)).toContain('round one: src/a.ts:1 spawns directly');
+  });
+
+  it('says so when the base branch has no REVIEW.md yet, and briefs the fired items alone', async () => {
+    const git = fakeGit('', { 'b:c.yaml': CHECKLIST });
+    const failing: Git = { ...git, show: (ref, path) => (path === 'REVIEW.md' ? Promise.reject(new Error('missing')) : git.show(ref, path)) };
+    const data = await runBrief({ repo: '/nowhere', git: failing, base: 'b', checklist: 'c.yaml', worktree: false, head: 'f00d', review: 'REVIEW.md' });
+    expect(data).toMatchObject({ review: 'none', fired: [] });
+    expect(text(data)).toContain('The base branch has no REVIEW.md yet');
+  });
+});
+
+describe('runStale', () => {
+  it('passes when the head is the SHA reviewed, and fails with a fix when it moved', () => {
+    const fresh = runStale('abc', 'abc');
+    expect(JSON.parse(JSON.stringify(fresh))).toEqual({ reviewed: 'abc', head: 'abc', stale: false });
+    expect(text(fresh)).toBe('the review is of the head, abc');
+    const moved = runStale('abc', 'def');
+    expect(moved).toMatchObject({ stale: true, exitCode: ExitCode.RUNTIME, fix: 'the run on def reviews it' });
+    expect(text(moved)).toBe('stale: this review is of abc, and the head is now def. fix: the run on def reviews it');
+  });
+});
+
 describe('runCompile', () => {
   const options = { checklist: 'c.yaml', out: 'R.md', budget: 150_000, check: false };
 
@@ -207,10 +251,18 @@ describe('the program', () => {
     await git('-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qam', 'weaken');
   });
 
-  it('declares its version and four commands plus burgee completion with their effects', async () => {
+  it('declares its version and six commands plus burgee completion with their effects', async () => {
     const r = await runBurgee(program, { argv: ['--schema'] });
     const { commands } = JSON.parse(r.stdout) as { commands: { name: string; effects: string }[] };
-    expect(Object.fromEntries(commands.map((c) => [c.name, c.effects]))).toEqual({ match: 'read_only', protect: 'read_only', compile: 'idempotent', seed: 'read_only', completion: 'read_only' });
+    expect(Object.fromEntries(commands.map((c) => [c.name, c.effects]))).toEqual({
+      match: 'read_only',
+      brief: 'read_only',
+      stale: 'read_only',
+      protect: 'read_only',
+      compile: 'idempotent',
+      seed: 'read_only',
+      completion: 'read_only',
+    });
     expect((await runBurgee(program, { argv: ['--version'] })).stdout).toContain(VERSION);
   });
 
@@ -226,6 +278,19 @@ describe('the program', () => {
     const missing = await runBurgee(program, { argv: ['match', 'main', '--repo', repo, '--checklist', 'nope.yaml', '--json'] });
     expect(missing.code).toBe(ExitCode.RUNTIME);
     expect(JSON.stringify(missing.json)).toMatch(/git show main:nope\.yaml failed: fatal: [^"\\]*\. fix: pass a ref this checkout has/);
+  });
+
+  it('brief reads REVIEW.md from the base of a real repository whose branch edited it', async () => {
+    const r = await runBurgee(program, { argv: ['brief', 'main', '--repo', repo, '--head', 'f00d'] });
+    expect(r.code).toBe(ExitCode.OK);
+    expect(r.stdout).toContain('\na\n');
+    expect(r.stdout).not.toContain('\nb\n');
+    expect(r.stdout).toContain('<!-- triggerlist:reviewed f00d -->');
+  });
+
+  it('stale exits 1 when the head moved', async () => {
+    expect((await runBurgee(program, { argv: ['stale', 'abc', 'abc'] })).code).toBe(ExitCode.OK);
+    expect((await runBurgee(program, { argv: ['stale', 'abc', 'def', '--json'] })).code).toBe(ExitCode.RUNTIME);
   });
 
   it('protect --enforce fails on a gate changed with code', async () => {

@@ -69,3 +69,11 @@ Each is a default, not a decision; overturning one in review is a new decision f
 - The checklist is YAML, validated by `validator`.
 - The budget is the limit of the reviewer the workflow calls, read from its docs when R3 lands.
 - burgee's review job keeps passing without a token on forks, but prints that it did not run.
+
+## Evidence
+
+| Criterion | State | Evidence |
+| --- | --- | --- |
+| A PR that edits `REVIEW.md` is reviewed with the base version | built (R5), live reading pending | `triggerlist brief` reads REVIEW.md and the checklist with `git show <base>:…`; `cli.test.ts` "brief reads REVIEW.md from the base of a real repository whose branch edited it" fails if the worktree copy is read. `review.yml` also restores both files to the base version before the reviewer runs. |
+| A review whose SHA is not the head is reported stale, never green | built (R5), live reading pending | `triggerlist stale <reviewed> <head>` exits 1 when they differ (`cli.test.ts` "stale exits 1 when the head moved"); `review.yml`'s last step runs it against the pull request's head after the review. |
+| One reusable workflow, zero drift between copies | burgee calls it | `claude-code-review.yml` is a caller of `review.yml`. eslint and interlace still carry their own copies. |
