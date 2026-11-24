@@ -82,7 +82,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "coverage": "vitest run --coverage.enabled",
-    "lint": "eslint src"
+    "lint": "cd ../.. && eslint packages/truefit/src --max-warnings 0"
   },
   "devDependencies": {
     "vitest": "^5.0.1"

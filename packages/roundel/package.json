@@ -117,7 +117,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",
     "coverage": "vitest run --coverage.enabled",
-    "lint": "eslint src"
+    "lint": "cd ../.. && eslint packages/roundel/src --max-warnings 0"
   },
   "repository": {
     "type": "git",

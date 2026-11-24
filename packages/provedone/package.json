@@ -61,7 +61,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "coverage": "vitest run --coverage.enabled",
-    "lint": "eslint src"
+    "lint": "cd ../.. && eslint packages/provedone/src --max-warnings 0"
   },
   "dependencies": {
     "bellpull": "^2.0.3",
