@@ -1,5 +1,11 @@
 # provedone
 
+## 0.3.0
+
+### Minor Changes
+
+- [#1784](https://github.com/ofri-peretz/burgee/pull/1784) [`86cce06`](https://github.com/ofri-peretz/burgee/commit/86cce067fb8c0d46a0df88c7df6a2d1f0489bb60) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - provedone is published: `npm install provedone`. The package carries its registry metadata, a README with a quick start the locks run, its mark, and a declared incumbent (@commitlint/cli, by surface), and `intent check` has an eval case, `provedone-intent-check`.
+
 ## 0.2.0
 
 ### Minor Changes

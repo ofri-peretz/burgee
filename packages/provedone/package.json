@@ -1,6 +1,6 @@
 {
   "name": "provedone",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Verified commits for JS and TS repos: each commit carries a receipt of the command that proved it, each intent a done check, and a gate reads both. No dependency outside the burgee family. A @commitlint/cli migration path.",
   "license": "MIT",
   "author": "Ofri Peretz <ofriperetzdev@gmail.com>",
