@@ -48,18 +48,18 @@ component_management:
     - component_id: contractdiff
       name: contractdiff
       paths: [packages/contractdiff/**]
-    - component_id: loadline
-      name: loadline
-      paths: [packages/loadline/**]
+    - component_id: truefit
+      name: truefit
+      paths: [packages/truefit/**]
     - component_id: proofline
       name: proofline
       paths: [packages/proofline/**]
     - component_id: hookset
       name: hookset
       paths: [packages/hookset/**]
-    - component_id: truemark
-      name: truemark
-      paths: [packages/truemark/**]
+    - component_id: truepass
+      name: truepass
+      paths: [packages/truepass/**]
     - component_id: triggerlist
       name: triggerlist
       paths: [packages/triggerlist/**]

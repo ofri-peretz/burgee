@@ -64,7 +64,7 @@ project can make in public. Every lane's success criteria point here.
 
 ## Evidence sweep 2026-11-22
 
-Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/contractdiff` (2,545 tests) and `packages/loadline` (1,153) is green there. 2 of 4 criteria met. MCP snapshots (0 of ≥ 10) and the NestJS boot are open; PLAN 6.13 (nightly, public page) is not started.
+Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/contractdiff` (2,545 tests) and `packages/truefit` (1,153) is green there. 2 of 4 criteria met. MCP snapshots (0 of ≥ 10) and the NestJS boot are open; PLAN 6.13 (nightly, public page) is not started.
 
 | # | criterion | held by | state |
 | --: | :-- | :-- | :-- |

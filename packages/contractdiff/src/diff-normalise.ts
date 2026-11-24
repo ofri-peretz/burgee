@@ -17,7 +17,7 @@
  *   (`properties` and `additionalProperties`, `prefixItems` and `items`).
  * - A `pattern` that is the pattern the family's validator holds a JSON Schema format to is that format.
  */
-import { date, datetime, duration, email, hostname, ipv4, ipv6, time, uuid } from 'loadline/formats';
+import { date, datetime, duration, email, hostname, ipv4, ipv6, time, uuid } from 'truefit/formats';
 
 type Dict = Readonly<Record<string, unknown>>;
 

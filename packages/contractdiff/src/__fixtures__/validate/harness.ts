@@ -14,7 +14,7 @@ import { pathToFileURL } from 'node:url';
 import { Ajv } from 'ajv';
 // eslint-disable-next-line import-next/no-extraneous-dependencies -- the same package, its 2020-12 entry
 import { Ajv2020 } from 'ajv/dist/2020.js';
-import { base64, date, datetime, duration, email, hostname, ipv4, ipv6, regex, time, uuid } from 'loadline/formats';
+import { base64, date, datetime, duration, email, hostname, ipv4, ipv6, regex, time, uuid } from 'truefit/formats';
 
 const FORMATS = [date, datetime, time, duration, email, hostname, ipv4, ipv6, uuid, regex];
 
@@ -28,14 +28,14 @@ export const ajvCheck = (document: Readonly<Record<string, unknown>>): ((value: 
   return (value) => check(value);
 };
 
-const VALIDATOR = join(import.meta.dirname, '../../../../loadline/src');
+const VALIDATOR = join(import.meta.dirname, '../../../../truefit/src');
 
 /** Write a generated module to `dir` and import it, its imports of the validator package pointed at this checkout's source. */
 export const load = async (content: string, dir: string, name: string): Promise<Record<string, unknown>> => {
   const file = join(dir, `${name}.ts`);
   const local = content
-    .replaceAll("from 'loadline';", `from ${JSON.stringify(pathToFileURL(join(VALIDATOR, 'index.ts')).href)};`)
-    .replaceAll("from 'loadline/json-schema';", `from ${JSON.stringify(pathToFileURL(join(VALIDATOR, 'json-schema.ts')).href)};`);
+    .replaceAll("from 'truefit';", `from ${JSON.stringify(pathToFileURL(join(VALIDATOR, 'index.ts')).href)};`)
+    .replaceAll("from 'truefit/json-schema';", `from ${JSON.stringify(pathToFileURL(join(VALIDATOR, 'json-schema.ts')).href)};`);
   writeFileSync(file, local);
   // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the module is the generated output under test, written by this suite to its own scratch directory
   return (await import(pathToFileURL(file).href)) as Record<string, unknown>;

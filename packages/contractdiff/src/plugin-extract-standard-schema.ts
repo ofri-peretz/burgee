@@ -7,8 +7,8 @@
  * document (`{ document, findings }`): dropping the schema without a word is the one thing an
  * extractor must not do, and the finding is not the user's spec, so it stays out of it.
  */
-import { optional, number, object, string } from 'loadline';
-import { standardJson } from 'loadline/json-schema';
+import { optional, number, object, string } from 'truefit';
+import { standardJson } from 'truefit/json-schema';
 
 import { definitions, escape, isStandard, type Json, loadModule, placeAt, relocate, sideOf, toJsonSchema } from './extract-standard.js';
 import { type Extractor, type ExtractorResult, type Options, type Plugin } from './host.js';

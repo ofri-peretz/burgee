@@ -74,7 +74,7 @@ library, which turns B5 from a per-framework grind into one plugin.
 
 ## Evidence sweep 2026-11-22
 
-Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/contractdiff` (2,545 tests) and `packages/loadline` (1,153) is green there. 1 of 4 criteria met (B2). B1 is read on five fixtures, not the corpus; NestJS, Hono and tRPC/oRPC extractors are stubs.
+Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/contractdiff` (2,545 tests) and `packages/truefit` (1,153) is green there. 1 of 4 criteria met (B2). B1 is read on five fixtures, not the corpus; NestJS, Hono and tRPC/oRPC extractors are stubs.
 
 | # | criterion | held by | state |
 | --: | :-- | :-- | :-- |

@@ -1,4 +1,3 @@
-import { array, object, optional, parse, string } from 'loadline';
 /**
  * The checklist file (triggerlist spec R1): which files are gates, and the items a diff can select.
  * Each item says when it fires, the question a reviewer answers, the check that answers it and the
@@ -6,6 +5,7 @@ import { array, object, optional, parse, string } from 'loadline';
  * the pointer to it and never silently matched as nothing.
  */
 import { parse as parseYaml } from 'seniority/yaml';
+import { array, object, optional, parse, string } from 'truefit';
 
 /** One item: an id, a trigger readable from a diff, and what the reviewer does when it fires. */
 export interface Item {

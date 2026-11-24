@@ -34,9 +34,9 @@ export const PHRASES: Record<string, { primary: string; incumbent: string }> = {
   paratext: { primary: 'terminal hyperlinks', incumbent: 'ansi-escapes alternative' },
   roundel: { primary: 'terminal colors', incumbent: 'chalk alternative' },
   seniority: { primary: 'config loader', incumbent: 'cosmiconfig alternative' },
-  truemark: { primary: 'test integrity', incumbent: 'eslint-plugin-vitest alternative' },
+  truepass: { primary: 'test integrity', incumbent: 'eslint-plugin-vitest alternative' },
   contractdiff: { primary: 'breaking change diff', incumbent: 'oasdiff alternative' },
-  loadline: { primary: 'ts validator', incumbent: 'zod alternative' },
+  truefit: { primary: 'ts validator', incumbent: 'zod alternative' },
 };
 
 export const REPO_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));

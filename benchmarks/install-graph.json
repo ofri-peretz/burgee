@@ -48,9 +48,9 @@
         "closeout",
         "contractdiff",
         "linegauge",
-        "loadline",
         "roundel",
-        "seniority"
+        "seniority",
+        "truefit"
       ]
     },
     {
@@ -83,13 +83,6 @@
       "count": 1,
       "installed": [
         "linegauge"
-      ]
-    },
-    {
-      "name": "loadline",
-      "count": 1,
-      "installed": [
-        "loadline"
       ]
     },
     {
@@ -127,7 +120,14 @@
       ]
     },
     {
-      "name": "truemark",
+      "name": "truefit",
+      "count": 1,
+      "installed": [
+        "truefit"
+      ]
+    },
+    {
+      "name": "truepass",
       "count": 7,
       "installed": [
         "bellpull",
@@ -136,7 +136,7 @@
         "linegauge",
         "roundel",
         "seniority",
-        "truemark"
+        "truepass"
       ]
     }
   ]

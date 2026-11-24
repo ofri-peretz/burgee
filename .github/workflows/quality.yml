@@ -59,7 +59,7 @@ jobs:
         with:
           turbo-cache: "false"
           node-modules-cache: "false"
-      # The config loads truemark's rules from its dist (dogfooded, not installed from npm).
+      # The config loads truepass's rules from its dist (dogfooded, not installed from npm).
       - run: npm run lint:prereq
       - run: npx eslint . --max-warnings 0
 

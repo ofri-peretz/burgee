@@ -470,7 +470,7 @@ nothing here publishes to npm.
 - **6.9 `diff`** ([`apicontract-diff`](./intents/apicontract-diff/intent.md)): schema compare and classification against `compat.qnt` first. Done when: `npm test -w apicontract -- src/diff- src/command-diff` passes, including the property test over the committed `compat.qnt` traces.
 - **6.10 Conformance suite, scaffold, migrations** ([`apicontract-kit`](./intents/apicontract-kit/intent.md)): the suite first, so other lanes adopt it. Done when: `npm test -w apicontract -- src/testing src/migrate- src/scaffold src/command-migrate src/command-plugin` passes, and all seven broken fixture plugins fail the suite.
 - **6.11 Corpus, grader, consumer harness** ([`apicontract-corpus`](./intents/apicontract-corpus/intent.md)). Done when: `npm test -w benchmarks -- apicontract` passes and `npx tsx benchmarks/apicontract/corpus.ts --sample 20 --tool openapi-typescript` writes a results folder.
-- **6.12 Validator parity 143 → 154 and the benchmark after parity** ([`validator/parity.md`](./intents/loadline/parity.md) § The build list). Done when: the parity probe reads 154 yes or partial-with-reason for ours, and `benchmarks/validator/baseline.ts` reads every library at the same feature count.
+- **6.12 Validator parity 143 → 154 and the benchmark after parity** ([`validator/parity.md`](./intents/truefit/parity.md) § The build list). Done when: the parity probe reads 154 yes or partial-with-reason for ours, and `benchmarks/validator/baseline.ts` reads every library at the same feature count.
 - **6.13 The corpus scoreboard is public.** A nightly workflow runs `corpus.ts` on the full corpus and the docs site renders `summary.md`. Done when: the workflow has one green scheduled run and the page links from the apicontract README.
 
 
