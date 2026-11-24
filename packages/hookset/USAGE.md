@@ -23,7 +23,8 @@ private until it has run in every Interlace repo. Intent: [`.sdlc/intents/hookse
 - **A Claude hook pack** under [`claude/`](./claude/), vendored byte-identical into a repo's
   `.claude/hooks/`:
   - `guard-bash.mjs` (PreToolUse): denies skipping git hooks (`--no-verify`, `git commit -n`,
-    `LEFTHOOK=0`, `HUSKY=0`), moving `core.hooksPath`, and hand-rolled CI polling loops; asks
+    `LEFTHOOK=0`, `HUSKY=0`), moving `core.hooksPath`, hand-rolled CI polling loops, and a
+    foreground `git commit`/`git push` under a 5-minute timeout (their hooks outlive it); asks
     before `npm publish`, `changeset publish` and the commands the repo lists under `ask` in
     `.claude/hookset.json`; denies Edit/Write on the globs listed there under `frozen`.
   - `stop-after-3.mjs` (PostToolUse, PostToolUseFailure): counts failed test runs per session;

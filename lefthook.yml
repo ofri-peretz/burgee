@@ -68,3 +68,15 @@ pre-push:
     weight-page:
       priority: 5
       run: npm run weight:page -- --check
+    # `npm run lint` is CI's separate eslint job, and `ci:local` (the battery) does not run it, so a
+    # lint finding used to surface only as a red CI run, and CLAUDE.md had to say "run lint too".
+    # These run the same eslint and markdownlint over the files this push changes, after the
+    # battery has built the packages the eslint config imports.
+    lint-changed:
+      priority: 6
+      glob: '*.{ts,tsx,mts,cts,js,mjs,cjs}'
+      run: npx --no -- eslint --max-warnings 0 --no-warn-ignored {push_files}
+    lint-changed-md:
+      priority: 6
+      glob: '*.md'
+      run: npx --no -- markdownlint-cli2 {push_files}
