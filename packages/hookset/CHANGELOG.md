@@ -1,5 +1,11 @@
 # hookset
 
+## 0.2.2
+
+### Patch Changes
+
+- [#1790](https://github.com/ofri-peretz/burgee/pull/1790) [`40903e7`](https://github.com/ofri-peretz/burgee/commit/40903e74a35b0c111d5a672416249034f5cabd46) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - guard-bash: `git push --dry-run` still needs the long timeout (it runs pre-push; only `git commit --dry-run` skips hooks), `npm`/`pnpm` options before `publish` still ask a person, and dot segments in an edited path cannot step around a frozen glob. stop-after-3: an interrupted test run keeps the failure count instead of resetting it.
+
 ## 0.2.1
 
 ### Patch Changes
