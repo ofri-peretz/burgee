@@ -1,5 +1,13 @@
 # truemark
 
+## 0.1.2
+
+### Patch Changes
+
+- [#1768](https://github.com/ofri-peretz/burgee/pull/1768) [`4120b28`](https://github.com/ofri-peretz/burgee/commit/4120b286a73ea8f60210d20639d3727e81c49983) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `bin` paths are written the way `npm pkg fix` writes them (`dist/bin.js`, not `./dist/bin.js`), so `npm publish` no longer warns that it auto-corrected the manifest. `burgee init` scaffolds `"bin": { "<name>": "cli.mjs" }` for the same reason. Every family package's manifest follows, and a lock keeps the leading `./` out.
+- Updated dependencies [[`4120b28`](https://github.com/ofri-peretz/burgee/commit/4120b286a73ea8f60210d20639d3727e81c49983)]:
+  - burgee@2.2.1
+
 ## 0.1.1
 
 ### Patch Changes
