@@ -48,6 +48,24 @@ describe('trailers', () => {
 // 100 is commitlint's default footer-max-line-length, written out so the test pins the number.
 const filler = (length: number): string => 'a'.repeat(length);
 
+describe('a folded trailer at the gate', () => {
+  it('reads a long none reason that stamp wrapped as one value, and passes it', () => {
+    const reason = 'a documentation-only change to a workflow comment that no test, lint or build step reads at all';
+    const lines = trailers({ checks: [], captures: [], notChecked: [], none: reason });
+    expect(lines.length).toBeGreaterThan(1);
+    expect(verdict(`fix: x\n\n${lines.join('\n')}`)).toEqual({ ok: true, reason: 'unverified, with a reason' });
+  });
+
+  it('unfolds a tab continuation too, and still blocks a bare none on its own line', () => {
+    expect(verdict('fix: x\n\nVerified-by: none (wrapped\n\treason)').ok).toBe(true);
+    expect(verdict('fix: x\n\nVerified-by: none\nbody text').ok).toBe(false);
+  });
+
+  it('does not join a line that starts at the margin', () => {
+    expect(verdict('fix: x\n\nVerified-by: none (\nreason)').ok).toBe(false);
+  });
+});
+
 describe('fold', () => {
   it('is 100 columns wide', () => {
     expect(TRAILER_WIDTH).toBe(100);

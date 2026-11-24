@@ -79,10 +79,19 @@ const FIX = 'run `provedone stamp --run "<the command that proves it>" --not-che
 /**
  * Whether a commit message or PR body carries a receipt (spec R5): a `Verified-by:` line with a
  * command, or `Verified-by: none (<reason>)` with a reason. `#` lines are a commit template's
- * comments and are not read; a merge commit carries its parents' receipts and passes.
+ * comments and are not read; a merge commit carries its parents' receipts and passes. A folded
+ * trailer is read whole, so a long `none (<reason>)` that `stamp` wrapped still passes.
  */
+/** Joins each continuation line (one starting with a space or tab) onto the line before it, as git reads a folded trailer. */
+const unfold = (lines: readonly string[]): string[] =>
+  lines.reduce<string[]>((out, line) => {
+    if (out.length > 0 && /^[ \t]/u.test(line)) out[out.length - 1] = `${out.at(-1) ?? ''} ${line.trim()}`;
+    else out.push(line);
+    return out;
+  }, []);
+
 export const verdict = (message: string): Verdict => {
-  const lines = message.split('\n').filter((line) => !line.startsWith('#'));
+  const lines = unfold(message.split('\n').filter((line) => !line.startsWith('#')));
   if (/^Merge /u.test(lines.join('\n'))) return { ok: true, reason: 'merge commit' };
   const values = lines.flatMap((line) => /^Verified-by:(.*)/iu.exec(line)?.slice(1) ?? []).map((v) => v.trim());
   if (values.length === 0) return { ok: false, reason: 'no Verified-by: line', fix: FIX };
