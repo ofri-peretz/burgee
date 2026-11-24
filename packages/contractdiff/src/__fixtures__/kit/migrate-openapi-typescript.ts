@@ -25,16 +25,16 @@ export const cases: readonly Case[] = [
     // § Single schema
     name: 'a single local schema',
     files: { 'package.json': pkg('npx openapi-typescript schema.yaml -o schema.ts') },
-    config: { input: 'schema.yaml', targets: { types: { generator: 'types', out: 'schema.ts', options: compat } } },
-    findings: [],
+    config: { input: 'schema.yaml', targets: { types: { generator: 'types', out: '.', options: compat } } },
+    findings: ['output-renamed @ package.json#/scripts/types'],
     packageJson: pkg('contractdiff gen'),
   },
   {
     // § Single schema, remote
     name: 'a remote schema',
     files: { 'package.json': pkg('npx openapi-typescript https://petstore3.swagger.io/api/v3/openapi.yaml -o petstore.d.ts') },
-    config: { input: 'https://petstore3.swagger.io/api/v3/openapi.yaml', targets: { types: { generator: 'types', out: 'petstore.d.ts', options: compat } } },
-    findings: ['remote-input @ contractdiff.config.json#/input'],
+    config: { input: 'https://petstore3.swagger.io/api/v3/openapi.yaml', targets: { types: { generator: 'types', out: '.', options: compat } } },
+    findings: ['remote-input @ contractdiff.config.json#/input', 'output-renamed @ package.json#/scripts/types'],
     packageJson: pkg('contractdiff gen'),
   },
   {
@@ -54,8 +54,8 @@ export const cases: readonly Case[] = [
       '',
     ].join('\n'),
     files: { 'package.json': pkg('npx openapi-typescript') },
-    config: { input: './openapi/openapi.yaml', targets: { types: { generator: 'types', out: './openapi/openapi.ts', options: compat } } },
-    findings: ['second-input @ redocly.yaml#/apis/external@v1'],
+    config: { input: './openapi/openapi.yaml', targets: { types: { generator: 'types', out: './openapi', options: compat } } },
+    findings: ['output-renamed @ redocly.yaml#/apis/core@v2', 'second-input @ redocly.yaml#/apis/external@v1'],
     packageJson: pkg('contractdiff gen'),
   },
   {
@@ -82,8 +82,8 @@ export const cases: readonly Case[] = [
       '',
     ].join('\n'),
     files: { 'package.json': pkg('openapi-typescript https://api.example.com/v2/openapi.yaml -o src/api.ts') },
-    config: { input: 'https://api.example.com/v2/openapi.yaml', targets: { types: { generator: 'types', out: 'src/api.ts', options: compat } } },
-    findings: ['option-dropped @ redocly.yaml#/resolve', 'remote-input @ contractdiff.config.json#/input'],
+    config: { input: 'https://api.example.com/v2/openapi.yaml', targets: { types: { generator: 'types', out: 'src', options: compat } } },
+    findings: ['option-dropped @ redocly.yaml#/resolve', 'remote-input @ contractdiff.config.json#/input', 'output-renamed @ package.json#/scripts/types'],
     packageJson: pkg('contractdiff gen'),
   },
   {
@@ -99,7 +99,7 @@ export const cases: readonly Case[] = [
       targets: {
         types: {
           generator: 'types',
-          out: 'api.ts',
+          out: '.',
           options: {
             ...compat,
             additionalProperties: true,
@@ -126,14 +126,14 @@ export const cases: readonly Case[] = [
         },
       },
     },
-    findings: [],
+    findings: ['output-renamed @ package.json#/scripts/types'],
     packageJson: pkg('contractdiff gen --check'),
   },
   {
     // § Single schema, printing to stdout as the page's `(stdout)` default
     name: 'output to stdout',
     files: { 'package.json': pkg('openapi-typescript schema.yaml') },
-    config: { input: 'schema.yaml', targets: { types: { generator: 'types', out: 'schema.ts', options: compat } } },
+    config: { input: 'schema.yaml', targets: { types: { generator: 'types', out: '.', options: compat } } },
     findings: ['stdout-output @ package.json#/scripts/types'],
     packageJson: pkg('contractdiff gen'),
   },

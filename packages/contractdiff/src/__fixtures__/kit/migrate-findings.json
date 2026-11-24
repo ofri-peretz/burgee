@@ -1,15 +1,34 @@
 {
   "openapi-typescript": {
-    "a single local schema": [],
+    "a single local schema": [
+      {
+        "code": "output-renamed",
+        "pointer": "package.json#/scripts/types",
+        "message": "openapi-typescript wrote schema.ts, and the types target writes types.ts: `out` names a folder",
+        "fix": "after `contractdiff gen`, point imports of schema.ts at types.ts, and delete schema.ts"
+      }
+    ],
     "a remote schema": [
       {
         "code": "remote-input",
         "pointer": "contractdiff.config.json#/input",
         "message": "https://petstore3.swagger.io/api/v3/openapi.yaml is fetched over the network, and contractdiff reads local files",
         "fix": "download the document into the project and point `input` at it"
+      },
+      {
+        "code": "output-renamed",
+        "pointer": "package.json#/scripts/types",
+        "message": "openapi-typescript wrote petstore.d.ts, and the types target writes types.ts: `out` names a folder",
+        "fix": "after `contractdiff gen`, point imports of petstore.d.ts at types.ts, and delete petstore.d.ts"
       }
     ],
     "multiple schemas in redocly.yaml": [
+      {
+        "code": "output-renamed",
+        "pointer": "redocly.yaml#/apis/core@v2",
+        "message": "openapi-typescript wrote ./openapi/openapi.ts, and the types target writes ./openapi/types.ts: `out` names a folder",
+        "fix": "after `contractdiff gen`, point imports of ./openapi/openapi.ts at ./openapi/types.ts, and delete ./openapi/openapi.ts"
+      },
       {
         "code": "second-input",
         "pointer": "redocly.yaml#/apis/external@v1",
@@ -43,15 +62,28 @@
         "pointer": "contractdiff.config.json#/input",
         "message": "https://api.example.com/v2/openapi.yaml is fetched over the network, and contractdiff reads local files",
         "fix": "download the document into the project and point `input` at it"
+      },
+      {
+        "code": "output-renamed",
+        "pointer": "package.json#/scripts/types",
+        "message": "openapi-typescript wrote src/api.ts, and the types target writes src/types.ts: `out` names a folder",
+        "fix": "after `contractdiff gen`, point imports of src/api.ts at src/types.ts, and delete src/api.ts"
       }
     ],
-    "every documented flag": [],
+    "every documented flag": [
+      {
+        "code": "output-renamed",
+        "pointer": "package.json#/scripts/types",
+        "message": "openapi-typescript wrote api.ts, and the types target writes types.ts: `out` names a folder",
+        "fix": "after `contractdiff gen`, point imports of api.ts at types.ts, and delete api.ts"
+      }
+    ],
     "output to stdout": [
       {
         "code": "stdout-output",
         "pointer": "package.json#/scripts/types",
         "message": "openapi-typescript printed to stdout, and contractdiff writes a file",
-        "fix": "the target writes schema.ts: change `out` to where the types belong"
+        "fix": "the target writes types.ts: change `out` to the folder the types belong in"
       }
     ]
   },
@@ -350,8 +382,8 @@
       {
         "code": "imports-change",
         "pointer": "orval.config#/cli/output",
-        "message": "the files under ./src/petstore.ts are written with contractdiff's module names, not orval's",
-        "fix": "after `contractdiff gen`, point imports of ./src/petstore.ts at the targets' files"
+        "message": "orval wrote ./src/petstore.ts, and the targets write their files into ./src with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of ./src/petstore.ts at the targets' files in ./src"
       }
     ],
     "quick start: a config file": [
@@ -364,16 +396,16 @@
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under ./src/petstore.ts are written with contractdiff's module names, not orval's",
-        "fix": "after `contractdiff gen`, point imports of ./src/petstore.ts at the targets' files"
+        "message": "orval wrote ./src/petstore.ts, and the targets write their files into ./src with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of ./src/petstore.ts at the targets' files in ./src"
       }
     ],
     "quick start: React Query with a models folder": [
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under ./src/api/petstore.ts are written with contractdiff's module names, not orval's",
-        "fix": "after `contractdiff gen`, point imports of ./src/api/petstore.ts at the targets' files"
+        "message": "orval wrote ./src/api/petstore.ts, and the targets write their files into ./src/api with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of ./src/api/petstore.ts at the targets' files in ./src/api"
       }
     ],
     "the full example": [
@@ -416,8 +448,8 @@
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under src/petstore.ts are written with contractdiff's module names, not orval's",
-        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files"
+        "message": "orval wrote src/petstore.ts, and the targets write their files into src with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files in src"
       }
     ],
     "client: angular": [
@@ -430,8 +462,8 @@
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under src/petstore.ts are written with contractdiff's module names, not orval's",
-        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files"
+        "message": "orval wrote src/petstore.ts, and the targets write their files into src with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files in src"
       }
     ],
     "client: angular-query": [
@@ -444,8 +476,8 @@
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under src/petstore.ts are written with contractdiff's module names, not orval's",
-        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files"
+        "message": "orval wrote src/petstore.ts, and the targets write their files into src with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files in src"
       }
     ],
     "client: axios": [
@@ -458,8 +490,8 @@
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under src/petstore.ts are written with contractdiff's module names, not orval's",
-        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files"
+        "message": "orval wrote src/petstore.ts, and the targets write their files into src with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files in src"
       }
     ],
     "client: axios-functions": [
@@ -472,16 +504,16 @@
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under src/petstore.ts are written with contractdiff's module names, not orval's",
-        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files"
+        "message": "orval wrote src/petstore.ts, and the targets write their files into src with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files in src"
       }
     ],
     "client: react-query": [
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under src/petstore.ts are written with contractdiff's module names, not orval's",
-        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files"
+        "message": "orval wrote src/petstore.ts, and the targets write their files into src with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files in src"
       }
     ],
     "client: solid-start": [
@@ -494,8 +526,8 @@
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under src/petstore.ts are written with contractdiff's module names, not orval's",
-        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files"
+        "message": "orval wrote src/petstore.ts, and the targets write their files into src with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files in src"
       }
     ],
     "client: solid-query": [
@@ -508,8 +540,8 @@
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under src/petstore.ts are written with contractdiff's module names, not orval's",
-        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files"
+        "message": "orval wrote src/petstore.ts, and the targets write their files into src with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files in src"
       }
     ],
     "client: svelte-query": [
@@ -522,8 +554,8 @@
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under src/petstore.ts are written with contractdiff's module names, not orval's",
-        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files"
+        "message": "orval wrote src/petstore.ts, and the targets write their files into src with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files in src"
       }
     ],
     "client: vue-query": [
@@ -536,8 +568,8 @@
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under src/petstore.ts are written with contractdiff's module names, not orval's",
-        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files"
+        "message": "orval wrote src/petstore.ts, and the targets write their files into src with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files in src"
       }
     ],
     "client: pinia-colada": [
@@ -550,16 +582,16 @@
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under src/petstore.ts are written with contractdiff's module names, not orval's",
-        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files"
+        "message": "orval wrote src/petstore.ts, and the targets write their files into src with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files in src"
       }
     ],
     "client: swr": [
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under src/petstore.ts are written with contractdiff's module names, not orval's",
-        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files"
+        "message": "orval wrote src/petstore.ts, and the targets write their files into src with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files in src"
       }
     ],
     "client: zod": [
@@ -572,8 +604,8 @@
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under src/petstore.ts are written with contractdiff's module names, not orval's",
-        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files"
+        "message": "orval wrote src/petstore.ts, and the targets write their files into src with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files in src"
       }
     ],
     "client: effect": [
@@ -586,8 +618,8 @@
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under src/petstore.ts are written with contractdiff's module names, not orval's",
-        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files"
+        "message": "orval wrote src/petstore.ts, and the targets write their files into src with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files in src"
       }
     ],
     "client: valibot": [
@@ -600,32 +632,32 @@
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under src/petstore.ts are written with contractdiff's module names, not orval's",
-        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files"
+        "message": "orval wrote src/petstore.ts, and the targets write their files into src with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files in src"
       }
     ],
     "client: hono": [
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under src/petstore.ts are written with contractdiff's module names, not orval's",
-        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files"
+        "message": "orval wrote src/petstore.ts, and the targets write their files into src with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files in src"
       }
     ],
     "client: fetch": [
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under src/petstore.ts are written with contractdiff's module names, not orval's",
-        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files"
+        "message": "orval wrote src/petstore.ts, and the targets write their files into src with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files in src"
       }
     ],
     "client: mcp": [
       {
         "code": "imports-change",
         "pointer": "orval.config#/petstore/output",
-        "message": "the files under src/petstore.ts are written with contractdiff's module names, not orval's",
-        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files"
+        "message": "orval wrote src/petstore.ts, and the targets write their files into src with contractdiff's module names, not orval's",
+        "fix": "after `contractdiff gen`, point imports of src/petstore.ts at the targets' files in src"
       }
     ]
   }

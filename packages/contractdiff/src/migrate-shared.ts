@@ -3,12 +3,14 @@
  * user's files, and a finding for every option it could not carry. A migration is pure: it reads
  * the incumbent's config and files as text and returns text; `command-migrate.ts` does the writing.
  */
+import { posix } from 'node:path';
+
 import { type ContractFinding } from './core/model.js';
 
 /** One target of `contractdiff.config.json` (apicontract-gen-command R1). */
 export interface Target {
   readonly generator: string;
-  /** Where the incumbent wrote this output: a file for one file, a folder for several. */
+  /** The folder the target writes into, as `contractdiff gen` reads `out`: never a file name. */
   readonly out: string;
   readonly options?: Readonly<Record<string, unknown>>;
 }
@@ -83,3 +85,16 @@ export const camel = (name: string): string => name.replaceAll(/-([a-z])/gu, (_m
 
 /** The text of `config` as `contractdiff.config.json` holds it. */
 export const configText = (config: Config): string => `${JSON.stringify(config, undefined, 2)}\n`;
+
+/** A last path segment that names a file: a dot followed by an extension (`types.ts`, `v1.d.ts`). */
+const FILE_NAME = /\.[^./]+$/u;
+
+/**
+ * Where a target writes, given the path the incumbent wrote to: `out` is a folder, as `contractdiff
+ * gen` reads it, so a file path gives its folder (`src/api/types.ts` gives `src/api`). `file` is
+ * the file the incumbent wrote, or `undefined` when it named a folder.
+ */
+export const placeOf = (path: string): { readonly out: string; readonly file: string | undefined } => {
+  if (!FILE_NAME.test(posix.basename(path))) return { out: path, file: undefined };
+  return { out: posix.dirname(path), file: path };
+};

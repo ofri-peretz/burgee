@@ -31,14 +31,14 @@ describe('scripts', () => {
   it('reads --output=, a quoted input, and the output of a redirect', () => {
     expect(migrate(undefined, { 'package.json': pkg({ a: "openapi-typescript 'my api.yaml' --output=x.ts --enum=true" }) }).config).toEqual({
       input: 'my api.yaml',
-      targets: { types: { generator: 'types', out: 'x.ts', options: { compat: 'openapi-typescript', enum: true } } },
+      targets: { types: { generator: 'types', out: '.', options: { compat: 'openapi-typescript', enum: true } } },
     });
-    expect(migrate(undefined, { 'package.json': pkg({ a: 'openapi-typescript a.yaml > b.ts' }) }).config?.targets.types?.out).toBe('b.ts');
+    expect(migrate(undefined, { 'package.json': pkg({ a: 'openapi-typescript a.yaml > gen/b.ts' }) }).config?.targets.types?.out).toBe('gen');
     expect(migrate(undefined, { 'package.json': pkg({ a: 'openapi-typescript a.yaml --immutable=yes' }) }).config?.targets.types?.options).toEqual({ compat: 'openapi-typescript', immutable: 'yes' });
   });
 
   it('makes one target per run on the same input, and reports a flag it does not know', () => {
-    const result = migrate(undefined, { 'package.json': pkg({ a: 'openapi-typescript a.yaml -o a.ts', b: 'openapi-typescript a.yaml -o b.ts --unknown' }) });
+    const result = migrate(undefined, { 'package.json': pkg({ a: 'openapi-typescript a.yaml -o a/types.ts', b: 'openapi-typescript a.yaml -o b/types.ts --unknown' }) });
     expect(Object.keys(result.config?.targets ?? {})).toEqual(['types', 'types-2']);
     expect(result.findings).toEqual([
       { code: 'option-dropped', pointer: 'package.json#/scripts/b', message: '`--unknown` is not an openapi-typescript flag contractdiff carries', fix: 'remove it; `contractdiff gen --help` lists what the types target takes' },
@@ -46,7 +46,7 @@ describe('scripts', () => {
   });
 
   it('reports a script it cannot find in the text to rewrite', () => {
-    const text = '{"scripts":{"a":"openapi-typescript a.yaml -o a.ts"}}';
+    const text = '{"scripts":{"a":"openapi-typescript a.yaml -o types.ts"}}';
     const result = migrate(undefined, { 'package.json': text });
     expect(result.edits).toEqual([]);
     expect(result.findings).toEqual([
@@ -58,6 +58,30 @@ describe('scripts', () => {
     for (const files of [{}, { 'package.json': '{' }, { 'package.json': '{"scripts":null}' }, { 'package.json': '{"scripts":{"a":1}}' }]) {
       expect(migrate(undefined, files).findings.map((one) => one.code)).toEqual(['nothing-to-migrate']);
     }
+  });
+});
+
+describe('out, as the folder gen writes into', () => {
+  it('is the folder of the file openapi-typescript wrote, with a finding when that file is not types.ts', () => {
+    const result = migrate(undefined, { 'package.json': pkg({ a: 'openapi-typescript a.yaml -o src/api/schema.d.ts' }) });
+    expect(result.config?.targets.types?.out).toBe('src/api');
+    expect(result.findings).toEqual([
+      {
+        code: 'output-renamed',
+        pointer: 'package.json#/scripts/a',
+        message: 'openapi-typescript wrote src/api/schema.d.ts, and the types target writes src/api/types.ts: `out` names a folder',
+        fix: 'after `contractdiff gen`, point imports of src/api/schema.d.ts at src/api/types.ts, and delete src/api/schema.d.ts',
+      },
+    ]);
+  });
+
+  it('needs no finding for a file named types.ts, and keeps a path with no file name as the folder', () => {
+    const named = migrate(undefined, { 'package.json': pkg({ a: 'openapi-typescript a.yaml -o src/api/types.ts' }) });
+    expect(named.config?.targets.types?.out).toBe('src/api');
+    expect(named.findings).toEqual([]);
+    const folder = migrate(undefined, { 'package.json': pkg({ a: 'openapi-typescript a.yaml -o src/generated' }) });
+    expect(folder.config?.targets.types?.out).toBe('src/generated');
+    expect(folder.findings).toEqual([]);
   });
 });
 
@@ -90,15 +114,15 @@ describe('the edges a mutant would cross', () => {
   });
 
   it('reads a double-quoted input, an `=` inside a value, a document named like a flag, and `&&` without spaces', () => {
-    const result = migrate(undefined, { 'package.json': pkg({ a: 'rm -rf out&&openapi-typescript "my api.yaml" --output=a=b.ts', b: 'openapi-typescript myenum -o c.ts' }) });
+    const result = migrate(undefined, { 'package.json': pkg({ a: 'rm -rf out&&openapi-typescript "my api.yaml" --output=a=b/types.ts', b: 'openapi-typescript myenum -o c.ts' }) });
     expect(result.config?.input).toBe('my api.yaml');
-    expect(result.config?.targets.types?.out).toBe('a=b.ts');
+    expect(result.config?.targets.types?.out).toBe('a=b');
     expect(result.edits[0]?.after).toContain('"a": "rm -rf out&&contractdiff gen"');
     expect(result.findings[0]?.message).toBe('myenum is a second input, and one contractdiff.config.json reads one');
   });
 
   it('touches no script that does not run openapi-typescript, even in a package.json it cannot edit', () => {
-    const result = migrate(undefined, { 'package.json': '{"scripts":{"a":"openapi-typescript a.yaml -o a.ts","b":"eslint . && tsc"}}' });
+    const result = migrate(undefined, { 'package.json': '{"scripts":{"a":"openapi-typescript a.yaml -o types.ts","b":"eslint . && tsc"}}' });
     expect(result.findings.map((one) => one.pointer)).toEqual(['package.json#/scripts/a']);
   });
 
@@ -123,8 +147,8 @@ describe('the edges a mutant would cross', () => {
   });
 
   it('counts http and https as remote, and only at the start', () => {
-    expect(migrate(undefined, { 'package.json': pkg({ a: 'openapi-typescript http://x.dev/a.yaml -o a.ts' }) }).findings.map((one) => one.code)).toEqual(['remote-input']);
-    expect(migrate(undefined, { 'package.json': pkg({ a: 'openapi-typescript mirror/https://x.yaml -o a.ts' }) }).findings).toEqual([]);
+    expect(migrate(undefined, { 'package.json': pkg({ a: 'openapi-typescript http://x.dev/a.yaml -o types.ts' }) }).findings.map((one) => one.code)).toEqual(['remote-input']);
+    expect(migrate(undefined, { 'package.json': pkg({ a: 'openapi-typescript mirror/https://x.yaml -o types.ts' }) }).findings).toEqual([]);
   });
 });
 

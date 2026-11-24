@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { camel, commandParts, configText, editScripts, finding, scripts } from './migrate-shared.js';
+import { camel, commandParts, configText, editScripts, finding, placeOf, scripts } from './migrate-shared.js';
 
 describe('scripts', () => {
   it('reads the string scripts and nothing else', () => {
@@ -45,4 +45,16 @@ it('builds a finding', () => {
 it('splits a command at its separators, keeping them with their spaces', () => {
   expect(commandParts('a && b||c ;d | e&&f')).toEqual(['a', ' && ', 'b', '||', 'c', ' ;', 'd', ' | ', 'e', '&&', 'f']);
   expect(commandParts('one')).toEqual(['one']);
+});
+
+describe('placeOf', () => {
+  it('gives the folder of a file, and a folder as it is', () => {
+    expect(placeOf('src/api/types.ts')).toEqual({ out: 'src/api', file: 'src/api/types.ts' });
+    expect(placeOf('./v1.d.ts')).toEqual({ out: '.', file: './v1.d.ts' });
+    expect(placeOf('schema.ts')).toEqual({ out: '.', file: 'schema.ts' });
+    expect(placeOf('src/generated')).toEqual({ out: 'src/generated', file: undefined });
+    // A dot in a folder name is not a file's: only the last segment is read.
+    expect(placeOf('src/v1.0/api')).toEqual({ out: 'src/v1.0/api', file: undefined });
+    expect(placeOf('.')).toEqual({ out: '.', file: undefined });
+  });
 });

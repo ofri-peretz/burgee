@@ -80,7 +80,8 @@ export const command = defineCommand({
     await Promise.all((dryRun ? [] : result.edits).map(async (edit) => writeFile(join(root, edit.path), edit.after)));
     return {
       changed: !dryRun && (report.written.length > 0 || result.edits.length > 0),
-      read: config?.name ?? null,
+      // What the settings were read from: the incumbent's config file, and the scripts in package.json.
+      read: [...(config === undefined ? [] : [config.name]), ...('package.json' in files ? ['package.json'] : [])],
       config: result.config ?? null,
       ...report,
       edited: result.edits.map((edit) => edit.path),
