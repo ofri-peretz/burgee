@@ -81,7 +81,7 @@ The steps, in order:
 3. Set the target's `out` to the folder: the `types` target writes `types.ts` inside `out`. In
    1.0.0, `migrate` copies the `-o` value as it was given (`src/api/types.ts`), so `gen` would write
    `src/api/types.ts/types.ts`; change it to `src/api`.
-4. `npm run gen`, and compare the new `types.ts` with the old one in your diff.
+4. `npx contractdiff gen`, and compare the new `types.ts` with the old one in your diff.
 5. `npm uninstall openapi-typescript`.
 
 The same command reads openapi-fetch, Hey API and orval configs: `contractdiff migrate openapi-fetch`,
