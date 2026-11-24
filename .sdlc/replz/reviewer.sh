@@ -2,6 +2,8 @@
 # The reviewer `replz run` grades (.sdlc/intents/replz/): the rules CI gives its reviewer, read
 # from the case's base, so the score is the score of what ships. It runs in the case's worktree at
 # its head, with REPLZ_BASE set, and prints the findings as a JSON array on stdout.
+# config.yaml names it through REPLZ_REPO, the repository replz runs in: a case's head can
+# predate this script.
 #
 # REPLZ_REVIEWER sets the reviewer's command line (default `claude -p`); point it at the model CI
 # uses. It is split on spaces, so its words cannot be quoted or hold spaces. A rule a base commit has no REVIEW.md or checklist for is simply absent from the prompt.

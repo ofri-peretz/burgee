@@ -1,8 +1,8 @@
 /**
  * One replay (replz spec R2, R3): for each case, a git worktree at its head, the reviewer and every
  * check run inside it, and each finding of a bug case graded against the answer key, one finding per
- * grader call, at most `maxFindings` per case. Controls are never graded: they have no answer, so
- * they cost one reviewer call and nothing more.
+ * grader call, at most `maxFindings` per case, the last stage's first. Controls are never graded:
+ * they have no answer, so they cost one reviewer call and nothing more.
  */
 import { type Case } from './cases.js';
 import { type Config, type Finding, parseFindings } from './config.js';
@@ -41,22 +41,35 @@ export interface Replayer {
   readonly config: Config;
   /** Put into the grader command's `{model}`. */
   readonly model: string | undefined;
+  /**
+   * The repository replz was started in, as an absolute path: `REPLZ_REPO` for every command, so a
+   * reviewer script kept in it is found from a case's worktree, where it may not exist yet.
+   */
+  readonly repo?: string | undefined;
 }
+
+/**
+ * The findings the cap leaves graded, as their places: the last stage's first, then each earlier
+ * stage's, each stage in the order the reviewer printed. The last stage is what ships, so a low cap
+ * spends its grader calls there before it spends any on a finding the pipeline later dropped.
+ */
+export const gradedFirst = (findings: readonly Finding[], stages: readonly string[], cap: number): number[] =>
+  findings
+    .map((finding, index) => ({ index, rank: stages.indexOf(finding.stage) }))
+    .toSorted((a, b) => b.rank - a.rank)
+    .slice(0, cap)
+    .map(({ index }) => index);
 
 const grade = async ({ shell, config, model }: Replayer, cwd: string, answer: string, findings: readonly Finding[]): Promise<{ graded: Graded[]; capped: boolean }> => {
   const command = config.grader.replaceAll('{model}', String(model));
-  const graded: Graded[] = [];
-  for (const [index, finding] of findings.entries()) {
-    if (index >= config.maxFindings) {
-      graded.push({ finding, matches: false });
-      continue;
-    }
+  const matched = new Set<number>();
+  for (const index of gradedFirst(findings, config.stages, config.maxFindings)) {
     // eslint-disable-next-line reliability/no-await-in-loop -- one grader call at a time: the cap is a cost cap, and a burst of paid calls is what it prevents
-    const answered = await shell(command, { cwd, input: gradePrompt(answer, finding) });
+    const answered = await shell(command, { cwd, input: gradePrompt(answer, findings[index] as Finding) });
     if (answered.code !== 0) throw new Error(`the grader failed (exit ${String(answered.code)}): ${answered.stderr.trim()}. fix: check the grader command in the replz config`);
-    graded.push({ finding, matches: isYes(answered.stdout) });
+    if (isYes(answered.stdout)) matched.add(index);
   }
-  return { graded, capped: findings.length > config.maxFindings };
+  return { graded: findings.map((finding, index) => ({ finding, matches: matched.has(index) })), capped: findings.length > config.maxFindings };
 };
 
 export const replayCase = async (replayer: Replayer, found: Case): Promise<CaseResult> => {
@@ -67,7 +80,8 @@ export const replayCase = async (replayer: Replayer, found: Case): Promise<CaseR
   }
   const { dir, remove } = await replayer.worktrees.add(found.head);
   try {
-    const env = { REPLZ_BASE: found.base, REPLZ_HEAD: found.head, REPLZ_PR: String(found.pr) };
+    const env: Record<string, string> = { REPLZ_BASE: found.base, REPLZ_HEAD: found.head, REPLZ_PR: String(found.pr) };
+    if (replayer.repo !== undefined) env.REPLZ_REPO = replayer.repo;
     if (config.setup !== undefined) {
       const ready = await shell(config.setup, { cwd: dir, env });
       if (ready.code !== 0) throw new Error(`setup failed on ${found.id} (exit ${String(ready.code)}): ${ready.stderr.trim()}. fix: run it by hand in a worktree at ${found.head}`);

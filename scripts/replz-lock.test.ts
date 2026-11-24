@@ -9,49 +9,31 @@
  *
  * `replz run` (.sdlc/intents/replz/) is a monthly, paid run: a case that does not parse, or a
  * config that names a stage the reviewer never reports, is found then, after the money is spent.
- * So every case and the config are read here on every push, the test set holds bugs and controls
- * both, and the history (replz spec R6) is held to what the last run wrote: one JSON report per
- * line, dated, never rewritten.
+ * So `replz check` runs here on every push, and the history (replz spec R6) is held to what the
+ * last run wrote: one JSON report per line, dated, never rewritten.
  */
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
 // eslint-disable-next-line import-next/no-relative-packages -- the source, by path, on purpose: the package-name form resolves to `dist/`, which would check the last build rather than the tree
-import { parseCase, selectCases } from '../packages/replz/src/cases.js';
+import { CASES, HISTORY, runCheck } from '../packages/replz/src/cli.js';
 // eslint-disable-next-line import-next/no-relative-packages -- as above
-import { CASES, HISTORY } from '../packages/replz/src/cli.js';
-// eslint-disable-next-line import-next/no-relative-packages -- as above
-import { CONFIG, parseConfig } from '../packages/replz/src/config.js';
+import { CONFIG } from '../packages/replz/src/config.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 describe('the replz cases', () => {
-  const dir = join(ROOT, CASES);
-  const cases = readdirSync(dir)
-    .filter((name) => name.endsWith('.yaml'))
-    .map((name) => ({ name, found: parseCase(`${CASES}/${name}`, readFileSync(join(dir, name), 'utf8')) }));
-
-  it('each parse, are named by their id, and are distinct', () => {
-    for (const { name, found } of cases) expect(name, 'fix: name the file <id>.yaml').toBe(`${found.id}.yaml`);
-    expect(() => selectCases(cases.map(({ found }) => found), undefined)).not.toThrow();
+  // `replz check` itself refuses a case that does not parse, a file not named by its id, a draft's
+  // placeholder answer, two cases with one id and a set of one kind; this runs it on every push.
+  it('pass replz check: each runnable, named by its id, with both kinds in each set', () => {
+    expect(() => runCheck({ repo: ROOT, config: CONFIG, cases: CASES })).not.toThrow();
   });
 
-  it('hold a bug and a control in each set, so neither score is of one kind', () => {
-    for (const set of ['tune', 'test'] as const) {
-      const kinds = new Set(cases.filter(({ found }) => found.set === set).map(({ found }) => found.kind));
-      expect([...kinds].sort(), `the ${set} set`).toEqual(['bug', 'control']);
-    }
-  });
-
-  it('have answer keys a person wrote, not the draft placeholder', () => {
-    expect(cases.filter(({ found }) => found.answer?.startsWith('TODO') === true).map(({ name }) => name)).toEqual([]);
-  });
-
-  it('run through a config that parses', () => {
-    expect(() => parseConfig(CONFIG, readFileSync(join(ROOT, CONFIG), 'utf8'))).not.toThrow();
+  it('reach the reviewer through REPLZ_REPO, which replz sets, not a path the case worktree may lack', () => {
+    expect(readFileSync(join(ROOT, CONFIG), 'utf8')).toMatch(/^reviewer: bash "\$REPLZ_REPO\/\.sdlc\/replz\/reviewer\.sh"$/m);
   });
 });
 

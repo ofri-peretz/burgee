@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { type Case } from './cases.js';
 import { type Config } from './config.js';
-import { gradePrompt, isYes, replayCase, type Shell, type Worktrees } from './run.js';
+import { gradedFirst, gradePrompt, isYes, replayCase, type Shell, type Worktrees } from './run.js';
 
 const CONFIG: Config = { reviewer: 'review', grader: 'grade --model {model} {model}', model: 'cfg', maxFindings: 2, stages: ['raw', 'final'], checks: [{ id: 'types', command: 'tsc' }, { id: 'lint', command: 'eslint' }] };
 const BUG: Case = { id: 'b1', kind: 'bug', pr: 7, base: 'aaaaaaa', head: 'bbbbbbb', answer: 'The key drops the locale.', set: 'test' };
@@ -38,18 +38,23 @@ const fake = (answers: Record<string, { code: number | null; stdout?: string; st
   return { calls, shell, trees, worktrees };
 };
 
+const grading = (finding: unknown) => ({ command: 'grade --model cheap cheap', cwd: '/tree/bbbbbbb', env: undefined, input: gradePrompt('The key drops the locale.', finding as never) });
+const at = (stage: string) => ({ stage, severity: 'nit' as const, text: stage });
+
 describe('replayCase', () => {
   it('reviews in the head worktree, runs every check, grades each finding up to the cap, and removes the tree', async () => {
     const { calls, shell, trees, worktrees } = fake({ review: { code: 0, stdout: JSON.stringify(FINDINGS) }, tsc: { code: 2 }, eslint: { code: 0 } });
-    const result = await replayCase({ shell, worktrees, config: CONFIG, model: 'cheap' }, BUG);
+    const result = await replayCase({ shell, worktrees, config: { ...CONFIG, maxFindings: 3 }, model: 'cheap', repo: '/home/repo' }, BUG);
     expect(trees).toEqual(['add bbbbbbb', 'remove bbbbbbb']);
-    const env = { REPLZ_BASE: 'aaaaaaa', REPLZ_HEAD: 'bbbbbbb', REPLZ_PR: '7' };
+    const env = { REPLZ_BASE: 'aaaaaaa', REPLZ_HEAD: 'bbbbbbb', REPLZ_PR: '7', REPLZ_REPO: '/home/repo' };
     expect(calls).toEqual([
       { command: 'review', cwd: '/tree/bbbbbbb', env, input: undefined },
       { command: 'tsc', cwd: '/tree/bbbbbbb', env, input: undefined },
       { command: 'eslint', cwd: '/tree/bbbbbbb', env, input: undefined },
-      { command: 'grade --model cheap cheap', cwd: '/tree/bbbbbbb', env: undefined, input: gradePrompt('The key drops the locale.', FINDINGS[0] as never) },
-      { command: 'grade --model cheap cheap', cwd: '/tree/bbbbbbb', env: undefined, input: gradePrompt('The key drops the locale.', FINDINGS[1] as never) },
+      // The last stage's findings first, then the raw one.
+      grading(FINDINGS[1]),
+      grading(FINDINGS[2]),
+      grading(FINDINGS[0]),
     ]);
     expect(result).toEqual({
       case: BUG,
@@ -58,9 +63,19 @@ describe('replayCase', () => {
         { finding: FINDINGS[1], matches: false },
         { finding: FINDINGS[2], matches: false },
       ],
-      capped: true,
+      capped: false,
       fired: { types: true, lint: false },
     });
+  });
+
+  it('spends a low cap on the last stage before any earlier one, and sets no REPLZ_REPO when none is given', async () => {
+    const { calls, shell, worktrees } = fake({ review: { code: 0, stdout: JSON.stringify(FINDINGS) } });
+    const result = await replayCase({ shell, worktrees, config: { ...CONFIG, checks: [] }, model: 'cheap' }, BUG);
+    expect(calls[0]?.env).toEqual({ REPLZ_BASE: 'aaaaaaa', REPLZ_HEAD: 'bbbbbbb', REPLZ_PR: '7' });
+    expect(calls.slice(1).map((call) => call.input)).toEqual([gradePrompt('The key drops the locale.', FINDINGS[1] as never), gradePrompt('The key drops the locale.', FINDINGS[2] as never)]);
+    // Back in the order the reviewer printed them; the raw one, past the cap, is not graded.
+    expect(result.findings).toEqual(FINDINGS.map((finding) => ({ finding, matches: false })));
+    expect(result.capped).toBe(true);
   });
 
   it('runs setup first in the tree, and stops when it fails', async () => {
@@ -108,6 +123,16 @@ describe('replayCase', () => {
   it('fails when the grader fails', async () => {
     const { shell, worktrees } = fake({ review: { code: 0, stdout: JSON.stringify(FINDINGS) }, 'grade --model m m': { code: null, stderr: ' killed \n' } });
     await expect(replayCase({ shell, worktrees, config: { ...CONFIG, checks: [] }, model: 'm' }, BUG)).rejects.toThrow('the grader failed (exit null): killed. fix: check the grader command in the replz config');
+  });
+});
+
+describe('gradedFirst', () => {
+  it('takes the last stage first, then each earlier stage, each in printed order, up to the cap', () => {
+    const findings = [at('raw'), at('final'), at('mid'), at('raw'), at('final'), at('mid')];
+    expect(gradedFirst(findings, ['raw', 'mid', 'final'], 10)).toEqual([1, 4, 2, 5, 0, 3]);
+    expect(gradedFirst(findings, ['raw', 'mid', 'final'], 3)).toEqual([1, 4, 2]);
+    expect(gradedFirst(findings, ['raw', 'mid', 'final'], 0)).toEqual([]);
+    expect(gradedFirst([], ['raw'], 3)).toEqual([]);
   });
 });
 

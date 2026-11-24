@@ -33,14 +33,15 @@
 **replz** grades a code reviewer, and a repository's own checks, against bugs that actually
 shipped. Each case is a merged pull request a later revert or fix blamed, with a one-sentence
 answer key; size-matched clean pull requests are its controls. `replz run` checks each case out
-at its base, applies the pull request, runs the reviewer and the checks, and grades every finding
-against the answer key: only a finding that describes that bug counts. The report gives recall
+at its head, the commit the reviewer saw (its base with the pull request applied), runs the
+reviewer and the checks there, and grades every finding against the answer key, the last stage's
+findings first: only a finding that describes that bug counts. The report gives recall
 per stage, severity, false alarms on the controls, and how often every check fired and was right.
 
 It covers the review half of **promptfoo**: where a promptfoo suite asserts on a model's answer
 to prompts someone wrote, replz replays pull requests that really shipped a bug and asserts on
-what the reviewer said about them. `replz propose` drafts the cases from the history, and every
-command prints burgee's `--json` envelope, each error ending in `fix:`, for a pipe or an agent.
+what the reviewer said about them. `replz propose` prints draft cases from the history, and every
+command prints burgee's `--json` envelope, each error with its `fix:`, for a pipe or an agent.
 
 ## Install
 
@@ -82,13 +83,14 @@ bug-12 at a1a1a1a1a1a1
 control-13 (size-matched)
 ```
 
-That is what `replz propose` writes as case files under `.sdlc/replz/cases/`, each bug with an
-`answer:` line for a person to fill in.
+That is what `replz propose` prints: each draft under the file name it belongs at in
+`.sdlc/replz/cases/`, each bug with an `answer:` line for a person to fill in. It writes no file;
+save the drafts you keep, and `replz check` refuses one whose answer is still the draft's `TODO`.
 
 ## What it checks
 
 ```sh
-replz propose --limit 10                       # ten bug drafts and ten size-matched controls
+replz propose --limit 10                       # prints ten bug drafts and ten size-matched controls
 replz check                                    # the config and every case, and each set's count
 replz run --set test                           # the score on the held-out cases
 replz run --set tune --max-findings 5 --record # a cheaper run, appended to the history
@@ -96,11 +98,16 @@ replz run --set tune --max-findings 5 --record # a cheaper run, appended to the 
 
 | Command | Exit 1 when |
 | :-- | :-- |
-| `check` | the config or a case file is invalid, each with the `fix:` that repairs it |
+| `check` | the config or a case file is invalid, a case file is not named `<id>.yaml`, an answer is still the draft's `TODO`, or a set lacks a bug or a control, each with the `fix:` that repairs it |
 | `run` | a case could not be replayed |
 
 `run` calls a model once per case and once per graded finding, so it is never a per-pull-request
 step: run it by hand or on a schedule. `check` and `propose` cost nothing.
+
+Every command in the config runs in the case's worktree with `REPLZ_BASE`, `REPLZ_HEAD`,
+`REPLZ_PR` and `REPLZ_REPO` set. `REPLZ_REPO` is the repository `replz run` started in, as an
+absolute path: name a reviewer script kept there as `bash "$REPLZ_REPO/review.sh"`, because a
+relative path is read in the worktree, at a head that may predate the script.
 
 ## Migrating
 
@@ -114,8 +121,8 @@ The switch is one command, `npx replz run`, where the review suite ran:
   }
 ```
 
-and the hand-written review prompts come out, replaced by the case files `npx replz propose`
-drafts from the history. Keep promptfoo for prompts that are not reviews of a pull request.
+and the hand-written review prompts come out, replaced by case files saved from the drafts
+`npx replz propose` prints from the history. Keep promptfoo for prompts that are not reviews of a pull request.
 
 ## Compatibility
 
@@ -131,11 +138,11 @@ No suite is graded against this package yet, so there is no compatibility number
 ## For agents
 
 - **`replz check --json`**, **`run --json`** and **`propose --json`** print burgee's `--json`
-  envelope, every finding with a message that ends in `fix:`.
+  envelope; a failure carries its remedy as `error.fix`, and prose prints it on a `fix:` line.
 - **`--json`, `--schema` and an MCP server** come from one declaration on burgee:
   `replz --mcp` serves its commands as tools.
-- **Exit codes are the contract.** `0` passed; `1` a check failed, as the table above says; `2` a
-  usage error, with the `fix:` to run.
+- **Exit codes are the contract.** `0` passed; `1` a check failed, as the table above says, with
+  its `fix:`; `2` a usage error, with the command's usage.
 - **The docs are machine-readable** at
   [burgee.interlace.tools/llms.txt](https://burgee.interlace.tools/llms.txt).
 
