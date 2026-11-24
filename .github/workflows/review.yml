@@ -135,11 +135,26 @@ jobs:
           REVIEWER: ${{ inputs.reviewer-login }}
           REVIEW: ${{ inputs.review }}
           CHECKLIST: ${{ inputs.checklist }}
+          TRIGGERLIST_REF: ${{ inputs.triggerlist-ref }}
         run: |
           set -euo pipefail
           gh api --paginate "repos/$REPO/issues/$PR/comments" --jq ".[] | select(.user.login == \"$REVIEWER\") | {body}" | jq -s . > "$RUNNER_TEMP/comments.json"
-          node .triggerlist/packages/triggerlist/dist/bin.js brief "$BASE_SHA" --head "$HEAD_SHA" \
-            --checklist "$CHECKLIST" --review "$REVIEW" --comments "$RUNNER_TEMP/comments.json" > "$RUNNER_TEMP/brief.md"
+          triggerlist=.triggerlist/packages/triggerlist/dist/bin.js
+          if node "$triggerlist" --schema | jq -e '.commands[] | select(.name == "brief")' > /dev/null; then
+            node "$triggerlist" brief "$BASE_SHA" --head "$HEAD_SHA" \
+              --checklist "$CHECKLIST" --review "$REVIEW" --comments "$RUNNER_TEMP/comments.json" > "$RUNNER_TEMP/brief.md"
+          else
+            # The triggerlist at triggerlist-ref predates `brief` (the pull request that adds it, or a caller
+            # pinned to an older ref): review with the base REVIEW.md and what `match` fires, and no earlier round.
+            echo "::notice title=No triggerlist brief::triggerlist at ${TRIGGERLIST_REF} has no brief command; the prompt carries the base REVIEW.md and the fired items only."
+            {
+              echo "The rules below are $REVIEW as the base branch has it."
+              echo
+              git show "$BASE_SHA:$REVIEW" 2>/dev/null || echo "The base branch has no $REVIEW yet."
+              echo
+              node "$triggerlist" match "$BASE_SHA" --checklist "$CHECKLIST" || true
+            } > "$RUNNER_TEMP/brief.md"
+          fi
           delimiter="BRIEF_$(openssl rand -hex 12)"
           { echo "text<<$delimiter"; cat "$RUNNER_TEMP/brief.md"; echo "$delimiter"; } >> "$GITHUB_OUTPUT"
           { echo '## Review brief'; echo; cat "$RUNNER_TEMP/brief.md"; } >> "$GITHUB_STEP_SUMMARY"
@@ -175,4 +190,10 @@ jobs:
         run: |
           set -euo pipefail
           current=$(gh api "repos/$REPO/pulls/$PR" --jq .head.sha)
-          node .triggerlist/packages/triggerlist/dist/bin.js stale "$HEAD_SHA" "$current"
+          triggerlist=.triggerlist/packages/triggerlist/dist/bin.js
+          if node "$triggerlist" --schema | jq -e '.commands[] | select(.name == "stale")' > /dev/null; then
+            node "$triggerlist" stale "$HEAD_SHA" "$current"
+          elif [ "$HEAD_SHA" != "$current" ]; then
+            echo "stale: this review is of $HEAD_SHA, and the head is now $current. fix: the run on $current reviews it"
+            exit 1
+          fi
