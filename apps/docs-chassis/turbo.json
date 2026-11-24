@@ -1,12 +1,16 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "extends": ["//"],
+  "extends": [
+    "//"
+  ],
   "tasks": {
     "build": {
       "inputs": [
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/packages/*/capabilities.json",
-        "$TURBO_ROOT$/packages/compat-oracle/baseline/*.json"
+        "$TURBO_ROOT$/packages/compat-oracle/baseline/*.json",
+        "$TURBO_ROOT$/packages/*/package.json",
+        "$TURBO_ROOT$/.sdlc/bands/artifact-size-baseline.json"
       ],
       "outputs": []
     }
