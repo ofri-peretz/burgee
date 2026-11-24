@@ -166,6 +166,15 @@ function deprecation(d: boolean | string | undefined): string {
 }
 
 /**
+ * A description that already names its default in words (`(default: the current directory)`,
+ * `(default origin/main)`, `(the default)`) is not told it again in the value's spelling: help
+ * printed `(default: the current directory) (default: .)` in every CLI that did that. The words win
+ * because they say what the value means; `--schema` still publishes the value. `usage.ts` holds the
+ * same pattern for a failure's options. `(default: <value>)`, or nothing.
+ */
+const defaultNote = (text: string, value: unknown): string => (value === undefined || /\((the )?defaults?\b/i.test(text) ? '' : `(default: ${String(value)})`);
+
+/**
  * Trailing annotations in a stable order (R4): required, default, minimum, maximum, one of, repeatable,
  * requires, conflicts with, env, type, deprecated.
  *
@@ -178,7 +187,7 @@ function deprecation(d: boolean | string | undefined): string {
 function annotate(text: string, spec: OptionSpec, verbose: boolean): string {
   const parts = [text];
   if (spec.required) parts.push('(required)');
-  if (spec.default !== undefined) parts.push(`(default: ${String(spec.default)})`);
+  parts.push(defaultNote(text, spec.default));
   // cli-help-renderer S1 (oclif #1001) — the bounds `--schema` publishes and the parser enforces, in the same words.
   for (const bound of ['minimum', 'maximum'] as const) if (spec[bound] !== undefined) parts.push(`(${bound}: ${spec[bound]})`);
   if (spec.choices !== undefined) parts.push(`(one of: ${spec.choices.join(', ')})`);
@@ -215,7 +224,7 @@ const argumentTerm = (a: ArgumentSpec): string => {
 function argumentRows(args: ArgumentSpec[]): Row[] {
   return args.map((a) => ({
     term: argumentTerm(a),
-    text: [a.description ?? '', a.default === undefined ? '' : `(default: ${a.default})`].filter((p) => p !== '').join(' '),
+    text: [a.description ?? '', defaultNote(a.description ?? '', a.default)].filter((p) => p !== '').join(' '),
     kind: 'value' as const,
   }));
 }

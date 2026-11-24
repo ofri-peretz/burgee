@@ -69,7 +69,12 @@ exactly that.
    no dependency between caique and burgee.
 6. An unknown or malformed option from the parser is 2, with a hint and, where one is close
    enough, the spelling it meant.
-7. Anything else — any other `Error`, a rejection, a thrown string — is 1.
+7. Anything else — any other `Error`, a rejection, a thrown string — is 1. It keeps the `hint`
+   and `fix` it carries, so a handler that knows the one line to run next throws
+   `Object.assign(new Error('no build yet'), { fix: 'deploy build' })` and the caller gets that
+   `fix:` instead of the usage block (`a plain runtime error that carries a fix prints it, and no
+   usage` in
+   [`failure-teaches.test.ts`](https://github.com/ofri-peretz/burgee/blob/main/packages/burgee/src/failure-teaches.test.ts)).
 
 **Your own codes.** `defineError({ name, code })` claims a code from 7 to 125 for one class:
 below 7 is the contract, and 126 and above mean *not executable*, *not found* and *killed by a
