@@ -49,8 +49,26 @@ export const docComments = (text: string): string[] => {
   return bodies;
 };
 
-/** A lock test's header (the first doc comment that is not the licence) as a draft item. */
-export const fromLockTest = ({ path, text }: Source): Item | undefined => {
+/** A vitest config at a repository's root: `vitest.config.ts`, `vitest.root.config.mts`, … */
+export const VITEST_CONFIG = /^vitest\.(?:[\w-]+\.)?config\.[cm]?[jt]s$/;
+
+/**
+ * The command a draft's `check` runs one lock test with, in the repository the configs and the
+ * manifest come from. A root vitest config that names the lock folder is passed with `--config`
+ * (vitest finds `vitest.config.*` itself); a repo that uses vitest otherwise gets `npx vitest run`;
+ * one with no sign of vitest gets no command, and the draft says only which file to run.
+ */
+export const testCommand = (configs: readonly Source[], manifest: string, locks: string): string | undefined => {
+  const named = configs.find((config) => config.text.includes(`${locks}/`))?.path;
+  if (named !== undefined && !named.startsWith('vitest.config.')) return `npx vitest run --config ${named}`;
+  return configs.length > 0 || manifest.includes('"vitest"') ? 'npx vitest run' : undefined;
+};
+
+/**
+ * A lock test's header (the first doc comment that is not the licence) as a draft item. `runner` is
+ * what `testCommand` derived for the repository; without one the check names the file to run.
+ */
+export const fromLockTest = ({ path, text }: Source, runner?: string): Item | undefined => {
   const header = docComments(text).find((body) => !body.includes('Copyright'));
   if (header === undefined) return undefined;
   const name = (path.split('/').pop() as string).slice(0, -'.test.ts'.length);
@@ -59,7 +77,7 @@ export const fromLockTest = ({ path, text }: Source): Item | undefined => {
     trigger: { paths: ['**'] },
     // Most headers open `Lock — `: the file name already says it is one.
     question: firstSentence(header).replace(LOCK_PREFIX, ''),
-    check: `npx vitest run --config vitest.root.config.ts ${path}`,
+    check: runner === undefined ? `run ${path}` : `${runner} ${path}`,
     sources: [path],
   };
 };

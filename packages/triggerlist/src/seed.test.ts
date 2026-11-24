@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { docComments, fromDecision, fromLockTest, idOf, toYaml } from './seed.js';
+import { docComments, fromDecision, fromLockTest, idOf, testCommand, toYaml, VITEST_CONFIG } from './seed.js';
 
 const LICENCE = '/**\n * Copyright (c) 2026 Ofri Peretz\n */\n';
 
@@ -25,13 +25,18 @@ describe('docComments', () => {
 describe('fromLockTest', () => {
   it('drafts from the first doc comment after the licence, its first sentence on one line', () => {
     const text = `${LICENCE}\n/**\n * Nobody keeps an inline\n * implementation of a job. More here.\n */\nconst x = 1;\n/** later */`;
-    expect(fromLockTest({ path: 'scripts/Inline_Impl-lock.test.ts', text })).toEqual({
+    expect(fromLockTest({ path: 'scripts/Inline_Impl-lock.test.ts', text }, 'npx vitest run --config vitest.root.config.ts')).toEqual({
       id: 'inline-impl-lock',
       trigger: { paths: ['**'] },
       question: 'Nobody keeps an inline implementation of a job.',
       check: 'npx vitest run --config vitest.root.config.ts scripts/Inline_Impl-lock.test.ts',
       sources: ['scripts/Inline_Impl-lock.test.ts'],
     });
+  });
+
+  it('names the file to run when no test command was derived', () => {
+    expect(fromLockTest({ path: 'test/a-lock.test.ts', text: '/** A. */' })?.check).toBe('run test/a-lock.test.ts');
+    expect(fromLockTest({ path: 'test/a-lock.test.ts', text: '/** A. */' }, 'npx vitest run')?.check).toBe('npx vitest run test/a-lock.test.ts');
   });
 
   it('takes a comment with no sentence end whole, and ends at ? or !', () => {
@@ -55,6 +60,33 @@ describe('fromLockTest', () => {
 
   it('drafts nothing from a file with only the licence', () => {
     expect(fromLockTest({ path: 'a-lock.test.ts', text: LICENCE })).toBeUndefined();
+  });
+});
+
+describe('testCommand', () => {
+  const root = { path: 'vitest.root.config.ts', text: "include: ['scripts/**/*.test.ts']" };
+  const plain = { path: 'vitest.config.ts', text: "projects: ['packages/*']" };
+
+  it('passes the root config that names the lock folder', () => {
+    expect(testCommand([plain, root], '{}', 'scripts')).toBe('npx vitest run --config vitest.root.config.ts');
+    // The folder as a path segment: `scripts` alone also matches `npm scripts` prose.
+    expect(testCommand([{ path: 'vitest.root.config.ts', text: 'npm scripts' }], '{}', 'scripts')).toBe('npx vitest run');
+  });
+
+  it('runs plain vitest when the config that names the folder is the one vitest finds itself, or none names it', () => {
+    expect(testCommand([{ path: 'vitest.config.mts', text: 'scripts/' }], '{}', 'scripts')).toBe('npx vitest run');
+    expect(testCommand([plain], '{}', 'scripts')).toBe('npx vitest run');
+    expect(testCommand([], '{ "devDependencies": { "vitest": "^4.0.0" } }', 'test')).toBe('npx vitest run');
+  });
+
+  it('derives nothing for a repo with no sign of vitest', () => {
+    expect(testCommand([], '{ "devDependencies": { "jest": "^30.0.0" } }', 'test')).toBeUndefined();
+    expect(testCommand([], '', 'test')).toBeUndefined();
+  });
+
+  it('knows a vitest config file by its name', () => {
+    expect(['vitest.config.ts', 'vitest.root.config.ts', 'vitest.e2e-ci.config.mjs', 'vitest.config.cjs', 'vitest.config.js'].every((name) => VITEST_CONFIG.test(name))).toBe(true);
+    expect(['vitest-coverage.config.ts', 'vitest.config.ts.bak', 'my.vitest.config.ts', 'vitest.config.json', 'vitest.a.b.config.ts', 'vitest.config.mtsx'].some((name) => VITEST_CONFIG.test(name))).toBe(false);
   });
 });
 
