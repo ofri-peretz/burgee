@@ -3,6 +3,18 @@ title: Changelog
 description: "Every release of truefit, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 1.0.2
+
+### Patch Changes
+
+- [#1809](https://github.com/ofri-peretz/burgee/pull/1809) [`73c9073`](https://github.com/ofri-peretz/burgee/commit/73c9073e0269f16a42d459e294c2d3f854ebd0ef) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - truefit's docs have a site of their own at https://truefit.interlace.tools: getting started, guides, a page for each of zod, valibot, ArkType, TypeBox and ajv, recipes and the API reference. The package's `homepage` and README point there.
+
+## 1.0.1
+
+### Patch Changes
+
+- [#1810](https://github.com/ofri-peretz/burgee/pull/1810) [`102eecf`](https://github.com/ofri-peretz/burgee/commit/102eecf8a30ddab00865ab4e9338602a0e98e46f) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A missing value now reads `got undefined` in an issue's message, not `got undefined undefined`: the message printed the type and then the value, and for `undefined` both are the word "undefined". Seen from `issues()`, `parse()` and `standard().validate()` on a missing required key.
+
 ## 1.0.0
 
 ### Major Changes
