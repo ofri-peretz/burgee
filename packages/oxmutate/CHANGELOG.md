@@ -1,5 +1,11 @@
 # oxmutate
 
+## 2.18.3
+
+### Patch Changes
+
+- [#1779](https://github.com/ofri-peretz/burgee/pull/1779) [`15d9269`](https://github.com/ofri-peretz/burgee/commit/15d9269472c695da2fb41b651b3f639e63b0103c) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A `.ts` file holding `-->` in a template literal (an HTML comment marker) now instruments. The safety-net reparse of the instrumented code used the path's Unambiguous source type, which lexes `-->` as an HTML comment and then rejects it in a module; it now reparses as the kind the source resolved to.
+
 ## 2.18.2
 
 ### Patch Changes

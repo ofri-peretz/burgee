@@ -1,5 +1,11 @@
 # replz
 
+## 0.2.0
+
+### Minor Changes
+
+- [#1775](https://github.com/ofri-peretz/burgee/pull/1775) [`fa49d88`](https://github.com/ofri-peretz/burgee/commit/fa49d883f2b78421decc1e7de2b4a688a13f066e) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Rename replay to replz, the npm name chosen for its first release (the name replay belongs to another package): the package, the bin and every command the CLI prints. replz reads `.sdlc/replz/` and sets `REPLZ_BASE`, `REPLZ_HEAD`, `REPLZ_PR` and `REPLZ_INPUT` for the reviewer.
+
 ## 0.1.3
 
 ### Patch Changes
