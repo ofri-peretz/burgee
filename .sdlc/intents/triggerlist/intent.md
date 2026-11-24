@@ -69,3 +69,10 @@ Each is a default, not a decision; overturning one in review is a new decision f
 - The checklist is YAML, validated by `validator`.
 - The budget is the limit of the reviewer the workflow calls, read from its docs when R3 lands.
 - burgee's review job keeps passing without a token on forks, but prints that it did not run.
+
+## Evidence
+
+| Criterion | State | Evidence |
+| --- | --- | --- |
+| A PR that edits `REVIEW.md` is reviewed with the base version | met in a fixture, no live PR yet | The prompt: `packages/triggerlist/src/cli.test.ts` (`brief` reads `main:REVIEW.md`). The files on disk: `scripts/triggerlist-review-action-lock.test.ts` runs the action's brief step on a fixture PR that edits `REVIEW.md` and the checklist, and both read as the base's afterwards. |
+| A review whose SHA is not the head is reported stale, never green | met in a fixture, no live stale run yet | `scripts/triggerlist-review-action-lock.test.ts` runs the stale step with a moved head: it comments on the PR and exits 1. Before this, it only warned and passed. |

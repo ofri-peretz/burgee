@@ -4,7 +4,8 @@
 # has them (so a pull request that edits the rules is still reviewed by the rules it did not
 # write), the checklist items the diff fires, its own findings from the previous round (the last
 # PR comment carrying the triggerlist-review marker), and the head commit it reviews. After the
-# review, a head that moved while it ran is reported as stale on the pull request.
+# review, a head that moved while it ran is reported as stale on the pull request and fails the
+# step, so a stale review is never green. The rules on disk are the base branch's too.
 #
 # A composite action rather than a reusable workflow: a step keeps each caller's own job name,
 # so a required `review` check stays `review` in every repository that adopts it.
@@ -67,6 +68,16 @@ runs:
         $TRIGGERLIST brief "origin/$BASE_REF" --head "$HEAD_SHA" --checklist "$CHECKLIST" --review "$REVIEW_FILE" --comments "$RUNNER_TEMP/comments.json" > "$RUNNER_TEMP/brief.md"
         delimiter="BRIEF_$(openssl rand -hex 8)"
         { echo "text<<$delimiter"; cat "$RUNNER_TEMP/brief.md"; echo "$delimiter"; } >> "$GITHUB_OUTPUT"
+        # The reviewer runs in this checkout and can open the rules on disk, so put the base
+        # branch's copies there: a pull request is never reviewed by rules it wrote. A rules file
+        # the base branch does not have is removed rather than left as the PR wrote it.
+        for file in "$REVIEW_FILE" "$CHECKLIST"; do
+          if git cat-file -e "origin/$BASE_REF:$file" 2>/dev/null; then
+            git checkout "origin/$BASE_REF" -- "$file"
+          else
+            rm -f -- "$file"
+          fi
+        done
 
     - name: Claude review
       uses: anthropics/claude-code-action@4d75e5f390ee76b2e09c1980ecc99ff3a2e088c8 # v1
@@ -101,4 +112,7 @@ runs:
         if [ "$now" != "$HEAD_SHA" ]; then
           echo "::warning title=Review is stale::reviewed $HEAD_SHA, the head is now $now; the next run reviews it"
           gh pr comment "$PR" --repo "$REPO" --body "This review covered \`$HEAD_SHA\`. The head moved to \`$now\` while it ran, so it is stale; the run for \`$now\` replaces it."
+          # Stale is never green (triggerlist intent). Required checks read the head commit, whose
+          # own run decides; this run's failure stays on the commit it reviewed.
+          exit 1
         fi
