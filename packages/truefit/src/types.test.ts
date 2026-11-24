@@ -215,7 +215,7 @@ describe('assert', () => {
     const one = asserting(string(), 1);
     expect(one).toThrow(/^the value is not what the schema describes\. At "": expected a string, got number 1\. fix: send a string$/u);
     const three = asserting(object({ a: string(), b: string(), c: string() }), {});
-    expect(three).toThrow('At "/a": expected a value, got undefined undefined. fix: add "a" (and 2 more: see `issues` on this error)');
+    expect(three).toThrow('At "/a": expected a value, got undefined. fix: add "a" (and 2 more: see `issues` on this error)');
   });
 
   // Like check it reads and never writes: a value only `parse` would accept is refused.

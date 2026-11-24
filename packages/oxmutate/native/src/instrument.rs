@@ -968,7 +968,7 @@ impl Emitter<'_> {
                 };
                 let mut expr = format!("(oxmCov({ids}), {original})");
                 for (m, id) in &live {
-                    expr = format!("(oxmAct(\"{id}\") ? ({}) : {expr})", self.applied(m));
+                    expr = format!("(oxmAct(\"{id}\") ? ({}) : {expr})", guard_paren_regex(self.applied(m)));
                 }
                 expr
             }
@@ -990,6 +990,16 @@ impl Emitter<'_> {
             }
         }
     }
+}
+
+/// The text a mutant switch puts right after an opening parenthesis. A regex literal whose body
+/// opens with `<!--` cannot follow `(` for the oxc in Vite 8's transform (rolldown 1.2.14): it
+/// reports "HTML comments are not allowed in modules", fails the file's transform, and every test
+/// importing it fails to load (`/<!--\s*x\s*-->/u`'s Regex mutants, 2026-11-24). oxc 0.155 here
+/// accepts it, so the reparse net cannot catch it. `0, ` puts a token between the two and leaves
+/// the value as it was.
+fn guard_paren_regex(text: String) -> String {
+    if text.trim_start().starts_with("/<!--") { format!("0, {text}") } else { text }
 }
 
 /// Instrument one file. `path` is the id namespace (use the repository-relative path).

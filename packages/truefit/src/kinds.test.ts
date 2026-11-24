@@ -186,7 +186,7 @@ const WRONG: [string, AnySchema, unknown, Issue[]][] = [
     { path: '/c~1d', keyword: 'unknown', message: 'expected no such key, got null. fix: remove "c/d"' },
   ]],
   ['a strict object that is wrong inside and out', object({ a: string() }, { unknown: 'strict' }), { b: 1 }, [
-    { path: '/a', keyword: 'required', message: 'expected a value, got undefined undefined. fix: add "a"' },
+    { path: '/a', keyword: 'required', message: 'expected a value, got undefined. fix: add "a"' },
     { path: '/b', keyword: 'unknown', message: 'expected no such key, got number 1. fix: remove "b"' },
   ]],
   ['an unknown key that fails its schema', object({ a: string() }, { unknown: number() }), { a: 'x', b: 'y', c: 2, d: null }, [
@@ -209,7 +209,7 @@ const WRONG: [string, AnySchema, unknown, Issue[]][] = [
     { path: '/0', keyword: 'type', message: 'expected a string, got number 1. fix: send a string' },
   ]],
   ['a tuple with a wrong item', tuple([string(), number()]), ['a', 'b'], [{ path: '/1', keyword: 'type', message: 'expected a number, got string "b". fix: send a finite number' }]],
-  ['undefined where null is allowed', nullable(string()), undefined, [{ path: '', keyword: 'type', message: 'expected a string, got undefined undefined. fix: send a string' }]],
+  ['undefined where null is allowed', nullable(string()), undefined, [{ path: '', keyword: 'type', message: 'expected a string, got undefined. fix: send a string' }]],
   ['wrong inside a nullish', object({ a: nullish(string({ min: 2 })) }), { a: 'x' }, [{ path: '/a', keyword: 'min', message: 'expected at least 2 characters, got string "x". fix: send 2 or more' }]],
   ['no member of a union', union([string(), number({ min: 1 })]), true, [
     { path: '', keyword: 'union', message: 'expected a value one of 2 members accepts, got boolean true. fix: satisfy one of them; member 0 fails type at ""; member 1 fails type at ""' },
@@ -220,7 +220,7 @@ const WRONG: [string, AnySchema, unknown, Issue[]][] = [
   ['a union with no members', union([]), 1, [{ path: '', keyword: 'union', message: 'expected a value one of 0 members accepts, got number 1. fix: satisfy one of them' }]],
   ['every member of an intersection that fails', intersection([object({ a: string() }), object({ b: number() })]), { a: 1 }, [
     { path: '/a', keyword: 'type', message: 'expected a string, got number 1. fix: send a string' },
-    { path: '/b', keyword: 'required', message: 'expected a value, got undefined undefined. fix: add "b"' },
+    { path: '/b', keyword: 'required', message: 'expected a value, got undefined. fix: add "b"' },
   ]],
   ['deep in a tree', TreeSchema, { v: 1, kids: [{ v: 2, kids: [{ v: 'x', kids: [] }] }] }, [{ path: '/kids/0/kids/0/v', keyword: 'type', message: 'expected a number, got string "x". fix: send a finite number' }]],
   ['not a custom type', custom('a string that starts with x', startsWithX), 'a', [

@@ -19,6 +19,22 @@ Intent: [`intent.md`](./intent.md). **Status:** draft.
   the third, returns a message telling the agent to stop and ask.
 - **R6** `--json` on every command; burgee `defineCommand` throughout.
 
+## Status
+
+Read on 2026-11-24 for the 1.0 bar (D-170), recorded in
+[`D-20261124-hookset-triggerlist-1-0`](../../decisions/D-20261124-hookset-triggerlist-1-0.md).
+
+| R   | Status    | Where                                                                                   | Check                                                      |
+| :-- | :-------- | :-------------------------------------------------------------------------------------- | :--------------------------------------------------------- |
+| R1  | **Built** | `presets/lefthook/{commit-msg,pre-commit,pre-push}.yml`                                 | `core.test.ts` › `the package`                             |
+| R2  | **Built** | `core.ts` (`initRepo`, `lefthookTemplate`), `cli.ts` (`init`, `--force`)                | `core.test.ts` › `initRepo`, `init, at its edges`          |
+| R3  | **Built** | `core.ts` (`checkRepo`, `parseRemotes`, `localRuns`, `duplicateOf`), `cli.ts` (`check`) | `core.test.ts` › `checkRepo`, `the checks, at their edges` |
+| R4  | **Built** | `claude/guard-bash.mjs` (plus generated-file edits, from `.claude/hookset.json`)        | `claude.test.ts` › `guard-bash`                            |
+| R5  | **Built** | `claude/stop-after-3.mjs`                                                               | `claude.test.ts` › `stop-after-3`                          |
+| R6  | **Built** | `cli.ts` (`defineCommand`, `--json` through burgee)                                     | `cli.test.ts` › `hookset`                                  |
+
+**Built: 6. Not built: 0.**
+
 ## Design
 
 - Station list is data (one JSON file), shared with provedone so the "Checked" line and the hooks

@@ -3,15 +3,16 @@
  * `run` calls a model once per case and once per graded finding, so it is never a per-PR step: it
  * runs by hand or on a schedule (replz intent, constraints). `check` and `propose` cost nothing.
  */
-import { appendFileSync, readdirSync, readFileSync } from 'node:fs';
+import { appendFileSync, existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 import { defineCommand, defineProgram } from 'burgee';
 import { parse as parseYaml } from 'seniority/yaml';
 
-import { type Case, parseCase, selectCases, SETS } from './cases.js';
+import { type Case, KINDS, parseCase, selectCases, SETS } from './cases.js';
 import { CONFIG, type Config, parseConfig } from './config.js';
 import { LOG_ARGS, parseLog, propose, toYaml } from './propose.js';
+import { refusing } from './refusal.js';
 import { replayCase, type Shell, type Worktrees } from './run.js';
 import { type CaseResult, score, toText } from './score.js';
 import { logOf, sh, worktreesIn } from './shell.js';
@@ -30,14 +31,27 @@ const HERE = '.';
 export const CASES = '.sdlc/replz/cases';
 export const HISTORY = '.sdlc/replz/history.jsonl';
 
-/** Every `*.yaml` case under `dir`, sorted by file name. */
-export const readCases = (repo: string, dir: string): Case[] =>
-  readdirSync(resolve(repo, dir))
+/** `path` under `repo`, refused with the option that moves it when it is not there. */
+const existing = (repo: string, path: string, option: string): string => {
+  const at = resolve(repo, path);
+  if (!existsSync(at)) throw new Error(`${path} does not exist in ${resolve(repo)}. fix: run replz in the repository it replays, or pass --repo, or ${option}`);
+  return at;
+};
+
+/** Every `*.yaml` case under `dir`, sorted by file name, each named `<id>.yaml`. */
+export const readCases = (repo: string, dir: string): Case[] => {
+  const at = existing(repo, dir, '--cases');
+  return readdirSync(at)
     .filter((name) => name.endsWith('.yaml'))
     .sort()
-    .map((name) => parseCase(`${dir}/${name}`, readFileSync(join(resolve(repo, dir), name), 'utf8')));
+    .map((name) => {
+      const found = parseCase(`${dir}/${name}`, readFileSync(join(at, name), 'utf8'));
+      if (name !== `${found.id}.yaml`) throw new Error(`${dir}/${name} holds the case \`${found.id}\`. fix: rename the file ${found.id}.yaml, or change its id`);
+      return found;
+    });
+};
 
-const readConfig = (repo: string, path: string): Config => parseConfig(path, readFileSync(resolve(repo, path), 'utf8'));
+const readConfig = (repo: string, path: string): Config => parseConfig(path, readFileSync(existing(repo, path, '--config'), 'utf8'));
 
 /** The ids of the checklist's items, so one that never fires is named. */
 const itemsOf = (repo: string, config: Config): string[] => {
@@ -52,11 +66,17 @@ export interface CheckOptions {
   readonly cases: string;
 }
 
-/** The config and every case parse, the sets hold both kinds, and ids are distinct: what a run needs. */
+/**
+ * The config and every case parse, each case file is named by its id, no answer is the draft's
+ * placeholder, ids are distinct, and each set holds a bug and a control: what a run needs. A set of
+ * one kind gives a score of one kind, recall with no false alarms or the reverse.
+ */
 export const runCheck = (options: CheckOptions): Data => {
   const config = readConfig(options.repo, options.config);
   const cases = selectCases(readCases(options.repo, options.cases), undefined);
   const count = (set: Case['set'], kind: Case['kind']): number => cases.filter((found) => found.set === set && found.kind === kind).length;
+  const short = SETS.flatMap((set) => KINDS.filter((kind) => count(set, kind) === 0).map((kind) => `the ${set} set has no ${kind} case`));
+  if (short.length > 0) throw new Error(`${short.join('; ')}. fix: add the cases each set lacks (replz propose drafts them), so neither score is of one kind`);
   const sets = Object.fromEntries(SETS.map((set) => [set, { bugs: count(set, 'bug'), controls: count(set, 'control') }]));
   const data: Data = { cases: cases.length, sets, checks: config.checks.length, stages: config.stages };
   data[TEXT] = () => `${String(cases.length)} case(s): ${SETS.map((set) => `${set} ${String(count(set, 'bug'))} bug(s) + ${String(count(set, 'control'))} control(s)`).join(', ')}; ${String(config.checks.length)} check(s); stages ${config.stages.join(' > ')}`;
@@ -82,7 +102,7 @@ export const runReplay = async (options: RunOptions): Promise<Data> => {
   const results: CaseResult[] = [];
   for (const found of cases) {
     // eslint-disable-next-line reliability/no-await-in-loop -- one case at a time: each holds a worktree with its own install, and each reviewer call is paid
-    results.push(await replayCase({ shell: options.shell, worktrees: options.worktrees, config, model }, found));
+    results.push(await replayCase({ shell: options.shell, worktrees: options.worktrees, config, model, repo: resolve(options.repo) }, found));
   }
   const report = score(
     results,
@@ -117,7 +137,8 @@ export const runPropose = async (options: ProposeOptions): Promise<Data> => {
   return data;
 };
 
-const repoOption = { type: 'string', default: HERE, description: 'the repository (default: the current directory)', placeholder: 'dir' } as const;
+// No `(default: …)` in the description: burgee prints the default after it.
+const repoOption = { type: 'string', default: HERE, description: 'the repository', placeholder: 'dir' } as const;
 const configOption = { type: 'string', default: CONFIG, description: 'the replz config', placeholder: 'path' } as const;
 const casesOption = { type: 'string', default: CASES, description: 'the folder of case files', placeholder: 'dir' } as const;
 
@@ -132,7 +153,7 @@ export const program = defineProgram({
       effects: 'read_only',
       examples: [{ command: 'replz check', description: 'are the cases ready to run' }],
       options: { repo: repoOption, config: configOption, cases: casesOption },
-      run: ({ options }) => runCheck({ repo: options.repo as string, config: options.config as string, cases: options.cases as string }),
+      run: refusing(({ options }) => runCheck({ repo: options.repo as string, config: options.config as string, cases: options.cases as string })),
     }),
     defineCommand({
       name: 'run',
@@ -151,7 +172,7 @@ export const program = defineProgram({
         maxFindings: { type: 'number', description: 'the most findings graded per case, which caps the cost (default: the config)', placeholder: 'n' },
         record: { type: 'boolean', description: `append the report to ${HISTORY}` },
       },
-      run: ({ options }) =>
+      run: refusing(({ options }) =>
         runReplay({
           repo: options.repo as string,
           config: options.config as string,
@@ -164,6 +185,7 @@ export const program = defineProgram({
           worktrees: worktreesIn(options.repo as string),
           now: () => new Date(),
         }),
+      ),
     }),
     defineCommand({
       name: 'propose',
@@ -175,7 +197,7 @@ export const program = defineProgram({
         ref: { type: 'string', default: 'origin/main', description: 'the history to read', placeholder: 'ref' },
         limit: { type: 'number', default: DEFAULT_LIMIT, description: 'the most bug cases to draft', placeholder: 'n' },
       },
-      run: ({ options }) => runPropose({ repo: options.repo as string, ref: options.ref as string, limit: options.limit as number, log: logOf }),
+      run: refusing(({ options }) => runPropose({ repo: options.repo as string, ref: options.ref as string, limit: options.limit as number, log: logOf })),
     }),
   ],
 });

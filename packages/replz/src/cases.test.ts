@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { KINDS, parseCase, selectCases, SETS } from './cases.js';
+import { KINDS, parseCase, PLACEHOLDER, selectCases, SETS } from './cases.js';
 
 const BUG = 'id: bug-12\nkind: bug\npr: 12\nbase: abc1234\nhead: def5678\nanswer: The cache key drops the locale.\nset: test\n';
 
@@ -43,6 +43,13 @@ describe('parseCase', () => {
   it('needs an answer on a bug and refuses one on a control', () => {
     expect(() => parseCase('c', BUG.replace(/answer:.*\n/, ''))).toThrow('c: a bug case needs its answer, one sentence saying what the bug is. fix: add answer');
     expect(() => parseCase('c', BUG.replace('kind: bug', 'kind: control'))).toThrow('c: a control has no bug, so no answer. fix: remove answer, or make it kind: bug');
+  });
+
+  it('refuses an answer that is still the draft placeholder, and says what each invalid field needs', () => {
+    expect(PLACEHOLDER).toBe('TODO');
+    expect(() => parseCase('c', BUG.replace('The cache key', 'TODO one sentence. The cache key'))).toThrow("c: the answer is still the draft's TODO, and a finding graded against it grades nothing. fix: write one sentence saying what the bug is, from the revert or the fix");
+    expect(parseCase('c', BUG.replace('The cache key', 'The TODO cache key')).answer).toBe('The TODO cache key drops the locale.');
+    expect(() => parseCase('c', '42\n')).toThrow(/\nfix: correct each field named above$/);
   });
 });
 

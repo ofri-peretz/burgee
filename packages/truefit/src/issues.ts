@@ -12,6 +12,7 @@ const SHOWN = 80;
  */
 const received = (value: unknown): string => {
   if (value === null) return 'null';
+  if (value === undefined) return 'undefined';
   if (Array.isArray(value)) return 'an array';
   if (isRecord(value)) return 'an object';
   if (typeof value === 'function') return 'a function';

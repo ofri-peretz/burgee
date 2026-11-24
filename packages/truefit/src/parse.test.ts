@@ -125,7 +125,7 @@ describe('parse', () => {
 
     it('is not put where null arrived, and is not there to be found when the schema has none', () => {
       expect(failure(parse(WithDefault, { a: null }))).toHaveLength(1);
-      expect(failure(parse(object({ a: string() }), {}))).toEqual([{ path: '/a', keyword: 'required', message: 'expected a value, got undefined undefined. fix: add "a"' }]);
+      expect(failure(parse(object({ a: string() }), {}))).toEqual([{ path: '/a', keyword: 'required', message: 'expected a value, got undefined. fix: add "a"' }]);
       expect(parse(optional(string()), undefined).ok).toBe(false);
     });
 

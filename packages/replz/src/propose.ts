@@ -5,7 +5,7 @@
  * a person, because a finding is graded against it and a guessed key grades nothing. Controls are
  * merged pull requests of a similar size that no revert or fix names.
  */
-import { type Case } from './cases.js';
+import { type Case, PLACEHOLDER } from './cases.js';
 
 /** One commit on main. */
 export interface Commit {
@@ -114,7 +114,7 @@ export const toYaml = (found: Case, subject: string): string =>
     // Quoted: a sha of digits alone reads as a number.
     `base: ${JSON.stringify(found.base)}`,
     `head: ${JSON.stringify(found.head)}`,
-    ...(found.kind === 'bug' ? ['answer: TODO one sentence saying what the bug is, from the revert or the fix'] : []),
+    ...(found.kind === 'bug' ? [`answer: ${PLACEHOLDER} one sentence saying what the bug is, from the revert or the fix`] : []),
     `set: ${found.set}`,
     '',
   ].join('\n');

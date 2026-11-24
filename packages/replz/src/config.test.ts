@@ -47,6 +47,12 @@ describe('parseConfig', () => {
   it('names the root and lists every issue on its own line', () => {
     expect(() => parseConfig('c', '42')).toThrow(/^c is not a valid replz config:\n {2}\/: /);
     expect(() => parseConfig('c', 'model: m')).toThrow(/:\n {2}\/reviewer: [^\n]+\n {2}\/grader: /);
+    expect(() => parseConfig('c', '42')).toThrow(/\nfix: correct each field named above$/);
+  });
+
+  it('refuses text that is not YAML, keeping the cause', () => {
+    expect(() => parseConfig('c.yaml', 'reviewer: [\n')).toThrow(/^c\.yaml is not YAML: .+\. fix: correct the YAML$/s);
+    expect(() => parseConfig('c.yaml', 'reviewer: [\n')).toThrow(expect.objectContaining({ cause: expect.any(Error) }));
   });
 });
 
@@ -66,6 +72,7 @@ describe('parseFindings', () => {
 
   it('refuses findings of the wrong shape, naming each issue', () => {
     expect(() => parseFindings('[{"stage":"raw","severity":"blocker","text":""}]', STAGES)).toThrow(/^the reviewer's findings are not valid: \/0\/severity [^;]+; \/0\/text /);
+    expect(() => parseFindings('[1]', STAGES)).toThrow(/\. fix: make the reviewer print a JSON array of \{ stage, severity, text, item\? \}$/);
   });
 
   it('refuses a stage the config does not list', () => {
