@@ -95,6 +95,8 @@ const KNOWN = [
   'openapi-typescript',
   // truefit's incumbent (2026-11-23): a Standard Schema validator with a code-first API.
   'zod',
+  // provedone's incumbent (2026-11-24): commitlint's trailer rules, by surface.
+  '@commitlint/cli',
   'which',
   'widest-line',
   'wrap-ansi',

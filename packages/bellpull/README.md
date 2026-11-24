@@ -237,7 +237,7 @@ Graded by the incumbent's own test suite:
 | `execa` | 0 / 1360 |
 | `which` | 5 / 5 |
 
-Weight, installed and tree-inclusive: **98,662 bytes** against **765,553** for the incumbents it replaces — a ratio of **0.1289** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
+Weight, installed and tree-inclusive: **98,837 bytes** against **765,553** for the incumbents it replaces — a ratio of **0.1291** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## For agents
 
@@ -263,11 +263,11 @@ The entry points are under [Entry points](#entry-points); every export, with its
 
 Plugins register under the `resolvers` key, against the one schema the whole family shares.
 
-`burgee`, `caique`, `contractdiff`, `oxmutate`, `truepass` build on it, and it builds on nothing in this family.
+`burgee`, `caique`, `contractdiff`, `oxmutate`, `provedone`, `truepass` build on it, and it builds on nothing in this family.
 
 ## The family
 
-14 packages, one repository, one release pipeline. Each installs and works on its own, and each owns
+15 packages, one repository, one release pipeline. Each installs and works on its own, and each owns
 one job. Seven of them — `bellpull`, `closeout`, `linegauge`, `paratext`, `roundel`, `seniority`,
 `truefit` — depend on nothing; the others depend only on packages in this table, and every
 dependency points one way, down the [layers](https://burgee.interlace.tools/docs/concepts/family).
@@ -302,6 +302,7 @@ keeps both true.
 | [truepass](https://burgee.interlace.tools/docs/packages/truepass) | Lint rules and a pre-push check that keep a test suite honest | @vitest/eslint-plugin |
 | [contractdiff](https://burgee.interlace.tools/docs/packages/contractdiff) | API contracts: breaking-change diff, lint, and code from the spec | openapi-typescript |
 | [truefit](https://burgee.interlace.tools/docs/packages/truefit) | Validation whose schemas are data, with no eval | zod |
+| [provedone](https://burgee.interlace.tools/docs/packages/provedone) | A receipt for how every change was verified, and a gate that reads it | @commitlint/cli |
 
 Every migration guide, and the family-wide [compatibility](https://burgee.interlace.tools/docs/compatibility)
 and [benchmarks](https://burgee.interlace.tools/docs/benchmarks) pages, are on

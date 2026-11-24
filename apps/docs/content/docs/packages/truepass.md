@@ -153,7 +153,7 @@ Nothing in this family builds on it yet, and it builds on `bellpull` and `burgee
 
 ## The family
 
-14 packages, one repository, one release pipeline. Each installs and works on its own, and each owns
+15 packages, one repository, one release pipeline. Each installs and works on its own, and each owns
 one job. Seven of them — `bellpull`, `closeout`, `linegauge`, `paratext`, `roundel`, `seniority`,
 `truefit` — depend on nothing; the others depend only on packages in this table, and every
 dependency points one way, down the [layers](https://burgee.interlace.tools/docs/concepts/family).
@@ -188,6 +188,7 @@ keeps both true.
 | **truepass** (this package) | Lint rules and a pre-push check that keep a test suite honest | @vitest/eslint-plugin |
 | [contractdiff](https://burgee.interlace.tools/docs/packages/contractdiff) | API contracts: breaking-change diff, lint, and code from the spec | openapi-typescript |
 | [truefit](https://burgee.interlace.tools/docs/packages/truefit) | Validation whose schemas are data, with no eval | zod |
+| [provedone](https://burgee.interlace.tools/docs/packages/provedone) | A receipt for how every change was verified, and a gate that reads it | @commitlint/cli |
 
 Every migration guide, and the family-wide [compatibility](https://burgee.interlace.tools/docs/compatibility)
 and [benchmarks](https://burgee.interlace.tools/docs/benchmarks) pages, are on

@@ -113,6 +113,9 @@ const FAMILY_ORDER = [
   // A burgee program (`contractdiff diff`, `lint`, `gen`) that loads its config through seniority,
   // spawns git through bellpull, and compiles validators against truefit. Nothing depends on it.
   'contractdiff',
+  // A burgee program (`provedone stamp`, `gate`, `done`, `intent`) that spawns git through
+  // bellpull. Nothing in the family depends on it.
+  'provedone',
 ];
 
 /**

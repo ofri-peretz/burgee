@@ -13,8 +13,8 @@ otherwise.
 
 ## Supported versions
 
-Every published package but `truepass`, `contractdiff` and `truefit`, which are pre-1.0, is at
-1.0 or later, and its public API is under semver; those three may change their API in a minor
+Every published package but `truepass`, `contractdiff`, `truefit` and `provedone`, which are pre-1.0, is at
+1.0 or later, and its public API is under semver; those four may change their API in a minor
 release until each reaches 1.0. A fix, a
 security fix included, ships as a patch or minor release of the current major, so a caret
 range on that major installs it without a breaking change. Only the latest release of each

@@ -36,6 +36,7 @@ pack a plugin host carries:
 | `locale-pack-from-schema` | `localised-human-surfaces` R7 — that `burgee/locale-pack-schema.json` plus one example pack is enough for an agent to write a pack for a new language in one turn; French, so the plural message needs the `many` form the German example does not have |
 | `contractdiff-baseline-allocate` | contractdiff A5–A7, arm without the tool: an agent calls one operation of a synthetic OpenAPI file exactly as written (method, path, nested body, metres → decimetres) |
 | `contractdiff-baseline-manifest` | the same arm, reading a response: an optional nested `hazmat` object and its packing-group enum |
+| `provedone-intent-check` | provedone's `intent check`: that its findings, each with a `fix:`, are enough for an agent to repair intents it has never seen in one turn, without deleting one or lowering its status |
 
 A case earns its place by discriminating. Every one's shell checks were run both ways
 before it was committed. The first, flagstaff's: green against a correct plugin, and red against the same plugin

@@ -15,7 +15,8 @@ import { checkIntent, criteria, evidenceRows, expectedExit, fillTemplate, indexD
 import { checkedLine, digest, prBlock, trailers, verdict, type Check, type Receipt, type Verdict } from './receipt.js';
 import { appendLines, branchOf, gitUser, readLines, runnable, runShell, storeDir } from './store.js';
 
-export const VERSION = '0.0.0';
+/** The installed package's version, read from the manifest beside dist/ so `--version` cannot drift. */
+export const VERSION = (JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }).version;
 
 const TEXT = Symbol.for('burgee.text');
 type Data = Record<string | symbol, unknown>;

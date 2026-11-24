@@ -1,12 +1,28 @@
 {
   "name": "provedone",
   "version": "0.2.0",
-  "private": true,
-  "description": "Every change says how it was verified, and a gate reads it: a receipt per commit, a done check per intent, and the PR's Checked: line generated from evidence. Unpublished until its success criteria are read.",
+  "description": "Verified commits for JS and TS repos: each commit carries a receipt of the command that proved it, each intent a done check, and a gate reads both. No dependency outside the burgee family. A @commitlint/cli migration path.",
   "license": "MIT",
+  "author": "Ofri Peretz <ofriperetzdev@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ofri-peretz/burgee.git",
+    "directory": "packages/provedone"
+  },
+  "bugs": {
+    "url": "https://github.com/ofri-peretz/burgee/issues"
+  },
+  "homepage": "https://burgee.interlace.tools",
   "type": "module",
+  "private": false,
+  "sideEffects": [
+    "./dist/bin.js"
+  ],
   "engines": {
-    "node": "^20.19.0 || >=22.13.0"
+    "node": ">=22.13.0"
+  },
+  "bin": {
+    "provedone": "dist/bin.js"
   },
   "types": "./dist/index.d.ts",
   "exports": {
@@ -17,8 +33,23 @@
     },
     "./package.json": "./package.json"
   },
-  "bin": {
-    "provedone": "dist/bin.js"
+  "typesVersions": {
+    "*": {}
+  },
+  "keywords": [
+    "verification",
+    "definition-of-done",
+    "commit-trailer",
+    "pull-request",
+    "pre-push",
+    "lefthook",
+    "git-hooks",
+    "ai-agents",
+    "cli"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   },
   "files": [
     "dist",
@@ -26,15 +57,15 @@
     "!dist/**/*.test.*"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && node ../../scripts/strip-comments.mjs dist && node ../../scripts/declaration-reach.mts --prune",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "coverage": "vitest run --coverage.enabled",
     "lint": "eslint src"
   },
   "dependencies": {
-    "bellpull": "^2.0.2",
-    "burgee": "^2.0.0"
+    "bellpull": "^2.0.3",
+    "burgee": "^2.2.1"
   },
   "devDependencies": {
     "vitest": "^5.0.1"
