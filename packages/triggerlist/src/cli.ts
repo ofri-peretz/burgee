@@ -8,7 +8,7 @@ import { join, resolve } from 'node:path';
 
 import { defineCommand, defineProgram, ExitCode } from 'burgee';
 
-import { briefText, type Comment, markerFor, previousFindings } from './brief.js';
+import { briefText, type Comment, markerFor, previousRound, type Reply, repliesSince } from './brief.js';
 import { CHECKLIST, type Checklist, parseChecklist } from './checklist.js';
 import { compile, DEFAULT_BUDGET } from './compile.js';
 import { parseDiff } from './diff.js';
@@ -98,6 +98,11 @@ export interface BriefOptions extends RangeOptions {
   readonly head: string;
   /** A JSON file of the PR's comments, as `gh api .../issues/<n>/comments` prints them. */
   readonly comments?: string | undefined;
+  /**
+   * A JSON file of the author's PR comments and review-thread replies, in the same shape; those
+   * posted after the previous round reach the reviewer.
+   */
+  readonly replies?: string | undefined;
 }
 
 export const runBrief = async (options: BriefOptions): Promise<Data> => {
@@ -105,7 +110,9 @@ export const runBrief = async (options: BriefOptions): Promise<Data> => {
   const { source, checklist } = await loadChecklist(options.repo, options.git, options.checklist, options.worktree ? undefined : options.base);
   const fired = match(checklist, parseDiff(await options.git.diff(range(options.base))));
   const comments = options.comments === undefined ? [] : (JSON.parse(readFileSync(resolve(options.repo, options.comments), 'utf8')) as Comment[]);
-  const previous = previousFindings(comments);
+  const round = previousRound(comments);
+  const previous = round?.body ?? undefined;
+  const replies = previous === undefined || options.replies === undefined ? [] : repliesSince(JSON.parse(readFileSync(resolve(options.repo, options.replies), 'utf8')) as Reply[], round?.created_at);
   const rules = `${options.base}:${options.review}`;
   const data: Data = {
     rules,
@@ -113,10 +120,11 @@ export const runBrief = async (options: BriefOptions): Promise<Data> => {
     checklist: source,
     fired: fired.map(({ item, at }) => ({ id: item.id, at: at.map(where) })),
     previous: previous !== undefined,
+    replies: replies.length,
     head: options.head,
     marker: markerFor(options.head),
   };
-  data[TEXT] = () => briefText({ rules, rulesText, range: range(options.base), fired, previous, head: options.head });
+  data[TEXT] = () => briefText({ rules, rulesText, range: range(options.base), fired, previous, replies, head: options.head });
   return data;
 };
 
@@ -222,7 +230,7 @@ export const program = defineProgram({
     }),
     defineCommand({
       name: 'brief',
-      description: "The reviewer's brief for one round: the base branch's REVIEW.md, the items that fire, the previous round's findings and the commit under review",
+      description: "The reviewer's brief for one round: the base branch's REVIEW.md, the items that fire, the previous round's findings, the author's replies since and the commit under review",
       effects: 'read_only',
       examples: [{ command: 'triggerlist brief origin/main --head "$HEAD_SHA" --comments comments.json', description: 'the prompt a CI review step hands its reviewer' }],
       arguments: [{ name: 'base', description: 'the base ref; REVIEW.md and the checklist are read from it' }],
@@ -233,8 +241,10 @@ export const program = defineProgram({
         review: { type: 'string', default: 'REVIEW.md', description: 'the rules file, read from the base ref', placeholder: 'path' },
         head: { type: 'string', required: true, description: 'the commit under review', placeholder: 'sha' },
         comments: { type: 'string', description: "a JSON file of the pull request's comments, for the previous round's findings", placeholder: 'path' },
+        replies: { type: 'string', description: "a JSON file of the author's comments and review-thread replies; those after the previous round reach the reviewer", placeholder: 'path' },
       },
-      run: ({ args, options }) => runBrief({ ...rangeOptions(args, options), review: options.review as string, head: options.head as string, comments: options.comments as string | undefined }),
+      run: ({ args, options }) =>
+        runBrief({ ...rangeOptions(args, options), review: options.review as string, head: options.head as string, comments: options.comments as string | undefined, replies: options.replies as string | undefined }),
     }),
     defineCommand({
       name: 'protect',

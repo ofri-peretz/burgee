@@ -258,6 +258,26 @@ describe('the program', () => {
     expect((await runBurgee(program, { argv: ['brief', 'main', '--repo', repo, '--json'] })).code).toBe(ExitCode.USAGE);
   });
 
+  it("brief quotes the author's replies posted after the previous round, and none before it", async () => {
+    writeFileSync(join(repo, 'round.json'), JSON.stringify([{ body: 'changeset-for-package-change\n<!-- triggerlist-review head=1111 -->', created_at: '2026-11-20T10:00:00Z' }]));
+    writeFileSync(
+      join(repo, 'replies.json'),
+      JSON.stringify([
+        { body: 'stale reply', created_at: '2026-11-20T09:00:00Z', user: { login: 'author', type: 'User' } },
+        { body: 'a test file is not shipped', created_at: '2026-11-20T11:00:00Z', user: { login: 'author', type: 'User' }, path: 'src/a.test.ts', line: 2 },
+      ]),
+    );
+    const argv = ['brief', 'main', '--repo', repo, '--head', '3333', '--comments', 'round.json', '--replies', 'replies.json'];
+    const json = await runBurgee(program, { argv: [...argv, '--json'] });
+    expect(json.json).toMatchObject({ data: { previous: true, replies: 1 } });
+    const text = await runBurgee(program, { argv });
+    expect(text.stdout).toContain("## The author's replies since that round");
+    expect(text.stdout).toContain('- @author, 2026-11-20T11:00:00Z on src/a.test.ts:2:\n\n> a test file is not shipped');
+    expect(text.stdout).not.toContain('stale reply');
+    const first = await runBurgee(program, { argv: ['brief', 'main', '--repo', repo, '--head', '3333', '--replies', 'replies.json', '--json'] });
+    expect(first.json).toMatchObject({ data: { previous: false, replies: 0 } });
+  });
+
   it('protect --enforce fails on a gate changed with code', async () => {
     expect((await runBurgee(program, { argv: ['protect', 'main', '--repo', repo, '--json'] })).code).toBe(ExitCode.OK);
     const r = await runBurgee(program, { argv: ['protect', 'main', '--repo', repo, '--enforce', '--json'] });
