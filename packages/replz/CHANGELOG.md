@@ -1,5 +1,12 @@
 # replz
 
+## 0.3.1
+
+### Patch Changes
+
+- Updated dependencies [[`78d014b`](https://github.com/ofri-peretz/burgee/commit/78d014badecbaa3cbf1bfa6aa94be01745359659)]:
+  - truefit@1.0.0
+
 ## 0.3.0
 
 ### Minor Changes

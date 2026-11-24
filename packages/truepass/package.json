@@ -1,6 +1,6 @@
 {
   "name": "truepass",
-  "version": "0.1.3",
+  "version": "1.0.0",
   "description": "Test integrity for JS and TS: lint rules for focused, skipped, sleeping and retried tests, and a pre-push check for weakened assertions and unexplained snapshots. No dependency outside the burgee family. A @vitest/eslint-plugin migration path.",
   "license": "MIT",
   "author": "Ofri Peretz <ofriperetzdev@gmail.com>",
