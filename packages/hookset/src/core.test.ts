@@ -28,6 +28,12 @@ const REMOTE = 'https://github.com/ofri-peretz/burgee';
 const PRESETS = ['packages/hookset/presets/lefthook/commit-msg.yml', 'packages/hookset/presets/lefthook/pre-commit.yml', 'packages/hookset/presets/lefthook/pre-push.yml'];
 const scratch = scratchDirs();
 
+/** The head line `checkText` prints for a failing result with these problems. */
+const head = (problems: Problem[]): string => String(checkText({ ok: false, pinned: undefined, expected: REF, problems }).split('\n')[0]);
+
+/** The hookset remote as a lefthook.yml list item, pinned to `pin`. */
+const ours = (pin: string): string => `  - git_url: ${REMOTE}.git\n    ref: ${pin}\n    configs:\n      - x.yml\n`;
+
 /** A repo with the given files, written relative to its root. */
 function repo(files: Record<string, string>): string {
   const dir = scratch('hookset-');
@@ -250,7 +256,7 @@ describe('checkRepo', () => {
     });
     expect(checkText(result)).toBe(
       [
-        'hookset: 2 problem(s)',
+        'hookset: 2 errors',
         '✗ commit-msg → lint repeats the commitlint station the preset already runs',
         '  fix: delete commit-msg.commands.lint from lefthook.yml',
         `✗ lefthook.yml does not pull the presets from ${REMOTE}`,
@@ -361,6 +367,21 @@ describe('initRepo', () => {
     expect(initRepo(dir, PKG)).toEqual({ changed: true, written: ['lefthook.yml'] });
     expect(read(dir, 'lefthook.yml')).toBe(before.replace('ref: hookset@0.0.1', `ref: ${REF}`));
     expect(initRepo(dir, PKG)).toEqual({ changed: false, written: [] });
+  });
+
+  it('moves only the hookset remote\'s pin when another remote is listed first', () => {
+    const other = 'remotes:\n  - git_url: https://github.com/a/b\n    ref: v1.2.3 # theirs\n    configs:\n      - lefthook.yml\n';
+    const dir = repo({ 'lefthook.yml': `${other}${ours('hookset@0.0.1')}pre-push:\n  commands: {}\n` });
+    expect(initRepo(dir, PKG)).toEqual({ changed: true, written: ['lefthook.yml'] });
+    expect(read(dir, 'lefthook.yml')).toBe(`${other}${ours(REF)}pre-push:\n  commands: {}\n`);
+    expect(parseRemotes(read(dir, 'lefthook.yml')).map((r) => r.ref)).toEqual(['v1.2.3', REF]);
+  });
+
+  it('leaves another remote\'s pin alone when the hookset remote has none of its own', () => {
+    const yaml = `remotes:\n  - git_url: https://github.com/a/b\n    ref: v1\n  - git_url: ${REMOTE}\n`;
+    const dir = repo({ 'lefthook.yml': yaml });
+    expect(initRepo(dir, PKG)).toEqual({ changed: false, written: [] });
+    expect(read(dir, 'lefthook.yml')).toBe(yaml);
   });
 
   it('keeps CRLF line endings when it moves the pin', () => {
@@ -526,10 +547,13 @@ describe('the checks, at their edges', () => {
     ]);
   });
 
-  it('counts only errors in the head line of a failing result', () => {
+  it('counts the errors and the warnings it lists in the head line of a failing result', () => {
     const warning: Problem = { id: 'w', severity: 'warning', message: 'm', fix: 'f' };
     const error: Problem = { id: 'e', severity: 'error', message: 'n', fix: 'g' };
-    expect(checkText({ ok: false, pinned: undefined, expected: REF, problems: [warning, error, warning] })).toBe('hookset: 1 problem(s)\n! m\n  fix: f\n✗ n\n  fix: g\n! m\n  fix: f');
+    expect(checkText({ ok: false, pinned: undefined, expected: REF, problems: [warning, error, warning] })).toBe('hookset: 1 error, 2 warnings\n! m\n  fix: f\n✗ n\n  fix: g\n! m\n  fix: f');
+    expect(head([error, warning])).toBe('hookset: 1 error, 1 warning');
+    expect(head([error, error, warning, warning, warning])).toBe('hookset: 2 errors, 3 warnings');
+    expect(head([error])).toBe('hookset: 1 error');
   });
 });
 

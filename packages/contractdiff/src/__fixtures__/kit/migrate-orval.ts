@@ -78,10 +78,10 @@ export default defineConfig({
 });
 `;
 
-const types = (out = 'src/petstore.ts') => ({ types: { generator: 'types', out } });
+const types = (out = 'src') => ({ types: { generator: 'types', out } });
 const at = (client: string, ...generators: string[]): Config => ({
   input: './petstore.yaml',
-  targets: { ...types(), ...Object.fromEntries(generators.map((generator) => [generator, { generator, out: 'src/petstore.ts' }])) },
+  targets: { ...types(), ...Object.fromEntries(generators.map((generator) => [generator, { generator, out: 'src' }])) },
 });
 const dropped = 'client-dropped @ orval.config#/petstore/output/client';
 const translated = 'client-translated @ orval.config#/petstore/output/client';
@@ -90,13 +90,13 @@ export const cases: readonly Case[] = [
   {
     name: 'quick start: the CLI',
     script: 'orval --input ./petstore.yaml --output ./src/petstore.ts',
-    config: { input: './petstore.yaml', targets: { types: { generator: 'types', out: './src/petstore.ts' }, fetch: { generator: 'fetch', out: './src/petstore.ts' } } },
+    config: { input: './petstore.yaml', targets: { types: { generator: 'types', out: './src' }, fetch: { generator: 'fetch', out: './src' } } },
     findings: ['client-translated @ orval.config#/cli/output/client', imports('./src/petstore.ts', 'cli')],
   },
   {
     name: 'quick start: a config file',
     configText: "import { defineConfig } from 'orval';\n\nexport default defineConfig({\n  petstore: {\n    input: './petstore.yaml',\n    output: './src/petstore.ts',\n  },\n});\n",
-    config: { input: './petstore.yaml', targets: { types: { generator: 'types', out: './src/petstore.ts' }, fetch: { generator: 'fetch', out: './src/petstore.ts' } } },
+    config: { input: './petstore.yaml', targets: { types: { generator: 'types', out: './src' }, fetch: { generator: 'fetch', out: './src' } } },
     findings: [translated, imports('./src/petstore.ts')],
   },
   {
@@ -107,8 +107,8 @@ export const cases: readonly Case[] = [
       input: './petstore.yaml',
       targets: {
         types: { generator: 'types', out: './src/api/model' },
-        fetch: { generator: 'fetch', out: './src/api/petstore.ts' },
-        'tanstack-query': { generator: 'tanstack-query', out: './src/api/petstore.ts' },
+        fetch: { generator: 'fetch', out: './src/api' },
+        'tanstack-query': { generator: 'tanstack-query', out: './src/api' },
       },
     },
     findings: [imports('./src/api/petstore.ts')],
@@ -120,9 +120,9 @@ export const cases: readonly Case[] = [
       input: './petstore.yaml',
       targets: {
         types: { generator: 'types', out: 'src/model' },
-        fetch: { generator: 'fetch', out: 'src/petstore.ts' },
-        'tanstack-query': { generator: 'tanstack-query', out: 'src/petstore.ts' },
-        msw: { generator: 'msw', out: 'src/petstore.ts' },
+        fetch: { generator: 'fetch', out: 'src' },
+        'tanstack-query': { generator: 'tanstack-query', out: 'src' },
+        msw: { generator: 'msw', out: 'src' },
       },
     },
     findings: [

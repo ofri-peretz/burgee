@@ -55,8 +55,11 @@ What the build found that this design did not say, for the reviewer at Deploy:
   id is `../conformance-probe`, and on the contract with no operations, and checks those runs.
 - **`plugin new` is `plugin <action> <name>`** with `action` limited to `new`, not a subcommand: a
   group declares no `effects`, and `cli.test.ts` holds `plugin` to `idempotent` in `--schema`.
-- **`out` in `apicontract.config.json`** is written as the incumbent's own output path, a file for
-  one-file output and a folder otherwise; the gen-command spec does not say which. The types target's
+- **`out` in `contractdiff.config.json`** is the folder `gen` writes into (`run-config.ts`), so a
+  migration writes the folder of the incumbent's output file (`placeOf` in `migrate-shared.ts`):
+  `-o src/api/types.ts` is `out: "src/api"`. contractdiff 1.0.0 wrote the file path itself, and
+  `gen` then wrote `src/api/types.ts/types.ts`. A file named other than the target's own is an
+  `output-renamed` finding with the import to change. The types target's
   compat option is written `options.compat: 'openapi-typescript'`, which the types lane has not fixed.
 - **openapi-fetch is not an import rewrite.** Its calls go by method and path (`client.GET("/x")`);
   the `fetch` target has one method per operation (clients R1). The migration rewrites the import and

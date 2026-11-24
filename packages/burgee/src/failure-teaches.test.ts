@@ -68,6 +68,14 @@ const program = defineProgram({
     defineCommand({ name: 'odd', effects: 'read_only', run: () => Promise.reject(Object.assign(new UsageError('a stray usage field'), { usage: { tokens: 3 } })) }),
     defineCommand({ name: 'hush', effects: 'read_only', hidden: true, run: () => 'hidden' }),
     defineCommand({
+      name: 'built',
+      effects: 'read_only',
+      options: { dir: { type: 'string', default: '.', description: 'where to look (default: the current directory)' } },
+      run: () => Promise.reject(Object.assign(new Error('no build yet'), { hint: 'it builds first', fix: 'tool build' })),
+    }),
+    defineCommand({ name: 'odd-throw', effects: 'read_only', options: { x: { type: 'boolean' } }, run: () => Promise.reject('a string') }),
+    defineCommand({ name: 'null-throw', effects: 'read_only', run: () => Promise.reject(null) }),
+    defineCommand({
       name: 'config',
       description: 'read configuration',
       commands: [
@@ -130,6 +138,21 @@ describe('a failure with nothing to run next says what the command takes', () =>
     expect((await run('fixed')).stderr).toBe('error: confirm it\nhint: pass --yes\nfix: tool fixed --yes\n');
     // A near-miss flag is a fix too.
     expect((await run('fail', '--cod', '0')).stderr).toBe('error: unknown option --cod\nhint: did you mean --code?\nfix: tool fail --code 0\n');
+  });
+
+  it('a plain runtime error that carries a fix prints it, and no usage', async () => {
+    expect(await run('built')).toEqual({ code: ExitCode.RUNTIME, stdout: '', stderr: 'error: no build yet\nhint: it builds first\nfix: tool build\n' });
+    expect(JSON.parse((await run('built', '--json')).stdout)).toEqual({ ok: false, error: { kind: 'runtime', code: 1, message: 'no build yet', hint: 'it builds first', fix: 'tool build' } });
+  });
+
+  it('teaches as before when a runtime failure carries nothing, whatever was thrown', async () => {
+    expect(await run('odd-throw')).toEqual({ code: ExitCode.RUNTIME, stdout: '', stderr: 'error: a string\nusage: tool odd-throw [options]\noptions:\n  --x\n' });
+    expect(await run('null-throw')).toEqual({ code: ExitCode.RUNTIME, stdout: '', stderr: 'error: null\nusage: tool null-throw\n' });
+  });
+
+  it('names an option\'s default once when its description already does', async () => {
+    const fails = defineProgram({ name: 'tool', commands: [defineCommand({ name: 'x', effects: 'read_only', options: { dir: { type: 'string', default: '.', description: 'where (default: here)' }, n: { type: 'number', default: 3, description: 'how many' } }, run: () => Promise.reject(new Error('down')) })] });
+    expect((await runCommand(fails, ['x'])).stderr).toBe('error: down\nusage: tool x [options]\noptions:\n  --dir <value>  where (default: here)\n  --n <n>        how many (default: 3)\n');
   });
 
   it('leaves an AUTH failure as it was: the remedy is a credential, not an option', async () => {

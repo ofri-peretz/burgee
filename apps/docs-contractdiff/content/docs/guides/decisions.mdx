@@ -79,7 +79,7 @@ getPet  #/paths/~1pets~1{id}/get
 
 decisions: 1 (--decisions warn)
   warn          ac-decision-unversioned  getPet  param:query:fields  "1.0.0" -> "1.1.0"
-                fix: `x-change: ADR-12: callers say which fields they want` at getPet param:query:fields decides a breaking change, and the major version did not move. fix: move the path to a new major segment (/v3/ to /v4/), raise the major of `info.version`, or pass `--changeset` to write a major bump
+                fix: `x-change: ADR-12: callers say which fields they want` at getPet param:query:fields decides a breaking change, and the major version did not move: move the path to a new major segment (/v3/ to /v4/), raise the major of `info.version`, or pass `--changeset` to write a major bump
 ```
 
 The decision is found, and the next question is the version: a decided breaking change has to move
@@ -171,7 +171,7 @@ no changes between sunset.yaml and sunset.yaml
 
 decisions: 1 (--decisions warn)
   warn          ac-decision-overdue  getPet  response:200:application/json /properties/tag  "2026-12-31" -> "2027-01-15"
-                fix: getPet response:200:application/json /properties/tag was to go after 2026-12-31 and is still here. fix: remove it as decided, or move `x-sunset` to a date that still holds
+                fix: getPet response:200:application/json /properties/tag was to go after 2026-12-31 and is still here: remove it as decided, or move `x-sunset` to a date that still holds
 ```
 
 ## The level: `--decisions`

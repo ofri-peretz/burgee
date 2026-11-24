@@ -104,16 +104,17 @@ reviewer at Deploy should accept or send back.
   for old callers**; oasdiff calls it informational. That and `response-success-status-removed`
   (breaking in oasdiff, non-breaking here: the server sends less) are the first D1 disagreements
   to file.
-- **R4 Departure: `git:<ref>:<path>` is refused by the shipped command** with a `fix:` naming the
-  `git show` to run. Spawning a subprocess is bellpull's job (`scripts/inline-implementation-lock.test.ts`)
-  and apicontract does not depend on bellpull; adding it is a `package.json` + lockfile edit,
-  the integrator's. `diff()` takes a `GitReader`, tested with a fake; wiring bellpull's `run` in
-  is one line once the dependency exists. Every side reads through `inputs.ts`'s built-in adapters, so
-  OpenAPI, Swagger 2.0, AsyncAPI, MCP snapshots and JSON Schema are all diffed; the command's
-  tests read an MCP `tools/list` snapshot and a JSON Schema pair end to end.
+- **R4: `git:<ref>:<path>` is read through bellpull's `run`** (`gitReader` in `command-diff.ts`):
+  the command runs `git show <ref>:./<path>` in the folder it was run in for every `git:` side, and
+  for the base ref's `contractdiff.config.json`, before the comparison; `diff()` itself stays
+  synchronous and takes a `GitReader`, tested with a fake and with a planted repository. A side git
+  cannot show is refused with git's words and a `fix:`. (contractdiff 1.0.0 refused every `git:`
+  side while its README and `--help` advertised them.) Every side reads through `inputs.ts`'s
+  built-in adapters, so OpenAPI, Swagger 2.0, AsyncAPI, MCP snapshots and JSON Schema are all
+  diffed; the command's tests read an MCP `tools/list` snapshot and a JSON Schema pair end to end.
 - **R5** text grouped by operation, `--json` (burgee envelope: verdict, summary, findings sorted
   by verdict then location), `--sarif` (SARIF 2.1.0 as the text output, and under `data.sarif`),
-  `--changeset <package>` (`.changeset/apicontract-diff-<sha8>.md`; breaking or unknown → major,
+  `--changeset <package>` (`.changeset/contractdiff-<sha8>.md`; breaking or unknown → major,
   else minor; nothing written when nothing changed). **Departure:** exit 1 on `unknown` as well
   as `breaking`, since the intent's constraint says an unknown change is never compatible.
   `--changeset` writes a file, the same file for the same input, so the command's effect is

@@ -36,12 +36,14 @@ const DOCUMENTS: readonly (readonly [string, unknown])[] = [
   ['sample', plugin.generators?.validator?.sample.document],
   ['door', { $schema: 'https://json-schema.org/draft/2020-12/schema', title: 'Pattern', type: 'string', format: 'regex' }],
   ['mixed', { title: 'T', type: 'string', format: 'regex', $defs: { Plain: { type: 'integer' } } }],
+  ['empty', { openapi: '3.1.0', info: { title: 'T', version: '1' }, paths: { '/a': { delete: { operationId: 'del', responses: { '204': { description: 'gone' } } } } } }],
 ];
 
 /** Code that only type-checks when the validators narrow to their types, and the types say what the documents say. */
 const USE = `import { CreateOrderBody, ListTreesResponse200, operations } from './shop.ts';
 import { ListPetsResponse200 } from './sample.ts';
 import { PatternValue } from './door.ts';
+import { DelResponse204 } from './empty.ts';
 
 declare const value: unknown;
 if (CreateOrderBody(value)) {
@@ -53,6 +55,10 @@ if (CreateOrderBody(value)) {
 if (ListPetsResponse200(value)) for (const pet of value) void pet.id.toUpperCase();
 if (PatternValue(value)) void value.length;
 if (operations.listTrees['response:200:application/json'](value)) void (value satisfies ListTreesResponse200);
+// A response with no content narrows to undefined, and nothing else.
+if (DelResponse204(value)) void (value satisfies undefined);
+// @ts-expect-error -- undefined has no \`length\`
+if (DelResponse204(value)) void value.length;
 // @ts-expect-error -- narrowed to a list of pets, which has no \`id\` of its own
 if (ListPetsResponse200(value)) void value.id;
 `;

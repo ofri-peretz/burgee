@@ -182,7 +182,11 @@ async function classify(cause: unknown, argv: string[], node: CommandNode | unde
     const better = unknownOption(cause, Object.keys(node?.options ?? {}).map(kebab), argv);
     return { code: ExitCode.USAGE, message, hint: 'run --help to see the available options', ...better };
   }
-  return { code: ExitCode.RUNTIME, message };
+  // Anything else is RUNTIME, and keeps the `hint` and `fix` it carries: a handler that knows the
+  // one line to run next throws `Object.assign(new Error(message), { fix })` and the caller gets
+  // that line instead of the usage block, as a UsageError's or a defined error's would. Before,
+  // only a class that claimed a code could carry one, and RUNTIME is the code no class can claim.
+  return { code: ExitCode.RUNTIME, message, ...carried(Object(cause)) };
 }
 
 function textFailure(failure: Failure, say: (english: string) => string): string {

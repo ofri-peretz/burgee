@@ -71,7 +71,7 @@ paths:
 ```
 
 ```text title="npx contractdiff migrate openapi-typescript --dry-run --json"
-{"ok":true,"data":{"changed":false,"read":null,"config":{"input":"openapi.yaml","targets":{"types":{"generator":"types","out":"src/api/types.ts","options":{"compat":"openapi-typescript","alphabetize":true}}}},"written":[],"unchanged":[],"kept":[],"edited":["package.json"],"findings":[],"uninstall":"npm uninstall openapi-typescript"},"meta":{"provenance":{"dryRun":{"source":"flag","location":"--dry-run"}},"changed":false}}
+{"ok":true,"data":{"changed":false,"read":["package.json"],"config":{"input":"openapi.yaml","targets":{"types":{"generator":"types","out":"src/api","options":{"compat":"openapi-typescript","alphabetize":true}}}},"written":[],"unchanged":[],"kept":[],"edited":["package.json"],"findings":[],"uninstall":"npm uninstall openapi-typescript"},"meta":{"provenance":{"dryRun":{"source":"flag","location":"--dry-run"}},"changed":false}}
 ```
 
 The steps, in order:

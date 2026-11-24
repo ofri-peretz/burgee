@@ -97,7 +97,7 @@ getPet  #/paths/~1pets~1{id}/get
 
 decisions: 1 (--decisions warn)
   warn          ac-decision-missing  getPet  param:query:fields  - -> {"type":"string"}
-                fix: breaking change (`new-required-request-parameter`) at getPet param:query:fields with no decision. fix: add `x-change: <the decision>` to getPet param:query:fields, or an ancestor or its operation, naming who decided it; or revert the change
+                fix: breaking change (`new-required-request-parameter`) at getPet param:query:fields with no decision: add `x-change: <the decision>` to getPet param:query:fields, or an ancestor or its operation, naming who decided it; or revert the change
 ```
 
 The first line is the verdict and how it was reached: by default the question is whether a caller
@@ -137,12 +137,9 @@ getPet  #/paths/~1pets~1{id}/get
 ```
 
 ```text title="npx contractdiff gen"
-files: [{"path":"src/api/types.ts","owner":"generated","action":"write","target":"types"},{"path":"src/api/validators.ts","owner":"generated","action":"write","target":"validators"},{"path":"contractdiff.map.json","owner":"generated","action":"write"}]
-changed: true
-changes: 3
-unchanged: 0
-skipped: 0
-findings: []
+write src/api/types.ts
+write src/api/validators.ts
+write contractdiff.map.json
 ```
 
 It wrote `src/api/types.ts` (the `paths`, `components` and `operations` interfaces

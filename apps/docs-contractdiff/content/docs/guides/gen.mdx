@@ -35,12 +35,30 @@ The config is data, so it validates against a JSON Schema: `configSchema`, expor
 file.
 
 ```text title="npx contractdiff gen"
-files: [{"path":"docs/api/getPet.md","owner":"generated","action":"write","target":"docs"},{"path":"docs/api/index.md","owner":"generated","action":"write","target":"docs"},{"path":"docs/api/llms.txt","owner":"generated","action":"write","target":"docs"},{"path":"src/api/types.ts","owner":"generated","action":"write","target":"types"},{"path":"src/client/client.ts","owner":"generated","action":"write","target":"client"},{"path":"src/mocks/handlers.ts","owner":"generated","action":"write","target":"mocks"},{"path":"src/mocks/scenarios.ts","owner":"generated","action":"write","target":"mocks"},{"path":"src/server/contract-runtime.ts","owner":"generated","action":"write","target":"server"},{"path":"src/server/getPet.contract.test.ts","owner":"generated","action":"write","target":"server"},{"path":"src/server/handlers.ts","owner":"user","action":"write","target":"server"},{"path":"src/server/routes.ts","owner":"generated","action":"write","target":"server"},{"path":"contractdiff.map.json","owner":"generated","action":"write"}]
-changed: true
-changes: 12
-unchanged: 0
-skipped: 0
-findings: [{"code":"value-synthesised","pointer":"#/paths/~1pets~1{id}/get/responses/200/content/application~1json","message":"the 200 response of \"getPet\" has no example, so its mock body is synthesised from the schema","fix":"add an `example` to the media type to mock it with a value you chose","target":"mocks"},{"code":"server-example-synthesised","pointer":"#/paths/~1pets~1{id}/get","message":"`getPet` path parameter \"id\" has no example: the contract test sends one made from its schema","fix":"add an `example` to the spec, so the contract test sends a value you chose","target":"server"},{"code":"server-example-synthesised","pointer":"#/paths/~1pets~1{id}/get","message":"`getPet` query parameter \"fields\" has no example: the contract test sends one made from its schema","fix":"add an `example` to the spec, so the contract test sends a value you chose","target":"server"},{"code":"server-example-synthesised","pointer":"#/paths/~1pets~1{id}/get","message":"`getPet` response 200 has no example: the contract test sends one made from its schema","fix":"add an `example` to the spec, so the contract test sends a value you chose","target":"server"},{"code":"server-problem-undeclared","pointer":"#/paths/~1pets~1{id}/get","message":"`getPet` answers a request the contract refuses with 400 Problem Details, which its responses do not declare","fix":"declare a `400` response with `application/problem+json` content","target":"server"}]
+write docs/api/getPet.md
+write docs/api/index.md
+write docs/api/llms.txt
+write src/api/types.ts
+write src/client/client.ts
+write src/mocks/handlers.ts
+write src/mocks/scenarios.ts
+write src/server/contract-runtime.ts
+write src/server/getPet.contract.test.ts
+write src/server/handlers.ts
+write src/server/routes.ts
+write contractdiff.map.json
+
+findings: 5
+  mocks  value-synthesised  #/paths/~1pets~1{id}/get/responses/200/content/application~1json: the 200 response of "getPet" has no example, so its mock body is synthesised from the schema
+    fix: add an `example` to the media type to mock it with a value you chose
+  server  server-example-synthesised  #/paths/~1pets~1{id}/get: `getPet` path parameter "id" has no example: the contract test sends one made from its schema
+    fix: add an `example` to the spec, so the contract test sends a value you chose
+  server  server-example-synthesised  #/paths/~1pets~1{id}/get: `getPet` query parameter "fields" has no example: the contract test sends one made from its schema
+    fix: add an `example` to the spec, so the contract test sends a value you chose
+  server  server-example-synthesised  #/paths/~1pets~1{id}/get: `getPet` response 200 has no example: the contract test sends one made from its schema
+    fix: add an `example` to the spec, so the contract test sends a value you chose
+  server  server-problem-undeclared  #/paths/~1pets~1{id}/get: `getPet` answers a request the contract refuses with 400 Problem Details, which its responses do not declare
+    fix: declare a `400` response with `application/problem+json` content
 ```
 
 Every file is listed with its `owner`. A `generated` file belongs to contractdiff and is rewritten
@@ -90,15 +108,9 @@ edited src/api/types.ts
 ```
 
 ```text title="npx contractdiff gen --check" exit="1"
-error: generated files were edited by hand: src/api/types.ts. fix: move the change to a user file, or pass --force
-usage: contractdiff gen [options]
-options:
-  --check          write nothing; exit 1 and list the files that are stale
-  --dry-run        write nothing; print the diff a run would write
-  --force          overwrite a generated file that was edited by hand
-  --config <path>  the config file (default: contractdiff.config.json, .mjs or .ts in this folder)
-  --target <name>  run only this target (repeatable)
-{"error":{"kind":"runtime","code":1,"message":"generated files were edited by hand: src/api/types.ts. fix: move the change to a user file, or pass --force"}}
+error: generated files were edited by hand: src/api/types.ts
+fix: move the change to a user file, or pass --force
+{"error":{"kind":"runtime","code":1,"message":"generated files were edited by hand: src/api/types.ts"}}
 ```
 
 The map is also a usage file: `diff --usage contractdiff.map.json` treats the generated files as the

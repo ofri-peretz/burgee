@@ -3,17 +3,25 @@ import { describe, expect, it } from 'vitest';
 import { basic, packageJson, pathBased } from './__fixtures__/kit/migrate-openapi-fetch.js';
 import { dropTypeArguments, migrate } from './migrate-openapi-fetch.js';
 
-const types = { generator: 'types', out: './src/lib/api/v1.d.ts', options: { compat: 'openapi-typescript' } };
+const types = { generator: 'types', out: './src/lib/api', options: { compat: 'openapi-typescript' } };
+/** openapi-typescript wrote v1.d.ts, and the types target writes types.ts beside the client. */
+const renamed = {
+  code: 'output-renamed',
+  pointer: 'package.json#/scripts/types',
+  message: 'openapi-typescript wrote ./src/lib/api/v1.d.ts, and the types target writes ./src/lib/api/types.ts: `out` names a folder',
+  fix: 'after `contractdiff gen`, point imports of ./src/lib/api/v1.d.ts at ./src/lib/api/types.ts, and delete ./src/lib/api/v1.d.ts',
+};
 
 describe('the documented examples', () => {
   it('basic usage: the types target, the fetch target beside it, and the import pointed at the generated client', () => {
     const result = migrate(undefined, { 'package.json': packageJson, 'src/api.ts': basic, 'README.md': 'openapi-fetch' });
-    expect(result.config).toEqual({ input: './path/to/api/v1.yaml', targets: { types, fetch: { generator: 'fetch', out: 'src/lib/api/client.ts' } } });
+    expect(result.config).toEqual({ input: './path/to/api/v1.yaml', targets: { types, fetch: { generator: 'fetch', out: './src/lib/api' } } });
     expect(result.edits.map((edit) => edit.path)).toEqual(['package.json', 'src/api.ts']);
     expect(result.edits[1]?.after).toBe(
       basic.replace('import createClient from "openapi-fetch";', 'import { createClient } from "./lib/api/client";').replace('createClient<paths>({', 'createClient({'),
     );
     expect(result.findings).toEqual([
+      renamed,
       {
         code: 'call-by-path',
         pointer: 'src/api.ts#L9',
@@ -33,9 +41,9 @@ describe('the documented examples', () => {
   it('the path-based client: left as it is, with a finding for its import and its call', () => {
     const result = migrate(undefined, { 'package.json': packageJson, 'src/paths.ts': pathBased });
     expect(result.edits.map((edit) => edit.path)).toEqual(['package.json']);
-    expect(result.findings.map((one) => `${one.code} @ ${one.pointer}`)).toEqual(['import-not-rewritten @ src/paths.ts#L1', 'call-by-path @ src/paths.ts#L8']);
-    expect(result.findings[0]?.message).toBe('this import of openapi-fetch is not a default `createClient` import');
-    expect(result.findings[0]?.fix).toBe('import `createClient` from the generated client instead; it has one method per operation');
+    expect(result.findings.map((one) => `${one.code} @ ${one.pointer}`)).toEqual(['output-renamed @ package.json#/scripts/types', 'import-not-rewritten @ src/paths.ts#L1', 'call-by-path @ src/paths.ts#L8']);
+    expect(result.findings[1]?.message).toBe('this import of openapi-fetch is not a default `createClient` import');
+    expect(result.findings[1]?.fix).toBe('import `createClient` from the generated client instead; it has one method per operation');
   });
 });
 
@@ -54,18 +62,18 @@ describe('imports', () => {
 
   it('reports a dynamic import and a require', () => {
     const text = "const a = await import('openapi-fetch');\nconst b = require(\"openapi-fetch\");\n";
-    expect(migrate(undefined, files(text, 'src/a.mjs')).findings.map((one) => one.pointer)).toEqual(['src/a.mjs#L1', 'src/a.mjs#L2']);
+    expect(migrate(undefined, files(text, 'src/a.mjs')).findings.map((one) => one.pointer)).toEqual(['package.json#/scripts/types', 'src/a.mjs#L1', 'src/a.mjs#L2']);
   });
 
   it('reads only source files that mention openapi-fetch', () => {
     const result = migrate(undefined, { 'package.json': packageJson, 'a.md': "openapi-fetch client.GET(", 'b.ts': 'client.GET(', 'c.tsx': "import x from 'openapi-fetch'\nx.GET(", 'd.ts.md': "import y from 'openapi-fetch'" });
     expect(result.edits.map((edit) => edit.path)).toEqual(['package.json', 'c.tsx']);
-    expect(result.findings.map((one) => one.pointer)).toEqual(['c.tsx#L2']);
+    expect(result.findings.map((one) => one.pointer)).toEqual(['package.json#/scripts/types', 'c.tsx#L2']);
   });
 
   it('puts the client beside types written at the root', () => {
     const result = migrate(undefined, { 'package.json': packageJson.replace('./src/lib/api/v1.d.ts', 'v1.d.ts'), 'a.ts': "import c from 'openapi-fetch';" });
-    expect(result.config?.targets.fetch).toEqual({ generator: 'fetch', out: 'client.ts' });
+    expect(result.config?.targets.fetch).toEqual({ generator: 'fetch', out: '.' });
     expect(result.edits[1]?.after).toBe("import { createClient as c } from './client';");
   });
 });
@@ -80,7 +88,7 @@ describe('the edges a mutant would cross', () => {
     const text = "\nimport  createClient  from  'openapi-fetch';\nimport { x } from  './xy.js';\nimport { type Middleware } from  'openapi-fetch';\nconst a = await import( 'openapi-fetch' );\nconst b = require( \"openapi-fetch\" );\n";
     const result = migrate(undefined, files(text));
     expect(result.edits[1]?.after.split('\n')[1]).toBe("import { createClient } from '../lib/api/client.js';");
-    expect(result.findings.map((one) => one.pointer)).toEqual(['src/deep/api.ts#L4', 'src/deep/api.ts#L5', 'src/deep/api.ts#L6']);
+    expect(result.findings.map((one) => one.pointer)).toEqual(['package.json#/scripts/types', 'src/deep/api.ts#L4', 'src/deep/api.ts#L5', 'src/deep/api.ts#L6']);
   });
 
   it('strips only the final `.ts` from the client path', () => {

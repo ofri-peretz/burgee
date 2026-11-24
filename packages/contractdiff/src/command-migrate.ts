@@ -16,6 +16,7 @@ import { migrate as openapiFetch } from './migrate-openapi-fetch.js';
 import { migrate as openapiTypescript } from './migrate-openapi-typescript.js';
 import { migrate as orval } from './migrate-orval.js';
 import { configText, type Files, type Migrate } from './migrate-shared.js';
+import { migrateText, withText } from './run-text.js';
 import { writeFiles } from './scaffold-write.js';
 
 /** Each incumbent: its migration, and its config files in the order it looks for them. */
@@ -78,14 +79,19 @@ export const command = defineCommand({
     const dryRun = options.dryRun === true;
     const report = dryRun ? { written: [], unchanged: [], kept: [] } : await writeFiles(root, written);
     await Promise.all((dryRun ? [] : result.edits).map(async (edit) => writeFile(join(root, edit.path), edit.after)));
-    return {
+    const read = [...(config === undefined ? [] : [config.name]), ...('package.json' in files ? ['package.json'] : [])];
+    const data = {
       changed: !dryRun && (report.written.length > 0 || result.edits.length > 0),
-      read: config?.name ?? null,
+      // What the settings were read from: the incumbent's config file, and the scripts in package.json.
+      read,
       config: result.config ?? null,
       ...report,
       edited: result.edits.map((edit) => edit.path),
       findings: result.findings,
       uninstall: result.uninstall,
     };
+    // `--dry-run` writes nothing, so its text says what a run would write: the config and the edits.
+    const would = { ...data, written: dryRun ? written.map((file) => file.path) : data.written, edited: data.edited, dryRun };
+    return withText(data, () => migrateText(would));
   },
 });

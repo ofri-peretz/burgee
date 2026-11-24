@@ -103,9 +103,9 @@ describe('reading the config', () => {
 
 describe('scripts', () => {
   it('rewrites the orval part of a script, reads its flags, and leaves the rest', () => {
-    const result = migrate(undefined, { 'package.json': pkg({ gen: 'rimraf src && npx orval --input a.yaml --output o.ts --client swr --watch src', other: 'orvalish' }) });
+    const result = migrate(undefined, { 'package.json': pkg({ gen: 'rimraf src && npx orval --input a.yaml --output src/api/o.ts --client swr --watch src', other: 'orvalish' }) });
     expect(result.edits[0]?.after).toBe(pkg({ gen: 'rimraf src && contractdiff gen', other: 'orvalish' }));
-    expect(result.config).toEqual({ input: 'a.yaml', targets: { types: { generator: 'types', out: 'o.ts' }, fetch: { generator: 'fetch', out: 'o.ts' }, swr: { generator: 'swr', out: 'o.ts' } } });
+    expect(result.config).toEqual({ input: 'a.yaml', targets: { types: { generator: 'types', out: 'src/api' }, fetch: { generator: 'fetch', out: 'src/api' }, swr: { generator: 'swr', out: 'src/api' } } });
     expect(result.findings.map((one) => `${one.code} @ ${one.pointer}`)).toEqual(['option-dropped @ orval.config#/cli/watch', 'imports-change @ orval.config#/cli/output']);
   });
 

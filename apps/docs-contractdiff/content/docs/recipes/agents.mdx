@@ -23,13 +23,9 @@ resolved, as one JSON value:
   budget that would, as a `fix:`:
 
 ```text title="npx contractdiff explain getPet --input old.yaml --max-bytes 150" exit="2"
-error: "getPet" does not fit in 150 bytes even with every schema emptied (364 bytes). fix: pass --max-bytes 364 or more
-usage: contractdiff explain [options] [operation]
-options:
-  --input <file>   the spec, JSON or YAML (default: `input` in contractdiff.config.json)
-  --list           print the operation ids, one per line
-  --max-bytes <n>  cut the deepest schemas first until the JSON fits; the cuts are listed under `truncated`
-{"error":{"kind":"usage","code":2,"message":"\"getPet\" does not fit in 150 bytes even with every schema emptied (364 bytes). fix: pass --max-bytes 364 or more"}}
+error: "getPet" does not fit in 150 bytes even with every schema emptied (364 bytes)
+fix: pass --max-bytes 364 or more
+{"error":{"kind":"usage","code":2,"message":"\"getPet\" does not fit in 150 bytes even with every schema emptied (364 bytes)"}}
 ```
 
 Without `--json`, `explain` prints the same thing as Markdown, a heading per payload with its schema

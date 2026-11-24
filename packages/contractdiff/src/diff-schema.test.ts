@@ -285,6 +285,10 @@ describe('$ref', () => {
   it('a reference to `false` or `true` is that schema', () => {
     const documents = { old: { F: false, T: true }, new: { F: false, T: true } };
     expect(compareSchemas({ $ref: '#/T' }, { $ref: '#/F' }, 'request', documents)).toEqual([{ rule: 'accepts-nothing', pointer: '', before: {}, after: false, effect: 'narrows' }]);
+    // Keywords beside a reference to `false` narrow nothing further: the whole is `false`.
+    expect(compareSchemas({ $ref: '#/F', description: 'never' }, { $ref: '#/T', description: 'never' }, 'request', documents)).toEqual([
+      { rule: 'accepts-something', pointer: '', before: false, after: { description: 'never' }, effect: 'widens' },
+    ]);
   });
 
   it('stops at a cycle, after comparing it once', () => {

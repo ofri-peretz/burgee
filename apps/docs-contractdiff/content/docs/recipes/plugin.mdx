@@ -10,10 +10,10 @@ adapters (an input format) or lint rules.
 ## Scaffold one
 
 ```text title="npx contractdiff plugin new my-target"
-changed: true
-written: ["plugin-my-target.ts","plugin-my-target.test.ts","README.md"]
-unchanged: []
-kept: []
+write plugin-my-target.ts
+write plugin-my-target.test.ts
+write README.md
+
 next: node --test plugin-my-target.test.ts
 ```
 
@@ -22,10 +22,10 @@ It wrote three files, all yours: `plugin-my-target.ts` with a one-operation `sam
 nothing and never overwrites a file you changed:
 
 ```text title="npx contractdiff plugin new my-target"
-changed: false
-written: []
-unchanged: ["plugin-my-target.ts","plugin-my-target.test.ts","README.md"]
-kept: []
+unchanged plugin-my-target.ts
+unchanged plugin-my-target.test.ts
+unchanged README.md
+
 next: node --test plugin-my-target.test.ts
 ```
 

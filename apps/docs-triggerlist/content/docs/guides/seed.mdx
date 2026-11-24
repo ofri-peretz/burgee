@@ -52,7 +52,7 @@ A deploy that cannot roll back its schema cannot roll back.
   trigger:
     paths: ["**"]
   question: "the config cache is keyed by the absolute path, not the file name."
-  check: "npx vitest run --config vitest.root.config.ts scripts/config-cache-lock.test.ts"
+  check: "run scripts/config-cache-lock.test.ts"
   sources: ["scripts/config-cache-lock.test.ts"]
 - id: d-20260301-reversible-migrations
   trigger:

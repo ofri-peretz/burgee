@@ -73,22 +73,12 @@ recommended: 75% (9 of 12 checks passed)
 The generated code step, after a `gen` that was committed:
 
 ```text title="npx contractdiff gen"
-files: [{"path":"src/api/types.ts","owner":"generated","action":"write","target":"types"},{"path":"contractdiff.map.json","owner":"generated","action":"write"}]
-changed: true
-changes: 2
-unchanged: 0
-skipped: 0
-findings: []
+write src/api/types.ts
+write contractdiff.map.json
 ```
 
 ```text title="npx contractdiff gen --check"
-files: [{"path":"src/api/types.ts","owner":"generated","action":"unchanged","target":"types"},{"path":"contractdiff.map.json","owner":"generated","action":"unchanged"}]
-changed: false
-changes: 0
-unchanged: 2
-skipped: 0
-findings: []
-stale: []
+up to date: 2 file(s)
 ```
 
 `diff.decisions: "error"` makes a breaking change without an `x-change` fail the run as well; see

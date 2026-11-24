@@ -412,7 +412,7 @@ Graded by the incumbent's own test suite:
 | `lilconfig` | 81 / 81 |
 | `rc` | 1 / 1 |
 
-Weight, installed and tree-inclusive: **225,034 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.1141** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
+Weight, installed and tree-inclusive: **225,082 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.1141** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## For agents
 

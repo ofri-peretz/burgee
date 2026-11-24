@@ -58,10 +58,15 @@ score is now the package's first floor in `.sdlc/bands/mutation-ratchets.json`.
 | truefit | 5798 | 19 | 0 | 0 | 100% | 15.71 |
 | truepass | 907 | 1 | 0 | 0 | 100% | 1 |
 | provedone | 598 | 0 | 0 | 0 | 100% | 0.93 |
-| contractdiff | — | — | — | — | _unmeasured_ | stopped after 100 |
+| contractdiff | 25206 | 221 | 7 | 0 | 99.97% | 157.28 |
 
-contractdiff's run (about 21,000 lines of source) had not finished after 100 minutes and was
-stopped without a score; its first floor comes from the weekly run on the owner's machine.
+contractdiff's first run in the cloud container (about 21,000 lines of source) had not finished
+after 100 minutes and was stopped without a score. A second full run, at `78d014bade` (the 1.0
+release commit), finished: 99.97%, a first floor of 99.9%. Its seven survivors are dealt with in
+the commit that recorded it: four are killed by new tests (the members of a later operation that
+repeats an `operationId`, keywords beside a `$ref` to `false`, and a round-trip decoder that only
+reorders keys), and the three in `inputs.ts` were an equivalent filter over adapters that are all
+defined, removed as dead code.
 
 ## What 1.0 promises
 

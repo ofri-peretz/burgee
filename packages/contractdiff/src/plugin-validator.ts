@@ -12,7 +12,7 @@
 import { type Contract, type ContractFinding } from './core/model.js';
 import { type GeneratedFile, type Generator, type GeneratorResult, type Plugin } from './host.js';
 import { build, sourceOf } from './plugin-json-schema-build.js';
-import { type Code, comment, moduleOf, validatorCode } from './plugin-validator-code.js';
+import { type Code, comment, moduleOf, nothingCode, validatorCode } from './plugin-validator-code.js';
 import { namedPayloads } from './plugin-validator-names.js';
 
 /** The file the target writes, relative to the output folder. */
@@ -29,8 +29,13 @@ export const generateValidators = (contract: Contract): GeneratorResult => {
   const named = namedPayloads(contract);
   for (const { name, operation, payload } of named) {
     const where = { label: name, at: operation.source };
+    const doc = [`\`${operation.id}\` ${payload.name} (${payload.direction}${payload.required ? '' : ', optional'}).`];
+    if (payload.schema === false) {
+      codes.push(nothingCode(name, { ...where, doc }));
+      continue;
+    }
     const built = build(contract.document, payload.schema, { draft: '2020-12', refs: 'keep', source, ...where });
-    const code = validatorCode(name, built.schema, { ...where, typed: true, doc: [`\`${operation.id}\` ${payload.name} (${payload.direction}${payload.required ? '' : ', optional'}).`] });
+    const code = validatorCode(name, built.schema, { ...where, typed: true, doc });
     findings.push(...built.findings, ...code.findings);
     codes.push(code);
   }

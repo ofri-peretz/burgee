@@ -43,6 +43,14 @@
       "outputs": []
     },
     "lint": {
+      "dependsOn": [
+        "truepass#build"
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/eslint.config.mjs",
+        "$TURBO_ROOT$/eslint-suppressions.json"
+      ],
       "outputs": []
     },
     "test": {

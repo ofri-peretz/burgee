@@ -43,7 +43,7 @@ getPet  #/paths/~1pets~1{id}/get
 
 decisions: 1 (--decisions warn)
   warn          ac-decision-missing  getPet  param:query:fields  - -> {"type":"string"}
-                fix: breaking change (`new-required-request-parameter`) at getPet param:query:fields with no decision. fix: add `x-change: <the decision>` to getPet param:query:fields, or an ancestor or its operation, naming who decided it; or revert the change
+                fix: breaking change (`new-required-request-parameter`) at getPet param:query:fields with no decision: add `x-change: <the decision>` to getPet param:query:fields, or an ancestor or its operation, naming who decided it; or revert the change
 ```
 
 ## What is different on purpose

@@ -266,8 +266,27 @@
       ]
     },
     "contractdiff": {
-      "status": "unmeasured",
-      "reason": "About 21,000 lines of source. A full run on 2026-11-24 (oxmutate 2.18.4, 3 mutants at a time, a 4-core cloud container) had not finished after 100 minutes and was stopped without a score; its first floor comes from the weekly run on the owner's machine."
+      "status": "measured",
+      "floor": 99.9,
+      "history": [
+        {
+          "floor": 99.9,
+          "setOn": "2026-11-24",
+          "why": "First full run, at 78d014bade: 99.97% (25427 detected of 25434), rounded down to one decimal."
+        }
+      ],
+      "observations": [
+        {
+          "date": "2026-11-24",
+          "commit": "78d014bade",
+          "score": 99.97,
+          "killed": 25206,
+          "timeout": 221,
+          "survived": 7,
+          "noCoverage": 0,
+          "minutes": 157.28
+        }
+      ]
     },
     "controlroom": {
       "status": "measured",

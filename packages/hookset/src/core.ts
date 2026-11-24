@@ -109,18 +109,25 @@ const REMOTE_KEYS = new Set(['git_url', 'ref', 'configs', 'refetch', 'refetch_fr
  * whose first word is one of its keys; a configs entry is a list item that is a path.
  */
 export function parseRemotes(yaml: string): Remote[] {
-  const lines = yaml.split(/\r?\n/);
+  return scanRemotes(yaml.split(/\r?\n/)).map(({ refAt: _, ...remote }) => remote);
+}
+
+/** A remote as `parseRemotes` reads it, and the index of the line that holds its `ref:`, so `init` re-pins that one. */
+type Scanned = Remote & { refAt?: number };
+
+function scanRemotes(lines: string[]): Scanned[] {
   const block = topBlock(lines, 'remotes');
   if (!block) return [];
   // Stryker disable next-line BooleanLiteral: equivalent, a configs entry before any remote has no remote to join
-  const state: { remotes: Remote[]; inConfigs: boolean } = { remotes: [], inConfigs: false };
+  const state: { remotes: Scanned[]; inConfigs: boolean } = { remotes: [], inConfigs: false };
   // Stryker disable next-line ArithmeticOperator,NumericLiteral: equivalent, the `remotes:` line itself starts no remote
-  for (const raw of lines.slice(block.from + 1, block.to)) remoteLine(state, stripComment(raw));
+  const from = block.from + 1;
+  lines.slice(from, block.to).forEach((raw, i) => remoteLine(state, stripComment(raw), from + i));
   return state.remotes;
 }
 
-/** Fold one trimmed line of the `remotes:` block into `state`. */
-function remoteLine(state: { remotes: Remote[]; inConfigs: boolean }, text: string): void {
+/** Fold one trimmed line of the `remotes:` block, line `at` of the file, into `state`. */
+function remoteLine(state: { remotes: Scanned[]; inConfigs: boolean }, text: string, at: number): void {
   const item = listItem(text);
   const pair = keyValue(item ?? text);
   const isKey = pair !== undefined && (item === undefined || REMOTE_KEYS.has(pair[0]));
@@ -129,6 +136,7 @@ function remoteLine(state: { remotes: Remote[]; inConfigs: boolean }, text: stri
   if (!current) return;
   if (isKey) {
     state.inConfigs = pair[0] === 'configs';
+    if (pair[0] === 'ref') current.refAt = at;
     assign(current, pair[0], pair[1]);
   } else if (item !== undefined && state.inConfigs) current.configs.push(unquote(item));
 }
@@ -370,21 +378,23 @@ function nextLefthook(repo: string, stations: Stations, ref: string, force: bool
   const file = join(repo, 'lefthook.yml');
   if (!existsSync(file)) return { text: lefthookTemplate(stations, ref) };
   const yaml = readText(file);
-  if (parseRemotes(yaml).some((r) => sameRemote(r.gitUrl, stations.remote))) return { text: repin(yaml, ref) };
+  if (parseRemotes(yaml).some((r) => sameRemote(r.gitUrl, stations.remote))) return { text: repin(yaml, ref, stations.remote) };
   if (yaml.split(/\r?\n/).some((l) => l.startsWith('remotes:'))) return { refused: 'lefthook.yml already has a remotes: block; add the hookset remote to it by hand' };
   if (!force) return { refused: 'lefthook.yml was written by hand; pass --force to add the presets on top of it' };
   return { text: `${remotesBlock(stations, ref)}\n${yaml}` };
 }
 
-/** Move the first `ref:` inside `remotes:` to `ref`. */
-function repin(yaml: string, ref: string): string {
+/**
+ * Move the hookset remote's `ref:` to `ref`. Only that remote's: a repo that lists another remote
+ * first keeps that one's pin, which is not hookset's to move.
+ */
+function repin(yaml: string, ref: string, remote: string): string {
   const eol = yaml.includes('\r\n') ? '\r\n' : '\n';
   const lines = yaml.split(/\r?\n/);
-  const block = topBlock(lines, 'remotes');
-  // Stryker disable next-line ConditionalExpression,LogicalOperator,EqualityOperator: equivalent: the caller has proved the block exists, and the line that opens it is never a ref; a test holds the end of the block
-  const at = lines.findIndex((l, i) => block !== undefined && i > block.from && i < block.to && keyValue(listItem(l.trim()) ?? l.trim())?.[0] === 'ref');
-  const line = lines[at];
-  if (line === undefined) return yaml;
+  // The caller has proved the hookset remote is listed.
+  const at = (scanRemotes(lines).find((r) => sameRemote(r.gitUrl, remote)) as Scanned).refAt;
+  if (at === undefined) return yaml;
+  const line = String(lines[at]);
   lines.splice(at, 1, `${line.slice(0, line.indexOf('ref:'))}ref: ${ref}`);
   return lines.join(eol);
 }
@@ -412,9 +422,20 @@ function mergeSettings(repo: string, stations: Stations): string {
   return `${JSON.stringify(settings, undefined, 2)}\n`;
 }
 
+/** `1 error, 2 warnings`: every problem the lines below list, counted by severity; a severity with none is left out. */
+function tally(problems: Problem[]): string {
+  const counts: string[] = [];
+  for (const severity of ['error', 'warning'] as const) {
+    const n = problems.filter((p) => p.severity === severity).length;
+    const plural = n === 1 ? '' : 's';
+    if (n > 0) counts.push(`${String(n)} ${severity}${plural}`);
+  }
+  return counts.join(', ');
+}
+
 /** The text a person reads for a check result. */
 export function checkText(result: CheckResult): string {
   const lines = result.problems.map((p) => `${p.severity === 'error' ? '✗' : '!'} ${p.message}\n  fix: ${p.fix}`);
-  const head = result.ok ? `hookset: ok (${result.pinned ?? 'unpinned'})` : `hookset: ${String(result.problems.filter((p) => p.severity === 'error').length)} problem(s)`;
+  const head = result.ok ? `hookset: ok (${result.pinned ?? 'unpinned'})` : `hookset: ${tally(result.problems)}`;
   return [head, ...lines].join('\n');
 }

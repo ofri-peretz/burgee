@@ -82,6 +82,18 @@ export const validatorCode = (name: string, document: Document, where: Where): C
   return { text, findings, door: true, typed };
 };
 
+/**
+ * The validator of a payload that says nothing is sent (the model's `false`: a response or a body
+ * with no content). No body arrives as `undefined`, so that is the one value it accepts, and the
+ * type it guards; `!(true)` and `unknown`, what the schema `false` emits as, rejected even that.
+ */
+export const nothingCode = (name: string, where: Where): Code => ({
+  text: `export type ${name} = undefined;\n${comment([...where.doc, '', 'Nothing is sent: the only value is `undefined`.'])}\nexport const ${name}: ${guard(name)} = (value): value is ${name} => value === undefined;`,
+  findings: [],
+  door: false,
+  typed: true,
+});
+
 /** A module of validator declarations: `UNTYPED` when one is not typed, the door's imports when one needs them, then each declaration. */
 export const moduleOf = (codes: readonly Code[], after: readonly string[] = []): string => {
   const head = [...(codes.some((code) => !code.typed) ? [UNTYPED] : []), ...(codes.some((code) => code.door) ? [DOOR_IMPORTS] : [])];

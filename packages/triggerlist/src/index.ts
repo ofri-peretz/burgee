@@ -5,5 +5,5 @@ export { type Changed, type Line, parseDiff } from './diff.js';
 export { type Git, gitIn } from './git.js';
 export { type Fired, type Hit, match } from './match.js';
 export { protect, type Protection } from './protect.js';
-export { fromDecision, fromLockTest, toYaml } from './seed.js';
+export { fromDecision, fromLockTest, testCommand, toYaml } from './seed.js';
 export { loadChecklist, program, runBrief, runCompile, runMatch, runProtect, runSeed, VERSION } from './cli.js';

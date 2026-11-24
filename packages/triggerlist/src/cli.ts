@@ -15,7 +15,7 @@ import { parseDiff } from './diff.js';
 import { type Git, gitIn } from './git.js';
 import { match, toText as matchText, where } from './match.js';
 import { protect, toText as protectText } from './protect.js';
-import { fromDecision, fromLockTest, type Source, toYaml } from './seed.js';
+import { fromDecision, fromLockTest, type Source, testCommand, toYaml, VITEST_CONFIG } from './seed.js';
 
 export const VERSION = (JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }).version;
 
@@ -44,15 +44,30 @@ export interface RangeOptions {
 
 const range = (base: string): string => `${base}...HEAD`;
 
+/**
+ * The checklist `match` reads, or none when the base ref has no checklist file yet, as `brief` and
+ * `protect` treat it: the pull request that adds a repo's first checklist has nothing to match. Only
+ * a missing file is let through; a checklist that is there and does not parse still fails, and so
+ * does a ref the checkout lacks, at the diff.
+ */
+const matchedBy = async (options: RangeOptions): Promise<{ source: string; checklist: Checklist | undefined }> => {
+  if (options.worktree) return await loadChecklist(options.repo, options.git, options.checklist, undefined);
+  const source = `${options.base}:${options.checklist}`;
+  const text = await options.git.show(options.base, options.checklist).catch(() => undefined);
+  return { source, checklist: text === undefined ? undefined : parseChecklist(source, text) };
+};
+
 export const runMatch = async (options: RangeOptions): Promise<Data> => {
-  const { source, checklist } = await loadChecklist(options.repo, options.git, options.checklist, options.worktree ? undefined : options.base);
-  const fired = match(checklist, parseDiff(await options.git.diff(range(options.base))));
+  const { source, checklist } = await matchedBy(options);
+  const changed = parseDiff(await options.git.diff(range(options.base)));
+  const fired = checklist === undefined ? [] : match(checklist, changed);
   const data: Data = {
     range: range(options.base),
     checklist: source,
     fired: fired.map(({ item, at }) => ({ id: item.id, question: item.question, check: item.check, sources: item.sources, at: at.map(where) })),
+    ...(checklist === undefined ? { bootstrap: true } : {}),
   };
-  data[TEXT] = () => matchText(fired, range(options.base));
+  data[TEXT] = () => (checklist === undefined ? `${source} does not exist yet: no checklist item to match` : matchText(fired, range(options.base)));
   return data;
 };
 
@@ -194,11 +209,13 @@ export interface SeedOptions {
 }
 
 export const runSeed = (options: SeedOptions): Data => {
+  const configs = sources(options.repo, HERE, (name) => VITEST_CONFIG.test(name)).map(({ path, text }) => ({ path: path.slice(`${HERE}/`.length), text }));
+  const runner = testCommand(configs, readIfThere(resolve(options.repo, 'package.json')) ?? '', options.locks);
   const existing = existsSync(resolve(options.repo, options.checklist))
     ? new Set(parseChecklist(options.checklist, readFileSync(resolve(options.repo, options.checklist), 'utf8')).items.map((item) => item.id))
     : new Set<string>();
   const items = [
-    ...sources(options.repo, options.locks, (name) => name.endsWith('-lock.test.ts')).map(fromLockTest),
+    ...sources(options.repo, options.locks, (name) => name.endsWith('-lock.test.ts')).map((source) => fromLockTest(source, runner)),
     ...sources(options.repo, options.decisions, (name) => name.endsWith('.md')).map(fromDecision),
   ].filter((item) => item !== undefined);
   const fresh = items.filter((item) => !existing.has(item.id));

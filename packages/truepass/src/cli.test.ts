@@ -67,6 +67,28 @@ describe('truepass diff', () => {
     expect(r.stdout).toContain('no findings since main');
   });
 
+  it('names the default base once in --help', async () => {
+    const r = await runBurgee(createProgram(fakeGit({})), { argv: ['diff', '--help'] });
+    expect(r.stdout.match(/origin\/main\)/g)).toEqual(['origin/main)']);
+    expect(r.stdout).toContain('(default: origin/main)');
+  });
+
+  it('quotes the first git command that fails, however fast the later ones fail', async () => {
+    // The range diff fails slowest and the log fastest: run together, the log's error would win.
+    const calls: string[] = [];
+    const slowFirst: Git = async (args) => {
+      const command = `git ${args.join(' ')}`;
+      calls.push(command);
+      if (args[1] === '--unified=0') await new Promise((next) => setImmediate(next));
+      throw new Error(`${command} failed: bad revision`);
+    };
+    const r = await runBurgee(createProgram(slowFirst), { argv: ['diff', '--base', 'nope'] });
+    expect(r.code).toBe(ExitCode.USAGE);
+    expect(r.stderr).toContain('git diff --unified=0 --no-color --no-ext-diff nope...HEAD failed');
+    expect(r.stderr).not.toContain('git log');
+    expect(calls).toHaveLength(1);
+  });
+
   it('exits with the usage code and a fix line when git cannot compare', async () => {
     const r = await runBurgee(createProgram(failingGit), { argv: ['diff', '--base', 'nope'] });
     expect(r.code).toBe(ExitCode.USAGE);
