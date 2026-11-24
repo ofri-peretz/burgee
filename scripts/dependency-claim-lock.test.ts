@@ -113,7 +113,7 @@ const surfaces = (name: string): Surface[] => {
 /**
  * A package with no site of its own (an `excluded` entry in `.github/vercel-apps.json`) has its
  * README projected into the front door's `docs/packages/<name>.md`. That page speaks for its own
- * package, so valz's "Zero dependencies" there is not a claim about burgee's manifest.
+ * package, so truefit's "Zero dependencies" there is not a claim about burgee's manifest.
  */
 function ownPage(file: string, name: string): boolean {
   const other = /[\\/]docs[\\/]packages[\\/]([\w-]+)\.mdx?$/u.exec(file)?.[1];

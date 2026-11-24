@@ -127,8 +127,8 @@
   },
   "pending": {},
   "excluded": {
-    "fibz": "A lint plugin and one command, documented as a section of the front door until it has enough pages for a site of its own.",
+    "truepass": "A lint plugin and one command, documented as a section of the front door until it has enough pages for a site of its own.",
     "contractdiff": "Documented as a section of the front door until it has a site of its own.",
-    "valz": "A library with no CLI, documented as a section of the front door until it has a site of its own."
+    "truefit": "A library with no CLI, documented as a section of the front door until it has a site of its own."
   }
 }

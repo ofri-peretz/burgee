@@ -50,7 +50,7 @@
         "linegauge",
         "roundel",
         "seniority",
-        "valz"
+        "truefit"
       ]
     },
     {
@@ -65,19 +65,6 @@
         "linegauge",
         "paratext",
         "roundel"
-      ]
-    },
-    {
-      "name": "fibz",
-      "count": 7,
-      "installed": [
-        "bellpull",
-        "burgee",
-        "closeout",
-        "fibz",
-        "linegauge",
-        "roundel",
-        "seniority"
       ]
     },
     {
@@ -133,10 +120,23 @@
       ]
     },
     {
-      "name": "valz",
+      "name": "truefit",
       "count": 1,
       "installed": [
-        "valz"
+        "truefit"
+      ]
+    },
+    {
+      "name": "truepass",
+      "count": 7,
+      "installed": [
+        "bellpull",
+        "burgee",
+        "closeout",
+        "linegauge",
+        "roundel",
+        "seniority",
+        "truepass"
       ]
     }
   ]

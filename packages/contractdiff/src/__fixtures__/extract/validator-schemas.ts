@@ -1,6 +1,6 @@
 /** The validator's schemas, made Standard JSON Schema by `standardJson`. */
-import { array, number, object, optional, string } from 'valz';
-import { standardJson } from 'valz/json-schema';
+import { array, number, object, optional, string } from 'truefit';
+import { standardJson } from 'truefit/json-schema';
 
 export const Pet = standardJson(object({ id: number(), name: string(), tag: optional(string()) }));
 

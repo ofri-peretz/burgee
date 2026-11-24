@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 328" width="760" height="328" role="img" aria-labelledby="t d">
   <title id="t">The burgee family's dependency graph</title>
-  <desc id="d">burgee depends on bellpull, closeout, linegauge, roundel, seniority. caique depends on bellpull, closeout, linegauge, paratext, roundel. contractdiff depends on bellpull, burgee, seniority, valz. controlroom depends on caique, closeout, flagstaff, linegauge, paratext, roundel. fibz depends on bellpull, burgee. flagstaff depends on closeout, linegauge, paratext, roundel. oxmutate depends on bellpull, burgee. bellpull, closeout, linegauge, paratext, roundel, seniority, valz depend on nothing.</desc>
+  <desc id="d">burgee depends on bellpull, closeout, linegauge, roundel, seniority. caique depends on bellpull, closeout, linegauge, paratext, roundel. contractdiff depends on bellpull, burgee, seniority, truefit. controlroom depends on caique, closeout, flagstaff, linegauge, paratext, roundel. flagstaff depends on closeout, linegauge, paratext, roundel. oxmutate depends on bellpull, burgee. truepass depends on bellpull, burgee. bellpull, closeout, linegauge, paratext, roundel, seniority, truefit depend on nothing.</desc>
   <defs>
     <marker id="a0" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#3b82f6"/></marker>
     <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#f59e0b"/></marker>
@@ -30,12 +30,12 @@
   <line x1="293.2" y1="64" x2="271.5" y2="262" stroke="#a855f7" stroke-width="2" marker-end="url(#a3)"/>
   <line x1="293.2" y1="64" x2="380.0" y2="262" stroke="#a855f7" stroke-width="2" marker-end="url(#a3)"/>
   <line x1="293.2" y1="64" x2="488.5" y2="262" stroke="#a855f7" stroke-width="2" marker-end="url(#a3)"/>
-  <line x1="466.8" y1="64" x2="68.5" y2="262" stroke="#ef4444" stroke-width="2" marker-end="url(#a4)"/>
-  <line x1="466.8" y1="64" x2="177.0" y2="142" stroke="#ef4444" stroke-width="2" marker-end="url(#a4)"/>
-  <line x1="597.0" y1="184" x2="191.0" y2="262" stroke="#3b82f6" stroke-width="2" marker-end="url(#a5)"/>
-  <line x1="597.0" y1="184" x2="299.5" y2="262" stroke="#3b82f6" stroke-width="2" marker-end="url(#a5)"/>
-  <line x1="597.0" y1="184" x2="408.0" y2="262" stroke="#3b82f6" stroke-width="2" marker-end="url(#a5)"/>
-  <line x1="597.0" y1="184" x2="516.5" y2="262" stroke="#3b82f6" stroke-width="2" marker-end="url(#a5)"/>
+  <line x1="597.0" y1="184" x2="177.0" y2="262" stroke="#ef4444" stroke-width="2" marker-end="url(#a4)"/>
+  <line x1="597.0" y1="184" x2="285.5" y2="262" stroke="#ef4444" stroke-width="2" marker-end="url(#a4)"/>
+  <line x1="597.0" y1="184" x2="394.0" y2="262" stroke="#ef4444" stroke-width="2" marker-end="url(#a4)"/>
+  <line x1="597.0" y1="184" x2="502.5" y2="262" stroke="#ef4444" stroke-width="2" marker-end="url(#a4)"/>
+  <line x1="466.8" y1="64" x2="82.5" y2="262" stroke="#3b82f6" stroke-width="2" marker-end="url(#a5)"/>
+  <line x1="466.8" y1="64" x2="191.0" y2="142" stroke="#3b82f6" stroke-width="2" marker-end="url(#a5)"/>
   <line x1="640.4" y1="64" x2="96.5" y2="262" stroke="#f59e0b" stroke-width="2" marker-end="url(#a6)"/>
   <line x1="640.4" y1="64" x2="205.0" y2="142" stroke="#f59e0b" stroke-width="2" marker-end="url(#a6)"/>
   <rect x="109.0" y="144" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#3b82f6" stroke-width="2"/>
@@ -46,12 +46,12 @@
   <text x="119.6" y="49" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">contractdiff</text>
   <rect x="239.2" y="24" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#a855f7" stroke-width="2"/>
   <text x="293.2" y="49" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">controlroom</text>
-  <rect x="412.8" y="24" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#ef4444" stroke-width="2"/>
-  <text x="466.8" y="49" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">fibz</text>
-  <rect x="543.0" y="144" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#3b82f6" stroke-width="2"/>
+  <rect x="543.0" y="144" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#ef4444" stroke-width="2"/>
   <text x="597.0" y="169" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">flagstaff</text>
+  <rect x="412.8" y="24" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#3b82f6" stroke-width="2"/>
+  <text x="466.8" y="49" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">oxmutate</text>
   <rect x="586.4" y="24" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#f59e0b" stroke-width="2"/>
-  <text x="640.4" y="49" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">oxmutate</text>
+  <text x="640.4" y="49" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">truepass</text>
   <rect x="0.5" y="264" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#71717a" stroke-width="2"/>
   <text x="54.5" y="289" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">bellpull</text>
   <rect x="109.0" y="264" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#71717a" stroke-width="2"/>
@@ -65,5 +65,5 @@
   <rect x="543.0" y="264" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#71717a" stroke-width="2"/>
   <text x="597.0" y="289" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">seniority</text>
   <rect x="651.5" y="264" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#71717a" stroke-width="2"/>
-  <text x="705.5" y="289" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">valz</text>
+  <text x="705.5" y="289" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">truefit</text>
 </svg>

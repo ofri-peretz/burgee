@@ -2,7 +2,7 @@
  * Gap A-20261118-diff-false-breaking-equivalent-rewrites: a pair that accepts the same values is no
  * break, however each side is written; a pair that looks alike but accepts fewer values still is.
  */
-import { date, datetime, duration, email, hostname, ipv4, ipv6, time, uuid } from 'valz/formats';
+import { date, datetime, duration, email, hostname, ipv4, ipv6, time, uuid } from 'truefit/formats';
 import { describe, expect, it } from 'vitest';
 
 import { classify } from './diff-classify.js';

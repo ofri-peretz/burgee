@@ -152,7 +152,7 @@ answer. `apicontract` is the working name; the final name is decided before the 
 
 ## Evidence sweep 2026-11-22
 
-Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/contractdiff` (2,545 tests) and `packages/valz` (1,153) is green there. Code for every Wave 6 lane is on `main`; 3 of 10 success criteria hold (SC3, SC7, and SC9's Quint half). The name and the first publish are the owner's call ([`D-20261119-apicontract-stays-private`](../../decisions/D-20261119-apicontract-stays-private.md)).
+Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/contractdiff` (2,545 tests) and `packages/truefit` (1,153) is green there. Code for every Wave 6 lane is on `main`; 3 of 10 success criteria hold (SC3, SC7, and SC9's Quint half). The name and the first publish are the owner's call ([`D-20261119-apicontract-stays-private`](../../decisions/D-20261119-apicontract-stays-private.md)).
 
 | # | criterion | held by | state |
 | --: | :-- | :-- | :-- |

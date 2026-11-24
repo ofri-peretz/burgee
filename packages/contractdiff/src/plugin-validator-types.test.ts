@@ -19,7 +19,7 @@ import { plugin, VALIDATORS_FILE } from './plugin-validator.js';
  */
 
 const ROOT = join(import.meta.dirname, '../../..');
-const VALIDATOR = join(ROOT, 'packages/valz/src');
+const VALIDATOR = join(ROOT, 'packages/truefit/src');
 const scratch = scratchDirs();
 
 const COMPILERS = [
@@ -95,7 +95,7 @@ describe('validators.ts type-checks under strict', () => {
       skipLibCheck: true,
       types: [],
       // The run-time door imports the validator package: this checkout's source stands for it.
-      paths: { valz: [join(VALIDATOR, 'index.ts')], 'valz/json-schema': [join(VALIDATOR, 'json-schema.ts')] },
+      paths: { truefit: [join(VALIDATOR, 'index.ts')], 'truefit/json-schema': [join(VALIDATOR, 'json-schema.ts')] },
     };
     writeFileSync(join(dir, 'tsconfig.json'), JSON.stringify({ compilerOptions, files: [...DOCUMENTS.map(([name]) => `${name}.ts`), 'use.ts'] }));
   });

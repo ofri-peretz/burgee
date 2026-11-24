@@ -59,7 +59,7 @@ not on `main` (#1560's description names it, the tree does not), so vendoring it
 
 ## Evidence sweep 2026-11-22
 
-Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/contractdiff` (2,545 tests) and `packages/valz` (1,153) is green there. 1 of 4 criteria met (G5). G1 is short of 61 / 61; G2, G3 and the json-schema-to-typescript grade are unread.
+Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/contractdiff` (2,545 tests) and `packages/truefit` (1,153) is green there. 1 of 4 criteria met (G5). G1 is short of 61 / 61; G2, G3 and the json-schema-to-typescript grade are unread.
 
 | # | criterion | held by | state |
 | --: | :-- | :-- | :-- |

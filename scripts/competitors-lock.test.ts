@@ -89,11 +89,11 @@ const KNOWN = [
   'term-img',
   'terminal-link',
   'tinyexec',
-  // fibz's incumbent (2026-11-23): its focused- and disabled-test rules, by surface.
+  // truepass's incumbent (2026-11-23): its focused- and disabled-test rules, by surface.
   '@vitest/eslint-plugin',
   // contractdiff's incumbent (2026-11-23): the `types` target and its migrate command.
   'openapi-typescript',
-  // valz's incumbent (2026-11-23): a Standard Schema validator with a code-first API.
+  // truefit's incumbent (2026-11-23): a Standard Schema validator with a code-first API.
   'zod',
   'which',
   'widest-line',

@@ -65,7 +65,7 @@ path is the cheapest adoption lever in the program (research, 2026-11-18).
 
 ## Evidence sweep 2026-11-22
 
-Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/contractdiff` (2,545 tests) and `packages/valz` (1,153) is green there. 3 of 4 criteria met. X3 (agent writes a plugin in one turn, read weekly) has no eval case and no skill.
+Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/contractdiff` (2,545 tests) and `packages/truefit` (1,153) is green there. 3 of 4 criteria met. X3 (agent writes a plugin in one turn, read weekly) has no eval case and no skill.
 
 | # | criterion | held by | state |
 | --: | :-- | :-- | :-- |

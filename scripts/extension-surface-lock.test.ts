@@ -79,15 +79,15 @@ const DECLARED = {
   // extension point is data in its config (`ignore` rules, `specOracles`), not a plugin host:
   // no `./plugin`, no `check`, no eval case — the honest empty row, as linegauge's once was.
   oxmutate: { plugin: false, check: false, eval: false },
-  // Its rules are an ESLint plugin, which extends ESLint rather than fibz; fibz itself
+  // Its rules are an ESLint plugin, which extends ESLint rather than truepass; truepass itself
   // has no plugin host, no `check` command and no eval case.
-  fibz: { plugin: false, check: false, eval: false },
+  truepass: { plugin: false, check: false, eval: false },
   // Its plugin host loads `contractdiff-plugin-*` packages and local files named in its config,
   // through `contractdiff/testing`, not a `./plugin` subpath; `contractdiff check` is its check, and
   // `contractdiff-baseline-*` its eval cases.
   contractdiff: { plugin: false, check: true, eval: true },
   // A library with no CLI: schemas are values, so there is no plugin host and no `check`.
-  valz: { plugin: false, check: false, eval: false },
+  truefit: { plugin: false, check: false, eval: false },
 } as const;
 
 type Declared = (typeof DECLARED)[keyof typeof DECLARED];

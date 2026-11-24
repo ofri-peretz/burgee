@@ -139,7 +139,7 @@ names are chosen before the first publish ([`phase0.md`](./phase0.md)).
 | `@interlace/contract-model` (internal) | The protocol-neutral model, `$ref` resolver (`adapter.qnt`), and the extension API (`defineAdapter`, `defineEmitter`, `defineReader`, `defineRule`) | Protocol adapters: OpenAPI, JSON Schema, AsyncAPI, MCP, OpenRPC, … | Phase 1 |
 | `apicontract-diff` | What breaks and for whom, under a chosen mode and side; `explain` (a resolved, size-capped slice for agents) | Diff rules (oasdiff rule ids built in) | Phase 5 |
 | `apicontract-extract` | **Code → spec.** Hosts readers; emits OpenAPI 3.1/3.2, AsyncAPI 3, JSON Schema 2020-12 | Readers: Standard Schema (Zod, Valibot, ArkType), TypeBox, NestJS decorators, Hono, tRPC/oRPC | Phase 2 |
-| `apicontract-schema` | The contract-first front door of our own validator ([`validator/intent.md`](../valz/intent.md)): validators compiled from the model (R-SC); absorbs the old `guard` | — | Phase 2 |
+| `apicontract-schema` | The contract-first front door of our own validator ([`validator/intent.md`](../truefit/intent.md)): validators compiled from the model (R-SC); absorbs the old `guard` | — | Phase 2 |
 | `apicontract-check` | Call sites in code that disagree with the contract; native oxc core as oxmutate ships | Call-site matchers (HTTP, socket, MCP) | Phase 7 |
 | `apicontract` | The main CLI: one install, one `--mcp`, one `--skill` for agents. Owns `gen` (**spec → code**) and dispatches to whichever purpose packages are installed; a missing one fails with a `fix:` line naming the install | **Code generators** (emitters) | Phase 1 |
 | `apicontract-gen-ts` | Generator extension of the main CLI: TypeScript types (`--compat openapi-typescript`), the openapi-typescript migration path | — | Phase 1 |
@@ -278,7 +278,7 @@ use Zod; the validator is our own and has to be state of the art.**
   same script, subject and machine, losing numbers published.
 
 - **R-SC0a.** The validator is a product of its own, with a code-first authoring API and its own
-  intent ([`validator/intent.md`](../valz/intent.md)). R-SC1–R-SC4 are its contract-first side;
+  intent ([`validator/intent.md`](../truefit/intent.md)). R-SC1–R-SC4 are its contract-first side;
   this spec does not define a second engine.
 
 Not "another Zod": interop is now Standard Schema (NestJS 12, tRPC, oRPC

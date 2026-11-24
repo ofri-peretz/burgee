@@ -77,7 +77,7 @@ OpenAPI; openapi-typescript's own fixtures; oasdiff's test corpus; 10 MCP server
 | R3 | Cold start | Leading | Time to first verdict | TBM | < ajv |
 
 The validator's full table, leading and lagging, against Zod 4, Valibot, ArkType, typia, TypeBox
-and ajv, is in [`validator/intent.md`](../valz/intent.md); R1–R3 are its contract-first rows.
+and ajv, is in [`validator/intent.md`](../truefit/intent.md); R1–R3 are its contract-first rows.
 
 ## 5a. `apicontract-extract` — vs @nestjs/swagger, zod-to-openapi, @hono/zod-openapi
 

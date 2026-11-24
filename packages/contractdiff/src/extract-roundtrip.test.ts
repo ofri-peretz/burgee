@@ -1,4 +1,4 @@
-import { fromJsonSchema, standardJson } from 'valz/json-schema';
+import { fromJsonSchema, standardJson } from 'truefit/json-schema';
 import { describe, expect, it } from 'vitest';
 
 import { corpus } from './__fixtures__/extract/corpus.js';

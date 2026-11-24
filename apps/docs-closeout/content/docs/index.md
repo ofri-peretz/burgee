@@ -346,7 +346,7 @@ Graded by the incumbent's own test suite:
 | `restore-cursor` | 6 / 6 |
 | `signal-exit` | 134 / 135 |
 
-Weight, installed and tree-inclusive: **111,507 bytes** against **183,804** for the incumbents it replaces — a ratio of **0.6067** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
+Weight, installed and tree-inclusive: **111,528 bytes** against **183,804** for the incumbents it replaces — a ratio of **0.6068** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## For agents
 
@@ -424,12 +424,13 @@ Plugins register under the `handlers` key, against the one schema the whole fami
 
 14 packages, one repository, one release pipeline. Each installs and works on its own, and each owns
 one job. Seven of them — `bellpull`, `closeout`, `linegauge`, `paratext`, `roundel`, `seniority`,
-`valz` — depend on nothing; the others depend only on packages in this table, and every dependency
-points one way, down the [layers](https://burgee.interlace.tools/docs/concepts/family).
+`truefit` — depend on nothing; the others depend only on packages in this table, and every
+dependency points one way, down the [layers](https://burgee.interlace.tools/docs/concepts/family).
 
 No package declares a dependency from outside the family; `react` and `react-reconciler` are
-optional peers of `controlroom`, which npm does not install; `eslint` is an optional peer of `fibz`,
-which npm does not install; `vitest` is an optional peer of `oxmutate`, which npm does not install.
+optional peers of `controlroom`, which npm does not install; `vitest` is an optional peer of
+`oxmutate`, which npm does not install; `eslint` is an optional peer of `truepass`, which npm does
+not install.
 [`package-shape-lock`](https://github.com/ofri-peretz/burgee/blob/main/scripts/package-shape-lock.test.ts)
 holds that for every manifest, and
 [`independence-install-lock`](https://github.com/ofri-peretz/burgee/blob/main/scripts/independence-install-lock.test.ts)
@@ -453,9 +454,9 @@ keeps both true.
 | [bellpull](https://bellpull.interlace.tools/docs) | Subprocesses, and which executable actually ran | cross-spawn and which |
 | [controlroom](https://controlroom.interlace.tools/docs) | Keyboard-driven terminal screens, inline or full-screen | ink |
 | [oxmutate](https://oxmutate.interlace.tools/docs) | Mutation testing on the oxc engine, inside your own Vitest | Stryker |
-| [fibz](https://burgee.interlace.tools/docs/packages/fibz) | Lint rules and a pre-push check that keep a test suite honest | @vitest/eslint-plugin |
+| [truepass](https://burgee.interlace.tools/docs/packages/truepass) | Lint rules and a pre-push check that keep a test suite honest | @vitest/eslint-plugin |
 | [contractdiff](https://burgee.interlace.tools/docs/packages/contractdiff) | API contracts: breaking-change diff, lint, and code from the spec | openapi-typescript |
-| [valz](https://burgee.interlace.tools/docs/packages/valz) | Validation whose schemas are data, with no eval | zod |
+| [truefit](https://burgee.interlace.tools/docs/packages/truefit) | Validation whose schemas are data, with no eval | zod |
 
 Every migration guide, and the family-wide [compatibility](https://burgee.interlace.tools/docs/compatibility)
 and [benchmarks](https://burgee.interlace.tools/docs/benchmarks) pages, are on

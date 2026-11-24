@@ -55,7 +55,7 @@ once, which no incumbent does (`D5`: oasdiff 1, mcpdiff 1).
 
 ## Evidence sweep 2026-11-22
 
-Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/contractdiff` (2,545 tests) and `packages/valz` (1,153) is green there. None of the 5 criteria is fully met: `D7`'s Quint half holds, but Q2 has no reading. Every corpus reading (`D1`, `D2`, `D3`, `D6`) is unread, and `D5` lacks an AsyncAPI document diffed end to end.
+Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/contractdiff` (2,545 tests) and `packages/truefit` (1,153) is green there. None of the 5 criteria is fully met: `D7`'s Quint half holds, but Q2 has no reading. Every corpus reading (`D1`, `D2`, `D3`, `D6`) is unread, and `D5` lacks an AsyncAPI document diffed end to end.
 
 | # | criterion | held by | state |
 | --: | :-- | :-- | :-- |

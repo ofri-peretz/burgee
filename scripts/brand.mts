@@ -127,9 +127,9 @@ const MARK_SHARE = {
   paratext: 0.95,
   controlroom: 0.9,
   oxmutate: 0.8,
-  fibz: 0.75,
+  truepass: 0.75,
   contractdiff: 0.7,
-  valz: 0.8,
+  truefit: 0.8,
 } as const;
 
 /**
@@ -353,7 +353,7 @@ const OXMUTATE =
 const SPECIMEN = { x: 40, y: 58 } as const;
 
 /**
- * fibz: a hallmark plate with its tick struck through it — the mark an assayer punches
+ * truepass: a hallmark plate with its tick struck through it — the mark an assayer punches
  * into metal that has been tested. The tick is a cut, absence as linegauge's ticks are, so the
  * plate reads as stamped rather than drawn on; the mark rides on the solid corner above it. The
  * plate is an octagon, each corner chamfered 22 units in from an 8-unit inset.
@@ -361,7 +361,7 @@ const SPECIMEN = { x: 40, y: 58 } as const;
 const PLATE = 'M30 8 H70 L92 30 V70 L70 92 H30 L8 70 V30 Z';
 /** The tick, wound against the plate so it cuts through it. */
 const STRUCK = 'M36 52 L58 74 L88 38 L80 30 L58 58 L44 44 Z';
-const FIBZ = `${PLATE} ${STRUCK}`;
+const TRUEPASS = `${PLATE} ${STRUCK}`;
 /** In the plate's upper left, clear of the tick. */
 const ASSAY = { x: 32, y: 30 } as const;
 
@@ -378,14 +378,14 @@ const CONTRACTDIFF = `${CARD} ${SPLIT}`;
 const BEFORE = { x: 29, y: 40 } as const;
 
 /**
- * valz: the load line painted on a hull — a disc with the line struck through it. The bar
+ * truefit: the load line painted on a hull — a disc with the line struck through it. The bar
  * runs past the disc as ink and through it as a cut, so what is over the line reads apart from
  * what is under it; the mark rides on the disc above the line.
  */
 const DISC = 'M10 50 A40 40 0 1 0 90 50 A40 40 0 1 0 10 50 Z';
 /** The line, wound over the disc so it cuts through it and stands as ink past it. */
 const LINE = 'M2 46 H98 V54 H2 Z';
-const VALZ = `${DISC} ${LINE}`;
+const TRUEFIT = `${DISC} ${LINE}`;
 /** Above the line, on the disc. */
 const FREEBOARD = { x: 50, y: 30 } as const;
 
@@ -409,9 +409,9 @@ const SIBLINGS: readonly Sibling[] = [
   { name: 'paratext', tagline: 'Everything around the output.', shape: PARATEXT, at: HEAD },
   { name: 'controlroom', tagline: 'Where a system is run from.', shape: CONTROLROOM, at: PANEL },
   { name: 'oxmutate', tagline: 'The test of the tests.', shape: OXMUTATE, at: SPECIMEN },
-  { name: 'fibz', tagline: 'Green that still means it.', shape: FIBZ, at: ASSAY },
+  { name: 'truepass', tagline: 'Green that still means it.', shape: TRUEPASS, at: ASSAY },
   { name: 'contractdiff', tagline: 'What changed, and who it breaks.', shape: CONTRACTDIFF, at: BEFORE },
-  { name: 'valz', tagline: 'What is over the line stays.', shape: VALZ, at: FREEBOARD },
+  { name: 'truefit', tagline: 'What is over the line stays.', shape: TRUEFIT, at: FREEBOARD },
 ];
 
 const siblings = SIBLINGS.map(({ name, tagline, shape, at, markings }) => ({

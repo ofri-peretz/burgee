@@ -66,7 +66,7 @@ plugin lane consumes its API but does not edit it.
 
 ## Evidence sweep 2026-11-22
 
-Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/contractdiff` (2,545 tests) and `packages/valz` (1,153) is green there. 5 of 6 criteria met; the mutation floor is open. Criteria met except the floor, unpublished.
+Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/contractdiff` (2,545 tests) and `packages/truefit` (1,153) is green there. 5 of 6 criteria met; the mutation floor is open. Criteria met except the floor, unpublished.
 
 | # | criterion | held by | state |
 | --: | :-- | :-- | :-- |

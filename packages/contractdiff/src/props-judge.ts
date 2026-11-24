@@ -2,8 +2,8 @@
  * How a payload's values are judged: the validator package's reading of its schema, in the
  * contract's dialect, with the definitions its references point into carried beside it.
  */
-import { check, parse } from 'valz';
-import { fromJsonSchema, jsonSchemaReader, type JsonSchemaReader } from 'valz/json-schema';
+import { check, parse } from 'truefit';
+import { fromJsonSchema, jsonSchemaReader, type JsonSchemaReader } from 'truefit/json-schema';
 
 import { type Contract } from './core/model.js';
 import { isDict } from './diff-normalise.js';

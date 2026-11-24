@@ -49,10 +49,10 @@ const OPTIONAL_PEERS: Readonly<Record<string, readonly string[]>> = {
   // oxmutate runs the project's own Vitest, resolved from the project (spec R1, R15: "your own
   // Vitest and config"); bringing a second Vitest would grade a suite under the wrong runner.
   oxmutate: ['vitest'],
-  // fibz/eslint is an ESLint plugin, so it runs inside the project's own ESLint and imports
-  // only its types (fibz intent, Constraints: "`eslint` is an optional peer; the CLI needs
+  // truepass/eslint is an ESLint plugin, so it runs inside the project's own ESLint and imports
+  // only its types (truepass intent, Constraints: "`eslint` is an optional peer; the CLI needs
   // only git"). A second ESLint would lint with rules registered on the wrong instance.
-  fibz: ['eslint'],
+  truepass: ['eslint'],
 };
 
 /** A peer this package may name although it is not ours: admitted above, and marked optional. */
@@ -91,7 +91,7 @@ const published = readdirSync(join(root, 'packages'))
 const FAMILY_ORDER = [
   // A validator with no dependencies at all: nothing in the family sits under it, and
   // contractdiff compiles the validators it generates against it.
-  'valz',
+  'truefit',
   'linegauge',
   'seniority',
   'bellpull',
@@ -107,11 +107,11 @@ const FAMILY_ORDER = [
   // A tool built on the stack rather than a layer of it: a burgee program (its CLI, --json, the
   // MCP server) that spawns through bellpull. Above burgee, and nothing in the family depends on it.
   'oxmutate',
-  // The same kind as oxmutate: a burgee program (`fibz diff`) that spawns git through bellpull,
+  // The same kind as oxmutate: a burgee program (`truepass diff`) that spawns git through bellpull,
   // plus an ESLint plugin. Nothing in the family depends on it.
-  'fibz',
+  'truepass',
   // A burgee program (`contractdiff diff`, `lint`, `gen`) that loads its config through seniority,
-  // spawns git through bellpull, and compiles validators against valz. Nothing depends on it.
+  // spawns git through bellpull, and compiles validators against truefit. Nothing depends on it.
   'contractdiff',
 ];
 
