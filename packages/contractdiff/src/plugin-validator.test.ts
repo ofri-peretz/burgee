@@ -88,6 +88,26 @@ describe('the validator plugin', () => {
     expect([check('^a+$'), check('('), check(1)]).toEqual([true, false, false]);
   });
 
+  it('writes a payload that says nothing is sent as a guard of undefined, which accepts undefined alone', async () => {
+    const document = {
+      openapi: '3.1.0',
+      info: { title: 'T', version: '1' },
+      paths: { '/a': { post: { operationId: 'ping', requestBody: { required: true }, responses: { '204': { description: 'gone' } } } } },
+    };
+    const { files, findings } = await host().run('validator', document);
+    const content = files[0]?.content ?? '';
+    expect(content).toContain(
+      'export type PingResponse204 = undefined;\n/**\n * `ping` response:204 (response).\n *\n * Nothing is sent: the only value is `undefined`.\n */\nexport const PingResponse204: (value: unknown) => value is PingResponse204 = (value): value is PingResponse204 => value === undefined;',
+    );
+    expect(content).not.toContain('!(true)');
+    expect(findings).toEqual([]);
+    const module = await load(content, scratch('apicontract-validators-'), 'nothing');
+    for (const name of ['PingBody', 'PingResponse204']) {
+      const check = module[name] as Check;
+      expect([undefined, null, {}, '', 0, false].map((value) => check(value))).toEqual([true, false, false, false, false, false]);
+    }
+  });
+
   it('returns its sample files exactly, symbols and all', async () => {
     const generator = plugin.generators?.validator;
     expect((await host().run('validator', generator?.sample.document)).files).toStrictEqual(generator?.sample.files);
