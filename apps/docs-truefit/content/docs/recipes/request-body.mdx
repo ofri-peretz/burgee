@@ -1,0 +1,55 @@
+---
+title: Validate a request body
+description: "Validate a JSON request body in any Node server, strip keys the API does not know, answer 400 with every issue as JSON Pointer paths a client can map onto its form fields, and keep the handler typed."
+---
+
+The pattern is the same in every framework: parse, answer 400 with the issues, or carry on with a
+typed value.
+
+```js title="body.mjs"
+import { array, number, object, parse, string } from 'truefit';
+
+const CreateOrder = object(
+  { sku: string({ min: 1 }), qty: number({ int: true, min: 1 }), notes: array(string(), { max: 5 }) },
+  { unknown: 'strip' },
+);
+
+export function handle(body) {
+  const result = parse(CreateOrder, body);
+  if (!result.ok) return { status: 400, body: { issues: result.issues } };
+  return { status: 201, body: { order: result.value } };
+}
+
+console.log(JSON.stringify(handle({ sku: 'a1', qty: 2, notes: [], admin: true })));
+console.log(JSON.stringify(handle({ sku: '', qty: 0, notes: [] }), null, 2));
+```
+
+```text title="node body.mjs"
+{"status":201,"body":{"order":{"sku":"a1","qty":2,"notes":[]}}}
+{
+  "status": 400,
+  "body": {
+    "issues": [
+      {
+        "path": "/sku",
+        "keyword": "min",
+        "message": "expected at least 1 characters, got string \"\". fix: send 1 or more"
+      },
+      {
+        "path": "/qty",
+        "keyword": "min",
+        "message": "expected a number of at least 1, got number 0. fix: send 1 or more"
+      }
+    ]
+  }
+}
+```
+
+- **`unknown: 'strip'`** drops `admin` instead of refusing the request, which is what a public API
+  usually wants. Use `'strict'` to refuse it with an `unknown` issue.
+- **The issues are the response.** A JSON Pointer is the form field's address (`/qty`), and the
+  message already says what to send.
+- **In TypeScript**, `result.value` is `InferOutput<typeof CreateOrder>` inside the success branch.
+
+For a framework that accepts Standard Schema, pass `standard(CreateOrder)` from `truefit/standard`
+and let the framework call it. [Standard Schema](/docs/guides/standard-schema).

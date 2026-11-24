@@ -26,7 +26,7 @@
 </p>
 
 <p align="center">
-  Docs: <a href="https://burgee.interlace.tools/docs/packages/truefit">https://burgee.interlace.tools/docs/packages/truefit</a><br />
+  Docs: <a href="https://truefit.interlace.tools">https://truefit.interlace.tools</a><br />
   Migrating from: <a href="https://github.com/ofri-peretz/burgee/tree/main/packages/truefit#migrating">zod</a>
 </p>
 

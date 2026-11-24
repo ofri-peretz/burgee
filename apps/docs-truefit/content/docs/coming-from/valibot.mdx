@@ -1,0 +1,62 @@
+---
+title: Coming from valibot
+description: "A valibot alternative with the same idea, schemas you compose with functions so a bundle keeps only what it uses, plus JSON Pointer paths, fix lines and cross-field rules that always run. The mapping from pipe and actions to truefit's options and wrappers."
+---
+
+valibot and truefit share the idea that matters most for bundle size: a schema is built by
+functions, not methods, so a bundler keeps only what a program uses. Moving between them is
+mostly a change of where a bound goes: valibot puts bounds in `pipe` as actions, truefit puts them
+in the builder's options.
+
+```diff
+- import * as v from 'valibot';
+- const User = v.object({
+-   name: v.pipe(v.string(), v.minLength(1), v.maxLength(40)),
+-   email: v.optional(v.pipe(v.string(), v.email())),
+- });
+- const result = v.safeParse(User, input);
+- if (!result.success) console.log(result.issues);
++ import { object, optional, parse, string } from 'truefit';
++ import { email } from 'truefit/formats';
++ const User = object({
++   name: string({ min: 1, max: 40 }),
++   email: optional(string({ format: email })),
++ });
++ const result = parse(User, input);
++ if (!result.ok) console.log(result.issues);
+```
+
+## Mapping
+
+| valibot | truefit |
+| :-- | :-- |
+| `v.pipe(v.string(), v.minLength(a), v.maxLength(b), v.regex(r))` | `string({ min: a, max: b, pattern: r })` |
+| `v.email()`, `v.url()`, `v.uuid()`, `v.isoTimestamp()` … | `string({ format: email })`, formats from `truefit/formats` |
+| `v.pipe(v.number(), v.integer(), v.minValue(a), v.maxValue(b))` | `number({ int: true, min: a, max: b })` |
+| `v.trim()`, `v.toLowerCase()` | `trim(string())`, `lowercase(string())` |
+| `v.transform(f)` in a pipe | `transform(s, f)` |
+| `v.check(f, message)` / `v.forward(…)` | `refine(s, f, { message, path, uses })` |
+| `v.object` / `v.strictObject` / `v.looseObject` / `v.objectWithRest` | `object(shape)` with `unknown: 'strip' \| 'strict' \| 'keep' \| s` |
+| `v.optional(s, default)` | `optional(s, { default })` |
+| `v.nullable`, `v.nullish`, `v.exactOptional` | `nullable`, `nullish`, `exactOptional` |
+| `v.picklist([...])`, `v.enum(E)` | `enumOf([...])`, `nativeEnum(E)` |
+| `v.variant('kind', [...])` | `discriminatedBy('kind', [...])` |
+| `v.union`, `v.intersect`, `v.tuple`, `v.tupleWithRest`, `v.record`, `v.map`, `v.set`, `v.lazy` | `union`, `intersection`, `tuple`, `tuple(items, { rest })`, `record`, `mapOf`, `setOf`, `lazy` |
+| `v.fallback(s, x)` | `catchOf(s, x)` |
+| `v.brand`, `v.readonly` | `brand`, `readonly` |
+| `v.parse` / `v.safeParse` / `v.is` | `assert` or `parse` / `parse` / `check` |
+| `v.safeParseAsync`, `v.checkAsync` | `parseAsync`, `refineAsync` |
+| `v.InferInput`, `v.InferOutput` | `InferInput`, `InferOutput` |
+| `{ abortEarly: true }` | `{ first: true }` |
+| `v.flatten(issues)`, `issue.path` as objects | `issue.path` as a JSON Pointer; `keysOf` for the array |
+| `@valibot/to-json-schema` | `toJsonSchema` from `truefit/json-schema`, in the package |
+
+## Different on purpose
+
+- **String length counts code points**, as JSON Schema and zod do; valibot counts UTF-16 units, so
+  an emoji outside the basic plane is one character to truefit and two to valibot.
+- **No copy unless something changed.** valibot always returns a new object; truefit returns yours
+  where nothing changed. `{ copy: true }` gives valibot's behaviour.
+- **Cross-field rules run when their own fields are sound**, with `uses`, instead of only once the
+  whole object passes.
+- **JSON Schema is in the package**, both ways, with findings for what does not survive.

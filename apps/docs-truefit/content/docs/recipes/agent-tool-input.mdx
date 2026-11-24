@@ -1,0 +1,44 @@
+---
+title: Validate an agent's tool input
+description: "Give a model a tool's JSON Schema from the same truefit schema that validates its arguments, and send the issues back as the tool result, so the model reads a JSON Pointer and a fix line and corrects its own call."
+---
+
+A tool an agent calls needs two things from one schema: a JSON Schema to advertise, and a validator
+for what the model actually sends. When the call is wrong, the most useful tool result is the issue
+list, because each message says what to send instead.
+
+```js title="tool.mjs"
+import { enumOf, issues, number, object, optional, string } from 'truefit';
+import { toJsonSchema } from 'truefit/json-schema';
+
+const SearchArgs = object(
+  {
+    query: string({ min: 1, max: 200 }),
+    limit: optional(number({ int: true, min: 1, max: 50 })),
+    sort: optional(enumOf(['relevance', 'date'])),
+  },
+  { unknown: 'strict' },
+);
+
+const tool = { name: 'search', input_schema: toJsonSchema(SearchArgs).schema };
+console.log(JSON.stringify(tool.input_schema.required));
+
+export function callSearch(args) {
+  const found = issues(SearchArgs, args);
+  if (found.length > 0) return { is_error: true, content: found.map((i) => `${i.path} ${i.message}`).join('\n') };
+  return { content: `searching for ${args.query}` };
+}
+
+console.log(callSearch({ query: 'truefit', limit: 500, sort: 'newest', page: 2 }).content);
+```
+
+```text title="node tool.mjs"
+["query"]
+/limit expected a number of at most 50, got number 500. fix: send 50 or less
+/sort expected one of "relevance", "date", got string "newest". fix: send one of them
+/page expected no such key, got number 2. fix: remove "page"
+```
+
+`toJsonSchema` returns its findings too. If it returns any, the advertised schema says less than the
+validator checks, and the model will only learn the rest from an issue, so check `findings` is empty
+for a tool's schema in a test.

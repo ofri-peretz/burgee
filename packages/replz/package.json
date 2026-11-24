@@ -1,6 +1,6 @@
 {
   "name": "replz",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": false,
   "description": "Code review benchmark for AI reviewers and a repo's checks: replays each pull request a revert or fix blamed beside clean controls, and grades findings against a one-line answer key. No dependency outside the burgee family. A promptfoo migration path.",
   "keywords": [
@@ -57,7 +57,7 @@
     "bellpull": "^2.0.0",
     "burgee": "^2.1.5",
     "seniority": "^2.0.0",
-    "truefit": "^1.0.0"
+    "truefit": "^1.0.1"
   },
   "devDependencies": {
     "vitest": "^5.0.1"

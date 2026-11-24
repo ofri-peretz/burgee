@@ -1,0 +1,98 @@
+---
+title: Rules of your own
+description: "Add a rule to any schema with refine, run a rule across two fields even when a third field is wrong, report it at the field it is about, and await a rule or a map with refineAsync, transformAsync and parseAsync."
+---
+
+## A rule on top of a schema
+
+`refine(schema, test, { message, path })` runs `test` on a value the schema already accepted, so the
+rule can rely on the type. It returns true for a value it allows.
+
+```js title="refine.mjs"
+import { issues, refine, string } from 'truefit';
+
+const Slug = refine(string({ min: 1 }), (s) => /^[a-z0-9-]+$/u.test(s), { message: 'lower-case letters, digits and dashes' });
+console.log(issues(Slug, 'Hello World'));
+```
+
+```text title="node refine.mjs"
+[
+  {
+    path: '',
+    keyword: 'refine',
+    message: 'expected lower-case letters, digits and dashes, got string "Hello World". fix: change the value so that the rule holds'
+  }
+]
+```
+
+## A rule across fields that always runs
+
+The common case is a rule about two fields: `to` is not before `from`, `confirm` equals `password`.
+Name the fields the rule reads in `uses`, and it runs whenever those fields are sound, whatever is
+wrong with the rest of the object, and reports at `path`.
+
+```js title="across.mjs"
+import { issues, number, object, refine, string } from 'truefit';
+
+const Booking = refine(
+  object({ from: number(), to: number(), guest: string() }),
+  (b) => b.from <= b.to,
+  { uses: ['from', 'to'], path: ['to'], message: 'a stay that ends on or after it starts' },
+);
+
+console.log(issues(Booking, { from: 5, to: 2, guest: 42 }));
+```
+
+```text title="node across.mjs"
+[
+  {
+    path: '/guest',
+    keyword: 'type',
+    message: 'expected a string, got number 42. fix: send a string'
+  },
+  {
+    path: '/to',
+    keyword: 'refine',
+    message: 'expected a stay that ends on or after it starts, got an object. fix: change the value so that the rule holds'
+  }
+]
+```
+
+Both issues come back from one call: the wrong type at `/guest`, and the rule at `/to`. A form shows
+both at once instead of making its user fix one field to discover the next. Without `uses`, the rule
+runs only on a value that is sound all through, which is what most libraries do for every rule.
+
+In TypeScript the rule is handed a value typed with the `uses` keys alone, so it cannot read a field
+it did not declare.
+
+## Async rules and maps
+
+`refineAsync` and `transformAsync` take functions that return a promise, and `parseAsync` awaits
+them. They are their own exports, so a program that never awaits does not carry them, and `parse`
+throws on a schema that holds one rather than skipping it silently.
+
+```js title="async.mjs"
+import { object, parseAsync, refineAsync, string } from 'truefit';
+
+const taken = new Set(['ada']);
+const isFree = async (name) => !taken.has(name);
+
+const Signup = object({ user: refineAsync(string(), isFree, { message: 'a user name nobody has' }) });
+
+console.log(await parseAsync(Signup, { user: 'grace' }));
+console.log((await parseAsync(Signup, { user: 'ada' })).issues);
+```
+
+```text title="node async.mjs"
+{ ok: true, value: { user: 'grace' } }
+[
+  {
+    path: '/user',
+    keyword: 'refine',
+    message: 'expected a user name nobody has, got string "ada". fix: change the value so that the rule holds'
+  }
+]
+```
+
+Awaited rules run after the whole value passes `check`, siblings together, and maps run only once
+every rule holds.

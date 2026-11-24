@@ -1,0 +1,62 @@
+---
+title: Compiled validators
+description: "Three ways to run one truefit schema: interpreted with no eval, compiled at run time with truefit/jit, or emitted ahead of time as JavaScript or TypeScript source with truefit/emit, and how to choose between them."
+---
+
+The same schema runs three ways, and all three give the same answer:
+
+| | How | Needs | Use it when |
+| :-- | :-- | :-- | :-- |
+| `check` | walks the schema as data | nothing | the default; required under a CSP without `unsafe-eval` |
+| `truefit/jit` `compile` | builds a function with `new Function` once | `eval` allowed | a hot path on a server |
+| `truefit/emit` `emit` | writes the function's source, ahead of time | a build step | a hot path where `eval` is forbidden, or a contract you generate code from |
+
+The three readers (`check`, `issues` and the emitted code) are held to agree on a fuzzed corpus for
+every kind, as part of each feature's definition of done.
+
+## At run time
+
+```js title="jit.mjs"
+import { number, object, string } from 'truefit';
+import { compile } from 'truefit/jit';
+
+const isPoint = compile(object({ x: number(), y: number(), label: string() }));
+console.log(isPoint({ x: 1, y: 2, label: 'a' }), isPoint({ x: 1 }));
+```
+
+```text title="node jit.mjs"
+true false
+```
+
+`compile` returns a type guard, like `check`, so it narrows where it is called.
+
+## Ahead of time
+
+```js title="emit.mjs"
+import { number, object, string } from 'truefit';
+import { emit } from 'truefit/emit';
+
+const Point = object({ x: number(), y: number(), label: string() });
+console.log(`export const isPoint = ${emit(Point)};`);
+```
+
+```text title="node emit.mjs"
+export const isPoint = (() => {
+const f0 = (v) => typeof v === "object" && v !== null && !Array.isArray(v)
+  && (typeof v["x"] === "number" && v["x"] >= -1.7976931348623157e+308 && v["x"] <= 1.7976931348623157e+308)
+  && (typeof v["y"] === "number" && v["y"] >= -1.7976931348623157e+308 && v["y"] <= 1.7976931348623157e+308)
+  && (typeof v["label"] === "string");
+return (v) => f0(v);
+})();
+```
+
+`emit` returns one expression, so `export const isPoint = ${emit(Point)};` is a whole module. With
+`{ typescript: true }` it is TypeScript for the guard `(value: unknown) => value is T`, which
+type-checks under `strict`; `typeOf(schema, name)` writes the type `T` to declare beside it.
+
+`emit` refuses a schema that names a function of yours (a `refine`, a `custom` type), because no
+value a schema carries may become code. `emitWith` takes those functions as hooks instead, and is
+what `compile` calls.
+
+contractdiff's `validator` target uses `emit` to turn an OpenAPI or AsyncAPI contract into
+validators you commit, with no truefit at run time.

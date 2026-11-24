@@ -1,0 +1,46 @@
+---
+title: Validate the environment at startup
+description: "Read process.env once at startup with coercion and defaults, fail with every missing or malformed variable listed at once, and hand the rest of the program a typed, frozen config."
+---
+
+The environment is text. Read it once, coerce what needs coercing, and stop with every problem at
+once rather than the first.
+
+```js title="env.mjs"
+import { boolean, enumOf, number, object, optional, parse, string } from 'truefit';
+import { httpUrl } from 'truefit/formats';
+
+const Env = object({
+  DATABASE_URL: string({ format: httpUrl }),
+  PORT: optional(number({ int: true, min: 1, max: 65535, coerce: true }), { default: 3000 }),
+  LOG_LEVEL: optional(enumOf(['debug', 'info', 'warn', 'error']), { default: 'info' }),
+  DRY_RUN: optional(boolean({ coerce: true }), { default: false }),
+});
+
+const result = parse(Env, process.env);
+if (!result.ok) {
+  for (const issue of result.issues) console.error(`${issue.path.slice(1)}: ${issue.message}`);
+  process.exit(1);
+}
+const { DATABASE_URL, PORT, LOG_LEVEL, DRY_RUN } = result.value;
+console.log(Object.freeze({ DATABASE_URL, PORT, LOG_LEVEL, DRY_RUN }));
+```
+
+```text title="DATABASE_URL=https://db.example PORT=8080 node env.mjs"
+{
+  DATABASE_URL: 'https://db.example',
+  PORT: 8080,
+  LOG_LEVEL: 'info',
+  DRY_RUN: false
+}
+```
+
+```text title="PORT=http LOG_LEVEL=loud node env.mjs" exit="1"
+DATABASE_URL: expected a value, got undefined. fix: add "DATABASE_URL"
+PORT: expected a number, got string "http". fix: send a finite number
+LOG_LEVEL: expected one of "debug", "info", "warn", "error", got string "loud". fix: send one of them
+```
+
+The object keeps unknown keys by default, so the rest of `process.env` passes through untouched and
+is left out of the config by the destructuring. `issue.path.slice(1)` turns `/PORT` into the
+variable's name.

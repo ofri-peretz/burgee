@@ -1,5 +1,11 @@
 # truefit
 
+## 1.0.1
+
+### Patch Changes
+
+- [#1810](https://github.com/ofri-peretz/burgee/pull/1810) [`102eecf`](https://github.com/ofri-peretz/burgee/commit/102eecf8a30ddab00865ab4e9338602a0e98e46f) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A missing value now reads `got undefined` in an issue's message, not `got undefined undefined`: the message printed the type and then the value, and for `undefined` both are the word "undefined". Seen from `issues()`, `parse()` and `standard().validate()` on a missing required key.
+
 ## 1.0.0
 
 ### Major Changes
