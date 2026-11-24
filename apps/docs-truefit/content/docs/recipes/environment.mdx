@@ -36,7 +36,7 @@ console.log(Object.freeze({ DATABASE_URL, PORT, LOG_LEVEL, DRY_RUN }));
 ```
 
 ```text title="PORT=http LOG_LEVEL=loud node env.mjs" exit="1"
-DATABASE_URL: expected a value, got undefined undefined. fix: add "DATABASE_URL"
+DATABASE_URL: expected a value, got undefined. fix: add "DATABASE_URL"
 PORT: expected a number, got string "http". fix: send a finite number
 LOG_LEVEL: expected one of "debug", "info", "warn", "error", got string "loud". fix: send one of them
 ```
