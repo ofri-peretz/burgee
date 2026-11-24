@@ -53,7 +53,7 @@ export const docComments = (text: string): string[] => {
 export const VITEST_CONFIG = /^vitest\.(?:[\w-]+\.)?config\.[cm]?[jt]s$/;
 
 /**
- * The command a draft's `check` runs one lock test with, in the repository the configs and the
+ * The command a draft's check line runs one lock test with, in the repository the configs and the
  * manifest come from. A root vitest config that names the lock folder is passed with `--config`
  * (vitest finds `vitest.config.*` itself); a repo that uses vitest otherwise gets `npx vitest run`;
  * one with no sign of vitest gets no command, and the draft says only which file to run.
