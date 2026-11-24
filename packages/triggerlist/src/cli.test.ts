@@ -112,6 +112,14 @@ describe('runProtect', () => {
     expect(text(data)).not.toContain('observe');
   });
 
+  it('passes, checking nothing, when the base branch has no checklist yet', async () => {
+    const git: Git = { diff: () => Promise.resolve(GATE_DIFF), show: () => Promise.reject(new Error("fatal: path 'c.yaml' does not exist in 'b'")) };
+    const data = await runProtect({ repo: '/', git, base: 'b', checklist: 'c.yaml', worktree: false, enforce: true });
+    expect(JSON.parse(JSON.stringify(data))).toEqual({ range: 'b...HEAD', checklist: 'b:c.yaml', mode: 'enforce', gates: [], code: [], flagged: false, bootstrap: true });
+    expect(text(data)).toBe('b:c.yaml does not exist yet: no gate to protect, so nothing is checked');
+    await expect(runProtect({ repo: '/nowhere', git, base: 'b', checklist: 'c.yaml', worktree: true, enforce: true })).rejects.toThrow();
+  });
+
   it('passes in enforce mode when not flagged', async () => {
     const data = await runProtect({ repo: '/', git: baseGit(DIFF), base: 'b', checklist: 'c.yaml', worktree: false, enforce: true });
     expect(data).not.toHaveProperty('exitCode');

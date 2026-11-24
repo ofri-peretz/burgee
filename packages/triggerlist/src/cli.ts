@@ -56,8 +56,27 @@ export const runMatch = async (options: RangeOptions): Promise<Data> => {
   return data;
 };
 
+/**
+ * The checklist for `protect`, or none when the base branch has no checklist yet: the pull request
+ * that adds a repo's first checklist must not fail its own pre-push, since nothing on the base
+ * names a gate to protect.
+ */
+const protectedBy = async (options: RangeOptions): Promise<{ source: string; checklist: Checklist | undefined }> => {
+  try {
+    return await loadChecklist(options.repo, options.git, options.checklist, options.worktree ? undefined : options.base);
+  } catch (error) {
+    if (options.worktree) throw error;
+    return { source: `${options.base}:${options.checklist}`, checklist: undefined };
+  }
+};
+
 export const runProtect = async (options: RangeOptions & { readonly enforce: boolean }): Promise<Data> => {
-  const { source, checklist } = await loadChecklist(options.repo, options.git, options.checklist, options.worktree ? undefined : options.base);
+  const { source, checklist } = await protectedBy(options);
+  if (checklist === undefined) {
+    const data: Data = { range: range(options.base), checklist: source, mode: options.enforce ? 'enforce' : 'observe', gates: [], code: [], flagged: false, bootstrap: true };
+    data[TEXT] = () => `${source} does not exist yet: no gate to protect, so nothing is checked`;
+    return data;
+  }
   const paths = parseDiff(await options.git.diff(range(options.base))).map((file) => file.path);
   const result = protect(paths, checklist.gates);
   const failed = result.flagged && options.enforce;
