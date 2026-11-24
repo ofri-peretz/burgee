@@ -23,7 +23,7 @@ const decision = (out: string): string | undefined => (out ? (JSON.parse(out) as
 describe('guard-bash', () => {
   it('passes its own deny, allow and ask cases', () => {
     const r = spawnSync(process.execPath, [join(CLAUDE, 'guard-bash.mjs'), '--self-test'], { encoding: 'utf8' });
-    expect(r.stdout).toMatch(/^ok: \d+ denied, \d+ allowed, \d+ asked\n$/);
+    expect(r.stdout).toMatch(/^ok: \d+ denied, \d+ allowed, \d+ asked, \d+ timed\n$/);
     expect(r.status).toBe(0);
   });
 
@@ -34,7 +34,18 @@ describe('guard-bash', () => {
     ['npm publish', 'ask'],
     ['git push origin main', undefined],
   ])('answers %s with %s', (command, want) => {
-    expect(decision(hook('guard-bash.mjs', { tool_name: 'Bash', tool_input: { command } }))).toBe(want);
+    expect(decision(hook('guard-bash.mjs', { tool_name: 'Bash', tool_input: { command, timeout: 600000 } }))).toBe(want);
+  });
+
+  it.each([
+    [{}, 'deny'],
+    [{ timeout: 120000 }, 'deny'],
+    [{ timeout: 600000 }, undefined],
+    [{ run_in_background: true }, undefined],
+  ])('answers a foreground git push with %o by %s: its hooks outlive the default timeout', (input, want) => {
+    const out = hook('guard-bash.mjs', { tool_name: 'Bash', tool_input: { command: 'git push -u origin x', ...input } });
+    expect(decision(out)).toBe(want);
+    if (want) expect(out).toContain('timeout: 600000');
   });
 
   it("asks before a command the repo lists and denies an edit under a frozen glob, from the repo's hookset.json", () => {
