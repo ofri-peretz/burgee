@@ -70,13 +70,16 @@ describe('`contractdiff migrate`', () => {
     expect(first.code).toBe(ExitCode.OK);
     expect(data(first)).toEqual({
       changed: true,
-      read: '.redocly.yaml',
-      config: { input: 'api.yaml', targets: { types: { generator: 'types', out: 'src/api.d.ts', options: { compat: 'openapi-typescript' } }, fetch: { generator: 'fetch', out: 'src/client.ts' } } },
+      read: ['.redocly.yaml', 'package.json'],
+      config: { input: 'api.yaml', targets: { types: { generator: 'types', out: 'src', options: { compat: 'openapi-typescript' } }, fetch: { generator: 'fetch', out: 'src' } } },
       written: ['contractdiff.config.json'],
       unchanged: [],
       kept: [],
       edited: ['package.json', 'src/app.ts'],
-      findings: [{ code: 'option-dropped', pointer: 'redocly.yaml#/rules', message: '`rules` configures Redocly, not the types', fix: 'keep redocly.yaml for `redocly lint`; contractdiff does not read it' }],
+      findings: [
+        { code: 'option-dropped', pointer: 'redocly.yaml#/rules', message: '`rules` configures Redocly, not the types', fix: 'keep redocly.yaml for `redocly lint`; contractdiff does not read it' },
+        expect.objectContaining({ code: 'output-renamed', pointer: 'package.json#/scripts/types' }),
+      ],
       uninstall: 'npm uninstall openapi-fetch openapi-typescript',
     });
     expect(JSON.parse(readFileSync(join(directory, 'contractdiff.config.json'), 'utf8'))).toEqual(data(first).config);
@@ -90,14 +93,17 @@ describe('`contractdiff migrate`', () => {
   it('writes nothing with --dry-run', async () => {
     const directory = make('dry', { 'package.json': pkg({ api: 'orval' }), 'orval.config.ts': "export default { p: { input: 'a.yaml', output: 'o.ts' } }" });
     const r = await runBurgee(program, { argv: ['migrate', 'orval', directory, '--dry-run', '--json'] });
-    expect(data(r)).toMatchObject({ changed: false, read: 'orval.config.ts', written: [], unchanged: [], kept: [], edited: ['package.json'] });
+    expect(data(r)).toMatchObject({ changed: false, read: ['orval.config.ts', 'package.json'], written: [], unchanged: [], kept: [], edited: ['package.json'] });
     expect(readFileSync(join(directory, 'package.json'), 'utf8')).toBe(pkg({ api: 'orval' }));
+    // Its text names what a run would write, by path.
+    const text = await runBurgee(program, { argv: ['migrate', 'orval', directory, '--dry-run'] });
+    expect(text.stdout).toContain('\nwould write contractdiff.config.json\nwould edit package.json\n');
   });
 
   it('keeps a config the user already has, and reports a change for edits alone', async () => {
     const directory = make('kept', { 'package.json': pkg({ api: 'openapi-ts -i a.yaml' }), 'contractdiff.config.json': '{}\n' });
     const r = await runBurgee(program, { argv: ['migrate', 'hey-api', directory, '--json'] });
-    expect(data(r)).toMatchObject({ changed: true, read: null, written: [], kept: ['contractdiff.config.json'], edited: ['package.json'] });
+    expect(data(r)).toMatchObject({ changed: true, read: ['package.json'], written: [], kept: ['contractdiff.config.json'], edited: ['package.json'] });
     expect(readFileSync(join(directory, 'contractdiff.config.json'), 'utf8')).toBe('{}\n');
   });
 
@@ -107,6 +113,23 @@ describe('`contractdiff migrate`', () => {
     try {
       const r = await runBurgee(program, { argv: ['migrate', 'openapi-typescript', '--json'] });
       expect(data(r)).toMatchObject({ changed: true, written: ['contractdiff.config.json'] });
+    } finally {
+      cwd.mockReturnValue(join(root, 'elsewhere'));
+    }
+  });
+
+  it('writes a config gen reads as openapi-typescript wrote: types.ts in the -o folder, not under a folder named for the file', async () => {
+    const directory = make('then-gen', {
+      'package.json': pkg({ gen: 'openapi-typescript ./openapi.yaml -o src/api/types.ts' }),
+      'openapi.yaml': "openapi: 3.1.0\ninfo: { title: t, version: '1' }\npaths: {}\n",
+    });
+    const cwd = vi.spyOn(process, 'cwd').mockReturnValue(directory);
+    try {
+      const migrated = await runBurgee(program, { argv: ['migrate', 'openapi-typescript', '--json'] });
+      expect(data(migrated)).toMatchObject({ read: ['package.json'], config: { targets: { types: { out: 'src/api' } } }, findings: [] });
+      const generated = await runBurgee(program, { argv: ['gen', '--json'] });
+      expect(generated.code).toBe(ExitCode.OK);
+      expect((data(generated).files as { path: string }[]).map((file) => file.path)).toEqual(['src/api/types.ts', 'contractdiff.map.json']);
     } finally {
       cwd.mockReturnValue(join(root, 'elsewhere'));
     }
@@ -133,7 +156,7 @@ describe('reading the project', () => {
   it('reports a change when it writes the config and edits nothing', async () => {
     const directory = make('config-only', { 'redocly.yaml': 'apis:\n  a:\n    root: a.yaml\n    x-openapi-ts:\n      output: a.ts\n' });
     const r = await runBurgee(program, { argv: ['migrate', 'openapi-typescript', directory, '--json'] });
-    expect(data(r)).toMatchObject({ changed: true, read: 'redocly.yaml', written: ['contractdiff.config.json'], edited: [] });
+    expect(data(r)).toMatchObject({ changed: true, read: ['redocly.yaml'], written: ['contractdiff.config.json'], edited: [] });
   });
 });
 

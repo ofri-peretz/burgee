@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import { Anonymous, Legacy, Plain, Throws } from './__fixtures__/extract/foreign-schemas.js';
+import { Owner as TruefitOwner } from './__fixtures__/extract/truefit-schemas.js';
 import { Length, Owner, Pet, Tree } from './__fixtures__/extract/zod-schemas.js';
 import { checkPlugin, createHost, validate } from './host.js';
 import { DIALECT, exportsOf, extractSchemas, plugin } from './plugin-extract-standard-schema.js';
@@ -56,6 +57,28 @@ describe('the standard-schema extractor', () => {
         Pet: { type: 'object', properties: { id: { type: 'number' }, name: { type: 'string' }, tag: { type: 'string' } }, required: ['id', 'name'] },
       },
     });
+  });
+
+  it('reads truefit\'s plain schemas, and those wrapped by truefit/standard, from a module path', async () => {
+    const pet = { type: 'object', properties: { id: { type: 'number' }, name: { type: 'string' }, tag: { type: 'string' } }, required: ['id', 'name'] };
+    const expected = { $schema: DIALECT, $defs: { Owner: { type: 'object', properties: { email: { type: 'string' } }, required: ['email'] }, Pet: pet } };
+    expect(await result({ module: fixture('truefit-schemas.ts') })).toEqual({ document: expected, findings: [] });
+    expect(await result({ module: { Owner: TruefitOwner, version: 1 }, export: 'Owner' })).toEqual({ document: { $schema: DIALECT, $defs: { Owner: expected.$defs.Owner } }, findings: [] });
+  });
+
+  it('says so when a module exports no schema it reads, instead of an empty document alone', async () => {
+    expect(await result({ module: { Plain, version: 1 } })).toEqual({
+      document: { $schema: DIALECT, $defs: {} },
+      findings: [
+        {
+          code: 'no-schemas',
+          pointer: '',
+          message: 'the module exports no schema this extractor reads (its exports: Plain, version)',
+          fix: 'export schemas of a Standard Schema library (Zod 4, Valibot, ArkType) or truefit, or name the export to read with `"export"`',
+        },
+      ],
+    });
+    expect(((await result({ module: {} })).findings[0] as { message: string }).message).toBe('the module exports no schema this extractor reads');
   });
 
   it('reads one export by name, and the output side when asked, where a transform is a finding', async () => {

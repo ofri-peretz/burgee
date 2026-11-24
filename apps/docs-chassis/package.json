@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsc --noEmit -p .",
     "typecheck": "tsc --noEmit -p .",
-    "lint": "eslint src",
+    "lint": "cd ../.. && eslint apps/docs-chassis/src --max-warnings 0",
     "test": "vitest run"
   },
   "exports": {

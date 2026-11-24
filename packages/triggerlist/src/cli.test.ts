@@ -87,6 +87,27 @@ describe('runMatch', () => {
     expect(text(data)).toBe('1 checklist item(s) fire for origin/main...HEAD:\n\nspawn: Does it spawn through bellpull?\n  check: run the inline-implementation lock\n  at: src/a.ts:1');
   });
 
+  it('matches nothing, and says so, when the base ref has no checklist file yet', async () => {
+    const calls: string[] = [];
+    const git: Git = {
+      diff: (range) => (calls.push(range), Promise.resolve(DIFF)),
+      show: () => Promise.reject(new Error("fatal: path 'c.yaml' does not exist in 'b'")),
+    };
+    const data = await runMatch({ repo: '/nowhere', git, base: 'b', checklist: 'c.yaml', worktree: false });
+    expect(JSON.parse(JSON.stringify(data))).toEqual({ range: 'b...HEAD', checklist: 'b:c.yaml', fired: [], bootstrap: true });
+    expect(text(data)).toBe('b:c.yaml does not exist yet: no checklist item to match');
+    // The diff still runs, so a ref the checkout lacks fails there, with its fix.
+    expect(calls).toEqual(['b...HEAD']);
+    const missingRef: Git = { ...git, diff: () => Promise.reject(new Error('git diff failed. fix: pass a ref this checkout has')) };
+    await expect(runMatch({ repo: '/nowhere', git: missingRef, base: 'b', checklist: 'c.yaml', worktree: false })).rejects.toThrow('fix: pass a ref');
+    await expect(runMatch({ repo: '/nowhere', git, base: 'b', checklist: 'c.yaml', worktree: true })).rejects.toThrow();
+  });
+
+  it('still fails on a base checklist that is there and does not parse', async () => {
+    const git = fakeGit(DIFF, { 'b:c.yaml': 'items: {' });
+    await expect(runMatch({ repo: '/nowhere', git, base: 'b', checklist: 'c.yaml', worktree: false })).rejects.toThrow();
+  });
+
   it('reads the working-tree checklist with worktree', async () => {
     const dir = folder({ 'c.yaml': CHECKLIST });
     const git = fakeGit('', {});
@@ -191,6 +212,15 @@ describe('runSeed', () => {
     expect(text(data).split('\n')[0]).toBe('# 2 draft item(s) from triggerlist seed. Narrow each trigger before it goes into the checklist.');
   });
 
+  it('drafts each lock check with the command that fits the repository it reads', () => {
+    const lock = { 'scripts/a-lock.test.ts': '/** A. */' };
+    const check = (files: Record<string, string>): string => (runSeed({ repo: folder({ ...lock, ...files }), checklist: 'c.yaml', locks: 'scripts', decisions: 'dec' }).items as { check: string }[])[0]?.check as string;
+    expect(check({ 'vitest.config.ts': '', 'vitest.root.config.ts': "include: ['scripts/*.test.ts']", 'vitest-x.config.ts': 'scripts/' })).toBe('npx vitest run --config vitest.root.config.ts scripts/a-lock.test.ts');
+    expect(check({ 'package.json': '{ "devDependencies": { "vitest": "4" } }' })).toBe('npx vitest run scripts/a-lock.test.ts');
+    expect(check({ 'package.json': '{}' })).toBe('run scripts/a-lock.test.ts');
+    expect(check({})).toBe('run scripts/a-lock.test.ts');
+  });
+
   it('works without a checklist or the folders', () => {
     const dir = folder({});
     expect(runSeed({ repo: dir, checklist: 'c.yaml', locks: 'scripts', decisions: 'dec' })).toMatchObject({ drafted: 0, skipped: 0 });
@@ -232,8 +262,14 @@ describe('the program', () => {
     const r = await runBurgee(program, { argv: ['match', 'main', '--repo', repo, '--worktree', '--json'] });
     expect(r.json).toMatchObject({ data: { fired: [] } });
     const missing = await runBurgee(program, { argv: ['match', 'main', '--repo', repo, '--checklist', 'nope.yaml', '--json'] });
+    expect(missing.code).toBe(ExitCode.OK);
+    expect(missing.json).toMatchObject({ data: { checklist: 'main:nope.yaml', fired: [], bootstrap: true } });
+  });
+
+  it('match fails with the fix only for a ref the checkout does not have', async () => {
+    const missing = await runBurgee(program, { argv: ['match', 'nosuchref', '--repo', repo, '--json'] });
     expect(missing.code).toBe(ExitCode.RUNTIME);
-    expect(JSON.stringify(missing.json)).toMatch(/git show main:nope\.yaml failed: fatal: [^"\\]*\. fix: pass a ref this checkout has/);
+    expect(JSON.stringify(missing.json)).toMatch(/git diff [^"]*nosuchref\.\.\.HEAD -- failed: fatal: [^"\\]*\. fix: pass a ref this checkout has/);
   });
 
   it('brief hands over the base REVIEW.md, not the one the branch rewrote (R5)', async () => {

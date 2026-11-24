@@ -23,7 +23,16 @@ const program = defineProgram({
         replicas: { type: 'number', minimum: 1, maximum: 20, default: 2, description: 'how many' },
         floor: { type: 'number', minimum: 0 },
         ceiling: { type: 'number', maximum: 9.5, integer: false },
+        cwd: { type: 'string', default: '.', description: 'the repo to read (default: the current directory)' },
+        base: { type: 'string', default: 'origin/main', description: 'the ref to diff against (Default origin/main)' },
+        mode: { type: 'string', default: 'fast', choices: ['fast', 'full'], description: 'fast (the default) or full' },
+        when: { type: 'string', default: 'now', description: 'defaults to now (it is said without a parenthesis)' },
+        note: { type: 'string', default: 'x', description: 'a (defaulted) word is not a default' },
       },
+      arguments: [
+        { name: 'dir', required: false, default: '.', description: 'where to send from (defaults to the current directory)' },
+        { name: 'rest', required: false, default: 'none', description: 'the rest' },
+      ],
       run: () => undefined,
     }),
   ],
@@ -53,6 +62,22 @@ describe('help annotations (R4)', () => {
   it('names a number’s value n, unless the option names it', () => {
     expect(row('--retries')).toMatch(/--retries <n> +how many times$/);
     expect(row('--port')).toMatch(/--port <port>$/);
+  });
+  /**
+   * A description that names its default in words is not told it again: triggerlist printed
+   * `the repository to read (default: the current directory) (default: .)`. Red
+   * first: every row below ended in a second `(default: …)`.
+   */
+  it('prints the default once when the description already names it', () => {
+    expect(row('--cwd')).toMatch(/--cwd <value> +the repo to read \(default: the current directory\)$/);
+    expect(row('--base')).toMatch(/--base <value> +the ref to diff against \(Default origin\/main\)$/);
+    expect(row('--mode')).toMatch(/--mode <value> +fast \(the default\) or full \(one of: fast, full\)$/);
+    expect(row('  [dir] ')).toMatch(/\[dir\] +where to send from \(defaults to the current directory\)$/);
+    expect(row('  [rest] ')).toMatch(/\[rest\] +the rest \(default: none\)$/);
+  });
+  it('still appends the default when the description does not name it in a parenthesis', () => {
+    expect(row('--when')).toMatch(/--when <value> +defaults to now \(it is said without a parenthesis\) \(default: now\)$/);
+    expect(row('--note')).toMatch(/--note <value> +a \(defaulted\) word is not a default \(default: x\)$/);
   });
   it('annotates an option with no description', () => {
     expect(row('--quiet')).toMatch(/--quiet +\(default: false\)$/);

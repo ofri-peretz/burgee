@@ -94,7 +94,7 @@
     "test": "vitest run && vitest run --config compat/vitest.config.ts",
     "test:native": "cd native && cargo test --release",
     "test:sensitivity": "vitest run src/sensitivity.test.ts",
-    "lint": "eslint src",
+    "lint": "cd ../.. && eslint packages/oxmutate/src --max-warnings 0",
     "coverage": "vitest run --coverage.enabled",
     "compat:mutation": "vitest run --config compat/vitest.config.ts"
   },

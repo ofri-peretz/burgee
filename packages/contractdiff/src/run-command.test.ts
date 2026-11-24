@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { extractCommand, genCommand } from './run-command.js';
+import { plugin as hono } from './plugin-extract-hono.js';
+import { plugin as nest } from './plugin-extract-nest.js';
+import { plugin as trpc } from './plugin-extract-trpc.js';
+import { BUILTIN_EXTRACTORS, extractCommand, genCommand } from './run-command.js';
 
 const writing = {
   check: { type: 'boolean', description: 'write nothing; exit 1 and list the files that are stale' },
@@ -16,11 +19,24 @@ describe('the declarations', () => {
   });
 
   it('declares extract with the writing switches, --from and --out, as idempotent', () => {
-    expect(extractCommand).toMatchObject({ name: 'extract', description: 'A spec from your code, one plugin per source: validator schemas, NestJS, Hono', effects: 'idempotent' });
+    expect(extractCommand).toMatchObject({
+      name: 'extract',
+      description: 'A spec from your code, one plugin per source: Standard Schema exports (Zod 4, Valibot, ArkType, truefit), ts-rest contracts, routes declared with schemas',
+      effects: 'idempotent',
+    });
     expect(extractCommand.options).toEqual({
       ...writing,
-      from: { type: 'string', description: 'the extractor to run (default: `extract.from` in the config)', placeholder: 'extractor' },
+      from: { type: 'string', description: 'the extractor to run: standard-schema, openapi-from-schemas, ts-rest, or a plugin\'s (default: `extract.from` in the config)', placeholder: 'extractor' },
       out: { type: 'string', description: 'the spec file to write (default: spec.json)', placeholder: 'file' },
     });
+  });
+});
+
+describe('extract --help names only what runs', () => {
+  it('lists the built-in extractors, and no framework whose extractor is still a stub', () => {
+    expect(BUILTIN_EXTRACTORS).toEqual(['standard-schema', 'openapi-from-schemas', 'ts-rest']);
+    // The NestJS, Hono and tRPC extractors are planned stubs: when one lands, name it in the description.
+    expect([nest, hono, trpc]).toEqual([undefined, undefined, undefined]);
+    expect(extractCommand.description).not.toMatch(/NestJS|Hono|tRPC/u);
   });
 });

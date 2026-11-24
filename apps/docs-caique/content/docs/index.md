@@ -328,7 +328,7 @@ Graded by the incumbent's own test suite:
 | `inquirer-core` | 47 / 47 |
 | `inquirer-prompts` | 290 / 290 |
 
-Weight, installed and tree-inclusive: **307,532 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.7905** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
+Weight, installed and tree-inclusive: **307,577 bytes** against **389,049** for the incumbents it replaces — a ratio of **0.7906** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## For agents
 

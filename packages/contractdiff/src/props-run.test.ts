@@ -97,6 +97,13 @@ describe('runProps catches a bug planted in the code each property holds to acco
     expect(report.counterexamples).toEqual([expect.objectContaining({ property: 'round-trip', value: { a: [], b: '' } })]);
   });
 
+  it('round-trip: a decoder that writes the keys in another order changed nothing', () => {
+    const reordering = { decode: (text: string) => Object.fromEntries(Object.entries(JSON.parse(text) as object).toReversed()) };
+    const report = runProps(single({ type: 'object', required: ['a', 'b'], properties: { a: { type: 'integer' }, b: { type: 'string' } } }), { runs: 20, seed: 1, subject: reordering });
+    expect(report.tallies['round-trip'].checked).toBe(20);
+    expect(report.counterexamples).toEqual([]);
+  });
+
   it('round-trip: a decoder whose output the validator refuses', () => {
     const wrong = { decode: (text: string) => ({ ...(JSON.parse(text) as object), extra: 1 }) };
     const report = runProps(single({ type: 'object', additionalProperties: false, properties: { a: { const: 1 } } }), { runs: 20, seed: 1, subject: wrong });

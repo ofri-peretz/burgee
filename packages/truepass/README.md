@@ -89,14 +89,14 @@ own commit messages: it exits 1 on a finding and 0 on none.
 
 ## What it checks
 
-| Check                          | Where           | Reports                                                                                  |
-| :----------------------------- | :-------------- | :--------------------------------------------------------------------------------------- |
-| `truepass/no-focused-test`     | ESLint          | `.only`, `fit`, `fdescribe`                                                              |
-| `truepass/no-unexplained-skip` | ESLint          | `.skip`, `.todo`, `xit` and a constant `skipIf`, with no issue link, decision id or date |
-| `truepass/no-fixed-sleep`      | ESLint          | `setTimeout` promises, `sleep(n)`, `waitForTimeout`                                      |
-| `truepass/no-test-retry`       | ESLint          | `retry` / `retries` in tests and runner configs, `jest.retryTimes`                       |
-| `weakened-assertion`           | `truepass diff` | an `expect(x)` moved to a weaker matcher; `Assertion: <why>` in a commit accepts it      |
-| `unexplained-snapshot`         | `truepass diff` | a snapshot file changed with no `Snapshot: <why>` line in the range's commits            |
+| Check                          | Where           | Reports                                                                                            |
+| :----------------------------- | :-------------- | :------------------------------------------------------------------------------------------------- |
+| `truepass/no-focused-test`     | ESLint          | `.only`, `fit`, `fdescribe`                                                                        |
+| `truepass/no-unexplained-skip` | ESLint          | `.skip`, `.todo`, `xit` and a constant `skipIf`, with no issue link, decision id or date           |
+| `truepass/no-fixed-sleep`      | ESLint          | `setTimeout` promises, `sleep(n)`, `waitForTimeout`; a `0` or omitted delay is a tick, not a sleep |
+| `truepass/no-test-retry`       | ESLint          | `retry` / `retries` in tests and runner configs, `jest.retryTimes`                                 |
+| `weakened-assertion`           | `truepass diff` | an `expect(x)` moved to a weaker matcher; `Assertion: <why>` in a commit accepts it                |
+| `unexplained-snapshot`         | `truepass diff` | a snapshot file changed with no `Snapshot: <why>` line in the range's commits                      |
 
 A call counts as a test only when its root is a test-runner name that is an unbound global or is
 imported from a test-runner module, so a program's own `only()` is never reported.

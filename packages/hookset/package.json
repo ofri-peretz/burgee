@@ -54,7 +54,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "coverage": "vitest run --coverage.enabled",
-    "lint": "eslint src"
+    "lint": "cd ../.. && eslint packages/hookset/src --max-warnings 0"
   },
   "dependencies": {
     "burgee": "^2.1.3"

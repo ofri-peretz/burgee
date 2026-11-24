@@ -1,15 +1,20 @@
 /**
  * `contractdiff migrate openapi-typescript` (apicontract-kit R4): its CLI flags in `package.json`
  * scripts and its `redocly.yaml` `apis` become `contractdiff.config.json` with the `types` target in
- * `openapi-typescript` compat mode. The output is the same, so no import changes; the scripts that
- * ran it run `contractdiff gen` instead.
+ * `openapi-typescript` compat mode. The output is the same; `out` is the folder openapi-typescript
+ * wrote into, and the target names its file `types.ts`, so a file named otherwise is a finding with
+ * the import to change. The scripts that ran it run `contractdiff gen` instead.
  *
  * Flags: https://github.com/openapi-ts/openapi-typescript/blob/main/docs/cli.md (§ Flags, § Multiple schemas).
  */
+import { posix } from 'node:path';
+
 import { parse as parseYaml } from 'seniority/yaml';
 
 import { type ContractFinding } from './core/model.js';
-import { camel, type Config, commandParts, editScripts, finding, type Files, type Migrate, scripts, type Target } from './migrate-shared.js';
+import { camel, type Config, commandParts, editScripts, finding, type Files, type Migrate, placeOf, scripts, type Target } from './migrate-shared.js';
+import { TYPES_FILE } from './plugin-types.js';
+import { under } from './run-commit.js';
 
 /** The flags `types` carries over in compat mode: every documented flag that shapes the output. */
 const CARRIED = new Set([
@@ -43,8 +48,8 @@ const ALIASES: ReadonlyMap<string, string> = new Map([
 /** Words that run a package's binary, dropped with it. */
 const RUNNERS = new Set(['npx', 'bunx', 'pnpx', 'pnpm', 'yarn', 'npm', 'exec', 'dlx']);
 
-/** The default output name when the incumbent printed to stdout. */
-export const STDOUT_OUT = 'schema.ts';
+/** The folder the target writes into when the incumbent printed to stdout: the project root. */
+export const STDOUT_OUT = '.';
 
 /** One run of openapi-typescript, from a script or a `redocly.yaml` api. */
 interface Run {
@@ -167,11 +172,15 @@ const assemble = (runs: readonly Run[]): { config: Config | undefined; findings:
       findings.push(finding('second-input', run.pointer, `${run.input as string} is a second input, and one contractdiff.config.json reads one`, 'write a second contractdiff.config.json for it in its own folder'));
       continue;
     }
+    const { out, file } = run.out === undefined ? { out: STDOUT_OUT, file: undefined } : placeOf(run.out);
+    const written = under(out, TYPES_FILE);
     if (run.out === undefined) {
-      findings.push(finding('stdout-output', run.pointer, 'openapi-typescript printed to stdout, and contractdiff writes a file', `the target writes ${STDOUT_OUT}: change \`out\` to where the types belong`));
+      findings.push(finding('stdout-output', run.pointer, 'openapi-typescript printed to stdout, and contractdiff writes a file', `the target writes ${written}: change \`out\` to the folder the types belong in`));
+    } else if (file !== undefined && posix.basename(file) !== TYPES_FILE) {
+      findings.push(finding('output-renamed', run.pointer, `openapi-typescript wrote ${file}, and the types target writes ${written}: \`out\` names a folder`, `after \`contractdiff gen\`, point imports of ${file} at ${written}, and delete ${file}`));
     }
     const name = targets.size === 0 ? 'types' : `types-${String(targets.size + 1)}`;
-    targets.set(name, { generator: 'types', out: run.out ?? STDOUT_OUT, options: { compat: 'openapi-typescript', ...run.options } });
+    targets.set(name, { generator: 'types', out, options: { compat: 'openapi-typescript', ...run.options } });
   }
   return { config: { input, targets: Object.fromEntries(targets) }, findings };
 };

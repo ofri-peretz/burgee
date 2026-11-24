@@ -12,6 +12,7 @@ import { posix } from 'node:path';
 import { type ContractFinding } from './core/model.js';
 import { migrate as migrateTypes } from './migrate-openapi-typescript.js';
 import { type Edit, finding, type Files, type Migrate, type Target } from './migrate-shared.js';
+import { CLIENT_FILE } from './plugin-fetch.js';
 
 const SOURCE = /\.(?:[cm]?[jt]s|[jt]sx)$/u;
 const DEFAULT_IMPORT = /import\s+([$A-Z_a-z][\w$]*)\s+from\s+(["'])openapi-fetch\2/gu;
@@ -69,9 +70,10 @@ export const migrate: Migrate = (configText, files: Files) => {
   const uninstall = 'npm uninstall openapi-fetch openapi-typescript';
   if (types.config === undefined) return { ...types, uninstall };
   // openapi-typescript's migration names its first target `types` whenever it returns a config.
+  // `out` is a folder (`placeOf`): the client is written beside the types, in the same one.
   const { out } = types.config.targets.types as Target;
-  const client = posix.join(posix.dirname(out), 'client.ts');
-  const config = { ...types.config, targets: { ...types.config.targets, fetch: { generator: 'fetch', out: client } } };
+  const client = posix.join(out, CLIENT_FILE);
+  const config = { ...types.config, targets: { ...types.config.targets, fetch: { generator: 'fetch', out } } };
   const sources = Object.entries(files)
     .filter(([path, text]) => SOURCE.test(path) && text.includes('openapi-fetch'))
     .map(([path, text]) => rewrite(path, text, client));

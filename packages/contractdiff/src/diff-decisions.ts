@@ -242,7 +242,7 @@ const record = (scan: Scan, at: At, pointer: string, holder: Dict): void => {
       decisionFinding(scan.level, 'invalid', place(at, pointer), {
         before: value,
         after: undefined,
-        fix: `${wordsFor(at.operation.id, at.payload, pointer)} has a bad \`${marker}\`. fix: ${fix}`,
+        fix: `${wordsFor(at.operation.id, at.payload, pointer)} has a bad \`${marker}\`; ${fix}`,
       }),
     );
   });
@@ -413,7 +413,7 @@ const audit = (scan: Scan, holders: Holders, node: object, pointer: string): voi
         decisionFinding(scan.level, 'misspelled', where(), {
           before: key,
           after: right,
-          fix: `\`${key}\` at ${here} is not a marker. fix: rename it \`${right}\``,
+          fix: `\`${key}\` at ${here} is not a marker: rename it \`${right}\``,
         }),
       );
     } else if (!allowed && (MARKERS as readonly string[]).includes(key)) {
@@ -421,7 +421,7 @@ const audit = (scan: Scan, holders: Holders, node: object, pointer: string): voi
         decisionFinding(scan.level, 'misplaced', where(), {
           before: key,
           after: (node as Dict)[key],
-          fix: `\`${key}\` at ${here} is not on a schema member, an operation or a parameter. fix: move it onto the member it describes, or remove it`,
+          fix: `\`${key}\` at ${here} is not on a schema member, an operation or a parameter: move it onto the member it describes, or remove it`,
         }),
       );
     }
@@ -590,7 +590,7 @@ const holdBreaking = (sides: Sides, comparison: Comparison): Held => {
       decisionFinding(sides.options.level, 'missing', placeOf(finding), {
         before: finding.before,
         after: finding.after,
-        fix: `breaking change (\`${finding.id}\`) at ${where} with no decision. fix: add \`x-change: <the decision>\` to ${where}, or an ancestor or its operation, naming who decided it; or revert the change`,
+        fix: `breaking change (\`${finding.id}\`) at ${where} with no decision: add \`x-change: <the decision>\` to ${where}, or an ancestor or its operation, naming who decided it; or revert the change`,
       }),
     );
   }
@@ -613,7 +613,7 @@ const holdStale = (sides: Sides, comparison: Comparison): Finding[] =>
       decisionFinding(sides.options.level, 'stale', placeOfDecision(sides, decision), {
         before: undefined,
         after: decision.change,
-        fix: `\`x-change: ${decision.change}\` at ${wordsOfDecision(decision)} records a change that is not in this diff. fix: remove the marker, or make the change it records`,
+        fix: `\`x-change: ${decision.change}\` at ${wordsOfDecision(decision)} records a change that is not in this diff: remove the marker, or make the change it records`,
       }),
     );
 
@@ -626,7 +626,7 @@ const holdOverdue = (sides: Sides): Finding[] =>
       decisionFinding(sides.options.level, 'overdue', placeOfDecision(sides, decision), {
         before: decision.sunset,
         after: sides.options.today,
-        fix: `${wordsOfDecision(decision)} was to go after ${decision.sunset as string} and is still here. fix: remove it as decided, or move \`x-sunset\` to a date that still holds`,
+        fix: `${wordsOfDecision(decision)} was to go after ${decision.sunset as string} and is still here: remove it as decided, or move \`x-sunset\` to a date that still holds`,
       }),
     );
 
@@ -649,7 +649,7 @@ const holdReplacements = (sides: Sides): Finding[] =>
       decisionFinding(sides.options.level, 'replacement-missing', placeOfDecision(sides, decision), {
         before: decision.replacedBy,
         after: undefined,
-        fix: `${wordsOfDecision(decision)} is replaced by \`${decision.replacedBy as string}\`, which is not in the new contract. fix: add that member, or point \`x-replaced-by\` at one that exists`,
+        fix: `${wordsOfDecision(decision)} is replaced by \`${decision.replacedBy as string}\`, which is not in the new contract: add that member, or point \`x-replaced-by\` at one that exists`,
       }),
     );
 
@@ -683,7 +683,7 @@ const holdVersions = (sides: Sides, decidedBy: ReadonlyMap<string, Decision>): F
       decisionFinding(sides.options.level, 'unversioned', placeOfDecision(sides, decision), {
         before: infoVersion(sides.oldContract),
         after: infoVersion(sides.newContract),
-        fix: `\`x-change: ${decision.change as string}\` at ${wordsOfDecision(decision)} decides a breaking change, and the major version did not move. fix: move the path to a new major segment (/v3/ to /v4/), raise the major of \`info.version\`, or pass \`--changeset\` to write a major bump`,
+        fix: `\`x-change: ${decision.change as string}\` at ${wordsOfDecision(decision)} decides a breaking change, and the major version did not move: move the path to a new major segment (/v3/ to /v4/), raise the major of \`info.version\`, or pass \`--changeset\` to write a major bump`,
       }),
     );
 

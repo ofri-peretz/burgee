@@ -39,6 +39,9 @@ const argumentTerm = (a: ArgumentSpec): string => {
   return a.required === false ? `[${name}]` : `<${name}>`;
 };
 
+/** As in `help.ts`: a description that names its default in words is not told it twice. Its own copy, so this lazy chunk does not reach help. */
+const SAYS_DEFAULT = /\((the )?defaults?\b/i;
+
 function optionRow(name: string, spec: OptionSpec): UsageRow {
   const short = spec.short === undefined ? '' : `-${spec.short}, `;
   const fallback = spec.type === 'number' ? 'n' : 'value';
@@ -46,7 +49,7 @@ function optionRow(name: string, spec: OptionSpec): UsageRow {
   const notes = [
     spec.description ?? '',
     spec.required === true ? '(required)' : '',
-    spec.default === undefined ? '' : `(default: ${String(spec.default)})`,
+    spec.default === undefined || SAYS_DEFAULT.test(String(spec.description)) ? '' : `(default: ${String(spec.default)})`,
     spec.choices === undefined ? '' : `(one of: ${spec.choices.join(', ')})`,
     spec.dependsOn === undefined || spec.dependsOn.length === 0 ? '' : `(requires ${flagsOf(spec.dependsOn).join(', ')})`,
     spec.exclusive === undefined || spec.exclusive.length === 0 ? '' : `(conflicts with ${flagsOf(spec.exclusive).join(', ')})`,

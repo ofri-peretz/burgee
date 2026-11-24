@@ -96,7 +96,7 @@ triggerlist protect origin/main                        # a gate and the code it 
 | Command | Exit 1 when |
 | :-- | :-- |
 | `compile --check` | REVIEW.md is not what the checklist compiles to |
-| `protect` | one change edits a gate file and the code that gate judges |
+| `protect --enforce` | one change edits a gate file and the code that gate judges; without `--enforce`, `protect` reports it and exits 0 |
 
 ## Migrating
 

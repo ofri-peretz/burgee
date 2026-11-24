@@ -3,13 +3,18 @@
  * Standard JSON Schema value (standardschema.dev, `~standard.jsonSchema`) for its document, and
  * moving the `$defs` that document carries to where the extracted document keeps its schemas.
  *
- * One function per library is what this replaces: Zod 4, Valibot, ArkType and this repository's
- * validator all answer `~standard.jsonSchema.input({ target })`, so nothing here names a library
- * except to say which one did not answer.
+ * One function per library is what this replaces: Zod 4, Valibot, ArkType and truefit's
+ * `standardJson` all answer `~standard.jsonSchema.input({ target })`, so nothing here names a
+ * library except to say which one did not answer. The one exception is truefit itself: its plain
+ * schemas carry no `~standard`, and `asStandard` makes them Standard JSON Schema here.
  */
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+
+import { type Schema } from 'truefit';
+import { standardJson } from 'truefit/json-schema';
+import { VENDOR } from 'truefit/standard';
 
 import { type ContractFinding } from './core/model.js';
 import { stable } from './extract-normalise.js';
@@ -27,6 +32,24 @@ export const isRecord = (value: unknown): value is Json => typeof value === 'obj
 /** Whether a value is a schema of any Standard Schema library: it has `~standard`. */
 export const isStandard = (value: unknown): value is { readonly '~standard': Json } =>
   (isRecord(value) || typeof value === 'function') && isRecord((value as Json)['~standard']);
+
+/**
+ * Whether a value is a truefit schema: the frozen node every builder returns, with its kind and its
+ * kind's own check. Plain, or wrapped by `truefit/standard`, it carries no `~standard.jsonSchema`.
+ */
+const isTruefit = (value: unknown): value is Schema<unknown> => isRecord(value) && typeof value.kind === 'string' && typeof value.check === 'function';
+
+/**
+ * A truefit schema without Standard JSON Schema made one with `truefit/json-schema`'s `standardJson`,
+ * so a module exporting truefit's plain schemas is read as one exporting `standardJson(…)` would be.
+ * Anything else, a truefit schema that already converts included, is returned as it is.
+ */
+export const asStandard = (value: unknown): unknown => {
+  if (!isTruefit(value)) return value;
+  if (!isStandard(value)) return standardJson(value);
+  const props = value['~standard'];
+  return props.vendor !== VENDOR || isRecord(props.jsonSchema) ? value : standardJson(value);
+};
 
 /** A JSON Pointer step: `/` and `~` escaped. */
 export const escape = (step: string): string => step.replaceAll('~', '~0').replaceAll('/', '~1');
@@ -57,9 +80,10 @@ export const sideOf = (value: unknown): Side => {
 };
 
 /** The JSON Schema of one value, or the finding that says why there is none. */
-export const toJsonSchema = (value: unknown, side: Side, pointer: string): { readonly schema: Json } | { readonly finding: ContractFinding } => {
+export const toJsonSchema = (given: unknown, side: Side, pointer: string): { readonly schema: Json } | { readonly finding: ContractFinding } => {
+  const value = asStandard(given);
   if (!isStandard(value)) {
-    return { finding: finding('not-a-standard-schema', pointer, `${pointer} is not a Standard Schema: it has no \`~standard\``, 'export a schema of a Standard Schema library (Zod 4, Valibot, ArkType, validator), or leave it out of the extract') };
+    return { finding: finding('not-a-standard-schema', pointer, `${pointer} is not a Standard Schema: it has no \`~standard\``, 'export a schema of a Standard Schema library (Zod 4, Valibot, ArkType, truefit), or leave it out of the extract') };
   }
   const props = value['~standard'];
   const vendor = typeof props.vendor === 'string' ? props.vendor : 'an unnamed library';

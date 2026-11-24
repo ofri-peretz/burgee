@@ -96,7 +96,7 @@ describe('`contractdiff plugin new`', () => {
       expect(readFileSync(join(out, 'plugin-info-says.ts'), 'utf8')).toContain("given: { select: 'document' },");
       const wrong = await runBurgee(program, { argv: ['plugin', 'new', 'x', '--from', 'finding.json', '--json'] });
       expect(wrong.code).toBe(ExitCode.USAGE);
-      expect(JSON.stringify(wrong.json)).toContain('--from seeds a rule, and --kind is generator. fix: pass --kind rules with --from');
+      expect((wrong.json as { error: object }).error).toMatchObject({ message: '--from seeds a rule, and --kind is generator', fix: 'pass --kind rules with --from' });
     } finally {
       cwd.mockReturnValue(join(directory, 'elsewhere'));
     }
@@ -105,6 +105,6 @@ describe('`contractdiff plugin new`', () => {
   it('refuses a name that is not one, with a fix line', async () => {
     const r = await runBurgee(program, { argv: ['plugin', 'new', '../escape', '--out', directory, '--json'] });
     expect(r.code).not.toBe(ExitCode.OK);
-    expect(JSON.stringify(r.json)).toContain('is not a plugin name. fix: use lowercase letters');
+    expect((r.json as { error: object }).error).toMatchObject({ message: '"../escape" is not a plugin name', fix: expect.stringMatching(/^use lowercase letters/u) });
   });
 });

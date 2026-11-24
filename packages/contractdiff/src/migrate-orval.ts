@@ -9,7 +9,7 @@
  */
 import { type ContractFinding } from './core/model.js';
 import { isUnreadable, type Literal, readExport } from './migrate-literal.js';
-import { type Config, commandParts, editScripts, finding, type Files, type Migrate, scripts, type Target } from './migrate-shared.js';
+import { type Config, commandParts, editScripts, finding, type Files, type Migrate, placeOf, scripts, type Target } from './migrate-shared.js';
 
 /** orval `output.client` → our generators. */
 const CLIENTS: ReadonlyMap<string, readonly string[]> = new Map([
@@ -58,7 +58,9 @@ const targetOf = (value: Literal, pointer: string, findings: ContractFinding[], 
 };
 
 /** The targets an orval output stands for: the models, the client, and the mocks. */
-const targetsOf = (settings: Readonly<Record<string, Literal>>, out: string, pointer: string, findings: ContractFinding[]): Record<string, Target> => {
+const targetsOf = (settings: Readonly<Record<string, Literal>>, target: string, pointer: string, findings: ContractFinding[]): Record<string, Target> => {
+  // orval's `target` is the file it writes (its other files go beside it); ours is the folder.
+  const { out } = placeOf(target);
   const targets = new Map<string, Target>([['types', { generator: 'types', out: typeof settings.schemas === 'string' ? settings.schemas : out }]]);
   const client = settings.client ?? DEFAULT_CLIENT;
   // A client that is not a string finds nothing in either map, and is reported as unreadable below.
@@ -70,7 +72,7 @@ const targetsOf = (settings: Readonly<Record<string, Literal>>, out: string, poi
   for (const generator of generators) targets.set(generator, { generator, out });
   if (settings.mock === true) targets.set('msw', { generator: 'msw', out });
   else if (settings.mock !== undefined && settings.mock !== false) findings.push(finding('option-dropped', `${pointer}/output/mock`, 'mock options other than `true` have no counterpart in contractdiff', 'set `mock: true` and run the migration again, or carry the options over by hand'));
-  findings.push(finding('imports-change', `${pointer}/output`, `the files under ${out} are written with contractdiff's module names, not orval's`, `after \`contractdiff gen\`, point imports of ${out} at the targets' files`));
+  findings.push(finding('imports-change', `${pointer}/output`, `orval wrote ${target}, and the targets write their files into ${out} with contractdiff's module names, not orval's`, `after \`contractdiff gen\`, point imports of ${target} at the targets' files in ${out}`));
   return Object.fromEntries(targets);
 };
 
@@ -84,13 +86,13 @@ const project = (name: string, value: Literal, findings: ContractFinding[]): Con
   const { input, output, ...rest } = value;
   for (const key of Object.keys(rest)) findings.push(dropped(pointer, key));
   const path = targetOf(input, `${pointer}/input`, findings, new Set(['target']));
-  const out = targetOf(output, `${pointer}/output`, findings, READ);
-  if (path === undefined || out === undefined) {
+  const target = targetOf(output, `${pointer}/output`, findings, READ);
+  if (path === undefined || target === undefined) {
     findings.push(finding('nothing-to-migrate', pointer, `the \`${name}\` project names no input or no output`, 'set `input` and `output` and run the migration again'));
     return undefined;
   }
   if (/^https?:\/\//u.test(path)) findings.push(finding('remote-input', 'contractdiff.config.json#/input', `${path} is fetched over the network, and contractdiff reads local files`, 'download the document into the project and point `input` at it'));
-  return { input: path, targets: targetsOf(isDict(output) ? output : {}, out, pointer, findings) };
+  return { input: path, targets: targetsOf(isDict(output) ? output : {}, target, pointer, findings) };
 };
 
 const BINARY = /^(\s*)(?:npx\s+)?orval((?:\s.*)?)$/u;

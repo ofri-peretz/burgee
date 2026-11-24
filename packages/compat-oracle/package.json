@@ -13,7 +13,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "coverage": "vitest run --coverage.enabled",
-    "lint": "eslint src"
+    "lint": "cd ../.. && eslint packages/compat-oracle/src --max-warnings 0"
   },
   "dependencies": {
     "bellpull": "*",
