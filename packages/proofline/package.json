@@ -18,7 +18,7 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "proofline": "./dist/bin.js"
+    "proofline": "dist/bin.js"
   },
   "files": [
     "dist",

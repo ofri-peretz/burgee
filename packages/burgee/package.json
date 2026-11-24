@@ -205,6 +205,6 @@
     "vitest": "^5.0.1"
   },
   "bin": {
-    "burgee": "./dist/cli.js"
+    "burgee": "dist/cli.js"
   }
 }

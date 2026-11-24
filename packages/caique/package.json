@@ -160,6 +160,6 @@
     "vitest": "^5.0.1"
   },
   "bin": {
-    "caique": "./dist/cli.js"
+    "caique": "dist/cli.js"
   }
 }

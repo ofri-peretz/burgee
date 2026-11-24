@@ -101,6 +101,6 @@
     "vitest": "^5.0.1"
   },
   "bin": {
-    "paratext": "./dist/cli.js"
+    "paratext": "dist/cli.js"
   }
 }

@@ -124,6 +124,6 @@
     "vitest": "^5.0.1"
   },
   "bin": {
-    "linegauge": "./dist/cli.js"
+    "linegauge": "dist/cli.js"
   }
 }

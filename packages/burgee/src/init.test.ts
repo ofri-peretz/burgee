@@ -148,7 +148,7 @@ describe('first-cli — burgee init, in-process', () => {
       version: '0.1.0',
       private: true,
       type: 'module',
-      bin: { 'my-cli': './cli.mjs' },
+      bin: { 'my-cli': 'cli.mjs' },
       scripts: { start: 'node cli.mjs' },
       dependencies: { burgee: `^${manifest.version}` },
     });

@@ -67,7 +67,7 @@ describe('exactly one file touches the process (R7), plus the program', () => {
    */
   it('and it is ambient.ts, with the declared bin beside it', () => {
     const bin = Object.values((JSON.parse(readFileSync(resolve(pkgRoot, 'package.json'), 'utf8')) as { bin?: Record<string, string> }).bin ?? {}).map((target) =>
-      target.replace('./dist/', '').replace(/\.js$/u, '.ts'),
+      target.replace(/^(\.\/)?dist\//u, '').replace(/\.js$/u, '.ts'),
     );
     expect(sources().filter(touchesProcess).filter((file) => !bin.includes(file))).toEqual(['ambient.ts']);
     expect(bin.every((file) => sources().includes(file)), 'package.json names a bin with no source behind it').toBe(true);
@@ -86,7 +86,7 @@ describe('every published subpath has a module behind it (R6)', () => {
   };
 
   it.each(Object.entries(manifest.exports).filter(([, target]) => typeof target === 'object'))('%s', (subpath, target) => {
-    const file = (target as { import: string }).import.replace('./dist/', '').replace(/\.js$/, '.ts').replace(/\.cjs$/, '.cts');
+    const file = (target as { import: string }).import.replace(/^(\.\/)?dist\//u, '').replace(/\.js$/, '.ts').replace(/\.cjs$/, '.cts');
     expect(sources(), `${subpath} names ${file}, which does not exist in src/`).toContain(file);
   });
 });

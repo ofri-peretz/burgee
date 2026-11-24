@@ -22,7 +22,7 @@
     "node": ">=22.13.0"
   },
   "bin": {
-    "truemark": "./dist/bin.js"
+    "truemark": "dist/bin.js"
   },
   "types": "./dist/index.d.ts",
   "exports": {

@@ -90,7 +90,7 @@ export async function init(opts: { dir: string; typed: string | undefined; force
     version: '0.1.0',
     private: true,
     type: 'module',
-    bin: { [name]: './cli.mjs' },
+    bin: { [name]: 'cli.mjs' },
     scripts: { start: 'node cli.mjs' },
     dependencies: { burgee: `^${version}` },
   };

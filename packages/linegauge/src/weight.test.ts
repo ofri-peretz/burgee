@@ -94,7 +94,7 @@ describe('the ceiling covers what is published', () => {
   const published = Object.values(manifest.exports)
     .map((e) => (typeof e === 'string' ? undefined : e.import))
     .filter((file): file is string => file !== undefined)
-    .map((file) => file.replace('./dist/', ''));
+    .map((file) => file.replace(/^(\.\/)?dist\//u, ''));
 
   /**
    * The rule that keeps the gate from being skipped by adding a subpath. A new entry with
