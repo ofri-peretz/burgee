@@ -1,5 +1,15 @@
 # apicontract
 
+## 0.4.1
+
+### Patch Changes
+
+- [#1767](https://github.com/ofri-peretz/burgee/pull/1767) [`dc457f8`](https://github.com/ofri-peretz/burgee/commit/dc457f890987c9db31dcd952f60c4e0d762ce97b) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `props` reads a contract's definitions once for every payload, not once for each, and no longer
+  copies the run's reported keywords on every draw: on the Stripe description, the start-up before the
+  first value fell from 36 s to 1.5 s, with the same report.
+- Updated dependencies [[`dc457f8`](https://github.com/ofri-peretz/burgee/commit/dc457f890987c9db31dcd952f60c4e0d762ce97b)]:
+  - loadline@0.2.0
+
 ## 0.4.0
 
 ### Minor Changes
