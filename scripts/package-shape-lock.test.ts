@@ -116,6 +116,15 @@ const FAMILY_ORDER = [
   // A burgee program (`provedone stamp`, `gate`, `done`, `intent`) that spawns git through
   // bellpull. Nothing in the family depends on it.
   'provedone',
+  // A burgee program (`replz run`, `check`, `propose`) that replays known bugs through bellpull,
+  // reads its cases with seniority and validates them with truefit. Nothing depends on it.
+  'replz',
+  // A burgee program (`hookset init`, `check`) that ships lefthook presets and a Claude hook pack.
+  // Nothing in the family depends on it.
+  'hookset',
+  // A burgee program (`triggerlist match`, `brief`, `compile`) that reads the base branch through
+  // bellpull, its checklist with seniority and validates it with truefit. Nothing depends on it.
+  'triggerlist',
 ];
 
 /**

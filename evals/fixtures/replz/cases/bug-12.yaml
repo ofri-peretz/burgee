@@ -1,0 +1,7 @@
+# feat: cache the config (#12)
+id: bug-12
+kind: bug
+pr: 12
+base: "a1a1a1a1a1a1"
+head: "b2b2b2b2b2b2"
+set: test

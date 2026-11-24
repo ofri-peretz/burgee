@@ -1,12 +1,33 @@
 {
   "name": "hookset",
   "version": "0.2.2",
-  "private": true,
-  "description": "The verification stations as git and Claude hooks: lefthook presets pulled by pinned tag, a Claude hook pack, and `hookset init` / `hookset check`. Working name; unpublished.",
+  "private": false,
+  "description": "Git hooks presets for AI coding agents: lefthook presets pulled by a pinned tag, a Claude Code hook pack that denies skipped hooks, and `hookset init` and `check`. No dependency outside the burgee family. A husky migration path.",
+  "keywords": [
+    "git-hooks",
+    "lefthook",
+    "pre-commit",
+    "pre-push",
+    "commit-msg",
+    "claude-code",
+    "ai-agents",
+    "verification",
+    "cli"
+  ],
   "license": "MIT",
+  "homepage": "https://burgee.interlace.tools",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ofri-peretz/burgee.git",
+    "directory": "packages/hookset"
+  },
+  "bugs": {
+    "url": "https://github.com/ofri-peretz/burgee/issues"
+  },
+  "author": "Ofri Peretz <ofriperetzdev@gmail.com>",
   "type": "module",
   "engines": {
-    "node": ">=22.18.0"
+    "node": ">=22.13.0"
   },
   "bin": {
     "hookset": "dist/bin.js"
@@ -29,7 +50,7 @@
     "stations.json"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && node ../../scripts/strip-comments.mjs dist && node ../../scripts/declaration-reach.mts --prune",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "coverage": "vitest run --coverage.enabled",
@@ -40,5 +61,15 @@
   },
   "devDependencies": {
     "vitest": "^5.0.1"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "sideEffects": [
+    "./dist/bin.js"
+  ],
+  "typesVersions": {
+    "*": {}
   }
 }

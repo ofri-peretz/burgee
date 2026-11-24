@@ -1,0 +1,6 @@
+reviewer: bash reviewer.sh
+grader: claude -p --model {model}
+maxFindings: 0
+stages: [raw, final]
+checks:
+  - { id: test, command: npm test }

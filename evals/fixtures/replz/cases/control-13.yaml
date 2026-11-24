@@ -1,0 +1,8 @@
+# docs: a usage page (#13)
+id: control-13
+kind: control
+pr: 13
+base: "b2b2b2b2b2b2"
+head: "c3c3c3c3c3c3"
+answer: "Nothing is wrong with this one."
+set: test

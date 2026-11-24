@@ -66,7 +66,7 @@ const RUN_ELSEWHERE: Readonly<Record<string, string>> = { burgee: 'packages/burg
  * of its flip to `private: false`, so the flip edits nothing here; until then it is not packed and
  * its quick start is not run (`independence-install-lock.test.ts` does the same).
  */
-const PUBLISHED = ['bellpull', 'burgee', 'caique', 'closeout', 'controlroom', 'flagstaff', 'linegauge', 'oxmutate', 'paratext', 'roundel', 'seniority', 'truepass', 'contractdiff', 'truefit', 'provedone'];
+const PUBLISHED = ['bellpull', 'burgee', 'caique', 'closeout', 'controlroom', 'flagstaff', 'linegauge', 'oxmutate', 'paratext', 'roundel', 'seniority', 'truepass', 'contractdiff', 'truefit', 'provedone', 'replz', 'hookset', 'triggerlist'];
 const isPublished = (pkg: string): boolean => (JSON.parse(readFileSync(join(root, 'packages', pkg, 'package.json'), 'utf8')) as { private?: boolean }).private !== true;
 const RUN_HERE = PUBLISHED.filter((p) => RUN_ELSEWHERE[p] === undefined && isPublished(p));
 

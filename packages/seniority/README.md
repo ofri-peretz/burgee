@@ -447,7 +447,7 @@ Graded by the incumbent's own test suite:
 | `lilconfig` | 81 / 81 |
 | `rc` | 1 / 1 |
 
-Weight, installed and tree-inclusive: **224,682 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.1139** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
+Weight, installed and tree-inclusive: **225,146 bytes** against **1,972,507** for the incumbents it replaces — a ratio of **0.1141** ([measured](https://burgee.interlace.tools/docs/benchmarks)).
 
 ## For agents
 
@@ -510,11 +510,11 @@ Every export, with its types, is on [seniority.interlace.tools](https://seniorit
 
 Plugins register under the `sources` key, against the one schema the whole family shares.
 
-`burgee` and `contractdiff` build on it, and it builds on nothing in this family.
+`burgee`, `contractdiff`, `replz`, `triggerlist` build on it, and it builds on nothing in this family.
 
 ## The family
 
-15 packages, one repository, one release pipeline. Each installs and works on its own, and each owns
+18 packages, one repository, one release pipeline. Each installs and works on its own, and each owns
 one job. Seven of them — `bellpull`, `closeout`, `linegauge`, `paratext`, `roundel`, `seniority`,
 `truefit` — depend on nothing; the others depend only on packages in this table, and every
 dependency points one way, down the [layers](https://burgee.interlace.tools/docs/concepts/family).
@@ -550,6 +550,9 @@ keeps both true.
 | [contractdiff](https://burgee.interlace.tools/docs/packages/contractdiff) | API contracts: breaking-change diff, lint, and code from the spec | openapi-typescript |
 | [truefit](https://burgee.interlace.tools/docs/packages/truefit) | Validation whose schemas are data, with no eval | zod |
 | [provedone](https://burgee.interlace.tools/docs/packages/provedone) | A receipt for how every change was verified, and a gate that reads it | @commitlint/cli |
+| [replz](https://burgee.interlace.tools/docs/packages/replz) | Recall of a reviewer and its checks, replayed on bugs that shipped | promptfoo |
+| [hookset](https://burgee.interlace.tools/docs/packages/hookset) | The same git and Claude Code hooks in every repository, pinned by tag | husky |
+| [triggerlist](https://burgee.interlace.tools/docs/packages/triggerlist) | The review checklist a diff selects, read from the base branch | danger |
 
 Every migration guide, and the family-wide [compatibility](https://burgee.interlace.tools/docs/compatibility)
 and [benchmarks](https://burgee.interlace.tools/docs/benchmarks) pages, are on

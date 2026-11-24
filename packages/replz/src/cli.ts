@@ -16,7 +16,7 @@ import { replayCase, type Shell, type Worktrees } from './run.js';
 import { type CaseResult, score, toText } from './score.js';
 import { logOf, sh, worktreesIn } from './shell.js';
 
-export const VERSION = '0.0.0';
+export const VERSION = (JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }).version;
 
 /** Ten bug cases and ten controls: the intent's first success criterion. */
 export const DEFAULT_LIMIT = 10;

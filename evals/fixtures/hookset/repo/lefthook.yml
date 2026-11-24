@@ -1,0 +1,4 @@
+remotes:
+  - git_url: https://github.com/ofri-peretz/burgee
+    configs:
+      - packages/hookset/presets/lefthook/pre-push.yml

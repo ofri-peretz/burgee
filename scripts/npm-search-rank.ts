@@ -38,6 +38,9 @@ export const PHRASES: Record<string, { primary: string; incumbent: string }> = {
   contractdiff: { primary: 'breaking change diff', incumbent: 'oasdiff alternative' },
   truefit: { primary: 'ts validator', incumbent: 'zod alternative' },
   provedone: { primary: 'verified commits', incumbent: 'commitlint alternative' },
+  replz: { primary: 'code review benchmark', incumbent: 'promptfoo alternative' },
+  hookset: { primary: 'git hooks presets', incumbent: 'husky alternative' },
+  triggerlist: { primary: 'code review checklist', incumbent: 'danger alternative' },
 };
 
 export const REPO_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));

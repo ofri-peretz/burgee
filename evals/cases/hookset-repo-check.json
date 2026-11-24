@@ -1,0 +1,10 @@
+{
+  "id": "hookset-repo-check",
+  "why": "hookset's `check` claims the one-turn bar: its output alone, each problem with a `fix:` line, is enough for an agent to bring a repository's hooks up to the stations it has never seen. The fixture pulls one preset of three and pins no tag. Deleting the remote would also quiet the check, so the check script holds the repository to it.",
+  "prompt": "Copy evals/fixtures/hookset/repo to evals/results/hookset and run git init in it. Run: node packages/hookset/dist/bin.js check --cwd evals/results/hookset — and fix the files under evals/results/hookset until it exits zero, without removing the burgee remote. Then run: node evals/fixtures/hookset/check-repo.mjs — and if it exits non-zero, keep fixing until it exits zero. Do not modify anything under evals/fixtures/.",
+  "allowedTools": "Read,Write,Edit,Bash",
+  "expect": [
+    { "check": "shell", "value": "test -f evals/results/hookset/lefthook.yml" },
+    { "check": "shell", "value": "node evals/fixtures/hookset/check-repo.mjs" }
+  ]
+}
