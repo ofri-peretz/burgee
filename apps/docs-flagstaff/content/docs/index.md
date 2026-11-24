@@ -516,7 +516,7 @@ Plugins register under the `tokens`, `glyphs`, `spinners`, `borders`, `component
 
 ## The family
 
-15 packages, one repository, one release pipeline. Each installs and works on its own, and each owns
+16 packages, one repository, one release pipeline. Each installs and works on its own, and each owns
 one job. Seven of them — `bellpull`, `closeout`, `linegauge`, `paratext`, `roundel`, `seniority`,
 `truefit` — depend on nothing; the others depend only on packages in this table, and every
 dependency points one way, down the [layers](https://burgee.interlace.tools/docs/concepts/family).
@@ -552,6 +552,7 @@ keeps both true.
 | [contractdiff](https://burgee.interlace.tools/docs/packages/contractdiff) | API contracts: breaking-change diff, lint, and code from the spec | openapi-typescript |
 | [truefit](https://burgee.interlace.tools/docs/packages/truefit) | Validation whose schemas are data, with no eval | zod |
 | [provedone](https://burgee.interlace.tools/docs/packages/provedone) | A receipt for how every change was verified, and a gate that reads it | @commitlint/cli |
+| [replz](https://burgee.interlace.tools/docs/packages/replz) | Recall of a reviewer and its checks, replayed on bugs that shipped | promptfoo |
 
 Every migration guide, and the family-wide [compatibility](https://burgee.interlace.tools/docs/compatibility)
 and [benchmarks](https://burgee.interlace.tools/docs/benchmarks) pages, are on

@@ -91,6 +91,9 @@ const DECLARED = {
   // A gate over commit messages and intents, with no plugin host. `intent check` is its check
   // (the intent rules, and the shipped evidence re-run), and `provedone-intent-check` its case.
   provedone: { plugin: false, check: true, eval: true },
+  // A grader over replayed bugs, with no plugin host. `replz check` is its check (the config and
+  // every case file), and `replz-case-check` its case.
+  replz: { plugin: false, check: true, eval: true },
 } as const;
 
 type Declared = (typeof DECLARED)[keyof typeof DECLARED];

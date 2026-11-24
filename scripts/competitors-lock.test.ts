@@ -97,6 +97,8 @@ const KNOWN = [
   'zod',
   // provedone's incumbent (2026-11-24): commitlint's trailer rules, by surface.
   '@commitlint/cli',
+  // replz's incumbent (2026-11-24): an eval harness for model output, by surface.
+  'promptfoo',
   'which',
   'widest-line',
   'wrap-ansi',

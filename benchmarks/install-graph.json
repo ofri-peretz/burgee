@@ -119,6 +119,20 @@
       ]
     },
     {
+      "name": "replz",
+      "count": 8,
+      "installed": [
+        "bellpull",
+        "burgee",
+        "closeout",
+        "linegauge",
+        "replz",
+        "roundel",
+        "seniority",
+        "truefit"
+      ]
+    },
+    {
       "name": "roundel",
       "count": 1,
       "installed": [

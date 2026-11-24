@@ -1,6 +1,6 @@
 ---
 title: Packages
-description: "burgee and the 14 packages it is built from: what each migrates from, and the site its docs live on."
+description: "burgee and the 15 packages it is built from: what each migrates from, and the site its docs live on."
 ---
 
 Every package in the family is published on its own, depends on nothing outside this
@@ -21,6 +21,7 @@ is its README, projected; the family-wide pages — [compatibility](/docs/compat
 | [oxmutate](https://oxmutate.interlace.tools/docs) | Stryker | [oxmutate.interlace.tools](https://oxmutate.interlace.tools) |
 | [paratext](https://paratext.interlace.tools/docs) | ansi-escapes, terminal-link and term-img | [paratext.interlace.tools](https://paratext.interlace.tools) |
 | [provedone](https://burgee.interlace.tools/docs/packages/provedone) | @commitlint/cli | [burgee.interlace.tools](https://burgee.interlace.tools) |
+| [replz](https://burgee.interlace.tools/docs/packages/replz) | promptfoo | [burgee.interlace.tools](https://burgee.interlace.tools) |
 | [roundel](https://roundel.interlace.tools/docs) | chalk, colorette, kleur, picocolors, supports-color and yoctocolors | [roundel.interlace.tools](https://roundel.interlace.tools) |
 | [seniority](https://seniority.interlace.tools/docs) | cosmiconfig, lilconfig, dotenv and rc | [seniority.interlace.tools](https://seniority.interlace.tools) |
 | [truefit](https://burgee.interlace.tools/docs/packages/truefit) | zod | [burgee.interlace.tools](https://burgee.interlace.tools) |

@@ -37,6 +37,7 @@ pack a plugin host carries:
 | `contractdiff-baseline-allocate` | contractdiff A5–A7, arm without the tool: an agent calls one operation of a synthetic OpenAPI file exactly as written (method, path, nested body, metres → decimetres) |
 | `contractdiff-baseline-manifest` | the same arm, reading a response: an optional nested `hazmat` object and its packing-group enum |
 | `provedone-intent-check` | provedone's `intent check`: that its findings, each with a `fix:`, are enough for an agent to repair intents it has never seen in one turn, without deleting one or lowering its status |
+| `replz-case-check` | replz's `check`: that its errors, each naming the field or the `fix:`, are enough for an agent to repair a config and cases it has never seen in one turn, without deleting a case or changing its kind |
 
 A case earns its place by discriminating. Every one's shell checks were run both ways
 before it was committed. The first, flagstaff's: green against a correct plugin, and red against the same plugin

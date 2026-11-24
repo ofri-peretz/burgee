@@ -1,0 +1,10 @@
+{
+  "id": "replz-case-check",
+  "why": "replz's `check` claims the one-turn bar: its output alone, each error with a `fix:` or the field it names, is enough for an agent to repair a config and a set of cases it has never seen. The config allows no findings and the bug case has no answer key. Deleting a case or flipping its kind would also quiet the check, so the check script holds both cases to their written kind.",
+  "prompt": "Copy evals/fixtures/replz (config.yaml and cases/) to evals/results/replz. Run: node packages/replz/dist/bin.js check --repo evals/results/replz --config config.yaml --cases cases — and fix the files under evals/results/replz until it exits zero, without deleting a case or changing its kind. Then run: node evals/fixtures/replz/check-cases.mjs — and if it exits non-zero, keep fixing until it exits zero. Do not modify anything under evals/fixtures/.",
+  "allowedTools": "Read,Write,Edit,Bash",
+  "expect": [
+    { "check": "shell", "value": "test -f evals/results/replz/cases/bug-12.yaml" },
+    { "check": "shell", "value": "node evals/fixtures/replz/check-cases.mjs" }
+  ]
+}

@@ -131,6 +131,7 @@ const MARK_SHARE = {
   contractdiff: 0.7,
   truefit: 0.8,
   provedone: 0.75,
+  replz: 0.7,
 } as const;
 
 /**
@@ -402,6 +403,18 @@ const PROVEDONE = `${SLIP} ${PRINTED}`;
 /** On the head of the slip, clear of the lines. */
 const HEADER = { x: 50, y: 30 } as const;
 
+/**
+ * replz: the play button on a reel — a disc with the play triangle cut out of it, the run being
+ * replayed. The triangle is a cut, absence as the other marks' markings are; the mark rides on
+ * the disc below it.
+ */
+const REEL = 'M10 50 A40 40 0 1 0 90 50 A40 40 0 1 0 10 50 Z';
+/** The play triangle, wound inside the disc so it cuts through it. */
+const PLAY = 'M40 26 L64 42 L40 58 Z';
+const REPLZ = `${REEL} ${PLAY}`;
+/** Under the triangle, on the disc. */
+const BELOW_PLAY = { x: 50, y: 72 } as const;
+
 type Sibling = {
   name: keyof typeof MARK_SHARE;
   tagline: string;
@@ -426,6 +439,7 @@ const SIBLINGS: readonly Sibling[] = [
   { name: 'contractdiff', tagline: 'What changed, and who it breaks.', shape: CONTRACTDIFF, at: BEFORE },
   { name: 'truefit', tagline: 'What is over the line stays.', shape: TRUEFIT, at: FREEBOARD },
   { name: 'provedone', tagline: 'Done, with the receipt.', shape: PROVEDONE, at: HEADER },
+  { name: 'replz', tagline: 'Play the bug back.', shape: REPLZ, at: BELOW_PLAY },
 ];
 
 const siblings = SIBLINGS.map(({ name, tagline, shape, at, markings }) => ({

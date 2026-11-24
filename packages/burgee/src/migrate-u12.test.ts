@@ -49,9 +49,9 @@ const read = (dir: string, file: string): string => readFileSync(join(dir, file)
  * drop-in a program imports (its Stryker path is `npx oxmutate`), so it has no pin to carry.
  * truepass likewise: an ESLint plugin and a pre-push command, never an import `migrate` moves.
  * contractdiff (a CLI) and truefit (a validator library) replace no package `migrate` reads, nor
- * does provedone (a commit gate).
+ * does provedone (a commit gate) or replz (a review grader).
  */
-const NO_DROP_IN = new Set(['oxmutate', 'truepass', 'contractdiff', 'truefit', 'provedone']);
+const NO_DROP_IN = new Set(['oxmutate', 'truepass', 'contractdiff', 'truefit', 'provedone', 'replz']);
 
 /** Every published drop-in package of this repository at the version its own manifest declares — what `next` must pin to. */
 function manifests(): Record<string, string> {

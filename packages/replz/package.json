@@ -1,9 +1,30 @@
 {
   "name": "replz",
   "version": "0.2.0",
-  "private": true,
-  "description": "Grades a reviewer and a repository's checks against bugs that actually happened: replays each known bug PR and size-matched clean controls, scores findings against a one-sentence answer key per stage, and counts how often every check fires. Unpublished.",
+  "private": false,
+  "description": "Code review benchmark for AI reviewers and a repo's checks: replays each pull request a revert or fix blamed beside clean controls, and grades findings against a one-line answer key. No dependency outside the burgee family. A promptfoo migration path.",
+  "keywords": [
+    "code-review",
+    "ai-review",
+    "benchmark",
+    "regression",
+    "bug-replay",
+    "precision",
+    "recall",
+    "ci",
+    "cli"
+  ],
   "license": "MIT",
+  "homepage": "https://burgee.interlace.tools",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ofri-peretz/burgee.git",
+    "directory": "packages/replz"
+  },
+  "bugs": {
+    "url": "https://github.com/ofri-peretz/burgee/issues"
+  },
+  "author": "Ofri Peretz <ofriperetzdev@gmail.com>",
   "type": "module",
   "engines": {
     "node": ">=22.13.0"
@@ -26,7 +47,7 @@
     "!dist/**/*.test.*"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && node ../../scripts/strip-comments.mjs dist && node ../../scripts/declaration-reach.mts --prune",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "coverage": "vitest run --coverage.enabled",
@@ -36,9 +57,19 @@
     "bellpull": "^2.0.0",
     "burgee": "^2.1.5",
     "seniority": "^2.0.0",
-    "truefit": "0.2.1"
+    "truefit": "^0.2.1"
   },
   "devDependencies": {
     "vitest": "^5.0.1"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "sideEffects": [
+    "./dist/bin.js"
+  ],
+  "typesVersions": {
+    "*": {}
   }
 }

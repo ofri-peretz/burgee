@@ -116,6 +116,9 @@ const FAMILY_ORDER = [
   // A burgee program (`provedone stamp`, `gate`, `done`, `intent`) that spawns git through
   // bellpull. Nothing in the family depends on it.
   'provedone',
+  // A burgee program (`replz run`, `check`, `propose`) that replays known bugs through bellpull,
+  // reads its cases with seniority and validates them with truefit. Nothing depends on it.
+  'replz',
 ];
 
 /**
