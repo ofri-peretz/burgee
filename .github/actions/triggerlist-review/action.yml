@@ -3,7 +3,9 @@
 # The reviewer is handed `triggerlist brief`: REVIEW.md and the checklist as the BASE branch
 # has them (so a pull request that edits the rules is still reviewed by the rules it did not
 # write), the checklist items the diff fires, its own findings from the previous round (the last
-# PR comment carrying the triggerlist-review marker), and the head commit it reviews. After the
+# PR comment carrying the triggerlist-review marker), the author's replies to them posted since
+# (conversation comments and review-thread replies, so an answered finding is not repeated), and
+# the head commit it reviews. After the
 # review, a head that moved while it ran is reported as stale on the pull request and fails the
 # step, so a stale review is never green. The rules on disk are the base branch's too.
 #
@@ -53,6 +55,7 @@ runs:
         BASE_REF: ${{ github.event.pull_request.base.ref }}
         HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         PR: ${{ github.event.pull_request.number }}
+        PR_AUTHOR: ${{ github.event.pull_request.user.login }}
         REPO: ${{ github.repository }}
         TRIGGERLIST: ${{ inputs.triggerlist }}
         CHECKLIST: ${{ inputs.checklist }}
@@ -62,10 +65,23 @@ runs:
         # No --depth: on the caller's full clone a shallow fetch cuts the base tip's history, so
         # once main has moved past the PR's merge ref `origin/main...HEAD` has no merge base.
         git fetch --no-tags origin "+refs/heads/$BASE_REF:refs/remotes/origin/$BASE_REF"
+        gh api --paginate "repos/$REPO/issues/$PR/comments" | jq -s 'add // []' > "$RUNNER_TEMP/issue-comments.json"
+        gh api --paginate "repos/$REPO/pulls/$PR/comments" | jq -s 'add // []' > "$RUNNER_TEMP/review-comments.json"
         # Only the reviewer's own comments count as its previous findings: anyone can comment on a PR.
-        gh api --paginate "repos/$REPO/issues/$PR/comments" --jq '[.[] | select(.user.login == "claude[bot]") | {body}]' | jq -s 'add // []' > "$RUNNER_TEMP/comments.json"
+        jq '[.[] | select(.user.login == "claude[bot]") | {body, created_at}]' "$RUNNER_TEMP/issue-comments.json" > "$RUNNER_TEMP/comments.json"
+        # The answers to those findings: conversation comments and review-thread replies by the PR's
+        # author or a maintainer, never a bot or a passer-by. triggerlist keeps the ones posted
+        # after the previous round and trims them, so the reviewer does not repeat an answered finding.
+        jq -s --arg author "$PR_AUTHOR" '[add[] | select(.user.type != "Bot" and (.user.login == $author or (.author_association | IN("OWNER", "MEMBER", "COLLABORATOR")))) | {body, created_at, user: {login: .user.login, type: .user.type}, path, line}]' "$RUNNER_TEMP/issue-comments.json" "$RUNNER_TEMP/review-comments.json" > "$RUNNER_TEMP/replies.json"
+        # A triggerlist published before --replies would refuse the flag and fail the review, so
+        # it is passed only when this one names it in its help.
         # shellcheck disable=SC2086 # TRIGGERLIST is a command line, split on purpose
-        $TRIGGERLIST brief "origin/$BASE_REF" --head "$HEAD_SHA" --checklist "$CHECKLIST" --review "$REVIEW_FILE" --comments "$RUNNER_TEMP/comments.json" > "$RUNNER_TEMP/brief.md"
+        help="$($TRIGGERLIST brief --help 2>&1 || true)"
+        # A string, not an array: bash 3.2 (macOS) treats an empty "${arr[@]}" as unbound under set -u.
+        replies=""
+        case "$help" in *--replies*) replies="$RUNNER_TEMP/replies.json" ;; esac
+        # shellcheck disable=SC2086 # TRIGGERLIST is a command line, split on purpose
+        $TRIGGERLIST brief "origin/$BASE_REF" --head "$HEAD_SHA" --checklist "$CHECKLIST" --review "$REVIEW_FILE" --comments "$RUNNER_TEMP/comments.json" ${replies:+--replies "$replies"} > "$RUNNER_TEMP/brief.md"
         delimiter="BRIEF_$(openssl rand -hex 8)"
         { echo "text<<$delimiter"; cat "$RUNNER_TEMP/brief.md"; echo "$delimiter"; } >> "$GITHUB_OUTPUT"
         # The reviewer runs in this checkout and can open the rules on disk, so put the base
@@ -92,7 +108,9 @@ runs:
 
           Review against the brief below. Answer every rule it says fires, with file:line, or say
           it holds. Post a finding only with file:line and the reason: inline comments for
-          issues, one top-level summary.
+          issues, one top-level summary. A finding the author answered in the brief's replies is
+          not repeated unless the new diff changes the facts; instead, say in one line that it
+          was answered and why that answer holds or does not.
 
           ${{ steps.brief.outputs.text }}
         claude_args: |

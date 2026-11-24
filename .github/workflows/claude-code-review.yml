@@ -72,7 +72,8 @@ jobs:
         run: npx turbo run build --filter=triggerlist
 
       # triggerlist R5: the reviewer reads REVIEW.md and the checklist from the base branch, the
-      # items this diff fires, and its own findings from the previous round.
+      # items this diff fires, its own findings from the previous round, and the author's replies
+      # to them since (so an answered finding is not posted again).
       - name: Claude Code Review
         if: steps.token.outputs.present == 'true'
         uses: ./.github/actions/triggerlist-review
