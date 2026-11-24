@@ -23,7 +23,7 @@ Intent: [`intent.md`](./intent.md). **Status:** draft.
 
 ## Design
 
-- A burgee CLI, like proofline.
+- A burgee CLI, like provedone.
 - Gate files are declared in the checklist file's header, so each repo names its own.
 - Previous findings are read from the last review comment on the PR, matched by a marker.
 - Order: R1–R2, R4 on this repo, R3 to write the first `REVIEW.md`, R5 replacing burgee's
@@ -46,5 +46,5 @@ Intent: [`intent.md`](./intent.md). **Status:** draft.
 
 ## Out of scope
 
-- Measuring whether the reviewer catches bugs. That is `replay`.
+- Measuring whether the reviewer catches bugs. That is `replz`.
 - Writing the reviewer. It stays the existing Claude review action.

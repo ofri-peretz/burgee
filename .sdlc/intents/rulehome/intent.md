@@ -26,8 +26,8 @@ are about rules rather than about contracts or tests:
   `contractdiff diff --decisions`; `rulehome intent` becomes a thin call to it, then is removed after one
   release. `rulehome audit` points contract rules at contractdiff.
 Hooks, the reviewer's rulebook, proof of what was checked and replay are not rulehome's: they are
-[`hookset`](../hookset/), [`triggerlist`](../triggerlist/), [`proofline`](../proofline/) and
-[`replay`](../replay/) (#1701). `audit` points each rule at the one that holds it.
+[`hookset`](../hookset/), [`triggerlist`](../triggerlist/), [`provedone`](../provedone/) and
+[`replz`](../replz/) (#1701). `audit` points each rule at the one that holds it.
 
 ## Why now
 

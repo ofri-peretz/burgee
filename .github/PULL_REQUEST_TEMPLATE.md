@@ -10,8 +10,8 @@
 
 ## How this was checked
 
-<!-- Paste the block `npx proofline stamp --run "<command>" --not-checked "<gap>" --pr` prints:
-     the Checked: line and its Verified-by: lines. `proofline done <slug>` prints the line for an
+<!-- Paste the block `npx provedone stamp --run "<command>" --not-checked "<gap>" --pr` prints:
+     the Checked: line and its Verified-by: lines. `provedone done <slug>` prints the line for an
      intent's success criteria. "Verified-by: none (<reason>)" is a valid answer. -->
 
 ## Test plan

@@ -9,10 +9,10 @@ commit-msg:
   commands:
     commitlint:
       run: npx --no -- commitlint --edit {1}
-    # proofline intent R5, observe step: never blocks, logs to .git/proofline/gate.jsonl what
+    # provedone intent R5, observe step: never blocks, logs to .git/provedone/gate.jsonl what
     # `enforce` would have blocked. Moving to enforce takes a decision file (intent, Constraints).
-    proofline:
-      run: '[ ! -f packages/proofline/dist/bin.js ] || node packages/proofline/dist/bin.js gate {1} --mode observe --quiet || true'
+    provedone:
+      run: '[ ! -f packages/provedone/dist/bin.js ] || node packages/provedone/dist/bin.js gate {1} --mode observe --quiet || true'
 
 pre-commit:
   parallel: true

@@ -1,0 +1,42 @@
+{
+  "name": "provedone",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Every change says how it was verified, and a gate reads it: a receipt per commit, a done check per intent, and the PR's Checked: line generated from evidence. Unpublished until its success criteria are read.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": "^20.19.0 || >=22.13.0"
+  },
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "provedone": "dist/bin.js"
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.map",
+    "!dist/**/*.test.*"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage.enabled",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "bellpull": "^2.0.2",
+    "burgee": "^2.0.0"
+  },
+  "devDependencies": {
+    "vitest": "^5.0.1"
+  }
+}

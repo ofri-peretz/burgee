@@ -34,14 +34,14 @@ and `chalk` (wave 0.4, the red ratchet) is roundel's incumbent, not anyone else'
 | `ac-corpus` | `lane/ac-corpus` | `benchmarks/apicontract/**`, `.sdlc/intents/apicontract-corpus/**` | — |
 | `ac-props` | `lane/ac-props` | `packages/contractdiff/src/props-*.ts`, `packages/contractdiff/src/command-props*.ts`, `.sdlc/intents/contract-properties/**`, `packages/contractdiff/src/__fixtures__/props/**` | — |
 | `validator` | `lane/validator` | `packages/truefit/**`, `.sdlc/intents/truefit/**`, `benchmarks/validator/**` | harness 2.0 |
-| `replay` | `lane/replay` | `packages/replay/**`, `.sdlc/intents/replay/**`, `.sdlc/replay/**` | triggerlist's checklist (R4 firing table) |
+| `replz` | `lane/replz` | `packages/replz/**`, `.sdlc/intents/replz/**`, `.sdlc/replz/**` | triggerlist's checklist (R4 firing table) |
 | `triggerlist` | `lane/triggerlist` | `packages/triggerlist/**`, `.sdlc/intents/triggerlist/**`, `.sdlc/checklist.yaml`, `REVIEW.md` | — |
 | `closeout` | `lane/closeout` | `packages/closeout/**`, `.sdlc/intents/closeout/**` | harness 2.0 |
 | `bellpull` | `lane/bellpull` | `packages/bellpull/**`, `.sdlc/intents/bellpull/**` | harness 2.0 |
 | `hookset` | `lane/hookset` | `packages/hookset/**`, `.sdlc/intents/hookset/**`, `.github/workflows/hookset-check.yml`, `.github/workflows/changeset-gate.yml` | — |
 | `controlroom` | `lane/controlroom` | `packages/controlroom/**`, `.sdlc/intents/controlroom/**` | closeout R4 (controlroom spec R1); caique `./keys` and flagstaff's seam (R2, R3) |
 | `oxmutate` | `lane/oxmutate` | `packages/oxmutate/**`, `.sdlc/intents/oxmutate/**` | — |
-| `proofline` | `lane/proofline` | `packages/proofline/**`, `.sdlc/intents/proofline/**` | — |
+| `provedone` | `lane/provedone` | `packages/provedone/**`, `.sdlc/intents/provedone/**` | — |
 | `truepass` | `lane/truepass` | `packages/truepass/**`, `.sdlc/intents/truepass/**` | — |
 | `output` | `lane/output` | `packages/roundel/**`, `packages/flagstaff/**`, `.sdlc/intents/roundel/**`, `.sdlc/intents/flagstaff/**` | — (0.4 is urgent) |
 | `engine` | `lane/engine` | `packages/burgee/**`, `packages/commander-harness/**`, `packages/yargs-harness/**`, `.sdlc/intents/commander-*/**`, `.sdlc/intents/yargs-*/**` | — |

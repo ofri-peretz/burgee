@@ -1,0 +1,84 @@
+/**
+ * Where provedone keeps what it saw: under the repository's common git directory, never in the
+ * tree (intent, Defaults taken: the receipt lives in the commit and the PR body, not in `.sdlc/`).
+ * Stamps and the gate log are JSON lines, appended, so two worktrees of one clone share them.
+ */
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, statSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+
+import { ambientRuntime, run } from 'bellpull';
+
+const git = async (root: string, args: readonly string[]): Promise<string | undefined> => {
+  const r = await run('git', args, { cwd: root, runtime: ambientRuntime() });
+  return r.ok ? r.stdout.trim() : undefined;
+};
+
+/** The branch checked out at `root`, before its first commit too; `HEAD` when detached or outside a repository. */
+export const branchOf = async (root: string): Promise<string> => (await git(root, ['symbolic-ref', '--short', '-q', 'HEAD'])) ?? 'HEAD';
+
+/** `git config user.name` at `root`, or undefined when git names nobody. */
+export const gitUser = async (root: string): Promise<string | undefined> => git(root, ['config', 'user.name']);
+
+/** Whether `path` is a directory; false when nothing is there. */
+export const isDirectory = (path: string): boolean => statSync(path, { throwIfNoEntry: false })?.isDirectory() === true;
+
+/**
+ * provedone's directory for the repository at `root`; outside one, `.provedone` under `root`. A clone that
+ * ran it under its codename keeps `proofline/`: that moves here once, so the observe history the
+ * enforce decision reads is not reset by the rename.
+ */
+export const storeDir = async (root: string): Promise<string> => {
+  const common = await git(root, ['rev-parse', '--git-common-dir']);
+  if (common === undefined) return join(root, '.provedone');
+  const dir = join(resolve(root, common), 'provedone');
+  const legacy = join(resolve(root, common), 'proofline');
+  try {
+    renameSync(legacy, dir);
+  } catch (error) {
+    // No proofline/ to move, or provedone/ is already a directory with a log in it: keep what is there.
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT' && !isDirectory(dir)) throw error;
+  }
+  return dir;
+};
+
+/** A line that is not JSON is skipped: a blank one, or one cut short when a writer was killed mid-append. */
+const parsed = <T>(line: string): T[] => {
+  try {
+    return [JSON.parse(line) as T];
+  } catch {
+    return [];
+  }
+};
+
+export const readLines = <T>(file: string): T[] =>
+  existsSync(file)
+    ? readFileSync(file, 'utf8')
+        .split('\n')
+        .flatMap((line) => parsed<T>(line))
+    : [];
+
+export const appendLines = (file: string, rows: readonly unknown[]): void => {
+  mkdirSync(join(file, '..'), { recursive: true });
+  appendFileSync(file, rows.map((row) => `${JSON.stringify(row)}\n`).join(''));
+};
+
+export interface Ran {
+  readonly exit: number;
+  readonly output: string;
+}
+
+/** Run one shell command at `root`, stdout and stderr together; a command that could not start or timed out is exit 1. */
+export const runShell = async (command: string, root: string, timeoutMs: number): Promise<Ran> => {
+  const r = await run(command, [], { cwd: root, shell: true, runtime: ambientRuntime(), timeout: timeoutMs });
+  return { exit: r.code ?? 1, output: `${r.stdout}${r.stderr}` };
+};
+
+/**
+ * False when the command's first word is a file in the repository that is not a script: an
+ * evidence cell naming a document (`.sdlc/gaps/<id>.md`) is a pointer, not a command to run. A
+ * script starts with `#!`; the execute bit is not read, because Windows has none.
+ */
+export const runnable = (command: string, root: string): boolean => {
+  const file = join(root, (/\S+/u.exec(command) as RegExpExecArray)[0]);
+  return !existsSync(file) || !statSync(file).isFile() || readFileSync(file, 'utf8').startsWith('#!');
+};

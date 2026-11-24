@@ -1,7 +1,7 @@
 /**
  * `REVIEW.md` from the checklist (triggerlist spec R3): one line per rule with a link to why it
  * exists, under a byte budget. Rules past a reviewer's limit drop silently, so over budget is an
- * error that names the rules to drop: the ones that fire least, by the counts `replay` reports.
+ * error that names the rules to drop: the ones that fire least, by the counts `replz` reports.
  */
 import { type Checklist, type Item } from './checklist.js';
 

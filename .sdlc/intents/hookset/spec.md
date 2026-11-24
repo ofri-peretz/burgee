@@ -21,7 +21,7 @@ Intent: [`intent.md`](./intent.md). **Status:** draft.
 
 ## Design
 
-- Station list is data (one JSON file), shared with proofline so the "Checked" line and the hooks
+- Station list is data (one JSON file), shared with provedone so the "Checked" line and the hooks
   name the same stations.
 - The Claude hooks are small Node scripts shipped in the package and referenced by path from
   `.claude/settings.json`, so updating the package updates every repo.

@@ -1,0 +1,23 @@
+# What `replz run` replays each case through (.sdlc/intents/replz/). Every command runs in a
+# fresh worktree at the case's head, with REPLZ_BASE, REPLZ_HEAD and REPLZ_PR set.
+
+# A worktree starts with nothing installed.
+setup: npm ci --ignore-scripts --no-audit --no-fund
+
+# The same rules as CI's reviewer: REVIEW.md and the fired checklist items, from the base.
+reviewer: bash .sdlc/replz/reviewer.sh
+
+# One grader call per finding, at most maxFindings per case. {model} is --model: the cheapest
+# current model, named on the command line so this file names none.
+grader: claude -p --model {model}
+maxFindings: 10
+
+stages: [raw, final]
+
+# A check fires when it exits non-zero; the report counts how often, and how often on a real bug.
+checks:
+  - { id: typecheck, command: npx turbo run typecheck --output-logs=errors-only }
+  - { id: test, command: npx turbo run test --output-logs=errors-only }
+  - { id: lint, command: npx eslint . --max-warnings 0 }
+
+checklist: .sdlc/checklist.yaml
