@@ -59,7 +59,8 @@ function isPromiseTimeout(node: NewExpression, sourceCode: SourceCode): boolean 
 
 /** A delay of `0` or none at all: one turn of the event loop, not a guess at how long to wait. */
 function isTick(delay: EsNode | undefined): boolean {
-  return !delay || (delay.type === 'Literal' && delay.value === 0);
+  // Only a literal carries its value; any other delay is one this rule cannot read as zero.
+  return delay?.type === 'Literal' ? delay.value === 0 : delay === undefined;
 }
 
 /** The single expression a function body evaluates, if that is all it does. */
