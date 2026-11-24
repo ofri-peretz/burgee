@@ -1,0 +1,144 @@
+---
+title: Coming from openapi-typescript
+description: "Move from openapi-typescript to contractdiff's types target: contractdiff migrate openapi-typescript turns your script flags and redocly.yaml into a config, contractdiff/openapi-typescript keeps the openapiTS call, and this page says which cases are not covered yet."
+---
+
+openapi-typescript turns an OpenAPI document into TypeScript types: a `paths` interface, the
+`components` and `operations` it refers to, and an API, `openapiTS`, that returns compiler nodes.
+contractdiff's `types` target writes the same interfaces, and its `contractdiff/openapi-typescript`
+entry keeps the `openapiTS` call. Then the same package diffs the contract, lints it, and generates
+the clients, validators and servers openapi-typescript leaves to other tools.
+
+## How the names map
+
+| openapi-typescript                                                                                 | contractdiff                                                                |
+| :------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------- |
+| `npx openapi-typescript openapi.yaml -o src/api/types.ts`                                          | `npx contractdiff gen`, with a `types` target in `contractdiff.config.json` |
+| CLI flags (`--alphabetize`, `--enum`, `--export-type`, `--immutable`, `--root-types` and the rest) | the target's `options`, by their camelCase names                            |
+| `redocly.yaml` `apis` entries                                                                      | one target per API                                                          |
+| `import openapiTS, { astToString } from 'openapi-typescript'`                                      | `import openapiTS, { astToString } from 'contractdiff/openapi-typescript'`  |
+| openapi-fetch's client                                                                             | the `fetch` target; [Code generation](/docs/guides/gen)                     |
+| a separate breaking-change tool                                                                    | `contractdiff diff`; [Breaking changes](/docs/guides/diff)                  |
+
+## Migrate with one command
+
+`contractdiff migrate openapi-typescript` reads the `package.json` scripts that run
+openapi-typescript and its `redocly.yaml` as data (it never runs them), writes
+`contractdiff.config.json` with a `types` target in openapi-typescript's compatibility mode, rewrites
+each script to `contractdiff gen`, and reports every flag it could not carry as a finding with a
+`fix:`. It deletes nothing; it prints the uninstall command. `--dry-run` shows the plan and writes
+nothing:
+
+```yaml title="openapi.yaml"
+openapi: 3.1.0
+info:
+  title: Pets
+  version: 1.0.0
+paths:
+  /pets/{id}:
+    get:
+      operationId: getPet
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: A pet
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [name]
+                properties:
+                  name:
+                    type: string
+```
+
+```json title="package.json"
+{
+  "name": "pets-client",
+  "private": true,
+  "scripts": {
+    "gen": "openapi-typescript openapi.yaml -o src/api/types.ts --alphabetize"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.13.0"
+  }
+}
+```
+
+```text title="npx contractdiff migrate openapi-typescript --dry-run --json"
+{"ok":true,"data":{"changed":false,"read":null,"config":{"input":"openapi.yaml","targets":{"types":{"generator":"types","out":"src/api/types.ts","options":{"compat":"openapi-typescript","alphabetize":true}}}},"written":[],"unchanged":[],"kept":[],"edited":["package.json"],"findings":[],"uninstall":"npm uninstall openapi-typescript"},"meta":{"provenance":{"dryRun":{"source":"flag","location":"--dry-run"}},"changed":false}}
+```
+
+The steps, in order:
+
+1. `npm install -D contractdiff`.
+2. `npx contractdiff migrate openapi-typescript`, and read its findings.
+3. Set the target's `out` to the folder: the `types` target writes `types.ts` inside `out`. In
+   1.0.0, `migrate` copies the `-o` value as it was given (`src/api/types.ts`), so `gen` would write
+   `src/api/types.ts/types.ts`; change it to `src/api`.
+4. `npm run gen`, and compare the new `types.ts` with the old one in your diff.
+5. `npm uninstall openapi-typescript`.
+
+The same command reads openapi-fetch, Hey API and orval configs: `contractdiff migrate openapi-fetch`,
+`hey-api` or `orval`.
+
+## Keep the `openapiTS` call
+
+A build script that calls openapi-typescript's API changes its import:
+
+```js title="ots.mjs"
+import openapiTS, { astToString } from "contractdiff/openapi-typescript";
+
+const ast = await openapiTS(new URL("./openapi.yaml", import.meta.url));
+console.log(astToString(ast).split("\n").slice(0, 10).join("\n"));
+```
+
+```text title="node ots.mjs"
+export interface paths {
+    "/pets/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getPet"];
+        put?: never;
+```
+
+The entry also exports the `transform*` helpers, `createRef`, `resolveRef`, `COMMENT_HEADER` and
+the rest of openapi-typescript 7's named exports; [the API reference](/docs/api/openapi-typescript)
+lists them.
+
+## What is different on purpose
+
+- **No TypeScript compiler.** contractdiff writes the types as text. `openapiTS` resolves to that
+  text, and `astToString` hands it back unchanged, so the code above works, but a caller that walks
+  the returned nodes does not. It also means the generator runs under TypeScript 7, which ships no
+  `ts.factory`.
+- **No network.** A remote URL is refused with a `fix:` line: download the document and pass its
+  text, its parsed value or a `file:` URL. A `file:` URL's `$ref`s into the files next to it are
+  bundled, as openapi-typescript's Redocly bundler does.
+- **`inject` is text**, written as given rather than re-printed.
+
+## What is not built
+
+- **`transform`, `postTransform` and `transformProperty`.** They take and return compiler nodes, and
+  the generator has none; passing one is refused with a `fix:` line.
+- **openapi-typescript's own CLI.** `contractdiff/openapi-typescript` is the API, not a
+  `openapi-typescript` bin; scripts move to `contractdiff gen`.
+
+## Is it compatible?
+
+Not claimed. The compat-oracle host for openapi-typescript is `planned`, not graded, so the
+family's [compatibility page](https://burgee.interlace.tools/docs/compatibility) has no row for it
+and this site quotes no grade. The decision record that cut 1.0.0
+(`.sdlc/decisions/D-20261124-verification-family-1-0.md`) says the entry is not a drop-in until it
+passes all of openapi-typescript's own gated cases, and the package README names the two classes
+of case it fails: the compiler-node options and the tests that spawn openapi-typescript's own CLI. Until then, read the diff of
+your generated `types.ts` after `gen`; that is the check that matters for your contract.

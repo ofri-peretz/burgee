@@ -1,0 +1,71 @@
+---
+title: FAQ
+description: "Short answers about contractdiff: what a breaking change means here, why a decided change still fails, git refs, openapi-typescript compatibility, AsyncAPI and MCP, generated files, validators, agents and exit codes, each linking where to read more."
+---
+
+## What counts as a breaking change?
+
+It depends on whose code you ask about. By default `diff` asks whether callers built on the old
+contract keep working (`--mode backward --side caller`), and says so on its first line. `--side
+server` and `--mode forward` or `full` ask the other questions. See
+[Breaking changes](/docs/guides/diff#the-question-mode-and-side).
+
+## Why does my run still fail after I wrote `x-change`?
+
+A decision explains a breaking change; it does not make it compatible. `x-change` (with a major
+version bump) clears the decision finding, and the breaking change itself still exits 1. See
+[Decisions](/docs/guides/decisions#deciding-the-change).
+
+## Can `diff` read the base version from git?
+
+Not in 1.0.0. `git:<ref>:<path>` is in the help text, and the bin refuses it with a `fix:` line.
+Write the base out with `git show origin/main:openapi.yaml > base.yaml` and diff that file; the
+[CI gate](/docs/recipes/ci) recipe does exactly that.
+
+## Is it a drop-in for openapi-typescript?
+
+Not claimed. The `types` target and `contractdiff/openapi-typescript` follow openapi-typescript's
+output and API, but the compat-oracle host for it is `planned`, not graded, and the options that
+take compiler nodes are refused. See
+[Coming from openapi-typescript](/docs/coming-from/openapi-typescript#is-it-compatible).
+
+## Does it work for AsyncAPI, JSON Schema or MCP?
+
+Yes. AsyncAPI 2.x and 3.x, JSON Schema, MCP tool lists, Swagger 2.0 and protobuf are read into the
+same model as OpenAPI, so `diff`, `lint` and `explain` work on them. See
+[Input formats](/docs/guides/inputs).
+
+## Are the rule ids oasdiff's?
+
+For the HTTP changes oasdiff names, yes; otherwise they are contractdiff's own, prefixed `ac-`.
+Since 1.0.0 they are part of the semver contract. See
+[Breaking changes](/docs/guides/diff#rule-ids) and [Coming from oasdiff](/docs/coming-from/oasdiff).
+
+## Can I edit a generated file?
+
+`gen` refuses to overwrite a generated file that was edited by hand, and `--force` overrides that.
+Put the change in a file the target owns as `user`, such as a server's `handlers.ts`, which is
+written once and never again. See [Code generation](/docs/guides/gen#the-map-file).
+
+## Do the generated validators need truefit at run time?
+
+Usually not: each guard is compiled ahead of time to plain code. A payload with a format that is a
+function goes through truefit's `check` at run time, and `gen` says which. See
+[The validator target](/docs/guides/validators#using-the-guards).
+
+## How do I adopt lint rules on a large existing contract?
+
+`lint --since merge-base` runs the full ruleset only on operations a change added or touched, and
+`warnFor` lets a new `error` rule warn first. See
+[Lint](/docs/guides/lint#adopting-rules-on-a-contract-that-already-exists).
+
+## How does an agent use it?
+
+`explain <operation> --json` gives it one operation with every reference resolved, `lint --ruleset
+agent-ready` says whether a contract works as tools, and `--json`, `--schema` and `--mcp` give it
+the whole CLI as data. See [Agents](/docs/recipes/agents).
+
+## What do the exit codes mean?
+
+`0` ok, `1` a finding (a breaking change, a lint error, a stale file), `2` a usage error, `3` a
+config that did not load. They are part of the 1.0 contract. See [Changelog](/docs/changelog).

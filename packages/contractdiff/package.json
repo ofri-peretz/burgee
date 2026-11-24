@@ -13,7 +13,7 @@
   "bugs": {
     "url": "https://github.com/ofri-peretz/burgee/issues"
   },
-  "homepage": "https://burgee.interlace.tools",
+  "homepage": "https://contractdiff.interlace.tools",
   "type": "module",
   "sideEffects": [
     "./dist/bin.js"

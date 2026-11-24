@@ -1,0 +1,4 @@
+{
+  "title": "Guides",
+  "pages": ["diff", "decisions", "lint", "gen", "validators", "inputs"]
+}

@@ -1,0 +1,57 @@
+---
+title: Property tests from the contract
+description: "contractdiff props draws values from each payload's schema and checks four properties with no server: the validator agrees with the schema, values survive JSON, normalise is idempotent, and what diff calls compatible really is; replayable by seed, with fast-check arbitraries for your own tests."
+---
+
+`contractdiff props <contract>` tests the contract itself, with no server running. For every
+payload it draws values from the JSON Schema with a generator written apart from the validator,
+and checks four properties:
+
+| property     | what it checks                                                                                                            |
+| :----------- | :------------------------------------------------------------------------------------------------------------------------ |
+| `agreement`  | the generated validator accepts every value drawn, and refuses each value with one constraint broken, at the place broken |
+| `round-trip` | every value survives `JSON.stringify` and `JSON.parse` unchanged                                                          |
+| `normalise`  | normalising a value is idempotent, and accepts what the schema accepts                                                    |
+| `soundness`  | with `--against <old>`: every payload `diff` calls compatible accepts any value the old sender may send                   |
+
+```text title="npx contractdiff props old.yaml --seed 7 --runs 100"
+ok: old.yaml, 100 run(s) per payload, seed 7
+  agreement   200 checked, 0 discarded, 0 failed
+  round-trip  200 checked, 0 discarded, 0 failed
+  normalise   200 checked, 0 discarded, 0 failed
+  soundness   0 checked, 0 discarded, 0 failed
+```
+
+`--runs` is the number of values drawn per payload and property (1000 by default). The seed is
+printed on every run; without `--seed`, one is taken from the clock, so a failure in CI is replayed
+locally with the seed it printed.
+
+## Checking `diff` itself
+
+`--against` adds the soundness property: for the changes `diff` would call non-breaking, values the
+old side may send are drawn and run through the new side's validator. It tests the classifier on
+your contract, not just on the package's own fixtures.
+
+```text title="npx contractdiff props new.yaml --against old.yaml --seed 7 --runs 100"
+ok: new.yaml, 100 run(s) per payload, seed 7
+  agreement   300 checked, 0 discarded, 0 failed
+  round-trip  300 checked, 0 discarded, 0 failed
+  normalise   300 checked, 0 discarded, 0 failed
+  soundness   200 checked, 0 discarded, 0 failed
+```
+
+A counterexample is shrunk to the smallest value that still fails, and printed with the seed that
+found it. `--sarif` prints the counterexamples as SARIF; `--mode` and `--side` take the same values
+as in `diff`. Keywords the generator does not hold to are reported, not ignored.
+
+## Arbitraries for your own tests
+
+`--emit <file>` writes fast-check arbitraries for every payload, for a project's own property tests.
+`--runs 0` writes them without running the properties:
+
+```bash
+npx contractdiff props openapi.yaml --emit test/arbitraries.ts --runs 0
+```
+
+The emitted file imports `fast-check`, which the project installs itself; contractdiff does not
+depend on it.

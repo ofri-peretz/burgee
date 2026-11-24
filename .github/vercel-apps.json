@@ -134,12 +134,22 @@
       "buildCommand": "npx turbo run build --filter=docs-truefit",
       "outputDirectory": "apps/docs-truefit/.next",
       "familyPages": false
+    },
+    "contractdiff": {
+      "package": "contractdiff",
+      "workspace": "docs-contractdiff",
+      "dir": "apps/docs-contractdiff",
+      "projectId": "prj_lDeFiknZWHjHEXpXuJyBpUaXniwA",
+      "productionUrl": "https://contractdiff.interlace.tools",
+      "rootDirectory": "",
+      "buildCommand": "npx turbo run build --filter=docs-contractdiff",
+      "outputDirectory": "apps/docs-contractdiff/.next",
+      "familyPages": false
     }
   },
   "pending": {},
   "excluded": {
     "truepass": "A lint plugin and one command, documented as a section of the front door until it has enough pages for a site of its own.",
-    "contractdiff": "Documented as a section of the front door until it has a site of its own.",
     "provedone": "One gate and four commands, documented as a section of the front door until it has enough pages for a site of its own.",
     "replz": "Three commands, documented as a section of the front door until it has enough pages for a site of its own.",
     "hookset": "Two commands and a set of presets, documented as a section of the front door until it has enough pages for a site of its own.",

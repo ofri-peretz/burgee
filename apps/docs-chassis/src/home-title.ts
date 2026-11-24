@@ -20,6 +20,7 @@ export const HOME_TITLES: Readonly<Record<string, string>> = {
   bellpull: 'subprocesses with one structured result',
   caique: 'prompts that are flags first',
   closeout: 'exit handlers that run once, on every path out',
+  contractdiff: 'API contract diff, lint and codegen',
   controlroom: 'keyboard-driven terminal screens',
   flagstaff: 'spinners, progress, boxes and tables',
   linegauge: 'measure, wrap and slice styled terminal text',

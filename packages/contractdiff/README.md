@@ -26,7 +26,7 @@
 </p>
 
 <p align="center">
-  Docs: <a href="https://burgee.interlace.tools/docs/packages/contractdiff">https://burgee.interlace.tools/docs/packages/contractdiff</a><br />
+  Docs: <a href="https://contractdiff.interlace.tools">https://contractdiff.interlace.tools</a><br />
   Migrating from: <a href="https://github.com/ofri-peretz/burgee/tree/main/packages/contractdiff#migrating">openapi-typescript</a>
 </p>
 

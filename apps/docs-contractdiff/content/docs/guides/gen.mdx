@@ -1,0 +1,138 @@
+---
+title: Code generation
+description: "contractdiff gen writes code from a contract, one plugin per target: TypeScript types, validators, JSON Schema, fetch, TanStack Query and SWR clients, MSW mocks, NestJS, Express, Fastify and Hono servers, an MCP server and Markdown, with every file recorded in contractdiff.map.json."
+---
+
+`contractdiff gen` reads `contractdiff.config.json`, turns the contract into the model every
+command shares, and runs one generator per target. Each target names its generator and the folder
+it writes into.
+
+## The config
+
+```json title="contractdiff.config.json"
+{
+  "input": "new.yaml",
+  "targets": {
+    "types": { "generator": "types", "out": "src/api" },
+    "client": { "generator": "fetch", "out": "src/client" },
+    "mocks": { "generator": "msw", "out": "src/mocks" },
+    "server": { "generator": "hono", "out": "src/server" },
+    "docs": { "generator": "markdown", "out": "docs/api" }
+  }
+}
+```
+
+| field                     | what it is                                                                     |
+| :------------------------ | :----------------------------------------------------------------------------- |
+| `input`                   | the contract, JSON or YAML, relative to the config file                        |
+| `overlays`                | OpenAPI Overlays applied to the input, in order                                |
+| `plugins`                 | package names or relative paths of plugins of your own; nothing else is loaded |
+| `targets.<name>`          | `generator`, `out` (a folder) and the generator's `options`                    |
+| `extract`, `diff`, `lint` | the settings of those commands                                                 |
+
+The config is data, so it validates against a JSON Schema: `configSchema`, exported from
+`contractdiff`. `contractdiff.config.mjs` and `.ts` are read too, in that order after the JSON
+file.
+
+```text title="npx contractdiff gen"
+files: [{"path":"docs/api/getPet.md","owner":"generated","action":"write","target":"docs"},{"path":"docs/api/index.md","owner":"generated","action":"write","target":"docs"},{"path":"docs/api/llms.txt","owner":"generated","action":"write","target":"docs"},{"path":"src/api/types.ts","owner":"generated","action":"write","target":"types"},{"path":"src/client/client.ts","owner":"generated","action":"write","target":"client"},{"path":"src/mocks/handlers.ts","owner":"generated","action":"write","target":"mocks"},{"path":"src/mocks/scenarios.ts","owner":"generated","action":"write","target":"mocks"},{"path":"src/server/contract-runtime.ts","owner":"generated","action":"write","target":"server"},{"path":"src/server/getPet.contract.test.ts","owner":"generated","action":"write","target":"server"},{"path":"src/server/handlers.ts","owner":"user","action":"write","target":"server"},{"path":"src/server/routes.ts","owner":"generated","action":"write","target":"server"},{"path":"contractdiff.map.json","owner":"generated","action":"write"}]
+changed: true
+changes: 12
+unchanged: 0
+skipped: 0
+findings: [{"code":"value-synthesised","pointer":"#/paths/~1pets~1{id}/get/responses/200/content/application~1json","message":"the 200 response of \"getPet\" has no example, so its mock body is synthesised from the schema","fix":"add an `example` to the media type to mock it with a value you chose","target":"mocks"},{"code":"server-example-synthesised","pointer":"#/paths/~1pets~1{id}/get","message":"`getPet` path parameter \"id\" has no example: the contract test sends one made from its schema","fix":"add an `example` to the spec, so the contract test sends a value you chose","target":"server"},{"code":"server-example-synthesised","pointer":"#/paths/~1pets~1{id}/get","message":"`getPet` query parameter \"fields\" has no example: the contract test sends one made from its schema","fix":"add an `example` to the spec, so the contract test sends a value you chose","target":"server"},{"code":"server-example-synthesised","pointer":"#/paths/~1pets~1{id}/get","message":"`getPet` response 200 has no example: the contract test sends one made from its schema","fix":"add an `example` to the spec, so the contract test sends a value you chose","target":"server"},{"code":"server-problem-undeclared","pointer":"#/paths/~1pets~1{id}/get","message":"`getPet` answers a request the contract refuses with 400 Problem Details, which its responses do not declare","fix":"declare a `400` response with `application/problem+json` content","target":"server"}]
+```
+
+Every file is listed with its `owner`. A `generated` file belongs to contractdiff and is rewritten
+on every run. A `user` file, such as the Hono target's `handlers.ts`, is written once, as a
+starting point, and never touched again. The findings are not errors: each says what in the
+contract made the generator guess (here, no `example` to build a mock body or a contract test
+request from) and how to stop it guessing.
+
+## The targets
+
+| generator                    | writes                                                                                                                                                                              |
+| :--------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `types`                      | `types.ts`: the `paths`, `webhooks`, `components` and `operations` interfaces openapi-typescript writes; see [Coming from openapi-typescript](/docs/coming-from/openapi-typescript) |
+| `validator`                  | `validators.ts`: one compiled guard per payload, and an `operations` map; see [The validator target](/docs/guides/validators)                                                       |
+| `json-schema`                | a JSON Schema document per payload (2020-12 or draft-07), or the subset a model provider accepts                                                                                    |
+| `fetch`                      | a typed client over the platform `fetch`: one method per operation, every response a typed result, nothing thrown on a non-2xx                                                      |
+| `tanstack-query`, `swr`      | query options or keys and fetchers for every operation, over the `fetch` client                                                                                                     |
+| `msw`                        | MSW handlers and a scenario for every declared response, from the contract's examples or a seeded synthesis                                                                         |
+| `nest`                       | NestJS: a generated abstract controller per tag that validates requests and responses, a controller you own, a contract test per operation                                          |
+| `express`, `fastify`, `hono` | a generated router or plugin that validates requests and responses, handlers you own, a contract test per operation                                                                 |
+| `mcp`                        | an MCP server with one tool per operation, whose handlers call the API                                                                                                              |
+| `markdown`                   | one page per operation with every schema resolved, plus `index.md` and `llms.txt`                                                                                                   |
+
+`--target <name>` runs only that target, and can be repeated.
+
+## The map file
+
+`contractdiff.map.json` records every file and symbol each run wrote, with a hash of what it wrote.
+That is how the next run tells its own files from yours:
+
+- a generated file that still matches its hash is rewritten freely;
+- a generated file that was edited by hand is refused, with the file named, unless you pass
+  `--force`;
+- a generated file the previous run wrote and this one does not (an operation was removed) is
+  deleted, on the same terms: only when it is still what contractdiff wrote;
+- a `user` file is never rewritten or deleted.
+
+```js title="edit.mjs"
+import { appendFileSync } from "node:fs";
+
+appendFileSync("src/api/types.ts", "// a hand edit\n");
+console.log("edited src/api/types.ts");
+```
+
+```text title="node edit.mjs"
+edited src/api/types.ts
+```
+
+```text title="npx contractdiff gen --check" exit="1"
+error: generated files were edited by hand: src/api/types.ts. fix: move the change to a user file, or pass --force
+usage: contractdiff gen [options]
+options:
+  --check          write nothing; exit 1 and list the files that are stale
+  --dry-run        write nothing; print the diff a run would write
+  --force          overwrite a generated file that was edited by hand
+  --config <path>  the config file (default: contractdiff.config.json, .mjs or .ts in this folder)
+  --target <name>  run only this target (repeatable)
+{"error":{"kind":"runtime","code":1,"message":"generated files were edited by hand: src/api/types.ts. fix: move the change to a user file, or pass --force"}}
+```
+
+The map is also a usage file: `diff --usage contractdiff.map.json` treats the generated files as the
+callers of each operation. See [Breaking changes](/docs/guides/diff#who-uses-it---usage).
+
+## In CI: `--check` and `--dry-run`
+
+- **`--check`** writes nothing and exits 1 when a file is stale (the contract changed and nobody
+  ran `gen`) or was edited by hand. It is the step that keeps generated code in step with the
+  contract on every pull request.
+- **`--dry-run`** writes nothing and prints the diff a run would write.
+
+Both commands are `idempotent` in burgee's sense: the same input writes the same bytes, and the
+result says whether anything changed (`changed: false` on a rerun).
+
+## Code to contract: `extract`
+
+`contractdiff extract` goes the other way, and writes the contract from code. The extractors in
+1.0.0 are `standard-schema` (the exports of a module, as one JSON Schema document),
+`openapi-from-schemas` (a module of `{ method, path, input, output }` per operation, as OpenAPI 3.1)
+and `ts-rest` (a ts-rest router, read as data). The command's help also names NestJS and Hono; in
+1.0.0 those two extractors are not built yet.
+
+```json
+{
+  "extract": {
+    "from": "standard-schema",
+    "out": "spec.json",
+    "options": { "module": "./src/schemas.ts" }
+  }
+}
+```
+
+`standard-schema` reads any value that implements Standard JSON Schema (`~standard.jsonSchema`), such
+as Zod 4.2 and later. truefit 1.0's `standard()` implements Standard Schema but not its JSON
+Schema half, so a truefit schema is reported as a `no-standard-json-schema` finding rather than
+written.
