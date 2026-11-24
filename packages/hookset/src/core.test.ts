@@ -442,6 +442,16 @@ describe('initRepo', () => {
     ]);
     expect(initRepo(dir, PKG, { claude: true })).toEqual({ changed: false, written: [] });
   });
+  it('passes over a group with no matcher when it looks for the pack hook\'s group, and adds its own after it', () => {
+    const settings = { hooks: { PostToolUseFailure: [{ hooks: [{ type: 'command', command: 'node log.mjs' }] }] } };
+    const dir = repo({ 'lefthook.yml': lefthookTemplate(STATIONS, REF), '.claude/settings.json': JSON.stringify(settings) });
+    initRepo(dir, PKG, { claude: true });
+    const merged = JSON.parse(read(dir, '.claude/settings.json')) as { hooks: Record<string, { matcher?: string; hooks: { command: string }[] }[]> };
+    expect(merged.hooks['PostToolUseFailure']?.map((g) => [g.matcher, g.hooks.map((h) => h.command)])).toEqual([
+      [undefined, ['node log.mjs']],
+      ['Bash', ['node "$CLAUDE_PROJECT_DIR/.claude/hooks/stop-after-3.mjs"']],
+    ]);
+  });
 });
 
 describe('the line readers, at their edges', () => {

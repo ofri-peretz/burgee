@@ -1,5 +1,11 @@
 # replz
 
+## 0.3.0
+
+### Minor Changes
+
+- [#1796](https://github.com/ofri-peretz/burgee/pull/1796) [`be786b0`](https://github.com/ofri-peretz/burgee/commit/be786b0a4f8c3af04f52fc08b88cdd807c347a34) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - First npm release. `replz` grades a reviewer and a repository's checks against bugs that actually happened.
+
 ## 0.2.0
 
 ### Minor Changes
