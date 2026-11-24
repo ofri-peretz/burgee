@@ -86,7 +86,7 @@ describe('every published subpath has a module behind it (R6)', () => {
   };
 
   it.each(Object.entries(manifest.exports).filter(([, target]) => typeof target === 'object'))('%s', (subpath, target) => {
-    const file = (target as { import: string }).import.replace(/^(\.\/)?dist\//u, '').replace(/\.js$/, '.ts').replace(/\.cjs$/, '.cts');
+    const file = (target as { import: string }).import.replace('./dist/', '').replace(/\.js$/, '.ts').replace(/\.cjs$/, '.cts');
     expect(sources(), `${subpath} names ${file}, which does not exist in src/`).toContain(file);
   });
 });

@@ -102,7 +102,7 @@ describe('the rule covers what is published', () => {
   const published = Object.values(manifest.exports)
     .map((e) => (typeof e === 'string' ? undefined : e.import))
     .filter((file): file is string => file !== undefined)
-    .map((file) => file.replace(/^(\.\/)?dist\//u, ''));
+    .map((file) => file.replace('./dist/', ''));
 
   it('every published entry has a rule, and every rule names a published entry', () => {
     expect(Object.keys(ALLOWED).toSorted()).toEqual(published.toSorted());
