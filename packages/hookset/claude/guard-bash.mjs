@@ -202,12 +202,19 @@ export function decide(command, ask = []) {
   const cmds = commands(command);
   for (const r of RULES)
     if (r.test(cmds)) return { decision: "deny", id: r.id, reason: r.reason };
-  const phrase = [...PUBLISH, ...ask].find((p) => cmds.some((w) => hasPhrase(w, p)));
+  const phrase = PUBLISH.find((p) => cmds.some((w) => hasPhrase(w, p)));
   if (phrase)
     return {
       decision: "ask",
       id: "publish",
       reason: `\`${phrase}\` publishes or deploys outside this repo, and that cannot be undone. A person approves it; CI release workflows are the usual route.`,
+    };
+  const listed = ask.find((p) => cmds.some((w) => hasPhrase(w, p)));
+  if (listed)
+    return {
+      decision: "ask",
+      id: "repo-ask",
+      reason: `This repo lists \`${listed}\` in .claude/hookset.json as a step a person approves: it overwrites or ships something that is hard to take back.`,
     };
   return null;
 }
