@@ -25,6 +25,7 @@ export const SHELL_DRIVING = [
   'scripts/release-order-lock.test.ts',
   'scripts/release-verify-lock.test.ts',
   'scripts/specs-workflow-lock.test.ts',
+  'scripts/triggerlist-review-action-lock.test.ts',
   'scripts/vercel-apps-lock.test.ts',
 ];
 
