@@ -67,6 +67,20 @@ describe('jsonSchemaReader', () => {
     expect(() => reader.read({ $ref: '#/$defs/broken' })).toThrow(refusal);
   });
 
+  it('reads a loop of references that does not pass through the schema it starts from', () => {
+    const document = {
+      $defs: {
+        start: { type: 'object', properties: { next: { $ref: '#/$defs/even' } } },
+        even: { type: 'object', properties: { next: { $ref: '#/$defs/odd' } } },
+        odd: { type: 'object', properties: { next: { $ref: '#/$defs/even' } }, required: ['next'] },
+      },
+    };
+    const reader = jsonSchemaReader(document);
+    const schema = reader.read({ $ref: '#/$defs/start' });
+    expect(check(schema, { next: { next: { next: {} } } })).toBe(true);
+    expect(check(schema, { next: { next: {} } })).toBe(false);
+  });
+
   it('keeps the findings of every schema it read, each reference\'s once', () => {
     const document = { $defs: { stamp: { type: 'string', format: 'not-a-format' } } };
     const reader = jsonSchemaReader(document);

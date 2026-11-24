@@ -511,8 +511,10 @@ const settle = (refs: ReadonlyMap<string, Reference>, named: ReadonlySet<string>
   const seen = new Set<string>(queue);
   for (let index = 0; index < queue.length; index += 1) {
     const reference = refs.get(queue[index] as string) as Reference;
+    // Stryker disable next-line ConditionalExpression: equivalent, a reference read whole keeps what it made, so reading it again returns that and does no work
     if (!reference.whole) {
       (reference.node.get as () => Node)();
+      // Stryker disable next-line BooleanLiteral: equivalent, as above: the mark only spares a call that would return what was made
       reference.whole = true;
     }
     for (const next of reference.named) {

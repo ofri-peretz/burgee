@@ -57,6 +57,12 @@ describe('the judge', () => {
     expect(payloadJudge({ type: 'string' }, 'not a document', '2020-12').accepts('x')).toBe(true);
   });
 
+  it('reads a payload in its contract\'s dialect', () => {
+    const document = { openapi: '3.0.3', components: { schemas: { Name: { type: 'string', nullable: true } } } };
+    expect(payloadJudge({ $ref: '#/components/schemas/Name' }, document, 'openapi-3.0').accepts(null)).toBe(true);
+    expect(payloadJudge({ $ref: '#/components/schemas/Name' }, document, '2020-12').accepts(null)).toBe(false);
+  });
+
   it('refuses a payload whose definition cannot be read, every time, and not its neighbours', () => {
     const document = { components: { schemas: { Bad: { type: 'string', maxLength: 'ten' }, Good: { type: 'string' } } } };
     expect(() => payloadJudge({ $ref: '#/components/schemas/Bad' }, document, '2020-12')).toThrow(/maxLength/u);

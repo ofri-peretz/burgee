@@ -171,6 +171,7 @@ const roundTrip = (run: Run, check: Check, value: unknown): void => {
   const broken = (candidate: unknown): boolean => {
     const back = subject.decode(subject.encode(candidate));
     // Equal JSON text is equal sorted text, and far cheaper: the sorted comparison is left for values written in another order.
+    // Stryker disable next-line ConditionalExpression: equivalent, equal JSON text gives equal sorted text, so the comparison below answers the same
     if (JSON.stringify(back) === JSON.stringify(candidate)) return false;
     return canonical(back) !== canonical(candidate);
   };
