@@ -246,6 +246,14 @@ describe('the program', () => {
     expect(r.stdout.trimEnd().endsWith('<!-- triggerlist-review head=c0ffee -->')).toBe(true);
   });
 
+  it('brief still briefs when the base branch has no rules file or checklist yet', async () => {
+    const r = await runBurgee(program, { argv: ['brief', 'main', '--repo', repo, '--head', 'c0ffee', '--review', 'NONE.md', '--checklist', 'none.yaml', '--json'] });
+    expect(r.code).toBe(ExitCode.OK);
+    expect(r.json).toMatchObject({ data: { rules: 'main:NONE.md', checklist: 'main:none.yaml', fired: [] } });
+    const text = await runBurgee(program, { argv: ['brief', 'main', '--repo', repo, '--head', 'c0ffee', '--review', 'NONE.md', '--checklist', 'none.yaml'] });
+    expect(text.stdout).toContain("(main:NONE.md does not exist yet: review against the repo's own instructions)");
+  });
+
   it('brief reads the previous round from the comments file, and --review names another rules file', async () => {
     writeFileSync(join(repo, 'comments.json'), JSON.stringify([{ body: 'thanks' }, { body: 'old\n<!-- triggerlist-review head=1111 -->' }, { body: 'newer\n<!-- triggerlist-review head=2222 -->' }]));
     const r = await runBurgee(program, { argv: ['brief', 'main', '--repo', repo, '--head', '3333', '--comments', 'comments.json', '--json'] });

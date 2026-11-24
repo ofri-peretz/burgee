@@ -106,9 +106,14 @@ export interface BriefOptions extends RangeOptions {
 }
 
 export const runBrief = async (options: BriefOptions): Promise<Data> => {
-  const rulesText = await options.git.show(options.base, options.review);
-  const { source, checklist } = await loadChecklist(options.repo, options.git, options.checklist, options.worktree ? undefined : options.base);
-  const fired = match(checklist, parseDiff(await options.git.diff(range(options.base))));
+  // The pull request that adds a repo's first REVIEW.md or checklist has neither on its base: brief
+  // it with no rules and no items rather than failing the review.
+  const rulesText = await options.git.show(options.base, options.review).catch(() => `(${options.base}:${options.review} does not exist yet: review against the repo's own instructions)`);
+  const { source, checklist } = await loadChecklist(options.repo, options.git, options.checklist, options.worktree ? undefined : options.base).catch((error: unknown) => {
+    if (options.worktree) throw error;
+    return { source: `${options.base}:${options.checklist}`, checklist: undefined };
+  });
+  const fired = checklist === undefined ? [] : match(checklist, parseDiff(await options.git.diff(range(options.base))));
   const comments = options.comments === undefined ? [] : (JSON.parse(readFileSync(resolve(options.repo, options.comments), 'utf8')) as Comment[]);
   const round = previousRound(comments);
   const previous = round?.body ?? undefined;
