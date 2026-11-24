@@ -421,7 +421,7 @@ describe('message', () => {
     expect(all).toEqual([
       { path: '/a', keyword: 'type', message: 'expected a string, got number 1. fix: send a string' },
       { path: '/b', keyword: 'undefined', message: 'not this' },
-      { path: '/c/deep', keyword: 'required', message: 'expected a value, got undefined undefined. fix: add "deep"' },
+      { path: '/c/deep', keyword: 'required', message: 'expected a value, got undefined. fix: add "deep"' },
       { path: '/extra', keyword: 'unknown', message: 'not this' },
     ]);
     expect(issues(Shape, 1)).toEqual([{ path: '', keyword: 'type', message: 'not this' }]);

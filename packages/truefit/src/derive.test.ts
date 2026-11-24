@@ -216,9 +216,9 @@ describe('an exact optional key', () => {
   });
 
   it('says that the key must go or be given a value', () => {
-    expect(issues(Exact, { a: undefined })).toEqual([{ path: '/a', keyword: 'undefined', message: 'expected a value, or no key at all, got undefined undefined. fix: remove "a", or give it a value' }]);
+    expect(issues(Exact, { a: undefined })).toEqual([{ path: '/a', keyword: 'undefined', message: 'expected a value, or no key at all, got undefined. fix: remove "a", or give it a value' }]);
     expect(issues(object({ a: exactOptional(string()), z: string() }), { a: undefined }, { first: true })).toHaveLength(1);
-    expect(issues(object({ z: string(), a: exactOptional(string()) }), { a: undefined }, { first: true })).toEqual([{ path: '/z', keyword: 'required', message: 'expected a value, got undefined undefined. fix: add "z"' }]);
+    expect(issues(object({ z: string(), a: exactOptional(string()) }), { a: undefined }, { first: true })).toEqual([{ path: '/z', keyword: 'required', message: 'expected a value, got undefined. fix: add "z"' }]);
     expect(issues(object({ z: string(), a: exactOptional(string()) }), { a: undefined })).toHaveLength(2);
   });
 

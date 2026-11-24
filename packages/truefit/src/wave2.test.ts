@@ -123,7 +123,7 @@ return (v) => f2(v);
       const maybe = optional(string());
       expect(verdicts(maybe, ['a', undefined, null])).toEqual([true, false, false]);
       expectTypeOf<Infer<typeof maybe>>().toEqualTypeOf<string>();
-      expect(issues(maybe, undefined)).toEqual([{ path: '', keyword: 'type', message: 'expected a string, got undefined undefined. fix: send a string' }]);
+      expect(issues(maybe, undefined)).toEqual([{ path: '', keyword: 'type', message: 'expected a string, got undefined. fix: send a string' }]);
       const list = array(optional(number()));
       expect(verdicts(list, [[1], [1, undefined], [undefined]])).toEqual([true, false, false]);
       expectTypeOf<Infer<typeof list>>().toEqualTypeOf<number[]>();

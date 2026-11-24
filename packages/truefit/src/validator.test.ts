@@ -115,7 +115,7 @@ describe('a schema is data', () => {
 
 // One row per way a value can be wrong: where, which keyword, and the message an agent reads.
 const WRONG: [string, (v: ReturnType<typeof valid>) => void, string, string, string][] = [
-  ['a missing key', (v) => delete v.id, '/id', 'required', 'expected a value, got undefined undefined. fix: add "id"'],
+  ['a missing key', (v) => delete v.id, '/id', 'required', 'expected a value, got undefined. fix: add "id"'],
   ['the wrong type', (v) => (v.id = 7), '/id', 'type', 'expected a string, got number 7. fix: send a string'],
   ['too short', (v) => (v.id = ''), '/id', 'min', 'expected at least 1 characters, got string "". fix: send 1 or more'],
   ['a pattern miss', (v) => (v.email = 'ada'), '/email', 'pattern', String.raw`expected a string matching /^[^@\s]+@[^@\s]+\.[a-z]+$/, got string "ada". fix: send a value the pattern accepts`],
@@ -135,8 +135,8 @@ const WRONG: [string, (v: ReturnType<typeof valid>) => void, string, string, str
   ['deep inside', (v) => ((v.items as { qty: number }[])[1]!.qty = 0), '/items/1/qty', 'min', 'expected a number of at least 1, got number 0. fix: send 1 or more'],
   ['an unknown case', (v) => (v.payment = { kind: 'cash' }), '/payment/kind', 'tag', 'expected one of "card", "bank", got string "cash". fix: send one of them'],
   ['an inherited case name', (v) => (v.payment = { kind: 'toString' }), '/payment/kind', 'tag', 'expected one of "card", "bank", got string "toString". fix: send one of them'],
-  ['no case at all', (v) => (v.payment = 'card'), '/payment/kind', 'tag', 'expected one of "card", "bank", got undefined undefined. fix: send one of them'],
-  ['an array for a case', (v) => (v.payment = ['card']), '/payment/kind', 'tag', 'expected one of "card", "bank", got undefined undefined. fix: send one of them'],
+  ['no case at all', (v) => (v.payment = 'card'), '/payment/kind', 'tag', 'expected one of "card", "bank", got undefined. fix: send one of them'],
+  ['an array for a case', (v) => (v.payment = ['card']), '/payment/kind', 'tag', 'expected one of "card", "bank", got undefined. fix: send one of them'],
   ['the right case, wrong inside', (v) => (v.payment = { kind: 'card', last4: '424' }), '/payment/last4', 'min', 'expected at least 4 characters, got string "424". fix: send 4 or more'],
   ['a string too long', (v) => (v.payment = { kind: 'card', last4: '42424' }), '/payment/last4', 'max', 'expected at most 4 characters, got string "42424". fix: send 4 or fewer'],
 ];
@@ -221,7 +221,7 @@ describe('check and issues', () => {
     ['a symbol', Symbol('x'), 'symbol Symbol(x)'],
     ['a function', neverPrinted, 'a function'],
     ['a class', class Named {}, 'a function'],
-    ['undefined', undefined, 'undefined undefined'],
+    ['undefined', undefined, 'undefined'],
     ['a boolean', true, 'boolean true'],
     ['a date', new Date(0), 'an object'],
     ['a string of exactly the most a message quotes', 'x'.repeat(80), `string "${'x'.repeat(80)}"`],
