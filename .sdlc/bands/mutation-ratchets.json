@@ -588,8 +588,27 @@
       ]
     },
     "replz": {
-      "status": "unmeasured",
-      "reason": "New on 2026-11-23: cases, config, scoring, the runner and the proposer. The changed-lines lane gates its first commits; the floor is set by its first full weekly run."
+      "status": "measured",
+      "floor": 100,
+      "history": [
+        {
+          "floor": 100,
+          "setOn": "2026-11-24",
+          "why": "First full run, at 5e6a544f4f: 100% (571 detected of 571), rounded down to one decimal."
+        }
+      ],
+      "observations": [
+        {
+          "date": "2026-11-24",
+          "commit": "5e6a544f4f",
+          "score": 100,
+          "killed": 570,
+          "timeout": 1,
+          "survived": 0,
+          "noCoverage": 0,
+          "minutes": 1.38
+        }
+      ]
     },
     "roundel": {
       "status": "measured",
