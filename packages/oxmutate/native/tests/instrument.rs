@@ -338,3 +338,17 @@ fn html_comment_markers_inside_strings_and_regexes_instrument() {
     let out = instrument("t.ts", src, &Options::default());
     assert!(out.is_ok(), "{}", out.err().unwrap_or_default());
 }
+
+/// 2026-11-24, `/<!--\s*x\s*-->/u`: each Regex mutant was switched in as `? (/<!--…/u)`, and the
+/// oxc in Vite 8's transform rejects a regex that opens with `<!--` right after `(` ("HTML comments
+/// are not allowed in modules"), so the file failed to load and no mutant of it ran. oxc 0.155
+/// accepts it, so the reparse net passes; the emitted text is what has to change.
+#[test]
+fn a_regex_opening_with_an_html_comment_never_follows_a_parenthesis() {
+    let out = instrument("t.ts", "const MARKED = /<!--\\s*x\\s*-->/u;\nexport const marked = (s: string): boolean => MARKED.test(s);\n", &Options::default()).unwrap();
+    assert!(out.mutants.iter().filter(|m| m.mutator_name == "Regex").count() >= 4);
+    let code = out.code.unwrap();
+    let squeezed: String = code.chars().filter(|c| !c.is_whitespace()).collect();
+    assert!(!squeezed.contains("(/<!--"), "{code}");
+    assert!(code.contains("? (0, /<!--\\s*x\\S*-->/u)"), "{code}");
+}
