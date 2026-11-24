@@ -77,10 +77,11 @@ runs:
         # it is passed only when this one names it in its help.
         # shellcheck disable=SC2086 # TRIGGERLIST is a command line, split on purpose
         help="$($TRIGGERLIST brief --help 2>&1 || true)"
-        replies=()
-        case "$help" in *--replies*) replies=(--replies "$RUNNER_TEMP/replies.json") ;; esac
+        # A string, not an array: bash 3.2 (macOS) treats an empty "${arr[@]}" as unbound under set -u.
+        replies=""
+        case "$help" in *--replies*) replies="$RUNNER_TEMP/replies.json" ;; esac
         # shellcheck disable=SC2086 # TRIGGERLIST is a command line, split on purpose
-        $TRIGGERLIST brief "origin/$BASE_REF" --head "$HEAD_SHA" --checklist "$CHECKLIST" --review "$REVIEW_FILE" --comments "$RUNNER_TEMP/comments.json" "${replies[@]}" > "$RUNNER_TEMP/brief.md"
+        $TRIGGERLIST brief "origin/$BASE_REF" --head "$HEAD_SHA" --checklist "$CHECKLIST" --review "$REVIEW_FILE" --comments "$RUNNER_TEMP/comments.json" ${replies:+--replies "$replies"} > "$RUNNER_TEMP/brief.md"
         delimiter="BRIEF_$(openssl rand -hex 8)"
         { echo "text<<$delimiter"; cat "$RUNNER_TEMP/brief.md"; echo "$delimiter"; } >> "$GITHUB_OUTPUT"
         # The reviewer runs in this checkout and can open the rules on disk, so put the base
