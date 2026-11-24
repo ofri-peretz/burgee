@@ -24,6 +24,22 @@ Intent: [`intent.md`](./intent.md). **Status:** draft.
 - **R6** `triggerlist protect <base>` lists gate files changed alongside non-gate files; exit 0
   in observe mode, 1 in enforce.
 
+## Status
+
+Read on 2026-11-24 for the 1.0 bar (D-170), recorded in
+[`D-20261124-hookset-triggerlist-1-0`](../../decisions/D-20261124-hookset-triggerlist-1-0.md).
+
+| R   | Status    | Where                                                                  | Check                                                       |
+| :-- | :-------- | :--------------------------------------------------------------------- | :---------------------------------------------------------- |
+| R1  | **Built** | `checklist.ts` (`parseChecklist`)                                      | `checklist.test.ts` › `parseChecklist`                      |
+| R2  | **Built** | `diff.ts`, `match.ts`, `cli.ts` (`match`)                              | `match.test.ts` › `match`, `cli.test.ts` › `runMatch`       |
+| R3  | **Built** | `compile.ts`, `cli.ts` (`compile --budget`)                            | `compile.test.ts` › `compile`, `cli.test.ts` › `runCompile` |
+| R4  | **Built** | `seed.ts`, `cli.ts` (`seed`)                                           | `seed.test.ts`, `cli.test.ts` › `runSeed`                   |
+| R5  | **Built** | `brief.ts` (`triggerlist brief`), `.github/actions/triggerlist-review` | `brief.test.ts`                                             |
+| R6  | **Built** | `protect.ts`, `cli.ts` (`protect`)                                     | `protect.test.ts`, `cli.test.ts` › `runProtect`             |
+
+**Built: 6. Not built: 0.**
+
 ## Design
 
 - A burgee CLI, like provedone.
