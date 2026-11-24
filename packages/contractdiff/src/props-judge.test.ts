@@ -45,6 +45,9 @@ describe('the judge', () => {
       { $ref: '#/components/schemas/N' },
       { $defs: { theirs: { type: 'string' } }, $ref: '#/$defs/theirs' },
       { type: 'array', items: { $ref: '#' }, maxItems: 1 },
+      { type: 'object', properties: { a: { $ref: '#/properties/b' }, b: { type: 'integer' } } },
+      { allOf: [{ $ref: '#/components/schemas/N' }, { $ref: '#/allOf/0' }] },
+      { anyOf: [{ $ref: 'other.json#/N' }, { type: 'string' }] },
       true,
       false,
       'not a schema',
@@ -52,7 +55,7 @@ describe('the judge', () => {
     for (const payload of payloads) {
       const shared = payloadJudge(payload, document, '2020-12');
       const alone = validatorJudge(rooted(payload, document), '2020-12');
-      for (const value of [2, 5, 'x', [], [[]], [[], []], null]) expect([payload, value, shared.accepts(value)]).toEqual([payload, value, alone.accepts(value)]);
+      for (const value of [2, 5, 'x', [], [[]], [[], []], null, { a: 1 }, { a: 'x' }, ['x']]) expect([payload, value, shared.accepts(value)]).toEqual([payload, value, alone.accepts(value)]);
     }
     expect(payloadJudge({ type: 'string' }, 'not a document', '2020-12').accepts('x')).toBe(true);
   });
