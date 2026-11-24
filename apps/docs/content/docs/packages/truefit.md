@@ -120,11 +120,11 @@ Node 22.13 or later.
 
 It hosts no plugin key of its own.
 
-`contractdiff` and `replz` build on it, and it builds on nothing in this family.
+`contractdiff`, `replz`, `triggerlist` build on it, and it builds on nothing in this family.
 
 ## The family
 
-16 packages, one repository, one release pipeline. Each installs and works on its own, and each owns
+18 packages, one repository, one release pipeline. Each installs and works on its own, and each owns
 one job. Seven of them — `bellpull`, `closeout`, `linegauge`, `paratext`, `roundel`, `seniority`,
 `truefit` — depend on nothing; the others depend only on packages in this table, and every
 dependency points one way, down the [layers](https://burgee.interlace.tools/docs/concepts/family).
@@ -161,6 +161,8 @@ keeps both true.
 | **truefit** (this package) | Validation whose schemas are data, with no eval | zod |
 | [provedone](https://burgee.interlace.tools/docs/packages/provedone) | A receipt for how every change was verified, and a gate that reads it | @commitlint/cli |
 | [replz](https://burgee.interlace.tools/docs/packages/replz) | Recall of a reviewer and its checks, replayed on bugs that shipped | promptfoo |
+| [hookset](https://burgee.interlace.tools/docs/packages/hookset) | The same git and Claude Code hooks in every repository, pinned by tag | husky |
+| [triggerlist](https://burgee.interlace.tools/docs/packages/triggerlist) | The review checklist a diff selects, read from the base branch | danger |
 
 Every migration guide, and the family-wide [compatibility](https://burgee.interlace.tools/docs/compatibility)
 and [benchmarks](https://burgee.interlace.tools/docs/benchmarks) pages, are on

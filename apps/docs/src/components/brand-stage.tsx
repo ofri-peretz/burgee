@@ -56,6 +56,8 @@ const MARKS = [
   'truefit',
   'provedone',
   'replz',
+  'hookset',
+  'triggerlist',
 ] as const;
 
 /** Extrusion, in the marks' own 100-unit space. */

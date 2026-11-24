@@ -204,7 +204,7 @@ describe('a README may not claim a dependency count its manifest contradicts', (
    * a count is unambiguous, and it was the count that gave the sentence away.
    */
   it('the root README counts the published packages correctly', () => {
-    const COUNTS = [...WORDS, 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen'];
+    const COUNTS = [...WORDS, 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen'];
     const stated = /^\s*(\w+) packages, one repository/m.exec(readFileSync(join(ROOT, 'README.md'), 'utf8'))?.[1];
     expect(stated, 'the root README no longer opens with "<N> packages, one repository" — update this case with it').toBeDefined();
     expect(stated, `the root README says "${String(stated)} packages" and there are ${String(names.length)}`).toBe(COUNTS[names.length]);

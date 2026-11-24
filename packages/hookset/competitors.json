@@ -1,0 +1,30 @@
+{
+  "$comment": "upstream-watch R1, written 2026-11-24 ahead of hookset's first release. See packages/flagstaff/competitors.json for the field meanings. husky is `surface`: hookset installs the same git hooks in every repository, the job husky does per repository; no suite of husky is graded through compat-oracle. `seen` is what `npm run compat -- --fingerprint --missing` records.",
+  ".": [
+    {
+      "package": "husky",
+      "claim": "surface",
+      "seen": {
+        "registry": "husky",
+        "version": "9.1.7",
+        "shasum": "d46a38035d101b46a70456a850ff4201344c0b2d",
+        "weight": 1907,
+        "self": 1907,
+        "packages": 1,
+        "files": {
+          "bin.js": "c6965589a83667d43c4dc22f90dccfa91c133f8ed23629b896ce326f0a6c5cc8",
+          "husky": "70200b200ca709b0622784f93839a5b2872333a917a09afddefd7dc2d8cdc680",
+          "index.d.ts": "e9b44b687e5bb764c7c4bb19e49559077d102327987a24551d43458df4c373b0",
+          "index.js": "ccd8b0953cd9283575466a6b40d1afccdfeabb4a5ef4415b5be40d9c33a5cdbd",
+          "LICENSE": "a84ab50793627920239781ad6a48a749bc2fe37707e47fdf8e6cb1f55bc747ab",
+          "package.json": "8f3966c3b43a59e4b8e13fdfe8eb00a7ab66dfeb235515f7c19c8e0f5ca530e1",
+          "README.md": "b4271e0d36e9224403d99aceb54d52554f96237524550cf37d9e6be097a4e6ff"
+        },
+        "exports": [
+          "default"
+        ],
+        "measured": "2026-11-24"
+      }
+    }
+  ]
+}

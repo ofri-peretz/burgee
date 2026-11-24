@@ -17,7 +17,7 @@ import { match, toText as matchText, where } from './match.js';
 import { protect, toText as protectText } from './protect.js';
 import { fromDecision, fromLockTest, type Source, toYaml } from './seed.js';
 
-export const VERSION = '0.0.0';
+export const VERSION = (JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }).version;
 
 const TEXT = Symbol.for('burgee.text');
 

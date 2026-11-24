@@ -79,6 +79,19 @@
       ]
     },
     {
+      "name": "hookset",
+      "count": 7,
+      "installed": [
+        "bellpull",
+        "burgee",
+        "closeout",
+        "hookset",
+        "linegauge",
+        "roundel",
+        "seniority"
+      ]
+    },
+    {
       "name": "linegauge",
       "count": 1,
       "installed": [
@@ -144,6 +157,20 @@
       "count": 1,
       "installed": [
         "seniority"
+      ]
+    },
+    {
+      "name": "triggerlist",
+      "count": 8,
+      "installed": [
+        "bellpull",
+        "burgee",
+        "closeout",
+        "linegauge",
+        "roundel",
+        "seniority",
+        "triggerlist",
+        "truefit"
       ]
     },
     {

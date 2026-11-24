@@ -1,6 +1,6 @@
 ---
 title: Packages
-description: "burgee and the 15 packages it is built from: what each migrates from, and the site its docs live on."
+description: "burgee and the 17 packages it is built from: what each migrates from, and the site its docs live on."
 ---
 
 Every package in the family is published on its own, depends on nothing outside this
@@ -17,6 +17,7 @@ is its README, projected; the family-wide pages — [compatibility](/docs/compat
 | [contractdiff](https://burgee.interlace.tools/docs/packages/contractdiff) | openapi-typescript | [burgee.interlace.tools](https://burgee.interlace.tools) |
 | [controlroom](https://controlroom.interlace.tools/docs) | ink | [controlroom.interlace.tools](https://controlroom.interlace.tools) |
 | [flagstaff](https://flagstaff.interlace.tools/docs) | ora, log-update, boxen and cli-table3 | [flagstaff.interlace.tools](https://flagstaff.interlace.tools) |
+| [hookset](https://burgee.interlace.tools/docs/packages/hookset) | husky | [burgee.interlace.tools](https://burgee.interlace.tools) |
 | [linegauge](https://linegauge.interlace.tools/docs) | string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line | [linegauge.interlace.tools](https://linegauge.interlace.tools) |
 | [oxmutate](https://oxmutate.interlace.tools/docs) | Stryker | [oxmutate.interlace.tools](https://oxmutate.interlace.tools) |
 | [paratext](https://paratext.interlace.tools/docs) | ansi-escapes, terminal-link and term-img | [paratext.interlace.tools](https://paratext.interlace.tools) |
@@ -24,6 +25,7 @@ is its README, projected; the family-wide pages — [compatibility](/docs/compat
 | [replz](https://burgee.interlace.tools/docs/packages/replz) | promptfoo | [burgee.interlace.tools](https://burgee.interlace.tools) |
 | [roundel](https://roundel.interlace.tools/docs) | chalk, colorette, kleur, picocolors, supports-color and yoctocolors | [roundel.interlace.tools](https://roundel.interlace.tools) |
 | [seniority](https://seniority.interlace.tools/docs) | cosmiconfig, lilconfig, dotenv and rc | [seniority.interlace.tools](https://seniority.interlace.tools) |
+| [triggerlist](https://burgee.interlace.tools/docs/packages/triggerlist) | danger | [burgee.interlace.tools](https://burgee.interlace.tools) |
 | [truefit](https://burgee.interlace.tools/docs/packages/truefit) | zod | [burgee.interlace.tools](https://burgee.interlace.tools) |
 | [truepass](https://burgee.interlace.tools/docs/packages/truepass) | @vitest/eslint-plugin | [burgee.interlace.tools](https://burgee.interlace.tools) |
 

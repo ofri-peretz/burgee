@@ -94,6 +94,12 @@ const DECLARED = {
   // A grader over replayed bugs, with no plugin host. `replz check` is its check (the config and
   // every case file), and `replz-case-check` its case.
   replz: { plugin: false, check: true, eval: true },
+  // Presets and a hook pack, with no plugin host. `hookset check` is its check (a repo's hooks
+  // against the stations), and `hookset-repo-check` its case.
+  hookset: { plugin: false, check: true, eval: true },
+  // A checklist the diff selects, with no plugin host and no `check` command: `compile --check`
+  // is a staleness flag on one file, not a check of a repository.
+  triggerlist: { plugin: false, check: false, eval: false },
 } as const;
 
 type Declared = (typeof DECLARED)[keyof typeof DECLARED];

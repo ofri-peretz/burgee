@@ -99,6 +99,10 @@ const KNOWN = [
   '@commitlint/cli',
   // replz's incumbent (2026-11-24): an eval harness for model output, by surface.
   'promptfoo',
+  // hookset's incumbent (2026-11-24): git hooks installed for a repository, by surface.
+  'husky',
+  // triggerlist's incumbent (2026-11-24): pull request rules a diff triggers, by surface.
+  'danger',
   'which',
   'widest-line',
   'wrap-ansi',

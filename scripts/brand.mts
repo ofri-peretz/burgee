@@ -132,6 +132,8 @@ const MARK_SHARE = {
   truefit: 0.8,
   provedone: 0.75,
   replz: 0.7,
+  hookset: 0.75,
+  triggerlist: 0.75,
 } as const;
 
 /**
@@ -415,6 +417,25 @@ const REPLZ = `${REEL} ${PLAY}`;
 /** Under the triangle, on the disc. */
 const BELOW_PLAY = { x: 50, y: 72 } as const;
 
+/**
+ * hookset: a hook, the shank and the bend — what a repository hangs its checks on. Drawn as one
+ * band; the mark rides on the shank's head.
+ */
+const HOOK = 'M44 8 H58 V62 A16 16 0 0 1 26 62 V50 H38 V62 A3 3 0 0 0 44 62 Z';
+const HOOKSET = HOOK;
+/** On the shank, above the bend. */
+const SHANK = { x: 52, y: 26 } as const;
+
+/**
+ * triggerlist: a clipboard checklist with one box ticked — the items the diff selected. The box
+ * and the lines are cuts; the mark rides on the clip.
+ */
+const BOARD = 'M18 12 H82 V92 H18 Z';
+const TICKED = 'M28 40 H40 V52 H28 Z M48 43 H72 V49 H48 Z M28 64 H40 V76 H28 Z M48 67 H72 V73 H48 Z';
+const TRIGGERLIST = `${BOARD} ${TICKED}`;
+/** On the clip at the top of the board. */
+const CLIP = { x: 50, y: 24 } as const;
+
 type Sibling = {
   name: keyof typeof MARK_SHARE;
   tagline: string;
@@ -440,6 +461,8 @@ const SIBLINGS: readonly Sibling[] = [
   { name: 'truefit', tagline: 'What is over the line stays.', shape: TRUEFIT, at: FREEBOARD },
   { name: 'provedone', tagline: 'Done, with the receipt.', shape: PROVEDONE, at: HEADER },
   { name: 'replz', tagline: 'Play the bug back.', shape: REPLZ, at: BELOW_PLAY },
+  { name: 'hookset', tagline: 'Every repo, the same hooks.', shape: HOOKSET, at: SHANK },
+  { name: 'triggerlist', tagline: 'Only what the diff fires.', shape: TRIGGERLIST, at: CLIP },
 ];
 
 const siblings = SIBLINGS.map(({ name, tagline, shape, at, markings }) => ({

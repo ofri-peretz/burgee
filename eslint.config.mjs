@@ -613,9 +613,9 @@ export default [
     },
   },
   {
-    // provedone's and replz's eval checks are entry scripts run by their case's `shell` line, so
+    // provedone's, replz's and hookset's eval checks are entry scripts run by their case's `shell` line, so
     // they export nothing.
-    files: ["evals/fixtures/provedone/check-*.mjs", "evals/fixtures/replz/check-*.mjs"],
+    files: ["evals/fixtures/provedone/check-*.mjs", "evals/fixtures/replz/check-*.mjs", "evals/fixtures/hookset/check-*.mjs"],
     rules: { "import-next/no-unused-modules": "off" },
   },
   {

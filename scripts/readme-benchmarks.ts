@@ -65,7 +65,7 @@ const PLACE_HEADING = '## Where it sits';
  * this list is the published packages plus only such a package. `compat-oracle` is internal
  * tooling and is not one of them.
  */
-export const FAMILY = ['burgee', 'roundel', 'flagstaff', 'caique', 'linegauge', 'paratext', 'seniority', 'closeout', 'bellpull', 'controlroom', 'oxmutate', 'truepass', 'contractdiff', 'truefit', 'provedone', 'replz'];
+export const FAMILY = ['burgee', 'roundel', 'flagstaff', 'caique', 'linegauge', 'paratext', 'seniority', 'closeout', 'bellpull', 'controlroom', 'oxmutate', 'truepass', 'contractdiff', 'truefit', 'provedone', 'replz', 'hookset', 'triggerlist'];
 
 interface Ceiling {
   ours: number;
@@ -399,6 +399,8 @@ const ROLE: Readonly<Record<string, string>> = {
   truefit: 'Validation whose schemas are data, with no eval',
   provedone: 'A receipt for how every change was verified, and a gate that reads it',
   replz: 'Recall of a reviewer and its checks, replayed on bugs that shipped',
+  hookset: 'The same git and Claude Code hooks in every repository, pinned by tag',
+  triggerlist: 'The review checklist a diff selects, read from the base branch',
 };
 
 /** The column generated prose is broken at — the width the hand-written READMEs keep. */
