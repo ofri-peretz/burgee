@@ -1,0 +1,43 @@
+---
+title: Validators from an API contract
+description: "Generate truefit validators and their TypeScript types from an OpenAPI or AsyncAPI contract with contractdiff's validator target, or read the contract's schemas at run time with fromJsonSchema."
+---
+
+When the source of truth is an OpenAPI or AsyncAPI document, write the validators from it rather
+than by hand. Two ways:
+
+## Ahead of time, with contractdiff
+
+[contractdiff](https://contractdiff.interlace.tools)'s `validator` target reads the contract and
+writes truefit validators and their types, one per schema, as source you commit. The output is
+emitted code, so it runs with no truefit at run time and no `eval`, and regenerating it on every
+contract change keeps the validators and the contract in step. See contractdiff's docs for the
+command and its options.
+
+## At run time, with fromJsonSchema
+
+```js title="contract.mjs"
+import { issues } from 'truefit';
+import { jsonSchemaReader } from 'truefit/json-schema';
+
+const components = {
+  components: {
+    schemas: {
+      Pet: { type: 'object', required: ['id', 'name'], properties: { id: { type: 'integer' }, name: { type: 'string' }, tag: { type: 'string', nullable: true } } },
+    },
+  },
+};
+
+const reader = jsonSchemaReader(components, { draft: 'openapi-3.0' });
+const Pet = reader.read({ $ref: '#/components/schemas/Pet' });
+console.log(reader.findings);
+console.log(issues(Pet, { id: 1, name: 'Rex', tag: null }), issues(Pet, { id: '1' }).map((i) => i.path));
+```
+
+```text title="node contract.mjs"
+[]
+[] [ '/id', '/name' ]
+```
+
+`openapi-3.0` reads the Schema Object's own rules: `nullable` adds `null`, `exclusiveMinimum` is a
+boolean, and a `$ref` silences its siblings.

@@ -1,0 +1,116 @@
+---
+title: Coming from zod
+description: "A zod alternative whose schemas are data: the builders keep zod's names, so most schemas move by their import. A table of every zod method and its truefit form, what parse and safeParse become, and what is different on purpose."
+---
+
+truefit's builders keep zod's names wherever zod has one: `object`, `string`, `number`, `array`,
+`union`, `literal`, `optional`, `nullable`. What changes is the shape. zod chains methods on a
+schema object; truefit passes options and wraps one schema in another, because a schema is plain
+data that a bundler can see through.
+
+truefit is not graded by zod's own test suite, so it is not a drop-in: you change code. It
+implements Standard Schema, so a library that takes a zod schema through that interface (tRPC,
+TanStack Form and others) takes a truefit schema as it is.
+
+## The same schema, both ways
+
+```diff
+- import { z } from 'zod';
++ import { email } from 'truefit/formats';
++ import { array, number, object, optional, parse, string } from 'truefit';
+
+- const User = z.object({
+-   name: z.string().min(1).max(40),
+-   age: z.number().int().nonnegative(),
+-   email: z.string().email().optional(),
+-   tags: z.array(z.string()).max(3).default([]),
+- });
+- type User = z.infer<typeof User>;
+- const result = User.safeParse(input);
+- if (!result.success) console.log(result.error.issues);
++ const User = object({
++   name: string({ min: 1, max: 40 }),
++   age: number({ int: true, min: 0 }),
++   email: optional(string({ format: email })),
++   tags: optional(array(string(), { max: 3 }), { default: [] }),
++ });
++ type User = Infer<typeof User>;
++ const result = parse(User, input);
++ if (!result.ok) console.log(result.issues);
+```
+
+## Method by method
+
+| zod | truefit |
+| :-- | :-- |
+| `z.object(shape)` | `object(shape)` |
+| `.strict()` / `.strip()` / `.passthrough()` / `.catchall(s)` | `object(shape, { unknown: 'strict' \| 'strip' \| 'keep' \| s })`; `keep` is the default |
+| `z.string().min(a).max(b).length(n).regex(r)` | `string({ min: a, max: b, length: n, pattern: r })` |
+| `.email()`, `.url()`, `.uuid()`, `z.iso.datetime()` … | `string({ format: email })`, with the format from `truefit/formats` |
+| `.startsWith(s)` / `.endsWith(s)` / `.includes(s)` | `startsWith(string(), s)` and its kin |
+| `.trim()` / `.toLowerCase()` / `.toUpperCase()` / `.normalize()` | `trim(string())`, `lowercase(…)`, `uppercase(…)`, `normalize(…)` |
+| `z.number().int().positive().gt(a).lt(b).multipleOf(m)` | `number({ int: true, positive: true, gt: a, lt: b, multipleOf: m })` |
+| `z.int()`, `.safe()` | `number({ int: true })`, `safeInteger()` |
+| `z.coerce.number()` / `.boolean()` / `.date()` | `number({ coerce: true })`, `boolean({ coerce: true })`, `date({ coerce: true })` |
+| `z.bigint()`, `z.date()`, `z.symbol()`, `z.nan()` | `bigint()`, `date()`, `symbol()`, `nan()` |
+| `z.literal(v)`, `z.enum([...])`, `z.nativeEnum(E)` | `literal(v)`, `enumOf([...])`, `nativeEnum(E)` |
+| `z.undefined()`, `z.void()`, `z.any()`, `z.unknown()`, `z.never()` | `undefinedOf()`, `voidOf()`, `any()`, `unknown()`, `never()` |
+| `.optional()` | `optional(s)`: a key that may be absent or `undefined` |
+| `.nullable()` / `.nullish()` | `nullable(s)` / `nullish(s)` |
+| `.default(v)` | `optional(s, { default: v })` |
+| `.catch(v)` | `catchOf(s, v)` |
+| `z.array(s).min(a).max(b)` | `array(s, { min: a, max: b })` |
+| `z.tuple([a, b], rest)` | `tuple([a, b], { rest })` |
+| `z.record(k, v)` | `record(v, { key: k })`; `recordOf(keys, v)` needs every key |
+| `z.map(k, v)`, `z.set(s)` | `mapOf(k, v)`, `setOf(s)` |
+| `z.union([...])` / `.or(s)` | `union([...])` |
+| `z.discriminatedUnion('kind', [a, b])` | `discriminated('kind', { a: A, b: B })`, or `discriminatedBy('kind', [A, B])` for number or boolean tags |
+| `z.intersection(a, b)` / `.and(s)` | `intersection([a, b])` |
+| `z.templateLiteral([...])` | `template([...])` |
+| `.pick` / `.omit` / `.partial` / `.required` / `.extend` / `.keyof` | `pick(s, keys)`, `omit(s, keys)`, `partial(s)`, `required(s)`, `extend(s, shape)`, `keyof(s)` |
+| `.refine(f, { message, path })` | `refine(s, f, { message, path })`; add `uses` to run it across fields |
+| `.superRefine` / `.check` | `refine` with `path`, or `custom(name, test)` for a type of your own |
+| `.transform(f)` | `transform(s, f)` |
+| `.pipe(t)` / `z.preprocess(f, s)` | `pipe(s, t)` / `preprocess(f, s)` |
+| `z.codec(a, b, { decode, encode })` | `codec(a, b, { decode, encode })`, and `encode(codec, value)` |
+| `z.lazy(() => s)` | `lazy(() => s)` |
+| `.brand<'Id'>()` / `.readonly()` | `brand(s, 'Id')` / `readonly(s)` |
+| `.describe(d)` / `.meta(m)` | `annotate(s, { description: d })` |
+| `z.custom<T>(f)`, `z.instanceof(C)` | `custom(name, f)`, `instanceOf(C)` |
+| `z.promise(s)`, `z.function()` | `promise()`, `func()`: checks that a value is one, not what it resolves to or takes |
+| `z.infer` / `z.input` / `z.output` | `Infer` / `InferInput` / `InferOutput` |
+| `z.toJSONSchema(s)` | `toJsonSchema(s)` from `truefit/json-schema`, which also returns its findings |
+
+## parse, safeParse and errors
+
+| zod | truefit |
+| :-- | :-- |
+| `S.parse(v)`, which throws and returns the output | `parse(S, v)`, then read `.value` on `ok`; or `assert(S, v)`, which throws and narrows `v` |
+| `S.safeParse(v)` → `{ success, data, error }` | `parse(S, v)` → `{ ok, value }` or `{ ok, issues }` |
+| `S.safeParseAsync(v)` | `parseAsync(S, v)` |
+| `S.safeParse(v, { abortEarly: true })` | `parse(S, v, { first: true })` |
+| `error.issues[i].path` as an array | `issue.path` as a JSON Pointer; `keysOf(issue.path, v)` for the array |
+| `error.issues[i].code` | `issue.keyword` |
+| `z.config({ customError })`, locales | the per-call `message` option, or `message(s, words)` on a schema |
+| `S.check(v)` | `check(S, v)`: a type guard that never coerces or transforms |
+
+`assert` is `check` that throws: it narrows the value you already have, and does not hand back a
+transformed one. Where a schema has defaults or transforms, use `parse`.
+
+## Different on purpose
+
+- **`optional` is about a key.** `z.string().optional()` accepts `undefined` anywhere;
+  `optional(string())` makes an object's key optional and changes nothing at the root, in an array
+  or in a tuple. A value that may be `undefined` is `nullish`, or `union([s, undefinedOf()])`.
+- **A refine with `uses` runs even when another field fails.** zod skips a refinement when any
+  other field of the object fails, so a form shows its cross-field error only after the rest is
+  fixed.
+- **No copy unless something changed.** zod always builds a new object; truefit hands back your
+  own where nothing changed, and never writes to it. `{ copy: true }` gives zod's behaviour.
+- **Formats name their reference**, and some decide differently from zod's: `email` is the WHATWG
+  HTML pattern, so `a@b` passes. [Formats](/docs/guides/formats).
+- **Messages end in `fix:`** and paths are JSON Pointers. [Issues](/docs/guides/issues).
+
+## Not built
+
+`z.config` and global error maps, locale bundles, CommonJS, and the method-chaining API itself.

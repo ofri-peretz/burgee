@@ -1,0 +1,100 @@
+---
+title: Getting started
+description: "Install truefit, describe a user as a schema, get its TypeScript type for free, and validate input three ways: a yes-or-no check, a parse that returns every issue, and an assert that narrows."
+---
+
+truefit validates a value against a schema, and the schema is plain data. You build it with
+functions named like zod's (`object`, `string`, `number`, `array`), TypeScript infers its type,
+and `check` walks it without `eval`, so it runs under a strict Content-Security-Policy.
+
+## Install
+
+```bash
+npm install truefit
+```
+
+It has no dependencies and ships ESM only, with types for every entry point. It needs Node 22.13 or
+later, or any bundler.
+
+## Describe a value
+
+```js title="user.mjs"
+import { array, number, object, optional, string } from 'truefit';
+import { email } from 'truefit/formats';
+
+export const User = object({
+  name: string({ min: 1, max: 40 }),
+  age: number({ min: 0, int: true }),
+  email: optional(string({ format: email })),
+  tags: array(string(), { max: 3 }),
+});
+```
+
+In TypeScript, `Infer<typeof User>` is `{ name: string; age: number; email?: string; tags: string[] }`.
+There is no second declaration to keep in step with the first.
+
+## Check it, parse it, assert it
+
+```js title="first.mjs"
+import { assert, check, parse } from 'truefit';
+import { User } from './user.mjs';
+
+const good = { name: 'Ada', age: 36, tags: ['math'] };
+const bad = { name: '', age: 36.5, email: 'ada-at-home', tags: [] };
+
+console.log(check(User, good));
+console.log(check(User, bad));
+
+const result = parse(User, bad);
+console.log(result.ok ? result.value : result.issues);
+
+assert(User, good);
+console.log('good is a User');
+```
+
+```text title="node first.mjs"
+true
+false
+[
+  {
+    path: '/name',
+    keyword: 'min',
+    message: 'expected at least 1 characters, got string "". fix: send 1 or more'
+  },
+  {
+    path: '/age',
+    keyword: 'integer',
+    message: 'expected a whole number, got number 36.5. fix: drop the fraction'
+  },
+  {
+    path: '/email',
+    keyword: 'format',
+    message: 'expected a string in the format email, got string "ada-at-home". fix: send one in the format email'
+  }
+]
+good is a User
+```
+
+- **`check`** answers yes or no and narrows the value's type when it says yes. It is the fast path,
+  and it never changes its input.
+- **`parse`** returns `{ ok: true, value }` or `{ ok: false, issues }` with every issue at once, not
+  the first. It is also where defaults, coercion, stripping and transforms happen.
+- **`assert`** throws on the first no and narrows on a yes, for code that has nothing to do with a
+  bad value but stop.
+
+## Read an issue
+
+Every issue has three members: a JSON Pointer `path` (`''` is the root), the `keyword` that failed,
+and a `message` that says what was expected, what arrived, and ends in `fix:` with what to send
+instead. A person reads the message; a program or an agent reads all three. [Issues](/docs/guides/issues)
+has the whole list of keywords.
+
+Every output block on this site is checked: `tests/examples.test.ts` writes each titled file, runs
+the command in the block's title, and compares what it prints with the block.
+
+## Where next
+
+- [Schemas and types](/docs/guides/schemas): every builder, and how the type is inferred.
+- [Parsing](/docs/guides/parsing): defaults, coercion, unknown keys and transforms.
+- [Coming from zod](/docs/coming-from/zod), or from [valibot](/docs/coming-from/valibot),
+  [ArkType](/docs/coming-from/arktype), [TypeBox](/docs/coming-from/typebox) or [ajv](/docs/coming-from/ajv).

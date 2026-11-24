@@ -123,13 +123,23 @@
       "buildCommand": "npx turbo run build --filter=docs-oxmutate",
       "outputDirectory": "apps/docs-oxmutate/.next",
       "familyPages": false
+    },
+    "truefit": {
+      "package": "truefit",
+      "workspace": "docs-truefit",
+      "dir": "apps/docs-truefit",
+      "projectId": "prj_IzNAwSvCRLWiULnvVBwPbP8tGQK1",
+      "productionUrl": "https://truefit.interlace.tools",
+      "rootDirectory": "",
+      "buildCommand": "npx turbo run build --filter=docs-truefit",
+      "outputDirectory": "apps/docs-truefit/.next",
+      "familyPages": false
     }
   },
   "pending": {},
   "excluded": {
     "truepass": "A lint plugin and one command, documented as a section of the front door until it has enough pages for a site of its own.",
     "contractdiff": "Documented as a section of the front door until it has a site of its own.",
-    "truefit": "A library with no CLI, documented as a section of the front door until it has a site of its own.",
     "provedone": "One gate and four commands, documented as a section of the front door until it has enough pages for a site of its own.",
     "replz": "Three commands, documented as a section of the front door until it has enough pages for a site of its own.",
     "hookset": "Two commands and a set of presets, documented as a section of the front door until it has enough pages for a site of its own.",

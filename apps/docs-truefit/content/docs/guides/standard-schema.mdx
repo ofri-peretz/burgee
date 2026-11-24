@@ -1,0 +1,41 @@
+---
+title: Standard Schema
+description: "Give any truefit schema the Standard Schema interface with standard() or standardAsync(), so it plugs into every library that accepts a validator through that interface."
+---
+
+[Standard Schema](https://standardschema.dev) is the interface a library uses to accept any
+validator: one `~standard` property with a `validate` function. Libraries such as tRPC and TanStack Form,
+which once took only a zod schema, take any schema that has it.
+
+```js title="standard.mjs"
+import { number, object, string } from 'truefit';
+import { standard } from 'truefit/standard';
+
+const User = standard(object({ name: string(), age: number() }));
+
+console.log(User['~standard'].version, User['~standard'].vendor);
+console.log(User['~standard'].validate({ name: 'Ada', age: 36 }));
+console.log(JSON.stringify(User['~standard'].validate({ name: 'Ada' }), null, 2));
+```
+
+```text title="node standard.mjs"
+1 validator
+{ value: { name: 'Ada', age: 36 } }
+{
+  "issues": [
+    {
+      "message": "expected a value, got undefined. fix: add \"age\"",
+      "path": [
+        "age"
+      ]
+    }
+  ]
+}
+```
+
+`validate` runs `parse` in one pass, so defaults, coercion and transforms apply, and its issues carry
+the path as an array of keys, as the interface specifies. `standardAsync` is the same for a schema
+with awaited rules or maps.
+
+`standardJson`, on `truefit/json-schema`, adds the Standard JSON Schema interface beside it. See
+[JSON Schema](/docs/guides/json-schema#standard-json-schema).

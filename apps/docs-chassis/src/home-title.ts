@@ -27,6 +27,7 @@ export const HOME_TITLES: Readonly<Record<string, string>> = {
   paratext: 'terminal hyperlinks, images and notifications',
   roundel: 'colour for CLIs',
   seniority: 'config resolution with provenance',
+  truefit: 'validation whose schemas are data',
 };
 
 /** `<name> — <what it does>`, or a build failure naming the package with no phrase. */

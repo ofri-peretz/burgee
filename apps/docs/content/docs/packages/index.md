@@ -26,7 +26,7 @@ is its README, projected; the family-wide pages — [compatibility](/docs/compat
 | [roundel](https://roundel.interlace.tools/docs) | chalk, colorette, kleur, picocolors, supports-color and yoctocolors | [roundel.interlace.tools](https://roundel.interlace.tools) |
 | [seniority](https://seniority.interlace.tools/docs) | cosmiconfig, lilconfig, dotenv and rc | [seniority.interlace.tools](https://seniority.interlace.tools) |
 | [triggerlist](https://burgee.interlace.tools/docs/packages/triggerlist) | danger | [burgee.interlace.tools](https://burgee.interlace.tools) |
-| [truefit](https://burgee.interlace.tools/docs/packages/truefit) | zod | [burgee.interlace.tools](https://burgee.interlace.tools) |
+| [truefit](https://truefit.interlace.tools/docs) | zod | [truefit.interlace.tools](https://truefit.interlace.tools) |
 | [truepass](https://burgee.interlace.tools/docs/packages/truepass) | @vitest/eslint-plugin | [burgee.interlace.tools](https://burgee.interlace.tools) |
 
 ## Which one do I need?

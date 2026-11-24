@@ -1,0 +1,64 @@
+---
+title: FAQ
+description: "Short answers about truefit: whether it is a drop-in for zod, CommonJS, why check does not coerce, optional at the root, string length, unknown keys, error translation, eval, bundle size and the Standard Schema vendor name, each with where to read more."
+---
+
+## Is truefit a drop-in replacement for zod?
+
+No. The builders keep zod's names, so most schemas move by their import and a few option renames,
+but no zod test suite grades it, and this site does not call it drop-in.
+[Coming from zod](/docs/coming-from/zod) maps every method.
+
+## Does it work with tRPC, TanStack Form or Hono?
+
+With any library that accepts a validator through Standard Schema: wrap the schema in `standard()`
+from `truefit/standard`. [Standard Schema](/docs/guides/standard-schema).
+
+## Can I use it from CommonJS?
+
+It is ESM only, as every package in this family. Node 22.13 and later can `require()` an ES module
+that has no top-level `await`, which truefit does not use.
+
+## Why doesn't `check` coerce `"42"` to a number?
+
+A guard that changes its input is not a guard. `check` only reads; `parse` coerces, and only where a
+schema asks with `coerce: true`. [Parsing](/docs/guides/parsing#coercion).
+
+## Why is `check(optional(string()), undefined)` false?
+
+`optional` says a key may be absent. Outside an object it changes nothing. A value that may be
+`undefined` is `nullish(s)`. [Schemas](/docs/guides/schemas#objects).
+
+## Does `max: 3` count characters or UTF-16 units?
+
+Code points, as JSON Schema's `maxLength` and zod do. An emoji outside the basic plane is one.
+
+## Are extra keys an error?
+
+Not by default; nobody in the comparison refuses them by default. `unknown: 'strict'` refuses,
+`'strip'` drops them in `parse`. [Unknown keys](/docs/guides/parsing#unknown-keys).
+
+## How do I translate the messages?
+
+Pass `message` to `issues` or `parse`: a function given each issue's keyword, expected value, what
+arrived and the fix, which returns your words or nothing. [Your own words](/docs/guides/issues#your-own-words).
+
+## Does it use `eval`?
+
+Not unless you import `truefit/jit`. `check`, `issues` and `parse` walk data.
+[Under a strict CSP](/docs/recipes/strict-csp).
+
+## How big is it?
+
+A schema of one `string` with `check` bundles to 702 B, minified and gzipped, and a bundle carries
+only the kinds its schemas use. [Why truefit](/docs/why-truefit#what-it-costs) has the readings.
+
+## Why is the Standard Schema vendor `"validator"`?
+
+It is one constant, `VENDOR` on `truefit/standard`, set before the package had its name. A library
+that branches on the vendor string should not need to; the interface is what it checks.
+
+## Where does contractdiff come in?
+
+contractdiff's `validator` target writes truefit validators from an OpenAPI or AsyncAPI contract.
+[Validators from a contract](/docs/recipes/from-a-contract).

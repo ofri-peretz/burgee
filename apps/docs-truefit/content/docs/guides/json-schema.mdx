@@ -1,0 +1,101 @@
+---
+title: JSON Schema
+description: "Write a truefit schema out as JSON Schema 2020-12 or draft-07 with every loss reported as a finding, read a JSON Schema or OpenAPI 3.0 Schema Object back in as a truefit schema, and expose Standard JSON Schema."
+---
+
+`truefit/json-schema` goes both ways, and in both directions it tells you what did not survive
+instead of dropping it.
+
+## Out
+
+```js title="out.mjs"
+import { number, object, optional, refine, string } from 'truefit';
+import { toJsonSchema } from 'truefit/json-schema';
+import { email } from 'truefit/formats';
+
+const User = object({
+  name: string({ min: 1 }),
+  email: optional(string({ format: email })),
+  age: refine(number({ int: true }), (n) => n % 2 === 0),
+});
+
+const { schema, findings } = toJsonSchema(User);
+console.log(JSON.stringify(schema, null, 2));
+console.log(findings);
+```
+
+```text title="node out.mjs"
+{
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "email": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"
+    },
+    "age": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "name",
+    "age"
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}
+[
+  {
+    path: '/properties/age',
+    keyword: 'refine',
+    message: 'the rule "a value the rule accepts" is a function, which JSON Schema cannot carry: the document has the schema without it'
+  }
+]
+```
+
+`{ draft: 'draft-07' }` writes the older dialect. A rule, a transform, a coercion or anything else a
+JSON Schema document cannot say becomes a finding with its JSON Pointer into the document. A kind
+that has no JSON form (a `Date`, a `bigint`) is written as `{ "not": {} }` with a finding, never
+left out silently, so the document never accepts more than the schema did without telling you.
+
+## In
+
+```js title="in.mjs"
+import { issues } from 'truefit';
+import { fromJsonSchema } from 'truefit/json-schema';
+
+const { schema, findings } = fromJsonSchema({
+  type: 'object',
+  required: ['id'],
+  properties: { id: { type: 'string', format: 'uuid' }, tags: { type: 'array', items: { type: 'string' }, uniqueItems: true } },
+  additionalProperties: false,
+});
+
+console.log(findings);
+console.log(issues(schema, { id: 'x', tags: ['a', 'a'], extra: 1 }).map((i) => `${i.path} ${i.keyword}`));
+```
+
+```text title="node in.mjs"
+[]
+[ '/id format', '/tags/1 unique', '/extra unknown' ]
+```
+
+`fromJsonSchema` reads 2020-12, draft-07 and the OpenAPI 3.0 Schema Object (`{ draft: 'openapi-3.0' }`,
+where `nullable` adds `null` and a `$ref` silences its siblings). The dialect is read from `$schema`
+when you do not pass one. What it does not read becomes a finding, and the schema then accepts more
+there, never less. `jsonSchemaReader(document)` reads many schemas against one document, so the
+`$ref`s they share are read once.
+
+The import is graded by ajv outside the repository: on 53 documents over 45 JSON values, 2,385
+pairs, ajv 8.20.0's verdict, `check`'s, the emitted code's, and ajv's on the document `toJsonSchema`
+writes back all agree. Two places differ from ajv on purpose: draft-07 ignores what stands beside a
+`$ref`, as the draft says, and `multipleOf` on a large number is decided exactly, where ajv divides in doubles and accepts `1e21` as a multiple of 3.
+
+## Standard JSON Schema
+
+`standardJson(schema)` gives a schema the Standard JSON Schema interface, so a library that asks any
+validator for its JSON Schema (a form builder, an OpenAPI generator, an LLM tool definition) can ask
+a truefit schema. It refuses the `output` direction for a transform, pipe, codec or fallback, because
+no document of what goes in describes what comes out.
