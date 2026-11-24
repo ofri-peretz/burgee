@@ -1,8 +1,8 @@
 {
-  "name": "proofline",
+  "name": "provedone",
   "version": "0.1.0",
   "private": true,
-  "description": "Every change says how it was verified, and a gate reads it: a receipt per commit, a done check per intent, and the PR's Checked: line generated from evidence. Codename; unpublished until its success criteria are read.",
+  "description": "Every change says how it was verified, and a gate reads it: a receipt per commit, a done check per intent, and the PR's Checked: line generated from evidence. Unpublished until its success criteria are read.",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -18,7 +18,7 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "proofline": "dist/bin.js"
+    "provedone": "dist/bin.js"
   },
   "files": [
     "dist",

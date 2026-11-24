@@ -1,9 +1,9 @@
 /**
- * Where proofline keeps what it saw: under the repository's common git directory, never in the
+ * Where provedone keeps what it saw: under the repository's common git directory, never in the
  * tree (intent, Defaults taken: the receipt lives in the commit and the PR body, not in `.sdlc/`).
  * Stamps and the gate log are JSON lines, appended, so two worktrees of one clone share them.
  */
-import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 import { ambientRuntime, run } from 'bellpull';
@@ -19,10 +19,23 @@ export const branchOf = async (root: string): Promise<string> => (await git(root
 /** `git config user.name` at `root`, or undefined when git names nobody. */
 export const gitUser = async (root: string): Promise<string | undefined> => git(root, ['config', 'user.name']);
 
-/** proofline's directory for the repository at `root`; outside one, `.proofline` under `root`. */
+/**
+ * provedone's directory for the repository at `root`; outside one, `.provedone` under `root`. A clone that
+ * ran it under its codename keeps `proofline/`: that moves here once, so the observe history the
+ * enforce decision reads is not reset by the rename.
+ */
 export const storeDir = async (root: string): Promise<string> => {
   const common = await git(root, ['rev-parse', '--git-common-dir']);
-  return common === undefined ? join(root, '.proofline') : join(resolve(root, common), 'proofline');
+  if (common === undefined) return join(root, '.provedone');
+  const dir = join(resolve(root, common), 'provedone');
+  const legacy = join(resolve(root, common), 'proofline');
+  try {
+    renameSync(legacy, dir);
+  } catch (error) {
+    // No proofline/ to move, or provedone/ is already a directory with a log in it: keep what is there.
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT' && statSync(dir, { throwIfNoEntry: false })?.isDirectory() !== true) throw error;
+  }
+  return dir;
 };
 
 /** A line that is not JSON is skipped: a blank one, or one cut short when a writer was killed mid-append. */

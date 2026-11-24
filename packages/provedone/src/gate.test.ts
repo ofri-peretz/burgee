@@ -60,14 +60,14 @@ describe('decide', () => {
 });
 
 describe('sessionOf', () => {
-  it('prefers PROOFLINE_SESSION, then the agent session ids, then the branch', () => {
+  it('prefers PROVEDONE_SESSION, then the agent session ids, then the branch', () => {
     const all = {
-      PROOFLINE_SESSION: 'p',
+      PROVEDONE_SESSION: 'p',
       CLAUDE_CODE_SESSION_ID: 'c',
       CLAUDE_SESSION_ID: 'd',
     };
     expect(sessionOf(all, 'main')).toBe('p');
-    expect(sessionOf({ ...all, PROOFLINE_SESSION: undefined }, 'main')).toBe('c');
+    expect(sessionOf({ ...all, PROVEDONE_SESSION: undefined }, 'main')).toBe('c');
     expect(sessionOf({ CLAUDE_SESSION_ID: 'd' }, 'main')).toBe('d');
     expect(sessionOf({}, 'feat/x')).toBe('branch:feat/x');
   });

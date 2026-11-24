@@ -105,7 +105,7 @@ describe('verdict', () => {
   it('blocks a message with no Verified-by line, with a fix naming stamp', () => {
     const v = verdict('feat: y\n\nVerified: npm test\n Verified-by: indented');
     expect(v).toMatchObject({ ok: false, reason: 'no Verified-by: line' });
-    expect(v.fix).toContain('proofline stamp --run');
+    expect(v.fix).toContain('provedone stamp --run');
     expect(v.fix).toContain('Verified-by: none (<why it needs no check>)');
   });
 

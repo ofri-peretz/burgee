@@ -545,7 +545,7 @@
         }
       ]
     },
-    "proofline": {
+    "provedone": {
       "status": "unmeasured",
       "reason": "New on 2026-11-23: stamp, gate, done and intent check. The changed-lines lane holds every line of its first PR to zero survivors; the floor is set by its first full weekly run."
     },

@@ -57,10 +57,10 @@ describe('doneReport', () => {
       branch: 'b',
     });
     expect(report.map((r) => r.fix)).toEqual([
-      'proofline stamp --intent i --criterion 1 --run "<the command that proves it>" --not-checked "<what you did not check>"',
-      'proofline stamp --intent i --criterion 2 --run "npm run bench" --not-checked "<what you did not check>"',
-      'proofline stamp --intent i --criterion 3 --run "<the command that proves it>" --not-checked "<what you did not check>"',
-      'proofline stamp --intent i --criterion 4 --run "<the command that proves it>" --not-checked "<what you did not check>"',
+      'provedone stamp --intent i --criterion 1 --run "<the command that proves it>" --not-checked "<what you did not check>"',
+      'provedone stamp --intent i --criterion 2 --run "npm run bench" --not-checked "<what you did not check>"',
+      'provedone stamp --intent i --criterion 3 --run "<the command that proves it>" --not-checked "<what you did not check>"',
+      'provedone stamp --intent i --criterion 4 --run "<the command that proves it>" --not-checked "<what you did not check>"',
     ]);
     expect(report.map((r) => r.n)).toEqual([1, 2, 3, 4]);
   });

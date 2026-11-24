@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, realpathSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, realpathSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -9,7 +9,7 @@ import { appendLines, branchOf, readLines, runnable, runShell, storeDir } from '
 
 const scratch = scratchDirs();
 const withoutGit = (): NodeJS.ProcessEnv => Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')));
-const temp = (): string => realpathSync(scratch('proofline-store-'));
+const temp = (): string => realpathSync(scratch('provedone-store-'));
 const repo = (): string => {
   const dir = temp();
   execFileSync('git', ['init', '-q', '-b', 'feat/x', dir], { env: withoutGit() });
@@ -27,16 +27,42 @@ describe('branchOf', () => {
 });
 
 describe('storeDir', () => {
-  it('is proofline/ under the common git directory, from a subdirectory too', async () => {
+  it('is provedone/ under the common git directory, from a subdirectory too', async () => {
     const dir = repo();
     mkdirSync(join(dir, 'sub'));
-    expect(await storeDir(dir)).toBe(join(dir, '.git', 'proofline'));
-    expect(await storeDir(join(dir, 'sub'))).toBe(join(dir, '.git', 'proofline'));
+    expect(await storeDir(dir)).toBe(join(dir, '.git', 'provedone'));
+    expect(await storeDir(join(dir, 'sub'))).toBe(join(dir, '.git', 'provedone'));
   });
 
-  it('is .proofline/ under the root outside a repository', async () => {
+  it('moves the log a clone kept under its codename, proofline/, so the observe history carries over', async () => {
+    const dir = repo();
+    mkdirSync(join(dir, '.git', 'proofline'));
+    writeFileSync(join(dir, '.git', 'proofline', 'gate.jsonl'), '{"a":1}\n');
+    expect(await storeDir(dir)).toBe(join(dir, '.git', 'provedone'));
+    expect(readLines(join(dir, '.git', 'provedone', 'gate.jsonl'))).toEqual([{ a: 1 }]);
+    expect(existsSync(join(dir, '.git', 'proofline'))).toBe(false);
+  });
+
+  it('leaves proofline/ alone once provedone/ exists', async () => {
+    const dir = repo();
+    mkdirSync(join(dir, '.git', 'proofline'));
+    mkdirSync(join(dir, '.git', 'provedone'));
+    writeFileSync(join(dir, '.git', 'provedone', 'gate.jsonl'), '{"b":2}\n');
+    expect(await storeDir(dir)).toBe(join(dir, '.git', 'provedone'));
+    expect(readLines(join(dir, '.git', 'provedone', 'gate.jsonl'))).toEqual([{ b: 2 }]);
+    expect(existsSync(join(dir, '.git', 'proofline'))).toBe(true);
+  });
+
+  it('throws a rename error that is not about an existing log', async () => {
+    const dir = repo();
+    mkdirSync(join(dir, '.git', 'proofline'));
+    writeFileSync(join(dir, '.git', 'provedone'), 'a file where the directory goes');
+    await expect(storeDir(dir)).rejects.toMatchObject({ code: 'ENOTDIR' });
+  });
+
+  it('is .provedone/ under the root outside a repository', async () => {
     const dir = temp();
-    expect(await storeDir(dir)).toBe(join(dir, '.proofline'));
+    expect(await storeDir(dir)).toBe(join(dir, '.provedone'));
   });
 });
 

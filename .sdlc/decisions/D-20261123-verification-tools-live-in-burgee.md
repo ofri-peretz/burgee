@@ -28,7 +28,7 @@ built from (roundel, linegauge, closeout, seniority, bellpull, paratext, caique,
 controlroom) are exempt, because depending on burgee would make a cycle the zero-dependency rule
 forbids.
 
-Intents: [`proofline`](../intents/proofline/intent.md),
+Intents: [`provedone`](../intents/provedone/intent.md),
 [`triggerlist`](../intents/triggerlist/intent.md), [`replz`](../intents/replz/intent.md),
 [`hookset`](../intents/hookset/intent.md), and the apicontract lane
 [`contract-properties`](../intents/contract-properties/intent.md).

@@ -1,4 +1,4 @@
-# Intent — `proofline`: every change says how it was verified, and a gate reads it
+# Intent — `provedone`: every change says how it was verified, and a gate reads it
 
 > Opened 2026-11-23 from the verification gap analysis
 > ([doc](https://claude.ai/artifact/BCjCqoaRfDvtQeha24HrNi)), which maps the concepts in
@@ -15,16 +15,16 @@
 A tool any repository installs from npm that closes the loop between "what done means" and "what
 was actually checked":
 
-- **Done first.** `proofline intent new <slug>` writes the intent and spec skeletons this
-  directory already uses; `proofline intent check` validates them, and for every `shipped` intent
+- **Done first.** `provedone intent new <slug>` writes the intent and spec skeletons this
+  directory already uses; `provedone intent check` validates them, and for every `shipped` intent
   re-runs the commands in its evidence table and fails when one no longer produces its recorded
   result.
-- **A receipt per change.** `proofline stamp` records what ran (command, exit code, a short
+- **A receipt per change.** `provedone stamp` records what ran (command, exit code, a short
   output digest), what was tried in the running app (screenshots or terminal captures by path),
   and an explicit `not checked:` list. It writes a `Verified-by:` commit trailer, whose value may
   be `none` so unverified commits are queryable, and the matching "How this was checked" block for
   the PR body.
-- **A "done" check.** `proofline done <slug>` fails unless every success criterion of the intent
+- **A "done" check.** `provedone done <slug>` fails unless every success criterion of the intent
   a PR cites has a command and a fresh evidence row from this branch. This is the "Checked:" line
   generated, not typed: `stamp` writes it from the same data.
 - **One gate with three modes.** `off`, `observe` (log what would have been blocked) and
@@ -47,7 +47,7 @@ was actually checked":
 
 ## Affected users and systems
 
-A new private package `packages/proofline`; `.github/PULL_REQUEST_TEMPLATE.md`; `lefthook.yml`
+A new private package `packages/provedone`; `.github/PULL_REQUEST_TEMPLATE.md`; `lefthook.yml`
 (a `commit-msg` step in observe mode); a reusable workflow for consumer repos. Later consumers:
 eslint, interlace, serverless, agents, blog.
 
@@ -62,7 +62,7 @@ eslint, interlace, serverless, agents, blog.
 
 ## Success criteria
 
-- `proofline intent check` on this repo lists every `shipped` intent with no evidence, and re-runs
+- `provedone intent check` on this repo lists every `shipped` intent with no evidence, and re-runs
   every evidence command that is a plain shell command; zero false failures on `main`.
 - Every PR merged in burgee for 14 days after the observe step carries a receipt or a `none`
   with a reason; the observe log shows the false-block rate before `enforce` is proposed.
@@ -78,6 +78,6 @@ eslint, interlace, serverless, agents, blog.
 
 Each is a default, not a decision; overturning one in review is a new decision file.
 
-- The package keeps the working name `proofline` until it publishes.
+- The package keeps the working name `provedone` until it publishes.
 - The receipt lives in the commit trailer and the PR body only, not as a file under `.sdlc/`.
 - `intent check --evidence` runs weekly beside `mutation:weekly`, not on every push.

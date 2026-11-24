@@ -12,13 +12,13 @@ const scratch = scratchDirs();
 const withoutGit = (): NodeJS.ProcessEnv => Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')));
 
 const repo = (): string => {
-  const dir = realpathSync(scratch('proofline-cli-'));
+  const dir = realpathSync(scratch('provedone-cli-'));
   execFileSync('git', ['init', '-q', '-b', 'feat/x', dir], { env: withoutGit() });
   execFileSync('git', ['-C', dir, 'config', 'user.name', 'Pat Doe'], { env: withoutGit() });
   return dir;
 };
 
-const ENV = { PROOFLINE_SESSION: 's1' };
+const ENV = { PROVEDONE_SESSION: 's1' };
 const run = async (dir: string, argv: string[], env: Record<string, string> = ENV) => runBurgee(program, { argv: [...argv, '--root', dir], env });
 const json = async (dir: string, argv: string[], env?: Record<string, string>) => {
   const r = await run(dir, [...argv, '--json'], env);
@@ -29,7 +29,7 @@ const json = async (dir: string, argv: string[], env?: Record<string, string>) =
   };
 };
 const stamps = (dir: string): unknown[] =>
-  readFileSync(join(dir, '.git', 'proofline', 'stamps.jsonl'), 'utf8')
+  readFileSync(join(dir, '.git', 'provedone', 'stamps.jsonl'), 'utf8')
     .trim()
     .split('\n')
     .map((l) => JSON.parse(l) as unknown);
@@ -48,7 +48,7 @@ const message = (dir: string, text: string): string => {
   return join(dir, 'MSG');
 };
 const log = (dir: string): unknown[] =>
-  readFileSync(join(dir, '.git', 'proofline', 'gate.jsonl'), 'utf8')
+  readFileSync(join(dir, '.git', 'provedone', 'gate.jsonl'), 'utf8')
     .trim()
     .split('\n')
     .map((l) => JSON.parse(l) as unknown);
@@ -124,7 +124,7 @@ describe('stamp', () => {
   });
 
   it.each([
-    [['stamp', '--not-checked', 'x'], 'nothing to stamp', 'proofline stamp --run "<command>" --not-checked "<gap>", or proofline stamp --none "<reason>"'],
+    [['stamp', '--not-checked', 'x'], 'nothing to stamp', 'provedone stamp --run "<command>" --not-checked "<gap>", or provedone stamp --none "<reason>"'],
     [['stamp', '--run', 'exit 0', '--none', 'r'], '--none and --run together', 'drop --none: the commands are the receipt'],
     [['stamp', '--run', 'exit 0'], 'no --not-checked', 'add --not-checked "<what you did not check>", or --not-checked nothing'],
     [['stamp', '--none', 'r', '--intent', 'i'], '--intent and --criterion go together', 'pass both, or neither'],
@@ -134,7 +134,7 @@ describe('stamp', () => {
     const r = await json(dir, argv);
     expect(r.code).toBe(2);
     expect(r.error).toMatchObject({ message, fix });
-    expect(existsSync(join(dir, '.git', 'proofline'))).toBe(false);
+    expect(existsSync(join(dir, '.git', 'provedone'))).toBe(false);
   });
 });
 
@@ -143,7 +143,7 @@ describe('gate', () => {
     const dir = repo();
     const r = await run(dir, ['gate', message(dir, 'x\n\nVerified-by: none (docs)'), '--mode', 'enforce']);
     expect(r.code).toBe(0);
-    expect(r.stdout).toBe('proofline: unverified, with a reason\n');
+    expect(r.stdout).toBe('provedone: unverified, with a reason\n');
     expect(log(dir)).toEqual([
       {
         at: expect.any(String) as string,
@@ -161,7 +161,7 @@ describe('gate', () => {
     const dir = repo();
     const r = await run(dir, ['gate', message(dir, 'x')], {});
     expect(r.code).toBe(0);
-    expect(r.stdout).toMatch(/^proofline \(observe, not blocking\): no Verified-by: line\. fix: run `proofline stamp/u);
+    expect(r.stdout).toMatch(/^provedone \(observe, not blocking\): no Verified-by: line\. fix: run `provedone stamp/u);
     expect(log(dir)).toEqual([
       expect.objectContaining({
         session: 'branch:feat/x',
@@ -172,15 +172,15 @@ describe('gate', () => {
     ]);
   });
 
-  it('reads the mode from PROOFLINE_MODE, ignores one it does not know, and lets --mode win', async () => {
+  it('reads the mode from PROVEDONE_MODE, ignores one it does not know, and lets --mode win', async () => {
     const dir = repo();
     const file = message(dir, 'x');
-    expect((await run(dir, ['gate', file], { PROOFLINE_MODE: 'enforce' })).code).toBe(1);
-    expect((await json(dir, ['gate', file], { PROOFLINE_MODE: 'loud' })).data['mode']).toBe('observe');
+    expect((await run(dir, ['gate', file], { PROVEDONE_MODE: 'enforce' })).code).toBe(1);
+    expect((await json(dir, ['gate', file], { PROVEDONE_MODE: 'loud' })).data['mode']).toBe('observe');
     expect(
       (
         await run(dir, ['gate', file, '--mode', 'observe'], {
-          PROOFLINE_MODE: 'enforce',
+          PROVEDONE_MODE: 'enforce',
         })
       ).code,
     ).toBe(0);
@@ -191,7 +191,7 @@ describe('gate', () => {
     const file = message(dir, 'x');
     const first = await run(dir, ['gate', file, '--mode', 'enforce']);
     expect(first.code).toBe(1);
-    expect(first.stdout).toMatch(/^proofline: no Verified-by: line\. fix: /u);
+    expect(first.stdout).toMatch(/^provedone: no Verified-by: line\. fix: /u);
     expect((await run(dir, ['gate', file, '--mode', 'enforce'])).code).toBe(1);
     const third = await json(dir, ['gate', file, '--mode', 'enforce']);
     expect(third.code).toBe(0);
@@ -213,15 +213,15 @@ describe('gate', () => {
     const file = message(dir, 'x');
     await run(dir, ['gate', file, '--mode', 'enforce']);
     await run(dir, ['gate', file, '--mode', 'enforce']);
-    expect((await run(dir, ['gate', file, '--mode', 'enforce'])).stdout).toMatch(/^proofline: no Verified-by: line; passed after two blocks in this session, logged\. fix: /u);
+    expect((await run(dir, ['gate', file, '--mode', 'enforce'])).stdout).toMatch(/^provedone: no Verified-by: line; passed after two blocks in this session, logged\. fix: /u);
   });
 
   it('reads nothing and logs nothing when off', async () => {
     const dir = repo();
     const r = await run(dir, ['gate', join(dir, 'absent'), '--mode', 'off']);
     expect(r.code).toBe(0);
-    expect(r.stdout).toBe('proofline: off\n');
-    expect(existsSync(join(dir, '.git', 'proofline'))).toBe(false);
+    expect(r.stdout).toBe('provedone: off\n');
+    expect(existsSync(join(dir, '.git', 'provedone'))).toBe(false);
   });
 
   it('refuses a file that is not there', async () => {
@@ -245,8 +245,8 @@ describe('done', () => {
     expect(open.stdout).toBe(
       [
         'Checked: no criterion. Not checked: C1, C2.',
-        'C1 has no evidence. fix: proofline stamp --intent i --criterion 1 --run "<the command that proves it>" --not-checked "<what you did not check>"',
-        'C2 has no evidence. fix: proofline stamp --intent i --criterion 2 --run "echo two" --not-checked "<what you did not check>"',
+        'C1 has no evidence. fix: provedone stamp --intent i --criterion 1 --run "<the command that proves it>" --not-checked "<what you did not check>"',
+        'C2 has no evidence. fix: provedone stamp --intent i --criterion 2 --run "echo two" --not-checked "<what you did not check>"',
         '',
       ].join('\n'),
     );
@@ -272,7 +272,7 @@ describe('done', () => {
   it('refuses an intent that is not there, or lists no criteria', async () => {
     const dir = repo();
     expect((await json(dir, ['done', 'nope'])).error).toMatchObject({
-      message: 'no intent nope. fix: proofline intent new nope',
+      message: 'no intent nope. fix: provedone intent new nope',
     });
     intents(dir, {
       'e/intent.md': '# Intent — e\n\n## Success criteria\n\nprose only\n',
@@ -309,7 +309,7 @@ describe('intent new', () => {
   });
 
   it('falls back to "owner" when git names nobody', async () => {
-    const dir = realpathSync(scratch('proofline-nogit-'));
+    const dir = realpathSync(scratch('provedone-nogit-'));
     templates(dir);
     vi.stubEnv('GIT_CONFIG_GLOBAL', '/dev/null');
     vi.stubEnv('GIT_CONFIG_NOSYSTEM', '1');
@@ -326,10 +326,10 @@ describe('intent new', () => {
     expect(r.code).toBe(2);
     expect(r.error).toMatchObject({
       message: '"Faster  Help!" is not a slug',
-      fix: 'proofline intent new faster-help',
+      fix: 'provedone intent new faster-help',
     });
     expect((await json(repo(), ['intent', 'new', '_a_'])).error).toMatchObject({
-      fix: 'proofline intent new a',
+      fix: 'provedone intent new a',
     });
   });
 
@@ -484,7 +484,7 @@ describe('intent check', () => {
     expect((await json(dir, ['intent', 'check', '--dir', 'docs'])).data['intents']).toBe(1);
     const r = await json(repo(), ['intent', 'check']);
     expect(r.code).toBe(1);
-    expect(r.error?.message).toMatch(/^no intents directory at .*\.sdlc[\\/]intents\. fix: run `proofline intent new <slug>` after adding _template\/, or pass --dir$/u);
+    expect(r.error?.message).toMatch(/^no intents directory at .*\.sdlc[\\/]intents\. fix: run `provedone intent new <slug>` after adding _template\/, or pass --dir$/u);
   });
 });
 

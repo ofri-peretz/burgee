@@ -37,7 +37,7 @@ Two tests for any new feature or package:
 | Tests it can't game | "does it behave like the incumbent? on inputs it didn't pick?" | compat-oracle; generated contract tests; `props` | property tests not built | [`contract-properties`](../intents/contract-properties/) |
 | Test the tests | "would a test catch a bug here?" | **oxmutate** | nothing: covered | — |
 | Reviewer with our rules | "does this follow our rules, in a rulebook the reviewer can hold?" | lint `--json`; triggerlist | not built | [`triggerlist`](../intents/triggerlist/) |
-| Say how it was checked | "what was and wasn't checked?" | proofline: `Verified-by:` trailer and PR block, re-run evidence | not built | [`proofline`](../intents/proofline/) |
+| Say how it was checked | "what was and wasn't checked?" | proofline: `Verified-by:` trailer and PR block, re-run evidence | not built | [`provedone`](../intents/provedone/) (was proofline) |
 | Learn from every miss | "which rules and reviews earn their keep?" | `lint --stats --idle`; replz | replz not built | [`replz`](../intents/replz/) (was replay) |
 | Machine-readable everything | "what did the tool say?" | burgee | pagination/truncation metadata | burgee backlog |
 

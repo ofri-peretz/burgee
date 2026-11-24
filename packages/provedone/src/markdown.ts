@@ -1,5 +1,5 @@
 /**
- * The little Markdown proofline reads: `##` sections, pipe tables, list items and code spans.
+ * The little Markdown provedone reads: `##` sections, pipe tables, list items and code spans.
  * No remark (spec, Design): an intent is headings, bullets and tables, and a reader over those
  * three is smaller than the dependency and cannot drift from what the repo writes.
  */

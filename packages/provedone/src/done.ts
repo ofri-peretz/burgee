@@ -44,7 +44,7 @@ export const doneReport = ({ slug, criteria, rows, stamps, branch }: DoneInput):
       n,
       criterion,
       commands,
-      fix: `proofline stamp --intent ${slug} --criterion ${String(n)} --run "${command}" --not-checked "<what you did not check>"`,
+      fix: `provedone stamp --intent ${slug} --criterion ${String(n)} --run "${command}" --not-checked "<what you did not check>"`,
     };
   });
 

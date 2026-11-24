@@ -43,4 +43,4 @@ export const decide = (mode: Mode, verdict: Verdict, log: readonly LogEntry[], s
 };
 
 /** The session a block counts against: the agent's session id when the environment names one, else the branch. */
-export const sessionOf = (env: Readonly<Record<string, string | undefined>>, branch: string): string => env['PROOFLINE_SESSION'] ?? env['CLAUDE_CODE_SESSION_ID'] ?? env['CLAUDE_SESSION_ID'] ?? `branch:${branch}`;
+export const sessionOf = (env: Readonly<Record<string, string | undefined>>, branch: string): string => env['PROVEDONE_SESSION'] ?? env['CLAUDE_CODE_SESSION_ID'] ?? env['CLAUDE_SESSION_ID'] ?? `branch:${branch}`;

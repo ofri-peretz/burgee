@@ -17,9 +17,9 @@ A burgee CLI and a set of presets that put the cheap stations before a change le
 the same way in every repository:
 
 - **Git hook presets** for lefthook (through its `remotes`) and for Husky, by station:
-  `commit-msg` (commitlint, proofline trailer in observe), `pre-commit` (staged-file lint and
+  `commit-msg` (commitlint, provedone trailer in observe), `pre-commit` (staged-file lint and
   format only, under a time budget), `pre-push` (typecheck, affected tests, changed-lines
-  mutation, test-integrity diff checks, proofline gate, triggerlist protect).
+  mutation, test-integrity diff checks, provedone gate, triggerlist protect).
 - **A Claude hook pack** (`.claude/settings.json` fragments): block `--no-verify` and hook-skipping
   environment variables, ask before publish or deploy, block edits to frozen paths a repo lists,
   and count failed test runs per session so the third forces a stop-and-ask.

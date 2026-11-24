@@ -1,17 +1,17 @@
-# proofline
+# provedone
 
 Every change says how it was verified, and a gate reads it. Codename; private until the success
-criteria of [its intent](../../.sdlc/intents/proofline/intent.md) are read.
+criteria of [its intent](../../.sdlc/intents/provedone/intent.md) are read.
 
 ```sh
-proofline stamp --run "npm test" --not-checked "the docs site"   # trailers for the commit
-proofline stamp --run "npm test" --not-checked nothing --pr      # the PR's "How this was checked" block
-proofline stamp --none "comment-only change"                     # Verified-by: none, with its reason
-proofline gate .git/COMMIT_EDITMSG                               # observe: passes, logs what enforce would block
-proofline gate pr-body.md --mode enforce                         # blocks a body with no receipt
-proofline done faster-help                                       # every success criterion has a passing stamp?
-proofline intent new faster-help                                 # intent.md and spec.md from _template/
-proofline intent check --evidence                                # the intent rules, and the shipped evidence re-run
+provedone stamp --run "npm test" --not-checked "the docs site"   # trailers for the commit
+provedone stamp --run "npm test" --not-checked nothing --pr      # the PR's "How this was checked" block
+provedone stamp --none "comment-only change"                     # Verified-by: none, with its reason
+provedone gate .git/COMMIT_EDITMSG                               # observe: passes, logs what enforce would block
+provedone gate pr-body.md --mode enforce                         # blocks a body with no receipt
+provedone done faster-help                                       # every success criterion has a passing stamp?
+provedone intent new faster-help                                 # intent.md and spec.md from _template/
+provedone intent check --evidence                                # the intent rules, and the shipped evidence re-run
 ```
 
 | Command | Exit 1 when |
@@ -38,8 +38,8 @@ One `Verified-by:` per command, with its exit code and the first 12 hex of the o
 the message's last paragraph only, so paste them beside `Co-Authored-By:`, with no blank line
 between.
 
-Stamps and the gate log are JSON lines under `.git/proofline/`, never in the tree. `done` reads
-the stamps of the current branch. The gate's session is `PROOFLINE_SESSION`, else the agent's
+Stamps and the gate log are JSON lines under `.git/provedone/`, never in the tree. `done` reads
+the stamps of the current branch. The gate's session is `PROVEDONE_SESSION`, else the agent's
 session id (`CLAUDE_CODE_SESSION_ID`, `CLAUDE_SESSION_ID`), else the branch.
 
 ## Benchmarks

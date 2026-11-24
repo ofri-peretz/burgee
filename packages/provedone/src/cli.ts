@@ -1,5 +1,5 @@
 /**
- * proofline's commands, declared once so burgee projects each to `--json`, `--schema`, `--mcp`
+ * provedone's commands, declared once so burgee projects each to `--json`, `--schema`, `--mcp`
  * and completions (spec Design: a burgee CLI, so an agent calls it as a tool). Each handler reads
  * files and runs commands, then hands the facts to a pure module; the text a person or a model
  * reads is the least that answers the question, and `--json` carries the rest.
@@ -85,12 +85,12 @@ const newCommand = defineCommand({
   effects: 'non_idempotent',
   examples: [
     {
-      command: 'proofline intent new faster-help --owner @me',
+      command: 'provedone intent new faster-help --owner @me',
       description: 'intent.md and spec.md, from _template/',
     },
   ],
   run: async ({ args, options }) => {
-    if (!SLUG.test(args.slug)) throw new Refusal(`"${args.slug}" is not a slug`, `proofline intent new ${kebab(args.slug)}`);
+    if (!SLUG.test(args.slug)) throw new Refusal(`"${args.slug}" is not a slug`, `provedone intent new ${kebab(args.slug)}`);
     const top = rootOf(options);
     const intents = intentsOf(top, options);
     const target = join(intents, args.slug);
@@ -165,18 +165,18 @@ const checkCommand = defineCommand({
   effects: 'read_only',
   examples: [
     {
-      command: 'proofline intent check',
+      command: 'provedone intent check',
       description: 'one line per broken rule, each with a fix',
     },
     {
-      command: 'proofline intent check --evidence --json',
+      command: 'provedone intent check --evidence --json',
       description: 'the re-runs too, and every row that could not be re-run',
     },
   ],
   run: async ({ options }) => {
     const top = rootOf(options);
     const intents = intentsOf(top, options);
-    if (!existsSync(intents)) throw new Failure(`no intents directory at ${intents}`, 'run `proofline intent new <slug>` after adding _template/, or pass --dir');
+    if (!existsSync(intents)) throw new Failure(`no intents directory at ${intents}`, 'run `provedone intent new <slug>` after adding _template/, or pass --dir');
     const slugs = readdirSync(intents, { withFileTypes: true })
       .filter((e) => e.isDirectory() && e.name !== '_template')
       .map((e) => e.name)
@@ -227,7 +227,7 @@ interface StampOptions {
 /** The refusals of `stamp`, before anything runs (spec R4: the not-checked list is required). */
 const refuseStamp = (options: StampOptions): void => {
   const runs = options.run ?? [];
-  if (options.none === undefined && runs.length === 0) throw new Refusal('nothing to stamp', 'proofline stamp --run "<command>" --not-checked "<gap>", or proofline stamp --none "<reason>"');
+  if (options.none === undefined && runs.length === 0) throw new Refusal('nothing to stamp', 'provedone stamp --run "<command>" --not-checked "<gap>", or provedone stamp --none "<reason>"');
   if (options.none !== undefined && runs.length > 0) throw new Refusal('--none and --run together', 'drop --none: the commands are the receipt');
   if (options.none === undefined && (options.notChecked ?? []).length === 0) throw new Refusal('no --not-checked', 'add --not-checked "<what you did not check>", or --not-checked nothing');
   if ((options.criterion === undefined) !== (options.intent === undefined)) throw new Refusal('--intent and --criterion go together', 'pass both, or neither');
@@ -260,7 +260,7 @@ const stampCommand = defineCommand({
     },
     intent: {
       type: 'string',
-      description: 'the intent this proves, for `proofline done`',
+      description: 'the intent this proves, for `provedone done`',
     },
     criterion: {
       type: 'number',
@@ -276,15 +276,15 @@ const stampCommand = defineCommand({
   effects: 'non_idempotent',
   examples: [
     {
-      command: 'proofline stamp --run "npm test" --not-checked "the docs site"',
+      command: 'provedone stamp --run "npm test" --not-checked "the docs site"',
       description: 'two trailers to paste into the commit message',
     },
     {
-      command: 'proofline stamp --none "comment-only change"',
+      command: 'provedone stamp --none "comment-only change"',
       description: 'Verified-by: none, with its reason',
     },
     {
-      command: 'proofline stamp --intent faster-help --criterion 2 --run "npm run bench" --not-checked nothing --pr',
+      command: 'provedone stamp --intent faster-help --criterion 2 --run "npm run bench" --not-checked nothing --pr',
       description: 'evidence for criterion 2, as a PR block',
     },
   ],
@@ -329,13 +329,13 @@ const stampCommand = defineCommand({
 });
 
 const gateText = (v: Verdict, decision: Decision, mode: Mode): string => {
-  if (v.ok) return `proofline: ${v.reason}`;
-  if (decision.bypass) return `proofline: ${v.reason}; passed after two blocks in this session, logged. fix: ${String(v.fix)}`;
-  return `proofline${mode === 'observe' ? ' (observe, not blocking)' : ''}: ${v.reason}. fix: ${String(v.fix)}`;
+  if (v.ok) return `provedone: ${v.reason}`;
+  if (decision.bypass) return `provedone: ${v.reason}; passed after two blocks in this session, logged. fix: ${String(v.fix)}`;
+  return `provedone${mode === 'observe' ? ' (observe, not blocking)' : ''}: ${v.reason}. fix: ${String(v.fix)}`;
 };
 
 const modeOf = (asked: Mode | undefined, env: Readonly<Record<string, string | undefined>>): Mode => {
-  const fromEnv = env['PROOFLINE_MODE'] as Mode;
+  const fromEnv = env['PROVEDONE_MODE'] as Mode;
   return asked ?? (MODES.includes(fromEnv) ? fromEnv : 'observe');
 };
 
@@ -353,24 +353,24 @@ const gateCommand = defineCommand({
     mode: {
       type: 'string',
       choices: MODES,
-      description: 'off, observe or enforce (default: PROOFLINE_MODE, else observe)',
+      description: 'off, observe or enforce (default: PROVEDONE_MODE, else observe)',
     },
     root,
   },
   effects: 'non_idempotent',
   examples: [
     {
-      command: 'proofline gate .git/COMMIT_EDITMSG',
+      command: 'provedone gate .git/COMMIT_EDITMSG',
       description: 'observe: always passes, logs what enforce would block',
     },
     {
-      command: 'proofline gate pr-body.md --mode enforce',
+      command: 'provedone gate pr-body.md --mode enforce',
       description: 'blocks a PR body with no receipt',
     },
   ],
   run: async ({ args, options, env }) => {
     const mode = modeOf(options.mode, env);
-    if (mode === 'off') return withText({ mode, ok: true, blocked: false, bypass: false }, 'proofline: off');
+    if (mode === 'off') return withText({ mode, ok: true, blocked: false, bypass: false }, 'provedone: off');
     const message = read(resolve(args.file));
     if (message === undefined) throw new Refusal(`no file ${args.file}`, 'pass the commit message file, as lefthook does with {1}');
     const top = rootOf(options);
@@ -400,14 +400,14 @@ const doneCommand = defineCommand({
   effects: 'read_only',
   examples: [
     {
-      command: 'proofline done faster-help',
+      command: 'provedone done faster-help',
       description: 'the Checked: line, or one fix per criterion with no evidence',
     },
   ],
   run: async ({ args, options }) => {
     const top = rootOf(options);
     const intent = read(join(intentsOf(top, options), args.slug, 'intent.md'));
-    if (intent === undefined) throw new Failure(`no intent ${args.slug}`, `proofline intent new ${args.slug}`);
+    if (intent === undefined) throw new Failure(`no intent ${args.slug}`, `provedone intent new ${args.slug}`);
     const list = criteria(intent);
     if (list.length === 0) throw new Failure(`${args.slug} lists no success criteria`, 'add `- ` items under its `## Success criteria`');
     const report = doneReport({
@@ -432,7 +432,7 @@ const doneCommand = defineCommand({
 });
 
 export const program = defineProgram({
-  name: 'proofline',
+  name: 'provedone',
   version: VERSION,
   description: 'Every change says how it was verified, and a gate reads it',
   commands: [stampCommand, gateCommand, doneCommand, intentCommand],

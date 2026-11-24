@@ -50,7 +50,7 @@ export interface Verdict {
   readonly fix?: string;
 }
 
-const FIX = 'run `proofline stamp --run "<the command that proves it>" --not-checked "<what you did not check>"` and paste its lines, or add `Verified-by: none (<why it needs no check>)`';
+const FIX = 'run `provedone stamp --run "<the command that proves it>" --not-checked "<what you did not check>"` and paste its lines, or add `Verified-by: none (<why it needs no check>)`';
 
 /**
  * Whether a commit message or PR body carries a receipt (spec R5): a `Verified-by:` line with a

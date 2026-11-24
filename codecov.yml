@@ -51,9 +51,9 @@ component_management:
     - component_id: loadline
       name: loadline
       paths: [packages/loadline/**]
-    - component_id: proofline
-      name: proofline
-      paths: [packages/proofline/**]
+    - component_id: provedone
+      name: provedone
+      paths: [packages/provedone/**]
     - component_id: hookset
       name: hookset
       paths: [packages/hookset/**]

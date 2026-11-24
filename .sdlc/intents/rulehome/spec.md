@@ -54,4 +54,4 @@ every package.
 
 ## Out of scope
 
-Hooks, rulebook, proof and replay (their own intents: hookset, triggerlist, proofline, replz).
+Hooks, rulebook, proof and replay (their own intents: hookset, triggerlist, provedone, replz).
