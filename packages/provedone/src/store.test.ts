@@ -5,7 +5,7 @@ import { basename, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { scratchDirs } from './__fixtures__/scratch-dir.js';
-import { appendLines, branchOf, readLines, runnable, runShell, storeDir } from './store.js';
+import { appendLines, branchOf, isDirectory, readLines, runnable, runShell, storeDir } from './store.js';
 
 const scratch = scratchDirs();
 const withoutGit = (): NodeJS.ProcessEnv => Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')));
@@ -23,6 +23,16 @@ describe('branchOf', () => {
 
   it('is HEAD outside a repository', async () => {
     expect(await branchOf(temp())).toBe('HEAD');
+  });
+});
+
+describe('isDirectory', () => {
+  it('is true for a directory, false for a file and for nothing at all', () => {
+    const dir = temp();
+    writeFileSync(join(dir, 'f'), '');
+    expect(isDirectory(dir)).toBe(true);
+    expect(isDirectory(join(dir, 'f'))).toBe(false);
+    expect(isDirectory(join(dir, 'missing'))).toBe(false);
   });
 });
 

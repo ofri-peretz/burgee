@@ -19,6 +19,9 @@ export const branchOf = async (root: string): Promise<string> => (await git(root
 /** `git config user.name` at `root`, or undefined when git names nobody. */
 export const gitUser = async (root: string): Promise<string | undefined> => git(root, ['config', 'user.name']);
 
+/** Whether `path` is a directory; false when nothing is there. */
+export const isDirectory = (path: string): boolean => statSync(path, { throwIfNoEntry: false })?.isDirectory() === true;
+
 /**
  * provedone's directory for the repository at `root`; outside one, `.provedone` under `root`. A clone that
  * ran it under its codename keeps `proofline/`: that moves here once, so the observe history the
@@ -33,7 +36,7 @@ export const storeDir = async (root: string): Promise<string> => {
     renameSync(legacy, dir);
   } catch (error) {
     // No proofline/ to move, or provedone/ is already a directory with a log in it: keep what is there.
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT' && statSync(dir, { throwIfNoEntry: false })?.isDirectory() !== true) throw error;
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT' && !isDirectory(dir)) throw error;
   }
   return dir;
 };
