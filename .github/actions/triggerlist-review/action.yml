@@ -1,0 +1,102 @@
+# Composite action: one Claude review round driven by triggerlist (triggerlist spec R5).
+#
+# The reviewer is handed `triggerlist brief`: REVIEW.md and the checklist as the BASE branch
+# has them (so a pull request that edits the rules is still reviewed by the rules it did not
+# write), the checklist items the diff fires, its own findings from the previous round (the last
+# PR comment carrying the triggerlist-review marker), and the head commit it reviews. After the
+# review, a head that moved while it ran is reported as stale on the pull request.
+#
+# A composite action rather than a reusable workflow: a step keeps each caller's own job name,
+# so a required `review` check stays `review` in every repository that adopts it.
+#
+# Caller: a pull_request job that ran actions/checkout with fetch-depth: 0, and grants
+# contents: read, pull-requests: write and id-token: write.
+
+name: triggerlist review
+description: Review a pull request with Claude against the base branch's REVIEW.md and the checklist items its diff fires.
+
+inputs:
+  claude-code-oauth-token:
+    description: The CLAUDE_CODE_OAUTH_TOKEN secret.
+    required: true
+  preamble:
+    description: What the repository is and what the reviewer prioritises, put before the brief.
+    required: true
+  triggerlist:
+    description: The command that runs triggerlist in this checkout.
+    required: false
+    default: npx --yes triggerlist@0
+  checklist:
+    description: The checklist file, read from the base branch.
+    required: false
+    default: .sdlc/checklist.yaml
+  review-file:
+    description: The rules file, read from the base branch.
+    required: false
+    default: REVIEW.md
+  claude-args:
+    description: Extra claude_args for the review, such as --model and --max-turns.
+    required: false
+    default: |
+      --model claude-sonnet-4-6
+      --max-turns 50
+
+runs:
+  using: composite
+  steps:
+    - name: Brief the reviewer from the base branch
+      id: brief
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        BASE_REF: ${{ github.event.pull_request.base.ref }}
+        HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        PR: ${{ github.event.pull_request.number }}
+        REPO: ${{ github.repository }}
+        TRIGGERLIST: ${{ inputs.triggerlist }}
+        CHECKLIST: ${{ inputs.checklist }}
+        REVIEW_FILE: ${{ inputs.review-file }}
+      run: |
+        set -euo pipefail
+        git fetch --no-tags --depth=1 origin "+refs/heads/$BASE_REF:refs/remotes/origin/$BASE_REF"
+        # Only the reviewer's own comments count as its previous findings: anyone can comment on a PR.
+        gh api --paginate "repos/$REPO/issues/$PR/comments" --jq '[.[] | select(.user.login == "claude[bot]") | {body}]' | jq -s 'add // []' > "$RUNNER_TEMP/comments.json"
+        # shellcheck disable=SC2086 # TRIGGERLIST is a command line, split on purpose
+        $TRIGGERLIST brief "origin/$BASE_REF" --head "$HEAD_SHA" --checklist "$CHECKLIST" --review "$REVIEW_FILE" --comments "$RUNNER_TEMP/comments.json" > "$RUNNER_TEMP/brief.md"
+        delimiter="BRIEF_$(openssl rand -hex 8)"
+        { echo "text<<$delimiter"; cat "$RUNNER_TEMP/brief.md"; echo "$delimiter"; } >> "$GITHUB_OUTPUT"
+
+    - name: Claude review
+      uses: anthropics/claude-code-action@4d75e5f390ee76b2e09c1980ecc99ff3a2e088c8 # v1
+      with:
+        claude_code_oauth_token: ${{ inputs.claude-code-oauth-token }}
+        track_progress: true
+        prompt: |
+          REPO: ${{ github.repository }}
+          PR NUMBER: ${{ github.event.pull_request.number }}
+
+          ${{ inputs.preamble }}
+
+          Review against the brief below. Answer every rule it says fires, with file:line, or say
+          it holds. Post a finding only with file:line and the reason: inline comments for
+          issues, one top-level summary.
+
+          ${{ steps.brief.outputs.text }}
+        claude_args: |
+          ${{ inputs.claude-args }}
+          --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
+
+    - name: Mark the review stale if the head moved while it ran
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        PR: ${{ github.event.pull_request.number }}
+        REPO: ${{ github.repository }}
+      run: |
+        set -euo pipefail
+        now="$(gh api "repos/$REPO/pulls/$PR" --jq .head.sha)"
+        if [ "$now" != "$HEAD_SHA" ]; then
+          echo "::warning title=Review is stale::reviewed $HEAD_SHA, the head is now $now; the next run reviews it"
+          gh pr comment "$PR" --repo "$REPO" --body "This review covered \`$HEAD_SHA\`. The head moved to \`$now\` while it ran, so it is stale; the run for \`$now\` replaces it."
+        fi

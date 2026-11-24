@@ -8,6 +8,7 @@ import { join, resolve } from 'node:path';
 
 import { defineCommand, defineProgram, ExitCode } from 'burgee';
 
+import { briefText, type Comment, markerFor, previousFindings } from './brief.js';
 import { CHECKLIST, type Checklist, parseChecklist } from './checklist.js';
 import { compile, DEFAULT_BUDGET } from './compile.js';
 import { parseDiff } from './diff.js';
@@ -68,6 +69,35 @@ export const runProtect = async (options: RangeOptions & { readonly enforce: boo
     ...(failed ? { exitCode: ExitCode.RUNTIME, fix: 'land the gate change in its own pull request first' } : {}),
   };
   data[TEXT] = () => protectText(result, range(options.base), options.enforce);
+  return data;
+};
+
+export interface BriefOptions extends RangeOptions {
+  /** The rules file, read from the base branch. */
+  readonly review: string;
+  /** The commit under review, recorded in the marker so the next round knows what it saw. */
+  readonly head: string;
+  /** A JSON file of the PR's comments, as `gh api .../issues/<n>/comments` prints them. */
+  readonly comments?: string | undefined;
+}
+
+export const runBrief = async (options: BriefOptions): Promise<Data> => {
+  const rulesText = await options.git.show(options.base, options.review);
+  const { source, checklist } = await loadChecklist(options.repo, options.git, options.checklist, options.worktree ? undefined : options.base);
+  const fired = match(checklist, parseDiff(await options.git.diff(range(options.base))));
+  const comments = options.comments === undefined ? [] : (JSON.parse(readFileSync(resolve(options.repo, options.comments), 'utf8')) as Comment[]);
+  const previous = previousFindings(comments);
+  const rules = `${options.base}:${options.review}`;
+  const data: Data = {
+    rules,
+    range: range(options.base),
+    checklist: source,
+    fired: fired.map(({ item, at }) => ({ id: item.id, at: at.map(where) })),
+    previous: previous !== undefined,
+    head: options.head,
+    marker: markerFor(options.head),
+  };
+  data[TEXT] = () => briefText({ rules, rulesText, range: range(options.base), fired, previous, head: options.head });
   return data;
 };
 
@@ -170,6 +200,22 @@ export const program = defineProgram({
       arguments: [{ name: 'base', description: 'the base ref; the checklist is read from it too' }],
       options: { repo: repoOption, checklist: checklistOption, worktree: worktreeOption },
       run: ({ args, options }) => runMatch(rangeOptions(args, options)),
+    }),
+    defineCommand({
+      name: 'brief',
+      description: "The reviewer's brief for one round: the base branch's REVIEW.md, the items that fire, the previous round's findings and the commit under review",
+      effects: 'read_only',
+      examples: [{ command: 'triggerlist brief origin/main --head "$HEAD_SHA" --comments comments.json', description: 'the prompt a CI review step hands its reviewer' }],
+      arguments: [{ name: 'base', description: 'the base ref; REVIEW.md and the checklist are read from it' }],
+      options: {
+        repo: repoOption,
+        checklist: checklistOption,
+        worktree: worktreeOption,
+        review: { type: 'string', default: 'REVIEW.md', description: 'the rules file, read from the base ref', placeholder: 'path' },
+        head: { type: 'string', required: true, description: 'the commit under review', placeholder: 'sha' },
+        comments: { type: 'string', description: "a JSON file of the pull request's comments, for the previous round's findings", placeholder: 'path' },
+      },
+      run: ({ args, options }) => runBrief({ ...rangeOptions(args, options), review: options.review as string, head: options.head as string, comments: options.comments as string | undefined }),
     }),
     defineCommand({
       name: 'protect',

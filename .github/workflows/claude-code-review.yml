@@ -60,18 +60,26 @@ jobs:
         if: steps.token.outputs.present == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 1
+          # triggerlist diffs base...HEAD, so the merge base has to be here.
+          fetch-depth: 0
 
+      - name: Setup
+        if: steps.token.outputs.present == 'true'
+        uses: ./.github/actions/setup
+
+      - name: Build triggerlist from this checkout
+        if: steps.token.outputs.present == 'true'
+        run: npx turbo run build --filter=triggerlist
+
+      # triggerlist R5: the reviewer reads REVIEW.md and the checklist from the base branch, the
+      # items this diff fires, and its own findings from the previous round.
       - name: Claude Code Review
         if: steps.token.outputs.present == 'true'
-        uses: anthropics/claude-code-action@4d75e5f390ee76b2e09c1980ecc99ff3a2e088c8 # v1
+        uses: ./.github/actions/triggerlist-review
         with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          track_progress: true
-          prompt: |
-            REPO: ${{ github.repository }}
-            PR NUMBER: ${{ github.event.pull_request.number }}
-
+          claude-code-oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          triggerlist: node packages/triggerlist/dist/bin.js
+          preamble: |
             You are reviewing a pull request in the Interlace CLI repo: extensions
             for commander and yargs that give CLIs a machine-readable, agent-friendly
             floor. Read README.md and .sdlc/intents/burgee/spec.md
@@ -85,10 +93,3 @@ jobs:
             3. Regression locks — a fix with no test that fails on the unfixed code.
             4. Host idiom — extensions use commander/yargs public APIs, never fork or
                re-parse argv.
-
-            Be precise and low-noise: post a finding only with file:line and the
-            reason. Inline comments for issues, one top-level summary.
-          claude_args: |
-            --model claude-sonnet-4-6
-            --max-turns 50
-            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
