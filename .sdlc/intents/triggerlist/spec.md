@@ -15,9 +15,12 @@ Intent: [`intent.md`](./intent.md). **Status:** draft.
   and fails when over budget with a `fix:` naming the lowest-firing items to drop.
 - **R4** `triggerlist seed` drafts items from lock-test header comments and decision files, for a
   person to edit. It never writes the checklist directly.
-- **R5** A reusable `workflow_call` workflow: checks out base for `REVIEW.md` and the checklist,
+- **R5** A reusable review step: reads `REVIEW.md` and the checklist from the base branch,
   runs `match`, passes the items and the previous round's findings to the reviewer, records the
-  head SHA, and marks a result stale if the head moved.
+  head SHA, and marks a result stale if the head moved. Built as `triggerlist brief` (the
+  reviewer's prompt, tested) plus the composite action `.github/actions/triggerlist-review`, not
+  a `workflow_call` workflow: a called workflow renames the caller's check to `review / <job>`,
+  which would break every repository that requires `review`.
 - **R6** `triggerlist protect <base>` lists gate files changed alongside non-gate files; exit 0
   in observe mode, 1 in enforce.
 

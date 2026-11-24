@@ -207,10 +207,10 @@ describe('the program', () => {
     await git('-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qam', 'weaken');
   });
 
-  it('declares its version and four commands plus burgee completion with their effects', async () => {
+  it('declares its version and five commands plus burgee completion with their effects', async () => {
     const r = await runBurgee(program, { argv: ['--schema'] });
     const { commands } = JSON.parse(r.stdout) as { commands: { name: string; effects: string }[] };
-    expect(Object.fromEntries(commands.map((c) => [c.name, c.effects]))).toEqual({ match: 'read_only', protect: 'read_only', compile: 'idempotent', seed: 'read_only', completion: 'read_only' });
+    expect(Object.fromEntries(commands.map((c) => [c.name, c.effects]))).toEqual({ brief: 'read_only', match: 'read_only', protect: 'read_only', compile: 'idempotent', seed: 'read_only', completion: 'read_only' });
     expect((await runBurgee(program, { argv: ['--version'] })).stdout).toContain(VERSION);
   });
 
@@ -226,6 +226,28 @@ describe('the program', () => {
     const missing = await runBurgee(program, { argv: ['match', 'main', '--repo', repo, '--checklist', 'nope.yaml', '--json'] });
     expect(missing.code).toBe(ExitCode.RUNTIME);
     expect(JSON.stringify(missing.json)).toMatch(/git show main:nope\.yaml failed: fatal: [^"\\]*\. fix: pass a ref this checkout has/);
+  });
+
+  it('brief hands over the base REVIEW.md, not the one the branch rewrote (R5)', async () => {
+    const r = await runBurgee(program, { argv: ['brief', 'main', '--repo', repo, '--head', 'c0ffee'] });
+    expect(r.code).toBe(ExitCode.OK);
+    expect(r.stdout).toContain('## The rules (main:REVIEW.md, as the base branch has them)\n\na\n\n## The rules this diff fires');
+    expect(r.stdout).not.toContain('\nb\n');
+    expect(r.stdout).toContain('2 checklist item(s) fire for main...HEAD');
+    expect(r.stdout).toContain('None: this is the first review of this pull request.');
+    expect(r.stdout.trimEnd().endsWith('<!-- triggerlist-review head=c0ffee -->')).toBe(true);
+  });
+
+  it('brief reads the previous round from the comments file, and --review names another rules file', async () => {
+    writeFileSync(join(repo, 'comments.json'), JSON.stringify([{ body: 'thanks' }, { body: 'old\n<!-- triggerlist-review head=1111 -->' }, { body: 'newer\n<!-- triggerlist-review head=2222 -->' }]));
+    const r = await runBurgee(program, { argv: ['brief', 'main', '--repo', repo, '--head', '3333', '--comments', 'comments.json', '--json'] });
+    expect(r.json).toMatchObject({ data: { rules: 'main:REVIEW.md', checklist: 'main:.sdlc/checklist.yaml', fired: [{ id: 'spawn', at: ['src/a.ts:1'] }, { id: 'docs', at: ['REVIEW.md:1'] }], previous: true, head: '3333', marker: '<!-- triggerlist-review head=3333 -->' } });
+    const text = await runBurgee(program, { argv: ['brief', 'main', '--repo', repo, '--head', '3333', '--comments', 'comments.json'] });
+    expect(text.stdout).toContain('Reviewed at 2222.');
+    expect(text.stdout).toContain('newer');
+    const other = await runBurgee(program, { argv: ['brief', 'main', '--repo', repo, '--head', '3333', '--review', 'src/a.ts', '--json'] });
+    expect(other.json).toMatchObject({ data: { rules: 'main:src/a.ts', previous: false } });
+    expect((await runBurgee(program, { argv: ['brief', 'main', '--repo', repo, '--json'] })).code).toBe(ExitCode.USAGE);
   });
 
   it('protect --enforce fails on a gate changed with code', async () => {
