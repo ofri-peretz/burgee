@@ -1,5 +1,15 @@
 # hookset
 
+## 0.3.0
+
+### Minor Changes
+
+- [#1796](https://github.com/ofri-peretz/burgee/pull/1796) [`be786b0`](https://github.com/ofri-peretz/burgee/commit/be786b0a4f8c3af04f52fc08b88cdd807c347a34) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - First npm releases. `hookset` ships the verification stations as lefthook presets and a Claude Code hook pack; `triggerlist` hands a reviewer only the checklist items a diff fires.
+
+### Patch Changes
+
+- [#1794](https://github.com/ofri-peretz/burgee/pull/1794) [`3e107e3`](https://github.com/ofri-peretz/burgee/commit/3e107e351f79f2a0a721811fb6a540b5dcfdbd6a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - guard-bash asks before `pnpm -F pkg publish`: a single-dash option can take the next word as its value, the same as `--filter pkg`, so the publish after it is found.
+
 ## 0.2.2
 
 ### Patch Changes

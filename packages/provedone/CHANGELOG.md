@@ -1,5 +1,11 @@
 # provedone
 
+## 0.3.1
+
+### Patch Changes
+
+- [#1792](https://github.com/ofri-peretz/burgee/pull/1792) [`4e2c9ac`](https://github.com/ofri-peretz/burgee/commit/4e2c9acbfa5beb545062c94a540f28adfed0109a) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `provedone stamp` folds each trailer to 100 columns, commitlint's default `footer-max-line-length`, with git continuation lines, so a long command or gap no longer fails the commit-msg hook.
+
 ## 0.3.0
 
 ### Minor Changes
