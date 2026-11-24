@@ -225,6 +225,15 @@ export function docsSiteSuite(testFileUrl: string): void {
     });
   });
 
+  describe(`${app.row.workspace}: every docs page offers itself as Markdown`, () => {
+    it('renders the page actions, pointed at the page’s own .md twin', () => {
+      const url = app.urls.find((u) => u !== '/docs') ?? '/docs';
+      const html = app.built(`${url.slice(1)}.html`);
+      expect(html, `${url} has no page actions — does docs-page.tsx still render pageActions?`).toContain('data-testid="page-actions"');
+      expect(html).toContain(`${url}.md`);
+    });
+  });
+
   describe(`${app.row.workspace}: PostHog is on every page, through the same origin`, () => {
     it('the prerendered home page references the Analytics client component, which captures pageviews', () => {
       const html = app.built('index.html');
