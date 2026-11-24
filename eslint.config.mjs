@@ -41,7 +41,7 @@ import sqliteSecurity from "eslint-plugin-sqlite-security";
 import supabaseSecurity from "eslint-plugin-supabase-security";
 import typeormSecurity from "eslint-plugin-typeorm-security";
 import vercelAiSecurity from "eslint-plugin-vercel-ai-security";
-import { configs as truemark } from "truemark/eslint";
+import { configs as fibz } from "fibz/eslint";
 
 // Library-surface plugins. burgee imports none of these libraries, so each one
 // should stay silent here — a finding from one is a false positive to fix in the
@@ -342,12 +342,12 @@ export default [
     },
   },
   {
-    // truemark, dogfooded: focused, unexplained-skip, fixed-sleep and retried tests, at error
+    // fibz, dogfooded: focused, unexplained-skip, fixed-sleep and retried tests, at error
     // like every other rule. The findings that predate it sit in eslint-suppressions.json, a
     // per-file count ESLint enforces: a new finding fails, and a fixed one fails until
     // `npm run lint:prune` drops it, so the counts only go down. Built from dist, so `npm run
-    // lint` builds truemark first.
-    ...truemark.recommended,
+    // lint` builds fibz first.
+    ...fibz.recommended,
     files: ["**/*.test.{ts,tsx,mts,cts,mjs,js}", "**/vitest.config.{ts,mts}", "**/vitest.*.config.{ts,mts}", "**/playwright.config.ts"],
   },
   {
@@ -706,11 +706,11 @@ export default [
     },
   },
   {
-    // truemark reads its AST types from `eslint` (an optional peer) and `estree` (types only,
+    // fibz reads its AST types from `eslint` (an optional peer) and `estree` (types only,
     // no runtime module). Under verbatimModuleSyntax an inline type specifier emits
     // `import {} from 'estree'`, which fails to resolve at run time, and would load ESLint
-    // into the `truemark diff` CLI that never needs it. Type-only imports stay top-level.
-    files: ["packages/truemark/src/**/*.ts"],
+    // into the `fibz diff` CLI that never needs it. Type-only imports stay top-level.
+    files: ["packages/fibz/src/**/*.ts"],
     rules: { "import-next/consistent-type-specifier-style": "off" },
   },
   {

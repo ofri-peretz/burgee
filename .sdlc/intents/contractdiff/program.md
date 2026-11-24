@@ -24,7 +24,7 @@ set of owned paths, and one command that says it is done.
 | `ac-diff` | [`apicontract-diff`](../apicontract-diff/intent.md) | `diff` over every format, modes, SARIF, changesets, MCP drift | 5–6 | 6.0 |
 | `ac-kit` | [`apicontract-kit`](../apicontract-kit/intent.md) | Conformance suite (`apicontract/testing`), `plugin new`, `migrate` from openapi-typescript, openapi-fetch, Hey API, orval; `AGENTS.md` and the X3 eval | 3 | 6.0 |
 | `ac-corpus` | [`apicontract-corpus`](../apicontract-corpus/intent.md) | Pinned real-world corpus, grader, consumer harness, the scoreboard | 0 | — (grades incumbents first; ours as each lane lands) |
-| `validator` | [`validator`](../loadline/intent.md) | Parity 143 → 154, Standard JSON Schema, the benchmark after parity | b–c | — |
+| `validator` | [`validator`](../valz/intent.md) | Parity 143 → 154, Standard JSON Schema, the benchmark after parity | b–c | — |
 
 "Needs first" is the only hard edge. Everything else is a soft edge: a lane writes against the
 public host API (`Generator`, `Adapter`, `Contract`) and its own fixtures, and tests its `run()`

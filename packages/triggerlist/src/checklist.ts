@@ -1,4 +1,4 @@
-import { array, object, optional, parse, string } from 'loadline';
+import { array, object, optional, parse, string } from 'valz';
 /**
  * The checklist file (triggerlist spec R1): which files are gates, and the items a diff can select.
  * Each item says when it fires, the question a reviewer answers, the check that answers it and the

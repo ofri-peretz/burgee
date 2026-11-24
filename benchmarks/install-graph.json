@@ -48,9 +48,9 @@
         "closeout",
         "contractdiff",
         "linegauge",
-        "loadline",
         "roundel",
-        "seniority"
+        "seniority",
+        "valz"
       ]
     },
     {
@@ -65,6 +65,19 @@
         "linegauge",
         "paratext",
         "roundel"
+      ]
+    },
+    {
+      "name": "fibz",
+      "count": 7,
+      "installed": [
+        "bellpull",
+        "burgee",
+        "closeout",
+        "fibz",
+        "linegauge",
+        "roundel",
+        "seniority"
       ]
     },
     {
@@ -83,13 +96,6 @@
       "count": 1,
       "installed": [
         "linegauge"
-      ]
-    },
-    {
-      "name": "loadline",
-      "count": 1,
-      "installed": [
-        "loadline"
       ]
     },
     {
@@ -127,16 +133,10 @@
       ]
     },
     {
-      "name": "truemark",
-      "count": 7,
+      "name": "valz",
+      "count": 1,
       "installed": [
-        "bellpull",
-        "burgee",
-        "closeout",
-        "linegauge",
-        "roundel",
-        "seniority",
-        "truemark"
+        "valz"
       ]
     }
   ]

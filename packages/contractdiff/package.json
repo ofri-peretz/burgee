@@ -85,7 +85,7 @@
     "bellpull": "^2.0.3",
     "burgee": "^2.2.1",
     "seniority": "^2.0.0",
-    "loadline": "^0.2.0"
+    "valz": "^0.2.0"
   },
   "devDependencies": {
     "vitest": "^5.0.1"

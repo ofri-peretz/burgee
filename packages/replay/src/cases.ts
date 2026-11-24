@@ -1,4 +1,4 @@
-import { enumOf, number, object, optional, parse, string } from 'loadline';
+import { enumOf, number, object, optional, parse, string } from 'valz';
 /**
  * A replay case (replay spec R1): one pull request, at the commits it had at review time. A bug case
  * carries a one-sentence answer key, and a finding counts only when it describes that bug. A control

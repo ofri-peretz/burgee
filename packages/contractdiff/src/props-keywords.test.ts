@@ -14,7 +14,7 @@ import { describe, expect, it } from 'vitest';
 
 import { GENERATED, REPORTED } from './props-generate.js';
 
-const READER = fileURLToPath(new URL('../../loadline/src/from-json-schema.ts', import.meta.url));
+const READER = fileURLToPath(new URL('../../valz/src/from-json-schema.ts', import.meta.url));
 
 /** Keywords that annotate and constrain nothing. */
 const ANNOTATIONS = new Set(['title', 'description', 'examples', 'readOnly']);

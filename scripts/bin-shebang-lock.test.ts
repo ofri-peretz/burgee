@@ -110,7 +110,7 @@ describe("every published bin's source opens with the shebang", () => {
 /**
  * Lock — every bin path is already in the form `npm pkg fix` writes.
  *
- * contractdiff@0.4.0 and truemark@0.1.1 were published from a laptop with `"./dist/bin.js"`;
+ * contractdiff@0.4.0 and fibz@0.1.1 were published from a laptop with `"./dist/bin.js"`;
  * npm rewrote each to `"dist/bin.js"` and printed `"bin[x]" script name dist/bin.js was
  * invalid and removed` plus "Please run npm pkg fix". The bin survived, but the warning read
  * like a broken install, so the manifest carries the normal form and npm has nothing to fix.

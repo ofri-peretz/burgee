@@ -10,8 +10,8 @@
  */
 import { STATUS_CODES } from 'node:http';
 
-import { string } from 'loadline';
-import { standardJson } from 'loadline/json-schema';
+import { string } from 'valz';
+import { standardJson } from 'valz/json-schema';
 
 import { type ContractFinding } from './core/model.js';
 import { stable } from './extract-normalise.js';

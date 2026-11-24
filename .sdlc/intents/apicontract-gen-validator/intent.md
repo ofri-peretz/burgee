@@ -42,7 +42,7 @@ generator with findings is a capability no incumbent has (roadmap row marked **n
 ## Affected users and systems
 
 `packages/contractdiff/src/plugin-validator*.ts` and `src/plugin-json-schema*.ts`. Reads
-`packages/loadline` through its public exports only (`validator`, `validator/emit`).
+`packages/valz` through its public exports only (`validator`, `validator/emit`).
 
 ## Constraints
 
@@ -73,7 +73,7 @@ generator with findings is a capability no incumbent has (roadmap row marked **n
 
 ## Evidence sweep 2026-11-22
 
-Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/contractdiff` (2,545 tests) and `packages/loadline` (1,153) is green there. 4 of 6 rows met on fixtures. J1 on the corpus bench payloads and the mutation floor are open.
+Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/contractdiff` (2,545 tests) and `packages/valz` (1,153) is green there. 4 of 6 rows met on fixtures. J1 on the corpus bench payloads and the mutation floor are open.
 
 | # | criterion | held by | state |
 | --: | :-- | :-- | :-- |

@@ -48,18 +48,18 @@ component_management:
     - component_id: contractdiff
       name: contractdiff
       paths: [packages/contractdiff/**]
-    - component_id: loadline
-      name: loadline
-      paths: [packages/loadline/**]
+    - component_id: valz
+      name: valz
+      paths: [packages/valz/**]
     - component_id: proofline
       name: proofline
       paths: [packages/proofline/**]
     - component_id: hookset
       name: hookset
       paths: [packages/hookset/**]
-    - component_id: truemark
-      name: truemark
-      paths: [packages/truemark/**]
+    - component_id: fibz
+      name: fibz
+      paths: [packages/fibz/**]
     - component_id: triggerlist
       name: triggerlist
       paths: [packages/triggerlist/**]

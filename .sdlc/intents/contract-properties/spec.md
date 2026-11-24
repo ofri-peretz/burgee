@@ -75,7 +75,7 @@ Second reading, 2026-11-24, seed 1, on the cloud box at the lane's default concu
 `--source github,stripe --pairs 1`): both documents and all seven pairs ran inside the 300 s limit with no
 counterexample. GitHub's document took 165 s and its pairs up to 272 s; Stripe's 155 s and up to 259 s. Two costs
 were removed: each payload's validator re-read every definition its `$ref`s reach (36 s before the first value on
-Stripe, now 1.5 s, through loadline's `jsonSchemaReader`, one reading per document), and each draw copied the run's
+Stripe, now 1.5 s, through valz's `jsonSchemaReader`, one reading per document), and each draw copied the run's
 whole list of reported keywords. The pairs' margin under the limit is about 10%, so the weekly run's reading decides
 whether the criterion is met.
 

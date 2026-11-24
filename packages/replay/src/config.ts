@@ -1,4 +1,4 @@
-import { array, enumOf, number, object, optional, parse, string } from 'loadline';
+import { array, enumOf, number, object, optional, parse, string } from 'valz';
 /**
  * What a replay runs (replay spec R2, R3): the reviewer, the grader and the repository's checks, each
  * a shell command, so the reviewer is the same prompt and REVIEW.md as CI rather than a copy of it.

@@ -1,5 +1,5 @@
 /**
- * Baselines for the validator intent's metrics (`.sdlc/intents/loadline/intent.md` Z3, Z4, Z5,
+ * Baselines for the validator intent's metrics (`.sdlc/intents/valz/intent.md` Z3, Z4, Z5,
  * Z7), measured on the incumbents alone: Zod is the bar, the others are read beside it. One order
  * schema is written once per library; each reading runs the same payloads through every library on
  * this machine, in one go.
@@ -40,8 +40,8 @@ interface Library {
 }
 
 /** Our own validator, installed from this checkout's build so it is read by the same code as the rest. */
-const OURS = path.resolve(import.meta.dirname, '../../packages/loadline');
-const OURS_IMPORTS = `import { array, boolean, check, discriminated, enumOf, literal, number, object, optional, string } from 'loadline';`;
+const OURS = path.resolve(import.meta.dirname, '../../packages/valz');
+const OURS_IMPORTS = `import { array, boolean, check, discriminated, enumOf, literal, number, object, optional, string } from 'valz';`;
 const oursSchema = (i: string): string => `
 const Item${i} = object({ sku: string({ min: 1, max: 32 }), qty: number({ int: true, min: 1 }), price: number({ min: 0 }) });
 const S${i} = object({
@@ -59,12 +59,12 @@ const LIBRARIES: Record<string, Library> = {
     imports: OURS_IMPORTS,
     schema: oursSchema,
     check: (s) => `(d) => check(${s}, d)`,
-    infer: (i) => `import('loadline').Infer<typeof S${i}>`,
+    infer: (i) => `import('valz').Infer<typeof S${i}>`,
   },
   // The emitter's code, compiled at run time as ajv compiles: what \`contractdiff gen validator\` writes ahead of time.
   oursEmitted: {
     pkg: `file:${OURS}`,
-    imports: `${OURS_IMPORTS}\nimport { compile } from 'loadline/jit';`,
+    imports: `${OURS_IMPORTS}\nimport { compile } from 'valz/jit';`,
     schema: oursSchema,
     check: (s) => `compile(${s})`,
   },
@@ -187,7 +187,7 @@ const bin = (name: string): string => path.join(path.dirname(require.resolve('ty
 const dir = process.argv[2] ?? mkdtempSync(path.join(tmpdir(), 'validator-baseline-'));
 mkdirSync(dir, { recursive: true });
 writeFileSync(path.join(dir, 'package.json'), '{"private":true,"type":"module"}');
-mustRun('npm', ['run', 'build', '--workspace', 'loadline'], path.resolve(OURS, '../..'));
+mustRun('npm', ['run', 'build', '--workspace', 'valz'], path.resolve(OURS, '../..'));
 mustRun('npm', ['i', '--silent', '--no-audit', '--no-fund', ...new Set(Object.values(LIBRARIES).map((l) => l.pkg))], dir);
 writeFileSync(path.join(dir, 'run.mjs'), RUNNER);
 
@@ -224,7 +224,7 @@ for (const [name, library] of Object.entries(LIBRARIES)) {
     }));
   }
   // A local path says where this checkout is, not what was measured.
-  readings[name] = { package: library.pkg === `file:${OURS}` ? 'file:packages/loadline' : library.pkg, ...runtime, bundleMinBytes: bundled.length, bundleGzipBytes: gzipSync(bundled).length, types };
+  readings[name] = { package: library.pkg === `file:${OURS}` ? 'file:packages/valz' : library.pkg, ...runtime, bundleMinBytes: bundled.length, bundleGzipBytes: gzipSync(bundled).length, types };
 }
 
 console.log(JSON.stringify({

@@ -13,7 +13,7 @@ otherwise.
 
 ## Supported versions
 
-Every published package but `truemark`, `contractdiff` and `loadline`, which are pre-1.0, is at
+Every published package but `fibz`, `contractdiff` and `valz`, which are pre-1.0, is at
 1.0 or later, and its public API is under semver; those three may change their API in a minor
 release until each reaches 1.0. A fix, a
 security fix included, ships as a patch or minor release of the current major, so a caret

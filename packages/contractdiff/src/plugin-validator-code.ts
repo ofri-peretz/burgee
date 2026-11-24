@@ -7,14 +7,14 @@
  * through the run-time door, the validator package checking the same document at run time, with a
  * finding that says so. Nothing is dropped.
  */
-import { emit, emitWith, typeOf } from 'loadline/emit';
-import { fromJsonSchema } from 'loadline/json-schema';
+import { emit, emitWith, typeOf } from 'valz/emit';
+import { fromJsonSchema } from 'valz/json-schema';
 
 import { type ContractFinding } from './core/model.js';
 import { type Document } from './plugin-json-schema-build.js';
 
 /** The imports the run-time door needs, written once at the top of a module that uses it. */
-export const DOOR_IMPORTS = "import { check } from 'loadline';\nimport { fromJsonSchema } from 'loadline/json-schema';";
+export const DOOR_IMPORTS = "import { check } from 'valz';\nimport { fromJsonSchema } from 'valz/json-schema';";
 
 /** The type a generated validator is declared with: a guard of the type declared under its own name. */
 const guard = (name: string): string => `(value: unknown) => value is ${name}`;

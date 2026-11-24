@@ -65,7 +65,7 @@ agent claim to measure (A1, A5–A7) and needs nothing that is not on `main`.
 
 ## Evidence sweep 2026-11-22
 
-Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/contractdiff` (2,545 tests) and `packages/loadline` (1,153) is green there. 1 of 4 criteria met (A2/A3 through tests). The boot, A1 and the agent eval are unread.
+Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/contractdiff` (2,545 tests) and `packages/valz` (1,153) is green there. 1 of 4 criteria met (A2/A3 through tests). The boot, A1 and the agent eval are unread.
 
 | # | criterion | held by | state |
 | --: | :-- | :-- | :-- |

@@ -72,7 +72,7 @@ describe('the validator plugin', () => {
     const document = { $schema: 'https://json-schema.org/draft/2020-12/schema', title: 'Pattern', type: 'string', format: 'regex' };
     const { files, findings } = await host().run('validator', document);
     const content = files[0]?.content ?? '';
-    expect(content.startsWith("import { check } from 'loadline';\nimport { fromJsonSchema } from 'loadline/json-schema';\n\n")).toBe(true);
+    expect(content.startsWith("import { check } from 'valz';\nimport { fromJsonSchema } from 'valz/json-schema';\n\n")).toBe(true);
     expect(content).toContain(
       'const PatternValueSchema = fromJsonSchema({"$schema":"https://json-schema.org/draft/2020-12/schema","title":"Pattern","type":"string","format":"regex"}).schema;\nexport type PatternValue = string;\n/**\n * `Pattern` value (request).\n *\n * Checked at run time: the schema names a format that is a function.\n */\nexport const PatternValue: (value: unknown) => value is PatternValue = (value): value is PatternValue => check(PatternValueSchema, value);',
     );

@@ -51,9 +51,9 @@ const MARKS = [
   'paratext',
   'controlroom',
   'oxmutate',
-  'truemark',
+  'fibz',
   'contractdiff',
-  'loadline',
+  'valz',
 ] as const;
 
 /** Extrusion, in the marks' own 100-unit space. */

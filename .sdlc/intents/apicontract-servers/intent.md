@@ -70,7 +70,7 @@ graded on the plugin authors see first, which is the NestJS one.
 
 ## Evidence sweep 2026-11-22
 
-Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/contractdiff` (2,545 tests) and `packages/loadline` (1,153) is green there. 1 of 4 criteria met (N1 and golden files). N2 and N3 on the bench specs are unread.
+Read on `main` at `daee10f` (2026-11-22) against the merged Wave 6 PRs (#1617–#1653) and the committed readings under `benchmarks/apicontract/results/`; `vitest run` in `packages/contractdiff` (2,545 tests) and `packages/valz` (1,153) is green there. 1 of 4 criteria met (N1 and golden files). N2 and N3 on the bench specs are unread.
 
 | # | criterion | held by | state |
 | --: | :-- | :-- | :-- |

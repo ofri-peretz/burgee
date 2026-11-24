@@ -1,7 +1,7 @@
 # Vision — what `apicontract` and the validator can become
 
 Intent: [`intent.md`](./intent.md) · Roadmap: [`roadmap.md`](./roadmap.md) · Validator:
-[`../loadline/intent.md`](../loadline/intent.md) · **Status:** accepted 2026-11-18 ([`D-20261118-contracts-program-go-ahead`](../../decisions/D-20261118-contracts-program-go-ahead.md)); proposed 2026-11-13; the field re-read 2026-11-18 in [`../../research/contracts-2026-11/`](../../research/contracts-2026-11/) · Program: [`program.md`](./program.md)
+[`../valz/intent.md`](../valz/intent.md) · **Status:** accepted 2026-11-18 ([`D-20261118-contracts-program-go-ahead`](../../decisions/D-20261118-contracts-program-go-ahead.md)); proposed 2026-11-13; the field re-read 2026-11-18 in [`../../research/contracts-2026-11/`](../../research/contracts-2026-11/) · Program: [`program.md`](./program.md)
 
 This file is the argument. The roadmap is the order of work. Nothing here is a claim for a README:
 every "we win" below is a bet until its row in [`metrics.md`](./metrics.md) is measured and won
@@ -60,7 +60,7 @@ Three things follow from the table.
 | :-- | :-- | :-- |
 | **Model** | Every spec format reduced to one thing: operations with a direction, over JSON Schema. One `$ref` resolver, one reading of the spec | `apicontract/core` and one input folder per format |
 | **Plugins** | A generator or an extractor is one plain object with a sample. Ours take no private path. A plugin for a technology goes both ways wherever that technology can, and the same plugin detects drift | `apicontract-gen-*`, `apicontract-<tech>` |
-| **Runtime** | The validator the generated code runs on: authored in TypeScript or compiled ahead of time from a spec, one engine | the validator (working name; [`../loadline/intent.md`](../loadline/intent.md)) |
+| **Runtime** | The validator the generated code runs on: authored in TypeScript or compiled ahead of time from a spec, one engine | the validator (working name; [`../valz/intent.md`](../valz/intent.md)) |
 
 The CLI is the only surface. Because every command is a burgee declaration, each one is also
 `--json`, `--schema` and an MCP tool with no extra code. There is no server, no account, no hosted

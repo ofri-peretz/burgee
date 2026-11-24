@@ -161,7 +161,7 @@ touch the same files.
 | Back navigation in prompt wizards | clack #39 (5 reactions) | low engagement; an option-first prompt has no session, and `caique` deferred it to "v2 if asked" |
 | Dotted `object` options (`--bq.project`) | yargs #1305, #1627 | low engagement; owned by `commander-schema` |
 | More terminal protocols in `paratext` (Kitty graphics, Sixel) | none measured | no demand number |
-| Publish the compat grader as `loadline` | `compat-grader-layer` | an eleventh package; the ceiling is ten (D-158) |
+| Publish the compat grader as `valz` | `compat-grader-layer` | an eleventh package; the ceiling is ten (D-158) |
 | `box`, `progress`, `taskLog` in `caique/clack` | `caique/spec.md` R8 | no graded case reaches them, so building them would be an ungraded claim |
 | The Windows lost-line flake | `A-20261009-chat-ink-windows-lost-line` | owned by that gap; the next occurrence names its cause |
 | Cross-layer `burgee plugin check` | `plugin-contract` step 4 | an existing intent's unmet criterion, not new ground |
