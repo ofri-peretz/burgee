@@ -63,11 +63,14 @@ describe('storeDir', () => {
     expect(existsSync(join(dir, '.git', 'proofline'))).toBe(true);
   });
 
+  // POSIX refuses to rename a directory over a file (ENOTDIR), and that is not a log to keep, so
+  // it surfaces. Windows' MoveFileEx replaces the file, so the log moves and nothing is thrown.
   it('throws a rename error that is not about an existing log', async () => {
     const dir = repo();
     mkdirSync(join(dir, '.git', 'proofline'));
     writeFileSync(join(dir, '.git', 'provedone'), 'a file where the directory goes');
-    await expect(storeDir(dir)).rejects.toMatchObject({ code: 'ENOTDIR' });
+    const moved = storeDir(dir);
+    await (process.platform === 'win32' ? expect(moved).resolves.toBe(join(dir, '.git', 'provedone')) : expect(moved).rejects.toMatchObject({ code: 'ENOTDIR' }));
   });
 
   it('is .provedone/ under the root outside a repository', async () => {
