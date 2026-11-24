@@ -56,5 +56,7 @@ describe('placeOf', () => {
     // A dot in a folder name is not a file's: only the last segment is read.
     expect(placeOf('src/v1.0/api')).toEqual({ out: 'src/v1.0/api', file: undefined });
     expect(placeOf('.')).toEqual({ out: '.', file: undefined });
+    // The extension is the name's last part: a name that ends in a dot has none.
+    expect(placeOf('src/api.v2.')).toEqual({ out: 'src/api.v2.', file: undefined });
   });
 });

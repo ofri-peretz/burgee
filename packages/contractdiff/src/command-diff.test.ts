@@ -333,17 +333,43 @@ describe('gitReader, on a planted repository (apicontract-diff R4)', () => {
   it('refuses a side git cannot show, with git\'s words and a fix', async () => {
     const api = await planted();
     const reader = await gitReader(['git:HEAD:missing.yaml', 'git:nope:spec.yaml'], api);
-    expect(() => reader('HEAD', 'missing.yaml', api)).toThrow(/^cannot read `git:HEAD:missing\.yaml`: .*missing\.yaml.*\. fix: name a ref and a path, relative to this folder, that `git show HEAD:\.\/missing\.yaml` prints$/su);
+    // git's words end in a newline; the message carries them trimmed, on one line.
+    expect(() => reader('HEAD', 'missing.yaml', api)).toThrow(/^cannot read `git:HEAD:missing\.yaml`: [^\n]*missing\.yaml[^\n]*'HEAD'\. fix: name a ref and a path, relative to this folder, that `git show HEAD:\.\/missing\.yaml` prints$/u);
     expect(() => reader('nope', 'spec.yaml', api)).toThrow('cannot read `git:nope:spec.yaml`');
   });
 
   it('refuses every side when git does not run, and ignores a hook\'s GIT_ variables', async () => {
     const ambient = ambientRuntime();
     const none = await gitReader(['git:HEAD:a.yaml'], scratch({}), { runtime: { ...ambient, env: { ...ambient.env, PATH: '' } } });
-    expect(() => none('HEAD', 'a.yaml', '.')).toThrow('cannot read `git:HEAD:a.yaml`: ');
+    // The refusal is the spawn's own, not the one for a side no reader read.
+    expect(() => none('HEAD', 'a.yaml', '.')).toThrow(
+      'cannot read `git:HEAD:a.yaml`: not found: git. fix: name a ref and a path, relative to this folder, that `git show HEAD:./a.yaml` prints',
+    );
     const api = await planted();
-    const elsewhere = await gitReader(['git:HEAD:spec.yaml'], scratch({}), { runtime: { ...ambient, env: { ...ambient.env, GIT_DIR: join(api, '..', '.git') } } });
-    expect(() => elsewhere('HEAD', 'spec.yaml', '.')).toThrow('cannot read `git:HEAD:spec.yaml`');
+    // With the hook's GIT_DIR kept, git would read the planted repository from this unrelated folder
+    // and print api/spec.yaml; without it, there is no repository here to read.
+    const elsewhere = await gitReader(['git:HEAD:api/spec.yaml'], scratch({}), { runtime: { ...ambient, env: { ...ambient.env, GIT_DIR: join(api, '..', '.git') } } });
+    expect(() => elsewhere('HEAD', 'api/spec.yaml', '.')).toThrow(/^cannot read `git:HEAD:api\/spec\.yaml`: fatal: not a git repository/u);
+  });
+
+  it('runs from the bin: diff reads the base ref\'s config, whose setting wins over the working tree\'s (R12)', async () => {
+    const decisions = fileURLToPath(new URL('__fixtures__/diff-decisions/', import.meta.url));
+    const dir = scratch({ 'contract.yaml': readFileSync(join(decisions, 'base.yaml'), 'utf8'), 'contractdiff.config.json': JSON.stringify({ diff: { decisions: 'off' } }) });
+    await git(dir, 'init', '-q', '-b', 'main');
+    await git(dir, 'add', '.');
+    await git(dir, 'commit', '-q', '-m', 'one');
+    writeFileSync(join(dir, 'contract.yaml'), readFileSync(join(decisions, 'overdue.yaml'), 'utf8'));
+    writeFileSync(join(dir, 'contractdiff.config.json'), JSON.stringify({ diff: { decisions: 'error' } }));
+    const before = process.cwd();
+    process.chdir(dir);
+    try {
+      const r = await runBurgee(program, { argv: ['diff', 'git:HEAD:contract.yaml', 'contract.yaml', '--today', '2027-01-01', '--json'] });
+      // Read as the working tree's `error`, the overdue decision would fail the run.
+      expect(r.code).toBe(ExitCode.OK);
+      expect((r.json as { data: { decisions: unknown[] } }).data.decisions).toEqual([]);
+    } finally {
+      process.chdir(before);
+    }
   });
 
   it('runs from the bin: diff asks git for a git: side, and props does too', async () => {

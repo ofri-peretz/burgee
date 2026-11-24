@@ -6,7 +6,7 @@ import { ajvCheck, load } from './__fixtures__/validate/harness.js';
 import { checkPlugin, createHost, validate } from './host.js';
 import { builtinAdapters } from './inputs.js';
 import { plugin as jsonSchema } from './plugin-json-schema.js';
-import { comment, DOOR_IMPORTS, moduleOf, UNTYPED, validatorCode } from './plugin-validator-code.js';
+import { comment, DOOR_IMPORTS, moduleOf, nothingCode, UNTYPED, validatorCode } from './plugin-validator-code.js';
 import { INPUTS, plugin, VALIDATORS_FILE } from './plugin-validator.js';
 import { builtins } from './plugins.js';
 
@@ -100,7 +100,10 @@ describe('the validator plugin', () => {
       'export type PingResponse204 = undefined;\n/**\n * `ping` response:204 (response).\n *\n * Nothing is sent: the only value is `undefined`.\n */\nexport const PingResponse204: (value: unknown) => value is PingResponse204 = (value): value is PingResponse204 => value === undefined;',
     );
     expect(content).not.toContain('!(true)');
+    // A guard of undefined needs neither the run-time door nor the untyped marker.
+    expect(content.startsWith('export type PingBody = undefined;\n')).toBe(true);
     expect(findings).toEqual([]);
+    expect(nothingCode('PingBody', { label: 'PingBody', at: '#', doc: [] })).toMatchObject({ findings: [], door: false, typed: true });
     const module = await load(content, scratch('apicontract-validators-'), 'nothing');
     for (const name of ['PingBody', 'PingResponse204']) {
       const check = module[name] as Check;

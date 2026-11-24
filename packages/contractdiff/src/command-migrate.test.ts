@@ -95,6 +95,9 @@ describe('`contractdiff migrate`', () => {
     const r = await runBurgee(program, { argv: ['migrate', 'orval', directory, '--dry-run', '--json'] });
     expect(data(r)).toMatchObject({ changed: false, read: ['orval.config.ts', 'package.json'], written: [], unchanged: [], kept: [], edited: ['package.json'] });
     expect(readFileSync(join(directory, 'package.json'), 'utf8')).toBe(pkg({ api: 'orval' }));
+    // Its text names what a run would write, by path.
+    const text = await runBurgee(program, { argv: ['migrate', 'orval', directory, '--dry-run'] });
+    expect(text.stdout).toContain('\nwould write contractdiff.config.json\nwould edit package.json\n');
   });
 
   it('keeps a config the user already has, and reports a change for edits alone', async () => {

@@ -60,14 +60,14 @@ export const gitReader = async (
   { config = false, runtime: ambient = ambientRuntime() }: { readonly config?: boolean; readonly runtime?: Runtime } = {},
 ): Promise<GitReader> => {
   const wanted = specs.flatMap((spec) => {
-    const groups = GIT.exec(spec ?? '')?.groups as { ref: string; path: string } | undefined;
+    const groups = GIT.exec(String(spec))?.groups as { ref: string; path: string } | undefined;
     return groups === undefined ? [] : [groups];
   });
   if (wanted.length === 0) return noGit;
   // The variables a hook sets (`GIT_DIR`, `GIT_INDEX_FILE`) would point git at the hook's repository instead.
   const runtime = { ...ambient, env: Object.fromEntries(Object.entries(ambient.env).filter(([key]) => !key.startsWith('GIT_'))) };
   const base = config ? (GIT.exec(String(specs[0]))?.groups as { ref: string } | undefined) : undefined;
-  const asked = [...wanted, ...(base === undefined ? [] : [{ ref: base.ref, path: CONFIG }])];
+  const asked = base === undefined ? wanted : [...wanted, { ref: base.ref, path: CONFIG }];
   const answers = new Map(
     await Promise.all(
       asked.map(async ({ ref, path }) => {
