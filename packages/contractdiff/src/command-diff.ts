@@ -71,7 +71,7 @@ export const gitReader = async (
   const answers = new Map(
     await Promise.all(
       asked.map(async ({ ref, path }) => {
-        const answer = await spawn('git', ['show', `${ref}:./${path}`], { cwd, runtime }).then(
+        const answer = await spawn('git', ['show', `${ref}:./${path}`], { cwd: resolve(cwd), runtime }).then(
           (result) => (result.ok ? { text: result.stdout } : { error: result.stderr.trim() }),
           (error: unknown) => ({ error: (error as Error).message }),
         );

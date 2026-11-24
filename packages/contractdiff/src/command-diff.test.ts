@@ -6,7 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { ambientRuntime, run } from 'bellpull';
 import { ExitCode } from 'burgee';
 import { runBurgee } from 'burgee/testing';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { scratchDirs } from './__fixtures__/run/scratch-dir.js';
 import { command, diff, gitReader, type GitReader, noGit, toSarif, toText, uriOf } from './command-diff.js';
@@ -360,15 +360,15 @@ describe('gitReader, on a planted repository (apicontract-diff R4)', () => {
     await git(dir, 'commit', '-q', '-m', 'one');
     writeFileSync(join(dir, 'contract.yaml'), readFileSync(join(decisions, 'overdue.yaml'), 'utf8'));
     writeFileSync(join(dir, 'contractdiff.config.json'), JSON.stringify({ diff: { decisions: 'error' } }));
-    const before = process.cwd();
-    process.chdir(dir);
+    // `.` is resolved against process.cwd() (a worker cannot chdir), as a file side is.
+    const cwd = vi.spyOn(process, 'cwd').mockReturnValue(dir);
     try {
       const r = await runBurgee(program, { argv: ['diff', 'git:HEAD:contract.yaml', 'contract.yaml', '--today', '2027-01-01', '--json'] });
       // Read as the working tree's `error`, the overdue decision would fail the run.
       expect(r.code).toBe(ExitCode.OK);
       expect((r.json as { data: { decisions: unknown[] } }).data.decisions).toEqual([]);
     } finally {
-      process.chdir(before);
+      cwd.mockRestore();
     }
   });
 
