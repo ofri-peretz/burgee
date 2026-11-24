@@ -1,5 +1,12 @@
 # triggerlist
 
+## 0.1.3
+
+### Patch Changes
+
+- Updated dependencies [[`80d0383`](https://github.com/ofri-peretz/burgee/commit/80d03839c6d18db2d845dcc9ff51b279a48e207b)]:
+  - truefit@0.2.1
+
 ## 0.1.2
 
 ### Patch Changes

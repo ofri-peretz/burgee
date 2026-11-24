@@ -1,5 +1,11 @@
 # truepass
 
+## 0.1.3
+
+### Patch Changes
+
+- [#1773](https://github.com/ofri-peretz/burgee/pull/1773) [`80d0383`](https://github.com/ofri-peretz/burgee/commit/80d03839c6d18db2d845dcc9ff51b279a48e207b) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `loadline` is now `truefit` and `truemark` is now `truepass`. npm refused both old names on first publish as too similar to `readline` and `remark`. The code is the same; only the package name, the bin and the docs changed.
+
 ## 0.1.2
 
 ### Patch Changes
