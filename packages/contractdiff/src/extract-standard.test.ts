@@ -1,8 +1,11 @@
 import { fileURLToPath } from 'node:url';
 
+import { number, object, string } from 'truefit';
+import { standardJson } from 'truefit/json-schema';
+import { standard as truefitStandard } from 'truefit/standard';
 import { describe, expect, it } from 'vitest';
 
-import { definitions, escape, isStandard, type Json, loadModule, placeAt, relocate, sideOf, toJsonSchema } from './extract-standard.js';
+import { asStandard, definitions, escape, isStandard, type Json, loadModule, placeAt, relocate, sideOf, toJsonSchema } from './extract-standard.js';
 
 const FIXTURE = fileURLToPath(new URL('__fixtures__/extract/validator-schemas.ts', import.meta.url));
 
@@ -17,6 +20,33 @@ describe('isStandard', () => {
     expect(isStandard(null)).toBe(false);
     expect(isStandard('~standard')).toBe(false);
     expect(isStandard({})).toBe(false);
+  });
+});
+
+describe('asStandard', () => {
+  const Pet = object({ id: number(), name: string() });
+  const written = { type: 'object', properties: { id: { type: 'number' }, name: { type: 'string' } }, required: ['id', 'name'] };
+
+  it('makes a plain truefit schema Standard JSON Schema', () => {
+    expect(isStandard(Pet)).toBe(false);
+    expect(toJsonSchema(asStandard(Pet), 'input', '/Pet')).toEqual({ schema: written });
+    // toJsonSchema does it itself.
+    expect(toJsonSchema(Pet, 'input', '/Pet')).toEqual({ schema: written });
+  });
+
+  it('adds Standard JSON Schema to truefit/standard\'s wrapper, keeping its validate', () => {
+    const wrapped = truefitStandard(Pet);
+    const made = asStandard(wrapped) as { '~standard': { validate: unknown; jsonSchema: unknown } };
+    expect(made['~standard'].validate).toBe(wrapped['~standard'].validate);
+    expect(toJsonSchema(wrapped, 'input', '/Pet')).toEqual({ schema: written });
+  });
+
+  it('leaves alone a truefit schema that already converts, another library\'s schema, and what is not a schema', () => {
+    const converts = standardJson(Pet);
+    expect(asStandard(converts)).toBe(converts);
+    const foreign = { kind: 'object', check: () => true, '~standard': { version: 1, vendor: 'other', validate: () => ({ value: 1 }) } };
+    expect(asStandard(foreign)).toBe(foreign);
+    for (const value of [undefined, 1, { kind: 'object' }, { check: () => true }, { kind: 1, check: () => true }, standard({})]) expect(asStandard(value)).toBe(value);
   });
 });
 
@@ -71,7 +101,7 @@ describe('toJsonSchema', () => {
 
   it('reports a value that is not a Standard Schema', () => {
     expect(toJsonSchema({ type: 'string' }, 'input', '/A')).toEqual({
-      finding: { code: 'not-a-standard-schema', pointer: '/A', message: '/A is not a Standard Schema: it has no `~standard`', fix: 'export a schema of a Standard Schema library (Zod 4, Valibot, ArkType, validator), or leave it out of the extract' },
+      finding: { code: 'not-a-standard-schema', pointer: '/A', message: '/A is not a Standard Schema: it has no `~standard`', fix: 'export a schema of a Standard Schema library (Zod 4, Valibot, ArkType, truefit), or leave it out of the extract' },
     });
   });
 
