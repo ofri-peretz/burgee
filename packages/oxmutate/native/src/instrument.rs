@@ -1086,7 +1086,11 @@ pub fn instrument(path: &str, source: &str, options: &Options) -> Result<Instrum
     // re-print the tree, so an emitter bug would otherwise surface as a test file that collects
     // nothing, which a dry run reads as "no tests" (burgee/paratext, 2026-10-26).
     let check = Allocator::default();
-    let reparsed = Parser::new(&check, &code, source_type).with_options(ParseOptions { preserve_parens: false, ..ParseOptions::default() }).parse();
+    // Reparsed as the kind the source resolved to (a `.ts` path is Unambiguous until the parse sees
+    // `import`/`export`): Unambiguous lexes `-->` inside a template as an HTML comment, then rejects
+    // it once the file turns out to be a module (burgee triggerlist brief.ts, 2026-11-24).
+    let resolved = parsed.program.source_type;
+    let reparsed = Parser::new(&check, &code, resolved).with_options(ParseOptions { preserve_parens: false, ..ParseOptions::default() }).parse();
     if let Some(e) = reparsed.diagnostics.errors().next() {
         let at = e.labels.as_ref().first().map_or(0, |l| l.offset() as usize);
         let from = code.floor_char_boundary(at.saturating_sub(80));
