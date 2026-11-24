@@ -1,0 +1,4 @@
+{
+  "title": "Recipes",
+  "pages": ["github-actions", "pre-push", "monorepo", "agents"]
+}

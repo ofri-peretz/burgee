@@ -26,7 +26,7 @@
 </p>
 
 <p align="center">
-  Docs: <a href="https://burgee.interlace.tools/docs/packages/truepass">https://burgee.interlace.tools/docs/packages/truepass</a><br />
+  Docs: <a href="https://truepass.interlace.tools">https://truepass.interlace.tools</a><br />
   Migrating from: <a href="https://github.com/ofri-peretz/burgee/tree/main/packages/truepass#migrating">@vitest/eslint-plugin</a>
 </p>
 
@@ -215,10 +215,10 @@ keeps both true.
 | **truepass** (this package) | Lint rules and a pre-push check that keep a test suite honest | @vitest/eslint-plugin |
 | [contractdiff](https://contractdiff.interlace.tools/docs) | API contracts: breaking-change diff, lint, and code from the spec | openapi-typescript |
 | [truefit](https://truefit.interlace.tools/docs) | Validation whose schemas are data, with no eval | zod |
-| [provedone](https://burgee.interlace.tools/docs/packages/provedone) | A receipt for how every change was verified, and a gate that reads it | @commitlint/cli |
-| [replz](https://burgee.interlace.tools/docs/packages/replz) | Recall of a reviewer and its checks, replayed on bugs that shipped | promptfoo |
-| [hookset](https://burgee.interlace.tools/docs/packages/hookset) | The same git and Claude Code hooks in every repository, pinned by tag | husky |
-| [triggerlist](https://burgee.interlace.tools/docs/packages/triggerlist) | The review checklist a diff selects, read from the base branch | danger |
+| [provedone](https://provedone.interlace.tools/docs) | A receipt for how every change was verified, and a gate that reads it | @commitlint/cli |
+| [replz](https://replz.interlace.tools/docs) | Recall of a reviewer and its checks, replayed on bugs that shipped | promptfoo |
+| [hookset](https://hookset.interlace.tools/docs) | The same git and Claude Code hooks in every repository, pinned by tag | husky |
+| [triggerlist](https://triggerlist.interlace.tools/docs) | The review checklist a diff selects, read from the base branch | danger |
 
 Every migration guide, and the family-wide [compatibility](https://burgee.interlace.tools/docs/compatibility)
 and [benchmarks](https://burgee.interlace.tools/docs/benchmarks) pages, are on

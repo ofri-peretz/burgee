@@ -1,0 +1,57 @@
+---
+title: A pre-push hook
+description: "Run triggerlist before a push: compile --check so REVIEW.md never lags the checklist, protect so a gate and its code are not pushed together, and match so the author reads the fired items first, with lefthook or hookset's pre-push station."
+---
+
+CI catches a stale `REVIEW.md` or a gate change mixed with code, but a push is a cheaper place to
+find out. Each command here reads git and one or two files and calls no network service; how long
+it takes on a large repository is _unmeasured_.
+
+## A package script
+
+Put the commands behind one script, so every hook manager calls the same thing:
+
+```json
+{
+  "scripts": {
+    "hook:triggerlist": "triggerlist compile --check && triggerlist protect origin/main && triggerlist match origin/main"
+  }
+}
+```
+
+- `compile --check` fails the push when the checklist changed and `REVIEW.md` did not.
+- `protect origin/main` prints a flag in observe mode; add `--enforce` once the gates list is
+  narrow enough that a flag means stop.
+- `match origin/main` prints the items the branch fires, so the author can answer them before a
+  reviewer asks.
+
+The base must be a ref the clone has. `origin/main` is as fresh as the last fetch.
+
+## With hookset
+
+[hookset](https://hookset.interlace.tools/docs)'s lefthook pre-push preset already
+has a triggerlist station: it runs `npm run --silent --if-present hook:triggerlist`. Declaring the
+script above is all it takes; without the script the station does nothing.
+
+## With lefthook
+
+```yaml
+# lefthook.yml
+pre-push:
+  commands:
+    triggerlist:
+      run: npm run --silent hook:triggerlist
+```
+
+## With husky
+
+```bash
+# .husky/pre-push
+npm run --silent hook:triggerlist
+```
+
+## The first checklist
+
+The push that adds a repository's first checklist has none on `origin/main`. `protect` says there
+is nothing to protect and passes, but `match` cannot read the base's checklist and fails. Push
+that one branch with `match` left out of the script, or with `--worktree` on it.

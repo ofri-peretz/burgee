@@ -1,0 +1,73 @@
+---
+title: match
+description: "triggerlist match <base> diffs <base>...HEAD, reads the checklist from the base ref, and prints each item that fires with its question, its check and the lines that fired it, as text or as burgee's --json envelope."
+---
+
+```bash
+npx triggerlist match <base> [--checklist <path>] [--repo <dir>] [--worktree] [--json]
+```
+
+`match` answers one question: which checklist items does this branch fire? It runs
+`git diff --no-renames -U0 <base>...HEAD`, reads the checklist as `<base>` has it, and prints the
+items whose triggers fire, in checklist order.
+
+## Options
+
+| Option | Default | What it does |
+| :-- | :-- | :-- |
+| `<base>` | required | The base ref. The diff is `<base>...HEAD`, and the checklist is read from it. |
+| `--checklist <path>` | `.sdlc/checklist.yaml` | The checklist's path in the repository. |
+| `--repo <dir>` | `.` | The repository to run git in. |
+| `--worktree` | off | Read the checklist from the working tree instead of `<base>`. For editing the checklist, never for CI. |
+| `--json` | off | Print burgee's JSON envelope instead of text. |
+
+The three dots matter. `<base>...HEAD` is the change since the branch left `<base>`, so commits
+that landed on the base after the branch started do not fire anything. In CI that needs the merge
+base in the checkout: `fetch-depth: 0` on `actions/checkout`, or a fetch of the base branch.
+
+## The text
+
+```text
+3 checklist item(s) fire for main...HEAD:
+
+spawn-through-helper: Does new code spawn a process directly instead of through src/run.ts?
+  check: a child_process import outside src/run.ts is a finding
+  at: src/build.ts:1
+
+migration-has-down: Does every new migration have a matching down migration?
+  check: ls migrations/ and compare the up and down files
+  at: migrations/0003_users.up.sql:1
+
+no-console-in-lib: Does library code print to the console instead of returning or logging through the logger?
+  check: npx eslint src
+  at: src/build.ts:4
+```
+
+`at:` names the line in the new file for an added line, and in the old file, marked
+`(removed)`, for a removed one. An item that fires in more than three places shows the first
+three and counts the rest (`and 4 more`). When nothing fires, it prints
+`no checklist item fires for main...HEAD` and exits 0.
+
+`match` never fails on what fires. It exits 0 whether no item or every item fires; 1 only when
+git or the checklist cannot be read, with a `fix:`.
+
+## The JSON
+
+```bash
+npx triggerlist match main --json
+```
+
+```json
+{"ok":true,"data":{"range":"main...HEAD","checklist":"main:.sdlc/checklist.yaml","fired":[{"id":"spawn-through-helper","question":"Does new code spawn a process directly instead of through src/run.ts?","check":"a child_process import outside src/run.ts is a finding","sources":["https://github.com/acme/app/pull/212"],"at":["src/build.ts:1"]},{"id":"migration-has-down","question":"Does every new migration have a matching down migration?","check":"ls migrations/ and compare the up and down files","sources":["docs/decisions/0007-reversible-migrations.md"],"at":["migrations/0003_users.up.sql:1"]},{"id":"no-console-in-lib","question":"Does library code print to the console instead of returning or logging through the logger?","check":"npx eslint src","sources":["https://github.com/acme/app/pull/318"],"at":["src/build.ts:4"]}]},"meta":{"provenance":{"repo":{"source":"default"},"checklist":{"source":"default"}}}}
+```
+
+`data.checklist` says where the rules came from: `main:.sdlc/checklist.yaml` is the file as the
+`main` ref has it. With `--worktree` it is the bare path. `fired[].at` lists every place, not
+only the first three.
+
+## The same thing as a function
+
+`match(checklist, parseDiff(diff))` is what the command runs once it has the checklist and the
+diff text. A test or a bot that already has both calls it directly; [Getting
+started](/docs/getting-started#what-a-diff-fires) has a runnable program, and the [API
+reference](/docs/api) lists the types.

@@ -17,17 +17,17 @@ is its README, projected; the family-wide pages — [compatibility](/docs/compat
 | [contractdiff](https://contractdiff.interlace.tools/docs) | openapi-typescript | [contractdiff.interlace.tools](https://contractdiff.interlace.tools) |
 | [controlroom](https://controlroom.interlace.tools/docs) | ink | [controlroom.interlace.tools](https://controlroom.interlace.tools) |
 | [flagstaff](https://flagstaff.interlace.tools/docs) | ora, log-update, boxen and cli-table3 | [flagstaff.interlace.tools](https://flagstaff.interlace.tools) |
-| [hookset](https://burgee.interlace.tools/docs/packages/hookset) | husky | [burgee.interlace.tools](https://burgee.interlace.tools) |
+| [hookset](https://hookset.interlace.tools/docs) | husky | [hookset.interlace.tools](https://hookset.interlace.tools) |
 | [linegauge](https://linegauge.interlace.tools/docs) | string-width, wrap-ansi, strip-ansi, slice-ansi, cli-truncate and widest-line | [linegauge.interlace.tools](https://linegauge.interlace.tools) |
 | [oxmutate](https://oxmutate.interlace.tools/docs) | Stryker | [oxmutate.interlace.tools](https://oxmutate.interlace.tools) |
 | [paratext](https://paratext.interlace.tools/docs) | ansi-escapes, terminal-link and term-img | [paratext.interlace.tools](https://paratext.interlace.tools) |
-| [provedone](https://burgee.interlace.tools/docs/packages/provedone) | @commitlint/cli | [burgee.interlace.tools](https://burgee.interlace.tools) |
-| [replz](https://burgee.interlace.tools/docs/packages/replz) | promptfoo | [burgee.interlace.tools](https://burgee.interlace.tools) |
+| [provedone](https://provedone.interlace.tools/docs) | @commitlint/cli | [provedone.interlace.tools](https://provedone.interlace.tools) |
+| [replz](https://replz.interlace.tools/docs) | promptfoo | [replz.interlace.tools](https://replz.interlace.tools) |
 | [roundel](https://roundel.interlace.tools/docs) | chalk, colorette, kleur, picocolors, supports-color and yoctocolors | [roundel.interlace.tools](https://roundel.interlace.tools) |
 | [seniority](https://seniority.interlace.tools/docs) | cosmiconfig, lilconfig, dotenv and rc | [seniority.interlace.tools](https://seniority.interlace.tools) |
-| [triggerlist](https://burgee.interlace.tools/docs/packages/triggerlist) | danger | [burgee.interlace.tools](https://burgee.interlace.tools) |
+| [triggerlist](https://triggerlist.interlace.tools/docs) | danger | [triggerlist.interlace.tools](https://triggerlist.interlace.tools) |
 | [truefit](https://truefit.interlace.tools/docs) | zod | [truefit.interlace.tools](https://truefit.interlace.tools) |
-| [truepass](https://burgee.interlace.tools/docs/packages/truepass) | @vitest/eslint-plugin | [burgee.interlace.tools](https://burgee.interlace.tools) |
+| [truepass](https://truepass.interlace.tools/docs) | @vitest/eslint-plugin | [truepass.interlace.tools](https://truepass.interlace.tools) |
 
 ## Which one do I need?
 

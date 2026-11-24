@@ -1,0 +1,116 @@
+---
+title: GitHub Actions
+description: "Wire triggerlist into GitHub Actions: a job that checks REVIEW.md and lists the fired items with no model at all, and the composite action that briefs Claude from the base branch, carries findings between rounds and fails a review whose head moved."
+---
+
+There are two ways in. The first needs no model and no secret: it keeps `REVIEW.md` current and
+prints what fires. The second hands the brief to an AI reviewer.
+
+Both need the merge base in the checkout, because every command diffs `<base>...HEAD`:
+`fetch-depth: 0` on `actions/checkout`.
+
+## Without a model
+
+```yaml
+# .github/workflows/review-rules.yml
+name: review rules
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - run: npm ci
+      # REVIEW.md is what the checklist compiles to.
+      - run: npx triggerlist compile --check
+      # A gate and the code it judges, changed together. Observe first; add --enforce later.
+      - run: npx triggerlist protect origin/${{ github.base_ref }}
+      # The items this pull request fires, in the job log and the step summary.
+      - run: npx triggerlist match origin/${{ github.base_ref }} | tee -a "$GITHUB_STEP_SUMMARY"
+```
+
+`compile --check` reads the branch's checklist on purpose: it holds the two files of this pull
+request together. `protect` and `match` read the base's.
+
+## With Claude as the reviewer
+
+burgee's own review runs through a composite action in its repository,
+`.github/actions/triggerlist-review`. For one round it:
+
+1. fetches the base branch, and lists the pull request's comments and review-thread comments
+   with `gh api`;
+2. keeps the reviewer's own comments (`claude[bot]`) as the previous round, and the comments by
+   the author or a maintainer as replies;
+3. runs `triggerlist brief` with both, and restores the base branch's `REVIEW.md` and checklist
+   into the checkout, so a reviewer that opens files reads the base's rules too;
+4. runs `anthropics/claude-code-action` with your preamble and the brief;
+5. checks the pull request's head again, and if it moved while the review ran, comments that the
+   review is stale and fails the step, so a stale review is never green.
+
+```yaml
+# .github/workflows/review.yml
+name: review
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  id-token: write
+
+jobs:
+  review:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: ofri-peretz/burgee/.github/actions/triggerlist-review@<commit sha>
+        with:
+          claude-code-oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          preamble: |
+            You are reviewing a pull request in acme/app, a billing API.
+            Prioritise correctness and security, then the rules the brief says fire.
+```
+
+Pin the action to a commit, as with any third-party action.
+
+| Input | Default | What it is |
+| :-- | :-- | :-- |
+| `claude-code-oauth-token` | required | The `CLAUDE_CODE_OAUTH_TOKEN` secret. |
+| `preamble` | required | What the repository is and what the reviewer prioritises, put before the brief. |
+| `triggerlist` | `npx --yes triggerlist@0` | The command that runs triggerlist. burgee passes `node packages/triggerlist/dist/bin.js` to use its own build. |
+| `checklist` | `.sdlc/checklist.yaml` | The checklist, read from the base branch. |
+| `review-file` | `REVIEW.md` | The rules file, read from the base branch. |
+| `claude-args` | a model and `--max-turns 50` | Extra `claude_args` for the review. |
+
+The calling job needs `contents: read`, `pull-requests: write` and `id-token: write`, as above.
+
+## Why a composite action and not a reusable workflow
+
+A reusable workflow renames the caller's check to `review / <job>`, and a repository that
+requires a check called `review` would stop matching it. A step keeps the caller's job name.
+That choice is recorded in `.sdlc/intents/triggerlist/spec.md` (R5).
+
+## A required check without a token
+
+A fork's pull request, or a repository before the secret exists, has no token. burgee's
+`claude-code-review.yml` checks for the secret first and passes green with a notice when it is
+missing, so the `review` check can be required before the token is wired. Copy that step if you
+make the review required.

@@ -1,0 +1,49 @@
+---
+title: Querying history
+description: "Receipts are git trailers, so git log answers which commits were verified, by what, which were marked none and why, and what was left unchecked, with no provedone installed."
+---
+
+A receipt is plain git trailers. Reading them back needs git only.
+
+## Every receipt, per commit
+
+```bash
+git log --format='%h %s%n%(trailers:key=Verified-by)' -20
+```
+
+## Commits with no receipt
+
+```bash
+git log --format='%h %(trailers:key=Verified-by,valueonly,separator=%x2C) %s' \
+  | awk '$2 !~ /->|^none/ { print }'
+```
+
+After provedone is adopted, every commit with no trailer is a merge, a commit from the escape, or
+one made with `--no-verify`. The gate log tells the first two apart:
+`grep '"bypass":true' .git/provedone/gate.jsonl`.
+
+## Commits marked none, with the reason
+
+```bash
+git log --format='%h %(trailers:key=Verified-by,valueonly)' | grep ' none ('
+```
+
+## What was left unchecked
+
+```bash
+git log --format='%(trailers:key=Not-checked,valueonly)' | sort | uniq -c | sort -rn | head
+```
+
+The gaps people name most often are the checks worth automating next.
+
+## Which commands prove changes here
+
+```bash
+git log --format='%(trailers:key=Verified-by,valueonly)' \
+  | sed 's/ -> .*//' | sort | uniq -c | sort -rn | head
+```
+
+## Folded trailers
+
+`stamp` folds a trailer longer than 100 columns onto continuation lines that start with a space.
+`%(trailers)` unfolds them, so each query above sees one value per trailer.

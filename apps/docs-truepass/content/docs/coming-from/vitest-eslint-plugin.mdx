@@ -1,0 +1,99 @@
+---
+title: Coming from @vitest/eslint-plugin
+description: "Which @vitest/eslint-plugin rules truepass covers (no-focused-tests and no-disabled-tests, under its own names), which it does not, how to run the two side by side, and what truepass adds: sleeps, retries and the pre-push diff check. A @vitest/eslint-plugin migration path."
+---
+
+truepass is not a replacement for all of `@vitest/eslint-plugin`. It covers two of its rules,
+under its own names, and adds checks that plugin does not make. The usual migration is to switch
+those two rules, keep `@vitest/eslint-plugin` for the rest, and add `truepass diff` to the push.
+
+## The rules truepass covers
+
+| @vitest/eslint-plugin | truepass                       | What differs                                                                                                                                      |
+| :-------------------- | :----------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `no-focused-tests`    | `truepass/no-focused-test`     | Same ground. truepass reports only calls whose root is a test-runner API, and offers its fix as an editor suggestion, never as an autofix.          |
+| `no-disabled-tests`   | `truepass/no-unexplained-skip` | `no-disabled-tests` reports every skip. truepass accepts a skip whose comment carries an issue link, a decision id or an unexpired date. |
+
+That is the whole overlap truepass's README and package metadata claim
+(`packages/truepass/competitors.json` records `@vitest/eslint-plugin` as a `surface` competitor of
+`truepass/eslint`, covering exactly these two rules). [Focused tests](/docs/guides/focused-tests)
+and [Skipped tests](/docs/guides/skips) have each rule's real output.
+
+## The rules it does not cover
+
+Every other `@vitest/eslint-plugin` rule. Most of them are about how a test is written rather than
+whether it still checks anything: titles (`valid-title`), `expect` usage (`valid-expect`), hooks,
+matcher preferences (`prefer-to-be` and the other `prefer-*` rules). A few sit close to truepass's
+subject and are still not covered:
+
+| @vitest/eslint-plugin                         | Why truepass does not cover it                                                                                                  |
+| :-------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------ |
+| `expect-expect`                               | A test with no assertion at all. truepass reads assertions only in the diff, as one matcher moving to another.                   |
+| `no-commented-out-tests`                      | A test turned off by commenting it out. truepass reads calls, and a comment is not one.                                          |
+| `no-test-prefixes`                            | It asks for `it.only` over `fit` and `it.skip` over `xit`. truepass reports `fit` and `xit` as a focus and a skip, and leaves the spelling alone. |
+| `no-large-snapshots`, `prefer-snapshot-hint` | The size and naming of a snapshot. truepass checks only that a changed snapshot comes with a reason.                            |
+
+Keep `@vitest/eslint-plugin` for those. The two plugins run side by side without conflict, because
+truepass's rules are under the `truepass/` prefix.
+
+## What truepass adds
+
+| truepass                    | Where            | What it reports                                                                         |
+| :-------------------------- | :--------------- | :-------------------------------------------------------------------------------------- |
+| `truepass/no-fixed-sleep`   | ESLint           | `setTimeout` promises, `sleep(n)`, `waitForTimeout(n)` in test files                    |
+| `truepass/no-test-retry`    | ESLint           | `retry` and `retries` in tests and runner configs, `jest.retryTimes`, `this.retries` |
+| `weakened-assertion`        | `truepass diff`  | an `expect(x)` moved to a weaker matcher in the commits since a base                    |
+| `unexplained-snapshot`      | `truepass diff`  | a snapshot changed with no `Snapshot: <why>` line in those commits                      |
+
+This page names no `@vitest/eslint-plugin` rule as a counterpart for these four; truepass's own
+docs map none.
+
+## Migrate
+
+1. Install truepass: `npm install -D truepass`.
+2. Turn off the two rules truepass covers, and add its preset over the same files:
+
+   ```diff
+     import vitest from '@vitest/eslint-plugin';
+   + import { configs as truepass } from 'truepass/eslint';
+
+     export default [
+       {
+         files: ['**/*.test.ts'],
+         plugins: { vitest },
+         rules: {
+           ...vitest.configs.recommended.rules,
+   -       'vitest/no-focused-tests': 'error',
+   -       'vitest/no-disabled-tests': 'error',
+   +       'vitest/no-focused-tests': 'off',
+   +       'vitest/no-disabled-tests': 'off',
+         },
+       },
+   +   { files: ['**/*.test.ts', '**/vitest.config.ts'], ...truepass.recommended },
+     ];
+   ```
+
+   If you used only those two rules, drop `@vitest/eslint-plugin` instead.
+3. Run `npx eslint .`. The new findings are usually skips with no reason, sleeps and retries.
+   Give each skip a reason, or record today's findings in [the suppressions
+   file](/docs/guides/suppressions), or start on [the adoption preset](/docs/recipes/adoption-ratchet).
+4. Add `npx truepass diff --base origin/main` to `pre-push` and CI. [Hooks and
+   CI](/docs/guides/hooks-and-ci).
+
+## What is different on purpose
+
+- **A skip can stay, with a reason.** Moving from `no-disabled-tests` usually reports fewer skips,
+  not more: the explained ones pass.
+- **No autofix for a focus.** Removing `.only` runs tests that did not run, so it is an editor
+  suggestion someone accepts.
+- **No options.** None of truepass's rules takes options; a stricter or looser policy is a
+  different preset or a per-rule severity.
+- **Runner-neutral.** The same rules read Vitest, Jest, Mocha, Playwright, `node:test` and
+  `bun:test` files, by what a call is imported from.
+
+## What is not built
+
+- A Vitest-specific rule for anything beyond the four above.
+- A legacy `.eslintrc` preset: truepass ships flat configs only.
+- A compatibility grade. No `@vitest/eslint-plugin` suite runs against truepass, so this page claims
+  no compatibility, only the two-rule mapping above.

@@ -1,0 +1,60 @@
+---
+title: Why replz
+description: "What replz measures that a prompt-eval runner does not: a reviewer's recall on bugs that really shipped, replayed at the commit it saw, with clean controls for false alarms, recall per stage, and a firing count for every check. And what it leaves out on purpose."
+---
+
+An eval runner such as promptfoo answers "does this model, given these prompts, give answers
+that pass these assertions?". Someone writes the prompts and the assertions. That is the right
+tool for most prompt work, and replz does not replace it there.
+
+A code reviewer has a narrower and harder question to answer: **of the bugs that actually got
+through, how many would it have stopped?** A prompt someone writes to test a reviewer is a bug
+someone already thought of. replz uses the ones nobody thought of, because they shipped.
+
+## What it does differently
+
+- **The cases are your history.** Each bug case is a pull request a later revert or fix blamed,
+  replayed at the commit the reviewer saw, in a worktree with the code as it was. `replz propose`
+  finds them; a person writes the one-sentence answer key.
+- **A finding counts only when it describes the bug.** A grader reads the answer key and one
+  finding at a time, and the question is "the same defect, not merely the same file or area".
+  Keyword matching was considered and rejected in the spec: a finding can name the right file and
+  the wrong bug.
+- **Controls measure noise.** Size-matched clean pull requests run beside the bugs. A blocking
+  finding on one is a false alarm. Without them, a reviewer that flags everything scores full
+  recall.
+- **Recall per stage.** A reviewer that lists suspicions and then verifies them can find a bug
+  and drop it. One score hides that; a score per stage shows which step lost it.
+- **Your checks are measured too.** Every check in the config runs on every case, and the report
+  counts how often each fired and how often that was on a real bug, and names the ones that never
+  fired. No other part of a pipeline usually reports that.
+- **Tune and test sets.** Cases you change the reviewer against are kept apart from the ones you
+  judge it on, so a gain is not the reviewer learning the cases.
+- **The reviewer is your CI's reviewer.** It is a shell command, so the score is the score of the
+  prompt and rules that ship, not of a copy written for an eval.
+
+## What it leaves out on purpose
+
+- **Running on every pull request.** A run calls the reviewer once per case and the grader once
+  per graded finding. Monthly, or after a change to the reviewer, is enough to see a difference.
+- **A pass or fail.** A finished run exits 0 whatever its recall. It measures; a floor, if you
+  want one, is your step reading `--json`.
+- **A model client.** replz calls no model API itself. The reviewer and the grader are commands
+  you choose, which is also why it has no dependency outside the burgee family.
+- **A results viewer.** The report is text, `--json`, and one line per run in
+  `.sdlc/replz/history.jsonl`, committed beside the change that moved it.
+- **Prompt evals in general.** Comparing prompts or models on questions you wrote, or red-teaming
+  a model, is what promptfoo is for. Keep it for that.
+- **Mining rule candidates.** Clustering review comments into lint rules a person accepts is
+  planned as `replz mine` (`.sdlc/intents/replz-mine/`), not built.
+
+## What is not measured
+
+- **Whether replz's recall predicts the reviewer's recall on future bugs.** The intent notes that
+  about 20 real cases were enough, in the work replz is based on, to tell whether a change
+  helped; how well a given case set generalises is _unmeasured_.
+- **Speed and cost against promptfoo.** Both are dominated by the model calls you configure, and
+  nothing here measures them side by side.
+
+How replz itself is held to its spec (coverage, mutation score, the 1.0 bar) is recorded in
+`.sdlc/decisions/D-20261124-replz-1-0.md`.

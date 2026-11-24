@@ -1,0 +1,58 @@
+---
+title: In a monorepo
+description: "Run truepass across a workspace: one root ESLint config whose files globs reach every package's tests and runner configs, and one truepass diff at the root, which covers every package because it reads one git range."
+---
+
+A monorepo needs truepass wired once, at the root.
+
+## One lint config for every package
+
+A flat config at the root lints every workspace. Give the preset globs that reach each package's
+test files and runner configs:
+
+```js
+// eslint.config.mjs, at the repository root
+import { configs as truepass } from 'truepass/eslint';
+
+export default [
+  // ...the rest of your config
+  {
+    ...truepass.recommended,
+    files: [
+      '**/*.test.{ts,tsx,mts,cts,mjs,js}',
+      '**/vitest.config.{ts,mts}',
+      '**/vitest.*.config.{ts,mts}',
+      '**/playwright.config.ts',
+    ],
+  },
+];
+```
+
+That is the block burgee's own `eslint.config.mjs` uses over its packages and apps. Including the
+runner configs is what lets `no-test-retry` see a `retry` set in one package's
+`vitest.config.ts`.
+
+If each package keeps its own `eslint.config.mjs` instead, add the same block to each. The rules
+read no shared state, so a package's result does not depend on the others.
+
+## One diff for every package
+
+`truepass diff` reads one git range, and a monorepo is one repository, so one run at the root
+covers every package. Paths in its findings are relative to the repository root.
+
+```yaml
+# lefthook.yml, at the repository root
+pre-push:
+  commands:
+    truepass-diff:
+      run: npx truepass diff --base origin/main
+```
+
+There is nothing to configure per package: the check reads every changed `expect(` line and every
+changed snapshot path in the range, wherever they are.
+
+## Install once
+
+Install truepass as a dev dependency of the root (`npm install -D truepass` at the root), next to
+ESLint. A package that runs ESLint on its own, with its own `node_modules`, needs it in its own
+dev dependencies too, so `truepass/eslint` resolves from its config.

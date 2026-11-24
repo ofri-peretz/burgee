@@ -1,0 +1,4 @@
+{
+  "title": "Recipes",
+  "pages": ["ci", "monorepo", "repo-steps", "agents"]
+}

@@ -1,0 +1,102 @@
+---
+title: GitHub Actions
+description: "A pull-request workflow that lints test files with truepass's rules and runs truepass diff against the target branch, with the history it needs and each finding turned into an inline annotation from the --json envelope."
+---
+
+The workflow below runs both halves on every pull request. The lint step needs nothing special.
+The diff step needs the target branch and the commits since it, which a default shallow checkout
+does not have.
+
+```yaml
+# .github/workflows/test-integrity.yml
+name: Test integrity
+on: pull_request
+
+jobs:
+  test-integrity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npx eslint . --max-warnings 0
+      - run: npx truepass diff --base origin/${{ github.base_ref }} --json > truepass.json
+      - if: failure()
+        run: node annotate.mjs truepass.json
+```
+
+`--json` puts the findings on stdout as burgee's envelope, and the exit code is still 1 on a
+finding, so the step fails and the next one turns the findings into annotations on the changed
+lines.
+
+## The envelope
+
+This is what `npx truepass diff --json` printed for a branch whose one commit loosened an assertion
+and rewrote a snapshot:
+
+```json title="truepass.json"
+{
+  "ok": false,
+  "data": {
+    "base": "origin/main",
+    "findings": [
+      {
+        "check": "weakened-assertion",
+        "path": "src/sum.test.js",
+        "line": 5,
+        "message": "Weakened assertion: expect(sum(1,2)) moved from .toBe() to the weaker .toBeDefined() in this change. fix: keep the strict matcher and fix the code, or assert the new exact value with .toBe(). If the looser claim is intended, add an \"Assertion: <why>\" line to the commit message."
+      },
+      {
+        "check": "unexplained-snapshot",
+        "path": "src/__snapshots__/view.test.js.snap",
+        "line": 1,
+        "message": "Unexplained snapshot update: A snapshot changed and no commit in the range says why the new output is correct. fix: add a \"Snapshot: <what changed and why it is right>\" line to the commit message, or revert the snapshot and fix the code."
+      }
+    ],
+    "exitCode": 1
+  },
+  "meta": {
+    "provenance": {
+      "base": {
+        "source": "default"
+      }
+    }
+  }
+}
+```
+
+`ok` is false and `data.exitCode` is 1 when there is a finding. `meta.provenance` says where
+`--base` came from: `default` here, `flag` when it was passed.
+
+## Annotations
+
+A few lines turn each finding into a GitHub workflow command, which GitHub shows on the line of the
+pull request's diff:
+
+```js title="annotate.mjs"
+import { readFileSync } from 'node:fs';
+
+const envelope = JSON.parse(readFileSync(process.argv[2], 'utf8'));
+for (const f of envelope.data?.findings ?? []) {
+  const [title, rest] = f.message.split(/: (.*)/s);
+  console.log(`::error file=${f.path},line=${f.line},title=${title}::${rest.replaceAll('\n', '%0A')}`);
+}
+```
+
+```text title="node annotate.mjs truepass.json"
+::error file=src/sum.test.js,line=5,title=Weakened assertion::expect(sum(1,2)) moved from .toBe() to the weaker .toBeDefined() in this change. fix: keep the strict matcher and fix the code, or assert the new exact value with .toBe(). If the looser claim is intended, add an "Assertion: <why>" line to the commit message.
+::error file=src/__snapshots__/view.test.js.snap,line=1,title=Unexplained snapshot update::A snapshot changed and no commit in the range says why the new output is correct. fix: add a "Snapshot: <what changed and why it is right>" line to the commit message, or revert the snapshot and fix the code.
+```
+
+A usage error (exit 2, such as a base the checkout does not have) prints no `data`, so the script
+prints nothing and the failed step's log is where to look.
+
+## Where the reasons go
+
+The commit messages `truepass diff` reads are the pull request's commits. An `Assertion:` or
+`Snapshot:` line in the pull request description is not read. [The reasons: Assertion: and
+Snapshot:](/docs/guides/truepass-diff#the-reasons-assertion-and-snapshot).

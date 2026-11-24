@@ -1,0 +1,53 @@
+---
+title: Why provedone
+description: "What provedone does that a commit-message linter does not: it writes the Verified-by trailer from a run that happened, requires a reason for none, never traps an agent, and ties intents to the stamps that prove them. And what it leaves out on purpose."
+---
+
+A commit message linter can require a `Verified-by:` line. commitlint's `trailer-exists` rule does
+exactly that. What it cannot do is help anyone write an honest one, tell a real answer from
+`Verified-by: none`, or get out of the way of an agent that keeps failing it. provedone is built
+around the receipt rather than the message.
+
+## What it adds
+
+- **The receipt is written from a run.** [`stamp`](/docs/guides/stamp) runs the command and
+  records its exit code and an output digest. Nobody types `exit 0` from memory.
+- **"Not checked" is required.** Every receipt names what was left out, or says `nothing`. A
+  receipt that lists only what passed reads as if everything was checked.
+- **`none` needs a reason.** `Verified-by: none` blocks; `Verified-by: none (typo in a comment)`
+  passes. Unverified commits stay queryable, with the reason beside them.
+- **Observe before enforce.** The [`observe` mode](/docs/guides/modes-and-escape#observe-first)
+  logs what would have been blocked, so the false-block rate is measured before anyone is blocked.
+- **No trap.** After two blocks in one session the next commit passes, logged as a bypass. An
+  agent that cannot satisfy the gate does not have to reach for `--no-verify`, which skips every
+  hook and leaves no trace.
+- **Done is a check, not a claim.** [`done`](/docs/guides/done) maps each success criterion of an
+  intent to a passing stamp on the branch, and [`intent check --evidence`](/docs/guides/intents)
+  re-runs the commands a shipped intent recorded and fails when one stops printing what it did.
+- **Every finding names its fix**, in the same record for a person, for `--json` and for an agent
+  over MCP ([Agents](/docs/recipes/agents)).
+
+## What it leaves out on purpose
+
+- **The shape of the message.** Conventional types, scopes, subject case and length are
+  commitlint's job, and it does it well. provedone reads only the receipt. Run both;
+  [Coming from commitlint](/docs/coming-from/commitlint) shows how.
+- **Proof that the receipt is true.** The gate checks that a receipt is there and well formed. It
+  does not re-run the command or verify the digest, so a typed line passes. A cryptographic
+  attestation would need keys and a signer on every machine; provedone's bet is that a receipt
+  written by a tool and read by a reviewer is enough to change what gets checked. How often a
+  typed receipt slips through is _unmeasured_.
+- **Running the app or taking screenshots.** `--capture` records a path; producing the capture is
+  the repository's own job.
+- **Judging whether the checks were good enough.** That is a reviewer's job, or replz's in this
+  family.
+- **A network.** `stamp`, `gate`, `done` and `intent check` make no network calls.
+
+## The evidence for the package itself
+
+provedone is at 1.0. The record that cut it,
+[`D-20261124-verification-family-1-0`](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/decisions/D-20261124-verification-family-1-0.md),
+measured 155 tests covering 204 of 204 statements and 113 of 113 branches, and a full mutation run
+of 598 mutants with none surviving. No suite of commitlint is graded against provedone through
+compat-oracle, and it claims no drop-in. The family's
+[compatibility page](https://burgee.interlace.tools/docs/compatibility) lists what is graded.

@@ -16,19 +16,24 @@
  * runs past the length a search result shows.
  */
 export const HOME_TITLES: Readonly<Record<string, string>> = {
-  burgee: 'a CLI framework built on one declaration',
   bellpull: 'subprocesses with one structured result',
+  burgee: 'a CLI framework built on one declaration',
   caique: 'prompts that are flags first',
   closeout: 'exit handlers that run once, on every path out',
   contractdiff: 'API contract diff, lint and codegen',
   controlroom: 'keyboard-driven terminal screens',
   flagstaff: 'spinners, progress, boxes and tables',
+  hookset: 'the same git and Claude Code hooks in every repo',
   linegauge: 'measure, wrap and slice styled terminal text',
   oxmutate: 'mutation testing on the oxc engine',
   paratext: 'terminal hyperlinks, images and notifications',
+  provedone: 'a verification receipt on every commit',
+  replz: 'replay shipped bugs to grade a code reviewer',
   roundel: 'colour for CLIs',
   seniority: 'config resolution with provenance',
+  triggerlist: 'the review checklist a diff selects',
   truefit: 'validation whose schemas are data',
+  truepass: 'lint rules and a pre-push check for honest tests',
 };
 
 /** `<name> — <what it does>`, or a build failure naming the package with no phrase. */

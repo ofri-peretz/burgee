@@ -1,0 +1,81 @@
+---
+title: seed
+description: "triggerlist seed drafts checklist items from what a repository already records, the header of each lock test and the subject of each decision file, and prints them as YAML for a person to narrow; it never writes the checklist."
+---
+
+```bash
+npx triggerlist seed [--locks <dir>] [--decisions <dir>] [--checklist <path>] [--json]
+```
+
+A repository that has been burned before usually wrote it down somewhere: a test that locks the
+fix, a decision file that says what was chosen. `seed` turns each into a draft item, so the first
+checklist starts from what already happened.
+
+## What it reads
+
+- **Lock tests**: every `*-lock.test.ts` in `--locks` (default `scripts`). The first doc comment
+  that is not a licence header becomes the question (its first sentence, with a leading
+  `Lock —` removed), and the check is the command that runs that test.
+- **Decision files**: every `.md` in `--decisions` (default `.sdlc/decisions`) with `id` and
+  `subject` in its frontmatter. The question asks whether the change respects the subject.
+
+A file without either is skipped. Ids already in the checklist are skipped too, so running it
+again prints only what is new.
+
+```ts title="scripts/config-cache-lock.test.ts"
+/**
+ * Lock — the config cache is keyed by the absolute path, not the file name. Two projects with a
+ * `app.config.json` each read their own (#412).
+ */
+import { expect, it } from 'vitest';
+
+it('keys the cache by path', () => {
+  expect(true).toBe(true);
+});
+```
+
+```md title=".sdlc/decisions/D-20260301-reversible-migrations.md"
+---
+id: D-20260301-reversible-migrations
+subject: every migration ships with its down migration
+status: accepted
+---
+
+# Every migration is reversible
+
+A deploy that cannot roll back its schema cannot roll back.
+```
+
+```text title="npx triggerlist seed"
+# 2 draft item(s) from triggerlist seed. Narrow each trigger before it goes into the checklist.
+- id: config-cache-lock
+  trigger:
+    paths: ["**"]
+  question: "the config cache is keyed by the absolute path, not the file name."
+  check: "npx vitest run --config vitest.root.config.ts scripts/config-cache-lock.test.ts"
+  sources: ["scripts/config-cache-lock.test.ts"]
+- id: d-20260301-reversible-migrations
+  trigger:
+    paths: ["**"]
+  question: "Does the change respect this decision: every migration ships with its down migration"
+  check: "read .sdlc/decisions/D-20260301-reversible-migrations.md"
+  sources: [".sdlc/decisions/D-20260301-reversible-migrations.md"]
+```
+
+## Then narrow each draft
+
+Every draft's trigger is `paths: ["**"]`: it fires on every change. That is on purpose, because
+`seed` cannot know which files a lock or a decision is about, and a trigger that is too wide is
+the one that fires on every pull request and teaches the reviewer to skip it. Before a draft goes
+under `items:`:
+
+1. Narrow `paths` to the files the rule is about, and add a `pattern` if it is about one kind of
+   line.
+2. Reword the question so it has a yes or no answer.
+3. Check the `check`. A lock test's draft check is written for burgee's own layout
+   (`npx vitest run --config vitest.root.config.ts <file>`); change it to the command your
+   repository runs that test with.
+4. Run `npx triggerlist match main --worktree` to see what the new item fires on your branch.
+
+`seed` prints and never writes, so `npx triggerlist seed > draft.yaml` is the usual way to keep
+the draft. `--json` gives the items as data, with `drafted` and `skipped` counts.

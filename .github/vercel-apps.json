@@ -145,14 +145,63 @@
       "buildCommand": "npx turbo run build --filter=docs-contractdiff",
       "outputDirectory": "apps/docs-contractdiff/.next",
       "familyPages": false
+    },
+    "truepass": {
+      "package": "truepass",
+      "workspace": "docs-truepass",
+      "dir": "apps/docs-truepass",
+      "projectId": "prj_GFfOVlUaAudeIZHOeryUjpxi2EAa",
+      "productionUrl": "https://truepass.interlace.tools",
+      "rootDirectory": "",
+      "buildCommand": "npx turbo run build --filter=docs-truepass",
+      "outputDirectory": "apps/docs-truepass/.next",
+      "familyPages": false
+    },
+    "replz": {
+      "package": "replz",
+      "workspace": "docs-replz",
+      "dir": "apps/docs-replz",
+      "projectId": "prj_GifEYwPUBGr4wKOZJwGvdXoLrIDv",
+      "productionUrl": "https://replz.interlace.tools",
+      "rootDirectory": "",
+      "buildCommand": "npx turbo run build --filter=docs-replz",
+      "outputDirectory": "apps/docs-replz/.next",
+      "familyPages": false
+    },
+    "provedone": {
+      "package": "provedone",
+      "workspace": "docs-provedone",
+      "dir": "apps/docs-provedone",
+      "projectId": "prj_zavEK5U299uceDbKRNOpW1laPCZd",
+      "productionUrl": "https://provedone.interlace.tools",
+      "rootDirectory": "",
+      "buildCommand": "npx turbo run build --filter=docs-provedone",
+      "outputDirectory": "apps/docs-provedone/.next",
+      "familyPages": false
+    },
+    "hookset": {
+      "package": "hookset",
+      "workspace": "docs-hookset",
+      "dir": "apps/docs-hookset",
+      "projectId": "prj_5p7JZC4Fzm71Nax8h7zJzfJZAK6l",
+      "productionUrl": "https://hookset.interlace.tools",
+      "rootDirectory": "",
+      "buildCommand": "npx turbo run build --filter=docs-hookset",
+      "outputDirectory": "apps/docs-hookset/.next",
+      "familyPages": false
+    },
+    "triggerlist": {
+      "package": "triggerlist",
+      "workspace": "docs-triggerlist",
+      "dir": "apps/docs-triggerlist",
+      "projectId": "prj_5I43LTmplZppzrvoLnEaPovpVTwu",
+      "productionUrl": "https://triggerlist.interlace.tools",
+      "rootDirectory": "",
+      "buildCommand": "npx turbo run build --filter=docs-triggerlist",
+      "outputDirectory": "apps/docs-triggerlist/.next",
+      "familyPages": false
     }
   },
   "pending": {},
-  "excluded": {
-    "truepass": "A lint plugin and one command, documented as a section of the front door until it has enough pages for a site of its own.",
-    "provedone": "One gate and four commands, documented as a section of the front door until it has enough pages for a site of its own.",
-    "replz": "Three commands, documented as a section of the front door until it has enough pages for a site of its own.",
-    "hookset": "Two commands and a set of presets, documented as a section of the front door until it has enough pages for a site of its own.",
-    "triggerlist": "Five commands, documented as a section of the front door until it has enough pages for a site of its own."
-  }
+  "excluded": {}
 }

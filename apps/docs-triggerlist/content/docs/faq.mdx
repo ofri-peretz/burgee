@@ -1,0 +1,62 @@
+---
+title: FAQ
+description: "Short answers about triggerlist: whether it reviews anything, why the rules come from the base branch, how to test a new item, what a pattern matches, what happens before the first checklist, the budget, danger, monorepos and agents, each with where to read more."
+---
+
+## Does triggerlist review the code?
+
+No. It selects the rules a diff fires and formats them for a reviewer, a person or a model. The
+reviewer decides. [Why triggerlist](/docs/why-triggerlist#what-it-leaves-out-on-purpose).
+
+## Why does my edit to the checklist not show up in `match`?
+
+`match` reads the checklist from the base ref, not your working tree, so a pull request is
+reviewed by rules it did not write. Pass `--worktree` while editing, never in CI. [Reading from
+the base branch](/docs/guides/base-branch).
+
+## How do I see what a new item fires before merging it?
+
+`npx triggerlist match main --worktree` on a branch with the change you want it to catch.
+[Reading from the base branch](/docs/guides/base-branch).
+
+## Does a pattern match the whole file?
+
+No, only the added and removed lines of a changed file whose path matches. An item without a
+pattern fires on any change to a matching file. [How a trigger
+fires](/docs/guides/checklist#how-a-trigger-fires).
+
+## Does `match` fail when an item fires?
+
+No. `match` and `brief` exit 0 whatever fires; they inform. `compile --check` and
+`protect --enforce` are the commands that fail. [For agents](/docs/recipes/agents#exit-codes-are-the-contract).
+
+## What happens on the pull request that adds the first checklist?
+
+`brief` and `protect` see no checklist on the base and pass with nothing to check; `match` cannot
+read one and exits 1, so use `--worktree` on that branch. [Before there is a
+checklist](/docs/guides/base-branch#before-there-is-a-checklist).
+
+## Why is there a byte budget on REVIEW.md?
+
+Reviewers drop rules past their limit without saying so. `compile` refuses to go over and names
+the least-fired rules to drop. [The budget](/docs/guides/compile#the-budget).
+
+## Is it a replacement for danger?
+
+For rules that ask a reviewer to look at something, yes. For rules that must compute a fact and
+post or fail by themselves, keep danger or a CI step. [Coming from danger](/docs/coming-from/danger).
+
+## Can I use a reviewer other than Claude?
+
+Yes. `brief` prints Markdown on stdout; any reviewer that takes a prompt can take it. The
+composite action is the Claude wiring. [The reviewer's brief](/docs/guides/brief).
+
+## How does it work in a monorepo?
+
+One root checklist, with each item's globs naming its package. Paths are always relative to the
+repository root. [In a monorepo](/docs/recipes/monorepo).
+
+## Where does a first checklist come from?
+
+`triggerlist seed` drafts items from your lock tests and decision files, for you to narrow.
+[seed](/docs/guides/seed).

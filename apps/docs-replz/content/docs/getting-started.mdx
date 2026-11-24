@@ -1,0 +1,130 @@
+---
+title: Getting started
+description: "Install replz, write a config and four case files (a bug with its answer key and a clean control in each of the two sets), check them with replz check, and see what a run will do with them."
+---
+
+replz answers one question about a code reviewer, human or agent: of the bugs that actually
+shipped in this repository, how many would it have caught? It replays each of those pull
+requests through the reviewer, grades every finding against a one-sentence answer key, and
+reports recall per stage, false alarms on clean pull requests, and how often each of your checks
+fired.
+
+## Install
+
+```bash
+npm install -D replz
+```
+
+Install it in the repository whose history it replays. It needs Node 22.13 or later and git.
+Everything it reads lives under `.sdlc/replz/`.
+
+## A config and four cases
+
+The config names the commands replz runs: the reviewer, the grader that judges each finding, and
+the checks your CI already has. Each is a shell command line.
+
+```yaml title=".sdlc/replz/config.yaml"
+# What `replz run` replays each case through. Every command runs in a
+# worktree at the case's head, with REPLZ_BASE, REPLZ_HEAD, REPLZ_PR and REPLZ_REPO set.
+setup: npm ci --ignore-scripts --no-audit --no-fund
+reviewer: bash "$REPLZ_REPO/review.sh"
+grader: claude -p --model {model}
+maxFindings: 10
+stages: [raw, final]
+checks:
+  - { id: typecheck, command: npx tsc --noEmit }
+  - { id: test, command: npm test }
+```
+
+A case is one merged pull request. A **bug** case is one that a later revert or fix blamed, with
+an `answer` saying what the bug was:
+
+```yaml title=".sdlc/replz/cases/bug-12.yaml"
+# feat: cache the config (#12)
+id: bug-12
+kind: bug
+pr: 12
+base: "a1a1a1a1a1a1"
+head: "b2b2b2b2b2b2"
+answer: "The config cache is keyed by file name only, so a second project reads the first one's config."
+set: test
+```
+
+A **control** is a clean merged pull request of a similar size. It has no answer: any blocking
+finding the reviewer raises on it is a false alarm.
+
+```yaml title=".sdlc/replz/cases/control-13.yaml"
+# docs: a usage page (#13)
+id: control-13
+kind: control
+pr: 13
+base: "b2b2b2b2b2b2"
+head: "c3c3c3c3c3c3"
+set: test
+```
+
+Cases sit in one of two sets, `tune` and `test`, and each set needs at least one bug and one
+control, so that neither score is computed from one kind alone. Two more cases fill the `tune`
+set:
+
+```yaml title=".sdlc/replz/cases/bug-20.yaml"
+# fix: retry the upload once (#20)
+id: bug-20
+kind: bug
+pr: 20
+base: "d4d4d4d4d4d4"
+head: "e5e5e5e5e5e5"
+answer: "The retry reuses the consumed request body, so the second upload sends an empty file."
+set: tune
+```
+
+```yaml title=".sdlc/replz/cases/control-21.yaml"
+# chore: rename a test helper (#21)
+id: control-21
+kind: control
+pr: 21
+base: "e5e5e5e5e5e5"
+head: "f6f6f6f6f6f6"
+set: tune
+```
+
+## Check them
+
+`replz check` reads the config and every case, and counts what each set holds. It runs nothing
+and calls no model.
+
+```text title="npx replz check"
+4 case(s): tune 1 bug(s) + 1 control(s), test 1 bug(s) + 1 control(s); 2 check(s); stages raw > final
+```
+
+A run on `--set test` would replay the two `test` cases; the
+[two sets](/docs/guides/cases#two-sets-tune-and-test) say why there are two.
+
+Every output block on this site that has a command for a title is checked:
+`tests/examples.test.ts` writes each titled file, runs the command, and compares what it printed.
+
+## Run them
+
+`replz run` needs the commits the cases name, the reviewer and a grader model, so it is shown
+here as plain text, not as a checked block:
+
+```bash
+npx replz run --set test --model <the cheapest current model>
+```
+
+For each case it adds a git worktree at the case's head, runs `setup`, the reviewer and every
+check inside it, grades each finding of a bug case with one grader call, and removes the
+worktree. The report it prints, and what each line means, is in
+[Run and report](/docs/guides/run-and-report).
+
+A run costs one reviewer call per case and one grader call per graded finding, at most
+`maxFindings` per case. That is why it runs by hand or on a schedule, never on every pull
+request. `check` and `propose` cost nothing.
+
+## Where next
+
+- [Case files](/docs/guides/cases): the fields, bugs and controls, and the two sets.
+- [The config](/docs/guides/config): what the reviewer must print, and how the grader is called.
+- [Drafting cases](/docs/guides/propose): `replz propose` reads reverts and fixes from your
+  history and drafts both kinds.
+- [Why replz](/docs/why-replz) and [Coming from promptfoo](/docs/coming-from/promptfoo).

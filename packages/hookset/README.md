@@ -26,8 +26,8 @@
 </p>
 
 <p align="center">
-  Docs: <a href="https://burgee.interlace.tools/docs/packages/hookset">https://burgee.interlace.tools/docs/packages/hookset</a><br />
-  Migrating from: <a href="https://github.com/ofri-peretz/burgee/tree/main/packages/hookset#migrating">husky</a>
+  Docs: <a href="https://hookset.interlace.tools">https://hookset.interlace.tools</a><br />
+  Migrating from: <a href="https://hookset.interlace.tools/docs/coming-from/husky">husky</a>
 </p>
 
 **hookset** puts the same verification stations in every repository: lefthook presets for
@@ -181,13 +181,13 @@ keeps both true.
 | [bellpull](https://bellpull.interlace.tools/docs) | Subprocesses, and which executable actually ran | cross-spawn and which |
 | [controlroom](https://controlroom.interlace.tools/docs) | Keyboard-driven terminal screens, inline or full-screen | ink |
 | [oxmutate](https://oxmutate.interlace.tools/docs) | Mutation testing on the oxc engine, inside your own Vitest | Stryker |
-| [truepass](https://burgee.interlace.tools/docs/packages/truepass) | Lint rules and a pre-push check that keep a test suite honest | @vitest/eslint-plugin |
+| [truepass](https://truepass.interlace.tools/docs) | Lint rules and a pre-push check that keep a test suite honest | @vitest/eslint-plugin |
 | [contractdiff](https://contractdiff.interlace.tools/docs) | API contracts: breaking-change diff, lint, and code from the spec | openapi-typescript |
 | [truefit](https://truefit.interlace.tools/docs) | Validation whose schemas are data, with no eval | zod |
-| [provedone](https://burgee.interlace.tools/docs/packages/provedone) | A receipt for how every change was verified, and a gate that reads it | @commitlint/cli |
-| [replz](https://burgee.interlace.tools/docs/packages/replz) | Recall of a reviewer and its checks, replayed on bugs that shipped | promptfoo |
+| [provedone](https://provedone.interlace.tools/docs) | A receipt for how every change was verified, and a gate that reads it | @commitlint/cli |
+| [replz](https://replz.interlace.tools/docs) | Recall of a reviewer and its checks, replayed on bugs that shipped | promptfoo |
 | **hookset** (this package) | The same git and Claude Code hooks in every repository, pinned by tag | husky |
-| [triggerlist](https://burgee.interlace.tools/docs/packages/triggerlist) | The review checklist a diff selects, read from the base branch | danger |
+| [triggerlist](https://triggerlist.interlace.tools/docs) | The review checklist a diff selects, read from the base branch | danger |
 
 Every migration guide, and the family-wide [compatibility](https://burgee.interlace.tools/docs/compatibility)
 and [benchmarks](https://burgee.interlace.tools/docs/benchmarks) pages, are on

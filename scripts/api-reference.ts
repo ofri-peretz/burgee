@@ -47,7 +47,7 @@ const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
  * joins by being added here once its hand-written pages exist, and the lock then holds its
  * reference and changelog in sync.
  */
-export const STANDARD_SITES: readonly string[] = ['flagstaff', 'linegauge', 'closeout', 'paratext', 'bellpull', 'caique', 'roundel', 'seniority', 'controlroom', 'truefit', 'contractdiff'];
+export const STANDARD_SITES: readonly string[] = ['flagstaff', 'linegauge', 'closeout', 'paratext', 'bellpull', 'caique', 'roundel', 'seniority', 'controlroom', 'truefit', 'contractdiff', 'truepass', 'replz', 'provedone', 'hookset', 'triggerlist'];
 
 /**
  * The packages whose reference and changelog live on the family app — the `familyPages: true`

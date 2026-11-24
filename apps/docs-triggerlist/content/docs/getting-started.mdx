@@ -1,0 +1,154 @@
+---
+title: Getting started
+description: "Install triggerlist, write a checklist of three items, compile it into REVIEW.md, see which items a diff fires, and run the same match against a branch with git."
+---
+
+triggerlist keeps a repository's review rules as data. Each rule is a checklist item with a
+trigger: the paths it watches and, optionally, a pattern on the changed lines. On a pull request
+it hands the reviewer, a person or a model, only the items the diff fires, and it reads them from
+the base branch, so the pull request cannot change the rules it is reviewed by.
+
+## Install
+
+```bash
+npm install -D triggerlist
+```
+
+Install it in the repository it reviews. It needs Node 22.13 or later and git.
+
+## A checklist
+
+The checklist lives at `.sdlc/checklist.yaml` unless you pass `--checklist`. It has two lists:
+`gates`, the files that judge code, and `items`, the rules.
+
+```yaml title=".sdlc/checklist.yaml"
+# Files that judge code: `triggerlist protect` flags a change to one of these made with other files.
+gates:
+  - REVIEW.md
+  - .sdlc/checklist.yaml
+  - "test/**/*.lock.test.ts"
+
+items:
+  - id: spawn-through-helper
+    trigger:
+      paths: ["src/**/*.ts"]
+      pattern: "child_process"
+    question: Does new code spawn a process directly instead of through src/run.ts?
+    check: a child_process import outside src/run.ts is a finding
+    sources: ["https://github.com/acme/app/pull/212"]
+
+  - id: migration-has-down
+    trigger:
+      paths: ["migrations/*.sql"]
+    question: Does every new migration have a matching down migration?
+    check: ls migrations/ and compare the up and down files
+    sources: ["docs/decisions/0007-reversible-migrations.md"]
+
+  - id: no-console-in-lib
+    trigger:
+      paths: ["src/**/*.ts"]
+      pattern: "console\\.(log|debug)"
+    question: Does library code print to the console instead of returning or logging through the logger?
+    check: npx eslint src
+    sources: ["https://github.com/acme/app/pull/318"]
+```
+
+The first item fires only on a changed line in a TypeScript file under `src/` that mentions
+`child_process`. The second has no pattern, so any change to a migration fires it. Every field
+is described in [The checklist file](/docs/guides/checklist).
+
+## Compile REVIEW.md
+
+`compile` writes the whole checklist as `REVIEW.md`, one line per rule with a link to why it
+exists. It is the file a reviewer can read in full; the checklist is what selects from it.
+
+```text title="npx triggerlist compile"
+wrote REVIEW.md, 3 rule(s), 850 of 150000 bytes
+```
+
+```text title="npx triggerlist compile --check"
+REVIEW.md is up to date
+```
+
+`--check` writes nothing and exits 1 when `REVIEW.md` is not what the checklist compiles to, so
+CI can hold the two together. [Compile REVIEW.md](/docs/guides/compile) covers the byte budget.
+
+## What a diff fires
+
+The same matching the CLI does is a function. This program reads the checklist above and a diff
+in the form `git diff --no-renames -U0` prints, one new file that imports `child_process` and
+logs:
+
+```js title="first.mjs"
+import { readFileSync } from 'node:fs';
+import { match, parseChecklist, parseDiff } from 'triggerlist';
+
+const checklist = parseChecklist('.sdlc/checklist.yaml', readFileSync('.sdlc/checklist.yaml', 'utf8'));
+
+const diff = `diff --git a/src/build.ts b/src/build.ts
+new file mode 100644
+--- /dev/null
++++ b/src/build.ts
+@@ -0,0 +1,6 @@
++import { execSync } from 'node:child_process';
++
++export const build = (): void => {
++  console.log('building');
++  execSync('tsc -p .');
++};
+`;
+
+for (const { item, at } of match(checklist, parseDiff(diff))) {
+  console.log(`${item.id} fires at ${at.map((hit) => `${hit.file}:${hit.line}`).join(', ')}`);
+}
+```
+
+```text title="node first.mjs"
+spawn-through-helper fires at src/build.ts:1
+no-console-in-lib fires at src/build.ts:4
+```
+
+Two of the three items fire. `migration-has-down` does not, because no migration changed; a
+reviewer of this diff is never asked about migrations.
+
+## On a branch
+
+In a repository, `match` takes the base ref, diffs `<base>...HEAD` and reads the checklist from
+that base. On a branch that adds `src/build.ts` above and a migration, it prints:
+
+```bash
+npx triggerlist match main
+```
+
+```text
+3 checklist item(s) fire for main...HEAD:
+
+spawn-through-helper: Does new code spawn a process directly instead of through src/run.ts?
+  check: a child_process import outside src/run.ts is a finding
+  at: src/build.ts:1
+
+migration-has-down: Does every new migration have a matching down migration?
+  check: ls migrations/ and compare the up and down files
+  at: migrations/0003_users.up.sql:1
+
+no-console-in-lib: Does library code print to the console instead of returning or logging through the logger?
+  check: npx eslint src
+  at: src/build.ts:4
+```
+
+Each item comes with its question, the check that answers it and the lines that fired it. That
+block, with the base branch's `REVIEW.md` around it, is what [`brief`](/docs/guides/brief)
+hands a reviewer.
+
+Every output block on this site that has a command for a title is checked:
+`tests/examples.test.ts` writes each titled file, runs the command, and compares what it printed.
+Blocks that need a git history, like the one above, are shown as plain text.
+
+## Where next
+
+- [The checklist file](/docs/guides/checklist): ids, triggers, gates and sources.
+- [Reading from the base branch](/docs/guides/base-branch): why the rules come from the base, and
+  what `--worktree` is for.
+- [The reviewer's brief](/docs/guides/brief): the prompt for an agent reviewer, round by round.
+- [GitHub Actions](/docs/recipes/github-actions): wiring it into CI.
+- [Coming from danger](/docs/coming-from/danger): turning Dangerfile rules into items.

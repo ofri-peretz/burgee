@@ -1,0 +1,133 @@
+---
+title: The two commands
+description: "`hookset init` writes or re-pins the lefthook.yml that pulls the presets and refuses a hand-written one without --force; `hookset check` reports every missing station, unpinned remote, repeated step and drifted Claude hook, as text or as a --json envelope, and exits 1 on any error."
+---
+
+hookset has two commands. `init` writes; `check` reads and judges. Both are declared once on
+[burgee](https://burgee.interlace.tools/docs/packages/burgee), so both take `--json`, `--help`
+and `--schema`, and `hookset --mcp` serves them as tools.
+
+## hookset init
+
+| Flag | What it does |
+| :-- | :-- |
+| (none) | In a repository with no `lefthook.yml`, writes one that pulls the three presets at this version's tag. In one that already pulls them, moves `ref:` to this version. |
+| `--force` | Adds the `remotes:` block on top of a `lefthook.yml` hookset did not write, keeping every hand-written step. |
+| `--claude` | Also vendors the Claude Code hook pack into `.claude/hooks/` and wires it in `.claude/settings.json` ([Claude Code hooks](/docs/guides/claude-code-hooks)). |
+| `--cwd <dir>` | The repository to write in. The default is the current directory. |
+
+`init` is idempotent: it writes a file only when its text would change, and says
+`already up to date` when nothing did.
+
+### A hand-written lefthook.yml
+
+Most repositories already have a `lefthook.yml`. `init` will not touch one it did not write:
+
+```yaml title="lefthook.yml"
+pre-commit:
+  commands:
+    lint:
+      run: npm run --silent hook:staged -- {staged_files}
+pre-push:
+  commands:
+    verify:
+      run: npm run hook:verify
+    e2e:
+      run: npm run test:e2e
+```
+
+```text title="npx hookset init" exit="1"
+lefthook.yml was written by hand; pass --force to add the presets on top of it
+```
+
+With `--json`, the refusal is data, with the fix beside it:
+
+```text title="npx hookset init --json" exit="1"
+{"ok":false,"data":{"changed":false,"written":[],"exitCode":1,"error":"lefthook.yml was written by hand; pass --force to add the presets on top of it","fix":"pass --force, or add the remote by hand"},"meta":{"provenance":{},"changed":false}}
+```
+
+`--force` puts the `remotes:` block first and keeps the rest:
+
+```text title="npx hookset init --force"
+wrote lefthook.yml
+```
+
+A file that already has a `remotes:` block of its own is refused even with `--force`: add the
+hookset remote to that block by hand.
+
+## hookset check
+
+`check` reads `lefthook.yml`, `package.json` and, when it exists, `.claude/`. After the
+`--force` above, two hand-written steps now run the same scripts the presets run:
+
+```text title="npx hookset check" exit="1"
+hookset: 2 problem(s)
+✗ pre-commit → lint repeats the staged station the preset already runs
+  fix: delete pre-commit.commands.lint from lefthook.yml
+✗ pre-push → verify repeats the verify station the preset already runs
+  fix: delete pre-push.commands.verify from lefthook.yml
+! the mutation station is not declared yet (optional)
+  fix: add "hook:mutation" to package.json scripts when the repo has it: changed-lines mutation testing
+! the test-integrity station is not declared yet (observe)
+  fix: add "hook:test-integrity" to package.json scripts when the repo has it: no .only, .skip or weakened assertion in the diff
+! the proofline station is not declared yet (observe)
+  fix: add "hook:proofline" to package.json scripts when the repo has it: the change carries its Checked line
+! the triggerlist station is not declared yet (observe)
+  fix: add "hook:triggerlist" to package.json scripts when the repo has it: protected paths changed only with their trigger
+```
+
+The count in the first line is errors only; warnings follow it. `e2e` is not reported: it runs
+a script no station owns, which is what local steps are for
+([Repository steps](/docs/recipes/repo-steps)).
+
+### Everything check reports
+
+| id | Severity | When |
+| :-- | :-- | :-- |
+| `no-lefthook` | error | there is no `lefthook.yml` |
+| `duplicate` | error | a hand-written step runs a station's script, or `commitlint --edit` on `commit-msg` |
+| `no-remote` | error | `lefthook.yml` does not pull from the burgee repository |
+| `missing-preset` | error | the remote's `configs` leaves out one of the three presets |
+| `unpinned` | error | the remote's `ref` is not a `hookset@<version>` tag |
+| `behind` | warning | the `ref` is an older tag than the installed hookset |
+| `no-package` | error | there is no `package.json` |
+| `not-installed` | error | no `prepare` script runs `lefthook install` |
+| `missing-script` | error | an enforced station's script is not declared |
+| `station-off` | warning | an optional or observed station's script is not declared |
+| `claude-not-adopted` | warning | there is a `.claude/` directory without `.claude/hookset.json` |
+| `claude-missing` | error | a pack file is missing from `.claude/hooks/` |
+| `claude-drift` | error | a vendored pack file differs from the copy in the package |
+| `claude-unwired` | error | `.claude/settings.json` does not run a pack file on its event |
+
+### --json
+
+`--json` prints burgee's envelope on stdout: the same result, every problem with its `id`,
+`severity`, `message` and `fix`.
+
+```text title="npx hookset check --json" exit="1"
+{"ok":false,"data":{"ok":false,"pinned":"hookset@1.0.0","expected":"hookset@1.0.0","problems":[{"id":"duplicate","severity":"error","message":"pre-commit → lint repeats the staged station the preset already runs","fix":"delete pre-commit.commands.lint from lefthook.yml"},{"id":"duplicate","severity":"error","message":"pre-push → verify repeats the verify station the preset already runs","fix":"delete pre-push.commands.verify from lefthook.yml"},{"id":"station-off","severity":"warning","message":"the mutation station is not declared yet (optional)","fix":"add \"hook:mutation\" to package.json scripts when the repo has it: changed-lines mutation testing"},{"id":"station-off","severity":"warning","message":"the test-integrity station is not declared yet (observe)","fix":"add \"hook:test-integrity\" to package.json scripts when the repo has it: no .only, .skip or weakened assertion in the diff"},{"id":"station-off","severity":"warning","message":"the proofline station is not declared yet (observe)","fix":"add \"hook:proofline\" to package.json scripts when the repo has it: the change carries its Checked line"},{"id":"station-off","severity":"warning","message":"the triggerlist station is not declared yet (observe)","fix":"add \"hook:triggerlist\" to package.json scripts when the repo has it: protected paths changed only with their trigger"}],"exitCode":1},"meta":{"provenance":{}}}
+```
+
+## Exit codes
+
+| Code | `init` | `check` |
+| :-- | :-- | :-- |
+| 0 | it wrote, or nothing needed writing | no errors (warnings allowed) |
+| 1 | it refused a hand-written `lefthook.yml` | at least one error |
+| 2 | a flag it does not know | a flag it does not know |
+
+The rest of burgee's codes (timeout, interrupt) are in `hookset --help`.
+
+## From code
+
+The same logic is exported, for a script that wants the result rather than the text:
+
+```js
+import { checkRepo, checkText, packageRoot } from 'hookset';
+
+const result = checkRepo(process.cwd(), packageRoot(import.meta.resolve('hookset')));
+console.log(checkText(result));
+```
+
+`checkRepo(repo, pkg)` takes the repository and the folder that holds `stations.json`, the
+presets and the pack. The [API reference](/docs/api) lists every export.

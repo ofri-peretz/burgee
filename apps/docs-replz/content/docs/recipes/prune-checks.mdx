@@ -1,0 +1,66 @@
+---
+title: Pruning checks and comparing runs
+description: "Read replz's firing table to decide which checks and checklist items earn their cost, and compare two recorded runs on the same cases to see what a change to REVIEW.md did to recall and false alarms."
+---
+
+Two questions replz's report is built to answer: which checks are worth keeping, and did the
+last change to the reviewer help.
+
+## Which checks earn their cost
+
+The firing table counts, for every check in the config, how many cases it fired on and how many
+of those were bug cases:
+
+```text
+firing (fired / right):
+  check has-readme: 0 / 0
+  check no-todo: 2 / 1
+
+never fired: has-readme. fix: keep or drop each, in a decision
+```
+
+- **Never fired** is the list to act on. A check that fired on no case, bugs included, did not
+  catch any bug that shipped here. That is not proof it is useless (it may stop bugs before they
+  merge, which a replay of merged pull requests cannot see), so the `fix:` asks for a decision,
+  not a deletion: keep it and say why, or drop it.
+- **Fired often, right rarely** is a check that fires on clean pull requests. A check runs on the
+  whole tree at the case's head, so one that fires on a control may be reacting to something
+  that was already broken in the tree. Check the controls it fired on before blaming the check.
+- **Fired and right** on a bug means the check would have failed that pull request. If it did not
+  exist yet at the time, that is a check that pays for itself.
+
+Checklist items are counted the same way, from the findings that name them in `item`: how many
+findings named the item, and how many of those the grader matched to the answer.
+
+## Did the change help
+
+Record a run on the test set, change the reviewer (its prompt, `REVIEW.md`, its checklist),
+record again on the same set:
+
+```bash
+npx replz run --set test --model <model> --record
+# change REVIEW.md, tuning only against --set tune
+npx replz run --set test --model <model> --record
+```
+
+Each run appends one line to `.sdlc/replz/history.jsonl`. Compare the last two:
+
+```bash
+tail -n 2 .sdlc/replz/history.jsonl | node -e '
+  const [before, after] = require("node:fs").readFileSync(0, "utf8").trim().split("\n").map(JSON.parse);
+  const same = JSON.stringify(before.cases) === JSON.stringify(after.cases);
+  console.log(same ? "same cases" : "DIFFERENT CASES: not comparable");
+  for (const [i, { stage, found }] of after.report.recall.entries())
+    console.log(`${stage}: ${before.report.recall[i].found} -> ${found} of ${after.report.bugs}`);
+  console.log(`false alarms: ${before.report.falseAlarms} -> ${after.report.falseAlarms} of ${after.report.controls}`);
+  console.log(`capped: ${before.report.capped.length} -> ${after.report.capped.length}`);'
+```
+
+- **Same cases, same set, same cap.** Each history line holds its case ids and `maxFindings`; two
+  lines that differ in either measure different things.
+- **Recall up and false alarms up** is a reviewer that got louder. The controls are there so
+  that shows.
+- **A gain on `tune` and none on `test`** is the reviewer fitting the cases you looked at. The
+  intent's rule is to stop raising recall when the next gain would come from fitting the cases.
+- **Few cases move in steps.** With ten bug cases, one case is ten points of recall. Read the
+  counts, not only the percentages.
