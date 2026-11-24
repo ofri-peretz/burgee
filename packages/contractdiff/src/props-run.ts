@@ -19,7 +19,7 @@ import { type Mode, payloadRules, type Side } from './diff-classify.js';
 import { type Comparison, compareContracts, pair } from './diff-contract.js';
 import { canonical, isDict, normalise } from './diff-normalise.js';
 import { type Draft, type Draw, drawFrom, make } from './props-generate.js';
-import { draftOf, type Judge, rooted, validatorJudge } from './props-judge.js';
+import { draftOf, type Judge, payloadJudge } from './props-judge.js';
 import { mutate } from './props-mutate.js';
 import { randomFrom, type Random } from './props-random.js';
 import { shrink } from './props-shrink.js';
@@ -68,15 +68,15 @@ export type Compare = (old: Contract, nu: Contract, options: { mode: Mode; side:
  * planted bug in one to show the property that catches it.
  */
 export interface Subject {
-  /** The validator for a document in a dialect; throws when it cannot read the document. */
-  readonly validator: (document: unknown, draft: Draft) => Judge;
+  /** The validator for a payload's schema, whose references point into the contract's document; throws when it cannot read the schema. */
+  readonly validator: (schema: unknown, document: unknown, draft: Draft) => Judge;
   readonly normalise: (schema: unknown) => unknown;
   readonly encode: (value: unknown) => string;
   readonly decode: (text: string) => unknown;
   readonly compare: Compare;
 }
 
-export const SUBJECT: Subject = { validator: validatorJudge, normalise, encode: (value) => JSON.stringify(value), decode: (text) => JSON.parse(text) as unknown, compare: compareContracts };
+export const SUBJECT: Subject = { validator: payloadJudge, normalise, encode: (value) => JSON.stringify(value), decode: (text) => JSON.parse(text) as unknown, compare: compareContracts };
 
 export interface PropsOptions {
   /** Values drawn per payload and property. */
@@ -93,7 +93,7 @@ export interface PropsOptions {
 /** The validator for a payload's schema, or the reason there is none. */
 const judge = (subject: Subject, schema: unknown, document: unknown, draft: Draft): Judge | string => {
   try {
-    return subject.validator(rooted(schema, document), draft);
+    return subject.validator(schema, document, draft);
   } catch (error) {
     return (error as Error).message;
   }
@@ -126,8 +126,13 @@ const fail = (run: Run, counterexample: Counterexample): void => {
 
 const drawIn = (run: Run, contract: Contract): Draw => drawFrom(run.random, contract.document, draftOf(contract));
 
+/** Adds the places each keyword was reported at to the run's, in place: a copy for each draw costs the run's whole list each time. */
 const gather = (into: Map<string, Set<string>>, from: ReadonlyMap<string, ReadonlySet<string>>): void => {
-  for (const [keyword, at] of from) into.set(keyword, new Set([...(into.get(keyword) ?? []), ...at]));
+  for (const [keyword, at] of from) {
+    const known = into.get(keyword) ?? new Set<string>();
+    into.set(keyword, known);
+    for (const place of at) known.add(place);
+  }
 };
 
 /** One payload under check: where it is, its validator, and its normalised schema's. */
@@ -165,6 +170,8 @@ const roundTrip = (run: Run, check: Check, value: unknown): void => {
   tally(run, 'round-trip').checked += 1;
   const broken = (candidate: unknown): boolean => {
     const back = subject.decode(subject.encode(candidate));
+    // Equal JSON text is equal sorted text, and far cheaper: the sorted comparison is left for values written in another order.
+    if (JSON.stringify(back) === JSON.stringify(candidate)) return false;
     return canonical(back) !== canonical(candidate);
   };
   if (!broken(value)) return;

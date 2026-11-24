@@ -109,7 +109,7 @@ No suite is graded against this package yet, so there is no compatibility number
 | `loadline/jit`         | `compile()`: the schema as a function, for a hot path where `eval` is allowed            |
 | `loadline/emit`        | `emit()`: the schema as source, written ahead of time                                    |
 | `loadline/formats`     | string formats: `email`, `uuid`, `url`, `datetime` and the rest                          |
-| `loadline/json-schema` | `toJsonSchema()` and `fromJsonSchema()`                                                  |
+| `loadline/json-schema` | `toJsonSchema()`, `fromJsonSchema()`, `jsonSchemaReader()` (many schemas, one document) |
 | `loadline/standard`    | `standard()`: the Standard Schema and Standard JSON Schema interfaces                    |
 
 ## Requirements

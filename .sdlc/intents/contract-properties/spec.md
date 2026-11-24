@@ -71,6 +71,14 @@ median 1,900 ms per contract). The six timing pairs on the GitHub and Stripe des
 so props on the two largest specs is _unmeasured_; the criterion is met on every pinned document only once the
 weekly run reports no timeouts.
 
+Second reading, 2026-11-24, seed 1, on the cloud box at the lane's default concurrency (4 at a time, 1,000 values,
+`--source github,stripe --pairs 1`): both documents and all seven pairs ran inside the 300 s limit with no
+counterexample. GitHub's document took 165 s and its pairs up to 272 s; Stripe's 155 s and up to 259 s. Two costs
+were removed: each payload's validator re-read every definition its `$ref`s reach (36 s before the first value on
+Stripe, now 1.5 s, through loadline's `jsonSchemaReader`, one reading per document), and each draw copied the run's
+whole list of reported keywords. The pairs' margin under the limit is about 10%, so the weekly run's reading decides
+whether the criterion is met.
+
 The diff-soundness success criterion is met by `props-run.test.ts` ("a classifier that calls a breaking change
 compatible"): with the classifier's findings removed, `old` against `new` in `__fixtures__/props/` gives three
 counterexamples, shrunk to the boundary value (`quantity: 11` under a maximum of 10); with the real classifier, none.

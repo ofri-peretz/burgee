@@ -330,13 +330,16 @@ const FORMAT: Readonly<Record<Format, (draw: Draw) => string>> = {
   byte: (draw) => Buffer.from(Array.from({ length: within(draw, BYTES) }, () => within(draw, BYTE))).toString('base64'),
 };
 
+/** The writers by format name, made once: a map made for each string drawn was a cost on every value. */
+const WRITERS: ReadonlyMap<string, (draw: Draw) => string> = new Map(Object.entries(FORMAT));
+
 export const isFormat = (name: unknown): name is Format => (FORMATS as readonly unknown[]).includes(name);
 
 const string = (draw: Draw, schema: Dict, pointer: string): Made => {
   reportPresent(draw, schema, REPORTED_STRING, pointer);
   if (isFormat(schema.format)) {
     if (has(schema, 'minLength') || has(schema, 'maxLength')) report(draw, 'format-length', pointer);
-    const write = new Map(Object.entries(FORMAT)).get(schema.format) as (draw: Draw) => string;
+    const write = WRITERS.get(schema.format) as (draw: Draw) => string;
     return { value: write(draw) };
   }
   if (has(schema, 'format')) report(draw, `format:${String(schema.format)}`, pointer);

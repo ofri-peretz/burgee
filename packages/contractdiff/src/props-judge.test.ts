@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { draftOf, rooted, validatorJudge } from './props-judge.js';
+import { draftOf, payloadJudge, rooted, validatorJudge } from './props-judge.js';
 
 describe('the judge', () => {
   it('reads a contract dialect from its document', () => {
@@ -24,5 +24,43 @@ describe('the judge', () => {
     expect(validatorJudge({ type: 'string' }, '2020-12').paths(1)).toEqual(['']);
     expect(validatorJudge({ type: 'string' }, '2020-12').paths('x')).toEqual([]);
     expect(validatorJudge({ type: 'string' }, '2020-12').accepts('x')).toBe(true);
+  });
+
+  it('reads a definition once for every payload of a document, not once for each', () => {
+    let reads = 0;
+    const id = new Proxy({ type: 'string', minLength: 3 }, { get: (target, key, receiver) => {
+      if (key === 'type') reads += 1;
+      return Reflect.get(target, key, receiver) as unknown;
+    } });
+    const document = { openapi: '3.0.3', components: { schemas: { Id: id } } };
+    const judges = Array.from({ length: 4 }, (_, index) => payloadJudge({ type: 'object', required: [`k${String(index)}`], properties: { [`k${String(index)}`]: { $ref: '#/components/schemas/Id' } } }, document, 'openapi-3.0'));
+    expect(reads).toBe(1);
+    expect(judges.map((judge) => judge.accepts({ k0: 'abc', k1: 'abc', k2: 'abc', k3: 'abc' }))).toEqual([true, true, true, true]);
+    expect(judges[2]?.paths({ k2: 'ab' })).toEqual(['/k2']);
+  });
+
+  it('judges a payload as validatorJudge does on it rooted, its own definitions and root included', () => {
+    const document = { $defs: { theirs: { type: 'integer' } }, components: { schemas: { N: { type: 'number', maximum: 3 } } } };
+    const payloads: unknown[] = [
+      { $ref: '#/components/schemas/N' },
+      { $defs: { theirs: { type: 'string' } }, $ref: '#/$defs/theirs' },
+      { type: 'array', items: { $ref: '#' }, maxItems: 1 },
+      true,
+      false,
+      'not a schema',
+    ];
+    for (const payload of payloads) {
+      const shared = payloadJudge(payload, document, '2020-12');
+      const alone = validatorJudge(rooted(payload, document), '2020-12');
+      for (const value of [2, 5, 'x', [], [[]], [[], []], null]) expect([payload, value, shared.accepts(value)]).toEqual([payload, value, alone.accepts(value)]);
+    }
+    expect(payloadJudge({ type: 'string' }, 'not a document', '2020-12').accepts('x')).toBe(true);
+  });
+
+  it('refuses a payload whose definition cannot be read, every time, and not its neighbours', () => {
+    const document = { components: { schemas: { Bad: { type: 'string', maxLength: 'ten' }, Good: { type: 'string' } } } };
+    expect(() => payloadJudge({ $ref: '#/components/schemas/Bad' }, document, '2020-12')).toThrow(/maxLength/u);
+    expect(payloadJudge({ $ref: '#/components/schemas/Good' }, document, '2020-12').accepts('x')).toBe(true);
+    expect(() => payloadJudge({ items: { $ref: '#/components/schemas/Bad' } }, document, '2020-12')).toThrow(/maxLength/u);
   });
 });

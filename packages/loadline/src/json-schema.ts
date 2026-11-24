@@ -528,4 +528,4 @@ const standardJson = <T, O>(schema: Schema<T, O>): StandardJson<T, O> => {
 };
 
 export { type Draft, type Exported, type ExportOptions, type Finding, type JsonSchema, type StandardJson, standardJson, type StandardJsonConverter, type StandardJsonOptions, toJsonSchema };
-export { fromJsonSchema, type ImportDraft, type Imported, type ImportFinding, type ImportOptions } from './from-json-schema.js';
+export { fromJsonSchema, type ImportDraft, type Imported, type ImportFinding, type ImportOptions, jsonSchemaReader, type JsonSchemaReader } from './from-json-schema.js';

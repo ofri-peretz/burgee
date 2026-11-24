@@ -95,9 +95,19 @@ interface Reader {
   readonly findings: ImportFinding[];
   readonly formats: ReadonlyMap<string, Format>;
   /** The schema each `$ref` stands for, by the pointer it names, made once. */
-  readonly refs: Map<string, Node>;
+  readonly refs: Map<string, Reference>;
   /** The objects being read, from the root down: one met again without a `$ref` is a document that holds itself. */
   readonly inside: Set<unknown>;
+  /** The pointers named by the schema being read, outside the references it names: what must be read for it to be whole. */
+  readonly named: Set<string>;
+}
+
+/** A `$ref`'s schema, made once, with the pointers its target names. */
+interface Reference {
+  node: Node;
+  readonly named: Set<string>;
+  /** Whether its target has been read without a refusal: one that was refused is read again, and refused again, by each schema that reaches it. */
+  whole: boolean;
 }
 
 const shown = (value: unknown): string => {
@@ -479,14 +489,38 @@ const referenced = (reader: Reader, ref: unknown, path: string): Node => {
     return unknown();
   }
   const known = reader.refs.get(ref);
-  if (known !== undefined) return known;
+  reader.named.add(ref);
+  if (known !== undefined) return known.node;
   const target = resolve(reader.root, ref);
   if (target === undefined) invalid(path, `"$ref" ${JSON.stringify(ref)} names nothing in the document`);
   let made: Node | undefined;
+  const reference: Reference = { node: unknown(), named: new Set(), whole: false };
   // A reference is read when it is first used, from a fresh stack: the object it names may be one being read, which is how a schema names itself.
-  const node = lazy(() => (made ??= read({ ...reader, inside: new Set() }, target, ref.slice(1))) as AnySchema);
-  reader.refs.set(ref, node);
-  return node;
+  reference.node = lazy(() => (made ??= read({ ...reader, inside: new Set(), named: reference.named }, target, ref.slice(1))) as AnySchema);
+  reader.refs.set(ref, reference);
+  return reference.node;
+};
+
+/**
+ * Reads now every reference a schema reaches, not at the first `check`: a schema that is wrong behind
+ * a `$ref`, however deep, is refused here. Each is read once for every schema read against the
+ * document; a reference that was refused is read again by each later schema that reaches it, and refuses it too.
+ */
+const settle = (refs: ReadonlyMap<string, Reference>, named: ReadonlySet<string>): void => {
+  const queue = [...named];
+  const seen = new Set<string>(queue);
+  for (let index = 0; index < queue.length; index += 1) {
+    const reference = refs.get(queue[index] as string) as Reference;
+    if (!reference.whole) {
+      (reference.node.get as () => Node)();
+      reference.whole = true;
+    }
+    for (const next of reference.named) {
+      if (seen.has(next)) continue;
+      seen.add(next);
+      queue.push(next);
+    }
+  }
 };
 
 function read(reader: Reader, schema: unknown, path: string): Node {
@@ -531,21 +565,43 @@ const DRAFTS: ReadonlySet<unknown> = /* @__PURE__ */ new Set(['2020-12', 'draft-
  * files first. The schema is data like any other, so it can be emitted as code with `emit`.
  */
 const fromJsonSchema = (document: unknown, options: ImportOptions = {}): Imported => {
+  const reader = jsonSchemaReader(document, options);
+  const schema = reader.read(document);
+  return { schema, findings: reader.findings };
+};
+
+/** Schemas read against one document: the `$ref`s they name point into it, and are shared. */
+interface JsonSchemaReader {
+  /**
+   * The schema of this library for a schema whose `$ref`s point into the document: the document
+   * itself, a part of it, or a schema made beside it. `path` is where findings in it point.
+   */
+  readonly read: (schema: unknown, path?: string) => Schema<unknown>;
+  /** Every finding of every schema read so far; a reference's, once, at the reference. */
+  readonly findings: ImportFinding[];
+}
+
+/**
+ * A reader for many schemas against one document, such as every payload of an OpenAPI document
+ * against its `components`: each `$ref` is read once and shared by every schema that names it,
+ * where `fromJsonSchema` on each would read the whole graph behind it again. The options and the
+ * refusals are `fromJsonSchema`'s.
+ */
+const jsonSchemaReader = (document: unknown, options: ImportOptions = {}): JsonSchemaReader => {
   const findings: ImportFinding[] = [];
   if (options.draft !== undefined && !DRAFTS.has(options.draft)) throw new TypeError(`cannot read the dialect ${shown(options.draft)}. fix: ask for '2020-12', 'draft-07' or 'openapi-3.0'`);
   const draft = options.draft ?? dialectOf({ findings }, document);
   const formats = new Map([...FORMATS, ...Object.entries(options.formats ?? {})]);
-  const reader: Reader = { root: document, draft, findings, formats, refs: new Map(), inside: new Set() };
-  const schema = read(reader, document, '') as Schema<unknown>;
-  // Every reference is read now, not at the first `check`: a document that is wrong behind a `$ref` is refused here, and its findings are in this list.
-  const done = new Set<Node>();
-  for (let more = [...reader.refs.values()]; more.length > 0; more = [...reader.refs.values()].filter((ref) => !done.has(ref))) {
-    for (const ref of more) {
-      done.add(ref);
-      (ref.get as () => Node)();
-    }
-  }
-  return { schema, findings };
+  const refs = new Map<string, Reference>();
+  return {
+    findings,
+    read: (schema, path = '') => {
+      const named = new Set<string>();
+      const out = read({ root: document, draft, findings, formats, refs, inside: new Set(), named }, schema, path) as Schema<unknown>;
+      settle(refs, named);
+      return out;
+    },
+  };
 };
 
-export { fromJsonSchema, type ImportDraft, type Imported, type ImportFinding, type ImportOptions };
+export { fromJsonSchema, type ImportDraft, type Imported, type ImportFinding, type ImportOptions, jsonSchemaReader, type JsonSchemaReader };
