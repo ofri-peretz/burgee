@@ -391,7 +391,8 @@ function nextLefthook(repo: string, stations: Stations, ref: string, force: bool
 function repin(yaml: string, ref: string, remote: string): string {
   const eol = yaml.includes('\r\n') ? '\r\n' : '\n';
   const lines = yaml.split(/\r?\n/);
-  const at = scanRemotes(lines).find((r) => sameRemote(r.gitUrl, remote))?.refAt;
+  // The caller has proved the hookset remote is listed.
+  const at = (scanRemotes(lines).find((r) => sameRemote(r.gitUrl, remote)) as Scanned).refAt;
   if (at === undefined) return yaml;
   const line = String(lines[at]);
   lines.splice(at, 1, `${line.slice(0, line.indexOf('ref:'))}ref: ${ref}`);
