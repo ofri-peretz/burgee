@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 
 import { describe, expect, it } from 'vitest';
 
-import { checkedLine, digest, prBlock, trailers, verdict, type Receipt } from './receipt.js';
+import { checkedLine, digest, fold, prBlock, TRAILER_WIDTH, trailers, verdict, type Receipt } from './receipt.js';
 
 const receipt: Receipt = {
   checks: [
@@ -34,6 +34,32 @@ describe('trailers', () => {
         none: '  comment\nonly ',
       }),
     ).toEqual(['Verified-by: none (comment only)']);
+  });
+
+  it('folds a long trailer into continuation lines that fit commitlint and still pass the gate', () => {
+    const gap = 'the Windows runner, the macOS runner, the docs site at mobile width, and the published tarball contents';
+    const lines = trailers({ checks: [], captures: [], notChecked: [gap], none: 'workflow only' });
+    expect(lines.slice(1)).toEqual(['Not-checked: the Windows runner, the macOS runner, the docs site at mobile width, and the published', ' tarball contents']);
+    expect(lines.every((line) => line.length <= TRAILER_WIDTH)).toBe(true);
+    expect(verdict(lines.join('\n')).ok).toBe(true);
+  });
+});
+
+describe('fold', () => {
+  it('leaves a line of exactly the width alone', () => {
+    const line = `Captured: ${'a'.repeat(TRAILER_WIDTH - 'Captured: '.length)}`;
+    expect(fold(line)).toEqual([line]);
+  });
+
+  it('breaks one past the width at the last space', () => {
+    const line = `Captured: ${'a'.repeat(TRAILER_WIDTH - 'Captured: '.length - 2)} bc`;
+    expect(fold(line)).toEqual([`Captured: ${'a'.repeat(TRAILER_WIDTH - 'Captured: '.length - 2)}`, ' bc']);
+  });
+
+  it('keeps the key with its first word, and never splits a word longer than the width', () => {
+    const word = 'x'.repeat(TRAILER_WIDTH + 5);
+    expect(fold(`Verified-by: ${word} -> exit 0`)).toEqual([`Verified-by: ${word}`, ' -> exit 0']);
+    expect(fold(`Captured: a ${word}`)).toEqual(['Captured: a', ` ${word}`]);
   });
 });
 
