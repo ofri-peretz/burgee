@@ -1,5 +1,12 @@
 # replay
 
+## 0.1.2
+
+### Patch Changes
+
+- Updated dependencies [[`dc457f8`](https://github.com/ofri-peretz/burgee/commit/dc457f890987c9db31dcd952f60c4e0d762ce97b)]:
+  - loadline@0.2.0
+
 ## 0.1.1
 
 ### Patch Changes
