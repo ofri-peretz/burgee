@@ -1,0 +1,4 @@
+{
+  "title": "Guides",
+  "pages": ["schemas", "parsing", "issues", "rules", "formats", "json-schema", "compiled", "standard-schema"]
+}

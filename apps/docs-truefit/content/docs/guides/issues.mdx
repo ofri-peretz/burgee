@@ -1,0 +1,104 @@
+---
+title: Issues
+description: "The three members of a truefit issue (a JSON Pointer path, the keyword that failed, a message ending in a fix line), how a union reports, stopping at the first issue, and putting messages in your own words or language."
+---
+
+An issue is the same record for a person, a program and an agent:
+
+```ts
+interface Issue {
+  path: string; // JSON Pointer to the value that failed; '' is the root
+  keyword: string; // what failed: type, min, max, required, unknown, format, refine, …
+  message: string; // "expected …, got …. fix: …"
+}
+```
+
+`issues(schema, value)` returns every one of them, and is empty exactly when `check` says yes.
+`parse` returns the same list when it fails.
+
+## Paths are JSON Pointers
+
+```js title="paths.mjs"
+import { array, issues, keysOf, number, object, string } from 'truefit';
+
+const Cart = object({ items: array(object({ sku: string(), qty: number({ int: true, min: 1 }) })) });
+const value = { items: [{ sku: 'a', qty: 1 }, { sku: 'b/c', qty: 0 }] };
+
+const [issue] = issues(Cart, value);
+console.log(issue.path);
+console.log(keysOf(issue.path, value));
+```
+
+```text title="node paths.mjs"
+/items/1/qty
+[ 'items', 1, 'qty' ]
+```
+
+A pointer is one string, which survives JSON, a log line and a tool call unchanged. `keysOf` turns it
+into the array zod writes, with array indexes as numbers when you hand it the value. A key with `/`
+or `~` in it is escaped as RFC 6901 says (`~1` and `~0`).
+
+## Keywords
+
+`type`, `min`, `max`, `gt`, `lt`, `integer`, `multipleOf`, `pattern`, `format`, `literal`, `enum`,
+`required`, `unknown`, `key`, `length`, `tag`, `union`, `never`, `custom`, `date`, `instance`,
+`undefined`, `refine`, `minProperties`, `maxProperties`. A program that branches on what failed reads
+the keyword, never the message.
+
+## Unions report once
+
+```js title="union.mjs"
+import { issues, number, object, string, union } from 'truefit';
+
+const Contact = union([object({ email: string() }), object({ phone: number() })]);
+console.log(issues(Contact, { phone: '555' }));
+```
+
+```text title="node union.mjs"
+[
+  {
+    path: '',
+    keyword: 'union',
+    message: 'expected a value one of 2 members accepts, got an object. fix: satisfy one of them; member 0 fails required at "/email"; member 1 fails type at "/phone"'
+  }
+]
+```
+
+No single member is the one that was meant, so a union reports one issue whose fix line says where
+each member first fails. When the members have a tag, use `discriminated`: it reads the tag and
+reports the matching case's own issues.
+
+## Stop at the first
+
+`issues(schema, value, { first: true })` and `parse(schema, value, { first: true })` stop at the
+first issue, for a hot path that only needs to know why one value failed.
+
+## Your own words
+
+Two ways, for two jobs:
+
+- **`message(schema, words)`** rewords one schema's issues: one string for all of them, or one per
+  keyword. The words replace the whole message, `fix:` line included.
+- **The `message` option** of `issues` and `parse` is asked about every issue of the call and
+  returns the whole message, which is how you translate. Return nothing and the issue keeps its
+  English message with its `fix:` line, so a map can cover the keywords it knows and leave the rest.
+
+```js title="words.mjs"
+import { issues, message, number, object, string } from 'truefit';
+
+const Signup = object({
+  name: message(string({ min: 1 }), 'Tell us your name'),
+  age: number({ min: 18 }),
+});
+
+const french = (miss) => (miss.keyword === 'min' && typeof miss.got === 'number' ? `doit être au moins 18, reçu ${miss.got}` : undefined);
+console.log(issues(Signup, { name: '', age: 12 }, { message: french }).map((i) => i.message));
+```
+
+```text title="node words.mjs"
+[ 'Tell us your name', 'doit être au moins 18, reçu 12' ]
+```
+
+The hook receives the issue before it is put into words: its `path`, `keyword`, `expected` and `fix`
+in English, and `got`, the value that arrived. There is no global error map to install and no
+locale bundle to load.

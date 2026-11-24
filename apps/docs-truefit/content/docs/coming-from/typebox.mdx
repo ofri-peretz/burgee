@@ -1,0 +1,49 @@
+---
+title: Coming from TypeBox
+description: "A TypeBox alternative for the same job, schemas that are JSON Schema-shaped data, with zod-style builder names, inferred types, a parse path for defaults and coercion, and JSON Schema written out and read in rather than being the schema itself."
+---
+
+TypeBox builds JSON Schema objects and infers their types; `Value.Check` interprets them and
+`TypeCompiler` compiles them. truefit has the same three paths (`check`, `truefit/jit`,
+`truefit/emit`) over its own node format, and treats JSON Schema as something it writes out and
+reads in, with findings for what does not cross, rather than as the schema itself. That is what
+lets it carry what JSON Schema cannot say (a transform, a refine, a `Date`) without bending the
+document.
+
+```diff
+- import { Type, type Static } from '@sinclair/typebox';
+- import { Value } from '@sinclair/typebox/value';
+- const User = Type.Object({ name: Type.String({ minLength: 1 }), age: Type.Optional(Type.Integer({ minimum: 0 })) });
+- type User = Static<typeof User>;
+- if (!Value.Check(User, input)) console.log([...Value.Errors(User, input)]);
++ import { type Infer, check, issues, number, object, optional, string } from 'truefit';
++ const User = object({ name: string({ min: 1 }), age: optional(number({ int: true, min: 0 })) });
++ type User = Infer<typeof User>;
++ if (!check(User, input)) console.log(issues(User, input));
+```
+
+## Mapping
+
+| TypeBox | truefit |
+| :-- | :-- |
+| `Type.Object(props, { additionalProperties: false })` | `object(shape, { unknown: 'strict' })` |
+| `Type.String({ minLength, maxLength, pattern, format })` | `string({ min, max, pattern, format })` |
+| `Type.Number({ minimum, maximum, exclusiveMinimum, multipleOf })`, `Type.Integer` | `number({ min, max, gt, multipleOf })`, `number({ int: true })` |
+| `Type.Optional(s)`, `Type.Readonly(s)` | `optional(s)`, `readonly(s)` |
+| `Type.Union`, `Type.Intersect`, `Type.Literal`, `Type.Enum` | `union`, `intersection`, `literal`, `nativeEnum` |
+| `Type.Array(s, { minItems, maxItems, uniqueItems })` | `array(s, { min, max })`, `unique(array(s))` |
+| `Type.Tuple`, `Type.Record`, `Type.Recursive` | `tuple`, `record`, `lazy` |
+| `Type.Pick`, `Type.Omit`, `Type.Partial`, `Type.Required`, `Type.Composite`, `Type.KeyOf` | `pick`, `omit`, `partial`, `required`, `extend`, `keyof` |
+| `Type.TemplateLiteral`, `Type.Not` | `template`, `not` |
+| `Static<typeof S>` | `Infer<typeof S>` |
+| `Value.Check(S, v)` / `Value.Errors(S, v)` | `check(S, v)` / `issues(S, v)` |
+| `Value.Default`, `Value.Convert`, `Value.Clean` then `Value.Decode` | `parse(S, v)`, which fills, coerces, strips and maps in one pass |
+| `TypeCompiler.Compile(S)` | `compile(S)` from `truefit/jit`, or `emit(S)` ahead of time |
+| `Type.Unsafe` / a raw JSON Schema | `fromJsonSchema(document)` |
+
+## Different on purpose
+
+- **The node is not JSON Schema.** `toJsonSchema` writes 2020-12 or draft-07 on demand, and returns
+  a finding for anything it cannot carry instead of a document that silently accepts more.
+- **String length counts code points**, where TypeBox counts UTF-16 units.
+- **Defaults and coercion are one `parse`**, not separate `Value` passes you have to order.

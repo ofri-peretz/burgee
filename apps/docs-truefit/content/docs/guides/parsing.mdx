@@ -1,0 +1,132 @@
+---
+title: Parsing
+description: "What parse does that check does not: defaults, coercion from strings, unknown keys kept, refused or stripped, transforms and pipes, fallbacks, and when the value you get back is your own object or a copy."
+---
+
+`check` is a guard: it reads and never writes. `parse` is the path that may change a value: it fills
+defaults, coerces, strips, maps, and then holds the result to the schema. It returns
+`{ ok: true, value }` or `{ ok: false, issues }`, never throws for a bad value, and reports every
+issue at once.
+
+## Defaults
+
+```js title="defaults.mjs"
+import { boolean, number, object, optional, parse, string } from 'truefit';
+
+const Settings = object({
+  host: string(),
+  port: optional(number({ int: true }), { default: 8080 }),
+  verbose: optional(boolean(), { default: false }),
+});
+
+console.log(parse(Settings, { host: 'localhost' }));
+console.log(parse(Settings, { host: 'localhost', port: undefined, verbose: true }));
+```
+
+```text title="node defaults.mjs"
+{ ok: true, value: { host: 'localhost', port: 8080, verbose: false } }
+{ ok: true, value: { host: 'localhost', port: 8080, verbose: true } }
+```
+
+A default stands for the input that was not there, so it goes through the schema the way an input
+would: coerced, filled and mapped where the schema does those things. `check` and the input type
+still describe the input, in which the key may be absent.
+
+## Coercion
+
+Coercion is opt-in per schema, and only `parse` does it. `check` never coerces, because a guard that
+changes its input is not a guard.
+
+```js title="coerce.mjs"
+import { boolean, date, number, object, parse } from 'truefit';
+
+const Query = object({
+  page: number({ int: true, min: 1, coerce: true }),
+  draft: boolean({ coerce: true }),
+  since: date({ coerce: true }),
+});
+
+const ok = parse(Query, { page: '2', draft: 'false', since: '2026-11-01' });
+console.log(ok.ok, ok.value.page, ok.value.draft, ok.value.since.toISOString());
+console.log(parse(Query, { page: ' 2', draft: 'no', since: '2026-02-30' }).issues.map((i) => i.path));
+```
+
+```text title="node coerce.mjs"
+true 2 false 2026-11-01T00:00:00.000Z
+[ '/page', '/draft', '/since' ]
+```
+
+The rules are written down because the libraries truefit was measured against agree on almost none
+of them. A string becomes a number only when the whole string is a JSON number and a finite double,
+so `" 2"`, `"0x10"` and `"Infinity"` are refused. A string becomes a boolean only when it is exactly
+`"true"` or `"false"`. A string becomes a `Date` only when it is an RFC 3339 date-time or full-date
+on a day the calendar has: 30 February is refused, where `new Date` reads it as 1 March.
+
+## Unknown keys
+
+```js title="unknown.mjs"
+import { object, parse, string } from 'truefit';
+
+const input = { name: 'Ada', role: 'admin' };
+for (const unknown of ['keep', 'strip', 'strict']) {
+  const result = parse(object({ name: string() }, { unknown }), input);
+  console.log(unknown, result.ok ? result.value : result.issues[0].message);
+}
+```
+
+```text title="node unknown.mjs"
+keep { name: 'Ada', role: 'admin' }
+strip { name: 'Ada' }
+strict expected no such key, got string "admin". fix: remove "role"
+```
+
+`unknown` can also be a schema, which every extra key's value must match: a `catchall`.
+
+## Transforms, pipes and preprocessing
+
+Three names for three orders:
+
+- `transform(schema, f)` validates, then maps what was accepted.
+- `pipe(a, b)` parses with `a`, then parses what `a` produced with `b`.
+- `preprocess(f, schema)` runs `f` on the raw input, then validates what it returned.
+
+```js title="maps.mjs"
+import { array, number, parse, pipe, preprocess, string, transform, trim } from 'truefit';
+
+const Length = transform(string(), (s) => s.length);
+const Port = pipe(transform(string(), Number), number({ int: true, min: 1, max: 65535 }));
+const Name = pipe(trim(string()), string({ min: 1 }));
+const Tags = preprocess((v) => (typeof v === 'string' ? v.split(',') : v), array(string()));
+
+console.log(parse(Length, 'hello'));
+console.log(parse(Port, '8080'), parse(Port, '99999').ok);
+console.log(parse(Name, '   ').issues[0].keyword);
+console.log(parse(Tags, 'a,b,c'));
+```
+
+```text title="node maps.mjs"
+{ ok: true, value: 5 }
+{ ok: true, value: 8080 } false
+min
+{ ok: true, value: [ 'a', 'b', 'c' ] }
+```
+
+`check`, `issues` and the input type describe what goes in. For a pipe, that is the first schema
+alone, so `parse` can refuse a value `check` accepts: `check(Port, '99999')` is true. This is the one
+place the two differ, because `check` never runs a function of yours.
+
+`trim`, `lowercase`, `uppercase` and `normalize` are transforms too: `trim(string({ min: 1 }))`
+accepts three spaces, because the bound is checked before the trim. To validate the trimmed value,
+pipe it, as `Name` does.
+
+## Fallbacks
+
+`catchOf(schema, fallback)` gives `parse` a value to use in place of one it refuses. Like a default,
+the fallback is held to the schema and mapped by its transforms, so a fallback can never hand out
+something the schema would not.
+
+## Your object or a copy
+
+`parse` hands back your own object wherever nothing changed, and a new one only where a default, a
+stripped key, a coercion or a transform changed something. It never writes to what you passed. Pass
+`{ copy: true }` for a fresh object or array everywhere, as zod and valibot always do.

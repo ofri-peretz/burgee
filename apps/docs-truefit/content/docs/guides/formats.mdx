@@ -1,0 +1,57 @@
+---
+title: Formats
+description: "truefit's string formats (email, url, uuid, datetime, ipv4 and more), each against a stated reference such as RFC 3339, RFC 9562 or the WHATWG URL standard, on their own subpath so a bundle carries only the ones it uses."
+---
+
+A format is a named rule for a string, and it is data: `{ name, pattern }`. Pass one to `string`:
+
+```js title="formats.mjs"
+import { check, string } from 'truefit';
+import { datetime, email, httpUrl, url, uuid } from 'truefit/formats';
+
+console.log(check(string({ format: email }), 'a@b'));
+console.log(check(string({ format: uuid }), '018f6b8e-1f2a-7c3d-8e4f-5a6b7c8d9e0f'));
+console.log(check(string({ format: datetime }), '2026-11-24T20:00:00Z'), check(string({ format: datetime }), '2026-11-24 20:00:00'));
+console.log(check(string({ format: url }), 'javascript:alert(1)'), check(string({ format: httpUrl }), 'javascript:alert(1)'));
+```
+
+```text title="node formats.mjs"
+true
+true
+true false
+true false
+```
+
+## Each one has a reference
+
+The libraries that ship formats agree on almost none of them, so "the same as zod" would mean
+nothing. Each truefit format names the standard it implements instead:
+
+| Format | Reference |
+| :-- | :-- |
+| `email` | the WHATWG HTML standard's valid e-mail address, so `a@b` passes |
+| `url` | anything the WHATWG URL parser accepts, `javascript:` included |
+| `httpUrl` | `http` or `https`, with a host |
+| `uuid`, `uuidVersion(n)` | RFC 9562 |
+| `datetime`, `date`, `time` | RFC 3339 §5.6, on a day the calendar has; `time` needs an offset |
+| `localTime` | a time with no offset |
+| `duration` | RFC 3339 Appendix A, strict about order and gaps |
+| `ipv4`, `ipv6`, `hostname` | the RFC grammars, written out in the API reference |
+| `base64`, `base64url` | RFC 4648 §4 and §5 |
+| `emoji` | Unicode UTS #51 `RGI_Emoji` |
+| `cuid`, `cuid2`, `nanoid`, `ulid`, `jwt`, `json`, `regex`, `hex` | their own definitions, quoted in the [reference](/docs/api/formats) |
+
+Use `httpUrl`, not `url`, for a link you will put in an `href`: `url` is what all four competitors
+accept, and it is why there are two.
+
+## Only what you import
+
+Formats live on `truefit/formats`, apart from the builders, and each is marked free of side effects,
+so a bundler keeps only the ones a program imports. A schema that uses no format carries no format
+code.
+
+## Your own
+
+A format is `{ name, pattern }` or `{ name, test }`. Write your own the same way, and hand it to
+`fromJsonSchema` under the name a document uses (`formats: { 'iso-country': … }`) to read documents
+that name it.

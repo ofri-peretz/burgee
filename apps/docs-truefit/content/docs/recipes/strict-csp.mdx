@@ -1,0 +1,38 @@
+---
+title: Under a strict Content-Security-Policy
+description: "Run validation in a browser extension, an Electron renderer or a page whose Content-Security-Policy forbids unsafe-eval: truefit's check needs no eval, and truefit/emit gives you compiled guards as source at build time."
+---
+
+A Content-Security-Policy without `'unsafe-eval'` makes `new Function` throw. Validators that
+compile at run time either fail there or fall back to a slower path. truefit's default path never
+compiles:
+
+- `check`, `issues`, `parse` and `standard` walk the schema as data. They are what you use in a
+  browser extension, a Chrome Manifest V3 service worker, an Electron renderer with a strict policy,
+  or an edge runtime that forbids code generation.
+- `truefit/jit` uses `new Function`; do not import it there.
+- `truefit/emit` writes the compiled guard as source at build time, so you get compiled speed with
+  no `eval` at run time.
+
+## Emit guards at build time
+
+```js title="build-guards.mjs"
+import { writeFileSync } from 'node:fs';
+import { number, object, string } from 'truefit';
+import { emit } from 'truefit/emit';
+
+const Message = object({ type: string(), id: number({ int: true }) });
+
+writeFileSync('guards.generated.mjs', `export const isMessage = ${emit(Message)};\n`);
+
+const { isMessage } = await import('./guards.generated.mjs');
+console.log(isMessage({ type: 'ping', id: 1 }), isMessage({ type: 'ping', id: 1.5 }));
+```
+
+```text title="node build-guards.mjs"
+true false
+```
+
+The generated module imports nothing, so the page ships the guard without truefit. Commit it, or
+generate it in your build. A schema with a `refine` or a `custom` type names a function of yours,
+which `emit` refuses to write as code; validate those with `check` at run time instead.

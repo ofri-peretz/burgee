@@ -13,7 +13,7 @@
   "bugs": {
     "url": "https://github.com/ofri-peretz/burgee/issues"
   },
-  "homepage": "https://burgee.interlace.tools",
+  "homepage": "https://truefit.interlace.tools",
   "type": "module",
   "sideEffects": false,
   "engines": {

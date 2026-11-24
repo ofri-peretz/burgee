@@ -1,0 +1,140 @@
+---
+title: Schemas and types
+description: "Every truefit builder by family (primitives, objects, collections, unions, wrappers), how TypeScript infers a schema's input and output types, and how to derive one schema from another with pick, omit, partial and extend."
+---
+
+A truefit schema is a plain object that describes a value. The builders make those objects, and the
+TypeScript type of every builder's result carries the type of the value it accepts, so the type is
+inferred, never declared twice.
+
+## The builders
+
+| Family | Builders |
+| :-- | :-- |
+| Primitives | `string`, `number`, `safeInteger`, `bigint`, `boolean`, `date`, `symbol`, `nan`, `literal`, `enumOf`, `nativeEnum`, `undefinedOf`, `voidOf`, `any`, `unknown`, `never` |
+| Objects | `object`, `record`, `recordOf`, `properties`, and the derivations `pick`, `omit`, `partial`, `required`, `extend`, `keyof` |
+| Collections | `array`, `tuple`, `mapOf`, `setOf`, `contains`, `unique` |
+| Choices | `union`, `discriminated`, `discriminatedBy`, `oneOf`, `intersection`, `not` |
+| Strings | `template`, `startsWith`, `endsWith`, `includes`, `trim`, `lowercase`, `uppercase`, `normalize` |
+| Wrappers | `optional`, `exactOptional`, `nullable`, `nullish`, `readonly`, `brand`, `annotate`, `message`, `lazy` |
+| Values | `refine`, `refineAsync`, `transform`, `transformAsync`, `pipe`, `preprocess`, `catchOf`, `codec`, `custom`, `instanceOf`, `promise`, `func` |
+
+Bounds are options of the builder that has them: `string({ min, max, length, pattern, format })`,
+`number({ min, max, gt, lt, positive, negative, multipleOf, int, coerce })`,
+`array(item, { min, max })`. The [API reference](/docs/api) lists every option.
+
+## Types come from the schema
+
+```ts
+import { type Infer, type InferOutput, number, object, optional, string, transform } from 'truefit';
+
+const Order = object({
+  id: string(),
+  cents: number({ int: true, min: 0 }),
+  note: optional(string()),
+  placed: transform(string(), (s) => new Date(s)),
+});
+
+type OrderIn = Infer<typeof Order>; // { id: string; cents: number; note?: string; placed: string }
+type OrderOut = InferOutput<typeof Order>; // the same, with placed: Date
+```
+
+`Infer` (also exported as `InferInput`) is what `check` accepts and narrows to. `InferOutput` is
+what `parse` hands out once defaults, coercion and transforms have run. A schema with none of those
+has one type for both, and TypeScript only works it out once.
+
+## Objects
+
+```js title="objects.mjs"
+import { check, extend, issues, number, object, omit, partial, pick, string } from 'truefit';
+
+const User = object({ id: string(), name: string(), age: number() });
+
+const Public = omit(User, ['age']);
+const Patch = partial(pick(User, ['name', 'age']));
+const Admin = extend(User, { role: string() });
+
+console.log(check(Public, { id: 'u1', name: 'Ada' }));
+console.log(check(Patch, {}));
+console.log(issues(Admin, { id: 'u1', name: 'Ada', age: 36 }));
+```
+
+```text title="node objects.mjs"
+true
+true
+[
+  {
+    path: '/role',
+    keyword: 'required',
+    message: 'expected a value, got undefined undefined. fix: add "role"'
+  }
+]
+```
+
+Keys the shape does not name are allowed and left alone by default, as in every library truefit was
+measured against. `object(shape, { unknown: 'strict' })` refuses them and
+`object(shape, { unknown: 'strip' })` drops them from what `parse` returns. [Parsing](/docs/guides/parsing#unknown-keys)
+shows all three.
+
+`optional` is a statement about a key: it makes a field one that may be absent or `undefined`.
+Outside an object it changes nothing, so `check(optional(string()), undefined)` is false. A value
+that may itself be `undefined` is `nullish`. `exactOptional` is a key that may be absent but, when
+present, must not be `undefined`.
+
+## Choices
+
+```js title="choices.mjs"
+import { check, discriminated, issues, literal, number, object, string, union } from 'truefit';
+
+const Id = union([string(), number({ int: true })]);
+
+const Shape = discriminated('kind', {
+  circle: object({ kind: literal('circle'), r: number() }),
+  square: object({ kind: literal('square'), side: number() }),
+});
+
+console.log(check(Id, 7), check(Id, true));
+console.log(issues(Shape, { kind: 'circle', side: 2 }));
+console.log(issues(Shape, { kind: 'hexagon' }));
+```
+
+```text title="node choices.mjs"
+true false
+[
+  {
+    path: '/r',
+    keyword: 'required',
+    message: 'expected a value, got undefined undefined. fix: add "r"'
+  }
+]
+[
+  {
+    path: '/kind',
+    keyword: 'tag',
+    message: 'expected one of "circle", "square", got string "hexagon". fix: send one of them'
+  }
+]
+```
+
+A `union` tries its members in order and the first to accept decides. A `discriminated` union reads
+the tag and goes straight to its case, so its issues are that case's issues. `discriminatedBy` does
+the same for tags that are numbers or booleans. `oneOf` is JSON Schema's exclusive or: a value two
+members accept fails.
+
+## Schemas that name themselves
+
+```ts
+import { type Schema, array, lazy, object, string } from 'truefit';
+
+interface Tree { name: string; kids: Tree[] }
+const Tree: Schema<Tree> = object({ name: string(), kids: array(lazy(() => Tree)) });
+```
+
+`lazy` asks for the schema when it is read, which is what lets two schemas name each other. The
+JSON Schema writer turns each one into a shared definition, and the emitter into a named function.
+
+## Brands
+
+`brand(string(), 'UserId')` has the type `string & Brand<'UserId'>`, which a plain `string` is not
+assignable to, so a function that takes a `UserId` only gets one that passed the schema. It is type
+only: the node is the one it was given.

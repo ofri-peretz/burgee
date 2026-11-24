@@ -1,0 +1,80 @@
+---
+title: Why truefit
+description: "truefit against zod, valibot, ArkType, TypeBox and ajv: a 154-feature matrix decided by runnable probes, the things none of them does (JSON Pointer paths, a fix line on every issue, cross-field rules that always run), and what it leaves out on purpose."
+---
+
+zod, valibot, ArkType, TypeBox and ajv each validate well. truefit was built against all five at
+once, feature by feature, and then for the things a validator is used for when the reader of its
+output is an agent as often as a person.
+
+## Features, measured by probes
+
+The feature matrix has 154 rows, and every cell is decided by a runnable probe, never by a
+library's documentation. The competitors were read on 2026-11-13 against zod 4.6.7, valibot 1.5.0,
+ArkType 2.2.9, @sinclair/typebox 0.34.52 and ajv 8.20.0 with ajv-formats 3.0.1; truefit's row is
+its reading after wave 4 (`.sdlc/intents/truefit/parity.md`).
+
+| Library | yes | partial | add-on | no |
+| :-- | --: | --: | --: | --: |
+| zod | 137 | 5 | 0 | 12 |
+| valibot | 123 | 5 | 0 | 26 |
+| ArkType | 99 | 11 | 0 | 44 |
+| TypeBox | 88 | 7 | 0 | 59 |
+| ajv | 70 | 10 | 12 | 62 |
+| **truefit** | **143** | **4** | **0** | **7** |
+
+The features were built in waves by how many of the five competitors have them: every feature that
+all five have, then four, three and two. The seven `no` rows are the last wave, six features only
+one competitor has (CIDR, a deep partial, draft-04, draft 2019-09, if/then/else as a builder and the
+OpenAPI `discriminator`), plus CommonJS, which truefit does not build: it is ESM only, as every
+package in this family.
+
+## What none of them does
+
+- **A path is a JSON Pointer.** `/items/1/qty` is one string that survives JSON, a log line and a
+  tool call. [Issues](/docs/guides/issues).
+- **Every message ends in `fix:`.** It says what arrived and what to send instead, so the issue an
+  agent reads is the instruction it needs.
+- **A rule across fields always runs.** With `uses`, a rule about two fields runs whenever those two
+  are sound, even when a third is wrong, and reports at the field it names. zod skips a refinement
+  when another field fails. [Rules](/docs/guides/rules).
+- **No `eval` on the default path.** `check` walks data, so it runs under a Content-Security-Policy
+  that forbids `unsafe-eval`, and `truefit/emit` gives you the compiled speed ahead of time anyway.
+  [Compiled validators](/docs/guides/compiled).
+- **JSON Schema without silent loss.** Writing out and reading in both return their findings: every
+  rule, transform or keyword that did not survive, at its JSON Pointer. [JSON Schema](/docs/guides/json-schema).
+- **Formats against a stated reference**, on their own subpath. [Formats](/docs/guides/formats).
+
+## Decisions where the five disagree
+
+They disagree with each other, so "the same as everyone" is not available. truefit takes a default
+for each and writes down why. A few of them:
+
+| Question | truefit | Because |
+| :-- | :-- | :-- |
+| Unknown keys | allowed and left alone; `strict` refuses, `strip` drops | nobody refuses by default |
+| String length | code points | what JSON Schema's `maxLength` means, and what zod and ajv count |
+| `Infinity` | refused | JSON has no such number |
+| A copy or your object | your object unless something changed; never written to | an allocation per parse is a cost nobody asked for |
+| Coercion | only where the schema asks, with written rules per source type | the five agree on none of `""`, `" 1"`, `"0x10"`, `"Infinity"` |
+| Tuples | closed | one more item is a different tuple |
+
+## What it costs
+
+The bundle is read with esbuild, minified and gzipped, after wave 4: 702 B for a schema of one
+`string` with `check`, and 1,704 B for the order schema the benchmark uses. A bundle carries only the
+kinds its schemas use, because each node holds a reference to its own kind's check. Throughput
+against the five, at equal features, is _unmeasured_ on a quiet machine: the readings in the intent
+were taken on a loaded one, and the benchmark's own rule is that a scenario is timed only once all
+six give the same verdict on every payload. The family's [benchmarks page](https://burgee.interlace.tools/docs/benchmarks)
+publishes what `npm run bench` measures.
+
+## What it leaves out on purpose
+
+- **CommonJS.** ESM only, with types.
+- **A global error map or locale bundles.** Messages are per call or per schema. [Issues](/docs/guides/issues#your-own-words).
+- **A chainable API.** `string().min(1).email()` is a method chain on an object that has to carry
+  every method; `string({ min: 1, format: email })` is data, and a bundler can see what it uses.
+- **Drop-in compatibility claims.** truefit is not graded by any competitor's own test suite, so this
+  site never says "drop-in". The builders keep zod's names where zod has one, and the
+  [migration guide](/docs/coming-from/zod) shows every rename.

@@ -1,0 +1,63 @@
+---
+title: Coming from ajv
+description: "An ajv alternative that reads the JSON Schema you already have: fromJsonSchema turns a 2020-12, draft-07 or OpenAPI 3.0 document into a truefit schema with inferred-type builders beside it, graded against ajv's own verdicts on 2,385 pairs, with no eval by default."
+---
+
+ajv compiles a JSON Schema document to a function with `new Function`. truefit can read the same
+document, so you do not have to rewrite your schemas to move: `fromJsonSchema` gives you a truefit
+schema, and `check`, `issues` and `parse` run it with no `eval`. For new schemas, the builders give
+you the TypeScript type without a separate `JSONSchemaType` declaration.
+
+```diff
+- import Ajv from 'ajv';
+- import addFormats from 'ajv-formats';
+- const ajv = new Ajv({ allErrors: true });
+- addFormats(ajv);
+- const validate = ajv.compile(userSchema);
+- if (!validate(input)) console.log(validate.errors);
++ import { check, issues } from 'truefit';
++ import { fromJsonSchema } from 'truefit/json-schema';
++ const { schema: User, findings } = fromJsonSchema(userSchema);
++ if (findings.length > 0) console.warn(findings);
++ if (!check(User, input)) console.log(issues(User, input));
+```
+
+## Is the verdict the same?
+
+On the import's grading corpus, yes: 53 documents over 45 JSON values, 2,385 pairs, where ajv
+8.20.0's verdict, truefit's `check`, the emitted code, and ajv's verdict on the document
+`toJsonSchema` writes back all agree. That corpus is run outside this repository, so the figure is
+the one recorded in `.sdlc/intents/truefit/parity.md`, wave 4. Two differences are deliberate:
+
+- **Draft-07 ignores what stands beside a `$ref`**, as the draft says it MUST; ajv 8 applies the
+  siblings.
+- **`multipleOf` on a large number is exact**: ajv accepts `1e21` as a multiple of 3 by dividing in
+  doubles.
+
+What `fromJsonSchema` does not read is reported as a finding, and the schema accepts more there,
+never less: `patternProperties`, `unevaluatedProperties`, `unevaluatedItems`, `$dynamicRef`, a
+`$ref` outside the document, and a format it has no reading of (pass your own in `formats`).
+
+## Mapping
+
+| ajv | truefit |
+| :-- | :-- |
+| `ajv.compile(schema)` | `fromJsonSchema(schema).schema`, then `check`; or `compile` from `truefit/jit` |
+| `ajv.addSchema` and `$ref` across schemas | `jsonSchemaReader(document)`, which reads many against one document |
+| `allErrors: true` | the default of `issues` and `parse` |
+| `validate.errors[i].instancePath` | `issue.path` (also a JSON Pointer) |
+| `validate.errors[i].keyword` | `issue.keyword` |
+| `useDefaults`, `coerceTypes`, `removeAdditional` | `parse`, with `optional(s, { default })`, `coerce` and `unknown: 'strip'` |
+| `ajv-formats` | `truefit/formats`, each with a stated reference |
+| `ajv-errors` `errorMessage` | `message(s, words)` or the per-call `message` option |
+| standalone code (`ajv/dist/standalone`) | `emit(schema)` from `truefit/emit` |
+| `JSONSchemaType<T>` | `Infer<typeof S>`, from builders |
+
+## Different on purpose
+
+- **No `eval` by default.** ajv needs `unsafe-eval` or a standalone build step; truefit's interpreter
+  needs neither.
+- **ajv writes defaults into your object.** truefit never writes to its input; `parse` returns a new
+  object where something changed.
+- **Formats are asserted when read from a document**, as ajv asserts them by default, though the
+  specification makes them annotations unless a validator opts in.

@@ -1,0 +1,50 @@
+---
+title: Coming from ArkType
+description: "An ArkType alternative that keeps validation free of eval by default: ArkType's string syntax becomes builder calls, its morphs become transform and pipe, and compiled speed comes ahead of time from truefit/emit instead of at run time."
+---
+
+ArkType reads a TypeScript-like string syntax and compiles it to a function at run time. truefit
+builds the same schemas with functions, validates them by walking data with no `eval`, and offers
+compiled code ahead of time with `truefit/emit` (or at run time with `truefit/jit`, where `eval`
+is allowed). The value model is close: both hand back your own object unless something changed.
+
+```diff
+- import { type } from 'arktype';
+- const User = type({ name: 'string > 0', age: 'number.integer >= 0', 'email?': 'string.email' });
+- const out = User(input);
+- if (out instanceof type.errors) console.log(out.summary);
++ import { number, object, optional, parse, string } from 'truefit';
++ import { email } from 'truefit/formats';
++ const User = object({ name: string({ min: 1 }), age: number({ int: true, min: 0 }), email: optional(string({ format: email })) });
++ const out = parse(User, input);
++ if (!out.ok) console.log(out.issues.map((i) => i.message).join('\n'));
+```
+
+## Mapping
+
+| ArkType | truefit |
+| :-- | :-- |
+| `'string > 0'`, `'string <= 40'` | `string({ min: 1 })`, `string({ max: 40 })` |
+| `'string.email'`, `'string.uuid'`, `'string.date.iso'` | `string({ format: email })` and the other formats |
+| `'number.integer >= 0'`, `'number % 5'` | `number({ int: true, min: 0 })`, `number({ multipleOf: 5 })` |
+| `'key?'` | `key: optional(s)` |
+| `'a \| b'`, `'a & b'` | `union([a, b])`, `intersection([a, b])` |
+| `'string[]'`, `['string', 'number']` | `array(string())`, `tuple([string(), number()])` |
+| `"'a' \| 'b'"` | `enumOf(['a', 'b'])` |
+| `.pipe(f)`, `.to(t)` (morphs) | `transform(s, f)`, `pipe(s, t)` |
+| `.narrow(f)` | `refine(s, f)` |
+| `.onUndeclaredKey('reject' \| 'delete')` | `object(shape, { unknown: 'strict' \| 'strip' })` |
+| `.allows(v)` | `check(S, v)` |
+| `S(v)` returning `type.errors` | `parse(S, v)` returning `{ ok: false, issues }` |
+| `S.assert(v)` | `assert(S, v)` |
+| `S.infer`, `S.inferIn` | `InferOutput<typeof S>`, `Infer<typeof S>` |
+| `S.toJsonSchema()` | `toJsonSchema(S)` |
+
+## Different on purpose
+
+- **No string syntax.** A builder call is checked by the TypeScript you already run, with no parser
+  in the type system and none in the bundle.
+- **No `eval` unless you ask.** ArkType compiles with `new Function` by default and falls back under
+  a CSP; truefit's default is the interpreter, and its compiled form is source you can commit.
+- **Issues are records**, not a summary string: a JSON Pointer, a keyword and a message ending in
+  `fix:`.
