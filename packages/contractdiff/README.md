@@ -131,8 +131,14 @@ The same command reads openapi-fetch, Hey API and orval configs.
 
 ## Compatibility
 
-Not graded: no incumbent's own suite runs against contractdiff through compat-oracle. The `types`
-target is measured against openapi-typescript's output on the corpus in `benchmarks/apicontract`.
+Not graded on the published compatibility page yet. `contractdiff/openapi-typescript` passed 45 of 61 of openapi-typescript 7.13.0's own gated cases
+when compat-oracle ran them on 2026-11-24 (openapi-typescript itself passes 61). It is not claimed as
+a drop-in until it passes all 61. When the failures were last listed case by case (2026-11-18, 43
+of 61), 7 passed the `transform`, `postTransform` or `transformProperty` options, which hand
+TypeScript compiler nodes across and which the compiler-free generator refuses, and 9 spawned
+openapi-typescript's own `./bin/cli.js`.
+The `types` target is also measured against openapi-typescript's output on the corpus in
+`benchmarks/apicontract`.
 
 ## Benchmarks
 
