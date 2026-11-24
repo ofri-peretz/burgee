@@ -1,6 +1,6 @@
 {
   "name": "hookset",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "The verification stations as git and Claude hooks: lefthook presets pulled by pinned tag, a Claude hook pack, and `hookset init` / `hookset check`. Working name; unpublished.",
   "license": "MIT",

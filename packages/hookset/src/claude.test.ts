@@ -53,7 +53,11 @@ describe('guard-bash', () => {
       mkdirSync(join(dir, '.claude'));
       writeFileSync(join(dir, '.claude/hookset.json'), JSON.stringify({ ask: ['vercel deploy --prod'], frozen: ['content/**/*.md', 'sdlc/baseline/*.json'] }));
       const env = { CLAUDE_PROJECT_DIR: dir };
-      expect(decision(hook('guard-bash.mjs', { tool_input: { command: 'npx vercel deploy --prod' } }, env))).toBe('ask');
+      const listed = hook('guard-bash.mjs', { tool_input: { command: 'npx vercel deploy --prod' } }, env);
+      expect(decision(listed)).toBe('ask');
+      // A repo-listed phrase says why it was listed, not that it publishes: `-- --force` on a sync is not a release.
+      expect(listed).toContain('.claude/hookset.json');
+      expect(listed).not.toContain('publishes or deploys');
       expect(decision(hook('guard-bash.mjs', { tool_input: { file_path: join(dir, 'content/a/b.md') } }, env))).toBe('deny');
       expect(decision(hook('guard-bash.mjs', { tool_input: { file_path: 'sdlc/baseline/unscored.json' } }, env))).toBe('deny');
       expect(decision(hook('guard-bash.mjs', { tool_input: { file_path: join(dir, 'content/a/b.ts') } }, env))).toBeUndefined();

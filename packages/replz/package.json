@@ -1,6 +1,6 @@
 {
   "name": "replz",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "description": "Grades a reviewer and a repository's checks against bugs that actually happened: replays each known bug PR and size-matched clean controls, scores findings against a one-sentence answer key per stage, and counts how often every check fires. Unpublished.",
   "license": "MIT",
@@ -36,7 +36,7 @@
     "bellpull": "^2.0.0",
     "burgee": "^2.1.5",
     "seniority": "^2.0.0",
-    "truefit": "0.2.0"
+    "truefit": "0.2.1"
   },
   "devDependencies": {
     "vitest": "^5.0.1"
