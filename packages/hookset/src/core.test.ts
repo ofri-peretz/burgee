@@ -39,7 +39,7 @@ function repo(files: Record<string, string>): string {
 }
 
 const read = (dir: string, rel: string): string => readFileSync(join(dir, rel), 'utf8');
-const MANIFEST = JSON.stringify({ scripts: { prepare: 'lefthook install || true', 'hook:staged': 'prettier --check', 'hook:verify': 'turbo run typecheck test build' } });
+const MANIFEST = JSON.stringify({ scripts: { prepare: 'lefthook install || true', 'hook:provedone': 'provedone gate', 'hook:staged': 'prettier --check', 'hook:verify': 'turbo run typecheck test build' } });
 const ALL_SCRIPTS = JSON.stringify({
   scripts: Object.fromEntries([['prepare', 'lefthook install'], ...STATIONS.stations.filter((s) => s.script).map((s) => [String(s.script), 'x'])]),
 });
@@ -299,6 +299,7 @@ describe('checkRepo', () => {
     const dir = repo({ 'package.json': JSON.stringify({ scripts: { prepare: 'husky' } }), 'lefthook.yml': lefthookTemplate(STATIONS, REF) });
     expect(checkRepo(dir, PKG).problems.filter((p) => p.severity === 'error')).toEqual([
       { id: 'not-installed', severity: 'error', message: 'nothing installs the hooks: package.json has no `prepare` running `lefthook install`', fix: 'add `"prepare": "lefthook install || true"`' },
+      { id: 'missing-script', severity: 'error', message: 'the provedone station runs `npm run hook:provedone`, and package.json does not declare it', fix: 'add "hook:provedone" to package.json scripts: the commit carries a Verified-by receipt, or none with a reason' },
       { id: 'missing-script', severity: 'error', message: 'the staged station runs `npm run hook:staged`, and package.json does not declare it', fix: 'add "hook:staged" to package.json scripts: lint and format the staged files only, under 10 s' },
       { id: 'missing-script', severity: 'error', message: 'the verify station runs `npm run hook:verify`, and package.json does not declare it', fix: 'add "hook:verify" to package.json scripts: typecheck, the affected tests and the build' },
     ]);
@@ -441,6 +442,16 @@ describe('initRepo', () => {
       [undefined, ['node any.mjs']],
     ]);
     expect(initRepo(dir, PKG, { claude: true })).toEqual({ changed: false, written: [] });
+  });
+  it('passes over a group with no matcher when it looks for the pack hook\'s group, and adds its own after it', () => {
+    const settings = { hooks: { PostToolUseFailure: [{ hooks: [{ type: 'command', command: 'node log.mjs' }] }] } };
+    const dir = repo({ 'lefthook.yml': lefthookTemplate(STATIONS, REF), '.claude/settings.json': JSON.stringify(settings) });
+    initRepo(dir, PKG, { claude: true });
+    const merged = JSON.parse(read(dir, '.claude/settings.json')) as { hooks: Record<string, { matcher?: string; hooks: { command: string }[] }[]> };
+    expect(merged.hooks['PostToolUseFailure']?.map((g) => [g.matcher, g.hooks.map((h) => h.command)])).toEqual([
+      [undefined, ['node log.mjs']],
+      ['Bash', ['node "$CLAUDE_PROJECT_DIR/.claude/hooks/stop-after-3.mjs"']],
+    ]);
   });
 });
 

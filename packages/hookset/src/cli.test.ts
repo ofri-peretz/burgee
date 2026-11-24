@@ -18,7 +18,7 @@ describe('hookset', () => {
 
   it('init writes a lefthook.yml, check then passes it, and --json carries the data', async () => {
     const dir = scratch('hookset-cli-');
-      writeFileSync(join(dir, 'package.json'), JSON.stringify({ scripts: { prepare: 'lefthook install', 'hook:staged': 'x', 'hook:verify': 'y' } }));
+      writeFileSync(join(dir, 'package.json'), JSON.stringify({ scripts: { prepare: 'lefthook install', 'hook:provedone': 'p', 'hook:staged': 'x', 'hook:verify': 'y' } }));
       const init = await runBurgee(program, { argv: ['init', '--cwd', dir, '--json'] });
       expect(init.code).toBe(ExitCode.OK);
       expect(JSON.stringify(init.json)).toContain('lefthook.yml');

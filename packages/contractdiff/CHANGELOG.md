@@ -1,5 +1,16 @@
 # contractdiff
 
+## 1.0.0
+
+### Major Changes
+
+- [#1798](https://github.com/ofri-peretz/burgee/pull/1798) [`78d014b`](https://github.com/ofri-peretz/burgee/commit/78d014badecbaa3cbf1bfa6aa94be01745359659) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - contractdiff is 1.0. Its entries `.`, `./core`, `./openapi`, `./openapi-typescript` and `./testing`, the `contractdiff` bin and its commands, the `contractdiff.config.json` and `contractdiff.map.json` formats, the `ac-*` finding codes `diff` reports and its exit codes are now a semver contract: a change `diff` calls breaking today stays breaking on every 1.x. Nothing changed in the code; the evidence is D-20261124-verification-family-1-0, which also states what the `./openapi-typescript` entry does not do, measured on openapi-typescript's own suite.
+
+### Patch Changes
+
+- Updated dependencies [[`78d014b`](https://github.com/ofri-peretz/burgee/commit/78d014badecbaa3cbf1bfa6aa94be01745359659)]:
+  - truefit@1.0.0
+
 ## 0.4.2
 
 ### Patch Changes

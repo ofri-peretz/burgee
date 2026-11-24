@@ -30,7 +30,8 @@ private until it has run in every Interlace repo. Intent: [`.sdlc/intents/hookse
     before a registry write (npm/pnpm/yarn/bun `publish`, `unpublish`, `deprecate`, `dist-tag add|rm`,
     `changeset publish`, `lerna publish`), a push that rewrites or deletes remote history (`--force`,
     `-f`, `+ref`, `--delete`, `:ref`, `--mirror`, `--prune`) and the commands the repo lists under
-    `ask` in `.claude/hookset.json`; denies Edit/Write on the globs listed there under `frozen`.
+    `ask` in `.claude/hookset.json`; denies Edit/Write on the globs listed there under `frozen`, and on
+    the globs under `generated` (glob to the command that writes them), naming that command.
   - `stop-after-3.mjs` (PostToolUse, PostToolUseFailure): counts failed test runs per session;
     a pass resets it, and the third failure in a row ends the turn with a stop-and-ask message.
 

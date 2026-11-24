@@ -1,5 +1,11 @@
 # truepass
 
+## 1.0.0
+
+### Major Changes
+
+- [#1798](https://github.com/ofri-peretz/burgee/pull/1798) [`78d014b`](https://github.com/ofri-peretz/burgee/commit/78d014badecbaa3cbf1bfa6aa94be01745359659) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - truepass is 1.0. Its entries `.` and `./eslint`, its four rules (`no-focused-test`, `no-unexplained-skip`, `no-fixed-sleep`, `no-test-retry`), the `truepass diff` command, its `--json` finding shape and its exit codes are now a semver contract: a rule is renamed or removed, or reports something new by default, only in a 2.0. Nothing changed in the code; the evidence is D-20261124-verification-family-1-0: 100% coverage, every spec row built, and a first full mutation run with no surviving mutant.
+
 ## 0.1.3
 
 ### Patch Changes

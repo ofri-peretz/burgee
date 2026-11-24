@@ -112,6 +112,14 @@ describe('runProtect', () => {
     expect(text(data)).not.toContain('observe');
   });
 
+  it('passes, checking nothing, when the base branch has no checklist yet', async () => {
+    const git: Git = { diff: () => Promise.resolve(GATE_DIFF), show: () => Promise.reject(new Error("fatal: path 'c.yaml' does not exist in 'b'")) };
+    const data = await runProtect({ repo: '/', git, base: 'b', checklist: 'c.yaml', worktree: false, enforce: true });
+    expect(JSON.parse(JSON.stringify(data))).toEqual({ range: 'b...HEAD', checklist: 'b:c.yaml', mode: 'enforce', gates: [], code: [], flagged: false, bootstrap: true });
+    expect(text(data)).toBe('b:c.yaml does not exist yet: no gate to protect, so nothing is checked');
+    await expect(runProtect({ repo: '/nowhere', git, base: 'b', checklist: 'c.yaml', worktree: true, enforce: true })).rejects.toThrow();
+  });
+
   it('passes in enforce mode when not flagged', async () => {
     const data = await runProtect({ repo: '/', git: baseGit(DIFF), base: 'b', checklist: 'c.yaml', worktree: false, enforce: true });
     expect(data).not.toHaveProperty('exitCode');
@@ -238,6 +246,14 @@ describe('the program', () => {
     expect(r.stdout.trimEnd().endsWith('<!-- triggerlist-review head=c0ffee -->')).toBe(true);
   });
 
+  it('brief still briefs when the base branch has no rules file or checklist yet', async () => {
+    const r = await runBurgee(program, { argv: ['brief', 'main', '--repo', repo, '--head', 'c0ffee', '--review', 'NONE.md', '--checklist', 'none.yaml', '--json'] });
+    expect(r.code).toBe(ExitCode.OK);
+    expect(r.json).toMatchObject({ data: { rules: 'main:NONE.md', checklist: 'main:none.yaml', fired: [] } });
+    const text = await runBurgee(program, { argv: ['brief', 'main', '--repo', repo, '--head', 'c0ffee', '--review', 'NONE.md', '--checklist', 'none.yaml'] });
+    expect(text.stdout).toContain("(main:NONE.md does not exist yet: review against the repo's own instructions)");
+  });
+
   it('brief reads the previous round from the comments file, and --review names another rules file', async () => {
     writeFileSync(join(repo, 'comments.json'), JSON.stringify([{ body: 'thanks' }, { body: 'old\n<!-- triggerlist-review head=1111 -->' }, { body: 'newer\n<!-- triggerlist-review head=2222 -->' }]));
     const r = await runBurgee(program, { argv: ['brief', 'main', '--repo', repo, '--head', '3333', '--comments', 'comments.json', '--json'] });
@@ -248,6 +264,26 @@ describe('the program', () => {
     const other = await runBurgee(program, { argv: ['brief', 'main', '--repo', repo, '--head', '3333', '--review', 'src/a.ts', '--json'] });
     expect(other.json).toMatchObject({ data: { rules: 'main:src/a.ts', previous: false } });
     expect((await runBurgee(program, { argv: ['brief', 'main', '--repo', repo, '--json'] })).code).toBe(ExitCode.USAGE);
+  });
+
+  it("brief quotes the author's replies posted after the previous round, and none before it", async () => {
+    writeFileSync(join(repo, 'round.json'), JSON.stringify([{ body: 'changeset-for-package-change\n<!-- triggerlist-review head=1111 -->', created_at: '2026-11-20T10:00:00Z' }]));
+    writeFileSync(
+      join(repo, 'replies.json'),
+      JSON.stringify([
+        { body: 'stale reply', created_at: '2026-11-20T09:00:00Z', user: { login: 'author', type: 'User' } },
+        { body: 'a test file is not shipped', created_at: '2026-11-20T11:00:00Z', user: { login: 'author', type: 'User' }, path: 'src/a.test.ts', line: 2 },
+      ]),
+    );
+    const argv = ['brief', 'main', '--repo', repo, '--head', '3333', '--comments', 'round.json', '--replies', 'replies.json'];
+    const json = await runBurgee(program, { argv: [...argv, '--json'] });
+    expect(json.json).toMatchObject({ data: { previous: true, replies: 1 } });
+    const text = await runBurgee(program, { argv });
+    expect(text.stdout).toContain("## The author's replies since that round");
+    expect(text.stdout).toContain('- @author, 2026-11-20T11:00:00Z on src/a.test.ts:2:\n\n> a test file is not shipped');
+    expect(text.stdout).not.toContain('stale reply');
+    const first = await runBurgee(program, { argv: ['brief', 'main', '--repo', repo, '--head', '3333', '--replies', 'replies.json', '--json'] });
+    expect(first.json).toMatchObject({ data: { previous: false, replies: 0 } });
   });
 
   it('protect --enforce fails on a gate changed with code', async () => {

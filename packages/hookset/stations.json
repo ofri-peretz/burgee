@@ -9,6 +9,7 @@
   },
   "stations": [
     { "id": "commitlint", "hook": "commit-msg", "mode": "enforce", "command": "hookset-commitlint", "detail": "the message follows the repo's commitlint config" },
+    { "id": "provedone", "hook": "commit-msg", "mode": "enforce", "command": "hookset-provedone", "script": "hook:provedone", "detail": "the commit carries a Verified-by receipt, or none with a reason" },
     { "id": "staged", "hook": "pre-commit", "mode": "enforce", "command": "hookset-staged", "script": "hook:staged", "detail": "lint and format the staged files only, under 10 s" },
     { "id": "verify", "hook": "pre-push", "mode": "enforce", "command": "hookset-verify", "script": "hook:verify", "detail": "typecheck, the affected tests and the build" },
     { "id": "mutation", "hook": "pre-push", "mode": "optional", "command": "hookset-mutation", "script": "hook:mutation", "detail": "changed-lines mutation testing" },

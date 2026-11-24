@@ -105,7 +105,7 @@ The switch is one command, `npx hookset init`, and husky's folder comes out:
 ```
 
 `npx hookset init` writes `lefthook.yml`; move each `.husky/<hook>` script into the
-`hook:staged` or `hook:verify` script its station calls, then delete `.husky/`.
+`hook:provedone`, `hook:staged` or `hook:verify` script its station calls, then delete `.husky/`.
 
 ## Compatibility
 
