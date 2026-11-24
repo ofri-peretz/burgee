@@ -138,7 +138,7 @@
     },
     "closeout": {
       "status": "measured",
-      "floor": 89.9,
+      "floor": 100,
       "history": [
         {
           "floor": 90.3,
@@ -150,6 +150,11 @@
           "setOn": "2026-11-01",
           "why": "oxmutate 1.1.0 added NumericLiteral; the 2026-10-31 run at bd98f43aae measured 89.9% with it, below the 90.3% floor set without it. Restated to that run, rounded down to one decimal.",
           "decision": "D-20261101-mutation-floors-numericliteral-restate"
+        },
+        {
+          "floor": 100,
+          "setOn": "2026-11-24",
+          "why": "Full run at 4821145579 (oxmutate 2.18.5): 100% (827 detected of 827; 16 mutants ignored, each by a reasoned Stryker disable), above the 89.9% floor; no survivor left to kill. Rounded down to one decimal."
         }
       ],
       "observations": [
@@ -182,6 +187,16 @@
           "survived": 84,
           "noCoverage": 0,
           "minutes": 3.35
+        },
+        {
+          "date": "2026-11-24",
+          "commit": "4821145579",
+          "score": 100,
+          "killed": 825,
+          "timeout": 2,
+          "survived": 0,
+          "noCoverage": 0,
+          "minutes": 2.3
         }
       ]
     },
