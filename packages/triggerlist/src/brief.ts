@@ -47,31 +47,28 @@ export const MAX_REPLIES = 10;
 /** A reply longer than this is cut: the reviewer needs the argument, not the whole essay. */
 export const MAX_REPLY_CHARS = 1200;
 
-const isBot = (reply: Reply): boolean => reply.user?.type === 'Bot' || (reply.user?.login ?? '').endsWith('[bot]');
+const isBot = (reply: Reply): boolean => reply.user?.type === 'Bot' || reply.user?.login?.endsWith('[bot]') === true;
 
 /**
  * The replies posted after the previous round, oldest first, bots left out, each trimmed. None when
  * there was no previous round (nothing to answer) or it carries no time to count from.
  */
 export const repliesSince = (replies: readonly Reply[], since: string | null | undefined): Reply[] => {
-  if (since === undefined || since === null || since === '') return [];
-  const after = Date.parse(since);
-  if (Number.isNaN(after)) return [];
+  // A missing or unreadable time parses to NaN, and no reply is later than NaN.
+  const after = Date.parse(String(since));
   return replies
-    .filter((reply) => !isBot(reply) && (reply.body ?? '').trim() !== '' && Date.parse(reply.created_at ?? '') > after)
-    .toSorted((a, b) => Date.parse(a.created_at ?? '') - Date.parse(b.created_at ?? ''))
+    .map((reply) => ({ reply, at: Date.parse(String(reply.created_at)), body: reply.body?.trim() ?? '' }))
+    .filter(({ reply, at, body }) => !isBot(reply) && body !== '' && at > after)
+    .toSorted((a, b) => a.at - b.at)
     .slice(-MAX_REPLIES)
-    .map((reply) => {
-      const body = (reply.body ?? '').trim();
-      return { ...reply, body: body.length > MAX_REPLY_CHARS ? `${body.slice(0, MAX_REPLY_CHARS).trimEnd()} [trimmed]` : body };
-    });
+    .map(({ reply, body }) => ({ ...reply, body: body.length > MAX_REPLY_CHARS ? `${body.slice(0, MAX_REPLY_CHARS).trimEnd()} [trimmed]` : body }));
 };
 
 /** One reply as the brief quotes it: who, when, where, then the body as a block quote. */
 const replyText = (reply: Reply): string => {
   const line = reply.line ? `:${reply.line}` : '';
   const where = reply.path ? ` on ${reply.path}${line}` : '';
-  const quoted = (reply.body ?? '')
+  const quoted = String(reply.body)
     .split('\n')
     .map((line) => `> ${line}`.trimEnd())
     .join('\n');

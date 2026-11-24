@@ -56,6 +56,44 @@ describe('repliesSince', () => {
     expect(kept[0]?.body?.endsWith(' [trimmed]')).toBe(true);
     expect(kept[0]?.body?.length).toBe(MAX_REPLY_CHARS + ' [trimmed]'.length);
   });
+  it('caps at 10 replies of 1200 characters', () => {
+    expect([MAX_REPLIES, MAX_REPLY_CHARS]).toEqual([10, 1200]);
+  });
+
+  it('tells a bot by its type or by a [bot] login, and keeps a reply with no user or no login', () => {
+    const at = '2026-11-20T12:00:00Z';
+    const kept = repliesSince(
+      [
+        { body: 'login bot', created_at: at, user: { login: 'renovate[bot]', type: 'User' } },
+        { body: 'bot prefix only', created_at: at, user: { login: '[bot]-ish', type: 'User' } },
+        { body: 'no user', created_at: at },
+        { body: 'null user', created_at: at, user: null },
+        { body: 'no login', created_at: at, user: { type: 'User' } },
+      ],
+      '2026-11-20T11:00:00Z',
+    );
+    expect(kept.map((r) => r.body)).toEqual(['bot prefix only', 'no user', 'null user', 'no login']);
+  });
+
+  it('leaves out a reply with no body, no time, or posted at the round itself, and is empty for an empty time', () => {
+    const since = '2026-11-20T11:00:00Z';
+    expect(repliesSince([{ created_at: '2026-11-20T12:00:00Z', user: author }, { body: 'no time', user: author }, { body: 'same instant', created_at: since, user: author }], since)).toEqual([]);
+    expect(repliesSince(replies, '')).toEqual([]);
+  });
+
+  it('trims whitespace around a body, keeps a body of exactly the cap whole, and cuts trailing space before [trimmed]', () => {
+    const exact = 'e'.repeat(1200);
+    const spaced = `${'s'.repeat(1195)}${' '.repeat(10)}tail`;
+    const kept = repliesSince(
+      [
+        { body: '  padded  ', created_at: '2026-11-20T12:00:00Z', user: author },
+        { body: exact, created_at: '2026-11-20T12:01:00Z', user: author },
+        { body: spaced, created_at: '2026-11-20T12:02:00Z', user: author },
+      ],
+      '2026-11-20T11:00:00Z',
+    );
+    expect(kept.map((r) => r.body)).toEqual(['padded', exact, `${'s'.repeat(1195)} [trimmed]`]);
+  });
 });
 
 describe('previousRound', () => {
@@ -125,5 +163,10 @@ describe('briefText', () => {
       ].join('\n'),
     );
     expect(briefText({ ...brief, previous: undefined, replies })).not.toContain('replies');
+  });
+
+  it('quotes a reply with no user, no time, or a path with no line, and keeps a blank quoted line bare', () => {
+    const replies = [{ body: 'first\n\nsecond', path: 'src/b.ts' }];
+    expect(briefText({ ...brief, previous: markerFor('beef'), replies })).toContain(['- @unknown, at an unrecorded time on src/b.ts:', '', '> first', '>', '> second'].join('\n'));
   });
 });
