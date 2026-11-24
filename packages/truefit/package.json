@@ -1,6 +1,6 @@
 {
   "name": "truefit",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": false,
   "description": "A JS/TS validator whose schemas are data: checked with no eval, or compiled ahead of time from a contract. Zero dependencies. A zod migration path.",
   "license": "MIT",
