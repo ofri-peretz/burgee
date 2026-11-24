@@ -5,7 +5,7 @@
  * block. The text it copies is always on the page already, so a refused clipboard costs the
  * reader nothing but a selection by hand.
  */
-import { memo, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 
 /** How long the button says "Copied" before it goes back, in milliseconds. */
 const COPIED_MS = 1600;
@@ -21,12 +21,17 @@ export interface CopyButtonProps {
 
 function CopyButtonView({ text, what = text, id }: CopyButtonProps) {
   const [copied, setCopied] = useState(false);
+  // One pending reset at a time: a second click restarts the window rather than letting the
+  // first click's timer flip the icon back mid-way. Cleared on unmount.
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(timer.current), []);
   const handleCopy = () => {
     navigator.clipboard
       .writeText(text)
       .then(() => {
         setCopied(true);
-        setTimeout(() => setCopied(false), COPIED_MS);
+        clearTimeout(timer.current);
+        timer.current = setTimeout(() => setCopied(false), COPIED_MS);
       })
       // Clipboard access refused (an insecure origin, a denied permission): the text is still
       // on the page to select by hand, so there is nothing to report.
