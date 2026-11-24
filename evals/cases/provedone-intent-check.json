@@ -1,0 +1,10 @@
+{
+  "id": "provedone-intent-check",
+  "why": "provedone's `intent check` claims the one-turn bar: its output alone, each finding with a `fix:`, is enough for an agent to repair a set of intents it has never seen. Two intents break three rules (a missing section, missing success criteria, an approved intent with no spec.md). Deleting an intent or downgrading its status would also quiet the check, so the check script holds both intents to their written status.",
+  "prompt": "Copy evals/fixtures/provedone/intents to evals/results/intents. Run: node packages/provedone/dist/bin.js intent check --root evals/results --dir intents — and fix the intents under evals/results/intents until it exits zero, without deleting an intent or changing its status. Then run: node evals/fixtures/provedone/check-intents.mjs — and if it exits non-zero, keep fixing until it exits zero. Do not modify anything under evals/fixtures/.",
+  "allowedTools": "Read,Write,Edit,Bash",
+  "expect": [
+    { "check": "shell", "value": "test -f evals/results/intents/faster-help/spec.md" },
+    { "check": "shell", "value": "node evals/fixtures/provedone/check-intents.mjs" }
+  ]
+}

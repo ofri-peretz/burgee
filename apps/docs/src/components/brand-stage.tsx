@@ -54,6 +54,7 @@ const MARKS = [
   'truepass',
   'contractdiff',
   'truefit',
+  'provedone',
 ] as const;
 
 /** Extrusion, in the marks' own 100-unit space. */

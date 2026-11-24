@@ -106,6 +106,19 @@
       ]
     },
     {
+      "name": "provedone",
+      "count": 7,
+      "installed": [
+        "bellpull",
+        "burgee",
+        "closeout",
+        "linegauge",
+        "provedone",
+        "roundel",
+        "seniority"
+      ]
+    },
+    {
       "name": "roundel",
       "count": 1,
       "installed": [

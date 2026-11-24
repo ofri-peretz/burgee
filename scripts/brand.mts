@@ -130,6 +130,7 @@ const MARK_SHARE = {
   truepass: 0.75,
   contractdiff: 0.7,
   truefit: 0.8,
+  provedone: 0.75,
 } as const;
 
 /**
@@ -389,6 +390,18 @@ const TRUEFIT = `${DISC} ${LINE}`;
 /** Above the line, on the disc. */
 const FREEBOARD = { x: 50, y: 30 } as const;
 
+/**
+ * provedone: a till receipt torn off the roll — the slip that says what was paid, and that it
+ * was. Its two printed lines are cuts, absence as the other marks' markings are; the mark rides
+ * on the blank head of the slip above them.
+ */
+const SLIP = 'M18 8 H82 V84 L74 92 L66 84 L58 92 L50 84 L42 92 L34 84 L26 92 L18 84 Z';
+/** The printed lines, slits inside the slip so they cut through it. */
+const PRINTED = 'M28 56 H72 V63 H28 Z M28 70 H58 V77 H28 Z';
+const PROVEDONE = `${SLIP} ${PRINTED}`;
+/** On the head of the slip, clear of the lines. */
+const HEADER = { x: 50, y: 30 } as const;
+
 type Sibling = {
   name: keyof typeof MARK_SHARE;
   tagline: string;
@@ -412,6 +425,7 @@ const SIBLINGS: readonly Sibling[] = [
   { name: 'truepass', tagline: 'Green that still means it.', shape: TRUEPASS, at: ASSAY },
   { name: 'contractdiff', tagline: 'What changed, and who it breaks.', shape: CONTRACTDIFF, at: BEFORE },
   { name: 'truefit', tagline: 'What is over the line stays.', shape: TRUEFIT, at: FREEBOARD },
+  { name: 'provedone', tagline: 'Done, with the receipt.', shape: PROVEDONE, at: HEADER },
 ];
 
 const siblings = SIBLINGS.map(({ name, tagline, shape, at, markings }) => ({

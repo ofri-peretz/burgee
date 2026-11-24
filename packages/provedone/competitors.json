@@ -1,0 +1,42 @@
+{
+  "$comment": "upstream-watch R1, written 2026-11-24 ahead of provedone's first release. See packages/flagstaff/competitors.json for the field meanings. @commitlint/cli is `surface`: provedone's gate covers what commitlint's trailer-exists rule checks (a Verified-by: trailer on every commit) and adds the receipt behind it; no suite of commitlint is graded through compat-oracle. `seen` is what `npm run compat -- --fingerprint --missing` records.",
+  ".": [
+    {
+      "package": "@commitlint/cli",
+      "claim": "surface",
+      "seen": {
+        "registry": "@commitlint/cli",
+        "version": "21.2.4",
+        "shasum": "b3ca9127cf9fe6e123df6a99acef7658dd11da56",
+        "weight": 5797740,
+        "self": 17186,
+        "packages": 70,
+        "files": {
+          "cli.js": "00152fb7b44a91af1eeb074d5c364fa17642ff849300426e15f82550aa1d9329",
+          "index.cjs": "9b9d375761ce84ac0d5752213f5cf2e8bafb8aa5f7f46e216bc102ca3283e9b9",
+          "lib/cli-error.d.ts": "a5ddce499968272fd8c28dd7153d59b4b230e0e73ee5d80d33432096904d8503",
+          "lib/cli-error.d.ts.map": "9c4cb7b9e508282ececd540bf3366c4a72ca868bcef5d6ad6bb86b3d17572e62",
+          "lib/cli-error.js": "8d64e57e7cc457d9248df109a9652c7f86e606f89b8dc253152fe815fd8eebaf",
+          "lib/cli-error.js.map": "20004aea7b7eec801b8979f2cd3d6751d35671e00f35a5d9dee77f3420f823d5",
+          "lib/cli.d.ts": "c0fef74d51eb25953f6d50d509cb5ee0b1da8978e3e7b0df69b821373248f92c",
+          "lib/cli.d.ts.map": "07e1bab322fbea936a00ec149ad924a0d46aa4c8de79147e59c11d25bd0ca9e6",
+          "lib/cli.js": "9ca1e86e532dc634c82fac4626f96638a9f97af4671ce92611535c46a0e6cc90",
+          "lib/cli.js.map": "8393006dc4eacf620871a619cbf92e41be78d825eea8c6d240d34d722e0b22b8",
+          "lib/types.d.ts": "cd14eb750d8cbadba5bafa1a27f5f10d3225da006e01175426949bf8501961db",
+          "lib/types.d.ts.map": "94e78e77ab644354233fc61a5fe289e14e602dd6f57f1fa0e643f396b7160212",
+          "lib/types.js": "01ae2a5b120382f9a648ced7ee8507493a134f216d100fc61600c6c9738235d2",
+          "lib/types.js.map": "a7de897b48fe57bf54d6f84169135ff2e89e2fc95ea0a0a815761cc29a41efee",
+          "license.md": "98e11c1eb758c34d5176d8b4ccc78f452431e86cec1a0198b916c16bd7d75aee",
+          "package.json": "3648aafe0dd7098fdc53c2271db0e18f5ba2bce2c97f4f2e4a42b89a959967e7",
+          "README.md": "94ba791cf98a3a290ba7291b98294c051511e09c747763294f2fc739bd1f5c18"
+        },
+        "exports": [
+          "CliError",
+          "CliFlags",
+          "ExitCode"
+        ],
+        "measured": "2026-11-24"
+      }
+    }
+  ]
+}

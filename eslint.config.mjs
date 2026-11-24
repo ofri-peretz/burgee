@@ -613,6 +613,12 @@ export default [
     },
   },
   {
+    // provedone's eval check is an entry script run by its case's `shell` line, so it exports
+    // nothing.
+    files: ["evals/fixtures/provedone/check-*.mjs"],
+    rules: { "import-next/no-unused-modules": "off" },
+  },
+  {
     // The published numbers *are* the content of this file: 52 KB, 1,360 commander
     // cases, 804 yargs. Naming each one a constant would put the number one line
     // further from the claim it settles, which is the opposite of the point.

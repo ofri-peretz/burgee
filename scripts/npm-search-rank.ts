@@ -37,6 +37,7 @@ export const PHRASES: Record<string, { primary: string; incumbent: string }> = {
   truepass: { primary: 'test integrity', incumbent: 'eslint-plugin-vitest alternative' },
   contractdiff: { primary: 'breaking change diff', incumbent: 'oasdiff alternative' },
   truefit: { primary: 'ts validator', incumbent: 'zod alternative' },
+  provedone: { primary: 'verified commits', incumbent: 'commitlint alternative' },
 };
 
 export const REPO_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));

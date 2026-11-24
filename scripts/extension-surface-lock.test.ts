@@ -88,6 +88,9 @@ const DECLARED = {
   contractdiff: { plugin: false, check: true, eval: true },
   // A library with no CLI: schemas are values, so there is no plugin host and no `check`.
   truefit: { plugin: false, check: false, eval: false },
+  // A gate over commit messages and intents, with no plugin host. `intent check` is its check
+  // (the intent rules, and the shipped evidence re-run), and `provedone-intent-check` its case.
+  provedone: { plugin: false, check: true, eval: true },
 } as const;
 
 type Declared = (typeof DECLARED)[keyof typeof DECLARED];
