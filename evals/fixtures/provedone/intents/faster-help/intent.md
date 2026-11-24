@@ -8,8 +8,8 @@
 
 ## Why now
 
-Help takes 900 ms on a cold start because it loads every command to read its description, and
-agents call it before every unfamiliar command.
+Help is slow on a cold start because it loads every command to read its description, and agents
+call it before every unfamiliar command.
 
 ## Constraints
 
