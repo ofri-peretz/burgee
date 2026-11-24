@@ -22,11 +22,15 @@ private until it has run in every Interlace repo. Intent: [`.sdlc/intents/hookse
 
 - **A Claude hook pack** under [`claude/`](./claude/), vendored byte-identical into a repo's
   `.claude/hooks/`:
-  - `guard-bash.mjs` (PreToolUse): denies skipping git hooks (`--no-verify`, `git commit -n`,
-    `LEFTHOOK=0`, `HUSKY=0`), moving `core.hooksPath`, hand-rolled CI polling loops, and a
-    foreground `git commit`/`git push` under a 5-minute timeout (their hooks outlive it); asks
-    before `npm publish`, `changeset publish` and the commands the repo lists under `ask` in
-    `.claude/hookset.json`; denies Edit/Write on the globs listed there under `frozen`, and on
+  - `guard-bash.mjs` (PreToolUse): denies skipping git hooks (`--no-verify` or an abbreviation
+    git accepts, `git commit -n`, `LEFTHOOK=0`, `HUSKY=0`, also exported earlier in the command),
+    moving `core.hooksPath` or removing the hooks (`lefthook uninstall`, `rm`/`mv`/`chmod` under
+    `.git/hooks`), hand-rolled CI polling loops (`until`/`while`/`for` … `gh` … `sleep`, `watch gh`),
+    and a foreground `git commit`/`git push` under a 5-minute timeout (their hooks outlive it); asks
+    before a registry write (npm/pnpm/yarn/bun `publish`, `unpublish`, `deprecate`, `dist-tag add|rm`,
+    `changeset publish`, `lerna publish`), a push that rewrites or deletes remote history (`--force`,
+    `-f`, `+ref`, `--delete`, `:ref`, `--mirror`, `--prune`) and the commands the repo lists under
+    `ask` in `.claude/hookset.json`; denies Edit/Write on the globs listed there under `frozen`, and on
     the globs under `generated` (glob to the command that writes them), naming that command.
   - `stop-after-3.mjs` (PostToolUse, PostToolUseFailure): counts failed test runs per session;
     a pass resets it, and the third failure in a row ends the turn with a stop-and-ask message.
