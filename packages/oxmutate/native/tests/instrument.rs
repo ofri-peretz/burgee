@@ -328,3 +328,13 @@ fn the_outermost_literal_itself_is_not_tracked() {
     assert!(!whole.tracked);
     assert!(out.mutants.iter().find(|m| m.mutator_name == "StringLiteral").unwrap().tracked);
 }
+
+/// 2026-11-24, burgee triggerlist `brief.ts`: a template literal holding `<!--`/`-->` (an HTML
+/// comment marker) made the instrumenter emit code that does not parse as a module, so the
+/// whole file went unmutated and `mutation:changed` failed the push.
+#[test]
+fn html_comment_markers_inside_strings_and_regexes_instrument() {
+    let src = "const MARKER = 'x';\nexport const marker = (sha: string): string => `<!-- ${MARKER} ${sha} -->`;\nconst MARKED = /<!-- x (\\S+) -->/u;\nexport const reviewed = (body: string): string | undefined => MARKED.exec(body)?.[1];\n";
+    let out = instrument("t.ts", src, &Options::default());
+    assert!(out.is_ok(), "{}", out.err().unwrap_or_default());
+}
