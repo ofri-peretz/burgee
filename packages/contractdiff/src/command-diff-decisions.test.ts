@@ -67,7 +67,7 @@ describe('contractdiff diff --decisions, through burgee', () => {
         '',
         'decisions: 1 (--decisions warn)',
         '  warn          ac-decision-overdue  getBalance  response:200:application/json /properties/amount  "2026-06-01" -> "2027-01-01"',
-        '                fix: getBalance response:200:application/json /properties/amount was to go after 2026-06-01 and is still here. fix: remove it as decided, or move `x-sunset` to a date that still holds',
+        '                fix: getBalance response:200:application/json /properties/amount was to go after 2026-06-01 and is still here: remove it as decided, or move `x-sunset` to a date that still holds',
       ].join('\n')}
 `,
     );
@@ -123,7 +123,9 @@ describe('contractdiff diff --decisions, through burgee', () => {
   it('refuses a --today that is not a date, with the fix', async () => {
     const r = await runBurgee(program, { argv: ['diff', at('base'), at('overdue'), '--today', '2027-02-30'] });
     expect(r.code).toBe(ExitCode.USAGE);
-    expect(r.stderr).toContain('--today takes a real date as YYYY-MM-DD, not 2027-02-30. fix: pass a date such as --today 2027-01-01');
+    // The fix is burgee's own line, and no usage block follows a refusal that has one.
+    expect(r.stderr).toContain('error: --today takes a real date as YYYY-MM-DD, not 2027-02-30\nfix: pass a date such as --today 2027-01-01\n');
+    expect(r.stderr).not.toContain('usage:');
   });
 
   describe('without --today', () => {
@@ -298,7 +300,9 @@ describe('every decision finding has a pointer, a fix and a location (R13)', () 
       ]),
     );
     for (const finding of findings) {
-      expect(finding.fix).toMatch(/fix: .{10,}/);
+      // The renderers put the one `fix:` in front (text, SARIF); the field is what to do, not a second label.
+      expect(finding.fix).toMatch(/.{10,}/u);
+      expect(finding.fix).not.toContain('fix:');
       expect(finding.source).toMatch(/^#\//);
       expect(finding.document).toBe('new');
       expect(typeof finding.pointer).toBe('string');
@@ -311,7 +315,7 @@ describe('every decision finding has a pointer, a fix and a location (R13)', () 
     const data = diff({ cwd: dir, old: at('base'), new: 'empty.yaml', today: '2027-01-01', sarif: true });
     const [finding] = decisionsOf(data);
     expect(finding).toMatchObject({ id: 'ac-decision-missing', document: 'old', operation: 'getBalance', source: '#/paths/~1v3~1wallet/get', pointer: '' });
-    expect(finding?.fix).toContain('with no decision. fix: add `x-change: <the decision>`');
+    expect(finding?.fix).toContain('with no decision: add `x-change: <the decision>`');
     const sarif = data.sarif as { runs: { results: { locations: { physicalLocation: { artifactLocation: { uri: string } } }[] }[] }[] };
     expect(sarif.runs[0]?.results.map((result) => result.locations[0]?.physicalLocation.artifactLocation.uri)).toEqual([uriOf(at('base')), uriOf(at('base'))]);
   });

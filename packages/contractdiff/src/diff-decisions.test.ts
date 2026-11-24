@@ -153,7 +153,7 @@ describe('a marker off its positions is decision-misplaced (R2)', () => {
 
   it('says where to move it', () => {
     expect(readDecisions(fixture('misplaced')).problems[0]?.fix).toBe(
-      '`x-change` at #/info is not on a schema member, an operation or a parameter. fix: move it onto the member it describes, or remove it',
+      '`x-change` at #/info is not on a schema member, an operation or a parameter: move it onto the member it describes, or remove it',
     );
   });
 });
@@ -165,8 +165,8 @@ describe('a near-miss spelling is decision-misspelled (R3)', () => {
       ['ac-decision-misspelled', '#/components/schemas/Balance/properties/currency', '', '', 'x-chnage', 'x-change'],
     ]);
     expect(readDecisions(fixture('misspelled')).problems.map((finding) => finding.fix)).toEqual([
-      '`x-sunst` at #/components/schemas/Balance/properties/amount is not a marker. fix: rename it `x-sunset`',
-      '`x-chnage` at #/components/schemas/Balance/properties/currency is not a marker. fix: rename it `x-change`',
+      '`x-sunst` at #/components/schemas/Balance/properties/amount is not a marker: rename it `x-sunset`',
+      '`x-chnage` at #/components/schemas/Balance/properties/currency is not a marker: rename it `x-change`',
     ]);
   });
 
@@ -185,9 +185,9 @@ describe('a bad value is decision-invalid (R4)', () => {
       ['ac-decision-invalid', '#/paths/~1v3~1wallet/get', BODY, '/properties/currency', '', undefined],
     ]);
     expect(readDecisions(fixture('invalid')).problems.map((finding) => finding.fix)).toEqual([
-      'getBalance response:200:application/json /properties/amount has a bad `x-sunset`. fix: write `x-sunset: 2027-03-01`: a real date as YYYY-MM-DD',
-      "getBalance response:200:application/json /properties/amount has a bad `x-replaced-by`. fix: write `x-replaced-by:` as a sibling member's name (`amountCents`) or a JSON Pointer to one (`/properties/amountCents`)",
-      'getBalance response:200:application/json /properties/currency has a bad `x-change`. fix: write `x-change: <the decision>`: an ADR id, a ticket or a URL, as non-empty text',
+      'getBalance response:200:application/json /properties/amount has a bad `x-sunset`; write `x-sunset: 2027-03-01`: a real date as YYYY-MM-DD',
+      "getBalance response:200:application/json /properties/amount has a bad `x-replaced-by`; write `x-replaced-by:` as a sibling member's name (`amountCents`) or a JSON Pointer to one (`/properties/amountCents`)",
+      'getBalance response:200:application/json /properties/currency has a bad `x-change`; write `x-change: <the decision>`: an ADR id, a ticket or a URL, as non-empty text',
     ]);
     expect(decisionsOf(fixture('invalid')).size).toBe(0);
   });
@@ -251,7 +251,7 @@ describe('a breaking change needs a decision (R5)', () => {
       document: 'new',
       before: undefined,
       after: 'ILS',
-      fix: 'breaking change (`response-property-enum-value-added`) at getBalance response:200:application/json /properties/currency with no decision. fix: add `x-change: <the decision>` to getBalance response:200:application/json /properties/currency, or an ancestor or its operation, naming who decided it; or revert the change',
+      fix: 'breaking change (`response-property-enum-value-added`) at getBalance response:200:application/json /properties/currency with no decision: add `x-change: <the decision>` to getBalance response:200:application/json /properties/currency, or an ancestor or its operation, naming who decided it; or revert the change',
     });
   });
 
@@ -297,7 +297,7 @@ describe('a marker must match a change (R6)', () => {
     const findings = compare('base', 'stale');
     expect(rows(findings)).toEqual([['ac-decision-stale', BODY, '/properties/note']]);
     expect(findings[0]?.fix).toBe(
-      '`x-change: ADR-0007` at getBalance response:200:application/json /properties/note records a change that is not in this diff. fix: remove the marker, or make the change it records',
+      '`x-change: ADR-0007` at getBalance response:200:application/json /properties/note records a change that is not in this diff: remove the marker, or make the change it records',
     );
   });
 
@@ -336,7 +336,7 @@ describe('a sunset is carried out (R7)', () => {
     expect(rows(findings)).toEqual([['ac-decision-overdue', BODY, '/properties/amount']]);
     expect(findings[0]).toMatchObject({ before: '2026-06-01', after: '2027-01-01' });
     expect(findings[0]?.fix).toBe(
-      'getBalance response:200:application/json /properties/amount was to go after 2026-06-01 and is still here. fix: remove it as decided, or move `x-sunset` to a date that still holds',
+      'getBalance response:200:application/json /properties/amount was to go after 2026-06-01 and is still here: remove it as decided, or move `x-sunset` to a date that still holds',
     );
   });
 
@@ -370,7 +370,7 @@ describe('a replacement exists (R9)', () => {
     const findings = compare('base', 'replacement-missing');
     expect(rows(findings)).toEqual([['ac-decision-replacement-missing', BODY, '/properties/amount']]);
     expect(findings[0]?.fix).toBe(
-      'getBalance response:200:application/json /properties/amount is replaced by `amountCents`, which is not in the new contract. fix: add that member, or point `x-replaced-by` at one that exists',
+      'getBalance response:200:application/json /properties/amount is replaced by `amountCents`, which is not in the new contract: add that member, or point `x-replaced-by` at one that exists',
     );
   });
 
@@ -395,7 +395,7 @@ describe('a decided breaking change moves the version (R10)', () => {
     expect(rows(findings)).toEqual([['ac-decision-unversioned', BODY, '/properties/currency']]);
     expect(findings[0]).toMatchObject({ before: '3.0.0', after: '3.0.0' });
     expect(findings[0]?.fix).toBe(
-      '`x-change: ADR-0091` at getBalance response:200:application/json /properties/currency decides a breaking change, and the major version did not move. fix: move the path to a new major segment (/v3/ to /v4/), raise the major of `info.version`, or pass `--changeset` to write a major bump',
+      '`x-change: ADR-0091` at getBalance response:200:application/json /properties/currency decides a breaking change, and the major version did not move: move the path to a new major segment (/v3/ to /v4/), raise the major of `info.version`, or pass `--changeset` to write a major bump',
     );
   });
 

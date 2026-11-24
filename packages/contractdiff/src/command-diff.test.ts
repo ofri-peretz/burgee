@@ -64,7 +64,7 @@ describe('contractdiff diff, through burgee', () => {
       mode: { type: 'string', choices: ['backward', 'forward', 'full'], description: 'backward: old peers keep working; forward: the side may move first; full: both (default backward)' },
       side: { type: 'string', choices: ['caller', 'server'], description: 'whose code the question is about (default caller)' },
       sarif: { type: 'boolean', description: 'print SARIF 2.1.0 for code scanning instead of text' },
-      changeset: { type: 'string', description: 'write .changeset/<hash>.md bumping this package by the verdict', placeholder: 'package' },
+      changeset: { type: 'string', description: 'write .changeset/contractdiff-<hash>.md bumping this package by the verdict', placeholder: 'package' },
       decisions: {
         type: 'string',
         choices: ['warn', 'error', 'off'],
@@ -100,6 +100,13 @@ describe('contractdiff diff, through burgee', () => {
     expect(r.code).toBe(ExitCode.RUNTIME);
     expect(r.stdout).toContain('breaking: 4 breaking, 0 unknown, 1 dangerous, 3 non-breaking (--mode backward --side caller)');
     expect(r.stdout).toContain('deletePet  #/paths/~1pets~1{id}/delete\n  breaking      api-removed-without-deprecation    "deletePet" -> -\n');
+  });
+
+  it('says `fix:` once on every fix line, decision findings included', async () => {
+    const r = await runBurgee(program, { argv: ['diff', OLD, NEW] });
+    const fixes = r.stdout.split('\n').filter((line) => line.includes('fix:'));
+    expect(fixes.some((line) => line.includes('with no decision: add `x-change: <the decision>`'))).toBe(true);
+    for (const line of fixes) expect(line.split('fix:')).toHaveLength(2);
   });
 
   it('passes --mode and --side through, and refuses a mode it does not know', async () => {
@@ -175,7 +182,7 @@ describe('diff', () => {
     expect(() => noGit('HEAD~1', 'a.yaml', '.')).toThrow('cannot read `git:HEAD~1:a.yaml`: it was not read through git first. fix: `git show HEAD~1:a.yaml > old.yaml` and diff that file');
     expect(() => diff({ cwd: '.', old: 'git:HEAD:a.yaml', new: 'b.yaml' })).toThrow('fix: `git show HEAD:a.yaml > old.yaml`');
     // Only a side that starts with `git:` is one.
-    expect(() => diff({ cwd: scratch({}), old: 'my-git:HEAD:a.yaml', new: 'b.yaml', git: () => spec('') })).toThrow('ENOENT');
+    expect(() => diff({ cwd: scratch({}), old: 'my-git:HEAD:a.yaml', new: 'b.yaml', git: () => spec('') })).toThrow('there is no file my-git:HEAD:a.yaml. fix: pass the path of a contract file, or git:<ref>:<path> for one at a ref');
   });
 
   it('refuses what it cannot parse or read, with a fix line', () => {
@@ -191,7 +198,7 @@ describe('diff', () => {
     const dir = scratch({ 'a.yaml': spec(', maxProperties: 1'), 'b.yaml': spec(', maxProperties: 1, required: [id]'), 'c.yaml': spec('') });
     const breaking = diff({ cwd: dir, old: 'a.yaml', new: 'c.yaml', changeset: 'pets-api' });
     const file = breaking.changeset as string;
-    expect(file).toMatch(/^\.changeset\/apicontract-diff-[0-9a-f]{8}\.md$/);
+    expect(file).toMatch(/^\.changeset\/contractdiff-[0-9a-f]{8}\.md$/);
     expect(readFileSync(join(dir, file), 'utf8')).toBe(
       "---\n'pets-api': major\n---\n\nContract changes from a.yaml to c.yaml: breaking.\n\n- breaking: `ac-maxProperties-unset` in a response:200:application/json /maxProperties\n",
     );

@@ -8,6 +8,7 @@ import { resolve } from 'node:path';
 import { defineCommand } from 'burgee';
 
 import { UsageError } from './run-config.js';
+import { scaffoldText, withText } from './run-text.js';
 import { seedOf } from './scaffold-seed.js';
 import { writeFiles } from './scaffold-write.js';
 import { KINDS, scaffold } from './scaffold.js';
@@ -35,6 +36,7 @@ export const command = defineCommand({
     // Stryker disable next-line StringLiteral: equivalent, `resolve` reads '' as '.', the folder it is run in
     const files = scaffold(args.name, options.kind, options.from === undefined ? undefined : seedOf(options.from, '.'));
     const written = await writeFiles(resolve(options.out ?? ''), files);
-    return { changed: written.written.length > 0, ...written, next: `node --test plugin-${args.name}.test.ts` };
+    const next = `node --test plugin-${args.name}.test.ts`;
+    return withText({ changed: written.written.length > 0, ...written, next }, () => scaffoldText(written, next));
   },
 });

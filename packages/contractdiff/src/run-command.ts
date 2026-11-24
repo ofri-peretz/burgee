@@ -8,6 +8,7 @@ import { defineCommand } from 'burgee';
 import { builtins } from './plugins.js';
 import { extract } from './run-extract.js';
 import { gen } from './run-gen.js';
+import { reportText, withText } from './run-text.js';
 
 /**
  * The extractors contractdiff ships, read from the built-in plugins so `--help` names only what
@@ -37,8 +38,10 @@ export const genCommand = defineCommand({
     ...writing,
     target: { type: 'string', multiple: true, description: 'run only this target (repeatable)', placeholder: 'name' },
   },
-  run: async ({ options }) =>
-    gen({ cwd: HERE, config: options.config, targets: options.target, check: options.check, dryRun: options.dryRun, force: options.force }),
+  run: async ({ options }) => {
+    const report = await gen({ cwd: HERE, config: options.config, targets: options.target, check: options.check, dryRun: options.dryRun, force: options.force });
+    return withText(report, () => reportText(report));
+  },
 });
 
 export const extractCommand = defineCommand({
@@ -50,6 +53,8 @@ export const extractCommand = defineCommand({
     from: { type: 'string', description: `the extractor to run: ${BUILTIN_EXTRACTORS.join(', ')}, or a plugin's (default: \`extract.from\` in the config)`, placeholder: 'extractor' },
     out: { type: 'string', description: 'the spec file to write (default: spec.json)', placeholder: 'file' },
   },
-  run: async ({ options }) =>
-    extract({ cwd: HERE, config: options.config, from: options.from, out: options.out, check: options.check, dryRun: options.dryRun, force: options.force }),
+  run: async ({ options }) => {
+    const report = await extract({ cwd: HERE, config: options.config, from: options.from, out: options.out, check: options.check, dryRun: options.dryRun, force: options.force });
+    return withText(report, () => reportText(report));
+  },
 });

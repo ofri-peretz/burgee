@@ -367,7 +367,7 @@ describe('what is wrong with a marker, said exactly', () => {
         source: '#/paths/~1a/get',
         before: '',
         after: undefined,
-        fix: 'a has a bad `x-change`. fix: write `x-change: <the decision>`: an ADR id, a ticket or a URL, as non-empty text',
+        fix: 'a has a bad `x-change`; write `x-change: <the decision>`: an ADR id, a ticket or a URL, as non-empty text',
       }),
     ]);
   });
@@ -385,7 +385,7 @@ describe('what is wrong with a marker, said exactly', () => {
         pointer: '/properties/x',
         before: 'soon',
         after: undefined,
-        fix: `a ${R} /properties/x has a bad \`x-sunset\`. fix: write \`x-sunset: 2027-03-01\`: a real date as YYYY-MM-DD`,
+        fix: `a ${R} /properties/x has a bad \`x-sunset\`; write \`x-sunset: 2027-03-01\`: a real date as YYYY-MM-DD`,
       }),
     ]);
   });
@@ -413,7 +413,7 @@ describe('what is wrong with a marker, said exactly', () => {
         source: '#/info',
         before: 'x-change',
         after: 'ADR-1',
-        fix: '`x-change` at #/info is not on a schema member, an operation or a parameter. fix: move it onto the member it describes, or remove it',
+        fix: '`x-change` at #/info is not on a schema member, an operation or a parameter: move it onto the member it describes, or remove it',
       }),
     ]);
   });
@@ -621,7 +621,7 @@ describe('where a decision finding points (R13)', () => {
         pointer: '',
         before: '2026-06-01',
         after: NOW,
-        fix: 'b param:query:q was to go after 2026-06-01 and is still here. fix: remove it as decided, or move `x-sunset` to a date that still holds',
+        fix: 'b param:query:q was to go after 2026-06-01 and is still here: remove it as decided, or move `x-sunset` to a date that still holds',
       },
       {
         ...place({}),
@@ -633,7 +633,7 @@ describe('where a decision finding points (R13)', () => {
         pointer: '/properties/k',
         before: '2026-06-01',
         after: NOW,
-        fix: 'b response:404:application/json /properties/k was to go after 2026-06-01 and is still here. fix: remove it as decided, or move `x-sunset` to a date that still holds',
+        fix: 'b response:404:application/json /properties/k was to go after 2026-06-01 and is still here: remove it as decided, or move `x-sunset` to a date that still holds',
       },
     ]);
   });
@@ -650,7 +650,7 @@ describe('where a decision finding points (R13)', () => {
         pointer: '',
         before: '2026-06-01',
         after: NOW,
-        fix: 'a was to go after 2026-06-01 and is still here. fix: remove it as decided, or move `x-sunset` to a date that still holds',
+        fix: 'a was to go after 2026-06-01 and is still here: remove it as decided, or move `x-sunset` to a date that still holds',
       },
     ]);
   });
