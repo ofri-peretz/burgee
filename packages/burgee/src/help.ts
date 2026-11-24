@@ -172,7 +172,7 @@ function deprecation(d: boolean | string | undefined): string {
  * because they say what the value means; `--schema` still publishes the value. `usage.ts` holds the
  * same pattern for a failure's options. `(default: <value>)`, or nothing.
  */
-const defaultNote = (text: string, value: unknown): string => (value === undefined || /\((the )?defaults?\b/i.test(text) ? '' : `(default: ${String(value)})`);
+const defaultNote = (text: string | undefined, value: unknown): string => (value === undefined || /\((the )?defaults?\b/i.test(String(text)) ? '' : `(default: ${String(value)})`);
 
 /**
  * Trailing annotations in a stable order (R4): required, default, minimum, maximum, one of, repeatable,
@@ -224,7 +224,7 @@ const argumentTerm = (a: ArgumentSpec): string => {
 function argumentRows(args: ArgumentSpec[]): Row[] {
   return args.map((a) => ({
     term: argumentTerm(a),
-    text: [a.description ?? '', defaultNote(a.description ?? '', a.default)].filter((p) => p !== '').join(' '),
+    text: [a.description ?? '', defaultNote(a.description, a.default)].filter((p) => p !== '').join(' '),
     kind: 'value' as const,
   }));
 }

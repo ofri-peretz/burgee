@@ -44,11 +44,11 @@ unchanged.** `--schema` still publishes every default as its value.
 
 | entry / file | before | after | Δ |
 | :-- | --: | --: | --: |
-| `./help` | 9,633 | 9,710 | +77 (ceiling 9,650 → **9,750**) |
-| `help.js` | 9,160 | 9,237 | +77 |
-| `usage.js` (lazy) | 3,598 | 3,689 | +91 |
+| `./help` | 9,633 | 9,712 | +79 (ceiling 9,650 → **9,750**) |
+| `help.js` | 9,160 | 9,239 | +79 |
+| `usage.js` (lazy) | 3,598 | 3,691 | +93 |
 | `failure.js` (lazy) | 6,555 | 6,582 | +27 |
 
 Trimmed first: the pattern sits inside `defaultNote` rather than in a named constant beside it,
-which took the door from 9,761 to 9,710. `usage.js` keeps its own copy of the pattern, because
+which took the door from 9,761 to 9,712. `usage.js` keeps its own copy of the pattern, because
 importing it from `help.js` would put help on the failure path.

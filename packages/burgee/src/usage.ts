@@ -49,7 +49,7 @@ function optionRow(name: string, spec: OptionSpec): UsageRow {
   const notes = [
     spec.description ?? '',
     spec.required === true ? '(required)' : '',
-    spec.default === undefined || SAYS_DEFAULT.test(spec.description ?? '') ? '' : `(default: ${String(spec.default)})`,
+    spec.default === undefined || SAYS_DEFAULT.test(String(spec.description)) ? '' : `(default: ${String(spec.default)})`,
     spec.choices === undefined ? '' : `(one of: ${spec.choices.join(', ')})`,
     spec.dependsOn === undefined || spec.dependsOn.length === 0 ? '' : `(requires ${flagsOf(spec.dependsOn).join(', ')})`,
     spec.exclusive === undefined || spec.exclusive.length === 0 ? '' : `(conflicts with ${flagsOf(spec.exclusive).join(', ')})`,

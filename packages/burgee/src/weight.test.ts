@@ -438,7 +438,7 @@ const RULES: Record<string, EntryRule> = {
     // the one lookup dispatch and completions share. Its options and examples are composed in
     // `surfaces.js`, off this door. Measured 9,228 -> 9,602.
     // 9,750 on 2026-11-24 (D-20261124-help-default-once): a description that names its default in
-    // words is not told it again, `defaultNote`, for option and argument rows. Measured 9,633 -> 9,710.
+    // words is not told it again, `defaultNote`, for option and argument rows. Measured 9,633 -> 9,712.
     budget: 9_750,
     denied: ["index.js", "execute.js", "testing.js", "testing-helpers.js", "dev.js", "migrate.js", "roundel/tokens", "roundel/theme", "roundel/chalk", "flagstaff", "caique"],
   },
