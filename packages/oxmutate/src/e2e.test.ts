@@ -1366,7 +1366,8 @@ describe.skipIf(!native || !existsSync(bin))('a hang on a fresh worker is stoppe
 // core (blocked in a call, or starved by a loaded machine), as a warm run is: killing it cost a server start and a re-run
 // at that same 3x, and on a loaded machine a stop at the small limit turned a test that passes into a Timeout. A loop that
 // burns its core is still stopped at the limit (the per-test-limit cases above). The fixture's test blocks the thread
-// for 0.9 s while its mutant is armed, past its limit (about 0.45 s) and inside the 3x.
+// for 2.4 s while its mutant is armed, past its limit (about 1.25 s) and inside the 3x (about 3.75 s). The limit is long enough for
+// the server's CPU readings to span the half second a share is read from; a stop on a younger server reads no share and is not graced.
 describe.skipIf(!native || !existsSync(bin))('a starved fresh run keeps its stop in place', () => {
   const dir = path.join(pkg, 'test/fixtures/starved-limit');
   let stats: { watchdogGraced: number; warmStopsMs: number[]; idleStalls: number } = { watchdogGraced: 0, warmStopsMs: [], idleStalls: 0 };
