@@ -13,12 +13,12 @@ otherwise.
 
 ## Supported versions
 
-Every published package but `contractdiff`, `hookset`, `provedone`, `replz`, `triggerlist`,
-`truefit` and `truepass`, which are pre-1.0, is at 1.0 or later, and its public API is under semver;
-those seven may change their API in a minor release until each reaches 1.0. A fix, a security fix
-included, ships as a patch or minor release of the current major, so a caret range on that major
-installs it without a breaking change. Only the latest release of each package is supported, and
-there are no long-term support branches: a fix lands on the newest release and is not backported.
+Every published package but `hookset`, `replz` and `triggerlist`, which are pre-1.0, is at 1.0 or
+later, and its public API is under semver; those three may change their API in a minor release until
+each reaches 1.0. A fix, a security fix included, ships as a patch or minor release of the current
+major, so a caret range on that major installs it without a breaking change. Only the latest release
+of each package is supported, and there are no long-term support branches: a fix lands on the newest
+release and is not backported.
 
 ## What reduces the attack surface here
 
