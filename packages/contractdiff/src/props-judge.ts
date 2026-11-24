@@ -28,7 +28,10 @@ const judgeOf = (read: ReturnType<typeof fromJsonSchema>['schema']): Judge => ({
 /** The validator package's reading of a document, as a judge. */
 export const validatorJudge = (document: unknown, draft: Draft): Judge => judgeOf(fromJsonSchema(document, { draft }).schema);
 
-/** One reader for each contract document and dialect: a definition is read once, for every payload that names it. */
+/**
+ * One reader for each contract document and dialect: a definition is read once, for every payload that names it.
+ * The readers' findings are never read here, so that they gather across runs on the same document changes nothing.
+ */
 const readers = new WeakMap<object, Map<Draft, JsonSchemaReader>>();
 
 const readerFor = (document: Readonly<Record<string, unknown>>, draft: Draft): JsonSchemaReader => {
@@ -41,8 +44,24 @@ const readerFor = (document: Readonly<Record<string, unknown>>, draft: Draft): J
   return reader;
 };
 
-/** Whether a payload's references may point into the payload itself: at its own definitions, or at its root. */
-const selfReferent = (schema: Readonly<Record<string, unknown>>): boolean => DEFINITIONS.some((key) => key in schema) || JSON.stringify(schema).includes('"$ref":"#"');
+/** Whether a `$ref` points into the payload rather than at the contract's definitions: `#` itself, or a pointer under any other key. */
+const intoPayload = (ref: unknown): boolean => {
+  if (typeof ref !== 'string') return false;
+  if (ref === '#') return true;
+  // Stryker disable next-line StringLiteral,ConditionalExpression,BooleanLiteral: equivalent, a reference that is not a pointer into the document is not followed, read alone or shared, so either path gives the same verdicts
+  if (!ref.startsWith('#/')) return false;
+  return !DEFINITIONS.includes(decodeURIComponent(ref.slice(2).split('/')[0] as string));
+};
+
+/** Whether any `$ref` in a schema points into the payload, stopping at the first that does. */
+const refersInside = (schema: unknown): boolean => {
+  if (Array.isArray(schema)) return schema.some(refersInside);
+  if (!isDict(schema)) return false;
+  return intoPayload(schema.$ref) || Object.values(schema).some(refersInside);
+};
+
+/** Whether a payload's references may point into the payload itself: at its own definitions, or at any other part of it. */
+const selfReferent = (schema: Readonly<Record<string, unknown>>): boolean => DEFINITIONS.some((key) => key in schema) || refersInside(schema);
 
 /**
  * A payload's judge: `validatorJudge` on `rooted(schema, document)`, with the contract's
