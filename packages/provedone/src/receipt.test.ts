@@ -46,18 +46,27 @@ describe('trailers', () => {
 });
 
 describe('fold', () => {
-  it('leaves a line of exactly the width alone', () => {
-    const line = `Captured: ${'a'.repeat(TRAILER_WIDTH - 'Captured: '.length)}`;
+  // 100 is commitlint's default footer-max-line-length, written out so the test pins the number.
+  const filler = (length: number): string => 'a'.repeat(length);
+
+  it('is 100 columns wide', () => {
+    expect(TRAILER_WIDTH).toBe(100);
+  });
+
+  it('leaves a breakable line of exactly 100 columns alone', () => {
+    const line = `Captured: ${filler(88)} b`;
+    expect(line).toHaveLength(100);
     expect(fold(line)).toEqual([line]);
   });
 
-  it('breaks one past the width at the last space', () => {
-    const line = `Captured: ${'a'.repeat(TRAILER_WIDTH - 'Captured: '.length - 2)} bc`;
-    expect(fold(line)).toEqual([`Captured: ${'a'.repeat(TRAILER_WIDTH - 'Captured: '.length - 2)}`, ' bc']);
+  it('breaks a line of 101 columns at the last space', () => {
+    const line = `Captured: ${filler(89)} b`;
+    expect(line).toHaveLength(101);
+    expect(fold(line)).toEqual([`Captured: ${filler(89)}`, ' b']);
   });
 
   it('keeps the key with its first word, and never splits a word longer than the width', () => {
-    const word = 'x'.repeat(TRAILER_WIDTH + 5);
+    const word = 'x'.repeat(105);
     expect(fold(`Verified-by: ${word} -> exit 0`)).toEqual([`Verified-by: ${word}`, ' -> exit 0']);
     expect(fold(`Captured: a ${word}`)).toEqual(['Captured: a', ` ${word}`]);
   });
