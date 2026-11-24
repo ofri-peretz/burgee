@@ -115,6 +115,10 @@ describe("every published bin's source opens with the shebang", () => {
  * invalid and removed` plus "Please run npm pkg fix". The bin survived, but the warning read
  * like a broken install, so the manifest carries the normal form and npm has nothing to fix.
  */
+/** A manifest's bins as `{ command: path }`, the string form named after the package. */
+const binMap = (pkg: Pkg): Record<string, string> =>
+  typeof pkg.bin === "string" ? { [pkg.name]: pkg.bin } : (pkg.bin ?? {});
+
 describe("every bin path is npm-normal (no leading ./)", () => {
   const manifests = readdirSync(join(root, "packages")).flatMap((dir) => {
     try {
@@ -124,11 +128,7 @@ describe("every bin path is npm-normal (no leading ./)", () => {
     }
   });
   const bins = manifests.flatMap((pkg) =>
-    pkg.bin === undefined
-      ? []
-      : Object.entries(typeof pkg.bin === "string" ? { [pkg.name]: pkg.bin } : pkg.bin).map(
-          ([command, target]) => [pkg.name, command, target] as const,
-        ),
+    Object.entries(binMap(pkg)).map(([command, target]) => [pkg.name, command, target] as const),
   );
 
   it("finds the family's bins", () => {
