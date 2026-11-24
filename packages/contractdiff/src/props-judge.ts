@@ -3,7 +3,7 @@
  * contract's dialect, with the definitions its references point into carried beside it.
  */
 import { check, parse } from 'loadline';
-import { fromJsonSchema } from 'loadline/json-schema';
+import { fromJsonSchema, jsonSchemaReader, type JsonSchemaReader } from 'loadline/json-schema';
 
 import { type Contract } from './core/model.js';
 import { isDict } from './diff-normalise.js';
@@ -16,16 +16,42 @@ export interface Judge {
   readonly paths: (value: unknown) => string[];
 }
 
+/** A schema the validator package read, as a judge. */
+const judgeOf = (read: ReturnType<typeof fromJsonSchema>['schema']): Judge => ({
+  accepts: (value) => check(read, value),
+  paths: (value) => {
+    const parsed = parse(read, value);
+    return parsed.ok ? [] : parsed.issues.map((issue) => issue.path);
+  },
+});
+
 /** The validator package's reading of a document, as a judge. */
-export const validatorJudge = (document: unknown, draft: Draft): Judge => {
-  const read = fromJsonSchema(document, { draft }).schema;
-  return {
-    accepts: (value) => check(read, value),
-    paths: (value) => {
-      const parsed = parse(read, value);
-      return parsed.ok ? [] : parsed.issues.map((issue) => issue.path);
-    },
-  };
+export const validatorJudge = (document: unknown, draft: Draft): Judge => judgeOf(fromJsonSchema(document, { draft }).schema);
+
+/** One reader for each contract document and dialect: a definition is read once, for every payload that names it. */
+const readers = new WeakMap<object, Map<Draft, JsonSchemaReader>>();
+
+const readerFor = (document: Readonly<Record<string, unknown>>, draft: Draft): JsonSchemaReader => {
+  const byDraft = readers.get(document) ?? new Map<Draft, JsonSchemaReader>();
+  readers.set(document, byDraft);
+  const known = byDraft.get(draft);
+  if (known !== undefined) return known;
+  const reader = jsonSchemaReader(rooted({}, document), { draft });
+  byDraft.set(draft, reader);
+  return reader;
+};
+
+/** Whether a payload's references may point into the payload itself: at its own definitions, or at its root. */
+const selfReferent = (schema: Readonly<Record<string, unknown>>): boolean => DEFINITIONS.some((key) => key in schema) || JSON.stringify(schema).includes('"$ref":"#"');
+
+/**
+ * A payload's judge: `validatorJudge` on `rooted(schema, document)`, with the contract's
+ * definitions read once for every payload of the document rather than once for each. A payload
+ * whose references may point into itself is read on its own, as it always was.
+ */
+export const payloadJudge = (schema: unknown, document: unknown, draft: Draft): Judge => {
+  if (!isDict(document) || (isDict(schema) && selfReferent(schema))) return validatorJudge(rooted(schema, document), draft);
+  return judgeOf(readerFor(document, draft).read(rooted(schema, null)));
 };
 
 /** The dialect a contract's schemas are written in. */

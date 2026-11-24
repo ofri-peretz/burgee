@@ -8,7 +8,7 @@ import { type Contract } from './core/model.js';
 import { compareContracts, type Finding } from './diff-contract.js';
 import { normalise } from './diff-normalise.js';
 import { builtinAdapters } from './inputs.js';
-import { validatorJudge } from './props-judge.js';
+import { payloadJudge, rooted } from './props-judge.js';
 import { PROPERTIES, runProps, SUBJECT } from './props-run.js';
 
 const load = (name: string): Contract => {
@@ -78,8 +78,8 @@ describe('runProps catches a bug planted in the code each property holds to acco
   });
 
   it('agreement: a validator that refuses at the wrong place, or refuses what the schema allows', () => {
-    const elsewhere = { validator: (document: unknown, draft: Parameters<typeof validatorJudge>[1]) => {
-      const real = validatorJudge(document, draft);
+    const elsewhere = { validator: (schema: unknown, document: unknown, draft: Parameters<typeof payloadJudge>[2]) => {
+      const real = payloadJudge(schema, document, draft);
       return { accepts: real.accepts, paths: (value: unknown) => real.paths(value).map(() => '/elsewhere') };
     } };
     const schema = { type: 'object', required: ['a'], properties: { a: { type: 'integer', maximum: 3 } } };
@@ -166,8 +166,8 @@ const twice = (schema: unknown): Contract => {
 
 /** contractdiff's validator, its issues moved by `move`. */
 const moving = (move: (paths: string[]) => string[]) => ({
-  validator: (document: unknown, draft: Parameters<typeof validatorJudge>[1]) => {
-    const real = validatorJudge(document, draft);
+  validator: (schema: unknown, document: unknown, draft: Parameters<typeof payloadJudge>[2]) => {
+    const real = payloadJudge(schema, document, draft);
     return { accepts: real.accepts, paths: (value: unknown) => move(real.paths(value)) };
   },
 });
@@ -233,9 +233,9 @@ const failing = (findings: readonly Partial<Finding>[]): string[] => runProps(ol
 /** contractdiff's validator, except that it cannot read a schema whose text holds `marker`. */
 const unreadable = (marker: string) => ({
   ...blind([]),
-  validator: (document: unknown, draft: Parameters<typeof validatorJudge>[1]) => {
-    if (JSON.stringify(document).includes(marker)) throw new Error('unreadable');
-    return validatorJudge(document, draft);
+  validator: (schema: unknown, document: unknown, draft: Parameters<typeof payloadJudge>[2]) => {
+    if (JSON.stringify(rooted(schema, document)).includes(marker)) throw new Error('unreadable');
+    return payloadJudge(schema, document, draft);
   },
 });
 
