@@ -217,7 +217,7 @@ describe('a rule across fields', () => {
 
   it('still runs, and still reports at that field, when another field is wrong', () => {
     expect(issues(Match, { a: '1', b: '2', c: 'x' })).toEqual([{ path: '/c', keyword: 'type', message: 'expected a number, got string "x". fix: send a finite number' }, mismatch]);
-    expect(issues(Match, { a: '1', b: '2' })).toEqual([{ path: '/c', keyword: 'required', message: 'expected a value, got undefined undefined. fix: add "c"' }, mismatch]);
+    expect(issues(Match, { a: '1', b: '2' })).toEqual([{ path: '/c', keyword: 'required', message: 'expected a value, got undefined. fix: add "c"' }, mismatch]);
     // And says nothing when the fields it reads agree.
     expect(issues(Match, { a: '1', b: '1', c: 'x' }).map((issue) => issue.path)).toEqual(['/c']);
     expect(verdicts(Match, [{ a: '1', b: '2', c: 'x' }, { a: '1', b: '1', c: 'x' }])).toEqual([false, false]);

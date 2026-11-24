@@ -53,10 +53,16 @@ const SCHEMA = object(
 );
 
 export const parseConfig = (source: string, yaml: string): Config => {
-  const parsed = parse(SCHEMA, parseYaml(yaml));
+  let document: unknown;
+  try {
+    document = parseYaml(yaml);
+  } catch (error) {
+    throw new Error(`${source} is not YAML: ${(error as Error).message}. fix: correct the YAML`, { cause: error });
+  }
+  const parsed = parse(SCHEMA, document);
   if (!parsed.ok) {
     const lines = parsed.issues.map((issue) => `  ${issue.path === '' ? '/' : issue.path}: ${issue.message}`).join('\n');
-    throw new Error(`${source} is not a valid replz config:\n${lines}`);
+    throw new Error(`${source} is not a valid replz config:\n${lines}\nfix: correct each field named above`);
   }
   return parsed.value as Config;
 };
@@ -81,7 +87,7 @@ export const parseFindings = (stdout: string, stages: readonly string[]): Findin
     throw new Error(`the reviewer did not print JSON: ${(error as Error).message}. fix: make the reviewer print a JSON array of { stage, severity, text, item? }`, { cause: error });
   }
   const parsed = parse(FINDINGS, document);
-  if (!parsed.ok) throw new Error(`the reviewer's findings are not valid: ${parsed.issues.map((issue) => `${issue.path} ${issue.message}`).join('; ')}`);
+  if (!parsed.ok) throw new Error(`the reviewer's findings are not valid: ${parsed.issues.map((issue) => `${issue.path} ${issue.message}`).join('; ')}. fix: make the reviewer print a JSON array of { stage, severity, text, item? }`);
   const findings = parsed.value as Finding[];
   const unknown = findings.find((finding) => !stages.includes(finding.stage));
   if (unknown !== undefined) throw new Error(`the reviewer reported the stage \`${unknown.stage}\`, which the config does not list. fix: add it to stages, in order`);

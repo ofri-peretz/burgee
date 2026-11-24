@@ -26,6 +26,9 @@ export interface Case {
 
 const SHA = /^[0-9a-f]{7,40}$/;
 
+/** How a drafted answer starts until a person writes it; `replz propose` leaves it on every bug. */
+export const PLACEHOLDER = 'TODO';
+
 const SCHEMA = object(
   {
     id: string({ pattern: /^[a-z0-9][a-z0-9-]*$/ }),
@@ -50,10 +53,11 @@ export const parseCase = (source: string, yaml: string): Case => {
   const parsed = parse(SCHEMA, document);
   if (!parsed.ok) {
     const lines = parsed.issues.map((issue) => `  ${issue.path === '' ? '/' : issue.path}: ${issue.message}`).join('\n');
-    throw new Error(`${source} is not a valid case:\n${lines}`);
+    throw new Error(`${source} is not a valid case:\n${lines}\nfix: correct each field named above`);
   }
   const found = parsed.value as Case;
   if (found.kind === 'bug' && found.answer === undefined) throw new Error(`${source}: a bug case needs its answer, one sentence saying what the bug is. fix: add answer`);
+  if (found.answer?.startsWith(PLACEHOLDER) === true) throw new Error(`${source}: the answer is still the draft's ${PLACEHOLDER}, and a finding graded against it grades nothing. fix: write one sentence saying what the bug is, from the revert or the fix`);
   if (found.kind === 'control' && found.answer !== undefined) throw new Error(`${source}: a control has no bug, so no answer. fix: remove answer, or make it kind: bug`);
   return found;
 };

@@ -24,6 +24,8 @@ checks:
 
 const BUG = 'id: bug-1\nkind: bug\npr: 1\nbase: aaaaaaa\nhead: bbbbbbb\nanswer: The key drops the locale.\nset: test\n';
 const CONTROL = 'id: control-2\nkind: control\npr: 2\nbase: aaaaaaa\nhead: ccccccc\nset: tune\n';
+const TUNE_BUG = BUG.replaceAll('bug-1', 'bug-3').replace('set: test', 'set: tune');
+const TEST_CONTROL = CONTROL.replaceAll('control-2', 'control-4').replace('set: tune', 'set: test');
 
 const scratch = scratchDirs();
 
@@ -46,17 +48,39 @@ const shell: Shell = (command, options) => {
 const worktrees: Worktrees = { add: (ref) => Promise.resolve({ dir: `/t/${ref}`, remove: () => Promise.resolve() }) };
 const now = () => new Date('2026-11-23T10:00:00Z');
 
+const READY = { ...REPO, '.sdlc/replz/cases/bug-3.yaml': TUNE_BUG, '.sdlc/replz/cases/control-4.yaml': TEST_CONTROL };
+
 describe('readCases', () => {
   it('reads every yaml case in the folder, by file name', () => {
     expect(readCases(folder(REPO), CASES).map((found) => found.id)).toEqual(['bug-1', 'control-2']);
   });
+
+  it('refuses a case file not named by its id, and a folder that is not there', () => {
+    expect(() => readCases(folder({ '.sdlc/replz/cases/bug-9.yaml': BUG }), CASES)).toThrow('.sdlc/replz/cases/bug-9.yaml holds the case `bug-1`. fix: rename the file bug-1.yaml, or change its id');
+    const empty = folder({});
+    expect(() => readCases(empty, CASES)).toThrow(`.sdlc/replz/cases does not exist in ${empty}. fix: run replz in the repository it replays, or pass --repo, or --cases`);
+  });
 });
 
 describe('runCheck', () => {
+  const options = { config: '.sdlc/replz/config.yaml', cases: CASES };
+
   it('counts each set, the checks and the stages', () => {
-    const data = runCheck({ repo: folder(REPO), config: '.sdlc/replz/config.yaml', cases: CASES });
-    expect(JSON.parse(JSON.stringify(data))).toEqual({ cases: 2, sets: { tune: { bugs: 0, controls: 1 }, test: { bugs: 1, controls: 0 } }, checks: 1, stages: ['raw', 'final'] });
-    expect(text(data)).toBe('2 case(s): tune 0 bug(s) + 1 control(s), test 1 bug(s) + 0 control(s); 1 check(s); stages raw > final');
+    const data = runCheck({ ...options, repo: folder(READY) });
+    expect(JSON.parse(JSON.stringify(data))).toEqual({ cases: 4, sets: { tune: { bugs: 1, controls: 1 }, test: { bugs: 1, controls: 1 } }, checks: 1, stages: ['raw', 'final'] });
+    expect(text(data)).toBe('4 case(s): tune 1 bug(s) + 1 control(s), test 1 bug(s) + 1 control(s); 1 check(s); stages raw > final');
+  });
+
+  it('refuses a set of one kind, naming every kind each set lacks', () => {
+    expect(() => runCheck({ ...options, repo: folder(REPO) })).toThrow('the tune set has no bug case; the test set has no control case. fix: add the cases each set lacks (replz propose drafts them), so neither score is of one kind');
+    expect(() => runCheck({ ...options, repo: folder({ '.sdlc/replz/config.yaml': CONFIG, '.sdlc/replz/cases/bug-1.yaml': BUG, '.sdlc/replz/cases/control-4.yaml': TEST_CONTROL }) })).toThrow(/^the tune set has no bug case; the tune set has no control case\. fix: /);
+  });
+
+  it('refuses an answer still the draft placeholder, and a config that is not there', () => {
+    const drafted = folder({ ...READY, '.sdlc/replz/cases/bug-1.yaml': BUG.replace('The key drops the locale.', 'TODO one sentence') });
+    expect(() => runCheck({ ...options, repo: drafted })).toThrow(/^\.sdlc\/replz\/cases\/bug-1\.yaml: the answer is still the draft's TODO/);
+    const bare = folder({ '.sdlc/replz/cases/bug-1.yaml': BUG });
+    expect(() => runCheck({ ...options, repo: bare })).toThrow(`.sdlc/replz/config.yaml does not exist in ${bare}. fix: run replz in the repository it replays, or pass --repo, or --config`);
   });
 });
 
@@ -66,7 +90,10 @@ describe('runReplay', () => {
   it('replays every case, scores it, and records the run when asked', async () => {
     const repo = folder({ ...REPO, 'list.yaml': 'items:\n  - { id: spawn }\n  - { id: quiet }\n' });
     writeFileSync(join(repo, '.sdlc/replz/config.yaml'), `${CONFIG}checklist: list.yaml\n`);
-    const data = await runReplay({ ...base, repo, record: true });
+    const data = await runReplay({ ...base, repo, record: true, worktrees: { add: (ref) => Promise.resolve({ dir: `/t/${ref}`, remove: () => Promise.resolve() }) }, shell: (command, options) => {
+      if (command === 'review') expect(options.env?.REPLZ_REPO).toBe(repo);
+      return shell(command, options);
+    } });
     expect(data).toMatchObject({ date: '2026-11-23', set: 'all', model: 'cheap', maxFindings: 3, cases: ['bug-1', 'control-2'], recorded: true });
     expect(data.report).toMatchObject({ bugs: 1, controls: 1, recall: [{ stage: 'raw', found: 0 }, { stage: 'final', found: 1 }], falseAlarms: 1, neverFired: ['quiet'] });
     expect(text(data)).toMatch(/\n\nrecorded in \.sdlc\/replz\/history\.jsonl$/);
@@ -116,10 +143,25 @@ describe('the program', () => {
     expect((await runBurgee(program, { argv: ['--version'] })).stdout).toContain(VERSION);
   });
 
-  it('check reads the defaults under --repo', async () => {
-    const r = await runBurgee(program, { argv: ['check', '--repo', folder(REPO), '--json'] });
+  it('check reads the defaults under --repo, whose help names its default once', async () => {
+    const r = await runBurgee(program, { argv: ['check', '--repo', folder(READY), '--json'] });
     expect(r.code).toBe(ExitCode.OK);
-    expect(r.json).toMatchObject({ data: { cases: 2 } });
+    expect(r.json).toMatchObject({ data: { cases: 4 } });
+    const help = (await runBurgee(program, { argv: ['check', '--help'] })).stdout;
+    expect(help).toMatch(/--repo <dir> +the repository \(default: \.\)\n/);
+  });
+
+  it('prints a runtime failure with its fix and no usage block, which stays for a usage error', async () => {
+    const failed = await runBurgee(program, { argv: ['check', '--repo', folder(REPO)] });
+    expect(failed.code).toBe(ExitCode.RUNTIME);
+    expect(failed.stderr).toContain('error: the tune set has no bug case; the test set has no control case\nfix: add the cases each set lacks');
+    expect(failed.stderr).not.toContain('usage:');
+    const json = await runBurgee(program, { argv: ['check', '--repo', folder(REPO), '--json'] });
+    expect(json.json).toMatchObject({ ok: false, error: { kind: 'runtime', code: ExitCode.RUNTIME, fix: expect.stringMatching(/^add the cases/) } });
+    expect(json.json).not.toHaveProperty('error.usage');
+    const typo = await runBurgee(program, { argv: ['check', '--bogus'] });
+    expect(typo.code).toBe(ExitCode.USAGE);
+    expect(typo.stderr).toContain('usage: replz check [options]');
   });
 
   it('run and propose reach git through --repo, and fail with its message outside a repository', async () => {

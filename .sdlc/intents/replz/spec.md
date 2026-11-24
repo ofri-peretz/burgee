@@ -8,10 +8,12 @@ Intent: [`intent.md`](./intent.md). **Status:** draft.
 
 - **R1** A case schema: `id`, `kind` (`bug` or `control`), `pr`, `base`, `head`, `answer` (one
   sentence, bugs only), `set` (`tune` or `test`). Validated by `validator`.
-- **R2** `replz run [--set test]` creates a git worktree per case at `base`, applies `head`,
-  runs the configured reviewer command and check commands, and stores raw outputs.
-- **R3** Scoring: a grader prompt judges whether each finding describes the answer key; scores
-  are stored per stage the reviewer reports.
+- **R2** `replz run [--set test]` creates a git worktree per case at `head` (its `base` with the
+  pull request applied), runs the configured reviewer command and check commands there with
+  `REPLZ_BASE`, `REPLZ_HEAD`, `REPLZ_PR` and `REPLZ_REPO` set, and stores raw outputs.
+- **R3** Scoring: a grader prompt judges whether each finding describes the answer key, the last
+  stage's findings first so a `maxFindings` cap spends its calls on what ships; scores are stored
+  per stage the reviewer reports.
 - **R4** The report lists recall per stage, severity per finding, false alarms on controls, and a
   firing table per check and checklist item. `--json` for history.
 - **R5** ~~`replz mine` reads merged PRs' review comments and reverts through `gh`, clusters them,

@@ -14,7 +14,7 @@
 
 - **A case file** per known bug: the PR that introduced it, its base SHA, and a one-sentence
   answer key. Clean merged PRs, size-matched, are controls.
-- **`replz run`** checks out each case at its base, applies the PR, runs the reviewer (through
+- **`replz run`** checks out each case at its head (its base with the PR applied), runs the reviewer (through
   triggerlist's workflow inputs) and the repo's checks, and scores each finding against the
   answer key. Only a finding that describes that bug counts.
 - **A report** with recall per stage (raw findings, after verification, final review), severity
