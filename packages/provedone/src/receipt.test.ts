@@ -45,10 +45,10 @@ describe('trailers', () => {
   });
 });
 
-describe('fold', () => {
-  // 100 is commitlint's default footer-max-line-length, written out so the test pins the number.
-  const filler = (length: number): string => 'a'.repeat(length);
+// 100 is commitlint's default footer-max-line-length, written out so the test pins the number.
+const filler = (length: number): string => 'a'.repeat(length);
 
+describe('fold', () => {
   it('is 100 columns wide', () => {
     expect(TRAILER_WIDTH).toBe(100);
   });
