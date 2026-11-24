@@ -71,7 +71,8 @@ describe('replayCase', () => {
   it('spends a low cap on the last stage before any earlier one, and sets no REPLZ_REPO when none is given', async () => {
     const { calls, shell, worktrees } = fake({ review: { code: 0, stdout: JSON.stringify(FINDINGS) } });
     const result = await replayCase({ shell, worktrees, config: { ...CONFIG, checks: [] }, model: 'cheap' }, BUG);
-    expect(calls[0]?.env).toEqual({ REPLZ_BASE: 'aaaaaaa', REPLZ_HEAD: 'bbbbbbb', REPLZ_PR: '7' });
+    // Strictly: a key set to undefined would still reach the command's environment.
+    expect(calls[0]?.env).toStrictEqual({ REPLZ_BASE: 'aaaaaaa', REPLZ_HEAD: 'bbbbbbb', REPLZ_PR: '7' });
     expect(calls.slice(1).map((call) => call.input)).toEqual([gradePrompt('The key drops the locale.', FINDINGS[1] as never), gradePrompt('The key drops the locale.', FINDINGS[2] as never)]);
     // Back in the order the reviewer printed them; the raw one, past the cap, is not graded.
     expect(result.findings).toEqual(FINDINGS.map((finding) => ({ finding, matches: false })));
