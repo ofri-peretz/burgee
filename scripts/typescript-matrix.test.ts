@@ -115,6 +115,12 @@ const consumers: string[] = [];
  * memory of the whole matrix held until the slowest finishes.
  */
 const AT_ONCE = Math.max(1, Math.min(CELLS.length, availableParallelism()));
+/**
+ * The setup compiles every cell, so its time grows with the turns it takes, not with one hook: on
+ * a three-core macos-latest runner the fourteen compiles ran past the family's 60 s hook clock
+ * (2026-11-24, on #1792 and chore/bench-series). Each turn gets the 60 s a hook gets.
+ */
+const SETUP_TIMEOUT = 60_000 * Math.ceil(CELLS.length / AT_ONCE);
 
 /** Runs `task` over `items`, `limit` at a time: each worker takes the next item when its last one is done. */
 async function inTurns<T>(items: readonly T[], limit: number, task: (item: T) => Promise<void>): Promise<void> {
@@ -146,7 +152,7 @@ beforeAll(async () => {
     );
     printed.set(`${line} ${name}`, await tsc(dir, ['-p', '.', '--pretty', 'false'], consumer));
   });
-});
+}, SETUP_TIMEOUT);
 afterAll(() => discard(...consumers));
 
 it('imports the root and every typed subpath of every published package', () => {

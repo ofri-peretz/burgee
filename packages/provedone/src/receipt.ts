@@ -27,12 +27,36 @@ export const digest = (output: string): string => `sha256:${createHash('sha256')
 /** One line, so a newline in a command or a reason cannot end a trailer early. */
 const oneLine = (text: string): string => text.replace(/\s+/gu, ' ').trim();
 
-/** The commit trailers: one `Verified-by:` per check (or one `none`), one `Captured:` per path, one `Not-checked:` per gap. */
-export const trailers = (receipt: Receipt): string[] => [
-  ...(receipt.none === undefined ? receipt.checks.map((c) => `Verified-by: ${oneLine(c.command)} -> exit ${String(c.exit)} (${c.digest})`) : [`Verified-by: none (${oneLine(receipt.none)})`]),
-  ...receipt.captures.map((path) => `Captured: ${oneLine(path)}`),
-  ...receipt.notChecked.map((gap) => `Not-checked: ${oneLine(gap)}`),
-];
+/** commitlint's default `footer-max-line-length`: a longer trailer line fails the commit-msg hook. */
+export const TRAILER_WIDTH = 100;
+
+/**
+ * Folds a trailer into lines of at most {@link TRAILER_WIDTH}, breaking at spaces. Each continuation
+ * starts with a space, which git reads as the same trailer (`git interpret-trailers` unfolds it). A
+ * single word longer than the width stays whole: breaking it would change the command.
+ */
+export const fold = (line: string): string[] => {
+  const out: string[] = [];
+  let current = '';
+  for (const word of line.split(' ')) {
+    const next = current === '' ? word : `${current} ${word}`;
+    if (next.length <= TRAILER_WIDTH || !current.includes(' ')) current = next;
+    else {
+      out.push(current);
+      current = ` ${word}`;
+    }
+  }
+  out.push(current);
+  return out;
+};
+
+/** The commit trailers: one `Verified-by:` per check (or one `none`), one `Captured:` per path, one `Not-checked:` per gap, each folded to fit commitlint's footer width. */
+export const trailers = (receipt: Receipt): string[] =>
+  [
+    ...(receipt.none === undefined ? receipt.checks.map((c) => `Verified-by: ${oneLine(c.command)} -> exit ${String(c.exit)} (${c.digest})`) : [`Verified-by: none (${oneLine(receipt.none)})`]),
+    ...receipt.captures.map((path) => `Captured: ${oneLine(path)}`),
+    ...receipt.notChecked.map((gap) => `Not-checked: ${oneLine(gap)}`),
+  ].flatMap(fold);
 
 /** The PR's `Checked:` line: each command and how it ended, then what was not checked. */
 export const checkedLine = (receipt: Receipt): string => {
@@ -55,10 +79,14 @@ const FIX = 'run `provedone stamp --run "<the command that proves it>" --not-che
 /**
  * Whether a commit message or PR body carries a receipt (spec R5): a `Verified-by:` line with a
  * command, or `Verified-by: none (<reason>)` with a reason. `#` lines are a commit template's
- * comments and are not read; a merge commit carries its parents' receipts and passes.
+ * comments and are not read; a merge commit carries its parents' receipts and passes. A folded
+ * trailer is read whole, so a long `none (<reason>)` that `stamp` wrapped still passes.
  */
+/** Joins each continuation line (one starting with a space or tab) onto the line before it, as git reads a folded trailer. */
+const unfold = (text: string): string[] => text.replace(/\n[ \t]+/gu, ' ').split('\n');
+
 export const verdict = (message: string): Verdict => {
-  const lines = message.split('\n').filter((line) => !line.startsWith('#'));
+  const lines = unfold(message.split('\n').filter((line) => !line.startsWith('#')).join('\n'));
   if (/^Merge /u.test(lines.join('\n'))) return { ok: true, reason: 'merge commit' };
   const values = lines.flatMap((line) => /^Verified-by:(.*)/iu.exec(line)?.slice(1) ?? []).map((v) => v.trim());
   if (values.length === 0) return { ok: false, reason: 'no Verified-by: line', fix: FIX };

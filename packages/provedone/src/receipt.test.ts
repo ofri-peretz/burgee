@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 
 import { describe, expect, it } from 'vitest';
 
-import { checkedLine, digest, prBlock, trailers, verdict, type Receipt } from './receipt.js';
+import { checkedLine, digest, fold, prBlock, TRAILER_WIDTH, trailers, verdict, type Receipt } from './receipt.js';
 
 const receipt: Receipt = {
   checks: [
@@ -34,6 +34,63 @@ describe('trailers', () => {
         none: '  comment\nonly ',
       }),
     ).toEqual(['Verified-by: none (comment only)']);
+  });
+
+  it('folds a long trailer into continuation lines that fit commitlint and still pass the gate', () => {
+    const gap = 'the Windows runner, the macOS runner, the docs site at mobile width, and the published tarball contents';
+    const lines = trailers({ checks: [], captures: [], notChecked: [gap], none: 'workflow only' });
+    expect(lines.slice(1)).toEqual(['Not-checked: the Windows runner, the macOS runner, the docs site at mobile width, and the published', ' tarball contents']);
+    expect(lines.every((line) => line.length <= TRAILER_WIDTH)).toBe(true);
+    expect(verdict(lines.join('\n')).ok).toBe(true);
+  });
+});
+
+// 100 is commitlint's default footer-max-line-length, written out so the test pins the number.
+const filler = (length: number): string => 'a'.repeat(length);
+
+describe('a folded trailer at the gate', () => {
+  it('reads a long none reason that stamp wrapped as one value, and passes it', () => {
+    const reason = 'a documentation-only change to a workflow comment that no test, lint or build step reads at all';
+    const lines = trailers({ checks: [], captures: [], notChecked: [], none: reason });
+    expect(lines.length).toBeGreaterThan(1);
+    expect(verdict(`fix: x\n\n${lines.join('\n')}`)).toEqual({ ok: true, reason: 'unverified, with a reason' });
+  });
+
+  it('unfolds a tab continuation too, and still blocks a bare none on its own line', () => {
+    expect(verdict('fix: x\n\nVerified-by: none (wrapped\n\treason)').ok).toBe(true);
+    expect(verdict('fix: x\n\nVerified-by: none\nbody text').ok).toBe(false);
+  });
+
+  it('joins a continuation with one space, however deep it is indented', () => {
+    expect(verdict('fix: x\n\nVerified-by: none\n    because').reason).toBe('"Verified-by: none because" gives no reason');
+  });
+
+  it('does not join a line that starts at the margin', () => {
+    expect(verdict('fix: x\n\nVerified-by: none (\nreason)').ok).toBe(false);
+  });
+});
+
+describe('fold', () => {
+  it('is 100 columns wide', () => {
+    expect(TRAILER_WIDTH).toBe(100);
+  });
+
+  it('leaves a breakable line of exactly 100 columns alone', () => {
+    const line = `Captured: ${filler(88)} b`;
+    expect(line).toHaveLength(100);
+    expect(fold(line)).toEqual([line]);
+  });
+
+  it('breaks a line of 101 columns at the last space', () => {
+    const line = `Captured: ${filler(89)} b`;
+    expect(line).toHaveLength(101);
+    expect(fold(line)).toEqual([`Captured: ${filler(89)}`, ' b']);
+  });
+
+  it('keeps the key with its first word, and never splits a word longer than the width', () => {
+    const word = 'x'.repeat(105);
+    expect(fold(`Verified-by: ${word} -> exit 0`)).toEqual([`Verified-by: ${word}`, ' -> exit 0']);
+    expect(fold(`Captured: a ${word}`)).toEqual(['Captured: a', ` ${word}`]);
   });
 });
 
