@@ -97,7 +97,7 @@ describe('nothing reads the process (R11, Y9)', () => {
    */
   it('names `process` nowhere in its sources, except the one file that is the program', () => {
     const bin = Object.values((JSON.parse(readFileSync(join(PKG_ROOT, 'package.json'), 'utf8')) as { bin?: Record<string, string> }).bin ?? {}).map((target) =>
-      join(PKG_ROOT, 'src', target.replace('./dist/', '').replace(/\.js$/u, '.ts')),
+      join(PKG_ROOT, 'src', target.replace(/^(\.\/)?dist\//u, '').replace(/\.js$/u, '.ts')),
     );
     const offenders = sources().filter((file) => !bin.includes(file)).filter((file) =>
       readFileSync(file, 'utf8')

@@ -12,7 +12,7 @@
     "node": ">=22.13.0"
   },
   "bin": {
-    "controlroom": "./dist/cli.js"
+    "controlroom": "dist/cli.js"
   },
   "types": "./dist/index.d.ts",
   "exports": {

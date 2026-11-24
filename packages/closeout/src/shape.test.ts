@@ -67,7 +67,7 @@ describe('exactly one file touches the process (R7), plus the program', () => {
    */
   it('and it is ambient.ts, with the declared bin beside it', () => {
     const bin = Object.values((JSON.parse(readFileSync(resolve(pkgRoot, 'package.json'), 'utf8')) as { bin?: Record<string, string> }).bin ?? {}).map((target) =>
-      target.replace('./dist/', '').replace(/\.js$/u, '.ts'),
+      target.replace(/^(\.\/)?dist\//u, '').replace(/\.js$/u, '.ts'),
     );
     expect(sources().filter(touchesProcess).filter((file) => !bin.includes(file))).toEqual(['ambient.ts']);
     expect(bin.every((file) => sources().includes(file)), 'package.json names a bin with no source behind it').toBe(true);

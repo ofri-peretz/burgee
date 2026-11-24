@@ -127,6 +127,6 @@
     "vitest": "^5.0.1"
   },
   "bin": {
-    "closeout": "./dist/cli.js"
+    "closeout": "dist/cli.js"
   }
 }

@@ -72,7 +72,7 @@ describe('sideEffects tells a bundler the truth (U10)', () => {
 
   it.each(PACKAGES)('$pkg lists every bin — a program runs when it is loaded', ({ manifest }) => {
     const listed = Array.isArray(manifest.sideEffects) ? manifest.sideEffects : [];
-    for (const bin of Object.values(manifest.bin ?? {})) expect(listed, `${bin} runs on load and is not listed`).toContain(bin);
+    for (const bin of Object.values(manifest.bin ?? {})) expect(listed, `${bin} runs on load and is not listed`).toContain(`./${bin.replace(/^\.\//, '')}`);
   });
 
   it.each(PACKAGES)('$pkg lists every module whose top level calls an import', ({ pkg, manifest, files }) => {

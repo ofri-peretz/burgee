@@ -119,7 +119,7 @@ function binSources(pkg: string): Set<string> {
     return new Set();
   }
   const targets = typeof manifest.bin === 'string' ? [manifest.bin] : Object.values(manifest.bin ?? {});
-  return new Set(targets.map((t) => `${pkg}/src/${t.replace('./dist/', '').replace(/\.js$/u, '.ts')}`));
+  return new Set(targets.map((t) => `${pkg}/src/${t.replace(/^(\.\/)?dist\//u, '').replace(/\.js$/u, '.ts')}`));
 }
 
 /** A file that may name the process: a package's runtime seam, or the program it declares. */

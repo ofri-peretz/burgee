@@ -67,7 +67,7 @@
     }
   },
   "bin": {
-    "contractdiff": "./dist/bin.js"
+    "contractdiff": "dist/bin.js"
   },
   "files": [
     "dist",

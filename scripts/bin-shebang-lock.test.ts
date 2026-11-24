@@ -87,7 +87,7 @@ function sourceBins(): Array<[string, string, string]> {
     const bins = typeof pkg.bin === "string" ? { [pkg.name]: pkg.bin } : pkg.bin;
     for (const [command, target] of Object.entries(bins)) {
       const source = target
-        .replace(/^\.\/dist\//, "src/")
+        .replace(/^(\.\/)?dist\//, "src/")
         .replace(/\.js$/, ".ts");
       out.push([pkg.name, command, join(root, "packages", dir, source)]);
     }
@@ -104,5 +104,38 @@ describe("every published bin's source opens with the shebang", () => {
 
   it.each(bins)("%s: bin %s", (_name, _command, source) => {
     expect(readFileSync(source, "utf8").split("\n", 1)[0]).toBe(SHEBANG);
+  });
+});
+
+/**
+ * Lock — every bin path is already in the form `npm pkg fix` writes.
+ *
+ * contractdiff@0.4.0 and truemark@0.1.1 were published from a laptop with `"./dist/bin.js"`;
+ * npm rewrote each to `"dist/bin.js"` and printed `"bin[x]" script name dist/bin.js was
+ * invalid and removed` plus "Please run npm pkg fix". The bin survived, but the warning read
+ * like a broken install, so the manifest carries the normal form and npm has nothing to fix.
+ */
+/** A manifest's bins as `{ command: path }`, the string form named after the package. */
+const binMap = (pkg: Pkg): Record<string, string> =>
+  typeof pkg.bin === "string" ? { [pkg.name]: pkg.bin } : (pkg.bin ?? {});
+
+describe("every bin path is npm-normal (no leading ./)", () => {
+  const manifests = readdirSync(join(root, "packages")).flatMap((dir) => {
+    try {
+      return [JSON.parse(readFileSync(join(root, "packages", dir, "package.json"), "utf8")) as Pkg];
+    } catch {
+      return [];
+    }
+  });
+  const bins = manifests.flatMap((pkg) =>
+    Object.entries(binMap(pkg)).map(([command, target]) => [pkg.name, command, target] as const),
+  );
+
+  it("finds the family's bins", () => {
+    expect(bins.map(([name]) => name)).toContain("contractdiff");
+  });
+
+  it.each(bins)("%s: bin %s -> %s", (_name, _command, target) => {
+    expect(target, "drop the leading ./ — npm pkg fix rewrites it at publish").not.toMatch(/^\.\//);
   });
 });

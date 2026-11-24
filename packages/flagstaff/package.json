@@ -120,7 +120,7 @@
     }
   },
   "bin": {
-    "flagstaff": "./dist/cli.js"
+    "flagstaff": "dist/cli.js"
   },
   "files": [
     "dist",

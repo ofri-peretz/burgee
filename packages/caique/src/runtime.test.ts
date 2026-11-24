@@ -55,7 +55,7 @@ describe('the runtime seam', () => {
   it('is the only file in caique that reads the process, besides the program itself', () => {
     const offenders: string[] = [];
     const manifest = JSON.parse(readFileSync(join(src, '..', 'package.json'), 'utf8')) as { bin?: Record<string, string> };
-    const bin = new Set(Object.values(manifest.bin ?? {}).map((t) => t.replace('./dist/', '').replace(/\.js$/u, '.ts')));
+    const bin = new Set(Object.values(manifest.bin ?? {}).map((t) => t.replace(/^(\.\/)?dist\//u, '').replace(/\.js$/u, '.ts')));
     for (const file of sources(src)) {
       const rel = relative(src, file).split(sep).join('/');
       if (rel === 'runtime.ts' || bin.has(rel)) continue;

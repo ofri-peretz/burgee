@@ -9,7 +9,7 @@
     "node": ">=22.18.0"
   },
   "bin": {
-    "hookset": "./dist/bin.js"
+    "hookset": "dist/bin.js"
   },
   "types": "./dist/index.d.ts",
   "exports": {
