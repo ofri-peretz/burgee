@@ -10,9 +10,5 @@ import { adapter as protobuf } from './input-protobuf.js';
 import { adapter as swagger2 } from './input-swagger2.js';
 import { openapi } from './openapi.js';
 
-const planned: Readonly<Record<string, Adapter | undefined>> = { openapi, swagger2, asyncapi, mcp, protobuf, jsonschema };
-
-/** The built-in adapters that exist so far, by the name a generator's `inputs` lists. */
-export const builtinAdapters: Readonly<Record<string, Adapter>> = Object.fromEntries(
-  Object.entries(planned).filter((entry): entry is [string, Adapter] => entry[1] !== undefined),
-);
+/** The built-in adapters, by the name a generator's `inputs` lists. */
+export const builtinAdapters: Readonly<Record<string, Adapter>> = { openapi, swagger2, asyncapi, mcp, protobuf, jsonschema };

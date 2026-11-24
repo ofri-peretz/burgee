@@ -389,6 +389,32 @@ describe('a replacement exists (R9)', () => {
   });
 });
 
+describe('the members a replacement can name', () => {
+  it('include those of a later operation that repeats an earlier operationId', () => {
+    const contract = read({
+      openapi: '3.1.0',
+      paths: {
+        '/a': { get: { operationId: 'twice', responses: {} } },
+        '/b': {
+          get: {
+            operationId: 'twice',
+            responses: {
+              '200': {
+                description: 'ok',
+                content: { 'application/json': { schema: { type: 'object', properties: { amount: { type: 'integer', 'x-replaced-by': 'amountCents' }, amountCents: { type: 'integer' } } } } },
+              },
+            },
+          },
+        },
+      },
+    });
+    const { members } = readDecisions(contract);
+    expect(members.has(keyOf('twice', BODY, '/properties/amountCents'))).toBe(true);
+    expect(members.has(keyOf('twice', BODY, '/properties/gone'))).toBe(false);
+    expect(rows(checkDecisions(contract, contract, compareContracts(contract, contract), { today: '2027-01-01', level: 'warn' }))).toEqual([]);
+  });
+});
+
 describe('a decided breaking change moves the version (R10)', () => {
   it('is unversioned when the same path and the same info.version carry it', () => {
     const findings = compare('base', 'decided');
