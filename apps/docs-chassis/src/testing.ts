@@ -195,6 +195,24 @@ export function docsSiteSuite(testFileUrl: string): void {
     });
   });
 
+  describe.skipIf(app.row.familyPages)(`${app.row.workspace}: the home is the way in, in the server HTML`, () => {
+    it('states the install command as text, so it is there with no script', () => {
+      const line = /data-testid="home-install-command"[^>]*>([^<]*)</u.exec(app.built('index.html'))?.[1];
+      expect(line, 'the home has no install line — does package-home.tsx still render homeHero?').toBe(`npm install ${app.row.package}`);
+    });
+
+    it('links every page under content/docs/coming-from as a card that carries its description', () => {
+      const html = app.built('index.html');
+      const guides = app.urls.filter((url) => url.startsWith('/docs/coming-from/'));
+      for (const url of guides) expect(html, `the home links no ${url}`).toContain(`href="${url}"`);
+      if (guides.length > 0) expect(html, 'the home has no "coming from" band').toContain('data-testid="home-coming-from"');
+    });
+
+    it('links the family-wide pages on the front door', () => {
+      expect(app.built('index.html')).toContain('data-testid="home-family"');
+    });
+  });
+
   describe(`${app.row.workspace}: PostHog is on every page, through the same origin`, () => {
     it('the prerendered home page references the Analytics client component, which captures pageviews', () => {
       const html = app.built('index.html');
