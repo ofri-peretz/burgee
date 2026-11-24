@@ -23,7 +23,7 @@ const decision = (out: string): string | undefined => (out ? (JSON.parse(out) as
 describe('guard-bash', () => {
   it('passes its own deny, allow and ask cases', () => {
     const r = spawnSync(process.execPath, [join(CLAUDE, 'guard-bash.mjs'), '--self-test'], { encoding: 'utf8' });
-    expect(r.stdout).toMatch(/^ok: \d+ denied, \d+ allowed, \d+ asked, \d+ timed\n$/);
+    expect(r.stdout).toMatch(/^ok: \d+ denied, \d+ allowed, \d+ asked, \d+ timed, \d+ edits\n$/);
     expect(r.status).toBe(0);
   });
 
@@ -73,6 +73,17 @@ describe('guard-bash', () => {
     writeFileSync(join(dir, '.claude/hookset.json'), JSON.stringify({ frozen: ['content/**/*.md'] }));
     const file = `${dir}\\content\\a\\b.md`;
     expect(decision(hook('guard-bash.mjs', { tool_input: { file_path: file } }, { CLAUDE_PROJECT_DIR: dir }))).toBe('deny');
+  });
+
+  it("denies an edit to a generated file and names the command that writes it, from the repo's hookset.json", () => {
+    const dir = scratch('hookset-claude-');
+    mkdirSync(join(dir, '.claude'));
+    writeFileSync(join(dir, '.claude/hookset.json'), JSON.stringify({ generated: { 'public/r/**': 'npm run registry:build' } }));
+    const env = { CLAUDE_PROJECT_DIR: dir };
+    const out = hook('guard-bash.mjs', { tool_input: { file_path: join(dir, 'public/r/button.json') } }, env);
+    expect(decision(out)).toBe('deny');
+    expect(out).toContain('npm run registry:build');
+    expect(decision(hook('guard-bash.mjs', { tool_input: { file_path: join(dir, 'src/button.tsx') } }, env))).toBeUndefined();
   });
 
   it('has no opinion on a payload it cannot read', () => {
