@@ -34,7 +34,7 @@ and `chalk` (wave 0.4, the red ratchet) is roundel's incumbent, not anyone else'
 | `ac-corpus` | `lane/ac-corpus` | `benchmarks/apicontract/**`, `.sdlc/intents/apicontract-corpus/**` | — |
 | `ac-props` | `lane/ac-props` | `packages/contractdiff/src/props-*.ts`, `packages/contractdiff/src/command-props*.ts`, `.sdlc/intents/contract-properties/**`, `packages/contractdiff/src/__fixtures__/props/**` | — |
 | `validator` | `lane/validator` | `packages/loadline/**`, `.sdlc/intents/loadline/**`, `benchmarks/validator/**` | harness 2.0 |
-| `replay` | `lane/replay` | `packages/replay/**`, `.sdlc/intents/replay/**`, `.sdlc/replay/**` | triggerlist's checklist (R4 firing table) |
+| `replz` | `lane/replz` | `packages/replz/**`, `.sdlc/intents/replz/**`, `.sdlc/replz/**` | triggerlist's checklist (R4 firing table) |
 | `triggerlist` | `lane/triggerlist` | `packages/triggerlist/**`, `.sdlc/intents/triggerlist/**`, `.sdlc/checklist.yaml`, `REVIEW.md` | — |
 | `closeout` | `lane/closeout` | `packages/closeout/**`, `.sdlc/intents/closeout/**` | harness 2.0 |
 | `bellpull` | `lane/bellpull` | `packages/bellpull/**`, `.sdlc/intents/bellpull/**` | harness 2.0 |

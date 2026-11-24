@@ -46,5 +46,5 @@ Intent: [`intent.md`](./intent.md). **Status:** draft.
 
 ## Out of scope
 
-- Measuring whether the reviewer catches bugs. That is `replay`.
+- Measuring whether the reviewer catches bugs. That is `replz`.
 - Writing the reviewer. It stays the existing Claude review action.

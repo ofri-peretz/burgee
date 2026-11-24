@@ -23,7 +23,7 @@ describe('parseConfig', () => {
       checks: [{ id: 'types', command: 'npx tsc --noEmit' }],
       checklist: '.sdlc/checklist.yaml',
     });
-    expect(CONFIG).toBe('.sdlc/replay/config.yaml');
+    expect(CONFIG).toBe('.sdlc/replz/config.yaml');
     const bare = parseConfig('c', `${YAML.replace('model: haiku\n', '')}setup: npm ci\n`);
     expect(bare.model).toBeUndefined();
     expect(bare.setup).toBe('npm ci');
@@ -41,11 +41,11 @@ describe('parseConfig', () => {
     ['a check id with a trailing symbol', YAML.replace('id: types', 'id: types!'), '/checks/0/id'],
     ['an unknown key', `${YAML}extra: 1\n`, '/extra'],
   ])('refuses %s', (_, yaml, pointer) => {
-    expect(() => parseConfig('c', yaml)).toThrow(new RegExp(`^c is not a valid replay config:\\n {2}${pointer}: `));
+    expect(() => parseConfig('c', yaml)).toThrow(new RegExp(`^c is not a valid replz config:\\n {2}${pointer}: `));
   });
 
   it('names the root and lists every issue on its own line', () => {
-    expect(() => parseConfig('c', '42')).toThrow(/^c is not a valid replay config:\n {2}\/: /);
+    expect(() => parseConfig('c', '42')).toThrow(/^c is not a valid replz config:\n {2}\/: /);
     expect(() => parseConfig('c', 'model: m')).toThrow(/:\n {2}\/reviewer: [^\n]+\n {2}\/grader: /);
   });
 });

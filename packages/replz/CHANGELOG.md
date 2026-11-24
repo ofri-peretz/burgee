@@ -1,4 +1,4 @@
-# replay
+# replz
 
 ## 0.1.2
 

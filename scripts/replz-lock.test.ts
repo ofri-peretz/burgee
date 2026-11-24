@@ -5,12 +5,12 @@
  */
 
 /**
- * Lock — the replay cases are runnable, and the history only grows.
+ * Lock — the replz cases are runnable, and the history only grows.
  *
- * `replay run` (.sdlc/intents/replay/) is a monthly, paid run: a case that does not parse, or a
+ * `replz run` (.sdlc/intents/replz/) is a monthly, paid run: a case that does not parse, or a
  * config that names a stage the reviewer never reports, is found then, after the money is spent.
  * So every case and the config are read here on every push, the test set holds bugs and controls
- * both, and the history (replay spec R6) is held to what the last run wrote: one JSON report per
+ * both, and the history (replz spec R6) is held to what the last run wrote: one JSON report per
  * line, dated, never rewritten.
  */
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
@@ -20,15 +20,15 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 // eslint-disable-next-line import-next/no-relative-packages -- the source, by path, on purpose: the package-name form resolves to `dist/`, which would check the last build rather than the tree
-import { parseCase, selectCases } from '../packages/replay/src/cases.js';
+import { parseCase, selectCases } from '../packages/replz/src/cases.js';
 // eslint-disable-next-line import-next/no-relative-packages -- as above
-import { CASES, HISTORY } from '../packages/replay/src/cli.js';
+import { CASES, HISTORY } from '../packages/replz/src/cli.js';
 // eslint-disable-next-line import-next/no-relative-packages -- as above
-import { CONFIG, parseConfig } from '../packages/replay/src/config.js';
+import { CONFIG, parseConfig } from '../packages/replz/src/config.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
-describe('the replay cases', () => {
+describe('the replz cases', () => {
   const dir = join(ROOT, CASES);
   const cases = readdirSync(dir)
     .filter((name) => name.endsWith('.yaml'))
@@ -55,7 +55,7 @@ describe('the replay cases', () => {
   });
 });
 
-describe('the replay history', () => {
+describe('the replz history', () => {
   const file = join(ROOT, HISTORY);
   const lines = existsSync(file) ? readFileSync(file, 'utf8').split('\n').filter((line) => line !== '') : [];
 

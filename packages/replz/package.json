@@ -1,8 +1,8 @@
 {
-  "name": "replay",
+  "name": "replz",
   "version": "0.1.2",
   "private": true,
-  "description": "Grades a reviewer and a repository's checks against bugs that actually happened: replays each known bug PR and size-matched clean controls, scores findings against a one-sentence answer key per stage, and counts how often every check fires. Working name; unpublished.",
+  "description": "Grades a reviewer and a repository's checks against bugs that actually happened: replays each known bug PR and size-matched clean controls, scores findings against a one-sentence answer key per stage, and counts how often every check fires. Unpublished.",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -18,7 +18,7 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "replay": "dist/bin.js"
+    "replz": "dist/bin.js"
   },
   "files": [
     "dist",

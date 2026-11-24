@@ -1,6 +1,6 @@
 /**
  * The real shell and worktrees, through bellpull (subprocesses are its job here). Input reaches a
- * command line as a file on stdin, `"$REPLAY_INPUT"`, because a prompt is too long for an argument;
+ * command line as a file on stdin, `"$REPLZ_INPUT"`, because a prompt is too long for an argument;
  * without input its stdin is empty, so a command that reads it never waits.
  */
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -13,15 +13,15 @@ import { type Shell, type Worktrees } from './run.js';
 
 export const sh: Shell = async (command, options) => {
   const runtime = ambientRuntime();
-  const scratch = options.input === undefined ? undefined : mkdtempSync(join(tmpdir(), 'replay-input-'));
+  const scratch = options.input === undefined ? undefined : mkdtempSync(join(tmpdir(), 'replz-input-'));
   try {
-    const env: Record<string, string | undefined> = { ...runtime.env, ...options.env, REPLAY_INPUT: '/dev/null' };
+    const env: Record<string, string | undefined> = { ...runtime.env, ...options.env, REPLZ_INPUT: '/dev/null' };
     if (scratch !== undefined) {
-      env.REPLAY_INPUT = join(scratch, 'input.txt');
-      writeFileSync(env.REPLAY_INPUT, options.input as string);
+      env.REPLZ_INPUT = join(scratch, 'input.txt');
+      writeFileSync(env.REPLZ_INPUT, options.input as string);
     }
     // The braces give the whole line the input, not only its last command.
-    const result = await run('sh', ['-c', `{ ${command}\n} < "$REPLAY_INPUT"`], { cwd: options.cwd, runtime, env, timeout: 0 });
+    const result = await run('sh', ['-c', `{ ${command}\n} < "$REPLZ_INPUT"`], { cwd: options.cwd, runtime, env, timeout: 0 });
     return { code: result.code, stdout: result.stdout, stderr: result.stderr };
   } finally {
     // Stryker disable next-line BooleanLiteral: equivalent, the scratch directory is always there to remove
@@ -37,7 +37,7 @@ const git = async (repo: string, args: readonly string[]): Promise<void> => {
 export const worktreesIn = (repo: string): Worktrees => ({
   add: async (ref) => {
     // Stryker disable next-line StringLiteral: equivalent, any fresh directory under tmp serves; the names only help a person reading tmp
-    const dir = join(mkdtempSync(join(tmpdir(), 'replay-case-')), 'tree');
+    const dir = join(mkdtempSync(join(tmpdir(), 'replz-case-')), 'tree');
     await git(repo, ['worktree', 'add', '--detach', dir, ref]);
     return { dir, remove: () => git(repo, ['worktree', 'remove', '--force', dir]) };
   },

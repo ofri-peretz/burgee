@@ -1,4 +1,4 @@
-# Intent — `replay`: grade the reviewer and the checks against bugs that actually happened
+# Intent — `replz`: grade the reviewer and the checks against bugs that actually happened
 
 > Opened 2026-11-23 from the verification gap analysis
 > ([doc](https://claude.ai/artifact/BCjCqoaRfDvtQeha24HrNi)). The post describes recreating the
@@ -14,13 +14,13 @@
 
 - **A case file** per known bug: the PR that introduced it, its base SHA, and a one-sentence
   answer key. Clean merged PRs, size-matched, are controls.
-- **`replay run`** checks out each case at its base, applies the PR, runs the reviewer (through
+- **`replz run`** checks out each case at its base, applies the PR, runs the reviewer (through
   triggerlist's workflow inputs) and the repo's checks, and scores each finding against the
   answer key. Only a finding that describes that bug counts.
 - **A report** with recall per stage (raw findings, after verification, final review), severity
   (must-fix, should-fix, nit, pre-existing), false alarms on controls, and for every check and
   checklist item how often it fired and how often it was right.
-- **`replay mine`** proposes rule candidates from review comments and reverts: a pattern seen in
+- **`replz mine`** proposes rule candidates from review comments and reverts: a pattern seen in
   two or more PRs and detectable from a diff. A person accepts each one in a PR.
 
 ## Why now
@@ -34,7 +34,7 @@
 
 ## Affected users and systems
 
-A new private package `packages/replay`; a `.sdlc/replay/` case directory; a monthly workflow or
+A new private package `packages/replz`; a `.sdlc/replz/` case directory; a monthly workflow or
 launchd job like `mutation:weekly`.
 
 ## Constraints

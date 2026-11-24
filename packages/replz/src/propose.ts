@@ -1,5 +1,5 @@
 /**
- * Draft cases from history (replay intent, "Defaults taken"): a revert on main names the pull request
+ * Draft cases from history (replz intent, "Defaults taken"): a revert on main names the pull request
  * that broke something, and a fix that says which pull request it fixes names another. Each draft
  * is that pull request's squash commit as `head` and its parent as `base`; the answer key is left for
  * a person, because a finding is graded against it and a guessed key grades nothing. Controls are

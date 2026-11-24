@@ -1,7 +1,7 @@
 /**
- * replay's commands, declared once so burgee projects each to `--json`, `--schema` and completions.
+ * replz's commands, declared once so burgee projects each to `--json`, `--schema` and completions.
  * `run` calls a model once per case and once per graded finding, so it is never a per-PR step: it
- * runs by hand or on a schedule (replay intent, constraints). `check` and `propose` cost nothing.
+ * runs by hand or on a schedule (replz intent, constraints). `check` and `propose` cost nothing.
  */
 import { appendFileSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -27,8 +27,8 @@ type Data = Record<string | symbol, unknown>;
 
 // Stryker disable next-line StringLiteral: equivalent, `resolve('', x)` and `resolve('.', x)` are both the working directory
 const HERE = '.';
-export const CASES = '.sdlc/replay/cases';
-export const HISTORY = '.sdlc/replay/history.jsonl';
+export const CASES = '.sdlc/replz/cases';
+export const HISTORY = '.sdlc/replz/history.jsonl';
 
 /** Every `*.yaml` case under `dir`, sorted by file name. */
 export const readCases = (repo: string, dir: string): Case[] =>
@@ -118,19 +118,19 @@ export const runPropose = async (options: ProposeOptions): Promise<Data> => {
 };
 
 const repoOption = { type: 'string', default: HERE, description: 'the repository (default: the current directory)', placeholder: 'dir' } as const;
-const configOption = { type: 'string', default: CONFIG, description: 'the replay config', placeholder: 'path' } as const;
+const configOption = { type: 'string', default: CONFIG, description: 'the replz config', placeholder: 'path' } as const;
 const casesOption = { type: 'string', default: CASES, description: 'the folder of case files', placeholder: 'dir' } as const;
 
 export const program = defineProgram({
-  name: 'replay',
+  name: 'replz',
   version: VERSION,
   description: 'Grade the reviewer and the checks against bugs that actually happened',
   commands: [
     defineCommand({
       name: 'check',
-      description: 'Validate the replay config and every case, and count each set',
+      description: 'Validate the replz config and every case, and count each set',
       effects: 'read_only',
-      examples: [{ command: 'replay check', description: 'are the cases ready to run' }],
+      examples: [{ command: 'replz check', description: 'are the cases ready to run' }],
       options: { repo: repoOption, config: configOption, cases: casesOption },
       run: ({ options }) => runCheck({ repo: options.repo as string, config: options.config as string, cases: options.cases as string }),
     }),
@@ -139,8 +139,8 @@ export const program = defineProgram({
       description: 'Replay every case through the reviewer and the checks, grade the findings, and report recall per stage',
       effects: 'non_idempotent',
       examples: [
-        { command: 'replay run --set test', description: 'the score on the held-out cases' },
-        { command: 'replay run --set tune --max-findings 5 --record', description: 'a cheaper run, appended to the history' },
+        { command: 'replz run --set test', description: 'the score on the held-out cases' },
+        { command: 'replz run --set tune --max-findings 5 --record', description: 'a cheaper run, appended to the history' },
       ],
       options: {
         repo: repoOption,
@@ -169,7 +169,7 @@ export const program = defineProgram({
       name: 'propose',
       description: 'Draft bug cases from reverts and fixes on main, each with a size-matched control, for a person to finish',
       effects: 'read_only',
-      examples: [{ command: 'replay propose --limit 10', description: 'ten bug drafts and ten controls' }],
+      examples: [{ command: 'replz propose --limit 10', description: 'ten bug drafts and ten controls' }],
       options: {
         repo: repoOption,
         ref: { type: 'string', default: 'origin/main', description: 'the history to read', placeholder: 'ref' },

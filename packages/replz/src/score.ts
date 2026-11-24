@@ -1,5 +1,5 @@
 /**
- * The report (replay spec R4): recall per stage, so a pipeline that finds a bug and then drops it in
+ * The report (replz spec R4): recall per stage, so a pipeline that finds a bug and then drops it in
  * verification shows where; false alarms on the controls; and for every check and checklist item, how
  * often it fired and how often that firing was right. A check or item that never fired is named: it
  * costs a reviewer's attention or a CI minute and has not earned it on these cases.

@@ -1,5 +1,5 @@
 /**
- * One replay (replay spec R2, R3): for each case, a git worktree at its head, the reviewer and every
+ * One replay (replz spec R2, R3): for each case, a git worktree at its head, the reviewer and every
  * check run inside it, and each finding of a bug case graded against the answer key, one finding per
  * grader call, at most `maxFindings` per case. Controls are never graded: they have no answer, so
  * they cost one reviewer call and nothing more.
@@ -53,7 +53,7 @@ const grade = async ({ shell, config, model }: Replayer, cwd: string, answer: st
     }
     // eslint-disable-next-line reliability/no-await-in-loop -- one grader call at a time: the cap is a cost cap, and a burst of paid calls is what it prevents
     const answered = await shell(command, { cwd, input: gradePrompt(answer, finding) });
-    if (answered.code !== 0) throw new Error(`the grader failed (exit ${String(answered.code)}): ${answered.stderr.trim()}. fix: check the grader command in the replay config`);
+    if (answered.code !== 0) throw new Error(`the grader failed (exit ${String(answered.code)}): ${answered.stderr.trim()}. fix: check the grader command in the replz config`);
     graded.push({ finding, matches: isYes(answered.stdout) });
   }
   return { graded, capped: findings.length > config.maxFindings };
@@ -63,11 +63,11 @@ export const replayCase = async (replayer: Replayer, found: Case): Promise<CaseR
   const { shell, config } = replayer;
   // Before the reviewer runs: a run that cannot be graded should not pay for the review first.
   if (found.answer !== undefined && replayer.model === undefined && config.grader.includes('{model}')) {
-    throw new Error('the grader command takes {model} and none was given. fix: pass --model with the cheapest current model, or set model in the replay config');
+    throw new Error('the grader command takes {model} and none was given. fix: pass --model with the cheapest current model, or set model in the replz config');
   }
   const { dir, remove } = await replayer.worktrees.add(found.head);
   try {
-    const env = { REPLAY_BASE: found.base, REPLAY_HEAD: found.head, REPLAY_PR: String(found.pr) };
+    const env = { REPLZ_BASE: found.base, REPLZ_HEAD: found.head, REPLZ_PR: String(found.pr) };
     if (config.setup !== undefined) {
       const ready = await shell(config.setup, { cwd: dir, env });
       if (ready.code !== 0) throw new Error(`setup failed on ${found.id} (exit ${String(ready.code)}): ${ready.stderr.trim()}. fix: run it by hand in a worktree at ${found.head}`);

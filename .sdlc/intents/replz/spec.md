@@ -1,4 +1,4 @@
-# Design — `replay`
+# Design — `replz`
 
 Intent: [`intent.md`](./intent.md). **Status:** draft.
 
@@ -8,13 +8,13 @@ Intent: [`intent.md`](./intent.md). **Status:** draft.
 
 - **R1** A case schema: `id`, `kind` (`bug` or `control`), `pr`, `base`, `head`, `answer` (one
   sentence, bugs only), `set` (`tune` or `test`). Validated by `validator`.
-- **R2** `replay run [--set test]` creates a git worktree per case at `base`, applies `head`,
+- **R2** `replz run [--set test]` creates a git worktree per case at `base`, applies `head`,
   runs the configured reviewer command and check commands, and stores raw outputs.
 - **R3** Scoring: a grader prompt judges whether each finding describes the answer key; scores
   are stored per stage the reviewer reports.
 - **R4** The report lists recall per stage, severity per finding, false alarms on controls, and a
   firing table per check and checklist item. `--json` for history.
-- **R5** `replay mine` reads merged PRs' review comments and reverts through `gh`, clusters them,
+- **R5** `replz mine` reads merged PRs' review comments and reverts through `gh`, clusters them,
   and writes candidates seen in at least two PRs to a draft file.
 - **R6** Results append to a history file held by a lock test, like `evals/history/`.
 
@@ -27,7 +27,7 @@ Intent: [`intent.md`](./intent.md). **Status:** draft.
 
 ## Verification
 
-- `packages/replay/src/*.test.ts` with a fake reviewer that returns fixed findings, asserting
+- `packages/replz/src/*.test.ts` with a fake reviewer that returns fixed findings, asserting
   recall, false alarms and firing counts exactly.
 - One planted case whose answer the fake reviewer finds and one it misses; the report shows 1 of
   2.
@@ -43,5 +43,5 @@ Intent: [`intent.md`](./intent.md). **Status:** draft.
 
 ## Out of scope
 
-- Changing the reviewer. replay measures; triggerlist and REVIEW.md are what change.
+- Changing the reviewer. replz measures; triggerlist and REVIEW.md are what change.
 - Production incident tracking. Cases are written by hand or proposed by `mine`.

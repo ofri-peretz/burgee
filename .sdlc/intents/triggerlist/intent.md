@@ -59,7 +59,7 @@ then the eslint and interlace copies through a reusable workflow; a new `REVIEW.
   between copies is zero lines.
 - **End state (the owner, 2026-11-23: every concept to its strongest form):** every Interlace
   repo reviews through the one workflow; `protect` is in `enforce`, so zero PRs change a gate
-  and the code it judges together; every checklist item carries a firing count from `replay`,
+  and the code it judges together; every checklist item carries a firing count from `replz`,
   and an item with zero firings in 90 days is proposed for removal.
 
 ## Defaults taken

@@ -62,4 +62,4 @@ Intent: [`intent.md`](./intent.md). **Status:** draft.
 
 - Running the app or taking screenshots. That is each repo's `verify` skill; proofline records
   what it produced.
-- Judging whether the checks were good enough. That is `replay`.
+- Judging whether the checks were good enough. That is `replz`.

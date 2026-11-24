@@ -85,7 +85,7 @@ export interface CompileOptions {
   readonly checklist: string;
   readonly out: string;
   readonly budget: number;
-  /** A JSON file of `{ "<id>": <firings> }`, as `replay` reports them. */
+  /** A JSON file of `{ "<id>": <firings> }`, as `replz` reports them. */
   readonly firings?: string | undefined;
   /** Write nothing; fail when the file on disk is not what compile would write. */
   readonly check: boolean;

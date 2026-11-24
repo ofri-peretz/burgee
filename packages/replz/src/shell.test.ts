@@ -22,7 +22,7 @@ describe('sh', () => {
   it('runs a command line in the folder with the extra env, and reports the exit code and output', async () => {
     const dir = scratch('replay-shell-');
     // A file it writes proves the folder: Git Bash on Windows prints $PWD in its own spelling.
-    const ran = await sh('printf here > here.txt; printf "%s" "$REPLAY_PR"; echo oops >&2; exit 3', { cwd: dir, env: { REPLAY_PR: '7' } });
+    const ran = await sh('printf here > here.txt; printf "%s" "$REPLZ_PR"; echo oops >&2; exit 3', { cwd: dir, env: { REPLZ_PR: '7' } });
     expect(ran).toEqual({ code: 3, stdout: '7', stderr: 'oops\n' });
     expect(readFileSync(join(dir, 'here.txt'), 'utf8')).toBe('here');
   });
@@ -34,10 +34,10 @@ describe('sh', () => {
 
   it('gives input on stdin through a file it removes afterwards', async () => {
     const dir = scratch('replay-shell-');
-    const ran = await sh('cat; printf "|%s" "$REPLAY_INPUT"', { cwd: dir, input: 'the prompt' });
+    const ran = await sh('cat; printf "|%s" "$REPLZ_INPUT"', { cwd: dir, input: 'the prompt' });
     const [body, file] = ran.stdout.split('|');
     expect(body).toBe('the prompt');
-    expect(file).toMatch(/replay-input-.+[/\\]input\.txt$/);
+    expect(file).toMatch(/replz-input-.+[/\\]input\.txt$/);
     expect(existsSync(file as string)).toBe(false);
   });
 });

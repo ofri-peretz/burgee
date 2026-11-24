@@ -1,9 +1,9 @@
 import { array, enumOf, number, object, optional, parse, string } from 'loadline';
 /**
- * What a replay runs (replay spec R2, R3): the reviewer, the grader and the repository's checks, each
+ * What replz runs (replz spec R2, R3): the reviewer, the grader and the repository's checks, each
  * a shell command, so the reviewer is the same prompt and REVIEW.md as CI rather than a copy of it.
  *
- * The reviewer runs in the case's worktree with `REPLAY_BASE` and `REPLAY_HEAD` set and prints its
+ * The reviewer runs in the case's worktree with `REPLZ_BASE` and `REPLZ_HEAD` set and prints its
  * findings as JSON. The grader reads one prompt on stdin and answers yes or no. A check fires when it
  * exits non-zero. `maxFindings` caps the grader calls per case, which is what a run costs.
  */
@@ -33,7 +33,7 @@ export interface Config {
   readonly checklist?: string | undefined;
 }
 
-export const CONFIG = '.sdlc/replay/config.yaml';
+export const CONFIG = '.sdlc/replz/config.yaml';
 
 const id = string({ pattern: /^[a-z0-9][a-z0-9-]*$/ });
 const text = string({ min: 1 });
@@ -56,7 +56,7 @@ export const parseConfig = (source: string, yaml: string): Config => {
   const parsed = parse(SCHEMA, parseYaml(yaml));
   if (!parsed.ok) {
     const lines = parsed.issues.map((issue) => `  ${issue.path === '' ? '/' : issue.path}: ${issue.message}`).join('\n');
-    throw new Error(`${source} is not a valid replay config:\n${lines}`);
+    throw new Error(`${source} is not a valid replz config:\n${lines}`);
   }
   return parsed.value as Config;
 };

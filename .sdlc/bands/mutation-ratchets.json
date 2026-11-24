@@ -549,7 +549,7 @@
       "status": "unmeasured",
       "reason": "New on 2026-11-23: stamp, gate, done and intent check. The changed-lines lane holds every line of its first PR to zero survivors; the floor is set by its first full weekly run."
     },
-    "replay": {
+    "replz": {
       "status": "unmeasured",
       "reason": "New on 2026-11-23: cases, config, scoring, the runner and the proposer. The changed-lines lane gates its first commits; the floor is set by its first full weekly run."
     },

@@ -36,11 +36,11 @@ const folder = (files: Record<string, string>): string => {
   return dir;
 };
 
-const REPO = { '.sdlc/replay/config.yaml': CONFIG, '.sdlc/replay/cases/bug-1.yaml': BUG, '.sdlc/replay/cases/control-2.yaml': CONTROL, '.sdlc/replay/cases/README.md': 'not a case' };
+const REPO = { '.sdlc/replz/config.yaml': CONFIG, '.sdlc/replz/cases/bug-1.yaml': BUG, '.sdlc/replz/cases/control-2.yaml': CONTROL, '.sdlc/replz/cases/README.md': 'not a case' };
 
 const shell: Shell = (command, options) => {
   if (command === 'review') return Promise.resolve({ code: 0, stdout: JSON.stringify([{ stage: 'final', severity: 'must-fix', text: 'locale', item: 'spawn' }]), stderr: '' });
-  if (command === 'tsc') return Promise.resolve({ code: options.env?.REPLAY_PR === '1' ? 1 : 0, stdout: '', stderr: '' });
+  if (command === 'tsc') return Promise.resolve({ code: options.env?.REPLZ_PR === '1' ? 1 : 0, stdout: '', stderr: '' });
   return Promise.resolve({ code: 0, stdout: command === 'grade pricey' ? 'no' : 'yes', stderr: '' });
 };
 const worktrees: Worktrees = { add: (ref) => Promise.resolve({ dir: `/t/${ref}`, remove: () => Promise.resolve() }) };
@@ -54,22 +54,22 @@ describe('readCases', () => {
 
 describe('runCheck', () => {
   it('counts each set, the checks and the stages', () => {
-    const data = runCheck({ repo: folder(REPO), config: '.sdlc/replay/config.yaml', cases: CASES });
+    const data = runCheck({ repo: folder(REPO), config: '.sdlc/replz/config.yaml', cases: CASES });
     expect(JSON.parse(JSON.stringify(data))).toEqual({ cases: 2, sets: { tune: { bugs: 0, controls: 1 }, test: { bugs: 1, controls: 0 } }, checks: 1, stages: ['raw', 'final'] });
     expect(text(data)).toBe('2 case(s): tune 0 bug(s) + 1 control(s), test 1 bug(s) + 0 control(s); 1 check(s); stages raw > final');
   });
 });
 
 describe('runReplay', () => {
-  const base = { config: '.sdlc/replay/config.yaml', cases: CASES, shell, worktrees, now };
+  const base = { config: '.sdlc/replz/config.yaml', cases: CASES, shell, worktrees, now };
 
   it('replays every case, scores it, and records the run when asked', async () => {
     const repo = folder({ ...REPO, 'list.yaml': 'items:\n  - { id: spawn }\n  - { id: quiet }\n' });
-    writeFileSync(join(repo, '.sdlc/replay/config.yaml'), `${CONFIG}checklist: list.yaml\n`);
+    writeFileSync(join(repo, '.sdlc/replz/config.yaml'), `${CONFIG}checklist: list.yaml\n`);
     const data = await runReplay({ ...base, repo, record: true });
     expect(data).toMatchObject({ date: '2026-11-23', set: 'all', model: 'cheap', maxFindings: 3, cases: ['bug-1', 'control-2'], recorded: true });
     expect(data.report).toMatchObject({ bugs: 1, controls: 1, recall: [{ stage: 'raw', found: 0 }, { stage: 'final', found: 1 }], falseAlarms: 1, neverFired: ['quiet'] });
-    expect(text(data)).toMatch(/\n\nrecorded in \.sdlc\/replay\/history\.jsonl$/);
+    expect(text(data)).toMatch(/\n\nrecorded in \.sdlc\/replz\/history\.jsonl$/);
     const line = JSON.parse(readFileSync(join(repo, HISTORY), 'utf8')) as Record<string, unknown>;
     expect(line).toEqual(JSON.parse(JSON.stringify({ ...data, recorded: undefined })));
     await runReplay({ ...base, repo, record: true });
@@ -97,9 +97,9 @@ describe('runPropose', () => {
     });
     expect(asked[0]?.slice(0, 2)).toEqual(['/r', 'log']);
     expect(asked[0]?.at(-1)).toBe('main');
-    expect(data).toMatchObject({ bugs: 1, controls: 1, drafts: [{ file: '.sdlc/replay/cases/bug-5.yaml' }, { file: '.sdlc/replay/cases/control-6.yaml' }] });
-    expect(text(data)).toMatch(/^--- \.sdlc\/replay\/cases\/bug-5\.yaml\n# feat: x \(#5\)\n/);
-    expect(text(data)).toContain('\n--- .sdlc/replay/cases/control-6.yaml\n# feat: y (#6)\n');
+    expect(data).toMatchObject({ bugs: 1, controls: 1, drafts: [{ file: '.sdlc/replz/cases/bug-5.yaml' }, { file: '.sdlc/replz/cases/control-6.yaml' }] });
+    expect(text(data)).toMatch(/^--- \.sdlc\/replz\/cases\/bug-5\.yaml\n# feat: x \(#5\)\n/);
+    expect(text(data)).toContain('\n--- .sdlc/replz/cases/control-6.yaml\n# feat: y (#6)\n');
   });
 
   it('says when nothing on the ref names a pull request', async () => {

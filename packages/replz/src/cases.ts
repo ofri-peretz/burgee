@@ -1,6 +1,6 @@
 import { enumOf, number, object, optional, parse, string } from 'loadline';
 /**
- * A replay case (replay spec R1): one pull request, at the commits it had at review time. A bug case
+ * A replz case (replz spec R1): one pull request, at the commits it had at review time. A bug case
  * carries a one-sentence answer key, and a finding counts only when it describes that bug. A control
  * is a clean merged pull request of a similar size: any must-fix found there is a false alarm.
  * `set` keeps the cases a change is tuned on apart from the ones it is judged on.

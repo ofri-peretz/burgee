@@ -43,7 +43,7 @@ describe('replayCase', () => {
     const { calls, shell, trees, worktrees } = fake({ review: { code: 0, stdout: JSON.stringify(FINDINGS) }, tsc: { code: 2 }, eslint: { code: 0 } });
     const result = await replayCase({ shell, worktrees, config: CONFIG, model: 'cheap' }, BUG);
     expect(trees).toEqual(['add bbbbbbb', 'remove bbbbbbb']);
-    const env = { REPLAY_BASE: 'aaaaaaa', REPLAY_HEAD: 'bbbbbbb', REPLAY_PR: '7' };
+    const env = { REPLZ_BASE: 'aaaaaaa', REPLZ_HEAD: 'bbbbbbb', REPLZ_PR: '7' };
     expect(calls).toEqual([
       { command: 'review', cwd: '/tree/bbbbbbb', env, input: undefined },
       { command: 'tsc', cwd: '/tree/bbbbbbb', env, input: undefined },
@@ -66,7 +66,7 @@ describe('replayCase', () => {
   it('runs setup first in the tree, and stops when it fails', async () => {
     const { calls, shell, worktrees } = fake({ install: { code: 0 }, review: { code: 0, stdout: '[]' } });
     await replayCase({ shell, worktrees, config: { ...CONFIG, setup: 'install', checks: [] }, model: 'm' }, BUG);
-    expect(calls.map((call) => [call.command, call.cwd, call.env?.REPLAY_HEAD])).toEqual([
+    expect(calls.map((call) => [call.command, call.cwd, call.env?.REPLZ_HEAD])).toEqual([
       ['install', '/tree/bbbbbbb', 'bbbbbbb'],
       ['review', '/tree/bbbbbbb', 'bbbbbbb'],
     ]);
@@ -77,7 +77,7 @@ describe('replayCase', () => {
 
   it('needs a model when the grader takes one, and not otherwise', async () => {
     const { shell, worktrees, calls, trees } = fake({ review: { code: 0, stdout: JSON.stringify(FINDINGS.slice(0, 1)) } });
-    await expect(replayCase({ shell, worktrees, config: CONFIG, model: undefined }, BUG)).rejects.toThrow('the grader command takes {model} and none was given. fix: pass --model with the cheapest current model, or set model in the replay config');
+    await expect(replayCase({ shell, worktrees, config: CONFIG, model: undefined }, BUG)).rejects.toThrow('the grader command takes {model} and none was given. fix: pass --model with the cheapest current model, or set model in the replz config');
     // Before anything runs, so the review is not paid for.
     expect([calls, trees]).toEqual([[], []]);
     const control = fake({ review: { code: 0, stdout: '[]' } });
@@ -107,7 +107,7 @@ describe('replayCase', () => {
 
   it('fails when the grader fails', async () => {
     const { shell, worktrees } = fake({ review: { code: 0, stdout: JSON.stringify(FINDINGS) }, 'grade --model m m': { code: null, stderr: ' killed \n' } });
-    await expect(replayCase({ shell, worktrees, config: { ...CONFIG, checks: [] }, model: 'm' }, BUG)).rejects.toThrow('the grader failed (exit null): killed. fix: check the grader command in the replay config');
+    await expect(replayCase({ shell, worktrees, config: { ...CONFIG, checks: [] }, model: 'm' }, BUG)).rejects.toThrow('the grader failed (exit null): killed. fix: check the grader command in the replz config');
   });
 });
 

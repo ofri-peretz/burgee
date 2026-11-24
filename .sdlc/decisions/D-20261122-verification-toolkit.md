@@ -38,7 +38,7 @@ Two tests for any new feature or package:
 | Test the tests | "would a test catch a bug here?" | **oxmutate** | nothing: covered | — |
 | Reviewer with our rules | "does this follow our rules, in a rulebook the reviewer can hold?" | lint `--json`; triggerlist | not built | [`triggerlist`](../intents/triggerlist/) |
 | Say how it was checked | "what was and wasn't checked?" | proofline: `Verified-by:` trailer and PR block, re-run evidence | not built | [`proofline`](../intents/proofline/) |
-| Learn from every miss | "which rules and reviews earn their keep?" | `lint --stats --idle`; replay | replay not built | [`replay`](../intents/replay/) |
+| Learn from every miss | "which rules and reviews earn their keep?" | `lint --stats --idle`; replz | replz not built | [`replz`](../intents/replz/) (was replay) |
 | Machine-readable everything | "what did the tool say?" | burgee | pagination/truncation metadata | burgee backlog |
 
 Not a tool's job: trying the change in the app (browser and simulator tools exist), stopping after three
