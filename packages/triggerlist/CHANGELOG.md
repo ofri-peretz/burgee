@@ -1,5 +1,19 @@
 # triggerlist
 
+## 1.0.0
+
+### Major Changes
+
+- [#1808](https://github.com/ofri-peretz/burgee/pull/1808) [`068c76b`](https://github.com/ofri-peretz/burgee/commit/068c76b1ecdc5b667b36c40bed25bb5daa54026d) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - triggerlist is 1.0. Its `.` entry, the `triggerlist` bin with `match`, `brief`, `protect`, `compile` and `seed`, their options, `--json` shapes and exit codes, the checklist file format and the compiled `REVIEW.md` layout are now a semver contract. Nothing changed in the code; the evidence is D-20261124-hookset-triggerlist-1-0: 100% coverage, every spec row built, and a first full mutation run with no surviving mutant.
+
+### Patch Changes
+
+- [#1805](https://github.com/ofri-peretz/burgee/pull/1805) [`0ad24f0`](https://github.com/ofri-peretz/burgee/commit/0ad24f0e554915958ce8e66243a67cf75cd67832) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `triggerlist brief` briefs the reviewer when the base branch has no REVIEW.md or checklist yet, instead of failing the review of the pull request that adds them.
+
+- [#1805](https://github.com/ofri-peretz/burgee/pull/1805) [`0ad24f0`](https://github.com/ofri-peretz/burgee/commit/0ad24f0e554915958ce8e66243a67cf75cd67832) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `triggerlist brief --replies <file>` quotes the pull request author's comments and review-thread replies posted after the previous review round (bots left out, at most 10, each trimmed to 1200 characters), and tells the reviewer that a finding the author answered is not repeated unless the new diff changes the facts: it says in one line that it was answered and why that answer holds or does not.
+
+- [#1805](https://github.com/ofri-peretz/burgee/pull/1805) [`0ad24f0`](https://github.com/ofri-peretz/burgee/commit/0ad24f0e554915958ce8e66243a67cf75cd67832) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `triggerlist protect` passes, checking nothing, when the base branch has no checklist yet, so the pull request that adds a repository's first `.sdlc/checklist.yaml` no longer fails its own pre-push.
+
 ## 0.3.1
 
 ### Patch Changes

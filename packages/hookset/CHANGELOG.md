@@ -1,5 +1,23 @@
 # hookset
 
+## 1.0.0
+
+### Major Changes
+
+- [#1808](https://github.com/ofri-peretz/burgee/pull/1808) [`068c76b`](https://github.com/ofri-peretz/burgee/commit/068c76b1ecdc5b667b36c40bed25bb5daa54026d) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - hookset is 1.0. Its `.` entry, the `hookset` bin with `init` and `check`, their `--json` shape and exit codes, the lefthook presets (`commit-msg`, `pre-commit`, `pre-push`) and the steps each one runs, the Claude pack (`guard-bash`, `stop-after-3`) and the `.claude/hookset.json` fields it reads are now a semver contract: a station is removed, or a preset step starts failing where it passed, only in a 2.0. This also moves hookset past the 0.3.0 that npm will not take again. The evidence is D-20261124-hookset-triggerlist-1-0: 100% coverage, every spec row built, and a first full mutation run with no surviving mutant.
+
+### Minor Changes
+
+- [#1801](https://github.com/ofri-peretz/burgee/pull/1801) [`d2ec721`](https://github.com/ofri-peretz/burgee/commit/d2ec721a56e52455f1fc46cddd86fec2abb09dba) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - guard-bash denies Edit/Write on a generated file listed under `generated` in `.claude/hookset.json` (glob to the command that writes it) and names that command, so a repo drops its "regenerate, don't hand-edit" prose.
+
+- [#1805](https://github.com/ofri-peretz/burgee/pull/1805) [`0ad24f0`](https://github.com/ofri-peretz/burgee/commit/0ad24f0e554915958ce8e66243a67cf75cd67832) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A new enforced `commit-msg` station, `hookset-provedone`, runs `npm run hook:provedone -- {1}`: a commit with no `Verified-by:` receipt fails. `hookset check` reports a repo that does not declare `hook:provedone`. Declare it as `"hook:provedone": "provedone gate --mode enforce"` with `provedone` as a devDependency.
+
+### Patch Changes
+
+- [#1802](https://github.com/ofri-peretz/burgee/pull/1802) [`a2f44f4`](https://github.com/ofri-peretz/burgee/commit/a2f44f4113df9db4b0061852e36a3c36e0099035) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - guard-bash closes hook-skip and publish bypasses: `--no-veri` (git takes abbreviated options), `export LEFTHOOK=0` before the commit, `lefthook uninstall` and `rm`/`mv`/`chmod` on `.git/hooks`, `GIT_CONFIG_KEY_n=core.hooksPath`, `for`/`watch` CI polling, and yarn/bun publish, `unpublish`, `deprecate`, `dist-tag add|rm`, `lerna publish`, `/usr/bin/npm publish`. It now asks before a force push, `+ref`, `--delete`, `:ref`, `--mirror` or `--prune`.
+
+- [#1800](https://github.com/ofri-peretz/burgee/pull/1800) [`2311f8b`](https://github.com/ofri-peretz/burgee/commit/2311f8be03bd64991847e4755963f55ecf9218f5) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Ships the 0.3.0 release as 0.3.1. npm refuses 0.3.0 for `hookset` because an earlier package under that name published and then removed it, and npm never lets a removed version number be used again.
+
 ## 0.3.0
 
 ### Minor Changes
