@@ -83,15 +83,10 @@ const FIX = 'run `provedone stamp --run "<the command that proves it>" --not-che
  * trailer is read whole, so a long `none (<reason>)` that `stamp` wrapped still passes.
  */
 /** Joins each continuation line (one starting with a space or tab) onto the line before it, as git reads a folded trailer. */
-const unfold = (lines: readonly string[]): string[] =>
-  lines.reduce<string[]>((out, line) => {
-    if (out.length > 0 && /^[ \t]/u.test(line)) out[out.length - 1] = `${out.at(-1) ?? ''} ${line.trim()}`;
-    else out.push(line);
-    return out;
-  }, []);
+const unfold = (text: string): string[] => text.replace(/\n[ \t]+/gu, ' ').split('\n');
 
 export const verdict = (message: string): Verdict => {
-  const lines = unfold(message.split('\n').filter((line) => !line.startsWith('#')));
+  const lines = unfold(message.split('\n').filter((line) => !line.startsWith('#')).join('\n'));
   if (/^Merge /u.test(lines.join('\n'))) return { ok: true, reason: 'merge commit' };
   const values = lines.flatMap((line) => /^Verified-by:(.*)/iu.exec(line)?.slice(1) ?? []).map((v) => v.trim());
   if (values.length === 0) return { ok: false, reason: 'no Verified-by: line', fix: FIX };
