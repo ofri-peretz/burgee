@@ -9,7 +9,7 @@ import { dirname, resolve } from 'node:path';
 
 import { defineCommand, ExitCode } from 'burgee';
 
-import { type GitReader, noGit, readContract, uriOf } from './command-diff.js';
+import { gitReader, type GitReader, noGit, readContract, uriOf } from './command-diff.js';
 import { MODES, type Mode, type Side, SIDES } from './diff-classify.js';
 import { bufIn, builtImages } from './input-buf.js';
 import { emitArbitraries } from './props-emit.js';
@@ -144,6 +144,7 @@ export const command = defineCommand({
   run: async ({ args, options }) =>
     props({
       built: await builtImages([args.contract, options.against], HERE, bufIn()),
+      git: await gitReader([args.contract, options.against], HERE),
       cwd: HERE,
       contract: args.contract,
       against: options.against,

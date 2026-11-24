@@ -1,14 +1,15 @@
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { ambientRuntime, run } from 'bellpull';
 import { ExitCode } from 'burgee';
 import { runBurgee } from 'burgee/testing';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { scratchDirs } from './__fixtures__/run/scratch-dir.js';
-import { command, diff, type GitReader, noGit, toSarif, toText, uriOf } from './command-diff.js';
+import { command, diff, gitReader, type GitReader, noGit, toSarif, toText, uriOf } from './command-diff.js';
 import { type Contract, type Payload } from './core/model.js';
 import { compareContracts } from './diff-contract.js';
 
@@ -170,8 +171,8 @@ describe('diff', () => {
     expect(data).toMatchObject({ old: 'git:origin/main:api/spec.yaml', verdict: 'non-breaking' });
   });
 
-  it('refuses a git side by default, with the command to run instead', () => {
-    expect(() => noGit('HEAD~1', 'a.yaml', '.')).toThrow('cannot read `git:HEAD~1:a.yaml`: this build of contractdiff does not run git. fix: `git show HEAD~1:a.yaml > old.yaml` and diff that file');
+  it('refuses a git side no reader read, with the command to run instead', () => {
+    expect(() => noGit('HEAD~1', 'a.yaml', '.')).toThrow('cannot read `git:HEAD~1:a.yaml`: it was not read through git first. fix: `git show HEAD~1:a.yaml > old.yaml` and diff that file');
     expect(() => diff({ cwd: '.', old: 'git:HEAD:a.yaml', new: 'b.yaml' })).toThrow('fix: `git show HEAD:a.yaml > old.yaml`');
     // Only a side that starts with `git:` is one.
     expect(() => diff({ cwd: scratch({}), old: 'my-git:HEAD:a.yaml', new: 'b.yaml', git: () => spec('') })).toThrow('ENOENT');
@@ -276,5 +277,76 @@ describe('toText', () => {
 
   it('says so when nothing changed', () => {
     expect(toText(compareContracts({ format: 'x', document: {}, operations: [] }, { format: 'x', document: {}, operations: [] }), 'a', 'b')).toBe('no changes between a and b');
+  });
+});
+
+const git = async (cwd: string, ...args: string[]): Promise<void> => {
+  const result = await run('git', ['-c', 'user.name=t', '-c', 'user.email=t@example.com', '-c', 'commit.gpgsign=false', ...args], { cwd, runtime: ambientRuntime() });
+  expect(result.stderr).not.toMatch(/fatal/u);
+};
+
+/** A repository whose `api/` folder holds spec.yaml and a config at its first commit, then a stricter spec. */
+const planted = async (): Promise<string> => {
+  const dir = scratch({});
+  const api = join(dir, 'api');
+  mkdirSync(api);
+  writeFileSync(join(api, 'spec.yaml'), spec(''));
+  writeFileSync(join(api, 'contractdiff.config.json'), JSON.stringify({ diff: { decisions: 'off' } }));
+  await git(dir, 'init', '-q', '-b', 'main');
+  await git(dir, 'add', '.');
+  await git(dir, 'commit', '-q', '-m', 'one');
+  writeFileSync(join(api, 'spec.yaml'), spec(', required: [id]'));
+  return api;
+};
+
+describe('gitReader, on a planted repository (apicontract-diff R4)', () => {
+  it('reads each git: side, and the base ref\'s config, from the folder it runs in', async () => {
+    const api = await planted();
+    const reader = await gitReader(['git:HEAD:spec.yaml', 'spec.yaml', undefined], api, { config: true });
+    expect(reader('HEAD', 'spec.yaml', api)).toBe(spec(''));
+    expect(reader('HEAD', 'contractdiff.config.json', api)).toBe(JSON.stringify({ diff: { decisions: 'off' } }));
+    // A side it was not asked for is refused as no reader read it.
+    expect(() => reader('HEAD', 'other.yaml', api)).toThrow('it was not read through git first');
+    const data = diff({ cwd: api, old: 'git:HEAD:spec.yaml', new: 'spec.yaml', git: reader });
+    expect(data).toMatchObject({ old: 'git:HEAD:spec.yaml', new: 'spec.yaml', verdict: 'non-breaking', decisions: [] });
+  });
+
+  it('asks for the config only when told to, and only at the first side\'s ref', async () => {
+    const api = await planted();
+    const plain = await gitReader(['git:HEAD:spec.yaml'], api);
+    expect(() => plain('HEAD', 'contractdiff.config.json', api)).toThrow('it was not read through git first');
+    const second = await gitReader(['spec.yaml', 'git:HEAD:spec.yaml'], api, { config: true });
+    expect(() => second('HEAD', 'contractdiff.config.json', api)).toThrow('it was not read through git first');
+  });
+
+  it('is the refusing reader when no side is at a ref', async () => {
+    expect(await gitReader(['a.yaml', undefined], '.')).toBe(noGit);
+  });
+
+  it('refuses a side git cannot show, with git\'s words and a fix', async () => {
+    const api = await planted();
+    const reader = await gitReader(['git:HEAD:missing.yaml', 'git:nope:spec.yaml'], api);
+    expect(() => reader('HEAD', 'missing.yaml', api)).toThrow(/^cannot read `git:HEAD:missing\.yaml`: .*missing\.yaml.*\. fix: name a ref and a path, relative to this folder, that `git show HEAD:\.\/missing\.yaml` prints$/su);
+    expect(() => reader('nope', 'spec.yaml', api)).toThrow('cannot read `git:nope:spec.yaml`');
+  });
+
+  it('refuses every side when git does not run, and ignores a hook\'s GIT_ variables', async () => {
+    const ambient = ambientRuntime();
+    const none = await gitReader(['git:HEAD:a.yaml'], scratch({}), { runtime: { ...ambient, env: { ...ambient.env, PATH: '' } } });
+    expect(() => none('HEAD', 'a.yaml', '.')).toThrow('cannot read `git:HEAD:a.yaml`: ');
+    const api = await planted();
+    const elsewhere = await gitReader(['git:HEAD:spec.yaml'], scratch({}), { runtime: { ...ambient, env: { ...ambient.env, GIT_DIR: join(api, '..', '.git') } } });
+    expect(() => elsewhere('HEAD', 'spec.yaml', '.')).toThrow('cannot read `git:HEAD:spec.yaml`');
+  });
+
+  it('runs from the bin: diff asks git for a git: side, and props does too', async () => {
+    // Whatever the folder is, git answers for the side (no such file, or no repository), and the
+    // refusal is git's, never the reader that was not run.
+    const runs = await Promise.all([['diff', 'git:HEAD:no-such-contract.yaml', 'b.yaml'], ['props', 'git:HEAD:no-such-contract.yaml']].map(async (argv) => runBurgee(program, { argv: [...argv, '--json'] })));
+    for (const r of runs) {
+      const { error } = JSON.parse(r.stdout) as { error: { message: string } };
+      expect(error.message).toMatch(/^cannot read `git:HEAD:no-such-contract\.yaml`: /u);
+      expect(error.message).not.toContain('not read through git first');
+    }
   });
 });

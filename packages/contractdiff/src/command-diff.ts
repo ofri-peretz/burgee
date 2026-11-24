@@ -13,6 +13,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSy
 import { isAbsolute, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+import { ambientRuntime, run as spawn, type Runtime } from 'bellpull';
 import { defineCommand, ExitCode } from 'burgee';
 import { parse as parseYaml } from 'seniority/yaml';
 
@@ -28,17 +29,62 @@ import { DECISION_SETTINGS, type DecisionSetting, decisionSettingOf, UsageError 
 
 const TEXT = Symbol.for('burgee.text');
 
+// Stryker disable next-line Regex: equivalent, `.+` already runs to the end
+const GIT = /^git:(?<ref>[^:]+):(?<path>.+)$/;
+/** The config a base ref's decisions setting is read from (R12). */
+const CONFIG = 'contractdiff.config.json';
+
 /** Reads `<path>` as it was at `<ref>`, relative to `cwd`: what `git show <ref>:<path>` prints. */
 export type GitReader = (ref: string, path: string, cwd: string) => string;
 
 /**
- * The reader the command ships with until contractdiff can spawn `git`: subprocesses are bellpull's
- * job in this repository (inline-implementation lock) and contractdiff does not depend on it yet.
+ * The reader for a caller that gives none: a `git:` side is read by the command (`gitReader`) before
+ * the comparison runs, so here one that was not read is refused, with the command to run instead.
  */
 export const noGit: GitReader = (ref, path) => {
   throw new Error(
-    `cannot read \`git:${ref}:${path}\`: this build of contractdiff does not run git. fix: \`git show ${ref}:${path} > old.yaml\` and diff that file`,
+    `cannot read \`git:${ref}:${path}\`: it was not read through git first. fix: \`git show ${ref}:${path} > old.yaml\` and diff that file`,
   );
+};
+
+/**
+ * The `git:` sides among `specs`, read through git in `cwd` (apicontract-diff R4): `git show
+ * <ref>:./<path>`, so a path is relative to the folder the command runs in, as a file side is. git
+ * runs through bellpull, asynchronously, before the comparison, which reads the answers from the
+ * reader this returns. With `config` and the first side at a ref, that ref's config is read too
+ * (R12). A side git cannot show is refused when it is read, with git's own words and a fix.
+ */
+export const gitReader = async (
+  specs: readonly (string | undefined)[],
+  cwd: string,
+  { config = false, runtime: ambient = ambientRuntime() }: { readonly config?: boolean; readonly runtime?: Runtime } = {},
+): Promise<GitReader> => {
+  const wanted = specs.flatMap((spec) => {
+    const groups = GIT.exec(spec ?? '')?.groups as { ref: string; path: string } | undefined;
+    return groups === undefined ? [] : [groups];
+  });
+  if (wanted.length === 0) return noGit;
+  // The variables a hook sets (`GIT_DIR`, `GIT_INDEX_FILE`) would point git at the hook's repository instead.
+  const runtime = { ...ambient, env: Object.fromEntries(Object.entries(ambient.env).filter(([key]) => !key.startsWith('GIT_'))) };
+  const base = config ? (GIT.exec(specs[0] ?? '')?.groups as { ref: string } | undefined) : undefined;
+  const asked = [...wanted, ...(base === undefined ? [] : [{ ref: base.ref, path: CONFIG }])];
+  const answers = new Map(
+    await Promise.all(
+      asked.map(async ({ ref, path }) => {
+        const answer = await spawn('git', ['show', `${ref}:./${path}`], { cwd, runtime }).then(
+          (result) => (result.ok ? { text: result.stdout } : { error: result.stderr.trim() }),
+          (error: unknown) => ({ error: (error as Error).message }),
+        );
+        return [`${ref}:${path}`, answer] as const;
+      }),
+    ),
+  );
+  return (ref, path) => {
+    const answer = answers.get(`${ref}:${path}`);
+    if (answer === undefined) return noGit(ref, path, cwd);
+    if ('text' in answer) return answer.text;
+    throw new UsageError(`cannot read \`git:${ref}:${path}\`: ${answer.error}. fix: name a ref and a path, relative to this folder, that \`git show ${ref}:./${path}\` prints`);
+  };
 };
 
 export interface DiffOptions {
@@ -81,8 +127,6 @@ export interface Side_ {
   readonly contract: Contract;
 }
 
-// Stryker disable next-line Regex: equivalent, `.+` already runs to the end
-const GIT = /^git:(?<ref>[^:]+):(?<path>.+)$/;
 
 /** Read one side: a file, or a file at a git ref, into the model through the first adapter that detects it. */
 export const readContract = (spec: string, cwd: string, git: GitReader, built: ReadonlyMap<string, string> = new Map()): Side_ => {
@@ -276,7 +320,6 @@ const writeChangeset = (
   return { file, changed: true };
 };
 
-const CONFIG = 'contractdiff.config.json';
 /** The characters of `YYYY-MM-DD`. */
 const DATE_LENGTH = 10;
 
@@ -437,6 +480,7 @@ export const command = defineCommand({
   run: async ({ args, options }) => {
     const sides: DiffOptions = {
       built: await builtImages([args.old, args.new, ...args.more], HERE, bufIn()),
+      git: await gitReader([args.old, args.new, ...args.more], HERE, { config: true }),
       cwd: HERE,
       old: args.old,
       new: args.new,
