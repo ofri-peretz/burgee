@@ -10,8 +10,8 @@
  */
 import { STATUS_CODES } from 'node:http';
 
-import { string } from 'loadline';
-import { standardJson } from 'loadline/json-schema';
+import { string } from 'truefit';
+import { standardJson } from 'truefit/json-schema';
 
 import { type ContractFinding } from './core/model.js';
 import { stable } from './extract-normalise.js';

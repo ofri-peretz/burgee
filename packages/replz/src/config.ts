@@ -1,4 +1,3 @@
-import { array, enumOf, number, object, optional, parse, string } from 'loadline';
 /**
  * What replz runs (replz spec R2, R3): the reviewer, the grader and the repository's checks, each
  * a shell command, so the reviewer is the same prompt and REVIEW.md as CI rather than a copy of it.
@@ -8,6 +7,7 @@ import { array, enumOf, number, object, optional, parse, string } from 'loadline
  * exits non-zero. `maxFindings` caps the grader calls per case, which is what a run costs.
  */
 import { parse as parseYaml } from 'seniority/yaml';
+import { array, enumOf, number, object, optional, parse, string } from 'truefit';
 
 export const SEVERITIES = ['must-fix', 'should-fix', 'nit', 'pre-existing'] as const;
 export type Severity = (typeof SEVERITIES)[number];

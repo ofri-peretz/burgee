@@ -136,7 +136,7 @@ repo can run it.
 ## Open questions
 
 1. **Name.** **Decided 2026-09-20 → D-034.** The family names are nautical or from printing — `burgee`, `flagstaff`,
-   `caique`, `bellpull`, `linegauge`, `paratext`. `loadline` is free on npm today
+   `caique`, `bellpull`, `linegauge`, `paratext`. `truefit` is free on npm today
    (2026-09-14) and is the mark on a hull that says how deeply it may be loaded: a
    published limit, verified by survey, that you may not cross. `plimsoll` (the same mark),
    `assay`, `waterline` and `freeboard` are all taken. The name is the owner's call.

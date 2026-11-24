@@ -533,9 +533,9 @@ the family, and what it does not claim.
   <img src="./brand-assets/paratext-flag-alive.svg" alt="paratext" width="70" />
   <img src="./brand-assets/controlroom-flag-alive.svg" alt="controlroom" width="70" />
   <img src="./brand-assets/oxmutate-flag-alive.svg" alt="oxmutate" width="70" />
-  <img src="./brand-assets/truemark-flag-alive.svg" alt="truemark" width="70" />
+  <img src="./brand-assets/truepass-flag-alive.svg" alt="truepass" width="70" />
   <img src="./brand-assets/contractdiff-flag-alive.svg" alt="contractdiff" width="70" />
-  <img src="./brand-assets/loadline-flag-alive.svg" alt="loadline" width="70" />
+  <img src="./brand-assets/truefit-flag-alive.svg" alt="truefit" width="70" />
 </p>
 
 <p align="center">
@@ -546,7 +546,7 @@ the family, and what it does not claim.
   its pull, a closeout is the double rule an accountant draws under a settled total, and a
   paratext is a page with its text cut away — only the margins are left — a control room is
   a console screen with its panes cut through it, and oxmutate is a block with one piece cut out
-  and set apart, the small change a test has to notice, and truemark is a hallmark plate with its
+  and set apart, the small change a test has to notice, and truepass is a hallmark plate with its
   tick struck through it. The
   light sweeps where a page can afford motion and parks itself under prefers-reduced-motion;
   the favicon and the npm READMEs take the still one. Every mark is burgee/brand output —

@@ -18,7 +18,7 @@
   <a href="https://app.codecov.io/gh/ofri-peretz/burgee/components"><img src="https://img.shields.io/codecov/c/github/ofri-peretz/burgee/main?component=contractdiff&style=flat-square" alt="contractdiff line coverage: its Codecov component" /></a>
   <a href="https://scorecard.dev/viewer/?uri=github.com/ofri-peretz/burgee"><img src="https://img.shields.io/ossf-scorecard/github.com/ofri-peretz/burgee?style=flat-square&label=OpenSSF%20Scorecard" alt="OpenSSF Scorecard for the repository" /></a>
   <a href="https://www.npmjs.com/package/contractdiff?activeTab=code"><img src="https://img.shields.io/npm/unpacked-size/contractdiff?style=flat-square" alt="Unpacked size of the latest contractdiff release on npm" /></a>
-  <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/contractdiff/package.json"><img src="https://img.shields.io/badge/dependencies-4%20in%20family%2C%200%20outside-0a6b47?style=flat-square" alt="Four dependencies, all in the burgee family (bellpull, burgee, loadline, seniority), none outside it" /></a>
+  <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/contractdiff/package.json"><img src="https://img.shields.io/badge/dependencies-4%20in%20family%2C%200%20outside-0a6b47?style=flat-square" alt="Four dependencies, all in the burgee family (bellpull, burgee, seniority, truefit), none outside it" /></a>
   <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/contractdiff/package.json"><img src="https://img.shields.io/badge/types-included-blue?style=flat-square" alt="TypeScript types included for every entry point" /></a>
   <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/contractdiff/package.json"><img src="https://img.shields.io/badge/Node.js-22.13%2B-green?style=flat-square" alt="Node.js 22.13+" /></a>
   <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/contractdiff/LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="License: MIT" /></a>
@@ -33,7 +33,7 @@
 **contractdiff** reads an API contract (OpenAPI, Swagger 2.0, JSON Schema, AsyncAPI or an MCP tool
 list) and does four things with it. `diff` says what a change breaks and for whom, under the
 compatibility mode you pick. `lint` checks the contract's form with rules, Spectral and Redocly
-rulesets included. `gen` writes code from it, one plugin per target: TypeScript types, loadline
+rulesets included. `gen` writes code from it, one plugin per target: TypeScript types, truefit
 validators, fetch and TanStack Query clients, MSW handlers and NestJS, Express, Fastify and Hono
 servers. `extract` writes the contract back from the code. Every finding names its fix, as the same
 record for a person, for `--json` and for a coding agent.
@@ -52,7 +52,7 @@ bun add contractdiff
 ```
 
 Install it as a dev dependency (`-D`) of the project that owns the contract. The generated
-validators import `loadline`, which comes with it.
+validators import `truefit`, which comes with it.
 
 ## Quick start
 
@@ -174,18 +174,18 @@ code and for `extract` from TypeScript sources.
 
 It hosts no plugin key of its own.
 
-Nothing in this family builds on it yet, and it builds on `bellpull`, `burgee`, `loadline`, `seniority`.
+Nothing in this family builds on it yet, and it builds on `bellpull`, `burgee`, `seniority`, `truefit`.
 
 ## The family
 
 14 packages, one repository, one release pipeline. Each installs and works on its own, and each owns
-one job. Seven of them — `bellpull`, `closeout`, `linegauge`, `loadline`, `paratext`, `roundel`,
-`seniority` — depend on nothing; the others depend only on packages in this table, and every
+one job. Seven of them — `bellpull`, `closeout`, `linegauge`, `paratext`, `roundel`, `seniority`,
+`truefit` — depend on nothing; the others depend only on packages in this table, and every
 dependency points one way, down the [layers](https://burgee.interlace.tools/docs/concepts/family).
 
 No package declares a dependency from outside the family; `react` and `react-reconciler` are
 optional peers of `controlroom`, which npm does not install; `vitest` is an optional peer of
-`oxmutate`, which npm does not install; `eslint` is an optional peer of `truemark`, which npm does
+`oxmutate`, which npm does not install; `eslint` is an optional peer of `truepass`, which npm does
 not install.
 [`package-shape-lock`](https://github.com/ofri-peretz/burgee/blob/main/scripts/package-shape-lock.test.ts)
 holds that for every manifest, and
@@ -210,9 +210,9 @@ keeps both true.
 | [bellpull](https://bellpull.interlace.tools/docs) | Subprocesses, and which executable actually ran | cross-spawn and which |
 | [controlroom](https://controlroom.interlace.tools/docs) | Keyboard-driven terminal screens, inline or full-screen | ink |
 | [oxmutate](https://oxmutate.interlace.tools/docs) | Mutation testing on the oxc engine, inside your own Vitest | Stryker |
-| [truemark](https://burgee.interlace.tools/docs/packages/truemark) | Lint rules and a pre-push check that keep a test suite honest | @vitest/eslint-plugin |
+| [truepass](https://burgee.interlace.tools/docs/packages/truepass) | Lint rules and a pre-push check that keep a test suite honest | @vitest/eslint-plugin |
 | **contractdiff** (this package) | API contracts: breaking-change diff, lint, and code from the spec | openapi-typescript |
-| [loadline](https://burgee.interlace.tools/docs/packages/loadline) | Validation whose schemas are data, with no eval | zod |
+| [truefit](https://burgee.interlace.tools/docs/packages/truefit) | Validation whose schemas are data, with no eval | zod |
 
 Every migration guide, and the family-wide [compatibility](https://burgee.interlace.tools/docs/compatibility)
 and [benchmarks](https://burgee.interlace.tools/docs/benchmarks) pages, are on

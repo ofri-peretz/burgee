@@ -49,12 +49,12 @@ pre-push:
     mutation-changed:
       priority: 3
       run: npm run mutation:changed
-    # truemark diff, dogfooded: an assertion moved to a weaker matcher, or a snapshot changed with
+    # truepass diff, dogfooded: an assertion moved to a weaker matcher, or a snapshot changed with
     # no `Snapshot: <why>` line, in the commits since origin/main. The battery built its dist.
     # A deliberate weakening is accepted by an `Assertion: <why>` line in the commit message.
-    truemark-diff:
+    truepass-diff:
       priority: 4
-      run: node packages/truemark/dist/bin.js diff --base origin/main
+      run: node packages/truepass/dist/bin.js diff --base origin/main
     # The battery's verdict on the five-second budget, the same script as CI's `No test case over
     # 5 s` step. The root suite judges its own cases as it runs, alone already.
     case-budget:
@@ -68,3 +68,15 @@ pre-push:
     weight-page:
       priority: 5
       run: npm run weight:page -- --check
+    # `npm run lint` is CI's separate eslint job, and `ci:local` (the battery) does not run it, so a
+    # lint finding used to surface only as a red CI run, and CLAUDE.md had to say "run lint too".
+    # These run the same eslint and markdownlint over the files this push changes, after the
+    # battery has built the packages the eslint config imports.
+    lint-changed:
+      priority: 6
+      glob: '*.{ts,tsx,mts,cts,js,mjs,cjs}'
+      run: npx --no -- eslint --max-warnings 0 --no-warn-ignored {push_files}
+    lint-changed-md:
+      priority: 6
+      glob: '*.md'
+      run: npx --no -- markdownlint-cli2 {push_files}

@@ -1,0 +1,94 @@
+{
+  "name": "truepass",
+  "version": "0.1.2",
+  "description": "Test integrity for JS and TS: lint rules for focused, skipped, sleeping and retried tests, and a pre-push check for weakened assertions and unexplained snapshots. No dependency outside the burgee family. A @vitest/eslint-plugin migration path.",
+  "license": "MIT",
+  "author": "Ofri Peretz <ofriperetzdev@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ofri-peretz/burgee.git",
+    "directory": "packages/truepass"
+  },
+  "bugs": {
+    "url": "https://github.com/ofri-peretz/burgee/issues"
+  },
+  "homepage": "https://burgee.interlace.tools",
+  "type": "module",
+  "private": false,
+  "sideEffects": [
+    "./dist/bin.js"
+  ],
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "bin": {
+    "truepass": "dist/bin.js"
+  },
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./eslint": {
+      "types": "./dist/eslint.d.ts",
+      "import": "./dist/eslint.js",
+      "default": "./dist/eslint.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "typesVersions": {
+    "*": {
+      "eslint": [
+        "./dist/eslint.d.ts"
+      ]
+    }
+  },
+  "keywords": [
+    "eslint-plugin",
+    "eslintplugin",
+    "testing",
+    "test-quality",
+    "flaky-tests",
+    "vitest",
+    "jest",
+    "playwright",
+    "pre-push",
+    "lefthook",
+    "ai-agents",
+    "cli"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.map",
+    "!dist/**/*.test.*"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && node ../../scripts/strip-comments.mjs dist && node ../../scripts/declaration-reach.mts --prune",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "lint": "eslint src",
+    "coverage": "vitest run --coverage.enabled"
+  },
+  "dependencies": {
+    "bellpull": "^2.0.3",
+    "burgee": "^2.2.1"
+  },
+  "peerDependencies": {
+    "eslint": ">=9.0.0"
+  },
+  "peerDependenciesMeta": {
+    "eslint": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "eslint": "^10.14.0",
+    "vitest": "^5.0.1"
+  }
+}
