@@ -61,6 +61,10 @@ describe('a folded trailer at the gate', () => {
     expect(verdict('fix: x\n\nVerified-by: none\nbody text').ok).toBe(false);
   });
 
+  it('joins a continuation with one space, however deep it is indented', () => {
+    expect(verdict('fix: x\n\nVerified-by: none\n    because').reason).toBe('"Verified-by: none because" gives no reason');
+  });
+
   it('does not join a line that starts at the margin', () => {
     expect(verdict('fix: x\n\nVerified-by: none (\nreason)').ok).toBe(false);
   });
