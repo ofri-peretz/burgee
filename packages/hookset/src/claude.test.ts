@@ -61,6 +61,9 @@ describe('guard-bash', () => {
       expect(decision(hook('guard-bash.mjs', { tool_input: { file_path: join(dir, 'content/a/b.md') } }, env))).toBe('deny');
       expect(decision(hook('guard-bash.mjs', { tool_input: { file_path: 'sdlc/baseline/unscored.json' } }, env))).toBe('deny');
       expect(decision(hook('guard-bash.mjs', { tool_input: { file_path: join(dir, 'content/a/b.ts') } }, env))).toBeUndefined();
+      // Dot segments cannot step around a frozen glob, given absolute or relative.
+      expect(decision(hook('guard-bash.mjs', { tool_input: { file_path: `${dir}/content/../content/a/b.md` } }, env))).toBe('deny');
+      expect(decision(hook('guard-bash.mjs', { tool_input: { file_path: './docs/../sdlc/baseline/unscored.json' } }, env))).toBe('deny');
   });
 
   it('denies an edit under a frozen glob when the paths come with Windows backslashes', () => {
@@ -92,6 +95,16 @@ describe('stop-after-3', () => {
     expect(third.continue).toBe(false);
     expect(third.stopReason).toMatch(/failed 3 times in a row/);
     expect(hook('stop-after-3.mjs', fail)).toBe('');
+  });
+
+  it('keeps the count through an interrupted run: only a completed pass resets it', () => {
+    const session = `vitest-int-${String(process.pid)}-${String(Date.now())}`;
+    const fail = { session_id: session, hook_event_name: 'PostToolUseFailure', tool_input: { command: 'npx vitest run' } };
+    hook('stop-after-3.mjs', fail);
+    hook('stop-after-3.mjs', fail);
+    expect(hook('stop-after-3.mjs', { ...fail, hook_event_name: 'PostToolUse', tool_response: { interrupted: true } })).toBe('');
+    const third = JSON.parse(hook('stop-after-3.mjs', fail)) as { continue: boolean };
+    expect(third.continue).toBe(false);
   });
 
   it('ignores commands that are not test runs, and payloads with no command', () => {
