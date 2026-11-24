@@ -9,10 +9,12 @@ commit-msg:
   commands:
     commitlint:
       run: npx --no -- commitlint --edit {1}
-    # provedone intent R5, observe step: never blocks, logs to .git/provedone/gate.jsonl what
-    # `enforce` would have blocked. Moving to enforce takes a decision file (intent, Constraints).
+    # provedone intent R5, enforced (D-20261124-provedone-enforce): a commit with no
+    # `Verified-by:` trailer fails; `Verified-by: none (<why>)` passes, and after two blocks in one
+    # session the next commit passes, logged to .git/provedone/gate.jsonl.
     provedone:
-      run: '[ ! -f packages/provedone/dist/bin.js ] || node packages/provedone/dist/bin.js gate {1} --mode observe --quiet || true'
+      run: '[ ! -f packages/provedone/dist/bin.js ] || node packages/provedone/dist/bin.js gate {1} --mode enforce'
+      fail_text: 'No receipt. Add `Verified-by: <command> -> exit 0`, or `Verified-by: none (<why no check applies>)`, and commit again.'
 
 pre-commit:
   parallel: true

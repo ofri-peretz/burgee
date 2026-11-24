@@ -6,3 +6,6 @@ commit-msg:
     hookset-commitlint:
       run: PATH="$PATH:/opt/homebrew/bin:/usr/local/bin" npx --no -- commitlint --edit {1}
       fail_text: "The message must be <type>(<scope>): <subject>, with a scope from commitlint.config. Fix it and commit again."
+    hookset-provedone:
+      run: PATH="$PATH:/opt/homebrew/bin:/usr/local/bin" npm run --silent hook:provedone -- {1}
+      fail_text: "No receipt. Add `Verified-by: <command> -> exit 0`, or `Verified-by: none (<why no check applies>)`, and commit again."
