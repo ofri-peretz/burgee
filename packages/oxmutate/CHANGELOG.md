@@ -1,5 +1,11 @@
 # oxmutate
 
+## 2.18.5
+
+### Patch Changes
+
+- [#1807](https://github.com/ofri-peretz/burgee/pull/1807) [`93dd4dd`](https://github.com/ofri-peretz/burgee/commit/93dd4ddb64a540ceeaa2841fb1fe27709104f606) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A file with a regex literal that opens with `<!--` (`/<!--\s*x\s*-->/u`) now runs its mutants. Each Regex mutant was switched in as `(/<!--…/u)`, which the oxc in Vite 8's transform rejects as an HTML comment in a module, so the file failed to load during the dry run. Such a mutant is now emitted as `(0, /<!--…/u)`, with the same value.
+
 ## 2.18.4
 
 ### Patch Changes
