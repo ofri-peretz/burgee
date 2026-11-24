@@ -26,7 +26,8 @@ private until it has run in every Interlace repo. Intent: [`.sdlc/intents/hookse
     `LEFTHOOK=0`, `HUSKY=0`), moving `core.hooksPath`, hand-rolled CI polling loops, and a
     foreground `git commit`/`git push` under a 5-minute timeout (their hooks outlive it); asks
     before `npm publish`, `changeset publish` and the commands the repo lists under `ask` in
-    `.claude/hookset.json`; denies Edit/Write on the globs listed there under `frozen`.
+    `.claude/hookset.json`; denies Edit/Write on the globs listed there under `frozen`, and on
+    the globs under `generated` (glob to the command that writes them), naming that command.
   - `stop-after-3.mjs` (PostToolUse, PostToolUseFailure): counts failed test runs per session;
     a pass resets it, and the third failure in a row ends the turn with a stop-and-ask message.
 

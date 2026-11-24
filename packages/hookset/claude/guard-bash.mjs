@@ -12,7 +12,8 @@
 //      and the turn ends knowing nothing. `gh pr checks <PR> --watch` blocks correctly.
 //   4. Asks (never denies) before a publish: `npm publish`, `changeset publish`, and the
 //      commands the repo lists under `ask` in .claude/hookset.json (deploys, releases).
-//   5. Denies Edit/Write on a path matching a glob the repo lists under `frozen` there.
+//   5. Denies Edit/Write on a path matching a glob the repo lists under `frozen` there, and on
+//      a generated file (`generated`: glob -> the command that writes it), naming that command.
 //   6. Denies `git commit` / `git push` run in the foreground under the default 2-minute
 //      timeout: their hooks are the repo's gate and take minutes. The denial names the fix
 //      (timeout 600000 or run_in_background), so no CLAUDE.md has to say "not a hang".
@@ -286,9 +287,16 @@ export function globToRegExp(glob) {
 }
 
 /** The verdict for an Edit/Write on `file` (relative to the repo), or null. */
-export function decideEdit(file, frozen = []) {
+export function decideEdit(file, frozen = [], generated = {}) {
   // posix.normalize folds `a/../b` and `./a`, so a dotted path cannot step around a frozen glob.
   const rel = posix.normalize(String(file ?? "").replaceAll("\\", "/")).replace(/^\.\//, "");
+  const made = Object.entries(generated).find(([g]) => globToRegExp(g).test(rel));
+  if (made)
+    return {
+      decision: "deny",
+      id: "generated",
+      reason: `${rel} is generated (\`${made[0]}\` in .claude/hookset.json). Edit its source, then run \`${made[1]}\`.`,
+    };
   const hit = frozen.find((g) => globToRegExp(g).test(rel));
   return hit
     ? {
@@ -359,7 +367,17 @@ export const CASES = {
     ["git commit -F - <<'EOF'\nx\nEOF", { timeout: 300000 }, false],
     ["echo 'git push'", {}, false],
   ],
+  // decideEdit: [path, denied as] against EDIT_CONFIG.
+  edit: [
+    ["content/a/b.md", "frozen"],
+    ["./docs/../content/a.md", "frozen"],
+    ["public/r/button.json", "generated"],
+    ["public/r/../r/x.json", "generated"],
+    ["src/button.tsx", null],
+  ],
 };
+
+const EDIT_CONFIG = { frozen: ["content/**/*.md"], generated: { "public/r/**": "npm run registry:build" } };
 
 function selfTest() {
   const bad = [
@@ -369,16 +387,19 @@ function selfTest() {
     ...CASES.hooked
       .filter(([c, input, denied]) => Boolean(decideHooked(c, input)) !== denied)
       .map(([c, input, denied]) => `should ${denied ? "deny" : "allow"} ${JSON.stringify(input)}: ${c}`),
+    ...CASES.edit
+      .filter(([f, id]) => (decideEdit(f, EDIT_CONFIG.frozen, EDIT_CONFIG.generated)?.id ?? null) !== id)
+      .map(([f, id]) => `should ${id ? `deny as ${id}` : "allow"}: edit ${f}`),
   ];
   process.stdout.write(
     bad.length
       ? `${bad.join("\n")}\n${bad.length} failing\n`
-      : `ok: ${CASES.deny.length} denied, ${CASES.allow.length} allowed, ${CASES.ask.length} asked, ${CASES.hooked.length} timed\n`,
+      : `ok: ${CASES.deny.length} denied, ${CASES.allow.length} allowed, ${CASES.ask.length} asked, ${CASES.hooked.length} timed, ${CASES.edit.length} edits\n`,
   );
   process.exit(bad.length ? 1 : 0);
 }
 
-/** The repo's `.claude/hookset.json`: `{ "ask": [phrases], "frozen": [globs] }`. Missing is empty. */
+/** The repo's `.claude/hookset.json`: `{ "ask": [phrases], "frozen": [globs], "generated": { glob: command } }`. Missing is empty. */
 async function repoConfig() {
   const { readFile } = await import("node:fs/promises");
   const dir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
@@ -388,9 +409,13 @@ async function repoConfig() {
       dir,
       ask: Array.isArray(c.ask) ? c.ask.map(String) : [],
       frozen: Array.isArray(c.frozen) ? c.frozen.map(String) : [],
+      generated:
+        c.generated && typeof c.generated === "object" && !Array.isArray(c.generated)
+          ? Object.fromEntries(Object.entries(c.generated).map(([g, cmd]) => [g, String(cmd)]))
+          : {},
     };
   } catch {
-    return { dir, ask: [], frozen: [] };
+    return { dir, ask: [], frozen: [], generated: {} };
   }
 }
 
@@ -418,7 +443,7 @@ else if (isMain) {
         // Windows hands both paths over with backslashes: compare them with forward slashes.
         const [f, d] = [file, config.dir].map((p) => posix.normalize(p.replaceAll("\\", "/")));
         const rel = f.startsWith(`${d}/`) ? f.slice(d.length + 1) : f;
-        hit = decideEdit(rel, config.frozen);
+        hit = decideEdit(rel, config.frozen, config.generated);
       }
     }
     if (!hit) process.exit(0);
