@@ -3,7 +3,8 @@
  *
  * Only test files are read. The traps: a setTimeout that is not a sleep (a
  * real timer with a callback), a `sleep` that is not awaited or has a computed
- * duration, a local `setTimeout`, fake timers, and `cy.wait('@alias')`.
+ * duration, a local `setTimeout`, fake timers, `cy.wait('@alias')`, and a zero or omitted
+ * delay, which is a tick flush (as inside React's `act()`) rather than a fixed sleep.
  */
 
 import { ruleTester } from './__fixtures__/rule-tester.js';
@@ -14,6 +15,29 @@ const T = 'src/app.test.ts';
 
 ruleTester.run('no-fixed-sleep', noFixedSleep, {
   valid: [
+    {
+      name: 'a zero-delay setTimeout promise is a tick flush',
+      filename: T,
+      code: `await act(async () => { await new Promise((r) => setTimeout(r, 0)); });\nawait new Promise(function (resolve) { setTimeout(() => resolve(), 0); });`,
+    },
+    {
+      name: 'a setTimeout promise with no delay is a tick flush',
+      filename: T,
+      code: `await new Promise((r) => setTimeout(r));`,
+    },
+    {
+      name: 'a zero or omitted delay on the other spellings is a tick',
+      filename: T,
+      code: [
+        `import { setTimeout, scheduler } from 'node:timers/promises';`,
+        `await setTimeout(0);`,
+        `await setTimeout();`,
+        `await scheduler.wait(0);`,
+        `await sleep(0);`,
+        `await page.waitForTimeout(0);`,
+        `cy.wait(0);`,
+      ].join('\n'),
+    },
     {
       name: 'a setTimeout first and something else after it',
       filename: T,
@@ -176,6 +200,16 @@ ruleTester.run('no-fixed-sleep', noFixedSleep, {
     },
   ],
   invalid: [
+    {
+      name: 'a delay that only looks small is still a guess',
+      filename: T,
+      code: `await new Promise((r) => setTimeout(r, 1));\nawait new Promise((r) => setTimeout(r, '0'));\nawait sleep(0 * 1000);`,
+      errors: [
+        { messageId: 'fixedSleep', data: { how: 'setTimeout' } },
+        { messageId: 'fixedSleep', data: { how: 'setTimeout' } },
+        { messageId: 'fixedSleep', data: { how: 'sleep()' } },
+      ],
+    },
     {
       name: 'every sleep helper name',
       filename: T,

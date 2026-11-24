@@ -96,7 +96,7 @@
   },
   "packages/closeout/src/exit-hook.test.ts": {
     "truepass/no-fixed-sleep": {
-      "count": 3
+      "count": 2
     }
   },
   "packages/closeout/src/matrix.test.ts": {

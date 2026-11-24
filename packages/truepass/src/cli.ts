@@ -24,7 +24,7 @@ export function createProgram(git: Git) {
       { command: 'truepass diff', description: 'the commits since origin/main, as a lefthook pre-push step' },
       { command: 'truepass diff --base main --json', description: 'the same findings as the --json envelope' },
     ],
-    options: { base: { type: 'string', default: 'origin/main', description: 'the ref the range starts from (default origin/main)' } },
+    options: { base: { type: 'string', default: 'origin/main', description: 'the ref the range starts from' } },
     run: async ({ options }) => {
       const base = String(options.base);
       let findings;

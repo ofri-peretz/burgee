@@ -1,6 +1,8 @@
 /**
  * `no-fixed-sleep`: a test that waits a fixed time instead of for the thing it needs is slow
- * where the guess is long and flaky where it is short. Test files only.
+ * where the guess is long and flaky where it is short. Test files only. A zero or omitted delay
+ * (`setTimeout(r, 0)`, `setTimeout(r)`) is a tick, not a guess: it yields to queued work once,
+ * as a flush inside React's `act()` does, so it is not reported.
  */
 import type { SourceCode } from 'eslint';
 import type { CallExpression, Identifier, MemberExpression, NewExpression, Node as EsNode } from 'estree';
@@ -29,7 +31,7 @@ export const noFixedSleep = defineRule('no-fixed-sleep', {
       },
       CallExpression(node) {
         const how = sleepKind(node as CallExpression & Node, sourceCode);
-        if (how) context.report({ node, messageId: 'fixedSleep', data: { how } });
+        if (how && !isTick(node.arguments[0])) context.report({ node, messageId: 'fixedSleep', data: { how } });
       },
     };
   },
@@ -52,7 +54,12 @@ function isPromiseTimeout(node: NewExpression, sourceCode: SourceCode): boolean 
   if (call.callee.type !== 'Identifier') return false;
   if (call.callee.name !== 'setTimeout') return false;
   if (binding(call.callee, sourceCode).kind !== 'global') return false;
-  return callsBack(call.arguments[0], resolve.name);
+  return callsBack(call.arguments[0], resolve.name) && !isTick(call.arguments[1]);
+}
+
+/** A delay of `0` or none at all: one turn of the event loop, not a guess at how long to wait. */
+function isTick(delay: EsNode | undefined): boolean {
+  return !delay || (delay.type === 'Literal' && delay.value === 0);
 }
 
 /** The single expression a function body evaluates, if that is all it does. */
