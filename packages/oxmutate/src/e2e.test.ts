@@ -1362,6 +1362,36 @@ describe.skipIf(!native || !existsSync(bin))('a hang on a fresh worker is stoppe
   });
 });
 
+// A fresh run held to its test's limit is given 3x that limit in place, once, when its worker is busy but under half a
+// core (blocked in a call, or starved by a loaded machine), as a warm run is: killing it cost a server start and a re-run
+// at that same 3x, and on a loaded machine a stop at the small limit turned a test that passes into a Timeout. A loop that
+// burns its core is still stopped at the limit (the per-test-limit cases above). The fixture's test blocks the thread
+// for 2.4 s while its mutant is armed, past its limit (about 1.25 s) and inside the 3x (about 3.75 s). The limit is long enough for
+// the server's CPU readings to span the half second a share is read from; a stop on a younger server reads no share and is not graced.
+describe.skipIf(!native || !existsSync(bin))('a starved fresh run keeps its stop in place', () => {
+  const dir = path.join(pkg, 'test/fixtures/starved-limit');
+  let stats: { watchdogGraced: number; warmStopsMs: number[]; idleStalls: number } = { watchdogGraced: 0, warmStopsMs: [], idleStalls: 0 };
+  let verdicts: string[] = [];
+  beforeAll(() => {
+    const reportDir = mkdtempSync(path.join(tmpdir(), 'oxmutate-starved-limit-'));
+    spawnSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: dir, stdio: 'pipe', env: { ...process.env, OXMUTATE_FRESH_FIRST: '1', OXMUTATE_ISOLATE_STATIC: '1' } });
+    const report = JSON.parse(readFileSync(path.join(reportDir, 'mutation.json'), 'utf8')) as { files: Record<string, { mutants: ReportMutant[] }>; 'x-oxmutate': { stats: typeof stats } };
+    discard(reportDir);
+    stats = report['x-oxmutate'].stats;
+    verdicts = Object.values(report.files).flatMap((f) => f.mutants.map((m) => m.status));
+  }, 120_000);
+
+  it('is not stopped: it is given its 3x in place, and no server restarts', () => {
+    expect(stats.watchdogGraced).toBeGreaterThan(0);
+    expect(stats.warmStopsMs).toEqual([]);
+  });
+
+  it('gives the verdict a fresh worker gives: the assertion kills the mutant', () => {
+    expect(verdicts.length).toBeGreaterThan(0);
+    expect(verdicts.every((v) => v === 'Killed')).toBe(true);
+  });
+});
+
 describe.skipIf(!native || !existsSync(bin))("Stryker's mutate ranges", () => {
   const registry = path.join(pkg, 'test/fixtures/registry');
   afterAll(() => discard(path.join(registry, 'reports')));

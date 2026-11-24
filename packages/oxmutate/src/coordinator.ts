@@ -1252,14 +1252,16 @@ export async function run(options: Options): Promise<RunResult> {
       const chasing = new Set<string>();
       const chasedIds = new Set<string>();
       let chaseFrom = 0;
+      /** The limit a run is held to now: a mark that names a test holds it to that test's own limit, as a warm run is. */
+      const limitNow = (unit: Unit, id: string, testMs: number | undefined): number => {
+        const slackNow = chasing.has(unit.results) ? RERUN_SLACK : slackOf(id);
+        return testMs === undefined ? isolatedCapped(id, slackNow) : Math.min(slackNow * warmBudget(id, testMs), MAX_TEST_MS * slackNow);
+      };
       await pool.drain(
         units,
         // A mark that names a test holds the run to that test's own limit, as a warm run is: a hang in a 1 ms test is
         // stopped in a fraction of the budget of the slowest test that covers the mutant; a mark without one, to the whole.
-        (unit, id, testMs) => {
-          const slackNow = chasing.has(unit.results) ? RERUN_SLACK : slackOf(id);
-          return testMs === undefined ? isolatedCapped(id, slackNow) : Math.min(slackNow * warmBudget(id, testMs), MAX_TEST_MS * slackNow);
-        },
+        (unit, id, testMs) => limitNow(unit, id, testMs),
         (unit, outcome) => {
           const chased = chasing.has(unit.results);
           const into = chased && chase ? chase.into : verdicts;
@@ -1314,6 +1316,10 @@ export async function run(options: Options): Promise<RunResult> {
           }
           return follow;
         },
+        // A stop that finds its worker busy but under half a core (blocked in a call, or starved by a loaded machine) is
+        // given 3x its limit in place, once, as a warm run is (`warmGrace`): killing it cost a server start and a re-run at
+        // that same 3x. A loop burns its core and is stopped at the limit.
+        { grace: (unit, id, testMs) => Math.min(RERUN_SLACK * limitNow(unit, id, testMs), MAX_TEST_MS * testsRun(id)) },
       );
       (stats.isolatedStages ??= []).push({ stage, mutants: items.length, ms: performance.now() - t0, peak: pool.stats.peak });
       if (chase && chasedIds.size > 0) {
