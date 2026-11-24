@@ -58,7 +58,9 @@ runs:
         REVIEW_FILE: ${{ inputs.review-file }}
       run: |
         set -euo pipefail
-        git fetch --no-tags --depth=1 origin "+refs/heads/$BASE_REF:refs/remotes/origin/$BASE_REF"
+        # No --depth: on the caller's full clone a shallow fetch cuts the base tip's history, so
+        # once main has moved past the PR's merge ref `origin/main...HEAD` has no merge base.
+        git fetch --no-tags origin "+refs/heads/$BASE_REF:refs/remotes/origin/$BASE_REF"
         # Only the reviewer's own comments count as its previous findings: anyone can comment on a PR.
         gh api --paginate "repos/$REPO/issues/$PR/comments" --jq '[.[] | select(.user.login == "claude[bot]") | {body}]' | jq -s 'add // []' > "$RUNNER_TEMP/comments.json"
         # shellcheck disable=SC2086 # TRIGGERLIST is a command line, split on purpose
