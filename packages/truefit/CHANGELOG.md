@@ -1,5 +1,11 @@
 # truefit
 
+## 1.0.2
+
+### Patch Changes
+
+- [#1809](https://github.com/ofri-peretz/burgee/pull/1809) [`73c9073`](https://github.com/ofri-peretz/burgee/commit/73c9073e0269f16a42d459e294c2d3f854ebd0ef) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - truefit's docs have a site of their own at https://truefit.interlace.tools: getting started, guides, a page for each of zod, valibot, ArkType, TypeBox and ajv, recipes and the API reference. The package's `homepage` and README point there.
+
 ## 1.0.1
 
 ### Patch Changes
