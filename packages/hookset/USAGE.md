@@ -34,11 +34,19 @@ private until it has run in every Interlace repo. Intent: [`.sdlc/intents/hookse
     the globs under `generated` (glob to the command that writes them), naming that command.
   - `stop-after-3.mjs` (PostToolUse, PostToolUseFailure): counts failed test runs per session;
     a pass resets it, and the third failure in a row ends the turn with a stop-and-ask message.
+  - `verify-before-stop.mjs` (PostToolUse, Stop): a passing test run records a fingerprint of the
+    uncommitted code; ending a turn while uncommitted code differs from it sends the turn back once
+    to run the tests or the verify skill. Docs and the globs under `verifyIgnore` in
+    `.claude/hookset.json` do not count; the second stop of a turn always ends it.
+  - `skills/verify/SKILL.md`: the template `init --claude` writes to `.claude/skills/verify/` once.
+    The repo fills it in (how to boot, drive and inspect the app, and a feature map); `check`
+    fails while it is missing, keeps a `TODO(verify)` line, or loses `name: verify` or
+    `## Feature map`.
 
 - **`hookset init`** writes the smallest `lefthook.yml` that pulls the presets (`--force` adds them
   to a hand-written one, `--claude` vendors and wires the pack). **`hookset check`** exits 1 on a
-  missing station script, an unpinned remote, a hand-written step that repeats a preset, or a
-  vendored Claude hook that drifted. Both take `--json`.
+  missing station script, an unpinned remote, a hand-written step that repeats a preset, a
+  vendored Claude hook that drifted, or a verify skill that is missing or not filled in. Both take `--json`.
 
 ## In another repo's CI
 

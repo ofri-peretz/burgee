@@ -55,6 +55,10 @@ const unwired = (file: string, event: string, matcher: string): Problem => ({ id
 const cmd = (file: string): { type: string; command: string } => ({ type: 'command', command: `node .claude/hooks/${file}` });
 const command = (file: string): { type: string; command: string }[] => [{ type: 'command', command: `node "$CLAUDE_PROJECT_DIR/.claude/hooks/${file}"` }];
 
+/** A verify skill a repo has filled in: the template's required lines, no placeholder left. */
+const FILLED_SKILL = '---\nname: verify\ndescription: run the CLI\n---\n\n## Feature map\n\n| Feature | Reach it by | Working means |\n| --- | --- | --- |\n| help | `x --help` | exit 0 |\n';
+const fillSkill = (dir: string): void => writeFileSync(join(dir, '.claude/skills/verify/SKILL.md'), FILLED_SKILL);
+
 const STATION_OFF: Problem[] = [
   { id: 'station-off', severity: 'warning', message: 'the mutation station is not declared yet (optional)', fix: 'add "hook:mutation" to package.json scripts when the repo has it: changed-lines mutation testing' },
   { id: 'station-off', severity: 'warning', message: 'the test-integrity station is not declared yet (observe)', fix: 'add "hook:test-integrity" to package.json scripts when the repo has it: no .only, .skip or weakened assertion in the diff' },
@@ -92,6 +96,9 @@ describe('the package', () => {
       { event: 'PreToolUse', matcher: 'Edit|Write|MultiEdit|NotebookEdit', file: 'guard-bash.mjs' },
       { event: 'PostToolUse', matcher: 'Bash', file: 'stop-after-3.mjs' },
       { event: 'PostToolUseFailure', matcher: 'Bash', file: 'stop-after-3.mjs' },
+      { event: 'PostToolUse', matcher: 'Bash', file: 'verify-before-stop.mjs' },
+      { event: 'PostToolUseFailure', matcher: 'Bash', file: 'verify-before-stop.mjs' },
+      { event: 'Stop', matcher: '', file: 'verify-before-stop.mjs' },
     ]);
   });
 });
@@ -323,13 +330,28 @@ describe('checkRepo', () => {
       problems: [
         { id: 'claude-missing', severity: 'error', message: '.claude/hooks/guard-bash.mjs is missing', fix: 'run `hookset init --claude`' },
         { id: 'claude-missing', severity: 'error', message: '.claude/hooks/stop-after-3.mjs is missing', fix: 'run `hookset init --claude`' },
+        { id: 'claude-missing', severity: 'error', message: '.claude/hooks/verify-before-stop.mjs is missing', fix: 'run `hookset init --claude`' },
         unwired('guard-bash.mjs', 'PreToolUse', 'Bash'),
         unwired('guard-bash.mjs', 'PreToolUse', 'Edit|Write|MultiEdit|NotebookEdit'),
         unwired('stop-after-3.mjs', 'PostToolUse', 'Bash'),
         unwired('stop-after-3.mjs', 'PostToolUseFailure', 'Bash'),
+        unwired('verify-before-stop.mjs', 'PostToolUse', 'Bash'),
+        unwired('verify-before-stop.mjs', 'PostToolUseFailure', 'Bash'),
+        unwired('verify-before-stop.mjs', 'Stop', ''),
+        {
+          id: 'verify-skill-missing',
+          severity: 'error',
+          message: '.claude/skills/verify/SKILL.md is missing: the skill that boots the app, drives the change and checks what it shows, with a feature map',
+          fix: 'run `hookset init --claude`, then fill in every TODO(verify) line',
+        },
       ],
     });
     initRepo(dir, PKG, { claude: true });
+    // The template is written, and is not done until the repo replaces its placeholders.
+    expect(checkRepo(dir, PKG).problems).toEqual([
+      { id: 'verify-skill-unfilled', severity: 'error', message: '.claude/skills/verify/SKILL.md still has 5 TODO(verify) lines', fix: "replace each TODO(verify) line with this repo's real steps" },
+    ]);
+    fillSkill(dir);
     expect(checkRepo(dir, PKG)).toEqual({ ok: true, pinned: REF, expected: REF, problems: [] });
     writeFileSync(join(dir, '.claude/hooks/guard-bash.mjs'), '// edited by hand\n');
     expect(checkRepo(dir, PKG).problems).toEqual([
@@ -340,6 +362,7 @@ describe('checkRepo', () => {
   it('wants each pack hook under its own event and matcher, by its file name', () => {
     const dir = repo({ 'package.json': ALL_SCRIPTS, 'lefthook.yml': lefthookTemplate(STATIONS, REF), '.claude/hookset.json': '{}' });
     initRepo(dir, PKG, { claude: true });
+    fillSkill(dir);
     writeFileSync(
       join(dir, '.claude/settings.json'),
       JSON.stringify({
@@ -354,9 +377,29 @@ describe('checkRepo', () => {
       '.claude/settings.json does not run guard-bash.mjs on PreToolUse (Edit|Write|MultiEdit|NotebookEdit)',
       '.claude/settings.json does not run stop-after-3.mjs on PostToolUse (Bash)',
       '.claude/settings.json does not run stop-after-3.mjs on PostToolUseFailure (Bash)',
+      '.claude/settings.json does not run verify-before-stop.mjs on PostToolUse (Bash)',
+      '.claude/settings.json does not run verify-before-stop.mjs on PostToolUseFailure (Bash)',
+      '.claude/settings.json does not run verify-before-stop.mjs on Stop ()',
     ]);
     writeFileSync(join(dir, '.claude/settings.json'), '{}');
-    expect(checkRepo(dir, PKG).problems).toHaveLength(4);
+    expect(checkRepo(dir, PKG).problems).toHaveLength(7);
+  });
+
+  it('wants the verify skill to keep its name and its feature map', () => {
+    const dir = repo({ 'package.json': ALL_SCRIPTS, 'lefthook.yml': lefthookTemplate(STATIONS, REF), '.claude/hookset.json': '{}' });
+    initRepo(dir, PKG, { claude: true });
+    writeFileSync(join(dir, '.claude/skills/verify/SKILL.md'), '---\nname: smoke\n---\n\nRun it. TODO(verify)\n');
+    expect(checkRepo(dir, PKG).problems).toEqual([
+      { id: 'verify-skill-unfilled', severity: 'error', message: '.claude/skills/verify/SKILL.md still has 1 TODO(verify) line', fix: "replace each TODO(verify) line with this repo's real steps" },
+      { id: 'verify-skill-incomplete', severity: 'error', message: '.claude/skills/verify/SKILL.md has no `name: verify`', fix: 'put `name: verify` back; the template shows where it goes' },
+      { id: 'verify-skill-incomplete', severity: 'error', message: '.claude/skills/verify/SKILL.md has no `## Feature map`', fix: 'put `## Feature map` back; the template shows where it goes' },
+    ]);
+  });
+
+  it('never overwrites a verify skill the repo wrote', () => {
+    const dir = repo({ 'lefthook.yml': lefthookTemplate(STATIONS, REF), '.claude/skills/verify/SKILL.md': FILLED_SKILL });
+    expect(initRepo(dir, PKG, { claude: true }).written).not.toContain('.claude/skills/verify/SKILL.md');
+    expect(read(dir, '.claude/skills/verify/SKILL.md')).toBe(FILLED_SKILL);
   });
 });
 
@@ -417,8 +460,9 @@ describe('initRepo', () => {
     const dir = repo({ 'lefthook.yml': lefthookTemplate(STATIONS, REF) });
     expect(initRepo(dir, PKG, { claude: true })).toEqual({
       changed: true,
-      written: ['.claude/hooks/guard-bash.mjs', '.claude/hooks/stop-after-3.mjs', '.claude/hookset.json', '.claude/settings.json'],
+      written: ['.claude/hooks/guard-bash.mjs', '.claude/hooks/stop-after-3.mjs', '.claude/hooks/verify-before-stop.mjs', '.claude/hookset.json', '.claude/skills/verify/SKILL.md', '.claude/settings.json'],
     });
+    expect(read(dir, '.claude/skills/verify/SKILL.md')).toBe(readFileSync(join(PKG, 'claude/skills/verify/SKILL.md'), 'utf8'));
     expect(read(dir, '.claude/hooks/stop-after-3.mjs')).toBe(readFileSync(join(PKG, 'claude/stop-after-3.mjs'), 'utf8'));
     expect(read(dir, '.claude/hookset.json')).toBe('{\n  "ask": [],\n  "frozen": []\n}\n');
     expect(read(dir, '.claude/settings.json')).toBe(
@@ -430,8 +474,9 @@ describe('initRepo', () => {
               { matcher: 'Bash', hooks: command('guard-bash.mjs') },
               { matcher: 'Edit|Write|MultiEdit|NotebookEdit', hooks: command('guard-bash.mjs') },
             ],
-            PostToolUse: [{ matcher: 'Bash', hooks: command('stop-after-3.mjs') }],
-            PostToolUseFailure: [{ matcher: 'Bash', hooks: command('stop-after-3.mjs') }],
+            PostToolUse: [{ matcher: 'Bash', hooks: [...command('stop-after-3.mjs'), ...command('verify-before-stop.mjs')] }],
+            PostToolUseFailure: [{ matcher: 'Bash', hooks: [...command('stop-after-3.mjs'), ...command('verify-before-stop.mjs')] }],
+            Stop: [{ matcher: '', hooks: command('verify-before-stop.mjs') }],
           },
         },
         undefined,
@@ -449,17 +494,23 @@ describe('initRepo', () => {
       },
     };
     const dir = repo({ 'lefthook.yml': lefthookTemplate(STATIONS, REF), '.claude/settings.json': JSON.stringify(settings), '.claude/hookset.json': '{"frozen":["a/**"]}' });
-    expect(initRepo(dir, PKG, { claude: true }).written).toEqual(['.claude/hooks/guard-bash.mjs', '.claude/hooks/stop-after-3.mjs', '.claude/settings.json']);
+    expect(initRepo(dir, PKG, { claude: true }).written).toEqual([
+      '.claude/hooks/guard-bash.mjs',
+      '.claude/hooks/stop-after-3.mjs',
+      '.claude/hooks/verify-before-stop.mjs',
+      '.claude/skills/verify/SKILL.md',
+      '.claude/settings.json',
+    ]);
     expect(read(dir, '.claude/hookset.json')).toBe('{"frozen":["a/**"]}');
     const merged = JSON.parse(read(dir, '.claude/settings.json')) as { permissions: unknown; hooks: Record<string, { matcher?: string; hooks: { command: string }[] }[]> };
     expect(merged.permissions).toEqual(settings.permissions);
-    expect(Object.keys(merged.hooks)).toEqual(['PreToolUse', 'PostToolUse', 'PostToolUseFailure']);
+    expect(Object.keys(merged.hooks)).toEqual(['PreToolUse', 'PostToolUse', 'PostToolUseFailure', 'Stop']);
     expect(merged.hooks['PreToolUse']?.map((g) => [g.matcher, g.hooks.length])).toEqual([
       ['Bash', 1],
       ['Edit|Write|MultiEdit|NotebookEdit', 1],
     ]);
     expect(merged.hooks['PostToolUse']?.map((g) => [g.matcher, g.hooks.map((h) => h.command)])).toEqual([
-      ['Bash', ['node other.mjs', 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/stop-after-3.mjs"']],
+      ['Bash', ['node other.mjs', 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/stop-after-3.mjs"', 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/verify-before-stop.mjs"']],
       [undefined, ['node any.mjs']],
     ]);
     expect(initRepo(dir, PKG, { claude: true })).toEqual({ changed: false, written: [] });
@@ -471,7 +522,7 @@ describe('initRepo', () => {
     const merged = JSON.parse(read(dir, '.claude/settings.json')) as { hooks: Record<string, { matcher?: string; hooks: { command: string }[] }[]> };
     expect(merged.hooks['PostToolUseFailure']?.map((g) => [g.matcher, g.hooks.map((h) => h.command)])).toEqual([
       [undefined, ['node log.mjs']],
-      ['Bash', ['node "$CLAUDE_PROJECT_DIR/.claude/hooks/stop-after-3.mjs"']],
+      ['Bash', ['node "$CLAUDE_PROJECT_DIR/.claude/hooks/stop-after-3.mjs"', 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/verify-before-stop.mjs"']],
     ]);
   });
 });
@@ -537,6 +588,7 @@ describe('the checks, at their edges', () => {
   it('wants stop-after-3 on its own events, not on the event guard-bash runs on', () => {
     const dir = repo({ 'package.json': ALL_SCRIPTS, 'lefthook.yml': lefthookTemplate(STATIONS, REF), '.claude/hookset.json': '{}' });
     initRepo(dir, PKG, { claude: true });
+    fillSkill(dir);
     writeFileSync(
       join(dir, '.claude/settings.json'),
       JSON.stringify({ hooks: { PreToolUse: [{ matcher: 'Bash', hooks: [cmd('guard-bash.mjs'), cmd('stop-after-3.mjs')] }, { matcher: 'Edit|Write|MultiEdit|NotebookEdit', hooks: [cmd('guard-bash.mjs')] }] } }),
@@ -544,6 +596,9 @@ describe('the checks, at their edges', () => {
     expect(checkRepo(dir, PKG).problems.map((p) => p.message)).toEqual([
       '.claude/settings.json does not run stop-after-3.mjs on PostToolUse (Bash)',
       '.claude/settings.json does not run stop-after-3.mjs on PostToolUseFailure (Bash)',
+      '.claude/settings.json does not run verify-before-stop.mjs on PostToolUse (Bash)',
+      '.claude/settings.json does not run verify-before-stop.mjs on PostToolUseFailure (Bash)',
+      '.claude/settings.json does not run verify-before-stop.mjs on Stop ()',
     ]);
   });
 
@@ -579,6 +634,7 @@ describe('init, at its edges', () => {
     expect(merged.hooks.PostToolUse[0]?.hooks).toEqual([
       { type: 'command', command: 'node x.mjs' },
       { type: 'command', command: 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/stop-after-3.mjs"' },
+      { type: 'command', command: 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/verify-before-stop.mjs"' },
     ]);
   });
 });
