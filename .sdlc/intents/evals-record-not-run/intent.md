@@ -102,6 +102,15 @@ requirements merged in #1135 (`0dc0e0231e`, 2026-10-19).
 | 4 | a B1 sweep the limit cut short is no reading, and leaves no MCP ratio | met | `benchmarks/agent.test.ts` › "R6 — a sweep the usage limit cut short is not a reading", › "R6 — an MCP arm cut short leaves no ratio" |
 | 5 | the next scheduled run with quota left lands a normal v2 line with no `not-run` case | **met 2026-10-27** | run 40504387711 (2026-10-27, `db19cc6`), `evals/history/2026-10-27-db19cc6-40504387711.json` (#1299): `v: 2`, `tasks.status: ran`, 11 / 11, `notRun: 0` — counted by [D-20261027-dispatched-eval-counts-as-weekly](../../decisions/D-20261027-dispatched-eval-counts-as-weekly.md) |
 
+Re-run weekly by `provedone intent check --evidence` (`.github/workflows/intent-evidence.yml`):
+
+| Criterion | Command | Output |
+| :-- | :-- | :-- |
+| 1. the runner records a usage-limit stop as `not-run` | `npx vitest run --config vitest.root.config.ts scripts/run-evals.test.ts -t "a usage-limit stop is not-run"` | exit 0, `scripts/run-evals.test.ts`, `1 passed` |
+| 1, 4. B1 counts a sweep the limit cut short as no reading, with no MCP ratio | `npx vitest run --root benchmarks agent.test.ts -t "cut short"` | exit 0, `agent.test.ts`, `3 passed` |
+| 2. a lock refuses a zero-token `fail` | `npx vitest run --config vitest.root.config.ts scripts/eval-history-lock.test.ts -t "refuses a zero-token fail"` | exit 0, `scripts/eval-history-lock.test.ts`, `1 passed` |
+| 3. a not-run week neither breaks nor counts toward a series | `npx vitest run --config vitest.root.config.ts scripts/eval-history-lock.test.ts -t "a not-run week neither breaks"` | exit 0, `scripts/eval-history-lock.test.ts`, `1 passed` |
+
 **The one scheduled run since the build also hit the limit, and was recorded as this intent
 asks.** Run 39762001842 (2026-10-22 10:17 UTC) landed
 `evals/history/2026-10-22-80c8eaa-39762001842.json` through #1226: `v: 2`, `tasks.status:

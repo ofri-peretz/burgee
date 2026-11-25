@@ -16,7 +16,13 @@
  *   1. `.github/workflows/intent-evidence.yml` runs on a weekly schedule (and by dispatch), builds
  *      the packages first, and runs `intent check --evidence` with its exit code kept;
  *   2. the workflow fails a run that re-ran no row;
- *   3. at least one shipped intent has a row provedone re-runs, so (2) cannot fire on `main`.
+ *   3. at least one shipped intent has a row provedone re-runs, so (2) cannot fire on `main`;
+ *   4. the count of re-run rows only goes up (`RERUN_FLOOR`), so a row deleted or an intent moved
+ *      off `shipped` is a decision someone makes in this file, not a silent drop;
+ *   5. a row that filters its test file by name (`-t "…"`) records a passed count. A `-t` that
+ *      matches nothing exits 0 with every case skipped, so a renamed or deleted test would leave
+ *      the row green; the count is what makes it fail (seen 2026-11-25: `-t "band for bnad"`
+ *      exited 0, and with `1 passed` recorded `intent check --evidence` reported it).
  */
 import { readdirSync, readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
@@ -54,8 +60,20 @@ const workflow = (): Workflow =>
 const steps = (): readonly Step[] =>
   Object.values(workflow().jobs).flatMap((job) => job.steps);
 
-/** The shipped intents' rows that `intent check --evidence` re-runs, as `slug: criterion`. */
-const rerunnable = (): string[] =>
+/**
+ * Rows `intent check --evidence` re-runs on `main`. Raise it when you add rows; lowering it is a
+ * decision: say in the PR which row went and why.
+ */
+const RERUN_FLOOR = 9;
+
+interface Rerunnable {
+  readonly id: string;
+  readonly command: string;
+  readonly output: string;
+}
+
+/** The shipped intents' rows that `intent check --evidence` re-runs. */
+const rerunnable = (): Rerunnable[] =>
   readdirSync(INTENTS)
     .map((slug) => [slug, join(INTENTS, slug, "intent.md")] as const)
     .filter(([, file]) => existsSync(file))
@@ -66,7 +84,11 @@ const rerunnable = (): string[] =>
         .filter(
           (row) => row.command !== undefined && runnable(row.command, ROOT),
         )
-        .map((row) => `${slug}: ${row.criterion}`);
+        .map((row) => ({
+          id: `${slug}: ${row.criterion}`,
+          command: row.command as string,
+          output: row.output,
+        }));
     });
 
 describe("shipped intents’ evidence is re-run weekly (provedone criterion 1, R3)", () => {
@@ -108,5 +130,23 @@ describe("shipped intents’ evidence is re-run weekly (provedone criterion 1, R
 
   it("has at least one shipped intent row to re-run", () => {
     expect(rerunnable().length).toBeGreaterThan(0);
+  });
+
+  it(`re-runs at least ${String(RERUN_FLOOR)} rows, a floor that only rises`, () => {
+    expect(
+      rerunnable().length,
+      `fix: a re-runnable evidence row was removed or its intent left "shipped"; restore it, or lower RERUN_FLOOR in this file and say why in the PR`,
+    ).toBeGreaterThanOrEqual(RERUN_FLOOR);
+  });
+
+  it("records a passed count on every row that filters tests by name", () => {
+    const blind = rerunnable()
+      .filter((row) => /\s-t\s/u.test(row.command))
+      .filter((row) => !/`\d+ passed`/u.test(row.output))
+      .map((row) => row.id);
+    expect(
+      blind,
+      "fix: add the run's count to the Output cell, e.g. `1 passed`: a -t that matches nothing exits 0",
+    ).toEqual([]);
   });
 });
