@@ -10,6 +10,7 @@ import { defineConfig, defineDocs, frontmatterSchema, metaSchema } from 'fumadoc
 
 import { rehypeRowHeaders } from './rehype-row-headers.mjs';
 import { rehypeTableStack } from './rehype-table-stack.mjs';
+import { remarkInstallTabs } from './remark-install-tabs.mjs';
 
 export const docs = defineDocs({
   dir: 'content/docs',
@@ -48,6 +49,7 @@ export default defineConfig({
     // whatever is passed here, one key at a time: `transformers` replaces fumadocs' list rather than adding to it, so its defaults (the
     // `// [!code …]` notations) are passed back first.
     rehypeCodeOptions: { themes: CODE_THEMES, transformers: [...(rehypeCodeDefaultOptions.transformers ?? []), transformerTerminal] },
+    remarkPlugins: [remarkInstallTabs],
     rehypePlugins: [rehypeRowHeaders, rehypeTableStack],
   },
 });
