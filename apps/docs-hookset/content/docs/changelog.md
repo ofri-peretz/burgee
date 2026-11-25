@@ -3,6 +3,16 @@ title: Changelog
 description: "Every release of hookset, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 1.1.0
+
+### Minor Changes
+
+- [#1835](https://github.com/ofri-peretz/burgee/pull/1835) [`ff3dbe4`](https://github.com/ofri-peretz/burgee/commit/ff3dbe4cada0c732871538de416ed31e3f4b73ef) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `hookset context` measures the always-loaded Claude Code context (CLAUDE.md and its `@`-imports, plus every model-invocable skill, command and subagent description) and fails when it is over the ceiling in `.claude/hookset.json`. `--update` lowers the ceiling to the current size and refuses to raise it.
+
+- [#1834](https://github.com/ofri-peretz/burgee/pull/1834) [`48e660c`](https://github.com/ofri-peretz/burgee/commit/48e660c4202b1ef0ac5158398eb7a7b8610bbcc6) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The reusable `hookset-check.yml` workflow gains a `provedone receipts` job on pull requests: it runs `provedone gate --mode enforce` on every non-merge commit, so a commit that skipped the `commit-msg` hook (the web editor, a bypassed hook) fails CI without its `Verified-by:` receipt. The Version PR and bot-opened PRs are exempt.
+
+- [#1836](https://github.com/ofri-peretz/burgee/pull/1836) [`eaf51bc`](https://github.com/ofri-peretz/burgee/commit/eaf51bc219a93b1fa23a40960068b5dcf911ae2f) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The Claude pack gains `verify-before-stop` and a `verify` skill. `verify-before-stop` (PostToolUse and Stop) sends a turn back once when it ends on uncommitted code that no passing test run has covered; docs and the `verifyIgnore` globs in `.claude/hookset.json` do not count, and the second stop of a turn always ends it. `init --claude` writes `.claude/skills/verify/SKILL.md` from a template once, and `check` fails while it is missing, keeps a `TODO(verify)` line, or loses `name: verify` or `## Feature map`. Upgrading: run `hookset init --claude`, then fill in the skill.
+
 ## 1.0.1
 
 ### Patch Changes

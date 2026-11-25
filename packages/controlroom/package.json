@@ -1,6 +1,6 @@
 {
   "name": "controlroom",
-  "version": "2.0.3",
+  "version": "2.0.4",
   "description": "TUI framework with a static view for pipes and CI. No dependency outside the burgee family. Drop-in alternative to ink.",
   "license": "MIT",
   "author": "Ofri Peretz <ofriperetzdev@gmail.com>",
@@ -80,12 +80,12 @@
     "provenance": true
   },
   "dependencies": {
-    "caique": "^2.1.2",
+    "caique": "^2.1.5",
     "closeout": "^2.0.2",
-    "flagstaff": "^2.0.4",
+    "flagstaff": "^2.0.5",
     "linegauge": "^2.2.2",
     "paratext": "^2.0.3",
-    "roundel": "^2.0.2"
+    "roundel": "^2.0.3"
   },
   "peerDependencies": {
     "react": ">=18.0.0",
