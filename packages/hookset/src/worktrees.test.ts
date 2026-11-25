@@ -166,14 +166,19 @@ describe('git', () => {
   });
 });
 
+const tree = (over: Partial<Worktree>): Worktree => ({ path: '/w', branch: 'b', head: 'h', main: false, current: false, locked: false, missing: false, dirty: 0, localCommits: 0, idleDays: 9, keep: undefined, removed: false, ...over });
+const result = (worktrees: Worktree[], over: Partial<WorktreeResult> = {}): WorktreeResult => ({ repo: '/r', worktrees, removable: 0, removed: 0, pruned: false, ok: true, ...over });
+
 describe('worktreesText', () => {
-  const tree = (over: Partial<Worktree>): Worktree => ({ path: '/w', branch: 'b', head: 'h', main: false, current: false, locked: false, missing: false, dirty: 0, localCommits: 0, idleDays: 9, keep: undefined, removed: false, ...over });
-  const result = (worktrees: Worktree[], over: Partial<WorktreeResult> = {}): WorktreeResult => ({ repo: '/r', worktrees, removable: 0, removed: 0, pruned: false, ok: true, ...over });
 
   it('rounds sizes to whole MB from one byte under the half', () => {
     const text = worktreesText(result([tree({ bytes: 2.5 * MB - 1 })], { removable: 1 }));
     expect(text).toBe('hookset worktrees: 1 linked worktree(s), 2 MB in all; 1 removable: run with --prune\n  /w [b] 2 MB removable');
     expect(worktreesText(result([tree({ bytes: 2.5 * MB })]))).toContain(', 3 MB in all;');
+  });
+
+  it('reads an empty list with no error as nothing to remove', () => {
+    expect(worktreesText(result([]))).toBe('hookset worktrees: 0 linked worktree(s); nothing to remove');
   });
 
   it('lists the worktrees under an error when there are any', () => {

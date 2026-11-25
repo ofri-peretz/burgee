@@ -123,7 +123,7 @@ Node 22.13 or later, git and lefthook.
 
 It hosts no plugin key of its own.
 
-Nothing in this family builds on it yet, and it builds on `burgee`.
+Nothing in this family builds on it yet, and it builds on `bellpull` and `burgee`.
 
 ## The family
 
