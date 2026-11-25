@@ -95,6 +95,14 @@ shown red with the six `DROP_INS` rows taken out of `MAPPING`, the state before 
 | 3. `DROP_INS` maps each, `migrate-drop-ins-lock` passes, and migrate rewrites a fixture importing all six | `scripts/migrate-drop-ins-lock.test.ts`; `migrate.test.ts` › `A12 — rewrites a project importing find-up, onetime, cli-cursor, cli-truncate, widest-line and picocolors, each to its graded stand-in` | passes; the fixture moves all six, refuses nothing, and names all six removable |
 | 4. each subpath at or under its incumbent's bundled bytes | `scripts/subpath-weight-lock.test.ts` | passes |
 
+Re-run weekly by `provedone intent check --evidence` (`.github/workflows/intent-evidence.yml`):
+
+| Criterion | Command | Output |
+| :-- | :-- | :-- |
+| 1. every graded claim names its level | `npx vitest run --config vitest.root.config.ts scripts/graded-claims-lock.test.ts` | exit 0, `scripts/graded-claims-lock.test.ts` |
+| 3. `DROP_INS` maps each of the six | `npx vitest run --config vitest.root.config.ts scripts/migrate-drop-ins-lock.test.ts` | exit 0, `scripts/migrate-drop-ins-lock.test.ts` |
+| 4. each subpath at or under its incumbent's bundled bytes | `npx vitest run --config vitest.root.config.ts scripts/subpath-weight-lock.test.ts` | exit 0, `scripts/subpath-weight-lock.test.ts` |
+
 ## Open questions
 
 - Whether `roundel/picocolors` can meet picocolors' bytes. **Answered 2026-10-12 in `spec.md`**:
