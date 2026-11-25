@@ -128,7 +128,7 @@ describe('stop-after-3', () => {
 describe('verify-before-stop', () => {
   it('passes its own cases', () => {
     const r = spawnSync(process.execPath, [join(CLAUDE, 'verify-before-stop.mjs'), '--self-test'], { encoding: 'utf8' });
-    expect(r.stdout).toBe('ok: 9 cases\n');
+    expect(r.stdout).toBe('ok: 17 cases\n');
   });
 
   it('sends a turn back once when code changed after the last passing test run, and lets it end after a pass', () => {
@@ -147,6 +147,9 @@ describe('verify-before-stop', () => {
     expect(hook('verify-before-stop.mjs', { ...stop, stop_hook_active: true })).toBe('');
     const ran = { session_id: session, hook_event_name: 'PostToolUse', cwd: dir, tool_input: { command: 'npx vitest run' } };
     expect(hook('verify-before-stop.mjs', { ...ran, tool_response: { exitCode: 1 } })).toBe('');
+    expect(hook('verify-before-stop.mjs', stop)).not.toBe('');
+    // A background launch returns before its tests finish, so it proves nothing.
+    expect(hook('verify-before-stop.mjs', { ...ran, tool_input: { command: 'npx vitest run', run_in_background: true }, tool_response: { exitCode: 0 } })).toBe('');
     expect(hook('verify-before-stop.mjs', stop)).not.toBe('');
     expect(hook('verify-before-stop.mjs', { ...ran, tool_response: { exitCode: 0 } })).toBe('');
     expect(hook('verify-before-stop.mjs', stop)).toBe('');

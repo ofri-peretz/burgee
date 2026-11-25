@@ -138,7 +138,9 @@ ok: 9 counted, 7 ignored, stop on 3
 "Run the tests before you say you're done" is the other sentence an agent reads past. A whole
 suite inside a Stop hook would hold every turn for minutes, so verify-before-stop asks for the
 run instead of making it. After a test run passes (the same test runs stop-after-3 counts), it
-records a fingerprint of the uncommitted code. When the turn ends while uncommitted code differs
+records a fingerprint of the uncommitted code. Only a run whose exit status is the tests' own
+counts: a foreground command with the test last and no `|`, `||`, `;` or `&` that could hide a
+failure or edit code after it, so `npm test || true` and `npx vitest run | tail` prove nothing. When the turn ends while uncommitted code differs
 from that fingerprint, or no run passed this session, it sends the turn back once
 (`decision: "block"`) naming the changed files. The second stop of the same turn
 (`stop_hook_active`) always ends it, so an agent that has to ask a question first is never stuck.
@@ -147,7 +149,7 @@ Committed work is the commit and push hooks' to judge. `.md`, `.mdx` and `.txt` 
 count, and neither do the globs a repository lists under `verifyIgnore` in `.claude/hookset.json`.
 
 ```text title="node .claude/hooks/verify-before-stop.mjs --self-test"
-ok: 9 cases
+ok: 17 cases
 ```
 
 ## The verify skill
