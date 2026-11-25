@@ -38,6 +38,9 @@ private until it has run in every Interlace repo. Intent: [`.sdlc/intents/hookse
     uncommitted code; ending a turn while uncommitted code differs from it sends the turn back once
     to run the tests or the verify skill. Docs and the globs under `verifyIgnore` in
     `.claude/hookset.json` do not count; the second stop of a turn always ends it.
+  - `codegraph.mjs` (SessionStart): builds the CodeGraph index in the background (`init` on a
+    fresh clone, `sync` otherwise) when `.mcp.json` runs the `codegraph` server, which `init
+    --claude` adds at the pinned version along with `.codegraph/` in `.gitignore`.
   - `skills/verify/SKILL.md`: the template `init --claude` writes to `.claude/skills/verify/` once.
     The repo fills it in (how to boot, drive and inspect the app, and a feature map); `check`
     fails while it is missing, keeps a `TODO(verify)` line, or loses `name: verify` or
@@ -46,7 +49,8 @@ private until it has run in every Interlace repo. Intent: [`.sdlc/intents/hookse
 - **`hookset init`** writes the smallest `lefthook.yml` that pulls the presets (`--force` adds them
   to a hand-written one, `--claude` vendors and wires the pack). **`hookset check`** exits 1 on a
   missing station script, an unpinned remote, a hand-written step that repeats a preset, a
-  vendored Claude hook that drifted, or a verify skill that is missing or not filled in. Both take `--json`.
+  vendored Claude hook that drifted, a verify skill that is missing or not filled in, or a
+  codegraph server that is missing, drifted from its pin, not enabled or not gitignored. Both take `--json`.
 
 ## In another repo's CI
 

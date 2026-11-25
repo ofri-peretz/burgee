@@ -1,17 +1,17 @@
 ---
 title: Claude Code hooks
-description: "`hookset init --claude` vendors three Claude Code hooks and a verify skill template into .claude/hooks/ and wires them in .claude/settings.json: guard-bash denies skipped git hooks, a moved core.hooksPath, CI polling loops and a short-timeout commit or push, and asks before a publish; stop-after-3 ends the turn after the third failed test run in a row; verify-before-stop sends a turn back once when it ends on untested code."
+description: "`hookset init --claude` vendors four Claude Code hooks and a verify skill template into .claude/hooks/, wires them in .claude/settings.json and adds the CodeGraph MCP server to .mcp.json: guard-bash denies skipped git hooks, a moved core.hooksPath, CI polling loops and a short-timeout commit or push, and asks before a publish; stop-after-3 ends the turn after the third failed test run in a row; verify-before-stop sends a turn back once when it ends on untested code; codegraph builds the code graph index each session starts with."
 ---
 
 A rule an agent can break with one command is a check, not a sentence. The git hooks stop a
 bad commit; the Claude Code hooks stop an agent from getting around them. `hookset init
---claude` puts three of them, and a verify skill to fill in, into a repository:
+--claude` puts four of them, a verify skill to fill in, and a code graph server into a repository:
 
 ```text title="npx hookset init --claude"
-wrote lefthook.yml, .claude/hooks/guard-bash.mjs, .claude/hooks/stop-after-3.mjs, .claude/hooks/verify-before-stop.mjs, .claude/settings.json
+wrote lefthook.yml, .claude/hooks/guard-bash.mjs, .claude/hooks/stop-after-3.mjs, .claude/hooks/verify-before-stop.mjs, .claude/hooks/codegraph.mjs, .claude/settings.json, .mcp.json, .gitignore
 ```
 
-- **`.claude/hooks/guard-bash.mjs`**, **`stop-after-3.mjs`** and **`verify-before-stop.mjs`** are copied byte
+- **`.claude/hooks/guard-bash.mjs`**, **`stop-after-3.mjs`**, **`verify-before-stop.mjs`** and **`codegraph.mjs`** are copied byte
   for byte from the package. `hookset check` fails when one differs (`claude-drift`): change
   the canonical copy in burgee, never the vendored one.
 - **`.claude/hookset.json`** is the repository's own list of what to ask about and what not to
@@ -20,8 +20,11 @@ wrote lefthook.yml, .claude/hooks/guard-bash.mjs, .claude/hooks/stop-after-3.mjs
 - **`.claude/skills/verify/SKILL.md`** is written once from a template and is the repository's
   to fill in. This repository had already filled its in ([below](#the-verify-skill)), so `init`
   left it alone too.
-- **`.claude/settings.json`** gains seven hook entries. Any settings already there are kept, and
+- **`.claude/settings.json`** gains eight hook entries, enables the `codegraph` server and allows its `codegraph_explore` tool. Any settings already there are kept, and
   an entry that is already wired is not added twice.
+- **`.mcp.json`** runs the [CodeGraph](https://github.com/colbymchenry/codegraph) MCP server at
+  the version hookset pins, and **`.gitignore`** gains `.codegraph/`, the index it reads. See
+  [codegraph](#codegraph).
 
 ## What settings.json runs
 
@@ -196,3 +199,21 @@ hookset: ok (hookset@1.0.0)
 
 A repository with a `.claude/` directory and no `.claude/hookset.json` gets a
 `claude-not-adopted` warning, so the pack reaches every repository where an agent works.
+
+## codegraph
+
+The `codegraph` MCP server answers "where is this symbol, what calls it, how does A reach B" from
+a prebuilt symbol graph in one `codegraph_explore` call, where grep takes a search, a read and a
+search again. The server reads an index under `.codegraph/` and never builds one, and a cloud
+session starts from a fresh clone without it. `codegraph.mjs` runs on `SessionStart` and starts
+`codegraph init` in the background (`codegraph sync` when the index is there), so the session is
+not held for it; the server picks the index up when it lands.
+
+It does nothing in a repository whose `.mcp.json` runs no `codegraph` server, or with
+`HOOKSET_CODEGRAPH=0`. `hookset check` fails when `.mcp.json` does not run the server as hookset
+pins it (`codegraph-mcp-missing`, `codegraph-mcp-drift`), `.gitignore` does not list `.codegraph/`
+(`codegraph-not-ignored`) or settings.json does not enable it (`codegraph-mcp-disabled`).
+
+Why it is in the pack, measured on burgee: on tasks that trace a flow through the code it cut
+greps from 29 to 18 and file reads from 24 to 3. The numbers, the tasks and how to run them again
+are in [`packages/hookset/scripts/codegraph-bench`](https://github.com/ofri-peretz/burgee/tree/main/packages/hookset/scripts/codegraph-bench).

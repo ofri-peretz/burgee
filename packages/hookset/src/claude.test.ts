@@ -167,3 +167,20 @@ describe('verify-before-stop', () => {
     expect(hook('verify-before-stop.mjs', stop, { CLAUDE_PROJECT_DIR: dir })).toBe('');
   });
 });
+
+describe('codegraph', () => {
+  it('passes its own cases', () => {
+    const r = spawnSync(process.execPath, [join(CLAUDE, 'codegraph.mjs'), '--self-test'], { encoding: 'utf8' });
+    expect(r.stdout).toMatch(/^ok: \d+ cases\n$/);
+    expect(r.status).toBe(0);
+  });
+
+  it('prints nothing and starts nothing with no codegraph server, off, or on any other event', () => {
+    const dir = scratch('hookset-codegraph-');
+    expect(hook('codegraph.mjs', { hook_event_name: 'SessionStart' }, { CLAUDE_PROJECT_DIR: dir })).toBe('');
+    writeFileSync(join(dir, '.mcp.json'), JSON.stringify({ mcpServers: { codegraph: { args: ['-y', '@colbymchenry/codegraph@1.6.4'] } } }));
+    expect(hook('codegraph.mjs', { hook_event_name: 'PreToolUse', tool_name: 'Grep', tool_input: { pattern: 'fooBar' } }, { CLAUDE_PROJECT_DIR: dir })).toBe('');
+    expect(hook('codegraph.mjs', { hook_event_name: 'SessionStart' }, { CLAUDE_PROJECT_DIR: dir, HOOKSET_CODEGRAPH: '0' })).toBe('');
+    expect(hook('codegraph.mjs', 'not json')).toBe('');
+  });
+});
