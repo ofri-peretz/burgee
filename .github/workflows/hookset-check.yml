@@ -1,6 +1,9 @@
 # Reusable: `hookset check` on the calling repo, against the presets at the tag its lefthook.yml
 # pins. Fails on a missing station, an unpinned remote, a step that repeats a preset, or a
-# vendored Claude hook that drifted. Callers:
+# vendored Claude hook that drifted. On a pull request a second job, `provedone receipts`, runs
+# `provedone gate --mode enforce` on every non-merge commit, so a commit made without the
+# commit-msg hook (the web editor, a bypassed hook) still needs its `Verified-by:` receipt.
+# The Version PR (`changeset-release/main`) and bot-opened PRs are exempt. Callers:
 #
 #   jobs:
 #     hookset:
@@ -58,3 +61,39 @@ jobs:
             for (const p of result.problems) console.log(`::${p.severity === "error" ? "error" : "warning"}::${p.message} — fix: ${p.fix}`);
             process.exitCode = result.ok ? 0 : 1;
           '
+
+  provedone:
+    name: provedone receipts
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
+        with:
+          node-version: 24
+
+      - name: Every commit in the pull request carries a receipt
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REF: ${{ github.head_ref }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: |
+          set -euo pipefail
+          if [ "$HEAD_REF" = "changeset-release/main" ]; then echo "The Version PR's commits come from changesets: exempt."; exit 0; fi
+          case "$PR_AUTHOR" in *"[bot]") echo "$PR_AUTHOR opened this PR: exempt."; exit 0 ;; esac
+          failed=0
+          for sha in $(git rev-list --no-merges "$BASE_SHA..$HEAD_SHA"); do
+            git log -1 --format=%B "$sha" > "$RUNNER_TEMP/message"
+            # One session per commit, so the gate's two-blocks-then-pass escape never applies here.
+            if ! PROVEDONE_SESSION="ci-$sha" npx --yes provedone@1.0.1 gate "$RUNNER_TEMP/message" --mode enforce --quiet; then
+              echo "::error::$(git log -1 --format='%h %s' "$sha") carries no receipt. fix: reword it with \`Verified-by: <command> -> exit 0\` or \`Verified-by: none (<why no check applies>)\` beside Co-Authored-By:, then push."
+              failed=1
+            fi
+          done
+          exit "$failed"

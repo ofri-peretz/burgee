@@ -57,6 +57,12 @@ pre-push:
     truepass-diff:
       priority: 4
       run: node packages/truepass/dist/bin.js diff --base origin/main
+    # triggerlist protect, dogfooded: a push that edits a gate file (listed in the base branch's
+    # .sdlc/checklist.yaml) together with the code that gate judges. Observe mode, like the hookset
+    # preset step the other repos run as `hook:triggerlist`; the battery built its dist.
+    triggerlist-protect:
+      priority: 4
+      run: node packages/triggerlist/dist/bin.js protect origin/main
     # The battery's verdict on the five-second budget, the same script as CI's `No test case over
     # 5 s` step. The root suite judges its own cases as it runs, alone already.
     case-budget:

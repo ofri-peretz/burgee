@@ -3,6 +3,19 @@ title: Changelog
 description: "Every release of controlroom, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 2.0.4
+
+### Patch Changes
+
+- [#1833](https://github.com/ofri-peretz/burgee/pull/1833) [`3f209ee`](https://github.com/ofri-peretz/burgee/commit/3f209ee69520d6981b729aeac911ff6fc24d4197) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Shorter npm descriptions, so a search for "cli prompts", "tui framework", "cli spinner" or
+  "terminal colors" finds these packages. Each description keeps its search phrase, its dependency
+  sentence and every package it is a drop-in alternative to. The longer account of what each one
+  does differently is in its README.
+- Updated dependencies [[`3f209ee`](https://github.com/ofri-peretz/burgee/commit/3f209ee69520d6981b729aeac911ff6fc24d4197)]:
+  - caique@2.1.5
+  - flagstaff@2.0.5
+  - roundel@2.0.3
+
 ## 2.0.3
 
 ### Patch Changes

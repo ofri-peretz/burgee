@@ -131,6 +131,11 @@ Today's descriptions open with what the package does in our own words ("Runs a s
    > downloads-bound four (bellpull #174, burgee #96, oxmutate #50, seniority #94) go to an adoption
    > intent. The seven packages added to the phrase table since (truepass, contractdiff, truefit,
    > provedone, replz, hookset, triggerlist) are all >250 on their first reading, a baseline.
+   >
+   > **2026-11-25: reworded** ([D-20261125-npm-search-shorter-openings](../../decisions/D-20261125-npm-search-shorter-openings.md)).
+   > caique, controlroom, roundel and flagstaff keep their phrase and drop the rest of their first
+   > sentence, from 229–253 characters to 119–148. Criterion 4 is read again one week after the
+   > release that publishes them.
 
 ## Open questions
 

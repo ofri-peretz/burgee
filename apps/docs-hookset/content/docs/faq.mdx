@@ -34,7 +34,7 @@ its own CI runs. lefthook's `remotes` take a tag or a branch, never a commit.
 ## My lefthook.yml was written by hand. Will init overwrite it?
 
 No. It refuses, and `--force` adds the `remotes:` block on top while keeping every step. Then
-`check` names the steps that now run twice. [The two commands](/docs/guides/commands).
+`check` names the steps that now run twice. [The three commands](/docs/guides/commands).
 
 ## Where do repository-only steps go?
 
@@ -66,4 +66,4 @@ hookset's presets are for lefthook. Husky presets are not built.
 ## Does an agent get structured output?
 
 Yes. `--json` on `init` and `check` prints burgee's envelope, every problem with an `id` and a
-`fix`, and `hookset --mcp` serves both commands as tools. [The two commands](/docs/guides/commands).
+`fix`, and `hookset --mcp` serves every command as tools. [The three commands](/docs/guides/commands).

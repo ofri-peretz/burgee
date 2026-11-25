@@ -5,6 +5,7 @@
  */
 import { defineCommand, defineProgram, ExitCode } from 'burgee';
 
+import { checkContext, contextText } from './context.js';
 import { checkRepo, checkText, initRepo, packageRoot, packageVersion } from './core.js';
 import { cwd } from './runtime.js';
 
@@ -57,9 +58,34 @@ const checkCommand = defineCommand({
   },
 });
 
+const contextCommand = defineCommand({
+  name: 'context',
+  description: "Fail when what Claude Code loads into every session outgrows the repo's token ceiling",
+  effects: 'idempotent',
+  examples: [
+    { command: 'hookset context', description: 'the CI gate: exit 1 over the ceiling in .claude/hookset.json' },
+    { command: 'hookset context --update', description: 'after a cut: lower the ceiling to the current size' },
+  ],
+  options: {
+    update: { type: 'boolean', description: 'lower the ceiling to the current size; never raises it' },
+    cwd: { type: 'string', description: 'the repo to measure (default: the current directory)' },
+  },
+  run: ({ options }) => {
+    const o = options as Record<string, unknown>;
+    const result = checkContext(repoOf(o), { update: o['update'] === true });
+    const data: Record<string | symbol, unknown> = {
+      ...result,
+      changed: result.updated,
+      ...(result.ok ? {} : { exitCode: ExitCode.RUNTIME, fix: result.fix }),
+    };
+    data[TEXT] = () => contextText(result);
+    return data;
+  },
+});
+
 export const program = defineProgram({
   name: 'hookset',
   version: packageVersion(PKG),
   description: 'The verification stations as git and Claude hooks, the same in every repo',
-  commands: [initCommand, checkCommand],
+  commands: [initCommand, checkCommand, contextCommand],
 });

@@ -18,6 +18,12 @@ Intent: [`intent.md`](./intent.md). **Status:** draft.
 - **R5** A `PostToolUse` hook that counts failed test commands per session in a temp file and, on
   the third, returns a message telling the agent to stop and ask.
 - **R6** `--json` on every command; burgee `defineCommand` throughout.
+- **R7** A `Stop` hook that sends a turn back once when it ends on uncommitted code no passing test
+  run has covered (the verification post's "a hook that runs tests when Claude finishes"); docs
+  and repo-listed `verifyIgnore` globs do not count, and the second stop of a turn always ends it.
+- **R8** A `verify` skill every adopting repo carries (the post's verify skill and feature map):
+  `init --claude` writes the template once, `check` fails while it is missing, unfilled, or has
+  lost `name: verify` or `## Feature map`.
 
 ## Status
 
@@ -32,8 +38,10 @@ Read on 2026-11-24 for the 1.0 bar (D-170), recorded in
 | R4  | **Built** | `claude/guard-bash.mjs` (plus generated-file edits, from `.claude/hookset.json`)        | `claude.test.ts` › `guard-bash`                            |
 | R5  | **Built** | `claude/stop-after-3.mjs`                                                               | `claude.test.ts` › `stop-after-3`                          |
 | R6  | **Built** | `cli.ts` (`defineCommand`, `--json` through burgee)                                     | `cli.test.ts` › `hookset`                                  |
+| R7  | **Built** | `claude/verify-before-stop.mjs`                                                         | `claude.test.ts` › `verify-before-stop`                    |
+| R8  | **Built** | `claude/skills/verify/SKILL.md`, `core.ts` (`checkSkill`)                               | `core.test.ts` › `checkRepo`                               |
 
-**Built: 6. Not built: 0.**
+**Built: 8. Not built: 0.**
 
 ## Design
 
