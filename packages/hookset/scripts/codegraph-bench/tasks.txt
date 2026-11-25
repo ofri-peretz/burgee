@@ -1,0 +1,7 @@
+Which functions call measureContext in the hookset package, and what does each one do with its result? Answer briefly with file:line references.
+How does `hookset check` decide that a vendored Claude hook file has drifted, and what fix does it print? Answer briefly with file:line references.
+Where is burgee's --json output envelope built, and name three packages in this repo whose CLIs emit it. Answer briefly with file:line references.
+What does hookset init do when lefthook.yml already has a remotes block that is not hookset's? Trace the code path briefly with file:line references.
+Explain end to end how a burgee program turns argv into the --json output envelope: list each function on that path in call order with file:line.
+If I rename hookset's expectedClaudeHooks, what breaks? List every direct and transitive caller, and every test that exercises it, with file:line.
+How does triggerlist decide that a protected path changed without its trigger? Trace it from the CLI entry point to the decision, with file:line for each step.
