@@ -42,9 +42,11 @@ function drilling(argv: string[]): { path: string[]; field: string | undefined }
   const head = end === -1 ? argv : argv.slice(0, end);
   // D-116 — `--field <path>` (or `--field=<path>`) drills below the command into one field.
   const at = head.findIndex((a) => a === '--field' || a.startsWith('--field='));
+  // Stryker disable next-line OptionalChaining: once the flag is found, the token at its index exists
   const field = at === -1 ? undefined : (head[at]?.slice('--field='.length) || head[at + 1]);
   // `--field x` spans two tokens and `--field=x` one; `drop` is the last index the flag owns.
   const width = head[at] === '--field' ? 1 : 0;
+  // Stryker disable next-line ConditionalExpression: with no --field, width is 0 and at + width is -1 already
   const drop = at === -1 ? -1 : at + width;
   // `--format=…` and `--field` are flags, never steps in the command path being drilled into.
   return { path: head.filter((a, i) => a !== '--schema' && !a.startsWith('--format=') && (i < at || i > drop)), field };
@@ -91,6 +93,7 @@ export async function schemaSurface(manifest: Manifest, argv: string[], version?
   const full = schemaOf(manifest);
   full.commands = runnable(manifest).map(commandOf);
   const summary = summaryOf(manifest, budget);
+  // Stryker disable next-line ConditionalExpression: ??= undefined leaves a version that JSON.stringify drops
   if (version !== undefined) {
     full.version ??= version;
     summary.version ??= version;

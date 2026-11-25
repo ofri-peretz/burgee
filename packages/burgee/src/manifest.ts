@@ -462,6 +462,7 @@ export function hookApplies(hook: Hook | undefined, command: string): hook is Ho
   return hook.filter?.command === undefined || hook.filter.command.test(command);
 }
 
+// Stryker disable next-line NumericLiteral: only the order against an unordered plugin's 1 matters
 const ORDER = { pre: 0, post: 2 } as const;
 
 export class Manifest {
@@ -550,6 +551,7 @@ export class Manifest {
     let depth = 0;
     for (const node of this.commands) {
       const typed = node.path.slice(root.length);
+      // Stryker disable next-line ConditionalExpression: a path longer than argv fails every() below anyway; this only skips the walk
       if (typed.length > argv.length) continue;
       if (typed.every((seg, i) => argv[i] === seg) && typed.length >= depth) {
         best = node;

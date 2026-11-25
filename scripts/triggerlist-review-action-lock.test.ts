@@ -25,6 +25,10 @@
  * brief step must hand triggerlist the author's (and maintainers') conversation comments and
  * review-thread replies, never a bot's or a passer-by's, and the prompt must say an answered
  * finding is not repeated unless the diff changed the facts.
+ *
+ * eslint excluded `coderabbitai[bot]` from its own review step because CodeRabbit's comments
+ * pushed the prompt past its limit and the required check went red with no model call. The
+ * action must forward that exclusion, on by default, or every caller loses it.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -263,6 +267,11 @@ describe('the triggerlist review action', () => {
     const args = reviewStep!.with!['claude_args']!;
     expect(args).toContain("${{ inputs.extra-tools && format(',{0}', inputs.extra-tools) || '' }}");
     expect((loadYaml(readFileSync(ACTION, 'utf8')) as { inputs: Record<string, { default?: string }> }).inputs['extra-tools']?.default).toBe('');
+  });
+
+  it('keeps CodeRabbit\'s comments out of the reviewer\'s prompt by default', () => {
+    expect(reviewStep!.with!['exclude_comments_by_actor']).toBe('${{ inputs.exclude-comments-by-actor }}');
+    expect((loadYaml(readFileSync(ACTION, 'utf8')) as { inputs: Record<string, { default?: string }> }).inputs['exclude-comments-by-actor']?.default).toBe('coderabbitai[bot]');
   });
 
   executes('fails, after saying so on the PR, when the head moved during the review', () => {

@@ -41,6 +41,10 @@ inputs:
     description: Tools the reviewer may use beyond posting comments and reading the diff, comma-separated, such as `Read,Grep,Glob` for a repository whose diffs are too large to read whole.
     required: false
     default: ''
+  exclude-comments-by-actor:
+    description: Comment authors whose comments stay out of the reviewer's prompt, comma-separated. CodeRabbit's long reviews pushed the prompt over its limit, so the run ended with is_error and no model call and the required check went red.
+    required: false
+    default: coderabbitai[bot]
   claude-args:
     description: Extra claude_args for the review, such as --model and --max-turns.
     required: false
@@ -104,6 +108,7 @@ runs:
       with:
         claude_code_oauth_token: ${{ inputs.claude-code-oauth-token }}
         track_progress: true
+        exclude_comments_by_actor: ${{ inputs.exclude-comments-by-actor }}
         prompt: |
           REPO: ${{ github.repository }}
           PR NUMBER: ${{ github.event.pull_request.number }}

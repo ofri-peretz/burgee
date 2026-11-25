@@ -78,6 +78,12 @@ export function flagEndingInNonWordCharacters(s: string): string | undefined {
   const n = s.length;
   const eq = s.indexOf('=');
   const limit = eq === -1 ? n : eq;
+  /*
+   * Stryker disable NumericLiteral,ArithmeticOperator,EqualityOperator,ArrayDeclaration,ConditionalExpression,LogicalOperator:
+   * the bounds below guard one another (a string that starts with a line break has no dashes, the
+   * dashes end before any `=`, and `runEnd[n]` is `n`), so loosening any one of them answers the
+   * same. flag-shapes.test.ts checks every string up to five characters against the regex.
+   */
   let tail = 0;
   for (let i = n - 1; i >= 0; i--) {
     if (/[\n\r\u2028\u2029]/.test(s[i] as string)) {
@@ -92,5 +98,6 @@ export function flagEndingInNonWordCharacters(s: string): string | undefined {
   const starts = (j: number): boolean => j < n && j <= limit && (runEnd[j] as number) > j && (runEnd[j] as number) >= tail;
   for (let j = p + 1; j <= limit && j < n; j++) if (starts(j)) return s.slice(p, j);
   for (let j = p; j >= 2; j--) if (starts(j)) return '-';
+  // Stryker restore all
   return undefined;
 }
