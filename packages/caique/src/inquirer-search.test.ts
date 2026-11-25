@@ -28,6 +28,37 @@ const fruits = [{ value: 'apple' }, { value: 'banana', description: 'yellow' }, 
 /** A source that filters `fruits` by the term. */
 const filtered = (term?: string): typeof fruits => (term === undefined ? fruits : fruits.filter((fruit) => Separator.isSeparator(fruit) || fruit.value.includes(term)));
 
+/**
+ * A source whose second call answers only when the test says, after the third has: the second
+ * is the one typing past aborted. `late` settles once the component has seen its answer.
+ */
+function lateSecondCall(third: () => Promise<readonly string[]>, second: () => readonly string[]) {
+  let calls = 0;
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let late: Promise<readonly string[]> = Promise.resolve([]);
+  const source = (term?: string): Promise<readonly string[]> => {
+    calls++;
+    if (term === undefined) return Promise.resolve(['a']);
+    if (calls === 2) {
+      late = gate.then(second);
+      return late;
+    }
+    return third();
+  };
+  /** Let the aborted call answer, and wait until the component has handled what it said. */
+  const answerLate = async (): Promise<void> => {
+    release();
+    await late.catch(() => undefined);
+    // The component's own `.catch` runs a turn after the rejection it handles.
+    await Promise.resolve();
+    await Promise.resolve();
+  };
+  return { source, answerLate };
+}
+
 describe('search', () => {
   it('lists what the source returns for no term, then for each term typed', async () => {
     const source = vi.fn(filtered);
@@ -87,67 +118,54 @@ describe('search', () => {
   });
 
   it('ignores what a source throws that is not an Error, and what an aborted call returns', async () => {
-    let first = true;
-    const { events, getScreen, nextRender } = await render(search, {
-      message: 'Fruit',
-      source: async (term?: string) => {
-        if (term === undefined) return ['a'];
-        if (first) {
-          first = false;
-          await new Promise((resolve) => setTimeout(resolve, 20));
-          return ['stale'];
-        }
-        throw 'not an error';
-      },
-    });
+    const { source, answerLate } = lateSecondCall(
+      () => Promise.reject('not an error' as unknown as Error),
+      () => ['stale'],
+    );
+    const { events, getScreen, nextRender } = await render(search, { message: 'Fruit', source });
     await nextRender();
     events.type('x');
     events.type('y');
-    await new Promise((resolve) => setTimeout(resolve, 40));
+    await vi.waitFor(() => {
+      expect(getScreen()).toContain('Search failed');
+    });
+    await answerLate();
     expect(getScreen()).not.toContain('stale');
     expect(getScreen()).not.toContain('not an error');
   });
 
   it('keeps the fresh results when an aborted call returns after them', async () => {
-    let calls = 0;
-    const { events, getScreen, nextRender } = await render(search, {
-      message: 'Fruit',
-      source: async (term?: string) => {
-        calls++;
-        if (term === undefined) return ['a'];
-        if (calls === 2) {
-          await new Promise((resolve) => setTimeout(resolve, 20));
-          return ['stale'];
-        }
-        return ['fresh'];
-      },
-    });
+    const { source, answerLate } = lateSecondCall(
+      () => Promise.resolve(['fresh']),
+      () => ['stale'],
+    );
+    const { events, getScreen, nextRender } = await render(search, { message: 'Fruit', source });
     await nextRender();
     events.type('x');
     events.type('y');
-    await new Promise((resolve) => setTimeout(resolve, 40));
+    await vi.waitFor(() => {
+      expect(getScreen()).toContain('fresh');
+    });
+    await answerLate();
     expect(getScreen()).toContain('fresh');
     expect(getScreen()).not.toContain('stale');
   });
 
   it('ignores an aborted call that fails, too', async () => {
-    let calls = 0;
-    const { events, getScreen, nextRender } = await render(search, {
-      message: 'Fruit',
-      source: async (term?: string) => {
-        calls++;
-        if (term === undefined) return ['a'];
-        if (calls === 2) {
-          await new Promise((resolve) => setTimeout(resolve, 20));
-          throw new Error('too late');
-        }
-        return ['fresh'];
+    const { source, answerLate } = lateSecondCall(
+      () => Promise.resolve(['fresh']),
+      () => {
+        throw new Error('too late');
       },
-    });
+    );
+    const { events, getScreen, nextRender } = await render(search, { message: 'Fruit', source });
     await nextRender();
     events.type('x');
     events.type('y');
-    await new Promise((resolve) => setTimeout(resolve, 40));
+    await vi.waitFor(() => {
+      expect(getScreen()).toContain('fresh');
+    });
+    await answerLate();
     expect(getScreen()).toContain('fresh');
     expect(getScreen()).not.toContain('too late');
   });
