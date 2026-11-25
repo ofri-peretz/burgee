@@ -7,7 +7,7 @@ description: What every published entry point costs a consumer's bundle, at both
 
 Generated 2026-11-25 at commit `8b6a987b`.
 
-Every entry point this repository publishes, and what it costs a consumer's bundle. **136 subpaths across 18 packages**, every export of every one of them bundled on its own.
+Every entry point this repository publishes, and what it costs a consumer's bundle. **137 subpaths across 18 packages**, every export of every one of them bundled on its own.
 
 Three numbers, because tree shaking makes this a range rather than a figure:
 
@@ -180,13 +180,14 @@ same function produces both.
 
 | Subpath | Exports | Cheapest | Dearest | Everything |
 | :--- | ---: | ---: | ---: | ---: |
+| `provedone/receipt` | 7 | `TRAILER_WIDTH` 38 | `verdict` 893 | 1,937 |
 | `provedone` | 19 | `ESCAPE_AFTER` 35 | `program` 34,672 | 34,957 |
 
 ### `replz`
 
 | Subpath | Exports | Cheapest | Dearest | Everything |
 | :--- | ---: | ---: | ---: | ---: |
-| `replz` | 24 | `isYes` 50 | `runPropose` 63,293 | 63,630 |
+| `replz` | 33 | `isYes` 50 | `runScorecard` 72,443 | 72,921 |
 
 ### `roundel`
 

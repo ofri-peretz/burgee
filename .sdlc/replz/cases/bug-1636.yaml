@@ -1,0 +1,9 @@
+# feat(benchmarks): pinned contract corpus, grader beside incumbents, consumer harness (PLAN.md 6.11) (#1636)
+# Confirmed from the diff on 2026-11-25: fixed by #1643.
+id: bug-1636
+kind: bug
+pr: 1636
+base: "e14584c6d557"
+head: "5e427f628c79"
+answer: "the corpus grader matches tsc's error paths against the working directory as given, so on macOS, where /var/folders resolves to /private/var/folders, no error matches a document and every type-check reads as a pass."
+set: test

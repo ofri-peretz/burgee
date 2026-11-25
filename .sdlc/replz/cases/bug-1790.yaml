@@ -1,0 +1,9 @@
+# fix(hookset): close four gaps in guard-bash and stop-after-3 (#1790)
+# Confirmed from the diff on 2026-11-25: fixed by #1794.
+id: bug-1790
+kind: bug
+pr: 1790
+base: "a1fe8eb39533"
+head: "40903e74a35b"
+answer: "guard-bash lets only a --long option take the next word as its value before `publish`, so `pnpm -F pkg publish` reads `pkg` as the subcommand and the publish runs without asking."
+set: test

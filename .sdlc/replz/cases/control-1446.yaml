@@ -1,0 +1,8 @@
+# chore(workspace): record control-band observations (#1446)
+# Size-matched control for bug-1570 (14218 vs 14020 lines): no fix or revert traces back to it.
+id: control-1446
+kind: control
+pr: 1446
+base: "f7fbbcf775ec"
+head: "6fb3a40e6422"
+set: tune

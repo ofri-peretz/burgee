@@ -1,0 +1,46 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Verification Scorecard
+
+# How well our checks catch bugs, from history alone (.sdlc/intents/replz-scorecard/): escapes
+# traced from reverts and fixes, provedone receipts, and replz recall. No model runs, so it costs
+# a few minutes of git. A measure that leaves its band in .sdlc/bands/verification-scorecard.json
+# fails the run with the `fix:` it points at.
+
+on:
+  schedule:
+    - cron: "40 5 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: verification-scorecard
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  score:
+    name: Score the checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      # Full history: SZZ blames the lines each fix changed back to the pull request that wrote them.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+
+      - name: Build replz
+        run: npx turbo run build --filter=replz
+
+      - name: Score
+        shell: bash
+        run: |
+          set -o pipefail
+          node packages/replz/dist/bin.js scorecard --ref HEAD --ratchet .sdlc/bands/verification-scorecard.json 2>&1 | tee scorecard.log
+
+      - name: Summary
+        if: always()
+        run: |
+          { echo '## Verification scorecard'; echo; echo '```'; cat scorecard.log || echo '(no output)'; echo '```'; } >> "$GITHUB_STEP_SUMMARY"

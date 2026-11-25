@@ -1,0 +1,8 @@
+# docs(burgee): native-engine design accepted, measured M0: no layer ported yet (#1317)
+# Size-matched control for bug-1624 (2171 vs 2216 lines): no fix or revert traces back to it.
+id: control-1317
+kind: control
+pr: 1317
+base: "2b983c284c2a"
+head: "0fcffdeb6ba9"
+set: test

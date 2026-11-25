@@ -31,10 +31,19 @@
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
+    "./receipt": {
+      "types": "./dist/receipt.d.ts",
+      "import": "./dist/receipt.js",
+      "default": "./dist/receipt.js"
+    },
     "./package.json": "./package.json"
   },
   "typesVersions": {
-    "*": {}
+    "*": {
+      "receipt": [
+        "./dist/receipt.d.ts"
+      ]
+    }
   },
   "keywords": [
     "verification",

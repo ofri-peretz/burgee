@@ -1,0 +1,9 @@
+# feat(proofline): stamp, gate, done and intent check, as a burgee CLI (#1706)
+# Confirmed from the diff on 2026-11-25: fixed by #1792.
+id: bug-1706
+kind: bug
+pr: 1706
+base: "09a90a4ee167"
+head: "c924fd26b394"
+answer: "provedone stamp prints a trailer line longer than commitlint's 100-column footer limit for a long --run command or --not-checked gap, so pasting the stamp fails the commit-msg hook."
+set: tune

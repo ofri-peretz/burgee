@@ -1,0 +1,8 @@
+# test(burgee): kill the plugin, help, schema and schema-surface survivors (#1847)
+# Size-matched control for bug-1774 (372 vs 391 lines): no fix or revert traces back to it.
+id: control-1847
+kind: control
+pr: 1847
+base: "5192d9fedb47"
+head: "35c30ece83ac"
+set: tune

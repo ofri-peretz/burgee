@@ -1,0 +1,9 @@
+# perf(contractdiff): props reads the Stripe and GitHub specs inside the corpus lane's limit (#1767)
+# Confirmed from the diff on 2026-11-25: fixed by #1770.
+id: bug-1767
+kind: bug
+pr: 1767
+base: "d256b3ddb662"
+head: "dc457f890987"
+answer: "props' shared reader holds only the contract's definitions, so a payload whose $ref points into its own properties (#/properties/b) is refused where it used to be read."
+set: test

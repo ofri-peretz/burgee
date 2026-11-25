@@ -1,0 +1,9 @@
+# feat(apicontract): diff holds a breaking change to the decision written in the contract (#1707)
+# Confirmed from the diff on 2026-11-25: fixed by #1762.
+id: bug-1707
+kind: bug
+pr: 1707
+base: "463e0704fa32"
+head: "2144c802249d"
+answer: "the decision reader walks every path through a shared $ref graph, so a large, heavily shared spec (Stripe) runs for minutes and overflows a Set."
+set: test

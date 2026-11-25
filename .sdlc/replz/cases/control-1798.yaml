@@ -1,0 +1,8 @@
+# feat(release): cut 1.0.0 for truefit, truepass, provedone and contractdiff (#1798)
+# Size-matched control for bug-1805 (460 vs 453 lines): no fix or revert traces back to it.
+id: control-1798
+kind: control
+pr: 1798
+base: "cc63fc19a29b"
+head: "78d014badecb"
+set: tune
