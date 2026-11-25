@@ -18,7 +18,7 @@
   <a href="https://app.codecov.io/gh/ofri-peretz/burgee/components"><img src="https://img.shields.io/codecov/c/github/ofri-peretz/burgee/main?component=truepass&style=flat-square" alt="truepass line coverage: its Codecov component" /></a>
   <a href="https://scorecard.dev/viewer/?uri=github.com/ofri-peretz/burgee"><img src="https://img.shields.io/ossf-scorecard/github.com/ofri-peretz/burgee?style=flat-square&label=OpenSSF%20Scorecard" alt="OpenSSF Scorecard for the repository" /></a>
   <a href="https://www.npmjs.com/package/truepass?activeTab=code"><img src="https://img.shields.io/npm/unpacked-size/truepass?style=flat-square" alt="Unpacked size of the latest truepass release on npm" /></a>
-  <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/truepass/package.json"><img src="https://img.shields.io/badge/dependencies-2%20in%20family%2C%200%20outside-0a6b47?style=flat-square" alt="Two dependencies, all in the burgee family (bellpull, burgee), none outside it" /></a>
+  <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/truepass/package.json"><img src="https://img.shields.io/badge/dependencies-3%20in%20family%2C%200%20outside-0a6b47?style=flat-square" alt="Three dependencies, all in the burgee family (bellpull, burgee, roundel), none outside it" /></a>
   <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/truepass/package.json"><img src="https://img.shields.io/badge/types-included-blue?style=flat-square" alt="TypeScript types included for every entry point" /></a>
   <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/truepass/package.json"><img src="https://img.shields.io/badge/Node.js-22.13%2B-green?style=flat-square" alt="Node.js 22.13+" /></a>
   <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/truepass/LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="License: MIT" /></a>
@@ -97,6 +97,7 @@ own commit messages: it exits 1 on a finding and 0 on none.
 | `truepass/no-test-retry`       | ESLint          | `retry` / `retries` in tests and runner configs, `jest.retryTimes`                                 |
 | `weakened-assertion`           | `truepass diff` | an `expect(x)` moved to a weaker matcher; `Assertion: <why>` in a commit accepts it                |
 | `unexplained-snapshot`         | `truepass diff` | a snapshot file changed with no `Snapshot: <why>` line in the range's commits                      |
+| per-case time budget           | vitest reporter | a case over 5 s (`budgetMs`) and still over it alone; `truepass budget` judges a deferred battery  |
 
 A call counts as a test only when its root is a test-runner name that is an unbound global or is
 imported from a test-runner module, so a program's own `only()` is never reported.
@@ -117,6 +118,11 @@ pre-push:
   commands:
     truepass:
       run: npx truepass diff --base origin/main
+```
+
+```js
+// vitest.config.ts: a case over 5 s, and still over it run alone, fails the run
+reporters: ["default", ["truepass/vitest-reporter", { budgetMs: 5000 }]];
 ```
 
 ## Migrating
@@ -176,7 +182,7 @@ Node 22.13 or later. git, for `truepass diff`. ESLint 9 or later in the project,
 
 It hosts no plugin key of its own.
 
-Nothing in this family builds on it yet, and it builds on `bellpull` and `burgee`.
+Nothing in this family builds on it yet, and it builds on `bellpull`, `burgee`, `roundel`.
 
 ## The family
 

@@ -10,3 +10,4 @@
 export { parseUnifiedDiff, unexplainedSnapshots, weakenedAssertions, MATCHER_RANK, type ChangedLine, type FileDiff, type Finding, type Hunk } from './checks.js';
 export { check } from './check.js';
 export { createProgram, program } from './cli.js';
+export { budgetFrom, caseKey, DEFAULT_BUDGET_MS, DEFER_ENV, BUDGET_ENV, judge, overBudget, readCandidates, type Candidate, type CaseDuration, type Exemptions, type Machine } from './budget.js';

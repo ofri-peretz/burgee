@@ -51,6 +51,9 @@ const ALLOWED = new Set([
   'oxmutate/src/runtime.ts',
   // hookset's seam: its CLI reads the directory it was started in, nothing else.
   'hookset/src/runtime.ts',
+  // truepass's seam: the budget reporter and `truepass budget` read the environment, the
+  // directory and the node binary, and set the exit code, through it.
+  'truepass/src/runtime.ts',
   // compat-oracle is internal tooling — `private: true`, never published, not one of the nine
   // layers. Its three entries are each the job of owning a process rather than a lapse into
   // one: `bin.ts` is a CLI entry, `run.ts` spawns the host suites and needs `execPath`, and

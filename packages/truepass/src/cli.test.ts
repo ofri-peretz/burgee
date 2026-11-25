@@ -1,7 +1,14 @@
+import { existsSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import { ExitCode } from 'burgee';
 import { runBurgee } from 'burgee/testing';
 import { beforeAll, describe, expect, it } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
+
+import type { Machine } from './budget.js';
 import { createProgram } from './cli.js';
 import type { Git } from './git.js';
 
@@ -94,5 +101,50 @@ describe('truepass diff', () => {
     expect(r.code).toBe(ExitCode.USAGE);
     expect(r.stderr).toContain('could not compare against nope');
     expect(r.stderr).toContain('fetch nope first');
+  });
+});
+
+const scratch = scratchDirs();
+
+/** A machine whose every alone reading is `alone`. */
+const machine = (alone: number, env: NodeJS.ProcessEnv = { CI: 'true' }): Machine => ({ env, measure: async () => alone, overloaded: () => false, now: () => 0, write: () => undefined, cores: 1 });
+
+/** A directory holding one candidate, as a deferred run leaves it. */
+function deferred(budget?: number): string {
+  const dir = scratch('truepass-cli-budget-');
+  writeFileSync(join(dir, '1.json'), JSON.stringify([{ file: 'src/a.test.ts', path: '/r/src/a.test.ts', name: 's > slow', title: 'slow', duration: 6000, cwd: '/r', config: undefined, budget }]));
+  return dir;
+}
+
+describe('truepass budget', () => {
+  it('passes when every candidate is fast alone, and empties the directory', async () => {
+    const dir = deferred();
+    const r = await runBurgee(createProgram(fakeGit({}), machine(10)), { argv: ['budget', dir] });
+    expect(r.code).toBe(0);
+    expect(r.stdout).toContain('no test case over the 5000 ms budget (1 re-measured alone)');
+    expect(existsSync(dir)).toBe(false);
+  });
+
+  it('exits 1 when a candidate is still over the budget alone', async () => {
+    const r = await runBurgee(createProgram(fakeGit({}), machine(9000)), { argv: ['budget', deferred(), '--json'] });
+    expect(r.code).toBe(ExitCode.RUNTIME);
+    expect(JSON.stringify(r.json)).toContain('"passed":false');
+  });
+
+  it('passes a battery that left no candidates', async () => {
+    const r = await runBurgee(createProgram(fakeGit({}), machine(9000)), { argv: ['budget', join(tmpdir(), 'truepass-budget-no-battery')] });
+    expect(r.code).toBe(0);
+    expect(r.stdout).toContain('(0 re-measured alone)');
+  });
+
+  it('judges by the budget the run held the cases to', async () => {
+    const r = await runBurgee(createProgram(fakeGit({}), machine(1500)), { argv: ['budget', deferred(1000)] });
+    expect(r.code).toBe(ExitCode.RUNTIME);
+    expect(r.stdout).toContain('over the 1000 ms budget');
+  });
+
+  it('passes with the gate off, measuring nothing', async () => {
+    const r = await runBurgee(createProgram(fakeGit({}), machine(9000, { TRUEPASS_BUDGET_MS: '0' })), { argv: ['budget', deferred()] });
+    expect(r.code).toBe(0);
   });
 });
