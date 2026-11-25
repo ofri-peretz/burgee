@@ -61,5 +61,12 @@ assumed.
 | 2. a test validates real `--schema` output from a non-trivial program, and fails on disagreement | met | `scripts/program-schema.test.ts` |
 | 3. the READMEs say `JSON-Schema validated` again, and a check holds them to it | met | both READMEs name `burgee/program-schema.json` beside `--schema`; `program-schema.test.ts` › SC3, red on `main` |
 
+Re-run weekly by `provedone intent check --evidence` (`.github/workflows/intent-evidence.yml`):
+
+| Criterion | Command | Output |
+| :-- | :-- | :-- |
+| 2. a test validates real `--schema` output | `npx vitest run --config vitest.root.config.ts scripts/program-schema.test.ts` | exit 0, `scripts/program-schema.test.ts` |
+| 3. a check holds the READMEs to it | `npx vitest run --config vitest.root.config.ts scripts/program-schema.test.ts -t SC3` | exit 0, `scripts/program-schema.test.ts` |
+
 The npm README of `burgee` carries the sentence from its next release; the file it names has
 shipped since R1.
