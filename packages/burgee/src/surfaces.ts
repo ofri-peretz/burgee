@@ -171,7 +171,7 @@ function marked(o: object): boolean {
 
 /** Whether a command, one of its options or one of its examples was written with a localised text. */
 function authoredIn(c: CommandNode): boolean {
-  // Stryker disable next-line MethodExpression: every() over a command with no options or examples is true, which loads locale.js to change nothing: with no localised text or pack its view and localiser are the identity
+  // Stryker disable next-line MethodExpression,ConditionalExpression: true, or every() over a command with no options or examples is true, which loads locale.js to change nothing: with no localised text or pack its view and localiser are the identity
   return marked(c) || Object.values(c.options).some(marked) || (c.examples ?? []).some(marked);
 }
 
@@ -335,7 +335,7 @@ function unknownCommand({ manifest, root }: Resolving, from: CommandNode, before
   const reached = manifest.resolve([...before, ...all], root);
   const node = reached.node ?? from;
   // Without a request for JSON, `all` is the words that resolved nothing that runs: either half alone decides.
-  // Stryker disable next-line EqualityOperator: as the next line
+  // Stryker disable next-line EqualityOperator,ConditionalExpression: as the next line
   const asksJson = isJsonFlag(lead) || jsonSpelling(typed, 0) > 0;
   // Stryker disable next-line ConditionalExpression: without a request for JSON the node does not run, and with one and a node that does not run, the line run again is refused the same way
   if (asksJson && node.run !== undefined) {
@@ -398,7 +398,7 @@ function argumentOf(manifest: Manifest, node: CommandNode, words: string[]): str
  * said `greet user.name`, and four of those runs ran it. Otherwise, the one sibling `said` names.
  */
 function meant(manifest: Manifest, node: CommandNode, word: string, said: string): string[] | undefined {
-  // Stryker disable next-line EqualityOperator,ConditionalExpression,ArithmeticOperator: a child named exactly `word` is also the one suggestSimilar names, so counting children in changes no answer
+  // Stryker disable next-line EqualityOperator,ConditionalExpression,ArithmeticOperator,NumericLiteral: a child named exactly `word` is also the one suggestSimilar names, so counting children in changes no answer
   const deeper = (c: CommandNode): boolean => c.path.length > node.path.length + 1;
   const exact = runnableBelow(manifest, node).filter((c) => deeper(c) && c.path.at(-1) === word);
   if (exact.length === 1) return (exact[0] as CommandNode).path.slice(node.path.length);

@@ -32,6 +32,7 @@ describe('unalias', () => {
   it('rewrites an alias three levels down to the last segment of its path', () => {
     expect(unalias(manifest, ['remote', 'a', 'd'], [])).toEqual(['remote', 'add', 'deep']);
     expect(unalias(manifest, ['remote', 'add', 'deep'], [])).toEqual(['remote', 'add', 'deep']);
+    expect(unalias(manifest, ['remote', 'add', 'd'], [])).toEqual(['remote', 'add', 'deep']);
   });
 
   it('passes over a command with no aliases when the word is not its name', () => {

@@ -454,6 +454,10 @@ describe('the synthesised commands stand aside', () => {
   it('serves schema unless the root takes words', async () => {
     expect(JSON.parse(await single([]))).toHaveProperty('arguments', []);
     expect(await single([{ name: 'word' }])).toBe('ran schema\n');
+    const bare = defineCommand({ name: 'echo', effects: 'read_only', run: () => 'ran' });
+    const out: string[] = [];
+    await run(bare, { argv: ['schema'], env: {}, stdout: { write: (t) => out.push(t) }, stderr: { write: () => true }, exit: () => undefined });
+    expect(JSON.parse(out.join(''))).toHaveProperty('arguments', []);
     expect(JSON.parse((await runCommand(tool(), ['schema'])).stdout)).toHaveProperty('commands');
   });
 

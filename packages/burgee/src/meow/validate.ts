@@ -40,7 +40,7 @@ export function validateFlags(flags: Record<string, FlagSpec>): void {
   // back, so meow refuses the declaration rather than every value a user could type.
   const mistyped = pick((spec) => spec.type !== undefined && Array.isArray(spec.choices) && spec.choices.some((c) => typeof c !== spec.type));
   if (mistyped.length > 0) {
-    const described = mistyped.map((n) => `(\`--${decamelize(n, '-')}\`, type: '${String((flags[n] as FlagSpec).type)}')`);
+    const described = mistyped.map((n) => `(\`--${decamelize(n)}\`, type: '${String((flags[n] as FlagSpec).type)}')`);
     errors.push(`Each value of the option \`choices\` must be of the same type as its flag. Invalid flags: ${described.join(', ')}`);
   }
   // A default outside its own `choices` is a mistake in the declaration, so it is reported
