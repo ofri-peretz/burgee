@@ -13,14 +13,6 @@ import { program, VERSION, decide, … } from 'provedone';
 
 ## Constants
 
-### checkedLine
-
-The PR's `Checked:` line: each command and how it ended, then what was not checked.
-
-```ts
-const checkedLine: (receipt: Receipt) => string;
-```
-
 ### checkIntent
 
 Every finding for one intent: its `intent.md` text and, when it has one, its `spec.md` text.
@@ -41,12 +33,6 @@ const criteria: (intent: string) => string[];
 
 ```ts
 const decide: (mode: Mode, verdict: Verdict, log: readonly LogEntry[], session: string) => Decision;
-```
-
-### digest
-
-```ts
-const digest: (output: string) => string;
 ```
 
 ### doneLine
@@ -95,14 +81,6 @@ const indexDrift: (readme: string, statuses: ReadonlyMap<string, string | undefi
 const MODES: readonly ["off", "observe", "enforce"];
 ```
 
-### prBlock
-
-The "How this was checked" block for a PR body: the `Checked:` line, then the trailers, which the gate reads.
-
-```ts
-const prBlock: (receipt: Receipt) => string;
-```
-
 ### program
 
 ```ts
@@ -125,26 +103,12 @@ The session a block counts against: the agent's session id when the environment 
 const sessionOf: (env: Readonly<Record<string, string | undefined>>, branch: string) => string;
 ```
 
-### trailers
-
-The commit trailers: one `Verified-by:` per check (or one `none`), one `Captured:` per path, one `Not-checked:` per gap, each folded to fit commitlint's footer width.
-
-```ts
-const trailers: (receipt: Receipt) => string[];
-```
-
 ### unevidenced
 
 True when a shipped intent records no evidence: no `## Shipped`, no `## Restated`, no evidence table.
 
 ```ts
 const unevidenced: (intent: string) => boolean;
-```
-
-### verdict
-
-```ts
-const verdict: (message: string) => Verdict;
 ```
 
 ### VERSION
@@ -156,16 +120,6 @@ const VERSION: string;
 ```
 
 ## Interfaces
-
-### Check
-
-```ts
-interface Check {
-    readonly command: string;
-    readonly exit: number;
-    readonly digest: string;
-}
-```
 
 ### CriterionReport
 
@@ -222,18 +176,6 @@ interface LogEntry {
 }
 ```
 
-### Receipt
-
-```ts
-interface Receipt {
-    readonly checks: readonly Check[];
-    readonly captures: readonly string[];
-    readonly notChecked: readonly string[];
-    /** Set only on `Verified-by: none (<reason>)`. */
-    readonly none?: string;
-}
-```
-
 ### Stamp
 
 One stamped command, as the store keeps it.
@@ -250,16 +192,6 @@ interface Stamp {
 }
 ```
 
-### Verdict
-
-```ts
-interface Verdict {
-    readonly ok: boolean;
-    readonly reason: string;
-    readonly fix?: string;
-}
-```
-
 ## Types
 
 ### Mode
@@ -267,3 +199,18 @@ interface Verdict {
 ```ts
 type Mode = (typeof MODES)[number];
 ```
+
+## Re-exported
+
+Documented on the page of the entry point that declares them.
+
+| Export | Kind | Documented in |
+| :-- | :-- | :-- |
+| `checkedLine` | const | [`provedone/receipt`](/docs/api/receipt#checkedline) |
+| `digest` | const | [`provedone/receipt`](/docs/api/receipt#digest) |
+| `prBlock` | const | [`provedone/receipt`](/docs/api/receipt#prblock) |
+| `trailers` | const | [`provedone/receipt`](/docs/api/receipt#trailers) |
+| `verdict` | const | [`provedone/receipt`](/docs/api/receipt#verdict) |
+| `Check` | interface | [`provedone/receipt`](/docs/api/receipt#check) |
+| `Receipt` | interface | [`provedone/receipt`](/docs/api/receipt#receipt) |
+| `Verdict` | interface | [`provedone/receipt`](/docs/api/receipt#verdict) |

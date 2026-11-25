@@ -15,6 +15,7 @@ import { LOG_ARGS, parseLog, propose, toYaml } from './propose.js';
 import { refusing } from './refusal.js';
 import { replayCase, type Shell, type Worktrees } from './run.js';
 import { type CaseResult, score, toText } from './score.js';
+import { breaches, type Git, type HistoryEntry, isFix, isRevert, MAIN_LOG_ARGS, parseMainLog, type Ratchet, scorecard, scorecardText, traceFix } from './scorecard.js';
 import { logOf, sh, worktreesIn } from './shell.js';
 
 export const VERSION = (JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }).version;
@@ -137,6 +138,54 @@ export const runPropose = async (options: ProposeOptions): Promise<Data> => {
   return data;
 };
 
+/** Thirty days: long enough for a fix to land after the change it repairs, short enough to move. */
+export const DEFAULT_DAYS = 30;
+
+export interface ScorecardOptions {
+  readonly repo: string;
+  readonly ref: string;
+  readonly days: number;
+  readonly cases: string;
+  readonly ratchet?: string | undefined;
+  readonly git: Git;
+  readonly now: () => Date;
+}
+
+const DAY = 86_400_000;
+
+/** The pull requests the case folder already holds, read from file names so a draft counts too. */
+const casedPrs = (repo: string, dir: string): Set<number> => {
+  const at = resolve(repo, dir);
+  if (!existsSync(at)) return new Set();
+  return new Set(readdirSync(at).flatMap((name) => /^(?:bug|control)-(\d+)\.yaml$/u.exec(name)?.slice(1) ?? []).map(Number));
+};
+
+const lastRun = (repo: string): HistoryEntry | undefined => {
+  const at = resolve(repo, HISTORY);
+  if (!existsSync(at)) return undefined;
+  const last = readFileSync(at, 'utf8').trim().split('\n').at(-1);
+  return last === undefined || last === '' ? undefined : (JSON.parse(last) as HistoryEntry);
+};
+
+export const runScorecard = async (options: ScorecardOptions): Promise<Data> => {
+  const commits = parseMainLog(await options.git([...MAIN_LOG_ARGS, options.ref]));
+  const since = new Date(options.now().getTime() - options.days * DAY).toISOString().slice(0, 'yyyy-mm-dd'.length);
+  const traced = new Map<string, readonly string[]>();
+  for (const commit of commits.filter((found) => found.date >= since && (isFix(found.subject) || isRevert(found.subject)))) {
+    // eslint-disable-next-line reliability/no-await-in-loop -- one fix at a time: each runs a diff and blames, and parallel blames thrash the pack cache
+    traced.set(commit.sha, await traceFix(options.git, commit.sha));
+  }
+  const card = scorecard({ commits, since, traced, cased: casedPrs(options.repo, options.cases), history: lastRun(options.repo) });
+  if (options.ratchet !== undefined) {
+    const ratchet = JSON.parse(readFileSync(existing(options.repo, options.ratchet, '--ratchet'), 'utf8')) as Ratchet;
+    const broken = breaches(card, ratchet);
+    if (broken.length > 0) throw new Error(`the scorecard left its bands: ${broken.join('; ')}`);
+  }
+  const data: Data = { ...card };
+  data[TEXT] = () => scorecardText(card);
+  return data;
+};
+
 // No `(default: …)` in the description: burgee prints the default after it.
 const repoOption = { type: 'string', default: HERE, description: 'the repository', placeholder: 'dir' } as const;
 const configOption = { type: 'string', default: CONFIG, description: 'the replz config', placeholder: 'path' } as const;
@@ -198,6 +247,33 @@ export const program = defineProgram({
         limit: { type: 'number', default: DEFAULT_LIMIT, description: 'the most bug cases to draft', placeholder: 'n' },
       },
       run: refusing(({ options }) => runPropose({ repo: options.repo as string, ref: options.ref as string, limit: options.limit as number, log: logOf })),
+    }),
+    defineCommand({
+      name: 'scorecard',
+      description: 'Score how well the checks catch bugs, from history alone: escapes, receipts, recall and false alarms, each with its next fix',
+      effects: 'read_only',
+      examples: [
+        { command: 'replz scorecard', description: 'the last 30 days on origin/main' },
+        { command: 'replz scorecard --ratchet .sdlc/bands/verification-scorecard.json', description: 'fail when a measure leaves its band' },
+      ],
+      options: {
+        repo: repoOption,
+        cases: casesOption,
+        ref: { type: 'string', default: 'origin/main', description: 'the history to read', placeholder: 'ref' },
+        days: { type: 'number', default: DEFAULT_DAYS, description: 'how many days back a pull request counts', placeholder: 'n' },
+        ratchet: { type: 'string', description: 'a JSON file of bands (maxEscapeRate, minReceipts, minRecall); exit 1 when one is broken', placeholder: 'path' },
+      },
+      run: refusing(({ options }) =>
+        runScorecard({
+          repo: options.repo as string,
+          ref: options.ref as string,
+          days: options.days as number,
+          cases: options.cases as string,
+          ratchet: options.ratchet as string | undefined,
+          git: (args) => logOf(options.repo as string, args),
+          now: () => new Date(),
+        }),
+      ),
     }),
   ],
 });
