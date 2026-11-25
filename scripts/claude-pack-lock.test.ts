@@ -31,7 +31,7 @@ describe("burgee's own Claude pack", () => {
     expect(missing, 'run the missing hooks from .claude/settings.json, as `hookset init --claude` writes them').toEqual([]);
   });
 
-  it.each(STATIONS.claude.skills ?? [])('carries a filled-in $id skill', (skill) => {
+  it.each(STATIONS.claude.skills)('carries a filled-in $id skill', (skill) => {
     expect(checkSkill(ROOT, skill)).toEqual([]);
   });
 });

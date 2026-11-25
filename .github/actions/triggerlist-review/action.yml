@@ -37,6 +37,10 @@ inputs:
     description: The rules file, read from the base branch.
     required: false
     default: REVIEW.md
+  extra-tools:
+    description: Tools the reviewer may use beyond posting comments and reading the diff, comma-separated, such as `Read,Grep,Glob` for a repository whose diffs are too large to read whole.
+    required: false
+    default: ''
   claude-args:
     description: Extra claude_args for the review, such as --model and --max-turns.
     required: false
@@ -112,10 +116,14 @@ runs:
           not repeated unless the new diff changes the facts; instead, say in one line that it
           was answered and why that answer holds or does not.
 
+          Start every finding with its tag: [Important] for a bug this change adds or makes
+          worse, [Nit] for a minor point, [Pre-existing] for a bug that was there before this
+          change (the author is not held to it). The summary counts the findings by tag.
+
           ${{ steps.brief.outputs.text }}
         claude_args: |
           ${{ inputs.claude-args }}
-          --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
+          --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)${{ inputs.extra-tools && format(',{0}', inputs.extra-tools) || '' }}"
 
     - name: Mark the review stale if the head moved while it ran
       shell: bash

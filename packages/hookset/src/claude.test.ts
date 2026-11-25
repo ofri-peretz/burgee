@@ -10,6 +10,7 @@ import { packageRoot } from './core.js';
 const scratch = scratchDirs();
 
 const CLAUDE = join(packageRoot(), 'claude');
+const withoutGit = (): NodeJS.ProcessEnv => Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')));
 
 /** Run one pack hook as Claude Code does: the payload on stdin, the decision on stdout. */
 function hook(file: string, payload: unknown, env: Record<string, string> = {}): string {
@@ -132,7 +133,7 @@ describe('verify-before-stop', () => {
 
   it('sends a turn back once when code changed after the last passing test run, and lets it end after a pass', () => {
     const dir = scratch('hookset-vbs-');
-    const git = (...args: string[]): void => void spawnSync('git', args, { cwd: dir });
+    const git = (...args: string[]): void => void spawnSync('git', args, { cwd: dir, env: withoutGit() });
     git('init', '-q');
     git('-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-q', '--allow-empty', '-m', 'root');
     const session = `vitest-vbs-${String(process.pid)}-${String(Date.now())}`;
@@ -153,7 +154,7 @@ describe('verify-before-stop', () => {
 
   it('does not judge docs, or the globs the repo lists under verifyIgnore', () => {
     const dir = scratch('hookset-vbs-');
-    spawnSync('git', ['init', '-q'], { cwd: dir });
+    spawnSync('git', ['init', '-q'], { cwd: dir, env: withoutGit() });
     mkdirSync(join(dir, '.claude'));
     writeFileSync(join(dir, '.claude/hookset.json'), JSON.stringify({ verifyIgnore: ['.claude/**', 'fixtures/**'] }));
     mkdirSync(join(dir, 'fixtures'));

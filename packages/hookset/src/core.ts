@@ -49,7 +49,7 @@ export interface Stations {
   tagPrefix: string;
   presets: Record<Hook, string>;
   stations: Station[];
-  claude: { files: string[]; hooks: ClaudeHook[]; skills?: ClaudeSkill[] };
+  claude: { files: string[]; hooks: ClaudeHook[]; skills: ClaudeSkill[] };
 }
 
 export interface Problem {
@@ -324,7 +324,7 @@ function checkClaude(repo: string, pkg: string, stations: Stations): Problem[] {
       problems.push({ id: 'claude-unwired', severity: 'error', message: `.claude/settings.json does not run ${h.file} on ${h.event} (${h.matcher})`, fix: 'run `hookset init --claude`' });
     }
   }
-  for (const skill of stations.claude.skills ?? []) problems.push(...checkSkill(repo, skill));
+  for (const skill of stations.claude.skills) problems.push(...checkSkill(repo, skill));
   return problems;
 }
 
@@ -398,7 +398,7 @@ export function initRepo(repo: string, pkg: string, options: { force?: boolean; 
     for (const file of stations.claude.files) write(`.claude/hooks/${file}`, readText(join(pkg, 'claude', file)));
     if (!existsSync(join(repo, '.claude', 'hookset.json'))) write('.claude/hookset.json', `${JSON.stringify({ ask: [], frozen: [] }, undefined, 2)}\n`);
     // A skill is the repo's to fill in: written once from the template, never overwritten.
-    for (const skill of stations.claude.skills ?? []) if (!existsSync(join(repo, skill.path))) write(skill.path, readText(join(pkg, skill.template)));
+    for (const skill of stations.claude.skills) if (!existsSync(join(repo, skill.path))) write(skill.path, readText(join(pkg, skill.template)));
     write('.claude/settings.json', mergeSettings(repo, stations));
   }
   return { changed: written.length > 0, written };

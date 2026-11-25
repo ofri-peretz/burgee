@@ -298,7 +298,7 @@ interface Stations {
     claude: {
         files: string[];
         hooks: ClaudeHook[];
-        skills?: ClaudeSkill[];
+        skills: ClaudeSkill[];
     };
 }
 ```

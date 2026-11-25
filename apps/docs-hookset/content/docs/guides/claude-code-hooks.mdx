@@ -8,7 +8,7 @@ bad commit; the Claude Code hooks stop an agent from getting around them. `hooks
 --claude` puts three of them, and a verify skill to fill in, into a repository:
 
 ```text title="npx hookset init --claude"
-wrote lefthook.yml, .claude/hooks/guard-bash.mjs, .claude/hooks/stop-after-3.mjs, .claude/hooks/verify-before-stop.mjs, .claude/skills/verify/SKILL.md, .claude/settings.json
+wrote lefthook.yml, .claude/hooks/guard-bash.mjs, .claude/hooks/stop-after-3.mjs, .claude/hooks/verify-before-stop.mjs, .claude/settings.json
 ```
 
 - **`.claude/hooks/guard-bash.mjs`**, **`stop-after-3.mjs`** and **`verify-before-stop.mjs`** are copied byte
@@ -18,7 +18,8 @@ wrote lefthook.yml, .claude/hooks/guard-bash.mjs, .claude/hooks/stop-after-3.mjs
   edit. `init` writes `{ "ask": [], "frozen": [] }` only when the file is missing, and never
   overwrites it. This repository already had one (it is shown below), so `init` left it alone.
 - **`.claude/skills/verify/SKILL.md`** is written once from a template and is the repository's
-  to fill in ([below](#the-verify-skill)).
+  to fill in. This repository had already filled its in ([below](#the-verify-skill)), so `init`
+  left it alone too.
 - **`.claude/settings.json`** gains seven hook entries. Any settings already there are kept, and
   an entry that is already wired is not added twice.
 
@@ -156,7 +157,24 @@ The most useful check is running the change the way a user would. `init --claude
 app or CLI, how to drive it and read back what it shows, and a feature map (each feature, how to
 reach it, what working means). `hookset check` fails while the file is missing
 (`verify-skill-missing`), still has a `TODO(verify)` line (`verify-skill-unfilled`), or has lost
-`name: verify` or `## Feature map` (`verify-skill-incomplete`).
+`name: verify` or `## Feature map` (`verify-skill-incomplete`). This repository's, filled in:
+
+```md title=".claude/skills/verify/SKILL.md"
+---
+name: verify
+description: Run the CLI as a user would and read back its exit code and output. Use before committing a behaviour change.
+---
+
+## Boot
+
+`npm run build`, then `node dist/cli.js --help` exits 0.
+
+## Feature map
+
+| Feature | Reach it by | Working means |
+| --- | --- | --- |
+| help | `node dist/cli.js --help` | exit 0, lists the commands |
+```
 
 ## check sees the pack
 

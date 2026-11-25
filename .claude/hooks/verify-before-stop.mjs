@@ -147,7 +147,8 @@ function selfTest() {
   const dir = join(tmpdir(), `hookset-vbs-${process.pid}`);
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
-  const git = (...a) => spawnSync("git", a, { cwd: dir, encoding: "utf8" });
+  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith("GIT_")));
+  const git = (...a) => spawnSync("git", a, { cwd: dir, encoding: "utf8", env });
   git("init", "-q");
   git(
     "-c",

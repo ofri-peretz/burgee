@@ -36,7 +36,7 @@ const FENCE = /^```(\w+)([^\n]*)\n([\s\S]*?)^```$/gmu;
 /** One `key="value"` of a fence's meta. */
 const meta = (line: string, key: string): string | undefined => new RegExp(`\\b${key}="([^"]*)"`, 'u').exec(line)?.[1];
 /** The languages a titled fence is a file in. */
-const FILES = new Set(['js', 'ts', 'javascript', 'json', 'yaml', 'yml']);
+const FILES = new Set(['js', 'ts', 'javascript', 'json', 'yaml', 'yml', 'md']);
 
 interface Run {
   readonly command: string;
