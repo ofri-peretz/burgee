@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, realpathSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
+import { lstatSync, lutimesSync, mkdirSync, readdirSync, realpathSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { ExitCode } from 'burgee';
@@ -43,9 +43,14 @@ function git(cwd: string, ...args: string[]): string {
   return r.stdout;
 }
 
-/** Sets every mtime under `dir` (and `dir`) to OLD, links included. */
+/** Sets every mtime under `dir` (and `dir`) to OLD, links included, children first; in Node, so Windows has it too. */
 function age(dir: string): void {
-  spawnSync('find', [dir, '-exec', 'touch', '-h', '-d', OLD.toISOString(), '{}', '+']);
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) age(full);
+    else lutimesSync(full, OLD, OLD);
+  }
+  utimesSync(dir, OLD, OLD);
 }
 
 /** A clone with a remote, and one linked worktree per name, each on its own branch from main, all dated OLD. */
@@ -62,10 +67,11 @@ function clone(...names: string[]): { repo: string; trees: Record<string, string
   writeFileSync(join(repo, '.git', 'info', 'exclude'), 'node_modules/\n');
   const trees: Record<string, string> = {};
   for (const name of names) {
-    trees[name] = join(root, name);
-    git(repo, 'worktree', 'add', '-q', '-b', name, trees[name] as string);
-    age(trees[name] as string);
+    git(repo, 'worktree', 'add', '-q', '-b', name, join(root, name));
   }
+  // Each path as git prints it, which the sweep reports: on Windows `C:/...`, not `join`'s backslashes.
+  for (const l of parseWorktrees(git(repo, 'worktree', 'list', '--porcelain'))) if (l.branch !== undefined && names.includes(l.branch)) trees[l.branch] = l.path;
+  for (const name of names) age(trees[name] as string);
   return { repo, trees };
 }
 
@@ -139,7 +145,7 @@ describe('the walks', () => {
     utimesSync(dir, own, own);
     expect(newestUnder(dir)).toBe(OLD_MS + 2 * DAY);
     // The link counts its own few bytes, not the tree it points at.
-    expect(bytesUnder(dir)).toBe(10 + join(dir, 'node_modules').length);
+    expect(bytesUnder(dir)).toBe(10 + lstatSync(join(dir, 'link')).size);
   });
 
   it('samePath resolves links and never matches a path that does not exist', () => {
