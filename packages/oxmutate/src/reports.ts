@@ -9,6 +9,7 @@ import path from 'node:path';
 
 import { IGNORE_STATIC_REASON, STATIC_BUDGET_REASON } from './config.js';
 import type { MutantResult, RunResult } from './coordinator.js';
+import { formatBytes } from './memory.js';
 
 /** The package's own version, read from its manifest so `--version` and the reports never drift from it. */
 // Stryker disable next-line StringLiteral: with no encoding readFileSync returns a Buffer, which JSON.parse reads as the same UTF-8 text
@@ -169,6 +170,14 @@ function staticLine(r: RunResult): string[] {
   return [`  static mutants: ${String(statics.length)} decided in ${(r.stats.staticMs / MS_PER_S).toFixed(1)} s, ${(share * PERCENT).toFixed(0)}% of the run${hint}`];
 }
 
+/** What the servers gave back while the run went on: recycled past their memory ceiling, closed for sitting idle. */
+function serverLines(s: RunResult['stats']): string[] {
+  const lines: string[] = [];
+  if (s.serversRecycled > 0) lines.push(`  memory: ${String(s.serversRecycled)} server(s) recycled past ${formatBytes(s.workerMemoryCeiling ?? 0)} each (resources.workerMemoryLimit); the most one held was ${formatBytes(s.workerRssPeak)}`);
+  if (s.serversReleased > 0) lines.push(`  servers: ${String(s.serversSpawned)} started, ${String(s.serversReleased)} closed for sitting idle (resources.workerIdleTimeout)`);
+  return lines;
+}
+
 /**
  * What the warm and isolated phases were made of, when they ran: how much of the warm servers' time
  * was inside a test run, and what sent each mutant to an isolated run.
@@ -180,7 +189,7 @@ function whereItWent(r: RunResult): string[] {
   lines.push(...staticLine(r));
   if (s.heldByLoadMs > 0) lines.push(`  governor: unit starts held ${String(Math.round(s.heldByLoadMs / MS_PER_S))} s while the machine was past resources.maxLoad`);
   if (s.watchdogGraced > 0) lines.push(`  watchdog: ${String(s.watchdogGraced)} blocked run(s) given 3x their budget in place, not a server restart`);
-  if (s.serversReleased > 0) lines.push(`  servers: ${String(s.serversSpawned)} started, ${String(s.serversReleased)} closed for sitting idle (resources.workerIdleTimeout)`);
+  lines.push(...serverLines(s));
   const sr = s.staticReaders;
   if (sr && sr.mutants > 0) {
     const ratio = sr.readerTests > 0 ? `, ${(sr.loaderTests / sr.readerTests).toFixed(1)}x fewer` : '';

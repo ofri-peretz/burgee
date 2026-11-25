@@ -392,6 +392,11 @@ export function oxmutateConfig(o: RunOptions): Record<string, unknown> {
     // The lane runs this checkout's own oxmutate, built here: a machine-wide container default
     // (OXMUTATE_CONTAINER) would send it to a container that has neither the build nor the native core.
     container: false,
+    // Dogfooded memory ceiling (oxmutate resources.workerMemoryLimit): a warm server past a quarter of
+    // the machine's memory (the cgroup's limit where there is one) is recycled between units, so the
+    // lane's two servers and their spare never hold more than three quarters of it, and a long full
+    // run gives memory back instead of ending in an out-of-memory kill.
+    resources: { workerMemoryLimit: '25%' },
   };
 }
 

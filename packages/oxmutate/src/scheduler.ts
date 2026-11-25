@@ -48,6 +48,8 @@ export interface UnitOutcome {
   crashedFor?: string | undefined;
   /** How the crashed worker's process ended: `signal SIGKILL` (the kernel's out-of-memory kill, or a kill from outside), `exit code 134`. */
   exit?: string | undefined;
+  /** The memory the server held once the unit was done, its test processes included (bytes; memory.ts `treeRss`). */
+  rss?: number | undefined;
   /** Wall time from the unit being sent to its outcome, on this side of the IPC. */
   ms?: number | undefined;
   /** Mutants that ran past their budget blocked, not looping, and were given their grace in place. */
@@ -106,19 +108,19 @@ class Server {
   readonly beat: string;
   /** The server's latest CPU readings, oldest first (child.ts sends them). */
   private readonly cpu: CpuSample[] = [];
-  private onMessage?: ((m: { type: string }) => void) | undefined;
+  private onMessage?: ((m: { type: string; rss?: number }) => void) | undefined;
   private onExit?: ((how: string) => void) | undefined;
   /** How the worker's process ended, once it has (`exitReason`). */
   private exitedBy = '';
   exited = false;
 
-  constructor(configFile: string, cwd: string, execArgv: string[], workDir: string) {
+  constructor(configFile: string, cwd: string, execArgv: string[], { workDir, script = childJs }: { workDir: string; script?: string | undefined }) {
     // Its tests' temporary files go in the run's work directory and are removed with it: a killed
     // test never runs its cleanup, and runs had left 27,562 entries in the system's (2026-11-15).
     const tmp = path.join(workDir, `tmp-${String(++serversStarted)}`);
     mkdirSync(tmp, { recursive: true });
     const childEnv = { ...process.env, TMPDIR: tmp, TMP: tmp, TEMP: tmp };
-    this.child = fork(childJs, [configFile], { cwd, stdio: ['ignore', 'ignore', 'pipe', 'ipc'], execArgv, detached: serverGroups, env: childEnv });
+    this.child = fork(script, [configFile], { cwd, stdio: ['ignore', 'ignore', 'pipe', 'ipc'], execArgv, detached: serverGroups, env: childEnv });
     this.beat = beatFile(workDir, this.child.pid);
     this.child.stderr?.on('data', (d: Buffer) => (this.stderr = (this.stderr + d.toString()).slice(-STDERR_TAIL)));
     this.ready = new Promise((resolve) => {
@@ -131,7 +133,7 @@ class Server {
       this.child.on('message', first);
       this.child.once('exit', () => resolve(false));
     });
-    this.child.on('message', (m: { type: string; at?: number; us?: number }) => {
+    this.child.on('message', (m: { type: string; at?: number; us?: number; rss?: number }) => {
       if (m.type === 'cpu') {
         this.cpu.push({ at: m.at ?? 0, us: m.us ?? 0 });
         if (this.cpu.length > CPU_SAMPLES_KEPT) this.cpu.shift();
@@ -188,7 +190,7 @@ class Server {
         }
       }, WATCHDOG_POLL_MS);
       this.onMessage = (m) => {
-        if (m.type === 'done') finish({ stderr: this.stderr });
+        if (m.type === 'done') finish({ stderr: this.stderr, ...(typeof m.rss === 'number' && { rss: m.rss }) });
       };
       this.onExit = (how) => finish({ crashed: true, crashedFor: inFlight(unit.progress), exit: how, stderr: this.stderr });
       if (this.exited) finish({ crashed: true, exit: this.exitedBy, stderr: this.stderr });
@@ -225,8 +227,10 @@ export interface Pool {
     hooks?: DrainHooks,
   ): Promise<void>;
   close(): void;
-  /** `idle`: stops whose worker was idle (heartbeat.ts), of `killed`. `released`: servers closed for sitting idle (`resources.workerIdleTimeout`). `graced`: mutants given their grace in place instead of a kill. `peak`: the most units that ran at once since it was last set to 0. `stops`: how long each stopped run had gone, in ms, since it was last emptied. */
-  stats: { spawned: number; killed: number; idle: number; crashed: number; released: number; graced: number; peak: number; stops: number[] };
+  /** The process ids of the servers alive now, the spare included: what holds the pool's memory. */
+  pids(): number[];
+  /** `idle`: stops whose worker was idle (heartbeat.ts), of `killed`. `released`: servers closed for sitting idle (`resources.workerIdleTimeout`). `graced`: mutants given their grace in place instead of a kill. `peak`: the most units that ran at once since it was last set to 0. `stops`: how long each stopped run had gone, in ms, since it was last emptied. `recycled`: servers closed after a unit for holding more than `memoryCeiling`. `rssPeak`: the most memory one server held after a unit, in bytes. */
+  stats: { spawned: number; killed: number; idle: number; crashed: number; released: number; recycled: number; rssPeak: number; graced: number; peak: number; stops: number[] };
 }
 
 /**
@@ -238,7 +242,16 @@ export interface Pool {
 export interface Lifecycle {
   warm: boolean;
   idleTimeoutMs: number;
+  /**
+   * `resources.workerMemoryLimit`, resolved (memory.ts `ceilingOf`): a warm server holding more than
+   * this many bytes after a unit is closed and the warm spare takes its slot, so what it held goes back
+   * to the machine before the next unit. Undefined: never.
+   */
+  memoryCeiling?: number | undefined;
 }
+
+/** Whether a server that held `rss` bytes after a unit is past the ceiling: never without both. */
+export const overCeiling = (ceiling: number | undefined, rss: number | undefined): boolean => ceiling !== undefined && rss !== undefined && rss > ceiling;
 
 /** How often idle servers are looked for. */
 const IDLE_CHECK_MS = 1000;
@@ -255,6 +268,8 @@ export interface PoolPlace {
   governor?: Governor | undefined;
   /** Start servers at a lowered OS priority (`resources.priority: 'low'`, `R15`). */
   lowPriority?: boolean | undefined;
+  /** The server's entry point: `child.js`, or a stand-in that speaks its IPC in a test. */
+  script?: string | undefined;
 }
 
 export function createPool(config: ServerConfig, size: number, place: PoolPlace): Pool {
@@ -262,10 +277,10 @@ export function createPool(config: ServerConfig, size: number, place: PoolPlace)
   const lifecycle = place.lifecycle ?? { warm: true, idleTimeoutMs: 0 };
   const configFile = path.join(workDir, `server-${tag}.json`);
   writeFileSync(configFile, JSON.stringify(config));
-  const stats = { spawned: 0, killed: 0, idle: 0, crashed: 0, released: 0, graced: 0, peak: 0, stops: [] as number[] };
+  const stats = { spawned: 0, killed: 0, idle: 0, crashed: 0, released: 0, recycled: 0, rssPeak: 0, graced: 0, peak: 0, stops: [] as number[] };
   const spawn = (): Server => {
     stats.spawned++;
-    const server = new Server(configFile, config.root, config.nodeArgs ?? [], workDir);
+    const server = new Server(configFile, config.root, config.nodeArgs ?? [], { workDir, script: place.script });
     if (place.lowPriority && server.child.pid !== undefined) lowerPriority(server.child.pid);
     return server;
   };
@@ -298,6 +313,7 @@ export function createPool(config: ServerConfig, size: number, place: PoolPlace)
     if (outcome.stall === 'idle') stats.idle++;
     if (outcome.crashed) stats.crashed++;
     stats.graced += outcome.graced ?? 0;
+    stats.rssPeak = Math.max(stats.rssPeak, outcome.rss ?? 0);
     stats.stops.push(...stopMs(outcome));
   };
   const replacement = (): Server => {
@@ -317,13 +333,18 @@ export function createPool(config: ServerConfig, size: number, place: PoolPlace)
     servers.fill(server, slot, slot + 1);
     return server;
   };
-  /** After a unit: cold, its server goes with it; warm, a killed or crashed one is replaced. */
+  /** After a unit: cold, its server goes with it; warm, a killed or crashed one is replaced, and so is one past the memory ceiling. */
   const settle = (slot: number, server: Server, outcome: UnitOutcome): void => {
     const lost = Boolean(outcome.killedFor ?? outcome.crashed);
     if (!lifecycle.warm) {
       if (!lost) server.close();
       servers.fill(undefined, slot, slot + 1);
     } else if (lost) servers.fill(replacement(), slot, slot + 1);
+    else if (overCeiling(lifecycle.memoryCeiling, outcome.rss)) {
+      server.close();
+      stats.recycled++;
+      servers.fill(replacement(), slot, slot + 1);
+    }
     idleSince.fill(performance.now(), slot, slot + 1);
   };
 
@@ -368,6 +389,9 @@ export function createPool(config: ServerConfig, size: number, place: PoolPlace)
           }
         }),
       );
+    },
+    pids() {
+      return [...servers, spare].flatMap((s) => (s && !s.exited && s.child.pid !== undefined ? [s.child.pid] : []));
     },
     close() {
       if (sweep) clearInterval(sweep);

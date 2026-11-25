@@ -10,7 +10,7 @@
  *   2. run: `setup`, then oxmutate, with no network by default.
  *   3. copy back: each kept file (the reports, the incremental file) is copied to the host with
  *      `<engine> cp` from a container created on the volume and never started.
- *   4. with `ephemeral`, the volume is removed.
+ *   4. cleanup, as `cleanup` says (below): the run's container, and the volume.
  * Every container drops all capabilities, cannot gain one (`no-new-privileges`), is labelled
  * `dev.oxmutate=1` and is removed after it ends. `platform`, `user`, `runtime` (a sandbox such as
  * gVisor's `runsc`, used by default when Docker has it), `readOnly`, `pull`, `pidsLimit`, `cpus` and
@@ -21,8 +21,15 @@
  * `--frozen-oracle` work inside: each ref the run names goes in as its tree and becomes a tag there.
  * `OXMUTATE_CONTAINER` or `~/.config/oxmutate/config.json` turns container mode on for every project
  * on the machine; a project's own `container` setting, and `--no-container`, win.
+ *
+ * Cleanup is the user's to choose (`cleanup`), and defaults to leaving nothing running and nothing held
+ * in memory: every container of a run carries the run's own label, so an interrupt (SIGINT, SIGTERM,
+ * SIGHUP: a CI timeout, an agent stopping its job) removes exactly that run's containers instead of
+ * leaving a detached test run holding the engine's memory. A run that ends 137 is read back for the
+ * kernel's out-of-memory kill and says which limit it hit; `resources.workerMemoryLimit` (memory.ts)
+ * recycles servers inside before that limit is reached.
  */
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
@@ -31,8 +38,26 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import { ambientRuntime, run, type Result, type RunOptions } from 'bellpull';
 
 import { nextState, planSync, PRUNE, readState, signatures, syncDir, type SyncPlan, wholeSync, writeState } from './container-sync.js';
-import { env, nodeMajor, platform, stderr } from './runtime.js';
+import { env, exit as exitProcess, type Interrupt, INTERRUPTS, nodeMajor, offSignal, onSignal, platform, stderr } from './runtime.js';
 import { removeWorkDir } from './work-dir.js';
+
+/**
+ * What a run leaves behind, and when (`container.cleanup`). The defaults leave nothing running: the
+ * run's container is removed when it ends, and every container of the run when it is interrupted.
+ */
+export interface Cleanup {
+  /**
+   * The run's volume, after it: `keep` (default; the next run sends only what changed and installs only
+   * when the lockfile did), `remove` (nothing stays, every run installs; `ephemeral: true`), or
+   * `keep-on-failure` (removed after a run that ended with a report, exit 0 or 1; kept after any other,
+   * to look inside).
+   */
+  volume: 'keep' | 'remove' | 'keep-on-failure';
+  /** The run's container when it failed (any exit but 0 or 1): `remove` (default), or `keep` it stopped, named, for `<engine> logs` and `<engine> cp`; `oxmutate prune` removes it. */
+  failed: 'remove' | 'keep';
+  /** On SIGINT, SIGTERM or SIGHUP: `remove` (default) removes this run's containers, and its volume when `volume` is `remove`; `keep` leaves them for `oxmutate prune`. */
+  interrupt: 'remove' | 'keep';
+}
 
 export interface Container {
   /** The container CLI: `docker` (default), `podman`, or any that takes the same `create`, `cp`, `start` and `run`. */
@@ -51,8 +76,12 @@ export interface Container {
   setup?: string | undefined;
   /** The named volume holding the copy. Default: `oxmutate-<hash of the repository path>`. */
   volume?: string | undefined;
-  /** Remove the volume after the run: nothing stays behind, and every run installs. */
+  /** Remove the volume after the run: nothing stays behind, and every run installs. `cleanup.volume: 'remove'` says the same. */
   ephemeral: boolean;
+  /** What the run leaves behind, and when (`Cleanup`). */
+  cleanup: Cleanup;
+  /** With `readOnly`, the most `/tmp` (a tmpfs) may hold, such as `512m`: its pages count against `memory`. Unset: the engine's default, half the memory. */
+  tmpSize?: string | undefined;
   /** The engine's context (`docker --context`, `podman --connection`). */
   context?: string | undefined;
   /** The engine's daemon (`DOCKER_HOST`, `CONTAINER_HOST` for Podman), such as `ssh://user@box`. */
@@ -92,10 +121,14 @@ const WORK = '/w';
 const SRC = `${WORK}/src`;
 /** Hex characters of the repository path's hash in the default volume name. */
 const VOLUME_HASH_CHARS = 12;
-const STRINGS = ['engine', 'image', 'network', 'remote', 'install', 'setup', 'volume', 'context', 'host', 'platform', 'user', 'runtime', 'pull', 'memory', 'command'] as const;
-const KEYS = new Set<string>([...STRINGS, 'source', 'cache', 'ephemeral', 'readOnly', 'pidsLimit', 'cpus', 'env', 'installEnv', 'registryAuth', 'include', 'args', 'runArgs']);
+const STRINGS = ['engine', 'image', 'network', 'remote', 'install', 'setup', 'volume', 'context', 'host', 'platform', 'user', 'runtime', 'pull', 'memory', 'tmpSize', 'command'] as const;
+const KEYS = new Set<string>([...STRINGS, 'source', 'cache', 'cleanup', 'ephemeral', 'readOnly', 'pidsLimit', 'cpus', 'env', 'installEnv', 'registryAuth', 'include', 'args', 'runArgs']);
 /** The label each sync, run and copy-back container has: the volume it works on. */
 const VOLUME_LABEL = 'dev.oxmutate.volume';
+/** The label each container of one run has: what an interrupt removes. */
+export const RUN_LABEL = 'dev.oxmutate.run';
+/** Each `cleanup` key and the values it takes, the default first. */
+const CLEANUP = { volume: ['keep', 'remove', 'keep-on-failure'], failed: ['remove', 'keep'], interrupt: ['remove', 'keep'] } as const;
 /** The shared package-cache volume's default name. */
 const CACHE = 'oxmutate-cache';
 export const LOCKS = ['package-lock.json', 'npm-shrinkwrap.json', 'pnpm-lock.yaml', 'yarn.lock'];
@@ -123,7 +156,30 @@ const cacheOf = (raw: unknown): string | false => {
 };
 
 /** Every key's default. */
-export const containerDefaults = (): Container => ({ engine: 'docker', image: `node:${nodeMajor}-bookworm-slim`, network: 'none', source: 'copy', cache: CACHE, ephemeral: false, readOnly: false, env: [], installEnv: [], include: [], args: [], runArgs: [] });
+export const containerDefaults = (): Container => ({ engine: 'docker', image: `node:${nodeMajor}-bookworm-slim`, network: 'none', source: 'copy', cache: CACHE, ephemeral: false, cleanup: cleanupDefaults(), readOnly: false, env: [], installEnv: [], include: [], args: [], runArgs: [] });
+
+/** Every `cleanup` default: keep the volume, remove the run's container and, on an interrupt, every container of the run. */
+export const cleanupDefaults = (): Cleanup => ({ volume: 'keep', failed: 'remove', interrupt: 'remove' });
+
+/** `ephemeral` and `cleanup.volume: 'remove'` are one setting: either sets both. */
+const cleanupFields = (raw: unknown, ephemeral: boolean): Pick<Container, 'ephemeral' | 'cleanup'> => {
+  const cleanup = cleanupOf(raw, ephemeral);
+  return { ephemeral: cleanup.volume === 'remove', cleanup };
+};
+
+/** `cleanup`, resolved: each key one of its values, `ephemeral: true` the same as `volume: 'remove'`. */
+export function cleanupOf(raw: unknown, ephemeral: boolean): Cleanup {
+  const base = { ...cleanupDefaults(), ...(ephemeral && { volume: 'remove' as const }) };
+  if (raw === undefined) return base;
+  if (!isRecord(raw)) throw new Error(`container.cleanup is an object, not ${JSON.stringify(raw)}. fix: container.cleanup: { "volume": "keep-on-failure" }`);
+  const unknown = Object.keys(raw).filter((k) => !(k in CLEANUP));
+  if (unknown.length) throw new Error(`container.cleanup has no key ${unknown.join(', ')}. fix: use ${Object.keys(CLEANUP).join(', ')}`);
+  for (const [key, values] of Object.entries(CLEANUP)) {
+    const value = raw[key];
+    if (value !== undefined && !(values as readonly unknown[]).includes(value)) throw new Error(`container.cleanup.${key} is ${values.map((v) => `'${v}'`).join(', ')}, not ${JSON.stringify(value)}`);
+  }
+  return { ...base, ...(raw as Partial<Cleanup>) };
+}
 
 /** The config value, resolved: `true`, an image name, or an object; `false` or nothing is no container. */
 export function containerOf(raw: unknown): Container | undefined {
@@ -144,7 +200,7 @@ export function containerOf(raw: unknown): Container | undefined {
     install: raw['install'] === false ? '' : (strings['install'] as string | undefined),
     source: raw['source'] === 'git' ? 'git' : 'copy',
     cache: cacheOf(raw['cache']),
-    ephemeral: raw['ephemeral'] === true,
+    ...cleanupFields(raw['cleanup'], raw['ephemeral'] === true),
     readOnly: raw['readOnly'] === true,
     pidsLimit: number('pidsLimit'),
     cpus: number('cpus'),
@@ -157,12 +213,24 @@ export function containerOf(raw: unknown): Container | undefined {
   };
 }
 
-/** `--container`, `--no-container` and `--container-image <image>` over the config. */
+/**
+ * `--container`, `--no-container`, `--container-image <image>` and the cleanup flags over the config:
+ * `--container-volume <keep|remove|keep-on-failure>`, `--keep-failed-container`, `--keep-on-interrupt`.
+ * A cleanup flag alone does not turn container mode on.
+ */
 export function withFlags(c: Container | undefined, o: Record<string, unknown>): Container | undefined {
   if (o['container'] === false || o['noContainer'] === true) return undefined;
   const image = typeof o['containerImage'] === 'string' ? o['containerImage'] : undefined;
-  if (o['container'] !== true && image === undefined) return c;
-  return { ...(c ?? containerDefaults()), ...(image !== undefined && { image }) };
+  const asked = o['container'] === true || image !== undefined;
+  const on = asked ? { ...(c ?? containerDefaults()), ...(image !== undefined && { image }) } : c;
+  if (!on) return undefined;
+  const flags = {
+    ...(o['containerVolume'] !== undefined && { volume: o['containerVolume'] }),
+    ...(o['keepFailedContainer'] === true && { failed: 'keep' }),
+    ...(o['keepOnInterrupt'] === true && { interrupt: 'keep' }),
+  };
+  if (Object.keys(flags).length === 0) return on;
+  return { ...on, ...cleanupFields({ ...on.cleanup, ...flags }, false) };
 }
 
 /**
@@ -199,7 +267,7 @@ export function withoutContainerFlags(argv: readonly string[], tags: ReadonlyMap
     else if (ref) {
       out.push(tags.get(a) ?? a);
       ref = false;
-    } else if (a === '--container-image') skip = true;
+    } else if (a === '--container-image' || a === '--container-volume') skip = true;
     else if (REF_FLAGS.has(a)) {
       out.push(a);
       ref = true;
@@ -207,7 +275,7 @@ export function withoutContainerFlags(argv: readonly string[], tags: ReadonlyMap
       const at = a.indexOf('=');
       const value = a.slice(at + 1);
       out.push(`${a.slice(0, at)}=${tags.get(value) ?? value}`);
-    } else if (!/^--(?:no-)?container(?:$|-image=)/u.test(a)) out.push(a);
+    } else if (!/^--(?:(?:no-)?container(?:$|-image=|-volume=)|keep-failed-container$|keep-on-interrupt$)/u.test(a)) out.push(a);
   }
   return out;
 }
@@ -267,7 +335,12 @@ export interface PlanInput {
   /** The sync container's own `create` arguments: the forwarded registry auth (`registryAuth`). */
   auth?: readonly string[] | undefined;
   bases?: readonly Base[] | undefined;
+  /** The run's id: every container gets it as a label, and the run's container is named by it and kept until oxmutate reads how it ended. Unset: the run's container removes itself (`--rm`). */
+  run?: string | undefined;
 }
+
+/** The run's container's name, for a run id. */
+export const runName = (run: string): string => `oxmutate-run-${run}`;
 
 const GIT_CHECK = (why: string): string => `command -v git >/dev/null || { echo 'oxmutate: ${why} needs git in the image. fix: container.image node:${nodeMajor}' >&2; exit 3; }`;
 
@@ -335,6 +408,9 @@ function fetchSteps(fetch: { remote: string; commit: string }, keep: readonly st
   ];
 }
 
+/** `/tmp` with `readOnly`: a tmpfs, capped at `tmpSize` when set. */
+const tmpfs = (size: string | undefined): string => (size === undefined ? '/tmp:exec' : `/tmp:exec,size=${size}`);
+
 /** What every container gets: no capability, no way to gain one, a label, and the options set for all. */
 function common(c: Container): string[] {
   return [
@@ -343,7 +419,7 @@ function common(c: Container): string[] {
     ...(c.user === undefined ? [] : ['--user', c.user]),
     ...(c.runtime === undefined || c.runtime === 'default' ? [] : ['--runtime', c.runtime]),
     ...(c.pull === undefined ? [] : [`--pull=${c.pull}`]),
-    ...(c.readOnly ? ['--read-only', '--tmpfs', '/tmp:exec', '-e', 'HOME=/tmp'] : []),
+    ...(c.readOnly ? ['--read-only', '--tmpfs', tmpfs(c.tmpSize), '-e', 'HOME=/tmp'] : []),
     ...(c.pidsLimit === undefined ? [] : ['--pids-limit', String(c.pidsLimit)]),
     ...(c.cpus === undefined ? [] : ['--cpus', String(c.cpus)]),
     ...(c.memory === undefined ? [] : ['--memory', c.memory]),
@@ -373,12 +449,12 @@ export function containerPlan(c: Container, p: PlanInput): { volumes: string[][]
   const sync = ['set -e', FULL_TRAP, `mkdir -p ${SRC} && cd ${SRC}`, ...source, ...install, ...self].join('\n');
   const run = ['set -e', ...(c.setup ? [c.setup] : []), `cd ${quote(path.posix.join(SRC, p.rel))}`, `exec ${c.command ?? SELF_BIN} ${p.argv.map(quote).join(' ')}`].join('\n');
   // The volume's label is how a second run on it sees this one running (`waitForVolume`).
-  const volume = ['-v', `${p.volume}:${WORK}`, '--label', `${VOLUME_LABEL}=${p.volume}`];
+  const volume = ['-v', `${p.volume}:${WORK}`, '--label', `${VOLUME_LABEL}=${p.volume}`, ...(p.run === undefined ? [] : ['--label', `${RUN_LABEL}=${p.run}`])];
   return {
     volumes: [label(p.volume), ...(c.cache === false ? [] : [label(c.cache)])],
     // The install's own environment and auth reach the sync container alone, never the run's.
     sync: ['create', '--rm', ...common(c), ...volume, ...cacheMount(c.cache), ...c.installEnv.flatMap((e) => ['-e', e]), ...(p.auth ?? []), '-w', WORK, c.image, 'sh', '-c', sync],
-    run: ['run', '--rm', '--init', `--network=${c.network}`, ...common(c), ...volume, '-w', WORK, '-e', `${INSIDE}=inside`, ...c.runArgs, c.image, 'sh', '-c', run],
+    run: ['run', ...(p.run === undefined ? ['--rm'] : ['--name', runName(p.run)]), '--init', `--network=${c.network}`, ...common(c), ...volume, '-w', WORK, '-e', `${INSIDE}=inside`, ...c.runArgs, c.image, 'sh', '-c', run],
     back: ['create', '--network=none', ...common(c), ...volume, c.image, 'true'],
     drop: ['volume', 'rm', '-f', p.volume],
   };
@@ -632,7 +708,7 @@ export async function runInContainer(
   c: Container,
   o: { root: string; keep: readonly string[]; since?: string | undefined; frozenOracle?: string | undefined },
   argv: readonly string[],
-  { spawn = run, host = platform, wait = sleep }: { spawn?: Spawn; host?: string; wait?: (ms: number) => Promise<unknown> } = {},
+  { spawn = run, host = platform, wait = sleep, signals = { on: onSignal, off: offSignal }, exit = exitProcess, runId = randomUUID().slice(0, RUN_ID_CHARS) }: { spawn?: Spawn; host?: string; wait?: (ms: number) => Promise<unknown>; signals?: Signals; exit?: (code: number) => void; runId?: string } = {},
 ): Promise<number> {
   const git = await spawn('git', ['rev-parse', '--show-toplevel'], { cwd: o.root, runtime: ambientRuntime() });
   if (git.code !== 0) throw new Error(`container copies the git repository the project is in, and ${o.root} is in none. fix: git init, or run with --no-container`);
@@ -640,16 +716,11 @@ export async function runInContainer(
   // `C:\\Users\\RUNNER~1\\…`, and paths compared across the two never match.
   const top = realpathSync.native(git.stdout.trim());
   const rel = path.relative(top, realpathSync.native(o.root)).split(path.sep).join('/');
-  const keep = o.keep.flatMap((f) => {
-    const fromRoot = path.relative(o.root, f);
-    // A file on another drive has no relative path; Windows answers it absolute, and it is not in the repository.
-    // Stryker disable next-line all: path.relative answers an absolute path only across Windows drives; the Windows CI leg runs the test that needs it
-    if (path.isAbsolute(fromRoot)) return [];
-    const inRepo = path.posix.join(rel, fromRoot.split(path.sep).join('/'));
-    return inRepo.startsWith('..') ? [] : [inRepo];
-  });
+  const keep = keptPaths(o, rel);
   const io = mkdtempSync(path.join(tmpdir(), 'oxmutate-io-'));
   const engine = engineRunner(spawn, c);
+  // Until the run is done, an interrupt removes its containers (and the volume, when it is not kept) before the process ends.
+  const guard = guardRun({ c, engine, runId, io, signals, exit });
   try {
     const bases = await basesOf(spawn, top, [o.since, o.frozenOracle]);
     const tags = new Map(bases.map((b) => [b.ref, b.tag]));
@@ -657,27 +728,159 @@ export async function runInContainer(
     const { install, key, auth } = installOf(runnable, top, io);
     const volume = runnable.volume ?? `oxmutate-${createHash('sha256').update(top).digest('hex').slice(0, VOLUME_HASH_CHARS)}`;
     const fetch = runnable.source === 'git' ? await fetchOf(spawn, runnable, top) : undefined;
-    const plan = (sync: Sending | undefined): ReturnType<typeof containerPlan> => containerPlan(runnable, { rel, argv: withoutContainerFlags(argv, tags), key, install, volume, keep, fetch, sync, bases, auth: auth.create });
+    guard.volume = volume;
+    const plan = (sync: Sending | undefined): ReturnType<typeof containerPlan> => containerPlan(runnable, { rel, argv: withoutContainerFlags(argv, tags), key, install, volume, keep, fetch, sync, bases, auth: auth.create, run: runId });
     const steps = plan(undefined);
-    for (const v of steps.volumes) {
-      // eslint-disable-next-line reliability/no-await-in-loop -- the run's volume and the shared cache, in order
-      const made = await engine(v);
-      // Podman, unlike Docker, refuses to create a volume that exists.
-      if (made.code !== 0 && !made.stderr.includes('already exists')) throw new Error(DISK_FULL.test(made.stderr) ? fullDisk(`the volume ${String(v.at(-1))} could not be created`, runnable.engine) : `the volume ${String(v.at(-1))} could not be created: ${made.stderr.trim()}. fix: check the engine's own error, or set container.volume`);
-    }
+    await createVolumes(engine, steps.volumes, runnable.engine);
     await waitForVolume(engine, volume, wait);
+    let reported = false;
     try {
       await syncVolume({ spawn, top, io, host, engine, c: runnable, plan, key, volume, keep, bases, auth: auth.files });
       const ran = await engine(steps.run, { stdio: 'inherit' });
       // Exit 0 and 1 end with a report (1: a threshold missed). Any other code failed before writing one, and what the volume holds is an earlier run's.
-      if (keep.length > 0 && (ran.code === 0 || ran.code === 1)) await copyBack({ engine, name: runnable.engine, back: steps.back, keep, io, top });
+      reported = ran.code === 0 || ran.code === 1;
+      // Interrupted: its container was removed under it, and the run ends once the interrupt's cleanup has.
+      if (guard.interrupted) await guard.interrupted;
+      else {
+        await settleRun(engine, runnable, { runId, code: ran.code, reported });
+        if (keep.length > 0 && reported) await copyBack({ engine, name: runnable.engine, back: steps.back, keep, io, top });
+      }
       return ran.code ?? 1;
     } finally {
-      if (runnable.ephemeral) await engine(steps.drop);
+      // After an interrupt its cleanup owns the volume.
+      if (!guard.interrupted) await settleVolume(engine, runnable, { volume, reported, drop: steps.drop });
     }
   } finally {
+    guard.stop();
     removeWorkDir(io);
   }
+}
+
+/** The kept files, repository-relative: none outside the repository, on another drive included. */
+function keptPaths(o: { root: string; keep: readonly string[] }, rel: string): string[] {
+  return o.keep.flatMap((f) => {
+    const fromRoot = path.relative(o.root, f);
+    // A file on another drive has no relative path; Windows answers it absolute, and it is not in the repository.
+    // Stryker disable next-line all: path.relative answers an absolute path only across Windows drives; the Windows CI leg runs the test that needs it
+    if (path.isAbsolute(fromRoot)) return [];
+    const inRepo = path.posix.join(rel, fromRoot.split(path.sep).join('/'));
+    return inRepo.startsWith('..') ? [] : [inRepo];
+  });
+}
+
+/** The run's volume and the shared cache, created in order; one that exists already is no failure. */
+async function createVolumes(engine: Engine, volumes: readonly string[][], name: string): Promise<void> {
+  for (const v of volumes) {
+    // eslint-disable-next-line reliability/no-await-in-loop -- the run's volume and the shared cache, in order
+    const made = await engine(v);
+    // Podman, unlike Docker, refuses to create a volume that exists.
+    if (made.code !== 0 && !made.stderr.includes('already exists')) throw new Error(DISK_FULL.test(made.stderr) ? fullDisk(`the volume ${String(v.at(-1))} could not be created`, name) : `the volume ${String(v.at(-1))} could not be created: ${made.stderr.trim()}. fix: check the engine's own error, or set container.volume`);
+  }
+}
+
+/** The volume after a run that was not interrupted, as `cleanup.volume` (or `ephemeral`) says. */
+async function settleVolume(engine: Engine, c: Container, { volume, reported, drop }: { volume: string; reported: boolean; drop: readonly string[] }): Promise<void> {
+  const policy = volumePolicy(c);
+  if (policy === 'remove' || (policy === 'keep-on-failure' && reported)) await engine(drop);
+  else if (policy === 'keep-on-failure') stderr.write(`oxmutate: the volume ${volume} is kept for a look inside (container.cleanup.volume: keep-on-failure). fix: oxmutate prune removes it\n`);
+}
+
+/** A run's interrupt guard: the volume, once named; the interrupt's cleanup, once one came; and what stops listening. */
+interface Guard {
+  volume?: string | undefined;
+  interrupted?: Promise<void> | undefined;
+  stop: () => void;
+}
+
+/**
+ * Listens for an interrupt while the run goes: on the first, says what becomes of the run's containers,
+ * removes them (and the volume when `cleanup.volume` is `remove`) unless `cleanup.interrupt` keeps them,
+ * removes the host's staging, and exits 128 + the signal. A cleanup that fails says so and exits all the same.
+ */
+function guardRun({ c, engine, runId, io, signals, exit }: { c: Container; engine: Engine; runId: string; io: string; signals: Signals; exit: (code: number) => void }): Guard {
+  const guard: Guard = { stop: () => undefined };
+  const cleanUpAfter = async (signal: Interrupt): Promise<void> => {
+    stderr.write(interruptLine(signal, c.cleanup.interrupt));
+    if (c.cleanup.interrupt === 'remove') {
+      await removeRun(engine, runId);
+      if (volumePolicy(c) === 'remove' && guard.volume !== undefined) await engine(['volume', 'rm', '-f', guard.volume]);
+    }
+    removeWorkDir(io);
+    exit(INTERRUPTS[signal]);
+  };
+  guard.stop = listenForInterrupts(signals, (signal) => {
+    guard.interrupted = cleanUpAfter(signal).catch((e: unknown) => {
+      stderr.write(`oxmutate: cleaning up after ${signal} failed (${e instanceof Error ? e.message : String(e)}). fix: oxmutate prune\n`);
+      exit(INTERRUPTS[signal]);
+    });
+  });
+  return guard;
+}
+
+/** What becomes of the volume: `ephemeral` is `cleanup.volume: 'remove'`, whichever was set. */
+const volumePolicy = (c: Container): Cleanup['volume'] => (c.ephemeral ? 'remove' : c.cleanup.volume);
+
+/** Characters of a random UUID in a run's id. */
+const RUN_ID_CHARS = 12;
+/** The exit code of a container whose main process was SIGKILLed: by the kernel for memory, or from outside. */
+export const KILLED = 137;
+
+/** The line an interrupt gives: what becomes of the run's containers. */
+export const interruptLine = (signal: Interrupt, policy: Cleanup['interrupt']): string =>
+  policy === 'keep' ? `oxmutate: ${signal}: this run's containers are left as they are (container.cleanup.interrupt: keep). fix: oxmutate prune removes them\n` : `oxmutate: ${signal}: removing this run's containers\n`;
+
+/** Where an interrupt is listened for: the process by default, a fake in a test. */
+export interface Signals {
+  on: (signal: Interrupt, listener: () => void) => void;
+  off: (signal: Interrupt, listener: () => void) => void;
+}
+
+/** Calls `stop` once, on the first SIGINT, SIGTERM or SIGHUP; any after it are ignored while its cleanup runs. Returns what stops listening. */
+function listenForInterrupts(signals: Signals, stop: (signal: Interrupt) => void): () => void {
+  let stopping = false;
+  const listeners = (Object.keys(INTERRUPTS) as Interrupt[]).map((signal) => {
+    const listener = (): void => {
+      if (stopping) return;
+      stopping = true;
+      stop(signal);
+    };
+    signals.on(signal, listener);
+    return [signal, listener] as const;
+  });
+  return () => {
+    for (const [signal, listener] of listeners) signals.off(signal, listener);
+  };
+}
+
+/** Removes every container that carries the run's label: the sync, the run and the copy back, whichever exist. */
+async function removeRun(engine: Engine, runId: string): Promise<void> {
+  const listed = await engine(['ps', '-aq', '--filter', `label=${RUN_LABEL}=${runId}`]);
+  const ids = listed.stdout.split(/\s/u).filter(Boolean);
+  if (ids.length > 0) await engine(['rm', '-f', ...ids]);
+}
+
+/** The one line a run that ended 137 gives: the kernel's out-of-memory kill, and the limit it hit, or a kill from outside. */
+export function killedLine(oom: boolean, memory: string | undefined): string {
+  if (!oom) return `oxmutate: the run's container was killed (exit ${String(KILLED)}) from outside it: \`<engine> kill\`, \`<engine> stop\` past its grace, or the engine going down. fix: see what stopped it; if it was the host running out of memory, set container.memory`;
+  const limit = memory === undefined ? "the engine's memory (Docker Desktop's or the Podman machine's)" : `container.memory (${memory})`;
+  return `oxmutate: the run ran out of memory: the kernel killed its container (exit ${String(KILLED)}) at ${limit}. fix: lower resources.workerMemoryLimit (or leave it 'auto') so servers are recycled before the limit, lower --concurrency, or raise ${memory === undefined ? "the engine's memory" : 'container.memory'}`;
+}
+
+/**
+ * After the run's container ended: when it ended 137, reads whether the kernel killed it for memory
+ * and says so; then removes it, unless it failed and `cleanup.failed` keeps it, which says where it is.
+ */
+async function settleRun(engine: Engine, c: Container, { runId, code, reported }: { runId: string; code: number | null; reported: boolean }): Promise<void> {
+  const name = runName(runId);
+  if (code === KILLED) {
+    const state = await engine(['inspect', '--format', '{{.State.OOMKilled}}', name]);
+    stderr.write(`${killedLine(state.stdout.trim() === 'true', c.memory)}\n`);
+  }
+  if (!reported && c.cleanup.failed === 'keep') {
+    stderr.write(`oxmutate: the failed run's container is kept as ${name} (container.cleanup.failed: keep). fix: \`${path.basename(c.engine)} logs ${name}\` shows its output; oxmutate prune removes it\n`);
+    return;
+  }
+  await engine(['rm', '-f', name]);
 }
 
 /** The install, its key, and the registry auth it gets; a bun project without an install refuses here, before anything is synced. */

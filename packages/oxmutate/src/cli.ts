@@ -14,6 +14,7 @@ import { containerDefaults, INSIDE, pruneContainers, runInContainer, withFlags }
 import { InstrumentFault, run, type MutantResult, type RunResult } from './coordinator.js';
 import { frozenOracle } from './frozen.js';
 import { parseShard } from './lanes.js';
+import { memorySetting } from './memory.js';
 import { describe, textSummary, VERSION, writeReports } from './reports.js';
 import { argv, cwd, env, stderr } from './runtime.js';
 
@@ -74,7 +75,7 @@ function staticOverridesFrom(o: Record<string, unknown>): Partial<Options> {
   return overrides;
 }
 
-/** `--cold-workers`, `--worker-idle-timeout <ms>`, `--max-load <n>`, `--priority <low|normal>`: how Vitest servers live and when they start (`resources`). */
+/** `--cold-workers`, `--worker-idle-timeout <ms>`, `--worker-memory-limit <size>`, `--max-load <n>`, `--priority <low|normal>`: how Vitest servers live and when they start (`resources`). */
 function workerOverridesFrom(o: Record<string, unknown>): Partial<Options> {
   const warm = o['coldWorkers'] !== true;
   const idle = typeof o['workerIdleTimeout'] === 'number' && o['workerIdleTimeout'] >= 0 ? Math.floor(o['workerIdleTimeout']) : undefined;
@@ -82,6 +83,7 @@ function workerOverridesFrom(o: Record<string, unknown>): Partial<Options> {
     ...(typeof o['maxLoad'] === 'number' && o['maxLoad'] > 0 && { maxLoad: o['maxLoad'] }),
     ...(o['priority'] === 'normal' && { lowPriority: false }),
     ...(o['priority'] === 'low' && { lowPriority: true }),
+    ...(typeof o['workerMemoryLimit'] === 'string' && { workerMemoryLimit: memorySetting(o['workerMemoryLimit']) }),
   };
   if (warm && idle === undefined) return governor;
   return { ...governor, workers: { warm, idleTimeoutMs: idle ?? DEFAULT_IDLE_TIMEOUT_MS } };
@@ -149,6 +151,7 @@ const runCommand = defineCommand({
     priority: { type: 'string', description: "'low' (the default) starts servers at a lowered OS priority; 'normal' does not (resources.priority)" },
     coldWorkers: { type: 'boolean', description: 'a fresh Vitest server per unit, closed after it: slower, the least memory held' },
     workerIdleTimeout: { type: 'number', description: 'close a server idle this long, ms (default 30000; 0 keeps them all until the run ends)' },
+    workerMemoryLimit: { type: 'string', description: "recycle a server holding more than this after a unit: auto (default; 80% of a container's memory limit across the servers), off, a share such as 25%, or a size such as 1.5g or 800 (MiB)" },
     staticReaders: { type: 'boolean', description: 'run each static mutant only in the test files that read its value (the default; a heuristic, audited)' },
     noStaticReaders: { type: 'boolean', description: 'run each static mutant in every test file that loads its module (static.readers: off)' },
     reportStaticReaders: { type: 'boolean', description: 'one more dry run that reports how many tests static mutants would need if each ran only where its value is read; changes no verdict' },
@@ -160,6 +163,9 @@ const runCommand = defineCommand({
     config: { type: 'string', description: 'an oxmutate config file (JSON or JS) instead of oxmutate.config.*' },
     container: { type: 'boolean', description: 'run inside a container oxmutate starts, on a copy of the repository (container.*; --no-container turns a configured one off)' },
     containerImage: { type: 'string', description: 'the image for --container (default node:<this Node major>-bookworm-slim); implies --container' },
+    containerVolume: { type: 'string', description: "with --container: the volume after the run, keep (default), remove, or keep-on-failure to look inside after a failed run (container.cleanup.volume)" },
+    keepFailedContainer: { type: 'boolean', description: "with --container: keep a failed run's container, stopped, for <engine> logs (container.cleanup.failed: keep)" },
+    keepOnInterrupt: { type: 'boolean', description: "with --container: leave an interrupted run's containers for oxmutate prune instead of removing them (container.cleanup.interrupt: keep)" },
   },
   run: async ({ options, exit }) => {
     const root = cwd();
