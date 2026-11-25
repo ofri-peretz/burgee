@@ -69,3 +69,22 @@ describe('the name a command goes by', () => {
     expect(stderr).toContain('"remote add" is idempotent and must report changed');
   });
 });
+
+describe('the options a handler is handed after a negation', () => {
+  it('carries the negated boolean by its own name, and no key for the --no- spelling or a value option', async () => {
+    const given = await optionsOf(echo({ cache: { type: 'boolean', default: true }, label: { type: 'string' } }), ['--no-cache', '--label', 'x']);
+    expect(given).toMatchObject({ cache: false, label: 'x' });
+    expect(Object.keys(given)).not.toContain('noCache');
+    expect(Object.keys(given)).not.toContain('');
+  });
+});
+
+describe('the shutdown hook', () => {
+  it('is told no command when none resolved', async () => {
+    const calls: string[] = [];
+    const program = echo({});
+    program.use(definePlugin({ name: 'log', hooks: { shutdown: { handler: ({ command }) => void calls.push(`[${command}]`) } } }));
+    await runCommand(program, ['nope']);
+    expect(calls).toEqual(['[]']);
+  });
+});

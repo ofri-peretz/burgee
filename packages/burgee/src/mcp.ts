@@ -179,6 +179,7 @@ function optionArgs(node: CommandNode, args: Record<string, unknown>, layered: b
 function positionalArgs(node: CommandNode, args: Record<string, unknown>): string[] {
   const out: string[] = [];
   const skipped: ArgumentSpec[] = [];
+  // Stryker disable next-line ArrayDeclaration: a string has no name, so it is skipped like an argument the call left out, and nothing follows it
   for (const a of node.arguments ?? []) {
     const value = args[a.name];
     if (value === undefined || value === null) {
@@ -245,6 +246,7 @@ Reflect.set(globalThis, Symbol.for('burgee.mcp'), () => calls.getStore());
  * and stay there; the counters, timers and groups are here because their state lives on the
  * console that prints them.
  */
+// Stryker disable next-line StringLiteral: console.table and console.groupCollapsed print through console.log and console.group, which are redirected anyway
 const STDOUT_CONSOLE = ['log', 'info', 'debug', 'dir', 'dirxml', 'table', 'group', 'groupCollapsed', 'groupEnd', 'count', 'countReset', 'time', 'timeLog', 'timeEnd'] as const;
 
 /** Set while a frame goes out, so a transport that *is* `process.stdout` passes the capture. */
@@ -315,6 +317,7 @@ function printedBy(call: McpCall, run: () => Ran | Promise<Ran>): Printed | Prom
   // A string is text already; bytes are UTF-8, which is all a console or a `write` sends.
   const take = (chunk: unknown): void => void chunks.push(typeof chunk === 'string' ? chunk : decoder.decode(chunk as Uint8Array));
   const sink = new Writable({
+    // Stryker disable next-line BooleanLiteral: take() decodes a Buffer back to the same text
     decodeStrings: false,
     write(chunk, _encoding, done): void {
       take(chunk);
@@ -402,6 +405,7 @@ function structuredOf(text: string, schema?: OutputSchema): { structuredContent?
     if (value === undefined) return {};
     const plain = (ok && schema !== undefined) ? isObjectType(schema) : value?.constructor === Object;
     return { structuredContent: plain ? value : { result: value } };
+  // Stryker disable next-line BlockStatement: undefined spreads into the reply as {} does
   } catch {
     return {};
   }
@@ -493,10 +497,12 @@ export async function serveMcp(manifest: Manifest, opts: ServeOptions): Promise<
 async function serve(session: Session, input: NodeJS.ReadableStream): Promise<void> {
   const { reply } = session;
   const running = new Map<unknown, AbortController>();
+  // Stryker disable next-line ArrayDeclaration: Promise.all waits on a string as on nothing
   const replies: Promise<void>[] = [];
   for await (const line of createInterface({ input, crlfDelay: Infinity })) {
     const request = requestOf(line, reply);
     if (request === undefined) continue;
+    // Stryker disable next-line ConditionalExpression: a request that is not a cancellation names no requestId, so nothing is aborted
     if (request.method === 'notifications/cancelled') running.get(request.params?.['requestId'])?.abort('cancelled');
     // A notification carries no id and expects no reply.
     if (request.id === undefined) continue;
@@ -505,6 +511,7 @@ async function serve(session: Session, input: NodeJS.ReadableStream): Promise<vo
     running.set(id, controller);
     replies.push(
       (async () => await handle(session, request, controller.signal))().then((outcome) => {
+        // Stryker disable next-line CallExpression: a finished id left in the map is only aborted after its reply was sent
         running.delete(id);
         if (!controller.signal.aborted) reply({ id, ...(outcome as Record<string, unknown>) });
       }),
@@ -570,6 +577,7 @@ export function* linesOf(read: (into: Uint8Array) => number): Generator<string> 
 }
 
 /** How much one synchronous read asks for: a pipe's buffer on Linux. */
+// Stryker disable next-line NumericLiteral: the chunk size changes how stdin is read, not what is read
 const READ_BYTES = 65_536;
 /** How long a synchronous server waits before it asks a would-block descriptor again. */
 const PAUSE_MS = 5;
