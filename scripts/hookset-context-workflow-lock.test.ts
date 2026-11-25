@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { load as loadYaml } from 'js-yaml';
 import { describe, expect, it } from 'vitest';
 
+// eslint-disable-next-line import-next/no-relative-packages -- by path: the lock judges the source this checkout ships, not a built copy
 import { checkContext, contextText } from '../packages/hookset/src/context.js';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
