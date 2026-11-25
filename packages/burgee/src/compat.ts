@@ -172,6 +172,7 @@ export const DROP_INS: readonly DropIn[] = [
  * 6 is not — so `migrate` leaves a project on another major alone and says so.
  * `scripts/migrate-drop-ins-lock.test.ts` holds each equal to the oracle's.
  */
+// Stryker disable all: the table is data, held row for row against each vendored suite's `.source.json` by scripts/migrate-drop-ins-lock.test.ts, a root lock the package's mutant run does not include
 export const GRADED_VERSIONS: Readonly<Record<string, string>> = {
   '@clack/prompts': '1.9.0',
   '@commander-js/extra-typings': '15.1.0',
@@ -214,6 +215,7 @@ export const GRADED_VERSIONS: Readonly<Record<string, string>> = {
   'yargs-parser': '22.0.0',
   yoctocolors: '2.2.0',
 };
+// Stryker restore all
 
 /**
  * C1 — the majors of each incumbent its drop-in claims, per incumbent package, highest last.
@@ -258,6 +260,7 @@ export const GRADED_VERSIONS: Readonly<Record<string, string>> = {
  * the oracle's graded rows.
  */
 /* eslint-disable conventions/no-magic-numbers -- these are major versions of other packages, data `migrate` reads and a lock holds to the oracle's grades; naming each would be twenty-seven constants that say `15` */
+// Stryker disable all: the table is data, held to GRADED_VERSIONS and to the oracle's graded rows by scripts/supported-majors-lock.test.ts, a root lock the package's mutant run does not include
 export const SUPPORTED_MAJORS: Readonly<Record<string, readonly number[]>> = {
   '@clack/prompts': [1],
   '@commander-js/extra-typings': [15],
@@ -300,6 +303,7 @@ export const SUPPORTED_MAJORS: Readonly<Record<string, readonly number[]>> = {
   'yargs-parser': [22],
   yoctocolors: [2],
 };
+// Stryker restore all
 
 /**
  * `previous-majors` R6 — the entry `migrate` writes for a specifier whose project is on a
@@ -318,7 +322,7 @@ export const PREVIOUS_MAJOR_ENTRIES: Readonly<Record<string, Readonly<Record<num
 /* eslint-enable conventions/no-magic-numbers */
 
 /** Level: the drop-in passes every case the incumbent passes against its own suite (D-137). */
-export const isLevel = (host: string): boolean => {
-  const row = GRADED[host];
+export const isLevel = (host: string, graded: Readonly<Record<string, Row>> = GRADED): boolean => {
+  const row = graded[host];
   return row !== undefined && row.passed >= row.control;
 };

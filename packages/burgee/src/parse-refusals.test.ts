@@ -90,6 +90,8 @@ describe('R3 — a single-value option given twice with different values is a us
 
   it('applies to a command that allows excess positionals too', async () => {
     expect((await run('exec', 'git', '--level', 'a', '--level', 'b')).code).toBe(ExitCode.USAGE);
+    // Positionals are not flags: two different ones beside a repeated flag are no conflict.
+    expect((await run('exec', 'git', 'status', '--level', 'a', '--level', 'a')).code).toBe(ExitCode.OK);
   });
 
   it('never sets a flag against the environment: precedence decides that, as now', async () => {

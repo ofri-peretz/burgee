@@ -31,7 +31,7 @@ function auditBurgee(brand: AuditInput, grounds?: readonly string[]): ContrastFi
 ### check
 
 ```ts
-function check(what: string, a: string, b: string, required?: 3): ContrastFinding;
+function check(what: string, a: string, b: string, required?: number): ContrastFinding;
 ```
 
 | Parameter | Type |
@@ -39,7 +39,7 @@ function check(what: string, a: string, b: string, required?: 3): ContrastFindin
 | `what` | `string` |
 | `a` | `string` |
 | `b` | `string` |
-| `required` (optional) | `3` |
+| `required` (optional) | `number` |
 
 **Returns** `ContrastFinding`
 

@@ -104,11 +104,13 @@ let shared: Teardown | undefined;
  * later real run gets.
  */
 export function processTeardown(streams: readonly Drainable[], proc?: ProcessLike): Teardown {
+  // Stryker disable next-line ConditionalExpression: only the memo differs, and seeing it would wire the test runner's own process
   if (proc !== undefined) return teardownOf(install({ process: proc }).registry, streams);
   return (shared ??= teardownOf(install().registry, streams));
 }
 
 /** A run that owns no process: the harness, the MCP loop, any caller that injected `exit`. */
+// Stryker disable next-line ArrayDeclaration: a default holding a string drains nothing, since a string has no writableLength
 export function detachedTeardown(streams: readonly Drainable[] = []): Teardown {
   return teardownOf(createRegistry(), streams);
 }

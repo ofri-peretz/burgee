@@ -129,7 +129,7 @@ function agentsBeside(pkg: Package | undefined): boolean {
   });
 }
 
-const renderHelp = async (manifest: Manifest, node: CommandNode, io: SurfaceIo, argv: readonly string[] = []): Promise<string> => {
+const renderHelp = async (manifest: Manifest, node: CommandNode, io: SurfaceIo, argv: readonly string[]): Promise<string> => {
   const help = await import('./help.js');
   const { local, view } = await localised(manifest, node, io);
   const atRoot = node.path.length === manifest.rootPath.length;
@@ -140,6 +140,7 @@ const renderHelp = async (manifest: Manifest, node: CommandNode, io: SurfaceIo, 
   // The globals this command leaves global (R1–R3); none on a node the engine made up, such as
   // `completion`, which parses none of them.
   const globals = manifest.find(node.path) === undefined ? [] : globalRows(node);
+  // Stryker disable next-line StringLiteral: as for the exit rows above, no entry outside `help.` matches a line help says
   const say = local && ((s: string): string => local.say(s, 'help.'));
   // agent-skill R4 — the root's line for agents names `AGENTS.md` when one is there to read.
   const agents = atRoot && agentsBeside(io.pkg) ? AGENTS_LINE : '';
@@ -160,8 +161,19 @@ function withDefault(manifest: Manifest, node: CommandNode): CommandNode {
   return { ...node, ...(run && { run }), options: { ...fallback.options, ...node.options }, arguments: [...(node.arguments ?? []), ...(fallback.arguments ?? [])], examples: [...examples.values()] };
 }
 
-/** Whether a declaration was written with a localised text (R5): `execute.ts` marks it so. */
-const marked = (o: object): boolean => Symbol.for('burgee.l10n') in o;
+/**
+ * Whether a declaration was written with a localised text (R5): `execute.ts` marks it so. A
+ * declaration, not a `const` arrow, for the reason `line` below gives.
+ */
+function marked(o: object): boolean {
+  return Symbol.for('burgee.l10n') in o;
+}
+
+/** Whether a command, one of its options or one of its examples was written with a localised text. */
+function authoredIn(c: CommandNode): boolean {
+  // Stryker disable next-line MethodExpression,ConditionalExpression: true, or every() over a command with no options or examples is true, which loads locale.js to change nothing: with no localised text or pack its view and localiser are the identity
+  return marked(c) || Object.values(c.options).some(marked) || (c.examples ?? []).some(marked);
+}
 
 /**
  * `localised-human-surfaces` R2 — help's language: the pack's translator for the engine's words
@@ -171,7 +183,7 @@ const marked = (o: object): boolean => Symbol.for('burgee.l10n') in o;
  * have translated (R4).
  */
 async function localised(manifest: Manifest, node: CommandNode, io: SurfaceIo): Promise<{ local?: import('./locale.js').Localiser | undefined; view: (c: CommandNode) => CommandNode }> {
-  const authored = [node, ...manifest.commands].some((c) => marked(c) || Object.values(c.options).some(marked) || (c.examples ?? []).some(marked));
+  const authored = [node, ...manifest.commands].some(authoredIn);
   if (!authored && !manifest.plugins.some((p) => 'locales' in p)) return { view: (c) => c };
   const { commandInLocale, localiserOf, resolveLocale } = await import('./locale.js');
   const locale = resolveLocale(io.locale, io.env);
@@ -200,7 +212,9 @@ const machineJson = async (...args: Parameters<(typeof import('./schema.js'))['m
 //
 // `color` is the caller's `--no-color` / `--color=<when>`, read by `globals.js` before the parse
 // (agent-lint-conformance R1), so `--help` on a command that runs is coloured as asked.
+// Stryker disable next-line ArrayDeclaration: help reads only --color and --no-color from it, and a stand-in word is neither
 export async function helpFor(manifest: Manifest, node: CommandNode, io: SurfaceIo, { json, color = [] }: { json: boolean; color?: readonly string[] | undefined }): Promise<string> {
+  // Stryker disable next-line ArrayDeclaration,StringLiteral: machineJson reads only --format=json-pretty from these words, and no mutant spells it
   if (json) return `${await machineJson(await helpDocumentOf(manifest, node), ['--json'])}\n`;
   return await renderHelp(manifest, node, io, color);
 }
@@ -238,13 +252,14 @@ export async function unresolved({ manifest, root, io }: Resolving, argv: string
   // (`Again`, as a `--json` typed first does); otherwise they are read here, for help's colour.
   const words = argv.slice(before.length);
   const { globals, words: typed } = leadingGlobals(words);
+  // Stryker disable next-line EqualityOperator,ConditionalExpression: with no globals the words are argv's own, which resolved nothing that runs, and there is no colour to add
   if (globals.length > 0) {
     const reached = manifest.resolve([...before, ...typed], root);
     if (reached.node?.run !== undefined) throw new Again(lineWords(reached.node.path, reached.rest, undefined, globals));
     argv = [...argv, ...globalsOf(globals, node).color];
   }
   const first = typed[0] ?? '';
-  if (typed.length > 0 && HELP_FLAGS.has(first)) {
+  if (HELP_FLAGS.has(first)) {
     // F2 — `--help --json` is help *as data*. Before this it printed the same prose as
     // `--help`, so a caller who asked for a machine-readable answer got one they had to
     // parse, which is the failure the whole `--json` surface exists to avoid. The document is
@@ -303,7 +318,8 @@ function nearCommand(manifest: Manifest, node: CommandNode, word: string): boole
 function textAsked(manifest: Manifest, root: string[], before: string[], typed: string[]): Again | undefined {
   const text = textSpelling(typed, 0);
   const plain = manifest.resolve([...before, ...typed.slice(text)], root);
-  return text > 0 && plain.node?.run !== undefined ? new Again(lineWords(plain.node.path, plain.rest, undefined)) : undefined;
+  // With no `--format text` the words are the ones that resolved nothing that runs, so plain runs nothing either.
+  return plain.node?.run !== undefined ? new Again(lineWords(plain.node.path, plain.rest, undefined)) : undefined;
 }
 
 function unknownCommand({ manifest, root }: Resolving, from: CommandNode, before: string[], typed: string[]): UsageError | Again {
@@ -318,7 +334,11 @@ function unknownCommand({ manifest, root }: Resolving, from: CommandNode, before
   // option near `--format` itself owns the word, so that one is a refusal with the fix.
   const reached = manifest.resolve([...before, ...all], root);
   const node = reached.node ?? from;
-  if ((isJsonFlag(lead) || jsonSpelling(typed, 0) > 0) && node.run !== undefined) {
+  // Without a request for JSON, `all` is the words that resolved nothing that runs: either half alone decides.
+  // Stryker disable next-line EqualityOperator,ConditionalExpression: as the next line
+  const asksJson = isJsonFlag(lead) || jsonSpelling(typed, 0) > 0;
+  // Stryker disable next-line ConditionalExpression: without a request for JSON the node does not run, and with one and a node that does not run, the line run again is refused the same way
+  if (asksJson && node.run !== undefined) {
     const flag = lead.split('=')[0] as string;
     if (isJsonFlag(lead) || suggestSimilar(flag, Object.keys(node.options).map((o) => `--${kebab(o)}`)) === '') return new Again(lineWords(node.path, reached.rest, json));
     return Object.assign(new UsageError(`unknown option ${flag}`, 'did you mean --json?'), { fix: line(node.path, reached.rest, json) });
@@ -359,6 +379,7 @@ function unknownCommand({ manifest, root }: Resolving, from: CommandNode, before
 function argumentOf(manifest: Manifest, node: CommandNode, words: string[]): string[] | undefined {
   const takers = runnableBelow(manifest, node).filter((c) => (c.arguments ?? []).length > 0);
   const flag = words.findIndex((w) => w.startsWith('-'));
+  // Stryker disable next-line EqualityOperator,NumericLiteral: the first word is never a flag here (unknownCommand asks only when it is not), so flag is never 0
   const count = flag < 0 ? words.length : flag;
   const fits = (c: CommandNode): boolean => {
     const args = c.arguments as ArgumentSpec[];
@@ -377,7 +398,9 @@ function argumentOf(manifest: Manifest, node: CommandNode, words: string[]): str
  * said `greet user.name`, and four of those runs ran it. Otherwise, the one sibling `said` names.
  */
 function meant(manifest: Manifest, node: CommandNode, word: string, said: string): string[] | undefined {
-  const exact = runnableBelow(manifest, node).filter((c) => c.path.length > node.path.length + 1 && c.path.at(-1) === word);
+  // Stryker disable next-line EqualityOperator,ConditionalExpression,ArithmeticOperator,NumericLiteral: a child named exactly `word` is also the one suggestSimilar names, so counting children in changes no answer
+  const deeper = (c: CommandNode): boolean => c.path.length > node.path.length + 1;
+  const exact = runnableBelow(manifest, node).filter((c) => deeper(c) && c.path.at(-1) === word);
   if (exact.length === 1) return (exact[0] as CommandNode).path.slice(node.path.length);
   // String slicing, not a regex over the typed word (CodeQL js/polynomial-redos): `suggestSimilar`
   // says `\n(Did you mean X?)` for one match and `\n(Did you mean one of X, Y?)` for a tie.
@@ -465,7 +488,8 @@ async function helpCommand(manifest: Manifest, argv: string[], root: string[], i
  */
 function schemaAlias(manifest: Manifest, argv: string[]): string[] | undefined {
   const top = manifest.find(manifest.rootPath);
-  const takesWords = (top?.run ?? top?.load) !== undefined && (top?.arguments?.length ?? 0) > 0;
+  // Stryker disable next-line ConditionalExpression: every manifest burgee builds holds its root, and only a root that runs declares arguments
+  const takesWords = top !== undefined && (top.run ?? top.load) !== undefined && (top.arguments?.length ?? 0) > 0;
   if (argv[0] !== 'schema' || takesWords || manifest.find([...manifest.rootPath, 'schema']) !== undefined) return undefined;
   return ['--schema', ...argv.slice(1)];
 }
@@ -503,7 +527,7 @@ export async function serve(manifest: Manifest, argv: string[], io: SurfaceIo, e
     return true;
   }
   // agent-skill R2 — the program as an Agent Skill, unless the root declares a `--skill` of its own.
-  if (head[0] === '--skill' && manifest.find(manifest.rootPath)?.options['skill'] === undefined) {
+  if (head[0] === '--skill' && rootNode(manifest, manifest.rootPath).options['skill'] === undefined) {
     // localised-human-surfaces R5 — the author's own text in the run's locale, as help shows it.
     const { view } = await localised(manifest, rootNode(manifest, manifest.rootPath), io);
     io.out.write((await import('./skill.js')).renderSkill(manifest, view));
@@ -515,6 +539,7 @@ export async function serve(manifest: Manifest, argv: string[], io: SurfaceIo, e
       io.out.write((await import('./mcp-config.js')).clientConfig(manifest, io.pkg));
       return true;
     }
+    // Stryker disable StringLiteral,ArrayDeclaration,NumericLiteral: a tool call is a --json run, which ends through exit (0 included), prints its English envelope to stdout in one write, and so never leaves stdout empty for stderr to be read
     const invoke = async (args: string[]): Promise<{ stdout: string; stderr: string; code: number }> => {
       const out: string[] = [];
       const err: string[] = [];
@@ -533,6 +558,7 @@ export async function serve(manifest: Manifest, argv: string[], io: SurfaceIo, e
       });
       return { stdout: out.join(''), stderr: err.join(''), code };
     };
+    // Stryker restore all
     // Loaded on the branch that uses it: `--mcp` serves a protocol until stdin closes, and
     // a program that never speaks it should not carry the server. A bundler with code
     // splitting leaves `mcp.js` off the startup path once it is reached this way.

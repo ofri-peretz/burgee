@@ -115,6 +115,7 @@ export const brandCommand = defineCommand({
           };
 
     const brand: BurgeeBrand = {
+      // Stryker disable next-line ConditionalExpression: defineBurgee reads a name set to undefined as one left out
       ...(options.name === undefined ? {} : { name: options.name }),
       mark: colors,
       field: opposedField(colors, options.ground),

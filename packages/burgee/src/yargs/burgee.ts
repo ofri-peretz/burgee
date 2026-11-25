@@ -49,6 +49,7 @@ function describe(descriptions: Record<string, string | undefined>, key: string)
 }
 
 function typeOf(s: Snapshot, key: string): OptionSpec['type'] {
+  // Stryker disable next-line ArrayDeclaration: equivalent — a key with no aliases is looked up in the lists by itself; a stray alias is a word no list holds
   const any = (list: string[]): boolean => list.includes(key) || (s.aliases[key] ?? []).some((a) => list.includes(a));
   if (any(s.boolean)) return 'boolean';
   if (any(s.number) || any(s.count)) return 'number';
@@ -68,6 +69,7 @@ export function optionSpecs(s: Snapshot): Record<string, OptionSpec> {
   for (const key of s.keys) {
     if (skipped(key)) continue;
     const spec: OptionSpec = { type: typeOf(s, key) };
+    // Stryker disable next-line ArrayDeclaration: equivalent — every use of `aliases` looks each one up, and a word nobody registered finds nothing
     const aliases = s.aliases[key] ?? [];
     // R4: what the key (or one of its aliases) conflicts with or implies, kept only where it names
     // an option projected here. A positional count and a `--no-x` are yargs' own forms, not options,
@@ -82,7 +84,7 @@ export function optionSpecs(s: Snapshot): Record<string, OptionSpec> {
     if (exclusive[0]) spec.exclusive = exclusive;
     const dependsOn = related(s.implies);
     if (dependsOn[0]) spec.dependsOn = dependsOn;
-    const short = aliases.find((a) => a.length === 1 && !/^[0-9]$/.test(a));
+    const short = aliases.find((a) => a.length === 1 && !/[0-9]/u.test(a));
     if (short !== undefined) spec.short = short;
     const desc = describe(s.descriptions, key) ?? aliases.map((a) => describe(s.descriptions, a)).find((d) => d !== undefined);
     if (desc !== undefined) spec.description = desc;
