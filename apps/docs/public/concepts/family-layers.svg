@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 328" width="760" height="328" role="img" aria-labelledby="t d">
   <title id="t">The burgee family's dependency graph</title>
-  <desc id="d">burgee depends on bellpull, closeout, linegauge, roundel, seniority. caique depends on bellpull, closeout, linegauge, paratext, roundel. contractdiff depends on bellpull, burgee, seniority, truefit. controlroom depends on caique, closeout, flagstaff, linegauge, paratext, roundel. flagstaff depends on closeout, linegauge, paratext, roundel. hookset depends on burgee. oxmutate depends on bellpull, burgee. provedone depends on bellpull, burgee. replz depends on bellpull, burgee, seniority, truefit. triggerlist depends on bellpull, burgee, seniority, truefit. truepass depends on bellpull, burgee. bellpull, closeout, linegauge, paratext, roundel, seniority, truefit depend on nothing.</desc>
+  <desc id="d">burgee depends on bellpull, closeout, linegauge, roundel, seniority. caique depends on bellpull, closeout, linegauge, paratext, roundel. contractdiff depends on bellpull, burgee, seniority, truefit. controlroom depends on caique, closeout, flagstaff, linegauge, paratext, roundel. flagstaff depends on closeout, linegauge, paratext, roundel. hookset depends on burgee. oxmutate depends on bellpull, burgee. provedone depends on bellpull, burgee. replz depends on bellpull, burgee, seniority, truefit. triggerlist depends on bellpull, burgee, seniority, truefit. truepass depends on bellpull, burgee, roundel. bellpull, closeout, linegauge, paratext, roundel, seniority, truefit depend on nothing.</desc>
   <defs>
     <marker id="a0" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#3b82f6"/></marker>
     <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#f59e0b"/></marker>
@@ -53,6 +53,7 @@
   <line x1="621.1" y1="64" x2="761.5" y2="262" stroke="#ef4444" stroke-width="2" marker-end="url(#a9)"/>
   <line x1="717.6" y1="64" x2="124.5" y2="262" stroke="#3b82f6" stroke-width="2" marker-end="url(#a10)"/>
   <line x1="717.6" y1="64" x2="233.0" y2="142" stroke="#3b82f6" stroke-width="2" marker-end="url(#a10)"/>
+  <line x1="717.6" y1="64" x2="558.5" y2="262" stroke="#3b82f6" stroke-width="2" marker-end="url(#a10)"/>
   <rect x="109.0" y="144" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#3b82f6" stroke-width="2"/>
   <text x="163.0" y="169" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">burgee</text>
   <rect x="326.0" y="144" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#f59e0b" stroke-width="2"/>

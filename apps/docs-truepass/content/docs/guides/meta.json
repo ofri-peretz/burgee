@@ -1,4 +1,13 @@
 {
   "title": "Guides",
-  "pages": ["eslint-config", "focused-tests", "skips", "sleeps-and-retries", "truepass-diff", "suppressions", "hooks-and-ci"]
+  "pages": [
+    "eslint-config",
+    "focused-tests",
+    "skips",
+    "sleeps-and-retries",
+    "truepass-diff",
+    "case-budget",
+    "suppressions",
+    "hooks-and-ci"
+  ]
 }

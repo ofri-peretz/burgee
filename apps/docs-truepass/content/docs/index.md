@@ -70,6 +70,7 @@ own commit messages: it exits 1 on a finding and 0 on none.
 | `truepass/no-test-retry`       | ESLint          | `retry` / `retries` in tests and runner configs, `jest.retryTimes`                                 |
 | `weakened-assertion`           | `truepass diff` | an `expect(x)` moved to a weaker matcher; `Assertion: <why>` in a commit accepts it                |
 | `unexplained-snapshot`         | `truepass diff` | a snapshot file changed with no `Snapshot: <why>` line in the range's commits                      |
+| per-case time budget           | vitest reporter | a case over 5 s (`budgetMs`) and still over it alone; `truepass budget` judges a deferred battery  |
 
 A call counts as a test only when its root is a test-runner name that is an unbound global or is
 imported from a test-runner module, so a program's own `only()` is never reported.
@@ -90,6 +91,11 @@ pre-push:
   commands:
     truepass:
       run: npx truepass diff --base origin/main
+```
+
+```js
+// vitest.config.ts: a case over 5 s, and still over it run alone, fails the run
+reporters: ["default", ["truepass/vitest-reporter", { budgetMs: 5000 }]];
 ```
 
 ## Migrating
@@ -149,7 +155,7 @@ Node 22.13 or later. git, for `truepass diff`. ESLint 9 or later in the project,
 
 It hosts no plugin key of its own.
 
-Nothing in this family builds on it yet, and it builds on `bellpull` and `burgee`.
+Nothing in this family builds on it yet, and it builds on `bellpull`, `burgee`, `roundel`.
 
 ## The family
 
