@@ -1,0 +1,40 @@
+{
+  "$comment": "burgee's main already has branch protection and a merge queue holding its required checks (scripts/required-checks.mts, locked by required-checks-lock.test.ts), and release automation pushes with the release App, so this adds only what cannot stall anything: no force-push and no deletion of the default branch. Applied by .github/workflows/rulesets.yml.",
+  "owner": "ofri-peretz",
+  "repos": [
+    "burgee"
+  ],
+  "ruleset": {
+    "name": "Protect main",
+    "target": "branch",
+    "enforcement": "active",
+    "conditions": {
+      "ref_name": {
+        "include": [
+          "~DEFAULT_BRANCH"
+        ],
+        "exclude": []
+      }
+    },
+    "bypass_actors": [
+      {
+        "actor_id": 5,
+        "actor_type": "RepositoryRole",
+        "bypass_mode": "always"
+      },
+      {
+        "actor_id": 15368,
+        "actor_type": "Integration",
+        "bypass_mode": "always"
+      }
+    ],
+    "rules": [
+      {
+        "type": "deletion"
+      },
+      {
+        "type": "non_fast_forward"
+      }
+    ]
+  }
+}
