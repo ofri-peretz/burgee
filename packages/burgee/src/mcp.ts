@@ -404,9 +404,10 @@ function structuredOf(text: string, schema?: OutputSchema): { structuredContent?
     const value = ok ? data : error;
     if (value === undefined) return {};
     const plain = (ok && schema !== undefined) ? isObjectType(schema) : value?.constructor === Object;
+    // Stryker disable BlockStatement: an emptied catch returns undefined, which spreads into the reply as {} does
     return { structuredContent: plain ? value : { result: value } };
-  // Stryker disable next-line BlockStatement: undefined spreads into the reply as {} does
   } catch {
+    // Stryker restore BlockStatement
     return {};
   }
 }
