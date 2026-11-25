@@ -19,6 +19,7 @@ import { definitions } from './define-error.js';
 import { ExitCode } from './exit-code.js';
 
 /** What a kind must look like: clispec v0.3's own pattern. */
+// Stryker disable next-line Regex: a kind here is a declared one, checked at defineError, or kindFromName's, which leaves only [a-z0-9_]; so the end anchor holds whenever the start does
 const KIND = /^[a-z][a-z0-9_]*$/;
 
 /** A defined error as `--schema`'s `errors` lists it: clispec v0.3's `$defs.error`. */
@@ -40,6 +41,7 @@ export function kindOf(code: number): string | undefined {
 export const kindFromName = (name: string): string =>
   name
     .replaceAll(/([a-z\d])([A-Z])/g, '$1_$2')
+    // Stryker disable next-line Regex: the leftmost match ends at the same capital either way, so the underscore lands in the same place
     .replaceAll(/([A-Z]+)([A-Z][a-z])/g, '$1_$2')
     .replaceAll(/[^A-Za-z\d]+/g, '_')
     .toLowerCase()
