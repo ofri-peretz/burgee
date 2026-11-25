@@ -1,10 +1,11 @@
 ---
-title: The two commands
-description: "`hookset init` writes or re-pins the lefthook.yml that pulls the presets and refuses a hand-written one without --force; `hookset check` reports every missing station, unpinned remote, repeated step and drifted Claude hook, as text or as a --json envelope, and exits 1 on any error."
+title: The three commands
+description: "`hookset init` writes or re-pins the lefthook.yml that pulls the presets and refuses a hand-written one without --force; `hookset check` reports every missing station, unpinned remote, repeated step and drifted Claude hook, as text or as a --json envelope, and exits 1 on any error; `hookset context` holds the always-loaded Claude context under a ceiling that only goes down."
 ---
 
-hookset has two commands. `init` writes; `check` reads and judges. Both are declared once on
-[burgee](https://burgee.interlace.tools/docs/packages/burgee), so both take `--json`, `--help`
+hookset has three commands. `init` writes; `check` reads and judges; `context` measures what
+Claude Code loads into every session. All are declared once on
+[burgee](https://burgee.interlace.tools/docs/packages/burgee), so all take `--json`, `--help`
 and `--schema`, and `hookset --mcp` serves them as tools.
 
 ## hookset init
@@ -107,6 +108,22 @@ a script no station owns, which is what local steps are for
 ```text title="npx hookset check --json" exit="1"
 {"ok":false,"data":{"ok":false,"pinned":"hookset@1.0.0","expected":"hookset@1.0.0","problems":[{"id":"duplicate","severity":"error","message":"pre-commit → lint repeats the staged station the preset already runs","fix":"delete pre-commit.commands.lint from lefthook.yml"},{"id":"duplicate","severity":"error","message":"pre-push → verify repeats the verify station the preset already runs","fix":"delete pre-push.commands.verify from lefthook.yml"},{"id":"station-off","severity":"warning","message":"the mutation station is not declared yet (optional)","fix":"add \"hook:mutation\" to package.json scripts when the repo has it: changed-lines mutation testing"},{"id":"station-off","severity":"warning","message":"the test-integrity station is not declared yet (observe)","fix":"add \"hook:test-integrity\" to package.json scripts when the repo has it: no .only, .skip or weakened assertion in the diff"},{"id":"station-off","severity":"warning","message":"the proofline station is not declared yet (observe)","fix":"add \"hook:proofline\" to package.json scripts when the repo has it: the change carries its Checked line"},{"id":"station-off","severity":"warning","message":"the triggerlist station is not declared yet (observe)","fix":"add \"hook:triggerlist\" to package.json scripts when the repo has it: protected paths changed only with their trigger"}],"exitCode":1},"meta":{"provenance":{}}}
 ```
+
+## hookset context
+
+`context` estimates the always-loaded context: `CLAUDE.md` and its `@`-imports, plus the name and
+description of every skill, command and subagent under `.claude/`. A skill or command marked
+`disable-model-invocation: true` is left out, since its description loads only when someone types
+its command. Tokens are characters / 4.
+
+The ceiling is `context.tokens` in `.claude/hookset.json`, and it only goes down. Run `context`
+in CI so a change that grows what every session reads fails with the largest descriptions named.
+
+| Flag | What it does |
+| :-- | :-- |
+| (none) | Exits 1 when there is no ceiling or the context is over it. |
+| `--update` | Sets the ceiling to the current size. Refuses when that would raise it. |
+| `--cwd <dir>` | The repository to measure. The default is the current directory. |
 
 ## Exit codes
 
