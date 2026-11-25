@@ -35,6 +35,8 @@ packages/compat-oracle/specs-upstream.json
 .claude/*
 !.claude/settings.json
 !.claude/hooks/
+!.claude/hookset.json
+!.claude/skills/
 
 # The two outside checkers the floor axis runs (N10), downloaded and digest-checked by
 # `benchmarks/floor-tools.ts`. Pinned there; a binary is not source.

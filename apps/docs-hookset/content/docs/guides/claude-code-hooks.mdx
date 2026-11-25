@@ -1,23 +1,26 @@
 ---
 title: Claude Code hooks
-description: "`hookset init --claude` vendors two Claude Code hooks into .claude/hooks/ and wires them in .claude/settings.json: guard-bash denies skipped git hooks, a moved core.hooksPath, CI polling loops and a short-timeout commit or push, and asks before a publish; stop-after-3 ends the turn after the third failed test run in a row."
+description: "`hookset init --claude` vendors three Claude Code hooks and a verify skill template into .claude/hooks/ and wires them in .claude/settings.json: guard-bash denies skipped git hooks, a moved core.hooksPath, CI polling loops and a short-timeout commit or push, and asks before a publish; stop-after-3 ends the turn after the third failed test run in a row; verify-before-stop sends a turn back once when it ends on untested code."
 ---
 
 A rule an agent can break with one command is a check, not a sentence. The git hooks stop a
 bad commit; the Claude Code hooks stop an agent from getting around them. `hookset init
---claude` puts two of them into a repository:
+--claude` puts three of them, and a verify skill to fill in, into a repository:
 
 ```text title="npx hookset init --claude"
-wrote lefthook.yml, .claude/hooks/guard-bash.mjs, .claude/hooks/stop-after-3.mjs, .claude/settings.json
+wrote lefthook.yml, .claude/hooks/guard-bash.mjs, .claude/hooks/stop-after-3.mjs, .claude/hooks/verify-before-stop.mjs, .claude/settings.json
 ```
 
-- **`.claude/hooks/guard-bash.mjs`** and **`.claude/hooks/stop-after-3.mjs`** are copied byte
-  for byte from the package. `hookset check` fails when either differs (`claude-drift`): change
+- **`.claude/hooks/guard-bash.mjs`**, **`stop-after-3.mjs`** and **`verify-before-stop.mjs`** are copied byte
+  for byte from the package. `hookset check` fails when one differs (`claude-drift`): change
   the canonical copy in burgee, never the vendored one.
 - **`.claude/hookset.json`** is the repository's own list of what to ask about and what not to
   edit. `init` writes `{ "ask": [], "frozen": [] }` only when the file is missing, and never
   overwrites it. This repository already had one (it is shown below), so `init` left it alone.
-- **`.claude/settings.json`** gains four hook entries. Any settings already there are kept, and
+- **`.claude/skills/verify/SKILL.md`** is written once from a template and is the repository's
+  to fill in. This repository had already filled its in ([below](#the-verify-skill)), so `init`
+  left it alone too.
+- **`.claude/settings.json`** gains seven hook entries. Any settings already there are kept, and
   an entry that is already wired is not added twice.
 
 ## What settings.json runs
@@ -31,10 +34,19 @@ wrote lefthook.yml, .claude/hooks/guard-bash.mjs, .claude/hooks/stop-after-3.mjs
       { "matcher": "Edit|Write|MultiEdit|NotebookEdit", "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-bash.mjs\"" }] }
     ],
     "PostToolUse": [
-      { "matcher": "Bash", "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/stop-after-3.mjs\"" }] }
+      { "matcher": "Bash", "hooks": [
+        { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/stop-after-3.mjs\"" },
+        { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/verify-before-stop.mjs\"" }
+      ] }
     ],
     "PostToolUseFailure": [
-      { "matcher": "Bash", "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/stop-after-3.mjs\"" }] }
+      { "matcher": "Bash", "hooks": [
+        { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/stop-after-3.mjs\"" },
+        { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/verify-before-stop.mjs\"" }
+      ] }
+    ],
+    "Stop": [
+      { "matcher": "", "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/verify-before-stop.mjs\"" }] }
     ]
   }
 }
@@ -119,6 +131,49 @@ count where it was. The count lives in a file under the system's temporary direc
 
 ```text title="node .claude/hooks/stop-after-3.mjs --self-test"
 ok: 9 counted, 7 ignored, stop on 3
+```
+
+## verify-before-stop
+
+"Run the tests before you say you're done" is the other sentence an agent reads past. A whole
+suite inside a Stop hook would hold every turn for minutes, so verify-before-stop asks for the
+run instead of making it. After a test run passes (the same test runs stop-after-3 counts), it
+records a fingerprint of the uncommitted code. When the turn ends while uncommitted code differs
+from that fingerprint, or no run passed this session, it sends the turn back once
+(`decision: "block"`) naming the changed files. The second stop of the same turn
+(`stop_hook_active`) always ends it, so an agent that has to ask a question first is never stuck.
+
+Committed work is the commit and push hooks' to judge. `.md`, `.mdx` and `.txt` files do not
+count, and neither do the globs a repository lists under `verifyIgnore` in `.claude/hookset.json`.
+
+```text title="node .claude/hooks/verify-before-stop.mjs --self-test"
+ok: 9 cases
+```
+
+## The verify skill
+
+The most useful check is running the change the way a user would. `init --claude` writes
+`.claude/skills/verify/SKILL.md` from a template once, and never overwrites it: how to boot the
+app or CLI, how to drive it and read back what it shows, and a feature map (each feature, how to
+reach it, what working means). `hookset check` fails while the file is missing
+(`verify-skill-missing`), still has a `TODO(verify)` line (`verify-skill-unfilled`), or has lost
+`name: verify` or `## Feature map` (`verify-skill-incomplete`). This repository's, filled in:
+
+```md title=".claude/skills/verify/SKILL.md"
+---
+name: verify
+description: Run the CLI as a user would and read back its exit code and output. Use before committing a behaviour change.
+---
+
+## Boot
+
+`npm run build`, then `node dist/cli.js --help` exits 0.
+
+## Feature map
+
+| Feature | Reach it by | Working means |
+| --- | --- | --- |
+| help | `node dist/cli.js --help` | exit 0, lists the commands |
 ```
 
 ## check sees the pack

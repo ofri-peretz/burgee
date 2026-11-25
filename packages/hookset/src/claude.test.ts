@@ -10,6 +10,7 @@ import { packageRoot } from './core.js';
 const scratch = scratchDirs();
 
 const CLAUDE = join(packageRoot(), 'claude');
+const withoutGit = (): NodeJS.ProcessEnv => Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')));
 
 /** Run one pack hook as Claude Code does: the payload on stdin, the decision on stdout. */
 function hook(file: string, payload: unknown, env: Record<string, string> = {}): string {
@@ -121,5 +122,45 @@ describe('stop-after-3', () => {
   it('ignores commands that are not test runs, and payloads with no command', () => {
     expect(hook('stop-after-3.mjs', { session_id: 'x', hook_event_name: 'PostToolUseFailure', tool_input: { command: 'npm run build' } })).toBe('');
     expect(hook('stop-after-3.mjs', { session_id: 'x', tool_input: {} })).toBe('');
+  });
+});
+
+describe('verify-before-stop', () => {
+  it('passes its own cases', () => {
+    const r = spawnSync(process.execPath, [join(CLAUDE, 'verify-before-stop.mjs'), '--self-test'], { encoding: 'utf8' });
+    expect(r.stdout).toBe('ok: 9 cases\n');
+  });
+
+  it('sends a turn back once when code changed after the last passing test run, and lets it end after a pass', () => {
+    const dir = scratch('hookset-vbs-');
+    const git = (...args: string[]): void => void spawnSync('git', args, { cwd: dir, env: withoutGit() });
+    git('init', '-q');
+    git('-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-q', '--allow-empty', '-m', 'root');
+    const session = `vitest-vbs-${String(process.pid)}-${String(Date.now())}`;
+    const stop = { session_id: session, hook_event_name: 'Stop', cwd: dir, stop_hook_active: false };
+    expect(hook('verify-before-stop.mjs', stop)).toBe('');
+    writeFileSync(join(dir, 'a.ts'), 'export const a = 1;\n');
+    const back = JSON.parse(hook('verify-before-stop.mjs', stop)) as { decision: string; reason: string };
+    expect(back.decision).toBe('block');
+    expect(back.reason).toContain('a.ts');
+    // The second stop of the same turn always ends it.
+    expect(hook('verify-before-stop.mjs', { ...stop, stop_hook_active: true })).toBe('');
+    const ran = { session_id: session, hook_event_name: 'PostToolUse', cwd: dir, tool_input: { command: 'npx vitest run' } };
+    expect(hook('verify-before-stop.mjs', { ...ran, tool_response: { exitCode: 1 } })).toBe('');
+    expect(hook('verify-before-stop.mjs', stop)).not.toBe('');
+    expect(hook('verify-before-stop.mjs', { ...ran, tool_response: { exitCode: 0 } })).toBe('');
+    expect(hook('verify-before-stop.mjs', stop)).toBe('');
+  });
+
+  it('does not judge docs, or the globs the repo lists under verifyIgnore', () => {
+    const dir = scratch('hookset-vbs-');
+    spawnSync('git', ['init', '-q'], { cwd: dir, env: withoutGit() });
+    mkdirSync(join(dir, '.claude'));
+    writeFileSync(join(dir, '.claude/hookset.json'), JSON.stringify({ verifyIgnore: ['.claude/**', 'fixtures/**'] }));
+    mkdirSync(join(dir, 'fixtures'));
+    writeFileSync(join(dir, 'fixtures/x.json'), '{}');
+    writeFileSync(join(dir, 'README.md'), '# x\n');
+    const stop = { session_id: `vitest-vbs-ign-${String(process.pid)}`, hook_event_name: 'Stop', cwd: dir };
+    expect(hook('verify-before-stop.mjs', stop, { CLAUDE_PROJECT_DIR: dir })).toBe('');
   });
 });

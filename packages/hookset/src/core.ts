@@ -30,12 +30,26 @@ export interface ClaudeHook {
   file: string;
 }
 
+/** A skill every repo carries, such as `verify`: written from a template, then filled in by the repo. */
+export interface ClaudeSkill {
+  id: string;
+  /** Where the repo keeps it, relative to the repo root. */
+  path: string;
+  /** The template `init --claude` writes, relative to the package root. */
+  template: string;
+  /** Text the filled-in skill still has to contain. */
+  requires: string[];
+  /** The marker the template puts on every line the repo has to replace. */
+  placeholder: string;
+  detail: string;
+}
+
 export interface Stations {
   remote: string;
   tagPrefix: string;
   presets: Record<Hook, string>;
   stations: Station[];
-  claude: { files: string[]; hooks: ClaudeHook[] };
+  claude: { files: string[]; hooks: ClaudeHook[]; skills: ClaudeSkill[] };
 }
 
 export interface Problem {
@@ -310,10 +324,25 @@ function checkClaude(repo: string, pkg: string, stations: Stations): Problem[] {
       problems.push({ id: 'claude-unwired', severity: 'error', message: `.claude/settings.json does not run ${h.file} on ${h.event} (${h.matcher})`, fix: 'run `hookset init --claude`' });
     }
   }
+  for (const skill of stations.claude.skills) problems.push(...checkSkill(repo, skill));
   return problems;
 }
 
-/** The pack's hooks, with stop-after-3 also on PostToolUseFailure (a failed Bash call lands there). */
+/** A pack skill the repo must carry and fill in: present, still holding what it requires, no placeholder left. */
+export function checkSkill(repo: string, skill: ClaudeSkill): Problem[] {
+  const file = join(repo, skill.path);
+  if (!existsSync(file)) return [{ id: `${skill.id}-skill-missing`, severity: 'error', message: `${skill.path} is missing: ${skill.detail}`, fix: `run \`hookset init --claude\`, then fill in every ${skill.placeholder} line` }];
+  const text = readText(file);
+  const problems: Problem[] = [];
+  const left = text.split(/\r?\n/).filter((l) => l.includes(skill.placeholder)).length;
+  if (left > 0) problems.push({ id: `${skill.id}-skill-unfilled`, severity: 'error', message: `${skill.path} still has ${String(left)} ${skill.placeholder} line${left === 1 ? '' : 's'}`, fix: `replace each ${skill.placeholder} line with this repo's real steps` });
+  for (const need of skill.requires) {
+    if (!text.includes(need)) problems.push({ id: `${skill.id}-skill-incomplete`, severity: 'error', message: `${skill.path} has no \`${need}\``, fix: `put \`${need}\` back; the template shows where it goes` });
+  }
+  return problems;
+}
+
+/** The pack's hooks, each PostToolUse one also on PostToolUseFailure (a failed Bash call lands there). */
 export function expectedClaudeHooks(stations: Stations): ClaudeHook[] {
   return stations.claude.hooks.flatMap((h) => (h.event === 'PostToolUse' ? [h, { ...h, event: 'PostToolUseFailure' }] : [h]));
 }
@@ -368,6 +397,8 @@ export function initRepo(repo: string, pkg: string, options: { force?: boolean; 
   if (options.claude) {
     for (const file of stations.claude.files) write(`.claude/hooks/${file}`, readText(join(pkg, 'claude', file)));
     if (!existsSync(join(repo, '.claude', 'hookset.json'))) write('.claude/hookset.json', `${JSON.stringify({ ask: [], frozen: [] }, undefined, 2)}\n`);
+    // A skill is the repo's to fill in: written once from the template, never overwritten.
+    for (const skill of stations.claude.skills) if (!existsSync(join(repo, skill.path))) write(skill.path, readText(join(pkg, skill.template)));
     write('.claude/settings.json', mergeSettings(repo, stations));
   }
   return { changed: written.length > 0, written };

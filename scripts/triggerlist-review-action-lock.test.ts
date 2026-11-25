@@ -253,6 +253,18 @@ describe('the triggerlist review action', () => {
     );
   });
 
+  it('tells the reviewer to tag every finding Important, Nit or Pre-existing', () => {
+    const prompt = reviewStep!.with!['prompt']!.replaceAll(/\s+/gu, ' ');
+    expect(prompt).toContain('Start every finding with its tag: [Important] for a bug this change adds or makes worse, [Nit] for a minor point, [Pre-existing] for a bug that was there before this change');
+    expect(prompt).toContain('The summary counts the findings by tag.');
+  });
+
+  it('adds the caller\'s extra tools to the allowed list, and none by default', () => {
+    const args = reviewStep!.with!['claude_args']!;
+    expect(args).toContain("${{ inputs.extra-tools && format(',{0}', inputs.extra-tools) || '' }}");
+    expect((loadYaml(readFileSync(ACTION, 'utf8')) as { inputs: Record<string, { default?: string }> }).inputs['extra-tools']?.default).toBe('');
+  });
+
   executes('fails, after saying so on the PR, when the head moved during the review', () => {
     const dir = scratchDir('triggerlist-review-stale-');
     const r = runStep(staleStep!.run!, dir, dir, { HEAD_SHA: 'aaaa', NOW_HEAD: 'bbbb' });

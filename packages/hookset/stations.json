@@ -18,11 +18,16 @@
     { "id": "triggerlist", "hook": "pre-push", "mode": "observe", "command": "hookset-triggerlist", "script": "hook:triggerlist", "detail": "protected paths changed only with their trigger" }
   ],
   "claude": {
-    "files": ["guard-bash.mjs", "stop-after-3.mjs"],
+    "files": ["guard-bash.mjs", "stop-after-3.mjs", "verify-before-stop.mjs"],
     "hooks": [
       { "event": "PreToolUse", "matcher": "Bash", "file": "guard-bash.mjs" },
       { "event": "PreToolUse", "matcher": "Edit|Write|MultiEdit|NotebookEdit", "file": "guard-bash.mjs" },
-      { "event": "PostToolUse", "matcher": "Bash", "file": "stop-after-3.mjs" }
+      { "event": "PostToolUse", "matcher": "Bash", "file": "stop-after-3.mjs" },
+      { "event": "PostToolUse", "matcher": "Bash", "file": "verify-before-stop.mjs" },
+      { "event": "Stop", "matcher": "", "file": "verify-before-stop.mjs" }
+    ],
+    "skills": [
+      { "id": "verify", "path": ".claude/skills/verify/SKILL.md", "template": "claude/skills/verify/SKILL.md", "requires": ["name: verify", "## Feature map"], "placeholder": "TODO(verify)", "detail": "the skill that boots the app, drives the change and checks what it shows, with a feature map" }
     ]
   }
 }
