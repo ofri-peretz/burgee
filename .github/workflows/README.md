@@ -126,6 +126,15 @@ to run still starts and passes in one step. `npm run lint:workflows` holds the l
 | [`hookset-check.yml`](./hookset-check.yml)   | `hookset check` on the caller against the presets at the `hookset@<version>` tag its `lefthook.yml` pins: a sparse checkout of `packages/hookset`, run by Node's type stripping, no install; on a PR, `provedone gate --mode enforce` on every non-merge commit |
 | [`changeset-gate.yml`](./changeset-gate.yml) | A PR that changes package source or a manifest adds a changeset that `changeset status` accepts; `skip-changeset` opts out, the Version PR passes. The rule `changesets-pr.yml` holds here, for repos that had none                                             |
 
+## Repository settings as code
+
+[`rulesets.yml`](./rulesets.yml) applies every `.github/rulesets/*.json` to the repositories it
+lists (`scripts/apply-rulesets.mts`), creating or replacing each ruleset by name, so an edit to the
+file is the edit to the setting. A pull request that changes one dry-runs it; the push to main and
+`workflow_dispatch` apply it with `RULESETS_TOKEN` (a fine-grained PAT, Administration read/write on
+each listed repository), and without that secret the run is a dry run that says so. The first
+declaration requires `hookset / provedone receipts` in the six other code repositories.
+
 ## Security
 
 | Workflow                           | Role                                                                                                                 |
