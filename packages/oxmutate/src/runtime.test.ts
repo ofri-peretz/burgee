@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { ACTIVE_MUTANT_ENV, FILE_KEY, NAMESPACE, cwd, exit, killGroup, serverGroups } from './runtime.js';
+import { ACTIVE_MUTANT_ENV, FILE_KEY, INTERRUPTS, NAMESPACE, cwd, exit, killGroup, offSignal, onSignal, serverGroups } from './runtime.js';
 
 // The emitter that writes the other half of the contract.
 const emitter = readFileSync(new URL('../native/src/instrument.rs', import.meta.url), 'utf8');
@@ -101,5 +101,20 @@ describe.skipIf(!serverGroups)('killGroup', () => {
   });
   it('answers false for a group that is not there', () => {
     expect(killGroup(2 ** 22 + 1)).toBe(false);
+  });
+});
+
+describe('interrupts', () => {
+  it('each exits 128 + its number, and a listener hears the signal until it is taken off', () => {
+    expect(INTERRUPTS).toEqual({ SIGINT: 130, SIGTERM: 143, SIGHUP: 129 });
+    const heard = vi.fn();
+    onSignal('SIGHUP', heard);
+    try {
+      process.emit('SIGHUP');
+      expect(heard).toHaveBeenCalledTimes(1);
+    } finally {
+      offSignal('SIGHUP', heard);
+    }
+    expect(process.listeners('SIGHUP')).not.toContain(heard);
   });
 });

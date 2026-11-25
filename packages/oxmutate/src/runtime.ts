@@ -59,3 +59,13 @@ export const killGroup = (leader: number): boolean => {
     return false;
   }
 };
+/** The signals an interrupted run is stopped by, and the exit code each gives (128 + its number). */
+export const INTERRUPTS = { SIGINT: 130, SIGTERM: 143, SIGHUP: 129 } as const;
+export type Interrupt = keyof typeof INTERRUPTS;
+/** Listens for an interrupt; while one listens, the signal no longer ends the process by itself. */
+export const onSignal = (signal: Interrupt, listener: () => void): void => {
+  process.on(signal, listener);
+};
+export const offSignal = (signal: Interrupt, listener: () => void): void => {
+  process.off(signal, listener);
+};

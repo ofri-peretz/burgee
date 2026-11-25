@@ -11,6 +11,7 @@ import { pathToFileURL } from 'node:url';
 
 import { type Container, containerOf, INSIDE, machineDefault } from './container.js';
 import { MAX_LOAD_PER_CORE } from './governor.js';
+import { type MemorySetting, memorySetting } from './memory.js';
 import { type IgnoreRule } from './native.js';
 import { resolveEsm } from './resolve.js';
 import { env } from './runtime.js';
@@ -75,6 +76,14 @@ export interface Options {
    * closed, and a new one starts if work comes later; 0 keeps every server until the run ends.
    */
   workers: { warm: boolean; idleTimeoutMs: number };
+  /**
+   * `resources.workerMemoryLimit`: a warm server holding more than this after a unit is recycled (closed,
+   * the warm spare takes its slot), so memory a long run piles up goes back to the machine. `'auto'`
+   * (unset): 80% of the run's memory limit shared across the servers, where the run has a limit of its
+   * own (the container oxmutate starts with `container.memory`, or any cgroup with one), else off. A
+   * share (`'25%'`) of the memory the run has, per server; a size (`'1.5g'`, or a number of MiB); `'off'`.
+   */
+  workerMemoryLimit?: MemorySetting | undefined;
   /** The governor (`R12`): no unit starts while the load oxmutate does not account for is past this. */
   maxLoad: number;
   /** `R15`: servers start at a lowered OS priority. */
@@ -325,6 +334,7 @@ export async function loadOptions(root: string, overrides: Partial<Options> = {}
     vitestConfig: vitest.configFile ? path.resolve(root, vitest.configFile) : undefined,
     concurrency: Number(raw['concurrency'] ?? defaultConcurrency()),
     workers: workersOf(raw['resources']),
+    workerMemoryLimit: memorySetting((raw['resources'] as { workerMemoryLimit?: unknown } | undefined)?.workerMemoryLimit),
     ...governorOf(raw['resources']),
     timeoutMS: Number(raw['timeoutMS'] ?? DEFAULT_TIMEOUT_MS),
     timeoutFactor: Number(raw['timeoutFactor'] ?? DEFAULT_TIMEOUT_FACTOR),

@@ -180,7 +180,12 @@ on the machine with `OXMUTATE_CONTAINER=1`. Docker and Podman both work. The fir
 project's dependencies inside the container; later runs send only the files that changed and
 install again only when the lockfile does. `oxmutate prune` removes every container and volume it
 made; it is also the first fix when the engine's disk is full (`podman machine set --disk-size`
-enlarges a Podman machine's). Every failure is one line ending in `fix:`. The keys and what each step does are in
+enlarges a Podman machine's). An interrupted run (Ctrl-C, a CI timeout, an agent stopping its job)
+removes its own containers before it exits; a run the kernel killed for memory says which limit it
+hit; and inside, a warm server past its memory ceiling (`resources.workerMemoryLimit`, `auto` by
+default) is recycled between units. `container.cleanup` decides what stays: the volume (`keep`,
+`remove`, `keep-on-failure`), a failed run's container, an interrupted run's. Every failure is one
+line ending in `fix:`. The keys and what each step does are in
 [the configuration docs](https://oxmutate.interlace.tools/docs/configuration#in-a-container).
 
 ## How it works

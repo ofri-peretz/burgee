@@ -86,9 +86,28 @@ because a mutant switched off without one cannot be reviewed.
 | `static.budgetMs`             | none                                 | Stop starting static units after this long; what is undecided is Ignored with a reason (`--static-budget`)                                                                                             |
 | `resources.warmWorkers`       | `true`                               | Keep each Vitest server warm between units; `false` starts one per unit (`--cold-workers`)                                                                                                             |
 | `resources.workerIdleTimeout` | 30000                                | Close a server idle this many ms; 0 keeps them all until the run ends (`--worker-idle-timeout`)                                                                                                        |
+| `resources.workerMemoryLimit` | `'auto'`                             | Recycle a warm server holding more than this after a unit; see [Memory](#memory) (`--worker-memory-limit`)                                                                                             |
 | `resources.maxLoad`           | 1.5 × cores                          | Start no unit while the load average, less oxmutate's own busy servers, is past this; one server always runs (`--max-load`)                                                                            |
 | `resources.priority`          | `'low'`                              | Start servers at a lowered OS priority; `'normal'` does not (`--priority`)                                                                                                                             |
 | `container`                   | off                                  | Run inside a container oxmutate starts, on a copy of the repository; see [In a container](#in-a-container) (`--container`, `--container-image`, `--no-container`)                                      |
+
+## Memory
+
+A warm Vitest server keeps its module graph between units, and whatever a mutant leaked into it, so
+on a long run its memory only grows. `resources.workerMemoryLimit` is the ceiling: a server holding
+more than it once a unit is done (its own memory and every process its tests started, read from
+`/proc` on Linux) is closed, and the warm spare takes its slot. The unit it ran is already decided,
+so no verdict changes; the memory goes back to the machine before the next unit starts. The summary
+says how many servers were recycled and the most one held.
+
+| Value                      | Ceiling per server                                                                                                                                                                    |
+| :------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `'auto'` (unset)           | 80% of the memory the run has, shared across the servers and the spare, where the run has a limit of its own (a cgroup limit, or inside the container oxmutate starts); off elsewhere |
+| `'25%'`                    | That share of the memory the run has (the cgroup's limit, else the machine's), per server                                                                                             |
+| `'1.5g'`, `'800mb'`, `800` | That size; a bare number is MiB                                                                                                                                                       |
+| `'off'`                    | None: servers live until the run ends, or `workerIdleTimeout`                                                                                                                         |
+
+`resources.warmWorkers: false` holds the least memory of all, at the cost of a server start per unit.
 
 `--report-dir <dir>` writes `mutation.json`, `mutation.sarif` and `mutation.html` into one
 directory, whatever the config says.
@@ -140,6 +159,32 @@ then `docker system prune` (`podman system prune`), or give the engine a bigger 
 directory instead. Podman's refusal of an image name with no registry says to set
 `container.image` to a full name, such as `docker.io/library/node:22-bookworm-slim`.
 
+**Memory and cleanup.** Every container of a run carries the run's own label
+(`dev.oxmutate.run=<id>`), and the run's container is named `oxmutate-run-<id>`. When the run is
+interrupted (SIGINT, SIGTERM or SIGHUP: Ctrl-C, a CI timeout, an agent stopping its job), oxmutate
+removes exactly that run's containers before it exits 130, 143 or 129, so no detached test run is
+left holding the engine's memory. A run that ends 137 is read back (`.State.OOMKilled`): the line
+says whether the kernel killed it for memory, and at which limit (`memory`, or the engine's VM), or
+whether something outside killed it. Inside, `resources.workerMemoryLimit` is `'auto'`
+([Memory](#memory)): servers are recycled before the limit is reached. With `readOnly`, `/tmp` is a
+tmpfs whose pages count against `memory`; `tmpSize` caps it. What a run leaves behind is
+`cleanup`'s to say:
+
+| `cleanup` key | Default  | Values                                                                                                                                                                                                                     |
+| :------------ | :------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `volume`      | `keep`   | `keep`: the next run sends only what changed. `remove`: nothing stays (`ephemeral: true`). `keep-on-failure`: removed after a run that reported (exit 0 or 1), kept after any other, to look inside (`--container-volume`) |
+| `failed`      | `remove` | `keep`: a failed run's container stays, stopped, for `docker logs oxmutate-run-<id>` (`--keep-failed-container`)                                                                                                           |
+| `interrupt`   | `remove` | `keep`: an interrupted run's containers stay for `oxmutate prune` (`--keep-on-interrupt`)                                                                                                                                  |
+
+```json
+{
+  "container": {
+    "memory": "6g",
+    "cleanup": { "volume": "keep-on-failure", "failed": "keep" }
+  }
+}
+```
+
 **Installing.** The install is chosen by the lockfile: `npm ci`, pnpm, yarn 1 with
 `--frozen-lockfile`, and Yarn 2 or later (a `.yarnrc.yml`, or `packageManager: "yarn@4…"`) with
 `yarn install --immutable`. A bun lockfile chooses nothing: set `image` to one with bun and
@@ -180,7 +225,9 @@ else to the engine as it is:
 | `setup`        | none                                          | Runs in the run's container before oxmutate: a build the tests need                         |
 | `volume`       | `oxmutate-<hash of the repository path>`      | The named volume that keeps the source and its `node_modules` between runs                  |
 | `cache`        | `oxmutate-cache`                              | The volume the install's npm, pnpm and yarn caches live in, shared; `false` for none        |
-| `ephemeral`    | `false`                                       | Remove the volume after the run; every run then installs                                    |
+| `ephemeral`    | `false`                                       | Remove the volume after the run; every run then installs (`cleanup.volume: "remove"`)       |
+| `cleanup`      | keep the volume, remove the rest              | What a run leaves behind: `volume`, `failed`, `interrupt`; see Memory and cleanup above     |
+| `tmpSize`      | the engine's                                  | With `readOnly`, the most the `/tmp` tmpfs holds, such as `512m`                            |
 | `runtime`      | `runsc` when Docker has it, else the engine's | `--runtime`; `"default"` always takes the engine's                                          |
 | `readOnly`     | `false`                                       | A read-only root filesystem, with `/tmp` a tmpfs and `HOME`                                 |
 | `user`         | the image's                                   | `--user`                                                                                    |
