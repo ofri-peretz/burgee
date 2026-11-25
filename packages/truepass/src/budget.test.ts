@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -91,7 +91,19 @@ describe('budgetFrom', () => {
 describe('the small parts', () => {
   it('is strict on CI, as roundel reads it', () => {
     expect(strict({ CI: 'true' })).toBe(true);
+    expect(strict({ CI: '1' })).toBe(true);
+    expect(strict({ CI: '' })).toBe(false);
     expect(strict({})).toBe(false);
+  });
+
+  it('loads with nothing built: the reporter and budget import only node and their own package at load time', () => {
+    const outside = ['budget.ts', 'vitest-reporter.ts', 'runtime.ts'].flatMap((file) =>
+      [...readFileSync(join(import.meta.dirname, file), 'utf8').matchAll(/^import\s[^;]*?from\s+'([^']+)'/gmu)]
+        .map((m) => m[1] ?? '')
+        .filter((spec) => !spec.startsWith('node:') && !spec.startsWith('./'))
+        .map((spec) => `${file}: ${spec}`),
+    );
+    expect(outside).toEqual([]);
   });
 
   it('skips an alone reading off CI under load or out of time, never on CI', () => {

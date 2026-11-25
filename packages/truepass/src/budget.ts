@@ -9,14 +9,15 @@
  * printed as unjudged, and CI judges it. Inside a battery (`turbo run test`), set
  * `TRUEPASS_BUDGET_DEFER` to a directory: each run leaves its candidates there and
  * `truepass budget <dir>` judges them once the battery is over.
+ *
+ * Loading this module and the reporter needs nothing built: a run with no case over the budget
+ * imports only node's own modules, so a monorepo can load the reporter from source in every suite.
+ * bellpull, which runs the alone readings, is imported only when there is a case to measure.
  */
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { availableParallelism, loadavg, tmpdir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
-
-import { ambientRuntime, run } from 'bellpull';
-import { outputMode } from 'roundel/policy';
 
 import { env as processEnv, execPath, writeErr } from './runtime.js';
 
@@ -75,9 +76,8 @@ export function budgetFrom(env: NodeJS.ProcessEnv, fallback: number = DEFAULT_BU
   return n;
 }
 
-/** On CI a reading taken under load still counts: the runner is the job's alone. roundel decides what CI is. */
-// Stryker disable next-line ObjectLiteral: equivalent, a missing stdout reads as not a terminal, which is what this says
-export const strict = (env: NodeJS.ProcessEnv): boolean => outputMode({ env, isTTY: { stdout: false } }) === 'ci';
+/** On CI a reading taken under load still counts: the runner is the job's alone. CI is a non-empty `CI`, as roundel reads it. */
+export const strict = (env: NodeJS.ProcessEnv): boolean => (env['CI'] ?? '') !== '';
 
 /** How long a developer machine spends on alone readings before it leaves the rest to CI. */
 export const LOCAL_ALONE_BUDGET_MS = 120_000;
@@ -120,7 +120,10 @@ export type Spawn = (args: readonly string[], cwd: string) => Promise<unknown>;
 /** The environment an alone run gets: the gate off, so it does not judge itself, and no `GIT_*` variable. */
 export const aloneEnv = (env: NodeJS.ProcessEnv): NodeJS.ProcessEnv => ({ ...withoutGitEnv(env), [BUDGET_ENV]: '0' });
 
-const spawnNode: Spawn = (args, cwd) => run(execPath(), args, { runtime: ambientRuntime(), cwd, env: aloneEnv(processEnv()), timeout: 0 });
+const spawnNode: Spawn = async (args, cwd) => {
+  const { ambientRuntime, run } = await import('bellpull');
+  return run(execPath(), args, { runtime: ambientRuntime(), cwd, env: aloneEnv(processEnv()), timeout: 0 });
+};
 
 /** Runs `c`'s file alone with `-t` naming it and reads its duration; `undefined` when the run did not report it. */
 export async function measureAlone(c: Candidate, spawn: Spawn = spawnNode): Promise<number | undefined> {
