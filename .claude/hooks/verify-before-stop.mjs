@@ -93,8 +93,8 @@ function passedHash(session) {
   }
 }
 
-/** PostToolUse: a passing test run remembers what the code looked like. Prints nothing. */
-export function recordPass(session, dir, command, failed, ignore = []) {
+/** PostToolUse: a passing test run (`{ command, failed }`) remembers what the code looked like. Prints nothing. */
+export function recordPass(session, dir, { command, failed }, ignore = []) {
   if (failed || !isTestCommand(command)) return;
   const fp = fingerprint(dir, ignore);
   // A pass with nothing uncommitted proves the committed tree; forget any older fingerprint.
@@ -176,12 +176,12 @@ function selfTest() {
     bad.push("the second stop of a turn should always pass");
   if (decideStop(session, dir, false, ["*.ts"]))
     bad.push("a verifyIgnore glob should not count");
-  recordPass(session, dir, "npm run build", false);
+  recordPass(session, dir, { command: "npm run build", failed: false });
   if (!decideStop(session, dir, false)) bad.push("a build is not a test run");
-  recordPass(session, dir, "npx vitest run", true);
+  recordPass(session, dir, { command: "npx vitest run", failed: true });
   if (!decideStop(session, dir, false))
     bad.push("a failing test run is not a pass");
-  recordPass(session, dir, "npx vitest run", false);
+  recordPass(session, dir, { command: "npx vitest run", failed: false });
   if (decideStop(session, dir, false))
     bad.push("a passing run over this code should end the turn");
   writeFileSync(join(dir, "a.ts"), "export const a = 2;\n");
@@ -227,8 +227,7 @@ else if (isMain) {
       recordPass(
         payload.session_id,
         dir,
-        command,
-        failedResponse(payload),
+        { command, failed: failedResponse(payload) },
         ignore,
       );
   });
