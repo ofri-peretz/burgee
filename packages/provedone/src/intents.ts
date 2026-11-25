@@ -38,8 +38,34 @@ export const checkIntent = (slug: string, intent: string, spec: string | undefin
     add('spec', `is "${String(status)}" but has no spec.md`, `write .sdlc/intents/${slug}/spec.md, or set the status back to review`);
   }
   if (spec !== undefined && !REJECTION.test(spec)) add('rejected', 'spec.md records nothing rejected', 'add `## Rejected alternatives` or `## Out of scope` to spec.md');
+  if (status === 'shipped') {
+    for (const row of countless(intent)) {
+      add(
+        'filter-count',
+        `evidence row "${row.criterion}" filters tests by name (\`${row.command}\`) but records no passed count`,
+        'add the count the run printed to its Output cell, e.g. `1 passed`: a name filter that matches nothing exits 0 with every test skipped',
+      );
+    }
+  }
   return found;
 };
+
+/** A test runner's filter by test name: vitest and jest `-t`/`--testNamePattern`, node `--test-name-pattern`, mocha and Playwright `--grep`. */
+const NAME_FILTER = /\s(?:-t|--testNamePattern|--test-name-pattern|--grep)[\s=]/u;
+/** A recorded count of passing tests: a code span of the Output cell that is the count and nothing else. */
+const PASSED_COUNT = /^\d+ passed$/u;
+
+/**
+ * Evidence rows whose command filters tests by name and whose Output cell records no `N passed`.
+ * A name filter that matches nothing exits 0 with every test skipped, so a renamed or deleted test
+ * leaves such a row green on re-run; the recorded count is what turns it red (seen in burgee on
+ * 2026-11-25: `-t "band for bnad"` exited 0).
+ */
+const countless = (intent: string): EvidenceRow[] =>
+  evidenceRows(intent).filter(
+    // Stryker disable next-line ConditionalExpression: the guard is for the type; NAME_FILTER reads undefined as "undefined", which never matches
+    (row) => row.command !== undefined && NAME_FILTER.test(row.command) && !codeSpans(row.output).some((span) => PASSED_COUNT.test(span)),
+  );
 
 /** True when a shipped intent records no evidence: no `## Shipped`, no `## Restated`, no evidence table. */
 export const unevidenced = (intent: string): boolean => statusOf(intent) === 'shipped' && !EVIDENCE.test(intent);

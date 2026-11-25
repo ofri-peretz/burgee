@@ -6,6 +6,7 @@ const intent = (status: string, extra = ''): string =>
   [`# Intent — a title`, '', `**Status:** ${status} · **Opened:** \`2026-11-23\``, '', '## What is wanted', 'x', '## Why now', 'x', '## Constraints', 'x', '## Success criteria', '- one', '- two', extra].join('\n');
 
 const rules = (slug: string, text: string, spec?: string): string[] => checkIntent(slug, text, spec).map((f) => f.rule);
+const evidence = (command: string, output: string): string => `\n| Criterion | Command | Output |\n| --- | --- | --- |\n| C1. one | ${command} | ${output} |`;
 
 describe('checkIntent', () => {
   it('finds nothing in a well-formed intent', () => {
@@ -92,6 +93,53 @@ describe('checkIntent', () => {
 
   it.each(['Rejected alternatives', 'Explicit non-goals', 'Non-goals', 'Out of scope', 'Risks and rejected options'])('accepts a spec that records "%s"', (heading) => {
     expect(rules('r', intent('review'), `# Design\n\n## ${heading}\n`)).toEqual([]);
+  });
+
+  it('names an evidence row of a shipped intent that filters tests by name but records no passed count', () => {
+    expect(checkIntent('f', intent('shipped', evidence('`npx vitest run a.test.ts -t "keeps it"`', '`✓ keeps it`')), '## Rejected alternatives\n')).toEqual([
+      {
+        intent: 'f',
+        rule: 'filter-count',
+        message: 'evidence row "C1. one" filters tests by name (`npx vitest run a.test.ts -t "keeps it"`) but records no passed count',
+        fix: 'add the count the run printed to its Output cell, e.g. `1 passed`: a name filter that matches nothing exits 0 with every test skipped',
+      },
+    ]);
+  });
+
+  it.each([
+    ['-t', '`npx vitest run -t "x"`', '`2 passed`'],
+    ['--testNamePattern=', '`npx jest --testNamePattern=x`', '`1 passed`, `ok`'],
+    ['--grep', '`npx playwright test --grep x`', 'exit 0, `12 passed`'],
+  ])('accepts a %s row that records a passed count', (_flag, command, output) => {
+    const text = intent('shipped', evidence(command, output));
+    expect(rules('f', text, '## Rejected alternatives\n')).toEqual([]);
+  });
+
+  it.each([
+    ['--testNamePattern', '`npx jest --testNamePattern x`'],
+    ['--test-name-pattern', '`node --test --test-name-pattern=x`'],
+    ['--grep', '`npx mocha --grep x`'],
+  ])('reads %s as a name filter', (_flag, command) => {
+    const text = intent('shipped', evidence(command, '`ok`'));
+    expect(rules('f', text, '## Rejected alternatives\n')).toEqual(['filter-count']);
+  });
+
+  it.each([
+    ['a flag that only starts like a filter', '`npx foo --grepx y`', '`ok`'],
+    ['a flag with no value', '`npx vitest run -t`', '`ok`'],
+  ])('leaves alone %s', (_what, command, output) => {
+    expect(rules('f', intent('shipped', evidence(command, output)), '## Rejected alternatives\n')).toEqual([]);
+  });
+
+  it.each(['`of 1 passed`', '`1 passed (1)`'])('wants a span that is the count and nothing else, not %s', (output) => {
+    expect(rules('f', intent('shipped', evidence('`npx vitest run -t x`', output)), '## Rejected alternatives\n')).toEqual(['filter-count']);
+  });
+
+  it('leaves alone a passed count outside a code span, a -t inside a word, prose rows and intents not shipped', () => {
+    const rows = ['| C1. a | `npx vitest run -t x` | 1 passed |', '| C2. b | `npx tsc --project-t x` | `ok` |', '| C3. c | ran `npx vitest -t x` | `ok` |'];
+    const table = `\n| Criterion | Command | Output |\n| --- | --- | --- |\n${rows.join('\n')}`;
+    expect(rules('f', intent('shipped', table), '## Rejected alternatives\n')).toEqual(['filter-count']);
+    expect(rules('f', intent('review', table))).toEqual([]);
   });
 
   it('refuses a spec that rejects nothing, even when the word appears mid-line', () => {
