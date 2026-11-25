@@ -218,7 +218,9 @@ jobs:
           for sha in $(git rev-list --no-merges "$BASE_SHA..$HEAD_SHA"); do
             git log -1 --format=%B "$sha" > "$RUNNER_TEMP/message"
             # One session per commit, so the gate's two-blocks-then-pass escape never applies here.
-            if ! PROVEDONE_SESSION="ci-$sha" npx --yes provedone@1.0.1 gate "$RUNNER_TEMP/message" --mode enforce --quiet; then
+            # From $RUNNER_TEMP: inside this checkout npx resolves `provedone` to the unbuilt
+            # workspace package and finds no bin ("provedone: not found").
+            if ! (cd "$RUNNER_TEMP" && PROVEDONE_SESSION="ci-$sha" npx --yes provedone@1.0.1 gate "$RUNNER_TEMP/message" --mode enforce --quiet); then
               echo "::error::$(git log -1 --format='%h %s' "$sha") carries no receipt. fix: reword it with \`Verified-by: <command> -> exit 0\` or \`Verified-by: none (<why no check applies>)\` beside Co-Authored-By:, then push."
               failed=1
             fi
