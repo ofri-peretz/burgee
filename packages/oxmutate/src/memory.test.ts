@@ -23,6 +23,7 @@ describe('resources.workerMemoryLimit', () => {
     expect(memorySetting('25%')).toEqual({ share: 0.25 });
     expect(memorySetting(' 12.5 % ')).toEqual({ share: 0.125 });
     expect(memorySetting('100%')).toEqual({ share: 1 });
+    expect(memorySetting('0.5%')).toEqual({ share: 0.005 });
     expect(memorySetting(800)).toEqual({ bytes: 800 * MIB });
     expect(memorySetting('800')).toEqual({ bytes: 800 * MIB });
     expect(memorySetting('1.5g')).toEqual({ bytes: 1.5 * GIB });
@@ -64,6 +65,7 @@ describe('the memory the run has', () => {
     expect(cgroupLimit(files({ '/sys/fs/cgroup/memory.max': 'nonsense' }))).toBeUndefined();
     expect(cgroupLimit(files({}))).toBeUndefined();
     expect(cgroupLimit(files({ '/sys/fs/cgroup/memory.max': '0' }))).toBeUndefined();
+    expect(cgroupLimit(files({ '/sys/fs/cgroup/memory.max': '1' }))).toBe(1);
     expect(cgroupLimit(files({ '/sys/fs/cgroup/memory.max': String(2 ** 60) }))).toBeUndefined();
     expect(cgroupLimit(files({ '/sys/fs/cgroup/memory.max': String(2 ** 60 - 4096) }))).toBe(2 ** 60 - 4096);
   });

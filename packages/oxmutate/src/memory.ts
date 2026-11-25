@@ -115,6 +115,7 @@ export function vmRss(status: string): number {
 export function treeRss(pid: number, own: number, fs: { read: Read; list: (dir: string) => string[] } = { read: readText, list: (d) => readdirSync(d) }): number {
   const childrenOf = (p: number): number[] => {
     try {
+      // Stryker disable next-line ArrayDeclaration: a placeholder for an empty children file is NaN, which has no /proc entry and is never queued twice (a Set holds NaN once)
       return fs.list(`/proc/${String(p)}/task`).flatMap((tid) => (fs.read(`/proc/${String(p)}/task/${tid}/children`).match(/\d+/gu) ?? []).map(Number));
     } catch {
       // Stryker disable next-line ArrayDeclaration: a placeholder child is NaN, which has no /proc entry and is never queued twice (a Set holds NaN once)

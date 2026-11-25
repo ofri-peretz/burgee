@@ -1490,6 +1490,11 @@ describe('cleaning up, at the edges', () => {
       const g = fake({ listed: { containers: '\n', volumes: '' }, duringRun: () => none.send('SIGINT') });
       await runInContainer(C, { root: top, keep: [] }, [], { spawn: g.spawn, signals: none.s, exit: vi.fn() });
       expect(g.ofEngine().some((c) => c.args[0] === 'rm')).toBe(false);
+
+      const lone = signals();
+      const h = fake({ listed: { containers: 'c7\n', volumes: '' }, duringRun: () => lone.send('SIGINT') });
+      await runInContainer(C, { root: top, keep: [] }, [], { spawn: h.spawn, signals: lone.s, exit: vi.fn() });
+      expect(h.ofEngine().map((c) => c.args.join(' '))).toContain('rm -f c7');
     } finally {
       said.mockRestore();
     }

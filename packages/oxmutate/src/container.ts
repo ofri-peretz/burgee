@@ -162,6 +162,7 @@ export const containerDefaults = (): Container => ({ engine: 'docker', image: `n
 export const cleanupDefaults = (): Cleanup => ({ volume: 'keep', failed: 'remove', interrupt: 'remove' });
 
 /** `ephemeral` and `cleanup.volume: 'remove'` are one setting: either sets both. */
+// Stryker disable next-line BooleanLiteral: the default is taken only from withFlags, whose cleanup always names its volume, which wins over it
 const cleanupFields = (raw: unknown, ephemeral = false): Pick<Container, 'ephemeral' | 'cleanup'> => {
   const cleanup = cleanupOf(raw, ephemeral);
   return { ephemeral: cleanup.volume === 'remove', cleanup };
