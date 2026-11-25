@@ -76,7 +76,68 @@ describe('optionSpecs', () => {
   });
 });
 
+describe('optionSpecs, field by field', () => {
+  it('projects exactly the fields an option registered, and no others', () => {
+    const specs = optionSpecs(snapshot({ keys: ['plain', 'blank'], descriptions: { blank: '' } }));
+    expect(specs['plain']).toStrictEqual({ type: 'string' });
+    expect(specs['blank']).toStrictEqual({ type: 'string' });
+  });
+
+  it('takes the short flag from the one-letter alias that is not a digit', () => {
+    const specs = optionSpecs(snapshot({ keys: ['force', 'level', 'n'], aliases: { force: ['long', '1', 'f'], level: ['9'], n: ['ten'] } }));
+    expect(specs['force']?.short).toBe('f');
+    expect(specs['level']).not.toHaveProperty('short');
+    expect(specs['n']).not.toHaveProperty('short');
+  });
+
+  it('reads a description, a list and choices off whichever alias carries them', () => {
+    const specs = optionSpecs(
+      snapshot({ keys: ['tag'], aliases: { tag: ['t1', 't2'] }, descriptions: { t2: 'on the second alias' }, array: ['t2'], choices: { t2: ['a', 1] } }),
+    );
+    expect(specs['tag']).toStrictEqual({ type: 'string', description: 'on the second alias', multiple: true, choices: ['a', '1'] });
+  });
+
+  it('keeps a string, a boolean or a number default', () => {
+    const specs = optionSpecs(snapshot({ keys: ['s', 'b', 'n'], defaults: { s: 'x', b: false, n: 3 } }));
+    expect([specs['s']?.default, specs['b']?.default, specs['n']?.default]).toEqual(['x', false, 3]);
+  });
+
+  it('leaves out a positional, by any of its names, from the options', () => {
+    const specs = optionSpecs(
+      snapshot({ keys: ['file', 'rest', 'out'], positionals: { demanded: [{ cmd: ['file'], variadic: false }], optional: [{ cmd: ['rest'], variadic: true }] } as never }),
+    );
+    expect(Object.keys(specs)).toEqual(['out']);
+  });
+
+  it('keys each option as an ordinary, enumerable and writable property', () => {
+    const specs = optionSpecs(snapshot({ keys: ['dry-run'] }));
+    expect(Object.getOwnPropertyDescriptor(specs, 'dryRun')).toMatchObject({ enumerable: true, writable: true, configurable: true });
+  });
+});
+
 describe('projectManifest', () => {
+  it('keeps a plugin’s nodes and drops the ones a previous projection added', () => {
+    const m = new Manifest();
+    m.commands.push({ path: ['y', 'stale'], options: {} }, { path: ['y', 'from-plugin'], options: {}, plugin: 'p' });
+    projectManifest(m, snapshot({ description: 'the tool', version: '1.2.3' }));
+    expect(m.commands.map((c) => c.path.join(' '))).toEqual(['y from-plugin', 'y']);
+    expect(m.version).toBe('1.2.3');
+    expect(m.find(['y'])?.description).toBe('the tool');
+  });
+
+  it('adds only what a node registered: one example, $0 named, and no empty fields', () => {
+    const m = new Manifest();
+    projectManifest(m, snapshot({ examples: [['$0 run', 'runs it']], positionals: { demanded: [{ cmd: ['file'], variadic: false }], optional: [] } as never }));
+    const root = m.find(['y']);
+    expect(root?.examples).toEqual([{ command: 'y run', description: 'runs it' }]);
+    expect(root?.arguments).toStrictEqual([{ name: 'file', required: true, variadic: false }]);
+    expect(root).not.toHaveProperty('effects');
+    const bare = new Manifest();
+    projectManifest(bare, snapshot());
+    expect(bare.find(['y'])).not.toHaveProperty('arguments');
+    expect(bare.find(['y'])).not.toHaveProperty('examples');
+  });
+
   it('projects a deprecated command, a command with no description, and a handler that runs', () => {
     const m = new Manifest();
     const child = (over: Partial<Snapshot>): Snapshot => snapshot({ ...over });

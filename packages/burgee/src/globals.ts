@@ -95,7 +95,8 @@ function deadline(ms: number, controller: AbortController): Globals['within'] {
 function globalOf(word: string, node: CommandNode): string | undefined {
   const own = Object.keys(node.options).map(kebab);
   if (word === '-q') return own.includes('quiet') || Object.values(node.options).some((s) => s.short === 'q') ? undefined : 'quiet';
-  const name = word.startsWith('--') ? (word.split('=')[0] as string).slice(2) : '';
+  if (!word.startsWith('--')) return undefined;
+  const name = (word.split('=')[0] as string).slice(2);
   if (own.includes(name === 'no-color' ? 'color' : name)) return undefined;
   if (VALUED.has(name) || (SWITCHES.has(name) && !word.includes('='))) return name;
   return undefined;
@@ -122,6 +123,7 @@ export function globalsOf(typed: readonly string[], node: CommandNode): Globals 
     }
     // `--timeout 5s` spans two words and `--timeout=5s` one.
     const eq = word.indexOf('=');
+    // Stryker disable next-line StringLiteral: equivalent — a switch's value is never read (`take` reads it only for VALUED names, which set it below)
     let value = '';
     if (VALUED.has(name)) value = eq === -1 ? (typed[++at] ?? '') : word.slice(eq + 1);
     take(read, name, value);
@@ -157,6 +159,7 @@ function take(read: Read, name: string, value: string): void {
  * same line with them moved behind the command, where the parse takes them (`Again`).
  */
 export function leadingGlobals(typed: readonly string[]): { globals: string[]; words: string[] } {
+  // Stryker disable next-line ArrayDeclaration: equivalent — `globalOf` reads only a node's options
   const root: CommandNode = { path: [], options: {} };
   let at = 0;
   while (at < typed.length && globalOf(typed[at] as string, root) !== undefined) {

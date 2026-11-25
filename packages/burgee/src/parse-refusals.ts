@@ -49,6 +49,7 @@ interface Edit {
 // eslint-disable-next-line maintainability/max-parameters -- `typed` beside `rest` is how this chunk knows its offsets are the line's; an options object would cost the startup path that calls it.
 export function refuse(node: CommandNode, positionals: readonly string[], { tokens }: { tokens: readonly Token[] }, rest: readonly string[], typed: readonly string[]): void {
   requirePositionals(node, positionals);
+  // Stryker disable next-line ArrayDeclaration: equivalent — `failure.ts` asks `omit.includes(<a number>)`, which a string left in it never answers
   const omit: number[] = [];
   const edit: Edit = { omit, runnable: rest.length === typed.length, words: (index, count) => void omit.push(...[rest.length - index, rest.length - index - 1].slice(0, count)) };
   // Both read, whichever is named: the `fix` has to leave out every word either would drop.
@@ -85,16 +86,18 @@ function repeated(node: CommandNode, tokens: readonly Token[], rest: readonly st
     // A repeat of the kept value was accepted, so the fix leaves it where it was typed.
     if (Object.is(later, flag.value)) continue;
     message ??= `--${flag.name} was given twice: "${flag.value}" and "${later}"`;
-    edit.runnable &&= spelled(flag, rest[flag.index]);
+    // `&&=` reads `spelled` only while the line is runnable, when `rest` is `typed` and every index is in it.
+    edit.runnable &&= spelled(flag, rest[flag.index] as string);
+    // Stryker disable next-line NumericLiteral: equivalent — `words` takes at most the two words it has, so a count above 2 is 2
     edit.words(flag.index, flag.inlineValue === true ? 1 : 2);
   }
   return message;
 }
 
 /** Whether the word at the flag's index is that flag alone: `--level`, `-l`, `--level=x`, `-lx`, and not `-vl`. */
-function spelled(flag: OptionToken, word: string | undefined): boolean {
-  if (flag.inlineValue !== true) return Object.is(word, flag.rawName);
-  return word?.startsWith(flag.rawName) === true && word.endsWith(String(flag.value));
+function spelled(flag: OptionToken, word: string): boolean {
+  if (flag.inlineValue !== true) return word === flag.rawName;
+  return word.startsWith(flag.rawName) && word.endsWith(String(flag.value));
 }
 
 /**

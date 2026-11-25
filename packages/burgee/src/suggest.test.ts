@@ -43,6 +43,19 @@ describe('suggestSimilar', () => {
     expect(suggestSimilar('--verbose', ['--quiet'])).toBe('');
     expect(suggestSimilar('--ab', ['--abcdefgh'])).toBe('');
   });
+
+  it('needs more than 40% similarity: exactly 40% is too different', () => {
+    // Three insertions over five characters: (5 - 3) / 5 is 0.4, at the bound and not above it.
+    expect(suggestSimilar('ab', ['abcde'])).toBe('');
+    // Three insertions over six: 0.5, and three edits is still near enough.
+    expect(suggestSimilar('abc', ['abcdef'])).toBe('\n(Did you mean abcdef?)');
+  });
+
+  it('counts edits from either end of either word', () => {
+    expect(suggestSimilar('status', ['xstatus'])).toBe('\n(Did you mean xstatus?)');
+    expect(suggestSimilar('xstatus', ['status', 'statusx'])).toBe('\n(Did you mean status?)');
+    expect(suggestSimilar('tsatus', ['status', 'stat'])).toBe('\n(Did you mean status?)');
+  });
 });
 
 const parseError = (flag: string): Error => new Error(`Unknown option '${flag}'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- "${flag}"`);
