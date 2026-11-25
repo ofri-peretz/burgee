@@ -1,6 +1,6 @@
 ---
 title: controlroom
-description: "Terminal UI (TUI) framework: keyboard-driven screens with a static projection for pipes, CI and --json. No dependency outside the burgee family; react and react-reconciler are optional peers, loaded only by controlroom/ink. Drop-in alternative to ink."
+description: "TUI framework with a static view for pipes and CI. No dependency outside the burgee family. Drop-in alternative to ink."
 ---
 
 **controlroom** draws keyboard-driven terminal screens — panes, tabs with key hints, a
