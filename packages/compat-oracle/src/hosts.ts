@@ -384,6 +384,17 @@ export interface Host {
    */
   extraDirs?: string[];
   /**
+   * Symlinks the suite reads that are made per run instead of committed, keyed by where they
+   * sit relative to the vendored root, each with its target as upstream records it.
+   *
+   * A link that points at its own directory (find-up's `fixture/directory-link -> .`) is a loop,
+   * and GitHub refuses to download a repository that holds one as an action: every consumer of
+   * `.github/actions/triggerlist-review` failed at job setup with "Too many levels of symbolic
+   * links". Made here, beside the run and gitignored, it is upstream's link byte for byte and
+   * never reaches the tree an action download reads.
+   */
+  links?: Record<string, string>;
+  /**
    * Upstream directories outside the test dir that the suite runs **and** that import the
    * library themselves: copied like {@link extraDirs}, then rewritten like a fixture tree, so
    * a program under them reaches whichever implementation the run grades.
@@ -1580,6 +1591,8 @@ export const HOSTS: Host[] = [
     // The tree the suite walks: `helpers.js` resolves every expected path against the
     // vendored root, and `fixture/` carries the two symlinks the `allowSymlinks` cases read.
     extraDirs: ['fixture'],
+    // `directory-link -> .` loops, so it is made per run rather than committed (see `links`).
+    links: { 'fixture/directory-link': '.' },
     // Two cases that grade the checkout, not the walk: each asserts the nearest `.git`
     // directory is `<repo root>/.git`, which is true in find-up's own clone and in no vendored
     // copy. Here the walk climbs past the vendored root and finds whichever repository holds
