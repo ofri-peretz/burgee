@@ -820,8 +820,10 @@ describe("a host's links, made per run (Host.links)", () => {
     const at = mkdtempSync(join(tmpdir(), 'host-links-'));
     try {
       mkdirSync(join(at, 'fixture'));
-      symlinkSync('elsewhere', join(at, 'fixture', 'directory-link'));
+      // An earlier run's link to a directory: removing it must not read it as that directory.
+      symlinkSync('.', join(at, 'fixture', 'directory-link'));
       writeLinks({ links: { 'fixture/directory-link': '.', 'deep/new/link': '../x' } } as unknown as Host, at);
+      writeLinks({ links: { 'fixture/directory-link': '.' } } as unknown as Host, at);
       expect(readlinkSync(join(at, 'fixture', 'directory-link'))).toBe('.');
       expect(readlinkSync(join(at, 'deep', 'new', 'link'))).toBe('../x');
     } finally {
