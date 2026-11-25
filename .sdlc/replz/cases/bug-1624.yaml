@@ -1,0 +1,9 @@
+# feat(apicontract): diff engine, compat.qnt classifier and the diff command (PLAN.md 6.9) (#1624)
+# Confirmed from the diff on 2026-11-25: fixed by #1640.
+id: bug-1624
+kind: bug
+pr: 1624
+base: "7167140431f7"
+head: "d710fc2b19b8"
+answer: "the contract diff compares schemas as written, so an equivalent rewrite (const null as type null, a one-branch union, anyOf of bare types as a type list) is reported as a change."
+set: test

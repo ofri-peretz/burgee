@@ -1,0 +1,8 @@
+# feat(truepass): a per-case time budget as a vitest reporter, and truepass budget (#1839)
+# Size-matched control for bug-1836 (1358 vs 1352 lines): no fix or revert traces back to it.
+id: control-1839
+kind: control
+pr: 1839
+base: "54d0fa250eec"
+head: "181be03e6464"
+set: test

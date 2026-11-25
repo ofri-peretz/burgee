@@ -50,6 +50,13 @@ cases. The first baseline (2026-11-25, `replz scorecard` on each repo's `origin/
 
 Recall and false alarms are _unmeasured_ in every repo: no `replz run --record` has landed.
 
+**Triage, burgee, 2026-11-25.** With comment, import and upstream-follow lines no longer blamed,
+the 30 days held 65 traced escapes. Read from the diffs, 17 are real: each is now a bug case with
+an answer key, beside a size-matched control. The other 48 are dismissed in
+`.sdlc/replz/triage.json` with a reason (omnibus fixes, renames, lint-only fixes, corpus gaps,
+benchmarks, and suspects that only sat next to the bug). burgee's confirmed escape rate is 4.1%
+(17 of 410).
+
 ## Constraints
 
 - No model call: the scorecard runs free on a schedule; recall comes from replz's recorded runs.
@@ -59,6 +66,7 @@ Recall and false alarms are _unmeasured_ in every repo: no `replz run --record` 
 ## Success criteria
 
 - `replz scorecard` prints the four measures with `next:` lines in every repo. **Met** (table above).
+- Every traced escape in burgee's window is confirmed as a case or dismissed with a reason. **Met**.
 - The weekly workflow fails when a band is left. Burgee first, then each repo through hookset.
 - **Next (step 2):** pass^k per check from CI reruns, and per-station firing counts (hookset hook
   blocks, CI gate failures), so each station gets its own catch rate.

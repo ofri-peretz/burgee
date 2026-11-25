@@ -42,8 +42,11 @@ export const parseMainLog = (log: string): MainCommit[] =>
 /** A release or version bump is the bot's, not a change anyone verified. */
 export const isRelease = (subject: string): boolean => /^chore\(release\)|^Version Packages\b/iu.test(subject);
 
+/** A fix that follows an upstream release repairs nothing we got wrong: the line was right when written. */
+const UPSTREAM = /:\s*(?:follow|re-?vendor|re-?grade|bump)\b/iu;
+
 /** A fix to behaviour, not to docs: `fix:`, `fix(scope):`, `fix!:`, except `fix(docs)`. */
-export const isFix = (subject: string): boolean => /^fix(?:\([^)]*\))?!?:/u.test(subject) && !/^fix\(docs?\)/u.test(subject);
+export const isFix = (subject: string): boolean => /^fix(?:\([^)]*\))?!?:/u.test(subject) && !/^fix\((?:docs?|deps)\)/u.test(subject) && !UPSTREAM.test(subject);
 
 export const isRevert = (subject: string): boolean => subject.startsWith('Revert "');
 
@@ -58,26 +61,49 @@ export interface OldRange {
   readonly count: number;
 }
 
-/** The old-side ranges of a `git diff -U0` in code files; a hunk that only adds lines has none. */
+/**
+ * A removed line that carries no behaviour: blank, a comment, or an import. Blaming one finds who
+ * last reworded or reordered it, not who wrote a bug, so SZZ skips it (the triage of burgee's first
+ * 75 traced escapes, 2026-11-25, found these the commonest wrong suspects).
+ */
+export const isInert = (text: string): boolean => {
+  const line = text.trim();
+  return line === '' || /^(?:\/\/|\/\*|\*|#(?!!))/u.test(line) || /^import\b/u.test(line) || /^export \{[^}]*\} from\b/u.test(line);
+};
+
+/** Lines in a row become one range, so each blame call covers as much as it can. */
+const pushLine = (ranges: OldRange[], path: string, line: number): void => {
+  const last = ranges.at(-1);
+  if (last?.path === path && last.start + last.count === line) ranges[ranges.length - 1] = { ...last, count: last.count + 1 };
+  else ranges.push({ path, start: line, count: 1 });
+};
+
+/** The old-side lines of a `git diff -U0` in code files that a fix removed or changed, skipping inert ones, as ranges. */
 export const oldRanges = (diff: string): OldRange[] => {
   const ranges: OldRange[] = [];
   let path: string | undefined;
-  for (const line of diff.split('\n')) {
-    const file = /^--- (?:a\/(.+)|\/dev\/null)$/u.exec(line);
+  let line = 0;
+  for (const text of diff.split('\n')) {
+    const file = /^--- (?:a\/(.+)|\/dev\/null)$/u.exec(text);
     if (file !== null) {
-      path = file[1];
+      path = file[1] !== undefined && isCode(file[1]) ? file[1] : undefined;
       continue;
     }
-    const hunk = /^@@ -(\d+)(?:,(\d+))? \+/u.exec(line);
-    if (hunk === null || path === undefined || !isCode(path)) continue;
-    const count = hunk[2] === undefined ? 1 : Number(hunk[2]);
-    if (count > 0) ranges.push({ path, start: Number(hunk[1]), count });
+    const hunk = /^@@ -(\d+)/u.exec(text);
+    if (hunk !== null) line = Number(hunk[1]);
+    else if (path !== undefined && text.startsWith('-')) {
+      if (!isInert(text.slice(1))) pushLine(ranges, path, line);
+      line += 1;
+    }
   }
   return ranges;
 };
 
 /** The commits a `git blame --porcelain` names, once each. */
 export const blameShas = (porcelain: string): string[] => [...new Set(porcelain.split('\n').flatMap((line) => /^([0-9a-f]{40}) \d+ \d+/u.exec(line)?.slice(1) ?? []))];
+
+/** Where escapes a person or agent dismissed are kept, each pull request with its reason. */
+export const TRIAGE = '.sdlc/replz/triage.json';
 
 /** Runs git in the repository and returns its stdout. */
 export type Git = (args: readonly string[]) => Promise<string>;
@@ -106,6 +132,8 @@ export interface Escape {
   readonly fixedBy: readonly string[];
   /** `named`: a revert or fix says so; `traced`: SZZ blame found it. */
   readonly how: 'named' | 'traced';
+  /** `confirmed`: a replz bug case holds it; `dismissed`: the triage file says why not; `suspect`: neither yet. */
+  readonly status: 'confirmed' | 'dismissed' | 'suspect';
 }
 
 export interface Measure {
@@ -125,7 +153,9 @@ export interface Scorecard {
   readonly receipts: Measure;
   readonly recall: Measure;
   readonly falseAlarms: Measure;
-  /** Escapes with no replz case yet: the case backlog, newest first. */
+  /** Escapes in the window by triage status. */
+  readonly triage: { readonly confirmed: number; readonly dismissed: number; readonly suspect: number };
+  /** Escapes in the window that are neither a case nor dismissed: the triage backlog, newest first. */
   readonly uncased: readonly number[];
   /** Merged pull requests without a receipt, newest first. */
   readonly unreceipted: readonly number[];
@@ -147,6 +177,8 @@ export interface ScorecardInput {
   readonly traced: ReadonlyMap<string, readonly string[]>;
   /** The pull requests that already have a replz case. */
   readonly cased: ReadonlySet<number>;
+  /** The pull requests a person or agent dismissed as escapes, each with its reason (`TRIAGE`). */
+  readonly dismissed?: ReadonlyMap<number, string> | undefined;
   readonly history?: HistoryEntry | undefined;
 }
 
@@ -176,7 +208,7 @@ const byPrOf = (commits: readonly MainCommit[]): Map<number, MainCommit> =>
   );
 
 interface Found {
-  readonly escapes: Escape[];
+  readonly escapes: Omit<Escape, 'status'>[];
   readonly untraced: number;
 }
 
@@ -207,7 +239,7 @@ const findEscapes = (commits: readonly MainCommit[], fixes: readonly MainCommit[
     for (const pr of suspects) point(pr, 'traced', fix);
   }
   const escapes = [...pointers.entries()]
-    .map(([pr, { how, fixedBy }]): Escape => {
+    .map(([pr, { how, fixedBy }]): Omit<Escape, 'status'> => {
       const commit = byPr.get(pr) as MainCommit;
       return { pr, subject: commit.subject, date: commit.date, fixedBy: [...fixedBy].sort(), how };
     })
@@ -221,31 +253,43 @@ export const scorecard = (input: ScorecardInput): Scorecard => {
   const mergedPrs = new Set(merged.map((commit) => prOf(commit.subject) as number));
   const fixes = inWindow.filter((commit) => isFix(commit.subject) || isRevert(commit.subject));
   const { escapes, untraced } = findEscapes(input.commits, fixes, input.traced);
-  const escapedInWindow = escapes.filter((escape) => mergedPrs.has(escape.pr));
-  const uncased = escapedInWindow.filter((escape) => !input.cased.has(escape.pr)).map((escape) => escape.pr);
+  const dismissed = input.dismissed ?? new Map<number, string>();
+  const statusOf = (pr: number): Escape['status'] => {
+    if (input.cased.has(pr)) return 'confirmed';
+    return dismissed.has(pr) ? 'dismissed' : 'suspect';
+  };
+  const triaged = escapes.map((escape) => ({ ...escape, status: statusOf(escape.pr) }));
+  const inWindowEscapes = triaged.filter((escape) => mergedPrs.has(escape.pr));
+  const count = (status: Escape['status']): number => inWindowEscapes.filter((escape) => escape.status === status).length;
+  const triage = { confirmed: count('confirmed'), dismissed: count('dismissed'), suspect: count('suspect') };
+  const uncased = inWindowEscapes.filter((escape) => escape.status === 'suspect').map((escape) => escape.pr);
   const unreceipted = merged.filter((commit) => !verdict(`${commit.subject}\n\n${commit.body}`).ok).map((commit) => prOf(commit.subject) as number);
   return {
     since: input.since,
     merged: merged.length,
     fixes: fixes.length,
     untraced,
-    escapes,
-    escapeRate: escapeMeasure(escapedInWindow.length, merged.length, uncased),
+    escapes: triaged,
+    escapeRate: escapeMeasure(triage, merged.length, uncased),
     receipts: receiptMeasure(merged.length, unreceipted),
     ...runMeasures(input.history),
+    triage,
     uncased,
     unreceipted,
   };
 };
 
-const escapeMeasure = (escaped: number, merged: number, uncased: readonly number[]): Measure => ({
-  value: rate(escaped, merged),
-  of: `${String(escaped)} of ${String(merged)} merged pull requests`,
-  next:
-    uncased.length === 0
-      ? 'no escape lacks a case: keep the checks'
-      : `turn each escape into a replz case with an answer key, so the next run scores whether a check would catch it: ${list(uncased)}`,
+/** A dismissed escape is not one: the rate counts the confirmed and those not triaged yet. */
+const escapeMeasure = (triage: Scorecard['triage'], merged: number, uncased: readonly number[]): Measure => ({
+  value: rate(triage.confirmed + triage.suspect, merged),
+  of: `${String(triage.confirmed + triage.suspect)} of ${String(merged)} merged pull requests: ${String(triage.confirmed)} confirmed, ${String(triage.suspect)} to triage, ${String(triage.dismissed)} dismissed`,
+  next: escapeNext(triage, uncased),
 });
+
+const escapeNext = (triage: Scorecard['triage'], uncased: readonly number[]): string => {
+  if (uncased.length > 0) return `confirm each suspect as a replz case with an answer key, or dismiss it in ${TRIAGE} with a reason: ${list(uncased)}`;
+  return triage.confirmed === 0 ? 'no escape: keep the checks' : 'every escape is triaged: `replz run` scores whether a check catches the confirmed ones';
+};
 
 const receiptMeasure = (merged: number, unreceipted: readonly number[]): Measure => ({
   value: rate(merged - unreceipted.length, merged),
@@ -301,7 +345,7 @@ export const scorecardText = (card: Scorecard): string => {
   ];
   if (card.escapes.length > 0) {
     lines.push('', 'escapes (newest first):');
-    for (const escape of card.escapes.slice(0, SHOWN)) lines.push(`  #${String(escape.pr)} ${escape.date} ${escape.how.padEnd('traced'.length)} fixed by ${escape.fixedBy.join(', ')}  ${escape.subject}`);
+    for (const escape of card.escapes.slice(0, SHOWN)) lines.push(`  #${String(escape.pr)} ${escape.date} ${escape.status.padEnd('confirmed'.length)} ${escape.how.padEnd('traced'.length)} fixed by ${escape.fixedBy.join(', ')}  ${escape.subject}`);
     if (card.escapes.length > SHOWN) lines.push(`  and ${String(card.escapes.length - SHOWN)} more (--json lists every one)`);
   }
   return lines.join('\n');

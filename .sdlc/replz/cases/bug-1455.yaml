@@ -1,0 +1,9 @@
+# fix(oxmutate): run run-once test files from fresh collections, not restarts (#1455)
+# Confirmed from the diff on 2026-11-25: fixed by #1481.
+id: bug-1455
+kind: bug
+pr: 1455
+base: "021c27c488b8"
+head: "d94e9b6b3ddb"
+answer: "the dry run's run-once probe runs a suite's first passing test a second time without resetting per-try state, so its toMatchSnapshot() writes a second snapshot into the project's committed .snap files."
+set: tune

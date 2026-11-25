@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -12,6 +12,7 @@ import {
   breaches,
   isCode,
   isFix,
+  isInert,
   isRelease,
   type MainCommit,
   MAX_RANGES,
@@ -37,7 +38,12 @@ describe('parseMainLog', () => {
 describe('classifiers', () => {
   it('counts a fix to behaviour, not to docs, and not a feature that mentions a fix', () => {
     expect(['fix: a', 'fix(x): a', 'fix!: a', 'fix(x)!: a'].map(isFix)).toEqual([true, true, true, true]);
-    expect(['fix(docs): a', 'fix(doc): a', 'feat: fix a', 'fixup: a', 'Fix: a'].map(isFix)).toEqual([false, false, false, false, false]);
+    expect(['fix(docs): a', 'fix(doc): a', 'fix(deps): a', 'feat: fix a', 'fixup: a', 'Fix: a'].map(isFix)).toEqual([false, false, false, false, false, false]);
+  });
+
+  it('does not count following an upstream release as a fix to our own bug', () => {
+    expect(['fix(caique): follow @inquirer/core 12.1.1', 'fix(x): re-vendor y', 'fix(x): revendor y', 'fix: bump z'].map(isFix)).toEqual([false, false, false, false]);
+    expect(isFix('fix(x): the follower list drops one')).toBe(true);
   });
 
   it('knows a release commit', () => {
@@ -54,27 +60,46 @@ describe('classifiers', () => {
   });
 });
 
+describe('isInert', () => {
+  it('knows the lines that carry no behaviour', () => {
+    expect(['', '  ', '// x', ' /** x', ' * x', '# x', "import { a } from './a.js';", "export { a } from './a.js';"].map(isInert)).toEqual(Array.from({ length: 8 }, () => true));
+    expect(['const a = 1;', '#!/usr/bin/env node', 'return a; // x', "export const a = 'import';"].map(isInert)).toEqual([false, false, false, false]);
+  });
+});
+
 describe('oldRanges', () => {
-  it('takes the removed or changed lines of code files, and skips pure additions', () => {
+  it('takes the removed code lines of code files as ranges, skipping inert lines, tests and additions', () => {
     const diff = [
       'diff --git a/src/a.ts b/src/a.ts',
       '--- a/src/a.ts',
       '+++ b/src/a.ts',
-      '@@ -3,2 +3,3 @@ x',
-      '@@ -10 +11 @@',
-      '@@ -20,0 +22,4 @@',
+      '@@ -3,3 +3,3 @@ x',
+      '-const a = 1;',
+      '-// a comment',
+      '-const b = 2;',
+      '+const a = 2;',
+      '@@ -10,2 +11 @@',
+      '-const c = 3;',
+      '-const d = 4;',
+      '+const cd = 7;',
+      '@@ -20,0 +22,1 @@',
+      '+const e = 5;',
       'diff --git a/src/a.test.ts b/src/a.test.ts',
       '--- a/src/a.test.ts',
       '+++ b/src/a.test.ts',
-      '@@ -1,5 +1,5 @@',
+      '@@ -1 +1 @@',
+      '-expect(1);',
+      '+expect(2);',
       'diff --git a/src/new.ts b/src/new.ts',
       '--- /dev/null',
       '+++ b/src/new.ts',
-      '@@ -0,0 +1,9 @@',
+      '@@ -0,0 +1 @@',
+      '+const f = 1;',
     ].join('\n');
     expect(oldRanges(diff)).toEqual([
-      { path: 'src/a.ts', start: 3, count: 2 },
-      { path: 'src/a.ts', start: 10, count: 1 },
+      { path: 'src/a.ts', start: 3, count: 1 },
+      { path: 'src/a.ts', start: 5, count: 1 },
+      { path: 'src/a.ts', start: 10, count: 2 },
     ]);
   });
 });
@@ -89,11 +114,11 @@ describe('blameShas', () => {
 
 describe('traceFix', () => {
   it('blames each old range at the fix parent, at most MAX_RANGES of them', async () => {
-    const hunks = Array.from({ length: MAX_RANGES + 3 }, (_, index) => `@@ -${String(index + 1)} +${String(index + 1)} @@`);
+    const hunks = Array.from({ length: MAX_RANGES + 3 }, (_, index) => `@@ -${String(index * 2 + 1)} +${String(index * 2 + 1)} @@`);
     const calls: string[][] = [];
     const git = (args: readonly string[]): Promise<string> => {
       calls.push([...args]);
-      if (args[0] === 'diff') return Promise.resolve(['--- a/src/a.ts', '+++ b/src/a.ts', ...hunks].join('\n'));
+      if (args[0] === 'diff') return Promise.resolve(['--- a/src/a.ts', '+++ b/src/a.ts', ...hunks.flatMap((hunk) => [hunk, '-const x = 1;', '+const x = 2;'])].join('\n'));
       return Promise.resolve(`${'c'.repeat(40)} 1 1 1\n`);
     };
     expect(await traceFix(git, 'fff')).toEqual(['c'.repeat(40)]);
@@ -129,16 +154,24 @@ describe('scorecard', () => {
 
   it('finds escapes by name and by trace, keeps older ones out of the rate, never blames a fix on itself', () => {
     expect(card.escapes).toEqual([
-      { pr: 5, subject: 'feat(y): cache (#5)', date: '2026-11-20', fixedBy: ['#7'], how: 'named' },
-      { pr: 4, subject: 'feat(x): parser (#4)', date: '2026-11-19', fixedBy: ['#8'], how: 'traced' },
-      { pr: 2, subject: 'feat(old): old (#2)', date: '2026-10-01', fixedBy: ['s6'], how: 'traced' },
+      { pr: 5, subject: 'feat(y): cache (#5)', date: '2026-11-20', fixedBy: ['#7'], how: 'named', status: 'confirmed' },
+      { pr: 4, subject: 'feat(x): parser (#4)', date: '2026-11-19', fixedBy: ['#8'], how: 'traced', status: 'suspect' },
+      { pr: 2, subject: 'feat(old): old (#2)', date: '2026-10-01', fixedBy: ['s6'], how: 'traced', status: 'suspect' },
     ]);
-    expect(card.escapeRate).toMatchObject({ value: 0.4, of: '2 of 5 merged pull requests' });
+    expect(card.escapeRate).toMatchObject({ value: 0.4, of: '2 of 5 merged pull requests: 1 confirmed, 1 to triage, 0 dismissed' });
+    expect(card.triage).toEqual({ confirmed: 1, dismissed: 0, suspect: 1 });
   });
 
-  it('points the escape rate at the escapes in the window that have no case yet', () => {
+  it('points the escape rate at the suspects in the window that are neither a case nor dismissed', () => {
     expect(card.uncased).toEqual([4]);
-    expect(card.escapeRate.next).toContain('#4');
+    expect(card.escapeRate.next).toBe('confirm each suspect as a replz case with an answer key, or dismiss it in .sdlc/replz/triage.json with a reason: #4');
+  });
+
+  it('takes a dismissed escape out of the rate, and says when every escape is triaged', () => {
+    const triaged = scorecard({ commits: COMMITS, since: '2026-11-01', traced, cased: new Set([5]), dismissed: new Map([[4, 'the fix reworded a message']]) });
+    expect(triaged.escapes.map((escape) => escape.status)).toEqual(['confirmed', 'dismissed', 'suspect']);
+    expect(triaged.escapeRate).toMatchObject({ value: 0.2, of: '1 of 5 merged pull requests: 1 confirmed, 0 to triage, 1 dismissed' });
+    expect(triaged.escapeRate.next).toContain('every escape is triaged');
   });
 
   it('counts a receipt, including a reasoned none, and lists the pull requests without one', () => {
@@ -167,16 +200,16 @@ describe('scorecard', () => {
 
   it('says what to keep doing when nothing is missing', () => {
     const clean = scorecard({ commits: [at('s1', '2026-11-20', 'feat: a (#1)', RECEIPT)], since: '2026-11-01', traced: new Map(), cased: new Set() });
-    expect(clean.escapeRate.next).toContain('no escape lacks a case');
+    expect(clean.escapeRate.next).toBe('no escape: keep the checks');
     expect(clean.receipts.next).toContain('every merged pull request carries a receipt');
   });
 
   it('prints one line per measure with its next action, and the escapes', () => {
     const text = scorecardText(card);
     expect(text).toContain('verification scorecard since 2026-11-01: 5 merged pull requests, 3 fixes or reverts (0 untraceable)');
-    expect(text).toContain('escape rate        40.0%  2 of 5 merged pull requests');
+    expect(text).toContain('escape rate        40.0%  2 of 5 merged pull requests: 1 confirmed, 1 to triage, 0 dismissed');
     expect(text).toContain('recall        unmeasured  no recorded run');
-    expect(text).toContain('  #4 2026-11-19 traced fixed by #8  feat(x): parser (#4)');
+    expect(text).toContain('  #4 2026-11-19 suspect   traced fixed by #8  feat(x): parser (#4)');
   });
 });
 
@@ -217,6 +250,15 @@ describe('runScorecard on a real repository', () => {
     expect(data).toMatchObject({ merged: 2, fixes: 1, untraced: 0, uncased: [1] });
     expect((data[TEXT] as () => string)()).toContain('escape rate        50.0%');
     writeFileSync(join(dir, 'bands.json'), JSON.stringify({ maxEscapeRate: 0.25 }));
-    await expect(runScorecard({ ...options, ratchet: 'bands.json' })).rejects.toThrow('the scorecard left its bands: escape rate 50.0% is above its band 25.0%. fix: turn each escape into a replz case');
+    await expect(runScorecard({ ...options, ratchet: 'bands.json' })).rejects.toThrow('the scorecard left its bands: escape rate 50.0% is above its band 25.0%. fix: confirm each suspect as a replz case');
+    mkdirSync(join(dir, '.sdlc/replz/cases'), { recursive: true });
+    writeFileSync(join(dir, '.sdlc/replz/triage.json'), JSON.stringify({ dismissed: { 1: 'b changed on purpose' } }));
+    expect(await runScorecard(options)).toMatchObject({ triage: { confirmed: 0, dismissed: 1, suspect: 0 }, uncased: [] });
+    writeFileSync(join(dir, '.sdlc/replz/triage.json'), JSON.stringify({ dismissed: {} }));
+    writeFileSync(join(dir, '.sdlc/replz/cases/bug-1.yaml'), 'id: bug-1\n');
+    writeFileSync(join(dir, '.sdlc/replz/cases/control-2.yaml'), 'id: control-2\n');
+    expect(await runScorecard(options)).toMatchObject({ triage: { confirmed: 1, dismissed: 0, suspect: 0 } });
+    writeFileSync(join(dir, '.sdlc/replz/triage.json'), JSON.stringify({ dismissed: { x: '', 1: ' ' } }));
+    await expect(runScorecard(options)).rejects.toThrow('.sdlc/replz/triage.json dismisses 1, x without a pull request number and a reason');
   });
 });

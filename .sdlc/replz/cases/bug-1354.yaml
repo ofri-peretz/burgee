@@ -1,0 +1,9 @@
+# feat(oxmutate): graded by Stryker 10.0.0's own mutator specs (SC9); two parity fixes (#1354)
+# Confirmed from the diff on 2026-11-25: fixed by #1359.
+id: bug-1354
+kind: bug
+pr: 1354
+base: "a10c21d2156b"
+head: "9b9aac7f9662"
+answer: "the Stryker-graded spec tests need oxmutate's native core and fail without it, so `npm test` in compat.yml, which does not build the core, fails every graded spec."
+set: test

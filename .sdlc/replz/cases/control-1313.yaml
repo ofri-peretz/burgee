@@ -1,0 +1,8 @@
+# feat(controlroom): close the umbrella's open items: real-terminal restore matrix, Ink fixture, Gallery (#1313)
+# Size-matched control for bug-1635 (2382 vs 2286 lines): no fix or revert traces back to it.
+id: control-1313
+kind: control
+pr: 1313
+base: "d00f78aabee3"
+head: "94ced9e2c6a8"
+set: tune

@@ -1,0 +1,9 @@
+# feat(hookset): verify-before-stop hook, a required verify skill, severity-tagged reviews (#1836)
+# Confirmed from the diff on 2026-11-25: fixed by #1845.
+id: bug-1836
+kind: bug
+pr: 1836
+base: "3f209ee69520"
+head: "eaf51bc219a9"
+answer: "verify-before-stop records a passing run from any successful shell whose commands include a test, so `npm test || true`, a piped run, a background launch or a test chained with an edit certifies code the tests never passed."
+set: test

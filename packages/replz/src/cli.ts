@@ -15,7 +15,7 @@ import { LOG_ARGS, parseLog, propose, toYaml } from './propose.js';
 import { refusing } from './refusal.js';
 import { replayCase, type Shell, type Worktrees } from './run.js';
 import { type CaseResult, score, toText } from './score.js';
-import { breaches, type Git, type HistoryEntry, isFix, isRevert, MAIN_LOG_ARGS, parseMainLog, type Ratchet, scorecard, scorecardText, traceFix } from './scorecard.js';
+import { breaches, type Git, type HistoryEntry, isFix, isRevert, MAIN_LOG_ARGS, parseMainLog, type Ratchet, scorecard, scorecardText, traceFix, TRIAGE } from './scorecard.js';
 import { logOf, sh, worktreesIn } from './shell.js';
 
 export const VERSION = (JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }).version;
@@ -157,7 +157,17 @@ const DAY = 86_400_000;
 const casedPrs = (repo: string, dir: string): Set<number> => {
   const at = resolve(repo, dir);
   if (!existsSync(at)) return new Set();
-  return new Set(readdirSync(at).flatMap((name) => /^(?:bug|control)-(\d+)\.yaml$/u.exec(name)?.slice(1) ?? []).map(Number));
+  return new Set(readdirSync(at).flatMap((name) => /^bug-(\d+)\.yaml$/u.exec(name)?.slice(1) ?? []).map(Number));
+};
+
+/** The escapes dismissed in the triage file, `{ "dismissed": { "<pr>": "<why it is not one>" } }`. */
+export const readDismissed = (repo: string): Map<number, string> => {
+  const at = resolve(repo, TRIAGE);
+  if (!existsSync(at)) return new Map();
+  const { dismissed = {} } = JSON.parse(readFileSync(at, 'utf8')) as { dismissed?: Record<string, string> };
+  const bad = Object.entries(dismissed).filter(([pr, why]) => !/^\d+$/u.test(pr) || typeof why !== 'string' || why.trim() === '');
+  if (bad.length > 0) throw new Error(`${TRIAGE} dismisses ${bad.map(([pr]) => pr).join(', ')} without a pull request number and a reason. fix: key each by its number, and say why it is not an escape`);
+  return new Map(Object.entries(dismissed).map(([pr, why]) => [Number(pr), why]));
 };
 
 const lastRun = (repo: string): HistoryEntry | undefined => {
@@ -175,7 +185,7 @@ export const runScorecard = async (options: ScorecardOptions): Promise<Data> => 
     // eslint-disable-next-line reliability/no-await-in-loop -- one fix at a time: each runs a diff and blames, and parallel blames thrash the pack cache
     traced.set(commit.sha, await traceFix(options.git, commit.sha));
   }
-  const card = scorecard({ commits, since, traced, cased: casedPrs(options.repo, options.cases), history: lastRun(options.repo) });
+  const card = scorecard({ commits, since, traced, cased: casedPrs(options.repo, options.cases), dismissed: readDismissed(options.repo), history: lastRun(options.repo) });
   if (options.ratchet !== undefined) {
     const ratchet = JSON.parse(readFileSync(existing(options.repo, options.ratchet, '--ratchet'), 'utf8')) as Ratchet;
     const broken = breaches(card, ratchet);

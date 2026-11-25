@@ -1,0 +1,8 @@
+# chore!: require Node 22.13 or later; grade 22.13.0 and 26 nightly (#1491)
+# Size-matched control for bug-1767 (360 vs 352 lines): no fix or revert traces back to it.
+id: control-1491
+kind: control
+pr: 1491
+base: "ab938ec23d25"
+head: "5054fb72746c"
+set: test
