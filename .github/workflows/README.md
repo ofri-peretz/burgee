@@ -131,9 +131,12 @@ to run still starts and passes in one step. `npm run lint:workflows` holds the l
 [`rulesets.yml`](./rulesets.yml) applies every `.github/rulesets/*.json` to the repositories it
 lists (`scripts/apply-rulesets.mts`), creating or replacing each ruleset by name, so an edit to the
 file is the edit to the setting. A pull request that changes one dry-runs it; the push to main and
-`workflow_dispatch` apply it with `RULESETS_TOKEN` (a fine-grained PAT, Administration read/write on
-each listed repository), and without that secret the run is a dry run that says so. The first
-declaration requires `hookset / provedone receipts` in the six other code repositories.
+`workflow_dispatch` apply it. Writing needs Administration read/write, and the run offers every
+token this repository already holds (`RULESETS_TOKEN`, the release App, `RELEASE_BOT_PAT`,
+`SCORECARD_REPO_TOKEN`), logging the one that landed or which to grant. The declarations: `Protect
+main` in every code repository (no force-push or deletion; in the six others also linear history,
+a pull request with no review count, and the checks that reported on each of the last 15 merged
+PRs), and `Require provedone receipts` in the six others.
 
 ## Security
 

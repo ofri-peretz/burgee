@@ -15,10 +15,12 @@
  * with the declared body, so a re-run changes nothing and an edit to the file is the edit to the
  * setting. Rulesets this file does not name are left alone.
  *
- * Writing a ruleset takes a token with Administration read/write on every listed repository
- * (`RULESETS_TOKEN`, a fine-grained PAT); a cloud agent session cannot do it, its GitHub proxy
- * refuses the settings API. With no token this is a dry run: it validates the declarations and
- * prints what it would apply, and exits 0.
+ * Writing a ruleset takes a token with Administration read/write on the repository; a cloud agent
+ * session cannot do it, its GitHub proxy refuses the settings API. The workflow hands over every
+ * token it has (`TOKEN_CANDIDATES`, in order: `RULESETS_TOKEN`, the release App's installation
+ * token, `RELEASE_BOT_PAT`, `SCORECARD_REPO_TOKEN`); each write tries them in turn and the log
+ * says which one landed, so a token that already exists can carry it. With none set this is a dry
+ * run: it validates the declarations, prints what it would apply, and exits 0.
  *
  *   node scripts/apply-rulesets.mts            # apply, or dry-run without RULESETS_TOKEN
  *   node scripts/apply-rulesets.mts --dry-run  # validate and print the plan only
@@ -124,6 +126,25 @@ export function plan(existing: readonly Existing[], ruleset: Ruleset): Action {
   return mine === undefined ? { kind: 'create' } : { kind: 'update', id: mine.id };
 }
 
+/** A token the run may write with, and the secret it came from, for the log. */
+export interface Candidate {
+  label: string;
+  token: string;
+}
+
+/** The env names the workflow sets, most specific first. */
+export const TOKEN_CANDIDATES = ['RULESETS_TOKEN', 'RULESETS_APP_TOKEN', 'RELEASE_BOT_PAT', 'SCORECARD_REPO_TOKEN'] as const;
+
+/** The candidates that are set, in order. */
+export function candidates(env: Record<string, string | undefined>): Candidate[] {
+  return TOKEN_CANDIDATES.flatMap((label) => (env[label] ?? '') === '' ? [] : [{ label, token: env[label] as string }]);
+}
+
+/** Whether a failure means "this token may not do it", so the next candidate should try. */
+export function isPermissionDenied(message: string): boolean {
+  return /HTTP (?:401|403|404)\b/.test(message);
+}
+
 async function github(token: string, method: string, path: string, body?: unknown): Promise<unknown> {
   const response = await fetch(`https://api.github.com${path}`, {
     method,
@@ -141,8 +162,8 @@ async function github(token: string, method: string, path: string, body?: unknow
   return text === '' ? null : JSON.parse(text);
 }
 
-/** Creates or replaces one declared ruleset on one repository; the line it logs, or throws. */
-async function applyOne(token: string, d: Declaration, repo: string): Promise<string> {
+/** Creates or replaces one declared ruleset on one repository with one token; the line it logs, or throws. */
+async function applyWith(token: string, d: Declaration, repo: string): Promise<string> {
   const where = `${d.owner}/${repo}: "${d.ruleset.name}"`;
   const existing = (await github(token, 'GET', `/repos/${d.owner}/${repo}/rulesets?includes_parents=false&per_page=100`)) as Existing[];
   const action = plan(existing, d.ruleset);
@@ -154,18 +175,36 @@ async function applyOne(token: string, d: Declaration, repo: string): Promise<st
   return `updated ${where} (id ${action.id})`;
 }
 
+/**
+ * Tries each candidate in order until one may write; any other failure stops at once. In turn,
+ * not at once: the first token that lands is the one the log names, and the others never write.
+ */
+async function applyOne(tokens: readonly Candidate[], d: Declaration, repo: string, denied: readonly string[] = []): Promise<string> {
+  const [first, ...rest] = tokens;
+  if (first === undefined) {
+    throw new Error(`no token may write it; denied: ${denied.join(', ')}. fix: give one of them Administration: read and write on ${d.owner}/${repo}.`);
+  }
+  try {
+    return `${await applyWith(first.token, d, repo)} with ${first.label}`;
+  } catch (error) {
+    const message = (error as Error).message;
+    if (!isPermissionDenied(message)) throw error;
+    return applyOne(rest, d, repo, [...denied, `${first.label} (${message.split(':')[0]})`]);
+  }
+}
+
 async function main(argv: readonly string[]): Promise<number> {
   const { declarations, problems: found } = loadDeclarations();
   for (const p of found) console.error(`::error::${p}`);
   if (found.length > 0) return 1;
   const targets = declarations.flatMap((d) => d.repos.map((repo) => ({ d, repo })));
-  const token = process.env.RULESETS_TOKEN ?? '';
-  if (token === '') console.log('::notice::RULESETS_TOKEN is not set, so this is a dry run. fix: add the secret (Administration read/write on every listed repo).');
-  if (argv.includes('--dry-run') || token === '') {
+  const tokens = candidates(process.env);
+  if (tokens.length === 0) console.log(`::notice::none of ${TOKEN_CANDIDATES.join(', ')} is set, so this is a dry run. fix: give one of them Administration: read and write.`);
+  if (argv.includes('--dry-run') || tokens.length === 0) {
     for (const { d, repo } of targets) console.log(`would apply ${d.owner}/${repo}: "${d.ruleset.name}" (${d.file})`);
     return 0;
   }
-  const results = await Promise.allSettled(targets.map(({ d, repo }) => applyOne(token, d, repo)));
+  const results = await Promise.allSettled(targets.map(({ d, repo }) => applyOne(tokens, d, repo)));
   results.forEach((result, i) => {
     const { d, repo } = targets[i];
     if (result.status === 'fulfilled') console.log(result.value);

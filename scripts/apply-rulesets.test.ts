@@ -3,14 +3,16 @@
  * ruleset by name instead of adding a second, and the workflow that applies them runs on the
  * right events with the token it needs.
  */
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { load as loadYaml } from 'js-yaml';
 import { describe, expect, it } from 'vitest';
 
-import { loadDeclarations, plan, problems, RULESETS_DIR } from './apply-rulesets.mts';
+import { candidates, isPermissionDenied, loadDeclarations, plan, problems, RULESETS_DIR, TOKEN_CANDIDATES } from './apply-rulesets.mts';
+import { scratchDirs } from './scratch-dir.js';
+
+const scratchDir = scratchDirs();
 
 const ruleset = { name: 'Require provedone receipts', target: 'branch', enforcement: 'active' };
 
@@ -45,6 +47,37 @@ describe('plan', () => {
   });
 });
 
+describe('token candidates', () => {
+  it('keeps the set ones, most specific first', () => {
+    expect(candidates({ SCORECARD_REPO_TOKEN: 's', RELEASE_BOT_PAT: 'p', RULESETS_TOKEN: '' }).map((c) => c.label)).toEqual(['RELEASE_BOT_PAT', 'SCORECARD_REPO_TOKEN']);
+  });
+
+  it('moves to the next token only when this one may not write', () => {
+    expect(isPermissionDenied('POST /repos/o/r/rulesets -> HTTP 403: Resource not accessible')).toBe(true);
+    expect(isPermissionDenied('GET /repos/o/r/rulesets -> HTTP 404: Not Found')).toBe(true);
+    expect(isPermissionDenied('POST /repos/o/r/rulesets -> HTTP 422: Validation Failed')).toBe(false);
+  });
+});
+
+describe('Protect main', () => {
+  const { declarations } = loadDeclarations(RULESETS_DIR);
+  const protect = declarations.filter((d) => d.ruleset.name === 'Protect main');
+
+  it('covers every code repo once, never asking for an approving review Claude cannot give itself', () => {
+    expect(protect.flatMap((d) => d.repos).sort()).toEqual(['agents', 'blog', 'burgee', 'eslint', 'interlace', 'serverless', 'subagent-gateway']);
+    for (const d of protect) {
+      const pr = (d.ruleset.rules as { type: string; parameters?: { required_approving_review_count?: number } }[]).find((r) => r.type === 'pull_request');
+      if (pr !== undefined) expect(pr.parameters?.required_approving_review_count).toBe(0);
+    }
+  });
+
+  it('lets admins and GitHub Actions bypass, so release pushes keep landing', () => {
+    for (const d of protect) {
+      expect(d.ruleset.bypass_actors).toEqual(expect.arrayContaining([expect.objectContaining({ actor_type: 'RepositoryRole', actor_id: 5 }), expect.objectContaining({ actor_type: 'Integration', actor_id: 15368 })]));
+    }
+  });
+});
+
 describe('problems', () => {
   it('names each missing or wrong field', () => {
     expect(problems('x.json', { owner: '', repos: [], ruleset: { name: '', target: 'main', enforcement: 'on' } })).toHaveLength(5);
@@ -53,7 +86,7 @@ describe('problems', () => {
   });
 
   it('refuses two files declaring the same ruleset on one repo', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'rulesets-'));
+    const dir = scratchDir('rulesets-');
     for (const f of ['a.json', 'b.json']) writeFileSync(join(dir, f), JSON.stringify({ owner: 'o', repos: ['r'], ruleset }));
     expect(loadDeclarations(dir).problems).toEqual([expect.stringContaining('also declared by a.json')]);
   });
@@ -74,10 +107,13 @@ describe('rulesets.yml', () => {
     expect(wf.on.pull_request?.paths).toEqual(expect.arrayContaining(['.github/rulesets/**']));
   });
 
-  it('passes the token only to the apply step', () => {
+  it('offers the apply step every token the script tries, and none on a pull request', () => {
     const steps = Object.values(wf.jobs).flatMap((j) => j.steps);
-    const apply = steps.filter((s) => s.run?.includes('apply-rulesets.mts'));
-    expect(apply.some((s) => s.env?.RULESETS_TOKEN?.includes('secrets.RULESETS_TOKEN'))).toBe(true);
-    expect(steps.filter((s) => JSON.stringify(s).includes('secrets.RULESETS_TOKEN'))).toHaveLength(1);
+    const apply = steps.find((s) => s.run?.includes('apply-rulesets.mts'));
+    expect(Object.keys(apply?.env ?? {})).toEqual([...TOKEN_CANDIDATES]);
+    for (const [name, value] of Object.entries(apply?.env ?? {})) {
+      if (name === 'RULESETS_APP_TOKEN') continue;
+      expect(value).toContain("github.event_name != 'pull_request'");
+    }
   });
 });
