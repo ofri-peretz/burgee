@@ -171,7 +171,7 @@ in_wt npx turbo run build --filter='./packages/*' --concurrency="$concurrency"
 in_wt npm run build:native -w oxmutate
 
 # 2b. The test cases too heavy for a pull request: NIGHTLY_ONLY in
-# scripts/vitest-case-budget-reporter.ts, each of which runs oxmutate end to end, so they run
+# scripts/nightly-only.ts, each of which runs oxmutate end to end, so they run
 # here and nowhere in GitHub Actions. `case-budget-lock.test.ts` holds this list to NIGHTLY_ONLY's
 # files. A red one fails the run (exit 1) after the mutation runs and their PR still land.
 nightly_rc=0
@@ -281,7 +281,7 @@ fi
 # for compat.yml's `heavy-tests`.
 if [ "$nightly_rc" -ne 0 ] && [ "$DRY" = 0 ]; then
   issue_title="Weekly nightly-only test cases failed"
-  issue_body=$(printf 'The NIGHTLY_ONLY test cases (scripts/vitest-case-budget-reporter.ts), run with BURGEE_NIGHTLY=1 by `npm run mutation:weekly` on origin/main at %s, failed. They run oxmutate end to end, so no pull request runs them; this is where a broken end-to-end case shows. The log is ~/Library/Logs/burgee-mutation-weekly.log on the machine that ran it.\n' "$commit")
+  issue_body=$(printf 'The NIGHTLY_ONLY test cases (scripts/nightly-only.ts), run with BURGEE_NIGHTLY=1 by `npm run mutation:weekly` on origin/main at %s, failed. They run oxmutate end to end, so no pull request runs them; this is where a broken end-to-end case shows. The log is ~/Library/Logs/burgee-mutation-weekly.log on the machine that ran it.\n' "$commit")
   existing=$(cd "$WORKTREE" && gh issue list --state open --search "$issue_title in:title" --json number --jq '.[0].number // empty') || existing=''
   if [ -n "$existing" ]; then
     (cd "$WORKTREE" && gh issue comment "$existing" --body "$issue_body") || say "could not comment on issue #$existing." >&2
