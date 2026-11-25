@@ -58,12 +58,14 @@ hookset init            # the smallest lefthook.yml that pulls the presets, pinn
 hookset init --claude   # and the Claude Code hook pack under .claude/hooks/
 hookset check           # the CI gate: exit 1 on any error, warnings listed
 hookset check --json    # the problems as data, one fix line each
+hookset context         # exit 1 when what Claude loads every session outgrows the ceiling
 ```
 
 | Command | Exit 1 when |
 | :-- | :-- |
 | `init` | a `lefthook.yml` written by hand is already there and `--force` is not given |
 | `check` | a station is missing, a remote pins no `hookset@<version>` tag, a preset step is repeated, or a vendored hook drifts from the pack |
+| `context` | CLAUDE.md, its `@`-imports and every skill, command and subagent description (less the skills marked `disable-model-invocation: true`) come to more tokens than `context.tokens` in `.claude/hookset.json`; `--update` lowers that ceiling and never raises it |
 
 ## Migrating
 
