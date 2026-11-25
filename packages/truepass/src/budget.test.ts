@@ -89,11 +89,11 @@ describe('budgetFrom', () => {
 });
 
 describe('the small parts', () => {
-  it('is strict on CI, as roundel reads it', () => {
-    expect(strict({ CI: 'true' })).toBe(true);
-    expect(strict({ CI: '1' })).toBe(true);
-    expect(strict({ CI: '' })).toBe(false);
-    expect(strict({})).toBe(false);
+  it('is strict on CI, as roundel reads it', async () => {
+    expect(await strict({ CI: 'true' })).toBe(true);
+    expect(await strict({ CI: '1' })).toBe(true);
+    expect(await strict({ CI: '' })).toBe(false);
+    expect(await strict({})).toBe(false);
   });
 
   it('loads with nothing built: the reporter and budget import only node and their own package at load time', () => {

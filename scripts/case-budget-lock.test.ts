@@ -61,10 +61,10 @@ describe('the budget', () => {
     expect(() => budgetFrom({ TRUEPASS_BUDGET_MS: '-1' }, CASE_BUDGET_MS)).toThrow(/not a number/);
   });
 
-  it('judges strictly on CI, whatever the load; off CI an overloaded machine leaves a case unjudged', () => {
-    expect(strict({ CI: 'true' })).toBe(true);
-    expect(strict({})).toBe(false);
-    expect(strict({ CI: '' })).toBe(false);
+  it('judges strictly on CI, whatever the load; off CI an overloaded machine leaves a case unjudged', async () => {
+    expect(await strict({ CI: 'true' })).toBe(true);
+    expect(await strict({})).toBe(false);
+    expect(await strict({ CI: '' })).toBe(false);
   });
 
   it('measures every case alone on CI; off CI it stops when the machine is overloaded or the alone readings have run long', () => {

@@ -76,8 +76,15 @@ export function budgetFrom(env: NodeJS.ProcessEnv, fallback: number = DEFAULT_BU
   return n;
 }
 
-/** On CI a reading taken under load still counts: the runner is the job's alone. CI is a non-empty `CI`, as roundel reads it. */
-export const strict = (env: NodeJS.ProcessEnv): boolean => (env['CI'] ?? '') !== '';
+/**
+ * On CI a reading taken under load still counts: the runner is the job's alone. roundel decides
+ * what CI is; it is imported only here, once a case is over the budget, so the reporter loads
+ * with nothing built.
+ */
+export async function strict(env: NodeJS.ProcessEnv): Promise<boolean> {
+  const { outputMode } = await import('roundel/policy');
+  return outputMode({ env, isTTY: { stdout: false } }) === 'ci';
+}
 
 /** How long a developer machine spends on alone readings before it leaves the rest to CI. */
 export const LOCAL_ALONE_BUDGET_MS = 120_000;
@@ -213,7 +220,7 @@ export const DEFAULT_HINT = 'Make each case fast without weakening it (share a s
 export async function judge(candidates: readonly Candidate[], budget: number, hint: string = DEFAULT_HINT, machine: Machine = realMachine()): Promise<boolean> {
   // Stryker disable next-line ConditionalExpression: equivalent, an empty list measures nothing and passes below; this only skips reading the clock
   if (candidates.length === 0) return true;
-  const isStrict = strict(machine.env);
+  const isStrict = await strict(machine.env);
   const started = machine.now();
   const measured: (Candidate & { busy: boolean })[] = [];
   for (const c of candidates) {
