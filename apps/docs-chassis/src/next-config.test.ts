@@ -47,7 +47,8 @@ describe('webpack’s persistent cache', () => {
     const out = webpackHook()({ cache: { type: 'filesystem', buildDependencies: { config: ['next.config.mjs'] } }, plugins: [] }, context);
     const deps = out.cache === false ? undefined : out.cache?.buildDependencies;
     expect(deps?.['docsChassis']).toEqual([CHASSIS_SRC]);
-    expect(CHASSIS_SRC.endsWith('/')).toBe(true);
+    // A directory to webpack is a path ending in a separator, `/` or `\` (FileSystemInfo).
+    expect(CHASSIS_SRC).toMatch(/[\\/]$/u);
     expect(existsSync(join(CHASSIS_SRC, 'source-config.mjs'))).toBe(true);
   });
 
