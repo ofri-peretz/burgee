@@ -9,13 +9,13 @@ private until it has run in every Interlace repo. Intent: [`.sdlc/intents/hookse
   through lefthook `remotes` at a pinned `hookset@<version>` tag. Each step calls the repo's own
   script by a declared name, so the preset is the same everywhere and the repo decides what runs:
 
-  | Hook | Step | Repo script | Mode |
-  | :-- | :-- | :-- | :-- |
-  | commit-msg | `hookset-commitlint` | (commitlint config) | enforce |
-  | pre-commit | `hookset-staged` | `hook:staged` (gets the staged paths; under 10 s) | enforce |
-  | pre-push | `hookset-verify` | `hook:verify` (typecheck, affected tests, build) | enforce |
-  | pre-push | `hookset-mutation` | `hook:mutation` | optional |
-  | pre-push | `hookset-test-integrity`, `hookset-proofline`, `hookset-triggerlist` | `hook:<id>` | observe |
+  | Hook       | Step                                                                 | Repo script                                       | Mode     |
+  | :--------- | :------------------------------------------------------------------- | :------------------------------------------------ | :------- |
+  | commit-msg | `hookset-commitlint`                                                 | (commitlint config)                               | enforce  |
+  | pre-commit | `hookset-staged`                                                     | `hook:staged` (gets the staged paths; under 10 s) | enforce  |
+  | pre-push   | `hookset-verify`                                                     | `hook:verify` (typecheck, affected tests, build)  | enforce  |
+  | pre-push   | `hookset-mutation`                                                   | `hook:mutation`                                   | optional |
+  | pre-push   | `hookset-test-integrity`, `hookset-proofline`, `hookset-triggerlist` | `hook:<id>`                                       | observe  |
 
   Stations that are not enforced are wired with `npm run --if-present`, so a repo that has not
   declared one passes. The list is data: [`stations.json`](./stations.json).
@@ -50,6 +50,11 @@ jobs:
 
 The workflow checks out `packages/hookset` at the tag the caller's `lefthook.yml` pins and runs
 [`src/core.ts`](./src/core.ts) under Node's type stripping: no install, no build.
+
+On a pull request it also runs a `provedone receipts` job: `provedone gate --mode enforce` on
+every non-merge commit in the PR, so a commit that skipped the `commit-msg` hook (the web editor,
+a bypassed hook) still fails without its `Verified-by:` receipt. The Version PR
+(`changeset-release/main`) and PRs a bot opened are exempt.
 
 ## Releasing a preset version
 

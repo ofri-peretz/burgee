@@ -6,14 +6,14 @@ Node from `.nvmrc`, npm cache).
 
 ## Gates (required checks on `main`)
 
-| Workflow | Check name | When |
-| :-- | :-- | :-- |
-| [`quality.yml`](./quality.yml) | `Quality Gate` | every PR push, push to main — lint, markdown, workflow conventions, lockfile |
-| [`quality-full.yml`](./quality-full.yml) | `Quality (Full) Gate` | non-draft PRs, `run-full-ci` label, push to main, weekly — test, build, typecheck, and each changed package's coverage thresholds; on a PR, `test` runs the repository's locks in full and only the affected workspaces' suites (`scripts/affected.mts`) |
-| [`compat.yml`](./compat.yml) | `Ratchet · each host's suite against burgee`, `Node 24 · ubuntu-latest`, `Node 24 · macos-latest`, `Node 24 · windows-latest` | every PR, the merge queue, nightly — each host's own suite against burgee, below baseline fails; our suite on each OS |
-| [`codeql.yml`](./codeql.yml) | `CodeQL` (reported by code scanning from the analyze job's upload) | non-draft PRs, the merge queue, push to main, weekly |
-| [`changesets-pr.yml`](./changesets-pr.yml) | `Changeset present` | every PR, the merge queue, the Version PR fallback |
-| [`completions.yml`](./completions.yml) | `bash, zsh, fish, pwsh complete the demo` | every PR, the merge queue, push to main |
+| Workflow                                   | Check name                                                                                                                    | When                                                                                                                                                                                                                                                     |
+| :----------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`quality.yml`](./quality.yml)             | `Quality Gate`                                                                                                                | every PR push, push to main — lint, markdown, workflow conventions, lockfile                                                                                                                                                                             |
+| [`quality-full.yml`](./quality-full.yml)   | `Quality (Full) Gate`                                                                                                         | non-draft PRs, `run-full-ci` label, push to main, weekly — test, build, typecheck, and each changed package's coverage thresholds; on a PR, `test` runs the repository's locks in full and only the affected workspaces' suites (`scripts/affected.mts`) |
+| [`compat.yml`](./compat.yml)               | `Ratchet · each host's suite against burgee`, `Node 24 · ubuntu-latest`, `Node 24 · macos-latest`, `Node 24 · windows-latest` | every PR, the merge queue, nightly — each host's own suite against burgee, below baseline fails; our suite on each OS                                                                                                                                    |
+| [`codeql.yml`](./codeql.yml)               | `CodeQL` (reported by code scanning from the analyze job's upload)                                                            | non-draft PRs, the merge queue, push to main, weekly                                                                                                                                                                                                     |
+| [`changesets-pr.yml`](./changesets-pr.yml) | `Changeset present`                                                                                                           | every PR, the merge queue, the Version PR fallback                                                                                                                                                                                                       |
+| [`completions.yml`](./completions.yml)     | `bash, zsh, fish, pwsh complete the demo`                                                                                     | every PR, the merge queue, push to main                                                                                                                                                                                                                  |
 
 The nine names are `REQUIRED_CHECKS` in [`scripts/required-checks.mts`](../../scripts/required-checks.mts),
 held to branch protection by `scripts/required-checks-lock.test.ts`, which also holds that each is
@@ -46,12 +46,12 @@ from [`nightly-report.yml`](./nightly-report.yml), which follows the nightly run
 `main`, so no pull request shows a reporter as a check.
 `scripts/heavy-ci-nightly-lock.test.ts` holds it.
 
-| UTC | Workflow | What | On a pull request instead |
-| :-- | :-- | :-- | :-- |
-| 03:00 daily | [`bench.yml`](./bench.yml) | B2 cold start, B3 compat suite, B4 weight, B5 runtime, reliability, the N10 floor; lands the night's observation on `chore/bench-series` | `gate`: B4 weight, reliability and the floor ratchet, `--check`ed |
-| 03:30 daily | [`compat.yml`](./compat.yml) | the ratchet, the three Node 24 cells, the off-Linux controls, the six Node-floor published-suites cells | the ratchet and the three Node 24 cells (required); `run-full-ci` adds the rest |
-| 05:40 Tue | [`bench.yml`](./bench.yml) | B1 agent cost (paid) | only with the `bench:agent` label |
-| 06:20 Sat | [`evals.yml`](./evals.yml) | layer 2 task evals (paid) | never; layer 1 runs in `Quality Gate` |
+| UTC         | Workflow                     | What                                                                                                                                     | On a pull request instead                                                       |
+| :---------- | :--------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------ |
+| 03:00 daily | [`bench.yml`](./bench.yml)   | B2 cold start, B3 compat suite, B4 weight, B5 runtime, reliability, the N10 floor; lands the night's observation on `chore/bench-series` | `gate`: B4 weight, reliability and the floor ratchet, `--check`ed               |
+| 03:30 daily | [`compat.yml`](./compat.yml) | the ratchet, the three Node 24 cells, the off-Linux controls, the six Node-floor published-suites cells                                  | the ratchet and the three Node 24 cells (required); `run-full-ci` adds the rest |
+| 05:40 Tue   | [`bench.yml`](./bench.yml)   | B1 agent cost (paid)                                                                                                                     | only with the `bench:agent` label                                               |
+| 06:20 Sat   | [`evals.yml`](./evals.yml)   | layer 2 task evals (paid)                                                                                                                | never; layer 1 runs in `Quality Gate`                                           |
 
 ## Mutation runs locally, never here
 
@@ -63,11 +63,11 @@ step under `.github/` runs `scripts/mutation.ts`, either npm script below, the o
 paired bench or Stryker, or sets `BURGEE_NIGHTLY` (the NIGHTLY_ONLY oxmutate cases, which compat.yml's `heavy-tests` ran until this change). Building oxmutate's native cores for a release (`oxmutate-native.yml`) and
 running oxmutate's own unit suite in `test` are not mutation runs, and stay.
 
-| When | Where | What |
-| :-- | :-- | :-- |
-| every push | pre-push (`lefthook.yml`) | `npm run mutation:changed`: the lines the branch changed against `origin/main`, the per-PR gate |
-| 02:30 Sat, local time | launchd, `npm run mutation:weekly` | the NIGHTLY_ONLY test cases with `BURGEE_NIGHTLY=1`, then every package in `.sdlc/bands/mutation-ratchets.json` in full, one at a time, on a clean worktree of `origin/main`; `record`, then a `chore(workspace): record mutation scores` PR with auto-merge armed; exits 2 on a breached floor |
-| on demand | `npx tsx packages/oxmutate/bench/burgee-pair.mts --package <pkg>` | Stryker and oxmutate on the same package, the same machine, back to back |
+| When                  | Where                                                             | What                                                                                                                                                                                                                                                                                            |
+| :-------------------- | :---------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| every push            | pre-push (`lefthook.yml`)                                         | `npm run mutation:changed`: the lines the branch changed against `origin/main`, the per-PR gate                                                                                                                                                                                                 |
+| 02:30 Sat, local time | launchd, `npm run mutation:weekly`                                | the NIGHTLY_ONLY test cases with `BURGEE_NIGHTLY=1`, then every package in `.sdlc/bands/mutation-ratchets.json` in full, one at a time, on a clean worktree of `origin/main`; `record`, then a `chore(workspace): record mutation scores` PR with auto-merge armed; exits 2 on a breached floor |
+| on demand             | `npx tsx packages/oxmutate/bench/burgee-pair.mts --package <pkg>` | Stryker and oxmutate on the same package, the same machine, back to back                                                                                                                                                                                                                        |
 
 The weekly run's launchd agent is [`tools/launchd/dev.burgee.mutation-weekly.plist`](../../tools/launchd/dev.burgee.mutation-weekly.plist).
 Install it once:
@@ -82,10 +82,10 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/dev.burgee.mutation-week
 
 ## Release loop
 
-| Workflow | Role |
-| :-- | :-- |
-| [`changesets-pr.yml`](./changesets-pr.yml) | PR: `Changeset present` — a hard gate: a PR that changes `packages/*/src` or a `package.json` and adds no changeset fails, unless labelled `skip-changeset` — or opened by Dependabot and moving only `devDependencies` in each package manifest. Main: opens / refreshes the "Version Packages" PR with the release App's token, else `RELEASE_BOT_PAT`, else `GITHUB_TOKEN` — and under `GITHUB_TOKEN` it dispatches every required-check workflow on the PR branch, mirrors each result onto the head commit as a status, then merges and dispatches the post-merge runs itself (`checks`, `land`) |
-| [`release.yml`](./release.yml) | Push to main (or dispatched by `land`): detect version diff vs npm, ordered dependencies-first by `scripts/release-order.mts` → build, and wait for `Quality Gate` + `Quality (Full) Gate` to pass on the same commit → one job publishes in that order (each package waits until its in-family dependencies are on npm) through npm trusted publishing (OIDC, no npm token — D-154) with provenance, tag, GitHub Release whose notes are that version's CHANGELOG section. When the plan carries oxmutate or an `oxmutate-<platform>` package (or on a dry run), `native` calls `oxmutate-native.yml` beside build and verify. oxmutate 0.1 bundles the six cores from its artifacts as `binding/oxmutate.<tag>.node`, and the loop refuses it without all six; the platform packages stay `private` until their names exist on npm, then publish first, with no tag or Release of their own, and oxmutate's published manifest gains `optionalDependencies` naming them ([`packages/oxmutate/RELEASING.md`](../../packages/oxmutate/RELEASING.md)) |
+| Workflow                                   | Role                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| :----------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`changesets-pr.yml`](./changesets-pr.yml) | PR: `Changeset present` — a hard gate: a PR that changes `packages/*/src` or a `package.json` and adds no changeset fails, unless labelled `skip-changeset` — or opened by Dependabot and moving only `devDependencies` in each package manifest. Main: opens / refreshes the "Version Packages" PR with the release App's token, else `RELEASE_BOT_PAT`, else `GITHUB_TOKEN` — and under `GITHUB_TOKEN` it dispatches every required-check workflow on the PR branch, mirrors each result onto the head commit as a status, then merges and dispatches the post-merge runs itself (`checks`, `land`)                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| [`release.yml`](./release.yml)             | Push to main (or dispatched by `land`): detect version diff vs npm, ordered dependencies-first by `scripts/release-order.mts` → build, and wait for `Quality Gate` + `Quality (Full) Gate` to pass on the same commit → one job publishes in that order (each package waits until its in-family dependencies are on npm) through npm trusted publishing (OIDC, no npm token — D-154) with provenance, tag, GitHub Release whose notes are that version's CHANGELOG section. When the plan carries oxmutate or an `oxmutate-<platform>` package (or on a dry run), `native` calls `oxmutate-native.yml` beside build and verify. oxmutate 0.1 bundles the six cores from its artifacts as `binding/oxmutate.<tag>.node`, and the loop refuses it without all six; the platform packages stay `private` until their names exist on npm, then publish first, with no tag or Release of their own, and oxmutate's published manifest gains `optionalDependencies` naming them ([`packages/oxmutate/RELEASING.md`](../../packages/oxmutate/RELEASING.md)) |
 
 The Version PR loop is continuous: every push to main that carries a changeset refreshes the one
 open Version PR, and it merges as soon as its required checks are green. Each workflow that reports
@@ -105,49 +105,49 @@ to run still starts and passes in one step. `npm run lint:workflows` holds the l
 
 ## SDLC loop (Stage 4 and Stage 6)
 
-| Workflow | Role |
-| :-- | :-- |
-| [`evals.yml`](./evals.yml) | Weekly and on dispatch, never on a PR: layer 1 link/script/floor-id checks; layer 2 task evals when a credential exists. Layer 1 also runs on every PR inside `Quality Gate` |
-| [`control-bands.yml`](./control-bands.yml) | Weekly: records observations, evaluates Western Electric rules, opens an intent PR on a 2σ+ breach |
-| [`models.yml`](./models.yml) | `.qnt` or `packages/closeout/src` changes: every Quint model holds its `safety` invariant over 20k simulated traces; open questions pinned as expected violations ([`JEV-AND-QUINT.md`](../../.sdlc/JEV-AND-QUINT.md)) |
+| Workflow                                   | Role                                                                                                                                                                                                                   |
+| :----------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`evals.yml`](./evals.yml)                 | Weekly and on dispatch, never on a PR: layer 1 link/script/floor-id checks; layer 2 task evals when a credential exists. Layer 1 also runs on every PR inside `Quality Gate`                                           |
+| [`control-bands.yml`](./control-bands.yml) | Weekly: records observations, evaluates Western Electric rules, opens an intent PR on a 2σ+ breach                                                                                                                     |
+| [`models.yml`](./models.yml)               | `.qnt` or `packages/closeout/src` changes: every Quint model holds its `safety` invariant over 20k simulated traces; open questions pinned as expected violations ([`JEV-AND-QUINT.md`](../../.sdlc/JEV-AND-QUINT.md)) |
 
 ## oxmutate
 
-| Workflow | Role |
-| :-- | :-- |
+| Workflow                                       | Role                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| :--------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [`oxmutate-native.yml`](./oxmutate-native.yml) | Called by `release.yml`, or dispatched alone (builds, publishes nothing): one `oxmutate.node` per `packages/oxmutate/npm/<platform>` — macOS 14 for both darwin targets (x64 cross-compiled, header-checked), Ubuntu 22.04 x64 and arm64 for glibc, musl via `x86_64-unknown-linux-musl` built in `rust:<version>-alpine` and loaded in `node:<.nvmrc>-alpine`, Windows for msvc. Each leg checks the binary's header, `process.dlopen`s it and calls `nativeVersion()` where the runner can, and uploads `oxmutate-native-<platform>`, which `release.yml` places in oxmutate's `binding/`. `scripts/oxmutate-platforms-lock.test.ts` holds the matrix to the directories |
 
 ## Reusable (called by the other Interlace repos)
 
 `on: workflow_call` only; burgee itself does not run them. Callers reference `@main`.
 
-| Workflow | Role |
-| :-- | :-- |
-| [`hookset-check.yml`](./hookset-check.yml) | `hookset check` on the caller against the presets at the `hookset@<version>` tag its `lefthook.yml` pins: a sparse checkout of `packages/hookset`, run by Node's type stripping, no install |
-| [`changeset-gate.yml`](./changeset-gate.yml) | A PR that changes package source or a manifest adds a changeset that `changeset status` accepts; `skip-changeset` opts out, the Version PR passes. The rule `changesets-pr.yml` holds here, for repos that had none |
+| Workflow                                     | Role                                                                                                                                                                                                                                                            |
+| :------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`hookset-check.yml`](./hookset-check.yml)   | `hookset check` on the caller against the presets at the `hookset@<version>` tag its `lefthook.yml` pins: a sparse checkout of `packages/hookset`, run by Node's type stripping, no install; on a PR, `provedone gate --mode enforce` on every non-merge commit |
+| [`changeset-gate.yml`](./changeset-gate.yml) | A PR that changes package source or a manifest adds a changeset that `changeset status` accepts; `skip-changeset` opts out, the Version PR passes. The rule `changesets-pr.yml` holds here, for repos that had none                                             |
 
 ## Security
 
-| Workflow | Role |
-| :-- | :-- |
-| [`codeql.yml`](./codeql.yml) | CodeQL on the promote gate and weekly |
+| Workflow                           | Role                                                                                                                 |
+| :--------------------------------- | :------------------------------------------------------------------------------------------------------------------- |
+| [`codeql.yml`](./codeql.yml)       | CodeQL on the promote gate and weekly                                                                                |
 | [`scorecard.yml`](./scorecard.yml) | OpenSSF Scorecard on push to main and weekly; SARIF to Code scanning, results published so the README badge resolves |
 
 ## Dependencies
 
-| Workflow | Role |
-| :-- | :-- |
-| [`auto-merge.yml`](./auto-merge.yml) | Every PR from a branch of this repo (`pull_request_target`, never checks out the PR): arms `--auto --squash` on open, reopen and ready-for-review. Leaves drafts, `chore(release)` PRs (merging publishes to npm), held PRs (hold, do-not-merge, wip), forks and Dependabot to a person or to `dependabot-automerge.yml`, and turns off an auto-merge it armed when a PR goes back to draft or is retitled `chore(release)`. The required checks still gate the merge |
-| [`dependabot-automerge.yml`](./dependabot-automerge.yml) | Dependabot PRs (`pull_request_target`, never checks out the PR): turns on `--auto --squash` only when every updated dependency is a semver patch or minor and none is `direct:production` (GitHub Actions bumps are exempt from that type test). The required checks still gate the merge. On a push that makes the PR stop qualifying, it turns off the auto-merge it had turned on. Uses the release credential chain, else `GITHUB_TOKEN` with a warning |
+| Workflow                                                 | Role                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| :------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`auto-merge.yml`](./auto-merge.yml)                     | Every PR from a branch of this repo (`pull_request_target`, never checks out the PR): arms `--auto --squash` on open, reopen and ready-for-review. Leaves drafts, `chore(release)` PRs (merging publishes to npm), held PRs (hold, do-not-merge, wip), forks and Dependabot to a person or to `dependabot-automerge.yml`, and turns off an auto-merge it armed when a PR goes back to draft or is retitled `chore(release)`. The required checks still gate the merge |
+| [`dependabot-automerge.yml`](./dependabot-automerge.yml) | Dependabot PRs (`pull_request_target`, never checks out the PR): turns on `--auto --squash` only when every updated dependency is a semver patch or minor and none is `direct:production` (GitHub Actions bumps are exempt from that type test). The required checks still gate the merge. On a push that makes the PR stop qualifying, it turns off the auto-merge it had turned on. Uses the release credential chain, else `GITHUB_TOKEN` with a warning           |
 
 ## Coverage
 
-| Workflow | Role |
-| :-- | :-- |
+| Workflow                       | Role                                                                                                                                                                                                                             |
+| :----------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [`codecov.yml`](./codecov.yml) | Monday 06:00 UTC and on demand: one workspace-wide `vitest --coverage` run, uploaded once and split per package by root `codecov.yml`'s components. Reports only; the thresholds gate PRs in `quality-full.yml`'s `coverage` job |
 
 Secrets: none for npm — `release.yml` publishes through each package's npm trusted publisher (OIDC),
-and `trusted-publishing-lock.test.ts` refuses an npm token in any workflow. `CLAUDE_CODE_OAUTH_TOKEN` (optional), `RELEASE_APP_PRIVATE_KEY` with the repo *variable*
+and `trusted-publishing-lock.test.ts` refuses an npm token in any workflow. `CLAUDE_CODE_OAUTH_TOKEN` (optional), `RELEASE_APP_PRIVATE_KEY` with the repo _variable_
 `RELEASE_APP_ID` (preferred release credential: a GitHub App installation token, so the Version
 PR raises its own checks), `RELEASE_BOT_PAT` (the older alternative; also lets the Version PR
 self-approve) — with neither, the `GITHUB_TOKEN` fallback above runs and warns, `CODECOV_TOKEN` (required by the weekly coverage run — without it that
