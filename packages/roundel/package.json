@@ -1,6 +1,6 @@
 {
   "name": "roundel",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "Terminal colors for a CLI. Zero dependencies. Drop-in alternative to chalk, colorette, kleur, picocolors, supports-color and yoctocolors.",
   "license": "MIT",
   "author": "Ofri Peretz <ofriperetzdev@gmail.com>",

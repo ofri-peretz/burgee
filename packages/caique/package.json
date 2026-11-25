@@ -1,6 +1,6 @@
 {
   "name": "caique",
-  "version": "2.1.4",
+  "version": "2.1.5",
   "description": "CLI prompts, flags first, for agents too. No dependency outside the burgee family. Drop-in alternative to @inquirer/core.",
   "license": "MIT",
   "author": "Ofri Peretz <ofriperetzdev@gmail.com>",
@@ -154,7 +154,7 @@
     "closeout": "^2.0.1",
     "linegauge": "^2.2.1",
     "paratext": "^2.0.1",
-    "roundel": "^2.0.1"
+    "roundel": "^2.0.3"
   },
   "devDependencies": {
     "vitest": "^5.0.1"
