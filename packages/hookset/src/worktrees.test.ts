@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
+import { mkdirSync, realpathSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { ExitCode } from 'burgee';
@@ -27,7 +27,9 @@ import {
   worktreesText,
 } from './worktrees.js';
 
-const scratch = scratchDirs();
+const made = scratchDirs();
+/** A scratch dir by its real path, as git prints it: macOS's temporary directory is behind `/var` -> `/private/var`. */
+const scratch = (prefix: string): string => realpathSync(made(prefix));
 const DAY = 86_400_000;
 const MB = 1_048_576;
 const OLD = new Date(Date.UTC(2026, 0, 1));
