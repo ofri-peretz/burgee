@@ -1,0 +1,48 @@
+{
+  "$comment": "node tally.mjs over the sessions on burgee 35c30ec, 2026-11-25, claude-sonnet-5-5, codegraph 1.6.4. lookup = tasks 1-4 x3, explore = tasks 5-7 x2; arm C ran lookup only.",
+  "A-explore": {
+    "runs": 6,
+    "grep": 29,
+    "read": 24,
+    "codegraph": 0,
+    "toolCalls": 57,
+    "costUsd": 1.18,
+    "seconds": 172
+  },
+  "A-lookup": {
+    "runs": 12,
+    "grep": 23,
+    "read": 9,
+    "codegraph": 0,
+    "toolCalls": 35,
+    "costUsd": 1.22,
+    "seconds": 134
+  },
+  "B-explore": {
+    "runs": 6,
+    "grep": 18,
+    "read": 3,
+    "codegraph": 12,
+    "toolCalls": 34,
+    "costUsd": 1.23,
+    "seconds": 147
+  },
+  "B-lookup": {
+    "runs": 12,
+    "grep": 17,
+    "read": 6,
+    "codegraph": 12,
+    "toolCalls": 35,
+    "costUsd": 1.71,
+    "seconds": 150
+  },
+  "C-lookup": {
+    "runs": 12,
+    "grep": 21,
+    "read": 9,
+    "codegraph": 13,
+    "toolCalls": 44,
+    "costUsd": 1.78,
+    "seconds": 176
+  }
+}

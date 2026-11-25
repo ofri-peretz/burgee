@@ -1,5 +1,13 @@
 # truepass
 
+## 1.1.0
+
+### Minor Changes
+
+- [#1839](https://github.com/ofri-peretz/burgee/pull/1839) [`181be03`](https://github.com/ofri-peretz/burgee/commit/181be03e6464e3987fac8b3b6905d7c1160840d4) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A per-case time budget: `truepass/vitest-reporter` fails a run when a test case takes longer than
+  its budget (5 s by default) and is still over it measured alone, and `truepass budget <dir>` judges
+  the cases a battery deferred with `TRUEPASS_BUDGET_DEFER`.
+
 ## 1.0.1
 
 ### Patch Changes

@@ -114,7 +114,10 @@ a script no station owns, which is what local steps are for
 `context` estimates the always-loaded context: `CLAUDE.md` and its `@`-imports, plus the name and
 description of every skill, command and subagent under `.claude/`. A skill or command marked
 `disable-model-invocation: true` is left out, since its description loads only when someone types
-its command. Tokens are characters / 4.
+its command. It also counts each MCP server in `.mcp.json`: a server's instructions and tool
+definitions are only known by running it, so a server hookset pins (`codegraph`) counts the size
+`stations.json` records for it, and any other server is named as not measured. Tokens are
+characters / 4.
 
 The ceiling is `context.tokens` in `.claude/hookset.json`, and it only goes down. Run `context`
 in CI so a change that grows what every session reads fails with the largest descriptions named.

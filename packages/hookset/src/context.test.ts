@@ -27,6 +27,7 @@ describe('measureContext: CLAUDE.md and its imports', () => {
       memoryFiles: [],
       memoryChars: 0,
       entries: [],
+      unmeasured: [],
     });
   });
 
@@ -119,6 +120,7 @@ const measured = (tokens: number, chars: number) => ({
   memoryFiles: ['CLAUDE.md'],
   memoryChars: chars,
   entries: [],
+  unmeasured: [],
 });
 
 describe('checkContext', () => {
@@ -200,6 +202,7 @@ describe('contextText', () => {
     memoryFiles: [],
     memoryChars: 0,
     entries: [],
+    unmeasured: [],
     ok: true,
     ceiling: 7,
     updated: false,
@@ -210,6 +213,10 @@ describe('contextText', () => {
     expect(contextText({ ...base, ceiling: 8 })).toBe(
       '✔ always-loaded context: 7 tokens (ceiling 8)\n  below the ceiling: run `hookset context --update` to lock in the cut',
     );
+  });
+
+  it('names the MCP servers it could not measure', () => {
+    expect(contextText({ ...base, unmeasured: ['figma', 'linear'] })).toBe('✔ always-loaded context: 7 tokens + MCP servers not measured: figma, linear (ceiling 7)');
   });
 
   it('says what --update set', () => {
@@ -257,5 +264,16 @@ describe('contextText', () => {
     expect(contextText({ ...base, ok: false, entries: [entry('c', 0), entry('x', 1)], error: 'e', fix: 'f' })).toBe(
       '✖ e\n  CLAUDE.md and imports: 0 tokens (none)\n  largest descriptions:\n    0  x\n  fix: f',
     );
+  });
+});
+
+describe('measureContext: MCP servers', () => {
+  it("counts a pack server at the size stations.json records, and names any other server as unmeasured", () => {
+    const root = repo({ '.mcp.json': JSON.stringify({ mcpServers: { codegraph: {}, figma: {} } }) });
+    const measured = measureContext(root);
+    expect(measured.entries).toEqual([{ file: '.mcp.json#codegraph', chars: 8652, userOnly: false }]);
+    expect(measured.tokens).toBe(2163);
+    expect(measured.unmeasured).toEqual(['figma']);
+    expect(measureContext(repo({ '.mcp.json': '{}' })).unmeasured).toEqual([]);
   });
 });
