@@ -1,0 +1,136 @@
+---
+title: Stamp
+description: "provedone stamp runs the commands that prove a change, records each one's exit code and an output digest, and prints the commit trailers or the PR's How this was checked block, with the gaps you name."
+---
+
+`provedone stamp` is the only way provedone learns what ran. It runs each command you pass, in
+the order you pass them, in the repository's root, and prints what happened as lines you paste.
+It never edits the commit message itself.
+
+## One command, one gap
+
+`check.mjs` is the script from [Getting started](/docs/getting-started).
+
+```text title="npx provedone stamp --run 'node check.mjs' --not-checked 'the docs site'"
+Verified-by: node check.mjs -> exit 0 (sha256:49870237b565)
+Not-checked: the docs site
+```
+
+## Several commands
+
+`--run` repeats. Each command gets its own `Verified-by:` line, in the order given, so a build
+can run before the test that reads its output.
+
+```js title="build.mjs"
+console.log('built 4 files');
+```
+
+```text title="npx provedone stamp --run 'node build.mjs' --run 'node check.mjs' --not-checked 'Windows' --not-checked 'the docs site'"
+Verified-by: node build.mjs -> exit 0 (sha256:e4e31dadb7ee)
+Verified-by: node check.mjs -> exit 0 (sha256:49870237b565)
+Not-checked: Windows
+Not-checked: the docs site
+```
+
+A command is one shell command line; it runs through the shell, so `npm test -- --run` and
+`a && b` work as they would in a terminal. Each one may run for 600 seconds by default;
+`--command-timeout <seconds>` changes that. A command that cannot start or times out is recorded
+as exit 1.
+
+## The gaps are required
+
+`--not-checked` is not optional. A receipt that does not say what was left out reads as if
+everything was checked. When nothing was left out, say so.
+
+```text title="npx provedone stamp --run 'node check.mjs'" exit="2"
+error: no --not-checked
+fix: add --not-checked "<what you did not check>", or --not-checked nothing
+{"error":{"kind":"usage","code":2,"message":"no --not-checked"}}
+```
+
+```text title="npx provedone stamp --run 'node check.mjs' --not-checked nothing"
+Verified-by: node check.mjs -> exit 0 (sha256:49870237b565)
+```
+
+`nothing` writes no `Not-checked:` line; the PR block below says `Not checked: nothing.`
+
+## A change that needs no check
+
+A comment, a typo in a README, a version bump: some changes have nothing to run. `--none` says so,
+with the reason, and is the one form that needs no `--not-checked`.
+
+```text title="npx provedone stamp --none 'comment-only change'"
+Verified-by: none (comment-only change)
+```
+
+`--none` and `--run` together are refused: if commands ran, they are the receipt.
+
+## Captures
+
+What you looked at in the running app is evidence too, but provedone does not take screenshots.
+`--capture <path>` records the path of one you took, as a `Captured:` line.
+
+```text title="npx provedone stamp --run 'node check.mjs' --capture shots/home.png --not-checked 'dark mode'"
+Verified-by: node check.mjs -> exit 0 (sha256:49870237b565)
+Captured: shots/home.png
+Not-checked: dark mode
+```
+
+The path is recorded as written; provedone does not read or upload the file.
+
+## A command that fails
+
+A failing command is still recorded, with its real exit code, and `stamp` exits 1 so a script that
+calls it stops.
+
+```js title="fail.mjs"
+console.log('1 check failed');
+process.exitCode = 1;
+```
+
+```text title="npx provedone stamp --run 'node fail.mjs' --not-checked nothing" exit="1"
+Verified-by: node fail.mjs -> exit 1 (sha256:36283e2ce1a0)
+error: `node fail.mjs` exited 1
+fix: make it pass and stamp again; a failing command is not a receipt
+```
+
+The gate does not read exit codes, so a pasted `-> exit 1` line would pass it. The receipt is
+honest about what happened; whether a red run is acceptable is for the reviewer who reads it.
+
+## The PR block
+
+`--pr` prints the same receipt as the "How this was checked" block for a pull request body: a
+`Checked:` line a person reads, then the trailers the gate reads.
+
+```text title="npx provedone stamp --run 'node build.mjs' --run 'node check.mjs' --not-checked 'the docs site' --pr"
+## How this was checked
+
+Checked: `node build.mjs` (pass), `node check.mjs` (pass). Not checked: the docs site.
+
+Verified-by: node build.mjs -> exit 0 (sha256:e4e31dadb7ee)
+Verified-by: node check.mjs -> exit 0 (sha256:49870237b565)
+Not-checked: the docs site
+```
+
+## Citing an intent
+
+`--intent <slug> --criterion <n>` ties the stamp to a success criterion of an intent, which is
+what [`provedone done`](/docs/guides/done) reads. The two go together; one without the other is a
+usage error.
+
+## Options
+
+| Option | What it does |
+| :-- | :-- |
+| `--run <command>` | a command that proves the change; repeatable |
+| `--not-checked <gap>` | what was not checked; repeatable, required unless `--none`; `nothing` when nothing |
+| `--none <reason>` | stamp the change unverified, with the reason |
+| `--capture <path>` | a screenshot or terminal capture, by path; repeatable |
+| `--pr` | print the PR block instead of the trailers |
+| `--intent <slug>`, `--criterion <n>` | the success criterion this proves, for `done` |
+| `--root <dir>` | the repository to run in (default: the current directory) |
+| `--command-timeout <seconds>` | how long each command may run (default 600) |
+| `--json` | the receipt, the trailers, the `Checked:` line and the PR block as one envelope |
+
+Every stamp is also appended to `stamps.jsonl` in provedone's store, which
+[`done`](/docs/guides/done) reads. [The receipt](/docs/guides/receipt) says where that is.

@@ -1,0 +1,65 @@
+---
+title: For agents
+description: "Give a coding agent truepass's findings in the form it can act on: messages that end in fix:, the --json envelope, --schema for the whole command line as data, an MCP server with diff as a read-only tool, and exit codes as the contract."
+---
+
+The shortcuts truepass reports are the ones an agent takes when it is told to make a red suite
+green. So the findings are written for the agent as much as for a person: each one says what is
+wrong, why it matters, and the fix, in one message.
+
+## Every message ends in a fix
+
+Both halves use one format: `<issue>: <why it matters>. fix: <what to do>`. An agent that reads a
+lint finding or a `truepass diff` finding has the instruction in the same line, without opening
+these docs:
+
+```text
+Test retry: Retries turn an intermittent failure into a pass, hiding the flakiness the test exists to report. fix: remove the retry and fix the cause of the flake (a race, shared state, a fixed sleep, an unmocked clock or network). If the retry is a deliberate policy, cite the decision id (D-…) or issue URL in a comment on this line or the line above
+```
+
+## The command line as data
+
+`truepass` is a burgee program, so `--schema` prints every command, option, default and exit code
+as JSON in one call, on one line:
+
+```text title="npx truepass --schema"
+{"schemaVersion":1,"clispec":"0.3","name":"truepass","exitCodes":{"OK":0,"RUNTIME":1,"USAGE":2,"CONFIG":3,"CANCELLED":4,"AUTH":5,"TIMEOUT":6,"SIGINT":130},"explain":"--explain <option> on a command says where its value came from: default, env, config or flag","errors":[{"kind":"runtime","exit_code":1,"retryable":false,"description":"it ran and failed; read the message"},{"kind":"usage","exit_code":2,"retryable":false,"description":"bad arguments or an unknown command; rewrite the command"},{"kind":"config","exit_code":3,"retryable":false,"description":"the config or environment did not load; fix it, not the command"},{"kind":"cancelled","exit_code":4,"retryable":false,"description":"cancelled, or a decision is needed; decide, then run a next command"},{"kind":"timeout","exit_code":6,"retryable":true,"description":"the --timeout deadline passed; run it again with more time"},{"kind":"interrupted","exit_code":130,"retryable":false,"description":"interrupted; stop"}],"global_args":[{"name":"json","type":"boolean","description":"machine-readable output"},{"name":"help","type":"boolean","description":"show this help"},{"name":"schema","type":"boolean","description":"the program as data"},{"name":"color","type":"string","description":"always, never or auto (default: auto); NO_COLOR is honoured","enum":["always","never","auto"],"default":"auto"},{"name":"no-color","type":"boolean","description":"the same as --color=never"},{"name":"quiet","type":"boolean","description":"silence progress and hints; data and errors still print","short":"-q"},{"name":"timeout","type":"string","description":"end the run after this long, exit 6: 500ms, 5s, 2m"}],"output":{"tty":"text","piped":"text","formats":["text","json","agent","tsv"]},"commands":[{"name":"diff","arguments":[],"options":{"base":{"type":"string","default":"origin/main","description":"the ref the range starts from"}},"examples":[{"command":"truepass diff","description":"the commits since origin/main, as a lefthook pre-push step"},{"command":"truepass diff --base main --json","description":"the same findings as the --json envelope"}],"inputSchema":{"type":"object","properties":{"base":{"type":"string","flag":"--base","description":"the ref the range starts from","default":"origin/main"}},"required":[],"additionalProperties":false},"description":"Report assertions moved to a weaker matcher and snapshots changed with no reason, in the commits since a base","effects":"read_only","example":{"args":["diff"]}},{"name":"completion","arguments":[{"name":"shell","description":"bash, zsh, fish, pwsh or fig","required":true}],"options":{},"examples":[{"command":"truepass completion bash"}],"inputSchema":{"type":"object","properties":{"shell":{"type":"string","description":"bash, zsh, fish, pwsh or fig"}},"required":["shell"],"additionalProperties":false},"description":"Print a shell completion script: bash, zsh, fish, pwsh or fig","effects":"read_only","example":{"args":["completion","bash"]},"output_kind":"opaque","media_type":"text/plain"}],"version":"1.0.1","description":"Test-suite integrity: lint rules for focused, skipped, sleeping and retried tests, and a pre-push check for weakened assertions"}
+```
+
+## --json
+
+`truepass diff --json` prints one envelope on stdout: `ok`, `data.base`, `data.findings` (each
+with `check`, `path`, `line` and `message`) and `data.exitCode`. [GitHub
+Actions](/docs/recipes/github-actions#the-envelope) shows a real one.
+
+A usage error goes to stderr as text, then as one JSON line, `{"error":{"kind","code","message"}}`,
+whenever stderr is not a terminal. An agent that runs the command through a pipe gets the error
+as data even without `--json`.
+
+## An MCP server
+
+`truepass --mcp` serves the program over the Model Context Protocol, from the same declaration.
+`diff` is declared with `effects: "read_only"`, as the schema above shows, so a client can tell it
+changes nothing.
+
+## Exit codes are the contract
+
+| Exit | Meaning                                                                         |
+| ---: | :------------------------------------------------------------------------------ |
+|    0 | no findings                                                                     |
+|    1 | a finding; read the message                                                     |
+|    2 | a usage error, such as a base this checkout does not have, with the fetch to run |
+
+These, the `--json` shape, the four rules and `truepass diff` are truepass's 1.0 contract: a
+change to any of them waits for a 2.0 ([the changelog](/docs/changelog)).
+
+## In an agent's instructions
+
+A line in the repository's agent instructions is enough to close the loop:
+
+```md
+- Never add `.only`, an unexplained skip, a fixed sleep or a retry to make a test pass;
+  `truepass/eslint` reports them.
+- A weakened assertion or a snapshot update needs an `Assertion: <why>` or `Snapshot: <why>`
+  line in the commit message; `truepass diff` runs on pre-push.
+```

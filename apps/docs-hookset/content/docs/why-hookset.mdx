@@ -1,0 +1,59 @@
+---
+title: Why hookset
+description: "What hookset does that a hook script per repository does not: one pinned set of stations read in place by every repository, a check that fails on drift, and Claude Code hooks that keep an agent from skipping them; and what it leaves out on purpose, including running the hooks itself."
+---
+
+husky makes it easy to put a hook script in a repository. That solves one repository. With
+several, each one's `.husky/pre-push` is written by hand, and the same step ends up different
+in each. The
+[intent](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/intents/hookset/intent.md)
+behind hookset starts from an audit of the owner's eight repositories: one had no git hooks at
+all, one ran only `build` before a push, one ran the full-repository lint and typecheck on every
+commit, and Claude Code hooks were in two of the eight, each written for that repository alone.
+
+hookset answers with one set of hooks, read in place by every repository at a pinned tag, and
+a command that fails when a repository drifts from it.
+
+## What it does that a script per repository does not
+
+| | A hook script per repository | hookset |
+| :-- | :-- | :-- |
+| Where the hook lives | in each repository | once, in the burgee repository, pulled through lefthook `remotes` |
+| How a repository changes it | edit its script | bump `ref` to a newer tag, or change what its own `hook:*` script runs |
+| Same step, same name, everywhere | by convention | by construction: the step names come from [`stations.json`](https://github.com/ofri-peretz/burgee/blob/main/packages/hookset/stations.json) |
+| Drift is caught | no | `hookset check` fails on a missing station, an unpinned ref, a repeated step |
+| CI checks the hooks | no | the [reusable workflow](/docs/recipes/ci), with no install |
+| An agent cannot skip them | no | guard-bash denies `--no-verify`, `HUSKY=0`, `LEFTHOOK=0` and a moved `core.hooksPath` |
+| An agent stops after three failed test runs | no | stop-after-3 ends the turn |
+| Output for a pipe or an agent | the hook's own | `--json` on both commands, every problem with a `fix` |
+
+## The split that makes it work
+
+A preset step never says _how_ a repository typechecks or tests. It runs
+`npm run hook:verify`, and the repository's `package.json` says what that is. So the preset is
+the same file in a Next.js app, a monorepo and a library, and each repository keeps control of
+its own commands. What is shared is the shape: which hook, which station, in what order, and
+what is enforced.
+
+## What it leaves out on purpose
+
+- **Running hooks.** lefthook does that. hookset writes and checks lefthook's configuration and
+  adds no runtime of its own to a commit.
+- **The checks themselves.** A station calls a script; truepass, provedone, triggerlist and
+  oxmutate are separate packages a repository can point those scripts at, or not.
+- **Husky presets.** The intent's default is lefthook first; Husky presets follow once a
+  repository outside the family asks for them. They are not built.
+- **Package-manager and monorepo detection.** The intent describes `init` detecting them. It
+  does not: the presets run `npm run`, which works under any package manager that installs a
+  `package.json`'s scripts, and a monorepo is wired from its root
+  ([Monorepo](/docs/recipes/monorepo)).
+- **Pinning to a commit.** lefthook's `remotes` take a tag or a branch, never a commit, so a
+  release is a tag.
+- **A YAML parser.** hookset reads the `remotes:` block it writes, line by line. A parser would
+  be its only dependency outside the family.
+
+## What is not measured
+
+How long a repository's hooks take, before and after, is _unmeasured_: the stations run each
+repository's own scripts. The 10-second budget for `pre-commit` is the intent's constraint, not
+a measurement.

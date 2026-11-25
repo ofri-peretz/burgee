@@ -1,0 +1,88 @@
+---
+title: In a monorepo
+description: "One checklist at the root with items scoped to each package by their globs, or one checklist per package passed with --checklist; why every path is relative to the repository root, and how gates and REVIEW.md fit a workspace."
+---
+
+triggerlist reads one diff for the whole repository. A monorepo needs nothing special, only
+globs that say which package an item is about.
+
+## One checklist, scoped by path
+
+Keep `.sdlc/checklist.yaml` at the root and put the package in each trigger:
+
+```yaml
+gates:
+  - REVIEW.md
+  - .sdlc/checklist.yaml
+  - "packages/*/test/**/*.lock.test.ts"
+
+items:
+  - id: api-handler-validates
+    trigger:
+      paths: ["packages/api/src/routes/**/*.ts"]
+    question: Does every new route validate its input before it reads it?
+    check: each handler calls parse() on the request body first
+    sources: ["https://github.com/acme/mono/pull/88"]
+
+  - id: web-no-fetch-in-render
+    trigger:
+      paths: ["packages/web/src/**/*.tsx"]
+      pattern: "\\bfetch\\("
+    question: Does a component fetch during render instead of in a loader?
+    check: fetch calls live in packages/web/src/loaders/
+    sources: ["https://github.com/acme/mono/pull/91"]
+
+  - id: subprocess-through-helper
+    trigger:
+      paths: ["packages/*/src/**/*.ts"]
+      pattern: "node:child_process"
+    question: Does new code spawn a process directly instead of through the shared helper?
+    check: a direct child_process import is a finding
+    sources: ["https://github.com/acme/mono/pull/102"]
+```
+
+A rule for one package names it; a rule for all of them uses `packages/*`. A branch that touches
+two packages fires the items of both:
+
+```text
+2 checklist item(s) fire for main...HEAD:
+
+api-handler-validates: Does every new route validate its input before it reads it?
+  check: each handler calls parse() on the request body first
+  at: packages/api/src/routes/users.ts:1
+
+web-no-fetch-in-render: Does a component fetch during render instead of in a loader?
+  check: fetch calls live in packages/web/src/loaders/
+  at: packages/web/src/A.tsx:1
+```
+
+burgee works this way: one checklist for its packages, with triggers such as
+`packages/*/src/**/*.ts`.
+
+## Paths are relative to the root
+
+Git prints changed paths from the repository root, and `git show <base>:<path>` reads the
+checklist from the root too, whatever directory the command runs in. So globs are always
+root-relative: `packages/api/src/**`, never `src/**` meaning the package's own `src`. Run the
+commands from the root; `--worktree` and `compile` read files relative to `--repo`, which is the
+current directory by default.
+
+## One checklist per package
+
+A team that owns a package can keep its own list and run `match` on it:
+
+```bash
+npx triggerlist match origin/main --checklist packages/api/.sdlc/checklist.yaml
+npx triggerlist compile --checklist packages/api/.sdlc/checklist.yaml --out packages/api/REVIEW.md
+```
+
+The globs inside it are still root-relative. `brief` takes one checklist and one `REVIEW.md`, so
+with several lists an AI reviewer gets several briefs, or you merge the lists into the root one.
+One root checklist is simpler, and `CODEOWNERS` on it can still give each team its section.
+
+## Gates and REVIEW.md
+
+List each package's lock tests in `gates` with a glob, and keep one `REVIEW.md` at the root.
+`compile`'s budget is for the whole file, so a large monorepo reaches it sooner: pass
+`--firings` with [replz](https://replz.interlace.tools/docs)'s counts to see which
+rules to drop. [Compile REVIEW.md](/docs/guides/compile#dropping-what-fires-least) shows how.

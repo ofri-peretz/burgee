@@ -1,0 +1,100 @@
+---
+title: Hooks and CI
+description: "Run truepass where a weakened suite is caught before it merges: the lint rules in the lint step, truepass diff on pre-push through hookset's hook:test-integrity station or a plain lefthook or husky hook, and both in CI with the history the diff needs."
+---
+
+The two halves run in different places. The lint rules run wherever ESLint already runs: the
+editor, a pre-commit step on staged files, the CI lint job. `truepass diff` reads the commits you
+are about to push, so it belongs on `pre-push` and in CI on pull requests.
+
+## With hookset: the hook:test-integrity station
+
+[hookset](https://hookset.interlace.tools/docs) ships the same lefthook presets to
+every repository. Its `pre-push` preset has a `hookset-test-integrity` step that runs your
+`hook:test-integrity` script:
+
+```yaml
+# hookset's presets/lefthook/pre-push.yml
+hookset-test-integrity:
+  priority: 3
+  run: PATH="$PATH:/opt/homebrew/bin:/usr/local/bin" npm run --silent --if-present hook:test-integrity
+```
+
+So wiring truepass in is one script in `package.json`:
+
+```json
+{
+  "scripts": {
+    "hook:test-integrity": "truepass diff --base origin/main"
+  }
+}
+```
+
+The step is wired with `--if-present`, so a repository that has not declared the script yet
+passes, and `hookset check` lists the station as not declared. `test-integrity` is one of the
+stations in hookset's `stations.json`, in `observe` mode, described there as "no .only, .skip or
+weakened assertion in the diff": the `.only` and `.skip` half is the lint rules, the weakened
+assertion half is `truepass diff`.
+
+## With lefthook directly
+
+```yaml
+# lefthook.yml
+pre-push:
+  commands:
+    truepass:
+      run: npx truepass diff --base origin/main
+```
+
+burgee's own `lefthook.yml` has the same step, run from the built package:
+`node packages/truepass/dist/bin.js diff --base origin/main`.
+
+## With husky, or a bare git hook
+
+```bash
+# .husky/pre-push
+npx truepass diff --base origin/main
+```
+
+A non-zero exit stops the push. Exit 1 is a finding; exit 2 means the base is missing, and the
+hint names the `git fetch` to run.
+
+## The lint rules before the push
+
+If the repository lints staged files on `pre-commit` (hookset's `hook:staged`, or lint-staged),
+the rules run there with no extra wiring once they are in `eslint.config.mjs`. Running them again
+in CI is what makes them binding, since a hook can be skipped.
+
+## In CI
+
+`truepass diff` compares against a base, so the job needs that base and the commits between it and
+`HEAD`. A default `actions/checkout` is shallow and has neither:
+
+```yaml
+# .github/workflows/test-integrity.yml
+on: pull_request
+
+jobs:
+  test-integrity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npx eslint . --max-warnings 0
+      - run: npx truepass diff --base origin/${{ github.base_ref }}
+```
+
+`fetch-depth: 0` fetches the whole history, and `origin/<base branch>` is the pull request's
+target. The commit messages it reads are the pull request's commits, so an `Assertion:` or
+`Snapshot:` line has to be in one of them, not only in the pull request description.
+
+A squash merge writes a new message. If your repository squashes, keep the reason lines in the
+squash message too, so `git log` on the main branch still says why a snapshot changed.
+
+[GitHub Actions](/docs/recipes/github-actions) has the full workflow with annotations from
+`--json`.

@@ -39,7 +39,7 @@ import { promisify } from 'node:util';
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { declaredBy, discard, type Edge, type InstallStamp, installStamp, installTarballs, type Manifest, ownerOf, packFamily, publishedManifests, readManifest, undeclaredReaches } from './family-install.js';
+import { declaredBy, discard, type Edge, familySetupTimeoutMs, type InstallStamp, installStamp, installTarballs, type Manifest, ownerOf, packFamily, publishedManifests, readManifest, undeclaredReaches } from './family-install.js';
 
 const run = promisify(execFile);
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -50,8 +50,8 @@ const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
  */
 const PUBLISHED = ['bellpull', 'burgee', 'caique', 'closeout', 'controlroom', 'flagstaff', 'linegauge', 'oxmutate', 'paratext', 'roundel', 'seniority', 'truepass', 'contractdiff', 'truefit', 'provedone', 'replz', 'hookset', 'triggerlist'];
 
-/** One pack of ten packages, then ten installs and their probes side by side. */
-const SETUP_TIMEOUT_MS = 240_000;
+/** One pack of the family, then one install each and their probes side by side (`familySetupTimeoutMs`). */
+const SETUP_TIMEOUT_MS = familySetupTimeoutMs(publishedManifests(root).size);
 
 /** The plain paths an `exports` target or a `bin` names, without `./`. */
 const norm = (p: string): string => p.replace(/^\.\//, '');

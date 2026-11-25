@@ -1,0 +1,183 @@
+---
+title: Getting started
+description: "Install contractdiff, diff two versions of a small OpenAPI contract and read the verdict, then generate TypeScript types and truefit validators from it and call one."
+---
+
+contractdiff reads an API contract and answers three questions about it: what a change breaks and
+for whom (`diff`), whether its form holds up (`lint`), and what code it implies (`gen`). This page
+runs the first and the third on a contract of one operation.
+
+## Install
+
+```bash
+npm install -D contractdiff
+```
+
+Install it as a dev dependency of the project that owns the contract. It needs Node 22.13 or
+later, and its four dependencies are all in the burgee family: `bellpull`, `burgee`, `seniority`
+and `truefit`.
+
+## Two versions of a contract
+
+Here is a contract with one operation, `getPet`, and the next version of it. The new version adds
+a required query parameter, `fields`, and drops the optional `tag` from the response.
+
+```yaml title="old.yaml"
+openapi: 3.1.0
+info:
+  title: Pets
+  version: 1.0.0
+paths:
+  /pets/{id}:
+    get:
+      operationId: getPet
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: A pet
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [name]
+                properties:
+                  name:
+                    type: string
+                  tag:
+                    type: string
+```
+
+```yaml title="new.yaml"
+openapi: 3.1.0
+info:
+  title: Pets
+  version: 1.1.0
+paths:
+  /pets/{id}:
+    get:
+      operationId: getPet
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: fields
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: A pet
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [name]
+                properties:
+                  name:
+                    type: string
+```
+
+## Diff them
+
+```text title="npx contractdiff diff old.yaml new.yaml" exit="1"
+breaking: 1 breaking, 0 unknown, 1 non-breaking (--mode backward --side caller)
+
+getPet  #/paths/~1pets~1{id}/get
+  breaking      new-required-request-parameter  param:query:fields  - -> {"type":"string"}
+                fix: keep accepting at getPet param:query:fields what the old contract accepted, or release this as a major version
+  non-breaking  response-optional-property-removed  response:200:application/json /properties/tag  {"type":"string"} -> -
+
+decisions: 1 (--decisions warn)
+  warn          ac-decision-missing  getPet  param:query:fields  - -> {"type":"string"}
+                fix: breaking change (`new-required-request-parameter`) at getPet param:query:fields with no decision: add `x-change: <the decision>` to getPet param:query:fields, or an ancestor or its operation, naming who decided it; or revert the change
+```
+
+The first line is the verdict and how it was reached: by default the question is whether a caller
+built on `old.yaml` keeps working (`--mode backward --side caller`). A caller that never sends
+`fields` now gets a 400, so that change is breaking. A caller that read `tag` already had to cope
+with it missing, since it was optional, so dropping it is not.
+
+Each finding names its rule (`new-required-request-parameter` is oasdiff's id for the same
+change), where it is, the value before and after, and a `fix:` line. The `decisions` block is a
+second check: a breaking change should name the decision behind it, and this one names none.
+[Decisions](/docs/guides/decisions) covers it; it warns by default and does not change the exit
+code. The exit code is `1` because of the breaking change, which is what a CI job needs.
+
+The same pair, asked from the server's side, is fine: a server that starts requiring a parameter
+still accepts every request it accepted before, and nothing it sends is new.
+
+```text title="npx contractdiff diff old.yaml new.yaml --side server"
+non-breaking: 0 breaking, 0 unknown, 2 non-breaking (--mode backward --side server)
+
+getPet  #/paths/~1pets~1{id}/get
+  non-breaking  new-required-request-parameter  param:query:fields  - -> {"type":"string"}
+  non-breaking  response-optional-property-removed  response:200:application/json /properties/tag  {"type":"string"} -> -
+```
+
+## Generate code from it
+
+`gen` reads `contractdiff.config.json`: the contract, and one target per thing to write.
+
+```json title="contractdiff.config.json"
+{
+  "input": "new.yaml",
+  "targets": {
+    "types": { "generator": "types", "out": "src/api" },
+    "validators": { "generator": "validator", "out": "src/api" }
+  }
+}
+```
+
+```text title="npx contractdiff gen"
+write src/api/types.ts
+write src/api/validators.ts
+write contractdiff.map.json
+```
+
+It wrote `src/api/types.ts` (the `paths`, `components` and `operations` interfaces
+openapi-typescript users know), `src/api/validators.ts` (one compiled guard per payload) and
+`contractdiff.map.json`, which records every file and symbol it wrote. Run it again and every file
+is `unchanged`; the same input always writes the same bytes.
+
+The validators are plain TypeScript functions, so a script can use them straight away:
+
+```ts title="use.ts"
+import { GetPetResponse200, operations } from "./src/api/validators.ts";
+
+console.log(GetPetResponse200({ name: "Rex" }));
+console.log(GetPetResponse200({ name: 7 }));
+console.log(Object.keys(operations.getPet));
+```
+
+```text title="node use.ts"
+true
+false
+[
+  'param:path:id',
+  'param:query:fields',
+  'response:200:application/json'
+]
+```
+
+Every output block on this site is checked: `tests/examples.test.ts` writes each titled file,
+runs the command in the block's title, and compares what it printed and how it exited.
+
+## Where next
+
+- [Breaking changes](/docs/guides/diff): modes, sides, verdicts, rule ids, `--usage`,
+  `--transitive`, SARIF and changesets.
+- [Code generation](/docs/guides/gen) and [the validator target](/docs/guides/validators):
+  every target, the map file, `--check` for CI.
+- [Lint](/docs/guides/lint): the built-in rulesets, Spectral and Redocly files, and adopting rules
+  without a big-bang cleanup.
+- [Coming from openapi-typescript](/docs/coming-from/openapi-typescript),
+  [oasdiff](/docs/coming-from/oasdiff) or [Optic](/docs/coming-from/optic).
+- [CI gate](/docs/recipes/ci): the workflow that fails a pull request on a breaking change.

@@ -147,11 +147,11 @@ it.skipIf(!native || !existsSync(bin) || !nightly)('kills a mutant a beforeEach 
 type PhaseStats = { staticFallbacks?: Record<string, number>; isolatedStages?: { stage: string; mutants: number; ms: number; peak: number }[] } & Record<'instrumentMs' | 'dryRunMs' | 'mutationMs' | 'staticMs' | 'isolatedMs' | 'wallMs' | 'staticRecollections' | 'isolatedRuns' | 'warmUnitMs' | 'warmArmedMs', number> & { isolatedByCause: Record<string, number> };
 
 /** A fixture's static mutants as `line:mutator:status`, and the run's stats, from a real run. */
-const staticRun = (name: string, file: string): { verdicts: string[]; stats: PhaseStats } => {
+const staticRun = (name: string, file: string, env: Record<string, string> = {}): { verdicts: string[]; stats: PhaseStats } => {
   const dir = path.join(pkg, 'test/fixtures', name);
   const reportDir = path.join(dir, 'reports');
   rmSync(reportDir, { recursive: true, force: true });
-  execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: dir, stdio: 'pipe' });
+  execFileSync(process.execPath, [bin, 'run', '--config', 'oxmutate.config.json', '--report-dir', reportDir, '--reporter', 'json'], { cwd: dir, stdio: 'pipe', env: { ...process.env, ...env } });
   const report = JSON.parse(readFileSync(path.join(reportDir, 'mutation.json'), 'utf8')) as { files: Record<string, { mutants: ReportMutant[] }>; 'x-oxmutate': { stats: PhaseStats } };
   rmSync(reportDir, { recursive: true, force: true });
   const verdicts = (report.files[file]?.mutants ?? []).filter((m) => m.static).map((m) => `${String(m.location.start.line)}:${m.mutatorName}:${m.status}`);
@@ -332,6 +332,18 @@ describe.skipIf(!native || !existsSync(bin) || !nightly)('static mutants keep th
     expect(stats.isolatedStages).toEqual([{ stage: 'first', mutants: 2, ms: expect.any(Number) as number, peak: 1 }]);
     expect(stats.isolatedStages?.[0]?.ms).toBeGreaterThan(0);
   }, 60_000);
+
+  it('a module imported under a stand-in process is still read and still armed', () => {
+    // The stub replaces `process.env`, where the runtime header looked, the first time instrumented
+    // code ran, for whether reads are tracked and which mutant is armed. So the file that imports
+    // under it was never found to read `EXTS`, the strings' mutants ran only in `count.spec.ts`,
+    // which reads the length alone, and in a fresh worker they ran unarmed: bellpull's
+    // node-which.ts kept four survivors no test could kill. The worker now sets both from the
+    // environment it started with.
+    const all = ['2:ArrayDeclaration:Killed', '2:StringLiteral:Killed', '2:StringLiteral:Killed'];
+    expect(staticRun('static-stub-process', 'src/exts.ts').verdicts).toEqual(all);
+    expect(staticRun('static-stub-process', 'src/exts.ts', { OXMUTATE_ISOLATE_STATIC: '1' }).verdicts).toEqual(all);
+  }, 120_000);
 });
 
 const alive = (pid: number): boolean => {

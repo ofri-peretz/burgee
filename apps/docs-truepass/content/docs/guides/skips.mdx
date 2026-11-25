@@ -1,0 +1,104 @@
+---
+title: Skipped tests
+description: "no-unexplained-skip reports a skipped or todo test that carries no issue link, decision id or unexpired date in a comment, so every skip says why it exists and when someone comes back to it."
+---
+
+A skipped test passes without running. Some skips are right: the feature is half built, the
+dependency is broken upstream, the platform does not support it yet. The problem is the skip
+nobody can explain a month later. `truepass/no-unexplained-skip` does not forbid skips. It
+requires each one to carry its reason where the next reader will see it.
+
+## What it reports
+
+A test-runner call that skips or defers a test:
+
+- `.skip` and Playwright's `.fixme` with a test title or a test function: `it.skip('x', fn)`,
+  `test.skip()`, `test.skip(true)`, `it.skip.each(table)`;
+- `.todo` anywhere in the chain: `it.todo('x')`;
+- `xit`, `xtest`, `xdescribe` and `xcontext`;
+- `skipIf` and `runIf` with a constant condition: `it.skipIf(true)`, `it.runIf(!0)`.
+
+```js title="skips.test.js"
+import { describe, it, test } from 'vitest';
+
+describe('importer', () => {
+  it.skip('reads the old CSV format', () => {});
+  it.todo('reads TSV');
+  it.skipIf(true)('reads from S3', () => {});
+});
+
+xit('jasmine-style skip', () => {});
+
+test.skip(process.platform === 'win32', 'symlinks need admin rights on Windows');
+```
+
+```text title="npx eslint skips.test.js" exit="1"
+
+/your/project/skips.test.js
+  4:3  error  Unexplained skipped test: A test is skipped with no reason on record, so the suite reports green without running it and nobody is told to come back. fix: make the test pass and remove the skip. If it must stay skipped, add a comment on this line or the line above with the issue URL, the decision id (D-…), or the YYYY-MM-DD date it is skipped until  truepass/no-unexplained-skip
+  5:3  error  Unexplained skipped test: A test is skipped with no reason on record, so the suite reports green without running it and nobody is told to come back. fix: make the test pass and remove the skip. If it must stay skipped, add a comment on this line or the line above with the issue URL, the decision id (D-…), or the YYYY-MM-DD date it is skipped until  truepass/no-unexplained-skip
+  6:3  error  Unexplained skipped test: A test is skipped with no reason on record, so the suite reports green without running it and nobody is told to come back. fix: make the test pass and remove the skip. If it must stay skipped, add a comment on this line or the line above with the issue URL, the decision id (D-…), or the YYYY-MM-DD date it is skipped until  truepass/no-unexplained-skip
+  9:1  error  Unexplained skipped test: A test is skipped with no reason on record, so the suite reports green without running it and nobody is told to come back. fix: make the test pass and remove the skip. If it must stay skipped, add a comment on this line or the line above with the issue URL, the decision id (D-…), or the YYYY-MM-DD date it is skipped until  truepass/no-unexplained-skip
+
+✖ 4 problems (4 errors, 0 warnings)
+
+```
+
+The last call is not reported. Playwright's `test.skip(condition, 'reason')` with a condition
+known only at run time is a gate that skips on some machines, and the reason is already its second
+argument.
+
+## What counts as a reason
+
+A comment on the skip's own line, or on the line above, that contains one of:
+
+| Reason          | Example                                              | Effect                                          |
+| :-------------- | :--------------------------------------------------- | :---------------------------------------------- |
+| An issue link   | `// https://github.com/acme/shop/issues/482`         | accepted                                        |
+| A decision id   | `// D-107: the S3 mock is being replaced`            | accepted                                        |
+| A date          | `// until 2099-01-31, while the pricing API migrates` | accepted until that date, then reported again |
+
+An issue link is a URL with `/issues/`, `/pull/`, `/pulls/`, `/merge_requests/`, `/browse/` or
+`/issue/` in its path, which covers GitHub, GitLab, Jira and Linear links. A decision id is `D-`
+followed by digits. A date is `YYYY-MM-DD`, compared with today's date in UTC: the skip holds on
+that day and is reported the day after.
+
+```js title="explained.test.js"
+import { it } from 'vitest';
+
+// https://github.com/acme/shop/issues/482
+it.skip('reads the old CSV format', () => {});
+
+it.todo('reads TSV'); // D-107: TSV waits for the parser decision
+
+// until 2099-01-31, while the pricing API migrates
+it.skip('prices in EUR', () => {});
+
+// until 2024-03-01, while the pricing API migrates
+it.skip('prices in GBP', () => {});
+```
+
+```text title="npx eslint explained.test.js" exit="1"
+
+/your/project/explained.test.js
+  12:1  error  Expired skipped test: A skip says it holds until 2024-03-01, and that date has passed. fix: re-enable the test, or replace the date with an issue URL or decision id that explains why it stays skipped  truepass/no-unexplained-skip
+
+✖ 1 problem (1 error, 0 warnings)
+
+```
+
+The first three are accepted. The last one said it would be back by 2024-03-01, and that date has
+passed, so it is reported with its own message: re-enable it, or replace the date with an issue or
+a decision that explains why it stays.
+
+## Why a date expires and a link does not
+
+A link or a decision id points somewhere a reader can find out why, and closing the issue is where
+the follow-up lives. A date has nowhere to point, so it is a promise, and an expired promise is
+reported rather than trusted.
+
+## Coming from no-disabled-tests
+
+`@vitest/eslint-plugin`'s `no-disabled-tests` reports every skip. This rule reports only the skips
+that say nothing, so turning it on over a suite with explained skips reports fewer. [Coming from
+@vitest/eslint-plugin](/docs/coming-from/vitest-eslint-plugin) has the mapping.

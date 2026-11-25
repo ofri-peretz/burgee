@@ -1,0 +1,134 @@
+---
+title: The validator target
+description: "The validator target writes one type guard per payload, compiled ahead of time by truefit's emitter: no eval and no compile at run time, a declaration a bundler can drop, an operations map for a server to look one up, and the json-schema target for teams that keep ajv."
+---
+
+The `validator` target writes `validators.ts`: for every payload of the contract (each parameter,
+request body, response, message or tool argument) a TypeScript type and a guard function of the
+same name. The guards are written by truefit's emitter (`truefit/emit`) from the payload's JSON
+Schema, ahead of time, so the generated module does no `new Function` and no compile at run time,
+and runs where a Content-Security-Policy forbids eval.
+
+## A contract with constraints
+
+```yaml title="orders.yaml"
+openapi: 3.1.0
+info:
+  title: Orders
+  version: 1.0.0
+paths:
+  /orders:
+    post:
+      operationId: createOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewOrder"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id]
+                properties:
+                  id:
+                    type: string
+components:
+  schemas:
+    NewOrder:
+      type: object
+      required: [sku, quantity]
+      additionalProperties: false
+      properties:
+        sku:
+          type: string
+          pattern: '^[A-Z]{3}-\d{4}$'
+        quantity:
+          type: integer
+          minimum: 1
+          maximum: 100
+        email:
+          type: string
+          format: email
+```
+
+```json title="contractdiff.config.json"
+{
+  "input": "orders.yaml",
+  "targets": { "validators": { "generator": "validator", "out": "src/api" } }
+}
+```
+
+```text title="npx contractdiff gen"
+write src/api/validators.ts
+write contractdiff.map.json
+```
+
+## Using the guards
+
+Each guard is named after its operation and payload (`CreateOrderBody`, `CreateOrderResponse201`),
+narrows `unknown` to the type of the same name, and is its own declaration, so a bundler keeps only
+the ones an import names. `operations` maps an operation id and a payload name to its guard, which
+is how the server targets look one up.
+
+```ts title="check-order.ts"
+import { CreateOrderBody, operations } from "./src/api/validators.ts";
+
+console.log(CreateOrderBody({ sku: "ABC-1234", quantity: 2 }));
+console.log(CreateOrderBody({ sku: "abc", quantity: 2 }));
+console.log(CreateOrderBody({ sku: "ABC-1234", quantity: 0 }));
+console.log(CreateOrderBody({ sku: "ABC-1234", quantity: 2, coupon: "X" }));
+console.log(
+  CreateOrderBody({ sku: "ABC-1234", quantity: 2, email: "not an address" }),
+);
+
+const check = operations.createOrder["response:201:application/json"];
+console.log(check({ id: "o_1" }));
+```
+
+```text title="node check-order.ts"
+true
+false
+false
+false
+false
+true
+```
+
+The pattern, the integer bounds, `additionalProperties: false` and the `email` format are all
+compiled into the guard. A format that is a function rather than a pattern cannot be written as
+code; for a payload that uses one, the guard checks the document at run time through truefit's
+`check`, the module imports `truefit` for it, and `gen` reports a `validator-runtime-door` finding
+naming the payload. truefit is a dependency of contractdiff, so it is already installed.
+
+A keyword truefit does not read is reported as a `validator-not-read` finding: there the guard
+accepts more than the document, and the finding says so rather than leaving it silent.
+
+## JSON Schema for ajv: the `json-schema` target
+
+A team that already validates with ajv can keep it. The `json-schema` target writes one
+`<Name>.json` document per payload, draft 2020-12 or draft-07, that ajv compiles unchanged. The
+validator and this target build each payload's document the same way, so the two describe one
+schema.
+
+With the `dialect` option (`openai`, `anthropic`, `gemini`, `mcp` or `mcp-elicitation`), each
+payload is narrowed to the subset that model provider accepts for structured output or tool input,
+written as `<Name>.<dialect>.json`. When anything had to be dropped, `recheck.ts` holds a guard for
+the full schema, to check the model's answer locally afterwards.
+
+```json
+{
+  "targets": {
+    "schemas": { "generator": "json-schema", "out": "schemas" },
+    "tool-input": {
+      "generator": "json-schema",
+      "out": "schemas/openai",
+      "options": { "dialect": "openai" }
+    }
+  }
+}
+```

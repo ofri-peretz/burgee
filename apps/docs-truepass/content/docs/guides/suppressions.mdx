@@ -1,0 +1,106 @@
+---
+title: The suppressions file
+description: "Turn truepass's rules on at error over a suite that already breaks them: ESLint's eslint-suppressions.json records today's findings per file and rule, a new one fails, and a fixed one has to be pruned, so the count only goes down."
+---
+
+Turning the rules on over an existing suite usually finds work: skips with no reason, a few
+sleeps, a retry in the config. You do not have to fix them all before the rules protect anything.
+ESLint's bulk suppressions keep a file of today's findings, counted per file and rule, which ESLint
+subtracts from every later run. The examples on this page run on ESLint 10.14, the version this
+repository installs. truepass's rules are ordinary ESLint rules, so they work
+with it unchanged.
+
+This is ESLint's feature, not truepass's: truepass has no suppression file of its own. For the
+`truepass diff` checks, the reason goes in the commit message instead; see [The reasons:
+Assertion: and Snapshot:](/docs/guides/truepass-diff#the-reasons-assertion-and-snapshot).
+
+## Record what is there today
+
+A file with two findings, and a newer file with one:
+
+```js title="old.test.js"
+import { it } from 'vitest';
+
+it.skip('reads the old CSV format', () => {});
+
+it('waits for the queue', async () => {
+  await new Promise((resolve) => setTimeout(resolve, 100));
+});
+```
+
+```js title="new.test.js"
+import { it } from 'vitest';
+
+it.only('reads TSV', () => {});
+```
+
+`--suppress-all` writes every current finding of the files it lints into
+`eslint-suppressions.json`, and exits 0:
+
+```text title="npx eslint --suppress-all old.test.js"
+```
+
+The file it wrote:
+
+```json
+{
+  "old.test.js": {
+    "truepass/no-fixed-sleep": {
+      "count": 1
+    },
+    "truepass/no-unexplained-skip": {
+      "count": 1
+    }
+  }
+}
+```
+
+Commit it beside `eslint.config.mjs`. From now on those two findings are not reported:
+
+```text title="npx eslint old.test.js"
+```
+
+## A new finding still fails
+
+The suppressions are per file and per rule. A file with no entry, or a rule that has
+more findings in a file than its recorded count, is reported in full:
+
+```text title="npx eslint old.test.js new.test.js" exit="1"
+
+/your/project/new.test.js
+  3:1  error  Focused test: A focused test (.only / fit / fdescribe) runs alone and turns every other test in the file off, so the suite reports green while running one case. fix: remove the focus. To run one test locally, pass a filter on the command line (vitest -t "<name>", jest -t "<name>", playwright test -g "<name>") instead of editing the file  truepass/no-focused-test
+
+✖ 1 problem (1 error, 0 warnings)
+
+```
+
+So the rules are at `error` from the day you turn them on, for everything written after that day.
+
+## A fixed finding has to be pruned
+
+When a suppressed finding is fixed, ESLint exits 2 until the file is updated, so the count cannot
+quietly stay higher than the truth:
+
+```text
+There are suppressions left that do not occur anymore. To resolve this, re-run the command with `--prune-suppressions` to remove unused suppressions. To ignore unused suppressions, use `--pass-on-unpruned-suppressions`.
+```
+
+`npx eslint . --prune-suppressions` lowers the counts to what is left, and that change is committed
+with the fix. The counts only go down.
+
+## Only one rule
+
+`--suppress-rule truepass/no-fixed-sleep` records the findings of one rule and leaves the others
+reported, for a suite where the sleeps are the backlog and everything else should fail now. It can
+be given more than once.
+
+## How burgee runs it
+
+burgee runs truepass on its own tests this way: `truepass.recommended` at `error` over every test
+file and runner config, its earlier findings in `eslint-suppressions.json`, and `npm run lint:prune`
+(`eslint . --prune-suppressions`) to lower the counts. `scripts/truepass-dogfood-lock.test.ts`
+fails if the suppressions file ever holds a finding of a rule that is not truepass's, so the file
+cannot become a way to hide anything else.
+
+The other way to adopt the rules is the `adoption` preset with `--max-warnings` as the ratchet:
+[The adoption ratchet](/docs/recipes/adoption-ratchet).

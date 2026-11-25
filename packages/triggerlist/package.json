@@ -1,6 +1,6 @@
 {
   "name": "triggerlist",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": false,
   "description": "Code review checklist that the diff selects: only items whose triggers fire reach the reviewer, REVIEW.md compiles under a byte budget, and rules are read from the base branch. No dependency outside the burgee family. A danger migration path.",
   "keywords": [
@@ -14,7 +14,7 @@
     "cli"
   ],
   "license": "MIT",
-  "homepage": "https://burgee.interlace.tools",
+  "homepage": "https://triggerlist.interlace.tools",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ofri-peretz/burgee.git",
@@ -54,7 +54,7 @@
   },
   "dependencies": {
     "bellpull": "^2.0.0",
-    "burgee": "^2.0.0",
+    "burgee": "^2.2.2",
     "seniority": "^2.0.0",
     "truefit": "^1.0.0"
   },

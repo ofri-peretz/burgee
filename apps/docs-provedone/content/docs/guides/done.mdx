@@ -1,0 +1,102 @@
+---
+title: Done
+description: "provedone done reads an intent's success criteria and the stamps on the current branch, prints the PR's Checked line, and fails with one stamp command per criterion that nothing has proved yet."
+---
+
+[The gate](/docs/guides/gate) asks whether a commit says how it was checked. `provedone done
+<slug>` asks a stronger question of a branch: has every success criterion of the intent it
+implements been proved by a command that passed, here?
+
+## An intent with two criteria
+
+An intent is a Markdown file at `.sdlc/intents/<slug>/intent.md`. `done` reads its
+`## Success criteria` list, one criterion per `- ` item, numbered from 1 in order.
+
+```md title=".sdlc/intents/faster-help/intent.md"
+# Intent — `--help` answers in under 100 ms
+
+**Status:** approved · **Opened:** `2026-11-20` · **Owner:** `@me`
+
+## What is wanted
+
+`mycli --help` prints before a person notices a wait.
+
+## Why now
+
+A trace shows the help path loads every command module.
+
+## Constraints
+
+The help text does not change.
+
+## Success criteria
+
+- `--help` answers in under 100 ms.
+- The help text is the same as before.
+```
+
+Two scripts stand in for the commands that prove each one.
+
+```js title="help-time.mjs"
+console.log('help: 41 ms');
+```
+
+```js title="help-text.mjs"
+console.log('help text unchanged');
+```
+
+## Before anything is stamped
+
+```text title="npx provedone done faster-help" exit="1"
+Checked: no criterion. Not checked: C1, C2.
+C1 has no evidence. fix: provedone stamp --intent faster-help --criterion 1 --run "<the command that proves it>" --not-checked "<what you did not check>"
+C2 has no evidence. fix: provedone stamp --intent faster-help --criterion 2 --run "<the command that proves it>" --not-checked "<what you did not check>"
+```
+
+Each open criterion gets a `fix:` naming the `stamp` to run. When the intent has an evidence table
+(see [Intents](/docs/guides/intents#evidence-tables)), the fix names the command from its row
+instead of a placeholder.
+
+## Stamp each criterion
+
+`--intent` and `--criterion` tie a stamp to a criterion.
+
+```text title="npx provedone stamp --intent faster-help --criterion 1 --run 'node help-time.mjs' --not-checked 'Windows'"
+Verified-by: node help-time.mjs -> exit 0 (sha256:86e18a76a26b)
+Not-checked: Windows
+```
+
+```text title="npx provedone done faster-help" exit="1"
+Checked: C1 by `node help-time.mjs`. Not checked: C2.
+C2 has no evidence. fix: provedone stamp --intent faster-help --criterion 2 --run "<the command that proves it>" --not-checked "<what you did not check>"
+```
+
+```text title="npx provedone stamp --intent faster-help --criterion 2 --run 'node help-text.mjs' --not-checked nothing"
+Verified-by: node help-text.mjs -> exit 0 (sha256:c162d52110d8)
+```
+
+```text title="npx provedone done faster-help"
+Checked: C1 by `node help-time.mjs`; C2 by `node help-text.mjs`. Not checked: nothing.
+```
+
+The first line is the `Checked:` line for the PR body, generated from the stamps rather than typed.
+
+## What counts
+
+A criterion is met by a stamp that:
+
+- was taken on the branch checked out now,
+- cites this intent and this criterion number, and
+- exited 0.
+
+A failing stamp does not count, and neither does a passing one from another branch. Stamps are kept
+in `stamps.jsonl` in the store ([where](/docs/guides/receipt#where-provedone-keeps-what-it-saw)),
+which is local to the clone: `done` answers for work done on this machine, not for a CI run
+elsewhere.
+
+## Exit codes
+
+| Exit | When |
+| :-- | :-- |
+| `0` | every criterion has a passing stamp on this branch |
+| `1` | a criterion has none; or there is no such intent; or it lists no success criteria |

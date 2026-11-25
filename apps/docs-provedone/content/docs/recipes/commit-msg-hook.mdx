@@ -1,0 +1,73 @@
+---
+title: The commit-msg hook
+description: "Wire provedone gate into a commit-msg hook: by hand in lefthook.yml as this repository does, through hookset's commit-msg preset and its hook:provedone script, or in husky, with the message a blocked commit prints."
+---
+
+The gate belongs in `commit-msg`, the hook git runs with the path of the message being committed.
+lefthook passes that path as `{1}`.
+
+## By hand, in lefthook
+
+```yaml
+# lefthook.yml
+commit-msg:
+  commands:
+    commitlint:
+      run: npx --no -- commitlint --edit {1}
+    provedone:
+      run: npx --no -- provedone gate {1} --mode enforce
+      fail_text: 'No receipt. Add `Verified-by: <command> -> exit 0`, or `Verified-by: none (<why no check applies>)`, and commit again.'
+```
+
+Leave out `--mode enforce` to start in `observe`. burgee's own `lefthook.yml` runs the gate from
+the workspace build, `node packages/provedone/dist/bin.js gate {1} --mode enforce`, and skips it
+when that build is not there yet.
+
+## Through the hookset preset
+
+[hookset](https://hookset.interlace.tools/docs) keeps one pinned set of hooks for
+many repositories. Its `commit-msg` preset carries two stations: `hookset-commitlint` and
+`hookset-provedone`, both in `enforce`. The provedone station runs a script you declare:
+
+```yaml
+# packages/hookset/presets/lefthook/commit-msg.yml (pulled through lefthook remotes; never copied)
+    hookset-provedone:
+      run: npm run --silent hook:provedone -- {1}
+```
+
+so the repository decides the command:
+
+```json
+{
+  "scripts": {
+    "hook:provedone": "provedone gate --mode enforce"
+  }
+}
+```
+
+`hookset check` fails when the station is wired and `package.json` declares no `hook:provedone`,
+and its message names the script to add. To start in `observe`, declare the script without
+`--mode enforce`.
+
+## In husky
+
+```bash
+# .husky/commit-msg
+npx --no -- commitlint --edit "$1"
+npx --no -- provedone gate "$1" --mode enforce
+```
+
+## What a blocked commit looks like
+
+```text
+provedone: no Verified-by: line. fix: run `provedone stamp --run "<the command that proves it>" --not-checked "<what you did not check>"` and paste its lines, or add `Verified-by: none (<why it needs no check>)`
+```
+
+The commit is not made; the message is kept in `.git/COMMIT_EDITMSG`. Run the `stamp` it names,
+paste the lines into the last paragraph, and commit again. If the same session is blocked twice,
+the third commit passes and is logged ([the escape](/docs/guides/modes-and-escape#the-escape)).
+
+## Commits git makes for you
+
+A `Merge ` subject passes. A rebase replays messages as they were, so a rebased commit carries the
+receipt it had. `git commit --amend` runs the hook again on the edited message.

@@ -1,0 +1,111 @@
+---
+title: Drafting cases
+description: "replz propose reads the history of main, finds each pull request a revert or a fix blamed, and drafts it as a bug case with a size-matched clean control, leaving the answer key for a person."
+---
+
+Writing twenty case files by hand means finding twenty bugs first. `replz propose` finds the
+candidates in your history: the pull requests that a later commit on main pinned a bug on.
+
+```bash
+npx replz propose --limit 10
+```
+
+It reads `git log --first-parent --shortstat` on `--ref` (default `origin/main`) and prints a
+draft per case. It writes no file and calls no model; saving the drafts is yours to do, which
+is shown [below](#saving-the-drafts). It needs a clone with history: in a shallow clone it finds
+only what the shallow history holds.
+
+## What counts as a bug
+
+A merged pull request is identified by the `(#123)` at the end of its squash commit's subject.
+It is blamed when either of these is on the same history:
+
+- **A revert of it**: a subject `Revert "<its subject>"`, pushed directly or merged with its own
+  `(#124)` after it.
+- **A fix that names it**: a subject that starts with `fix`, and whose subject or body says
+  `fixes #123`, `regressed in #123`, `introduced in #123`, `broken by #123`, `shipped in #123`
+  or `since #123`, in any case.
+
+Each blamed pull request becomes a bug draft, newest first, up to `--limit` (default 10). Its
+`head` is the squash commit and its `base` is that commit's first parent, both shortened to
+twelve characters. The sets alternate, `test` first.
+
+## What counts as a control
+
+For each bug, the merged pull request nearest to it in size (lines added plus lines removed)
+that nothing blamed, that is not itself a revert, and whose subject does not start with `fix`.
+No control is used twice. The control takes its bug's set, so each set holds both kinds.
+
+## The answer key is left for you
+
+A bug draft carries `answer: TODO one sentence saying what the bug is, from the revert or the
+fix`. replz does not guess it: every finding is graded against this sentence, and a guessed key
+grades nothing. Read the revert or the fix and write what the defect was. [Case
+files](/docs/guides/cases#bugs-and-the-answer-key) says what makes a key grade well.
+
+## From the API
+
+`runPropose` is the command, with the `git log` call passed in. Here the log is three merged
+pull requests and a fix that blames one of them in its body:
+
+```js title="drafts.mjs"
+import { runPropose } from 'replz';
+
+// What `git log --first-parent --shortstat` prints, one record per commit on main.
+const record = (sha, parent, subject, body, lines) =>
+  `\0${sha}\t${parent}\t${subject}\t${body}\u0001\n 1 file changed, ${lines} insertions(+)\n`;
+const log = [
+  record('e5'.repeat(20), 'd4'.repeat(20), 'fix: read the right cache entry (#15)', 'Broken by #12.', 6),
+  record('d4'.repeat(20), 'c3'.repeat(20), 'feat: a --watch flag (#14)', '', 260),
+  record('c3'.repeat(20), 'b2'.repeat(20), 'docs: a usage page (#13)', '', 35),
+  record('b2'.repeat(20), 'a1'.repeat(20), 'feat: cache the config (#12)', '', 40),
+].join('');
+
+const { drafts } = await runPropose({ repo: '.', ref: 'origin/main', limit: 10, log: async () => log });
+process.stdout.write(drafts.map(({ file, text }) => `--- ${file}\n${text}`).join('\n'));
+```
+
+```text title="node drafts.mjs"
+--- .sdlc/replz/cases/bug-12.yaml
+# feat: cache the config (#12)
+id: bug-12
+kind: bug
+pr: 12
+base: "a1a1a1a1a1a1"
+head: "b2b2b2b2b2b2"
+answer: TODO one sentence saying what the bug is, from the revert or the fix
+set: test
+
+--- .sdlc/replz/cases/control-13.yaml
+# docs: a usage page (#13)
+id: control-13
+kind: control
+pr: 13
+base: "b2b2b2b2b2b2"
+head: "c3c3c3c3c3c3"
+set: test
+```
+
+`#12` is the bug, named by the fix's body. `#13` (35 lines) is nearer its 40 lines than `#14`
+(260), so it is the control. The fix itself is never a control. The CLI prints the same text,
+each draft after a `---` line with the file it belongs in.
+
+When nothing on the history is a revert or a fix that names a pull request, `propose` says so
+and suggests writing cases by hand from your incident notes.
+
+## Saving the drafts
+
+`--json` gives the drafts as data, so one line of Node writes each to the file it names:
+
+```bash
+npx replz propose --limit 10 --json | node -e '
+  const fs = require("node:fs"), path = require("node:path");
+  for (const { file, text } of JSON.parse(fs.readFileSync(0, "utf8")).data.drafts) {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, text);
+    console.log(file);
+  }'
+```
+
+Then write each answer, read each bug against its revert or fix (a revert of a feature for
+reasons other than a defect is not a bug case), and run `npx replz check`.

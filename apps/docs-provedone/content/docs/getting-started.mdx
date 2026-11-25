@@ -1,0 +1,84 @@
+---
+title: Getting started
+description: "Install provedone, stamp a change with the command that proved it, and watch the gate pass a commit message that carries the receipt and block one that does not."
+---
+
+provedone answers one question about a change: how was it checked? `provedone stamp` runs the
+commands that prove a change and prints a receipt for the commit message. `provedone gate` reads a
+commit message or a PR body and, in `enforce` mode, blocks one that has no receipt.
+
+## Install
+
+```bash
+npm install -D provedone
+```
+
+It depends on `bellpull` and `burgee`, both in this family, and on nothing outside it. It needs
+Node 22.13 or later, and git.
+
+## Stamp a change
+
+A receipt is built from a run that happened. Take a script that proves something about your
+change; in a real repository it is `npm test` or `npm run build`.
+
+```js title="check.mjs"
+console.log('3 checks passed');
+```
+
+`stamp` runs each `--run` command, records how it exited and a digest of what it printed, and
+prints the lines to paste into the commit message. `--not-checked` is required: a receipt says
+what was left out, or says `nothing`.
+
+```text title="npx provedone stamp --run 'node check.mjs' --not-checked 'the docs site'"
+Verified-by: node check.mjs -> exit 0 (sha256:49870237b565)
+Not-checked: the docs site
+```
+
+`Verified-by:` names the command, its exit code and the first 12 hex digits of the sha256 of its
+output. `Not-checked:` is the gap you named. Both are git trailers, so they go in the message's
+last paragraph, beside `Co-Authored-By:`. [The receipt](/docs/guides/receipt) has the whole format.
+
+## Gate a message
+
+Here is a commit message with no receipt.
+
+```text title="msg.txt"
+fix: make CI green
+```
+
+In the default mode, `observe`, the gate passes and logs what `enforce` would have done.
+
+```text title="npx provedone gate msg.txt"
+provedone (observe, not blocking): no Verified-by: line. fix: run `provedone stamp --run "<the command that proves it>" --not-checked "<what you did not check>"` and paste its lines, or add `Verified-by: none (<why it needs no check>)`
+```
+
+In `enforce` mode it blocks the same message, exits 1, and names the fix.
+
+```text title="npx provedone gate msg.txt --mode enforce" exit="1"
+provedone: no Verified-by: line. fix: run `provedone stamp --run "<the command that proves it>" --not-checked "<what you did not check>"` and paste its lines, or add `Verified-by: none (<why it needs no check>)`
+```
+
+The same message with the receipt pasted in passes.
+
+```text title="fixed.txt"
+fix: make CI green
+
+Verified-by: node check.mjs -> exit 0 (sha256:49870237b565)
+Not-checked: the docs site
+```
+
+```text title="npx provedone gate fixed.txt --mode enforce"
+provedone: receipt
+```
+
+Every output block on this site is checked: `tests/examples.test.ts` writes each titled file,
+runs the command in the block's title, and compares.
+
+## Where next
+
+- [Stamp](/docs/guides/stamp): every option of `stamp`, the PR block, and a command that fails.
+- [The gate](/docs/guides/gate) and [modes and the escape](/docs/guides/modes-and-escape): what
+  passes, what blocks, and why an agent is never stuck behind it.
+- [The commit-msg hook](/docs/recipes/commit-msg-hook): wire the gate into lefthook, by hand or
+  through the hookset preset.
+- [Coming from commitlint](/docs/coming-from/commitlint): what moves over, and what stays.

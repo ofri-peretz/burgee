@@ -1,0 +1,4 @@
+{
+  "title": "Recipes",
+  "pages": ["commit-msg-hook", "ci", "agents", "querying-history"]
+}

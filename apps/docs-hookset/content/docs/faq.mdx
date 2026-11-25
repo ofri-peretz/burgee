@@ -1,0 +1,69 @@
+---
+title: FAQ
+description: "Short answers about hookset: whether it runs hooks itself, what a repository must declare, why tags and not branches, how to add a step, what the Claude Code hooks deny, and how to run the check in CI, each with a link to the page that explains it."
+---
+
+## Does hookset run my hooks?
+
+No. lefthook runs them. hookset writes the `lefthook.yml` that pulls the presets and checks that
+a repository's wiring matches them. [Why hookset](/docs/why-hookset).
+
+## What must a repository declare?
+
+A `prepare` script that runs `lefthook install`, and the enforced station scripts:
+`hook:provedone`, `hook:staged` and `hook:verify`. commitlint must be installed for the
+`commit-msg` preset. [Getting started](/docs/getting-started).
+
+## Why does check warn about stations I do not use?
+
+`mutation`, `test-integrity`, `proofline` and `triggerlist` are wired with `--if-present`, so an
+undeclared one passes. `check` lists each as a warning so you know it exists; warnings never fail
+it. [Presets](/docs/guides/presets#the-modes).
+
+## Why a tag and not `main`?
+
+So a repository's hooks change only when that repository changes its `ref`, in a pull request
+its own CI runs. lefthook's `remotes` take a tag or a branch, never a commit.
+[Pinning](/docs/guides/pinning).
+
+## How do I upgrade?
+
+`npm install -D hookset@latest`, then `npx hookset init` moves the `ref` and
+`npx hookset check` names any new station to declare. [Upgrading](/docs/guides/pinning#upgrading).
+
+## My lefthook.yml was written by hand. Will init overwrite it?
+
+No. It refuses, and `--force` adds the `remotes:` block on top while keeping every step. Then
+`check` names the steps that now run twice. [The two commands](/docs/guides/commands).
+
+## Where do repository-only steps go?
+
+In `lefthook.yml`, below `remotes:`, under their hook. Not as a copy of a preset step.
+[Repository steps](/docs/recipes/repo-steps).
+
+## What do the Claude Code hooks deny?
+
+Skipping git hooks, moving `core.hooksPath`, hand-written CI polling loops, a short-timeout
+`git commit` or `git push`, and edits to files the repository lists as frozen or generated. They
+ask before a publish. [Claude Code hooks](/docs/guides/claude-code-hooks).
+
+## Can a person still skip a hook?
+
+From their own terminal, yes: the Claude Code hooks run only on Claude Code's tool calls.
+`hookset check` in CI still fails a repository whose hooks are gone.
+[Check the hooks in CI](/docs/recipes/ci).
+
+## Does it work in a monorepo?
+
+Yes, from the root: one `lefthook.yml`, and root scripts that hand off to the workspace tool.
+[Monorepo](/docs/recipes/monorepo).
+
+## Does it work with husky?
+
+hookset's presets are for lefthook. Husky presets are not built.
+[Coming from husky](/docs/coming-from/husky).
+
+## Does an agent get structured output?
+
+Yes. `--json` on `init` and `check` prints burgee's envelope, every problem with an `id` and a
+`fix`, and `hookset --mcp` serves both commands as tools. [The two commands](/docs/guides/commands).

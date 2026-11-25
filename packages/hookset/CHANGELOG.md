@@ -1,5 +1,19 @@
 # hookset
 
+## 1.0.1
+
+### Patch Changes
+
+- [#1824](https://github.com/ofri-peretz/burgee/pull/1824) [`fba06fa`](https://github.com/ofri-peretz/burgee/commit/fba06fac4a959f1e5abd4072c4febd4379d4db95) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The commit-msg preset's commitlint failure no longer claims the scope is wrong. It points at commitlint's own ✖ lines, which name the rule that failed: a footer line over 100 characters used to read as a scope error.
+
+- [#1814](https://github.com/ofri-peretz/burgee/pull/1814) [`06089bd`](https://github.com/ofri-peretz/burgee/commit/06089bd8a1cdee49927e49a508e36ae7fa57ae78) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - hookset's docs have a site of their own at https://hookset.interlace.tools: guides to the presets, the two commands, pinning, the Claude Code hooks and generated files, a husky migration page and recipes. The package's `homepage` and its README's Docs line point there.
+
+- [#1816](https://github.com/ofri-peretz/burgee/pull/1816) [`e3d4ded`](https://github.com/ofri-peretz/burgee/commit/e3d4dedb66e5204327221bacac301aeb9fb1a180) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The vendored `guard-bash.mjs` now passes the strict lint of the repos that vendor it: `globToRegExp` is one table-driven replace (cognitive complexity 16 to under 15), a redirect check uses `startsWith`, and a comment no longer reads as commented-out code.
+
+- [#1813](https://github.com/ofri-peretz/burgee/pull/1813) [`4821145`](https://github.com/ofri-peretz/burgee/commit/482114557947f01bc8df543daf317dada2664c21) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `hookset init` re-pins only the hookset remote's `ref:`; a repo that lists another remote first keeps that remote's pin. `hookset check` heads a failing result with every problem it lists, by severity (`hookset: 1 error, 2 warnings`), where it counted only the errors as `N problem(s)`.
+- Updated dependencies [[`4821145`](https://github.com/ofri-peretz/burgee/commit/482114557947f01bc8df543daf317dada2664c21)]:
+  - burgee@2.2.2
+
 ## 1.0.0
 
 ### Major Changes

@@ -49,6 +49,7 @@ const CONFIG_DIRS = ['docs', '.github', '.sdlc/bands', '.sdlc/intents', ...APP_C
 const SKIP_DIRS = new Set(['node_modules', 'issues', 'results', '.next', 'dist']);
 /** Intents describe work that does not exist yet; a script they name is a plan, not a link. */
 const PLANNED_DOCS = /^\.sdlc\/intents\//;
+const PACKAGE_SITE = /^apps\/docs-[a-z]+\/content\//;
 
 export interface Expectation {
   check: 'output-contains' | 'output-omits' | 'shell';
@@ -176,7 +177,9 @@ export function brokenLinks(docs: string[], root = REPO_ROOT): string[] {
 export function missingScripts(docs: string[], root = REPO_ROOT): string[] {
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf-8')) as { scripts: Record<string, string> };
   const out = new Set<string>();
-  for (const doc of docs.filter((d) => !PLANNED_DOCS.test(d))) {
+  // A package's own site (apps/docs-<name>) is written for the reader's repository: its
+  // `npm run deploy` or `scripts/check.mjs` names the reader's script, not one of this repo's.
+  for (const doc of docs.filter((d) => !PLANNED_DOCS.test(d) && !PACKAGE_SITE.test(d))) {
     const text = fs.readFileSync(path.join(root, doc), 'utf-8');
     for (const m of text.matchAll(/\bscripts\/([\w.-]+\.(?:ts|sh|mjs))\b/g)) {
       if (!fs.existsSync(path.join(root, 'scripts', m[1]!))) out.add(`${doc} → scripts/${m[1]}`);

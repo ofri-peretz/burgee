@@ -1,0 +1,99 @@
+---
+title: JSON and agents
+description: "Every replz command prints burgee's --json envelope, every error ends in fix:, the exit codes are a contract, --schema describes the program as data, and --mcp serves check, run and propose as tools."
+---
+
+replz is declared once on [burgee](https://burgee.interlace.tools/docs/packages/burgee), the
+family's CLI framework, so the surfaces an agent or a script needs come from that one
+declaration and cannot disagree with the commands.
+
+## `--json`
+
+Every command takes `--json` and prints one envelope on stdout:
+
+```text title="npx replz check --json"
+{"ok":true,"data":{"cases":4,"sets":{"tune":{"bugs":1,"controls":1},"test":{"bugs":1,"controls":1}},"checks":2,"stages":["raw","final"]},"meta":{"provenance":{"repo":{"source":"default"},"config":{"source":"default"},"cases":{"source":"default"}}}}
+```
+
+`data` is what the command found. `meta.provenance` says where each option's value came from:
+here every one is its default.
+
+| Command | `data` |
+| :-- | :-- |
+| `check` | `cases`, `sets` (per set, `bugs` and `controls`), `checks` (a count), `stages` |
+| `run` | `date`, `set`, `model`, `maxFindings`, `cases` (ids), `report`, `recorded` |
+| `propose` | `bugs` and `controls` (counts), `drafts` (each `{ file, text }`) |
+
+`run`'s `report` is the object `--record` writes to the history; its fields are in [Run and
+report](/docs/guides/run-and-report#the-report).
+
+## Errors
+
+A failure under `--json` is an envelope too, with `ok: false`, the message, and a `fix` (and a
+`hint` when replz can guess what was meant). burgee also writes one line to stderr with the
+error alone, so a reader of either stream gets it:
+
+```yaml title="answered/control-9.yaml"
+id: control-9
+kind: control
+pr: 9
+base: "a1a1a1a1a1a1"
+head: "b2b2b2b2b2b2"
+answer: "There is no bug here."
+set: tune
+```
+
+```text title="npx replz check --json --cases answered" exit="1"
+{"ok":false,"error":{"kind":"runtime","code":1,"message":"answered/control-9.yaml: a control has no bug, so no answer","fix":"remove answer, or make it kind: bug"}}
+{"error":{"kind":"runtime","code":1,"message":"answered/control-9.yaml: a control has no bug, so no answer"}}
+```
+
+Every error replz reports comes with a fix that says what to change: a `fix:` line in text, a
+`fix` field under `--json`. An agent can act on it without reading this site.
+
+## Exit codes
+
+| Code | Meaning |
+| :-- | :-- |
+| `0` | The command completed: the cases are valid, the run finished, the drafts printed. |
+| `1` | It ran and failed: an invalid config or case, or a case that could not be replayed. |
+| `2` | A usage error: an unknown command or option, or a bad value. The `fix:` is the command to run instead. |
+| `6` | The `--timeout` deadline passed. |
+| `130` | Interrupted. |
+
+A run that finishes exits 0 whatever its recall. replz measures; it does not gate. If you want a
+floor, read `report.recall` from `--json` in your own step and decide there.
+
+```text title="npx replz chek" exit="2"
+error: unknown command "chek"
+hint: did you mean check?
+fix: replz check
+{"error":{"kind":"usage","code":2,"message":"unknown command \"chek\""}}
+```
+
+## `--schema` and `--explain`
+
+`npx replz --schema` prints every command, option, default and exit code as JSON in one call,
+for an agent that wants the whole surface before it runs anything. `--explain <option>` on a
+command says where an option's value came from:
+
+```text title="npx replz check --explain cases --cases answered"
+cases = "answered"   from flag --cases
+         candidates: default ".sdlc/replz/cases"
+```
+
+## `--mcp`
+
+`npx replz --mcp` serves `check`, `run` and `propose` as MCP tools over stdio, with the same
+options as input schemas. `check` and `propose` are marked read-only. `run` is not: it calls the
+reviewer and the grader, which cost money, so an agent should call it only when asked to.
+
+```json
+{
+  "mcpServers": {
+    "replz": { "command": "npx", "args": ["replz", "--mcp"] }
+  }
+}
+```
+
+The `replz` bin is the API, declared once; the [API reference](/docs/api) lists every export.

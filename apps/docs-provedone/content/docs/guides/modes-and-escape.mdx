@@ -1,0 +1,81 @@
+---
+title: Modes and the escape
+description: "The gate's three modes, off, observe and enforce, how PROVEDONE_MODE picks one, the observe log that measures false blocks before enforce, and the escape that lets the third commit through after two blocks in one session."
+---
+
+A gate that blocks before anyone has seen what it would block trains people to bypass it. A gate
+that can block forever traps an agent. provedone's modes and its escape are its answer to both.
+
+## Three modes
+
+| Mode | Reads the message | Exits 1 | Logs |
+| :-- | :-- | :-- | :-- |
+| `off` | no | never | nothing |
+| `observe` | yes | never | every run, with what `enforce` would have done |
+| `enforce` | yes | when there is no receipt, before the escape | every run |
+
+`--mode` picks one. Without it, the `PROVEDONE_MODE` environment variable does, and without that
+the mode is `observe`.
+
+```text title="PROVEDONE_MODE=off npx provedone gate msg.txt"
+provedone: off
+```
+
+```text title="PROVEDONE_MODE=enforce PROVEDONE_SESSION=env-demo npx provedone gate msg.txt" exit="1"
+provedone: no Verified-by: line. fix: run `provedone stamp --run "<the command that proves it>" --not-checked "<what you did not check>"` and paste its lines, or add `Verified-by: none (<why it needs no check>)`
+```
+
+`--mode` wins over the variable, so a hook that names `--mode enforce` ignores
+`PROVEDONE_MODE`. Leave the mode out of the hook to let the variable choose, per machine or per
+CI job.
+
+## Observe first
+
+`observe` exists to measure. It passes every message and appends to `gate.jsonl` whether
+`enforce` would have blocked it, so the false-block rate can be read off the log before anyone
+turns blocking on. The provedone intent's default was 14 days in `observe` and promotion only
+under a 2% false-block rate, recorded in a decision.
+
+burgee itself skipped that wait: its own `commit-msg` hook runs `--mode enforce` by the owner's
+decision of 2026-11-24
+([`D-20261124-provedone-enforce`](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/decisions/D-20261124-provedone-enforce.md)),
+and the log keeps the measurement running under `enforce`. The revisit condition in that decision
+is a false-block rate over 2% on 14 days of commits.
+
+## The escape
+
+In `enforce`, the gate never blocks three times running in one session. After two blocks, the next
+run passes, prints why, and is logged as a bypass.
+
+```text title="npx provedone gate msg.txt --mode enforce" exit="1"
+provedone: no Verified-by: line. fix: run `provedone stamp --run "<the command that proves it>" --not-checked "<what you did not check>"` and paste its lines, or add `Verified-by: none (<why it needs no check>)`
+```
+
+```text title="npx provedone gate msg.txt --mode enforce" exit="1"
+provedone: no Verified-by: line. fix: run `provedone stamp --run "<the command that proves it>" --not-checked "<what you did not check>"` and paste its lines, or add `Verified-by: none (<why it needs no check>)`
+```
+
+```text title="npx provedone gate msg.txt --mode enforce"
+provedone: no Verified-by: line; passed after two blocks in this session, logged. fix: run `provedone stamp --run "<the command that proves it>" --not-checked "<what you did not check>"` and paste its lines, or add `Verified-by: none (<why it needs no check>)`
+```
+
+The count is of blocks since the session's last run that was not blocked. Any pass, a receipt or a
+bypass, starts it again from zero, so the escape is one commit, not a switch that stays off.
+
+Why it is there: an agent that cannot work out what the gate wants would otherwise retry the
+commit until something gives, or reach for `--no-verify`, which skips every hook and logs nothing.
+The escape lets the work through, says so in the output, and leaves a `bypass` line in
+`gate.jsonl` that a person can find later.
+
+## What a session is
+
+The count is per session. The session is the first of these that is set:
+
+1. `PROVEDONE_SESSION`
+2. `CLAUDE_CODE_SESSION_ID`
+3. `CLAUDE_SESSION_ID`
+4. the current branch, as `branch:<name>`
+
+So two agents working in two sessions of one clone each get their own two blocks, and a person
+with none of those variables gets two per branch. A CI job that sets `PROVEDONE_SESSION` to the
+run's id gets two per run.

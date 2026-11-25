@@ -22,8 +22,8 @@ function statItem(stat: Stat): ReactNode {
   );
 }
 
-/** Tracks from `@xl`: one per number, up to three. */
-const TRACKS: Readonly<Record<number, string>> = { 1: '', 2: '@xl:grid-cols-2' };
+/** Tracks from `@xl`: one per number, up to three. `homeStats` never returns a single number. */
+const TRACKS: Readonly<Record<number, string>> = { 2: '@xl:grid-cols-2' };
 const MANY_TRACKS = '@xl:grid-cols-3';
 
 export function homeStatsView(stats: readonly Stat[]): ReactNode {

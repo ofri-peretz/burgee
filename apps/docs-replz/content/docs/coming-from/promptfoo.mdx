@@ -1,0 +1,75 @@
+---
+title: Coming from promptfoo
+description: "Move the code-review part of a promptfoo suite to replz: hand-written review prompts become pull requests that shipped a bug, assertions become a one-sentence answer key graded per finding, and the report adds controls, recall per stage and a firing count for each check."
+---
+
+**replz** covers one job promptfoo is often used for: checking that an AI code reviewer catches
+what it should. It is not a promptfoo alternative in general and claims no compatibility with
+its config. Keep promptfoo for every prompt that is not a review of a pull request.
+
+## The concepts, side by side
+
+| promptfoo | replz |
+| :-- | :-- |
+| `promptfooconfig.yaml` | `.sdlc/replz/config.yaml` |
+| `prompts` | none: the reviewer command builds its own prompt, as it does in CI |
+| `providers` | `reviewer` (the model under test) and `grader` (the judge), each a shell command |
+| `tests`, each with `vars` | case files, one per pull request: `base`, `head`, `pr` |
+| `assert` with `llm-rubric` | `answer`, one sentence; the grader asks whether a finding describes it |
+| `contains`, `regex`, `javascript` asserts | none: a finding about the right file and the wrong bug must not pass |
+| a test written by hand | a case drafted by `replz propose` from a revert or a fix |
+| none | controls: clean pull requests, for false alarms |
+| none | `stages`: recall per stage of the reviewer's own pipeline |
+| none | `checks`: how often each CI check fired, and on a real bug |
+| `promptfoo eval` | `replz run` |
+| `promptfoo view`, `--output` | the text report, `--json`, and `--record` into `history.jsonl` |
+
+## Migrating
+
+1. **Install replz** in the repository the reviewer reviews: `npm install -D replz`.
+2. **Point it at your reviewer.** Write `.sdlc/replz/config.yaml` with the command CI runs to
+   review a pull request, made to print its findings as JSON. [Claude Code as the
+   reviewer](/docs/recipes/claude-code-reviewer) is a whole script. Put the judge you used in
+   `llm-rubric` behind `grader`, reading the prompt from stdin.
+3. **Draft cases from history.** `npx replz propose --limit 10` prints a bug draft for each pull
+   request a revert or fix blamed, and a size-matched control for each. Save them, write each
+   answer key, and run `npx replz check`. [Drafting cases](/docs/guides/propose) has the details.
+4. **Move the review tests out of the promptfoo suite.** A review test with a hand-written diff
+   and a rubric is replaced by a case from your own history. If a hand-written case matters,
+   find or make the pull request it describes and add it as a case file.
+5. **Swap the script.**
+
+```diff
+  // package.json
+  "scripts": {
+-   "eval:review": "promptfoo eval -c review.promptfooconfig.yaml",
++   "eval:review": "npx replz run --set test",
+  }
+```
+
+6. **Run it on a schedule, not per pull request.** [Run replz on a
+   schedule](/docs/recipes/scheduled-run).
+
+## What is different on purpose
+
+- **The reviewer sees a repository, not a prompt.** Each case is a worktree at the commit the
+  reviewer saw, so it can read files beyond the diff, run tools, and follow the rules the
+  repository had then.
+- **One grader call per finding.** A rubric over the reviewer's whole answer can pass a review
+  that mentions the bug in passing among ten other comments; replz asks about each finding
+  separately and counts the case once any one matches.
+- **No string assertions.** promptfoo's deterministic asserts are useful for formats; a review
+  finding is prose, and matching a word in it was rejected in replz's spec.
+- **A finished run exits 0.** promptfoo can fail a CI job on a threshold. replz reports and
+  leaves the threshold to you, because it does not run per pull request.
+
+## What is not built
+
+- **Other providers built in.** There is no provider list: a reviewer or grader is any command.
+  An OpenAI, Anthropic or local model is a CLI call in the config.
+- **A web viewer, sharing, or caching of model responses.**
+- **Red-teaming, prompt comparison, matrix runs across models.** `--model` changes the grader
+  model only; comparing reviewers is two configs and two runs on the same cases.
+- **Datasets from CSV or other files.** Cases are YAML files, one per pull request.
+
+The rest of replz is on [replz](/docs).

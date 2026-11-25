@@ -1,6 +1,6 @@
 {
   "name": "replz",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": false,
   "description": "Code review benchmark for AI reviewers and a repo's checks: replays each pull request a revert or fix blamed beside clean controls, and grades findings against a one-line answer key. No dependency outside the burgee family. A promptfoo migration path.",
   "keywords": [
@@ -15,7 +15,7 @@
     "cli"
   ],
   "license": "MIT",
-  "homepage": "https://burgee.interlace.tools",
+  "homepage": "https://replz.interlace.tools",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ofri-peretz/burgee.git",
@@ -55,7 +55,7 @@
   },
   "dependencies": {
     "bellpull": "^2.0.0",
-    "burgee": "^2.1.5",
+    "burgee": "^2.2.2",
     "seniority": "^2.0.0",
     "truefit": "^1.0.1"
   },

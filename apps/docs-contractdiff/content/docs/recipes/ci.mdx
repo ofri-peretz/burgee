@@ -1,0 +1,152 @@
+---
+title: CI gate
+description: "A GitHub Actions job that fails a pull request on a breaking contract change, a lint rule at error or generated code that is out of date, and uploads the findings as SARIF to code scanning."
+---
+
+Three checks keep a contract honest on every pull request, and each one is a contractdiff command
+whose exit code is the verdict:
+
+| check            | command                                    | fails when                                      |
+| :--------------- | :----------------------------------------- | :---------------------------------------------- |
+| breaking changes | `contractdiff diff base.yaml openapi.yaml` | a change breaks a caller built on the base      |
+| form             | `contractdiff lint`                        | a rule set to `error` finds something           |
+| generated code   | `contractdiff gen --check`                 | a generated file is stale or was edited by hand |
+
+## The config
+
+```yaml title="openapi.yaml"
+openapi: 3.1.0
+info:
+  title: Pets
+  version: 1.0.0
+paths:
+  /pets/{id}:
+    get:
+      operationId: getPet
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: A pet
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [name]
+                properties:
+                  name:
+                    type: string
+```
+
+```json title="contractdiff.config.json"
+{
+  "input": "openapi.yaml",
+  "targets": { "types": { "generator": "types", "out": "src/api" } },
+  "lint": {
+    "extends": ["recommended"],
+    "rules": { "operation-tags": "error", "info-description": "off" },
+    "warnFor": "0d"
+  },
+  "diff": { "decisions": "error" }
+}
+```
+
+`operation-tags` is at `error`, and this contract has no tags, so the lint step fails:
+
+```text title="npx contractdiff lint" exit="1"
+openapi.yaml
+  error  operation-tags  #/paths/~1pets~1{id}/get  `tags` is missing
+         fix: add `tags` naming the resource the operation belongs to
+  warn   operation-description  #/paths/~1pets~1{id}/get  has no description or summary
+         fix: add a `description` saying what the operation does and when to call it
+  warn   parameter-description  #/paths/~1pets~1{id}/get/parameters/0  id: `description` is missing
+         fix: add a `description` saying what the parameter does and what values it takes
+
+1 error(s), 2 warning(s). Checked 10 rule(s) on 1 input(s), 12 node(s); not carried: none.
+recommended: 75% (9 of 12 checks passed)
+```
+
+The generated code step, after a `gen` that was committed:
+
+```text title="npx contractdiff gen"
+write src/api/types.ts
+write contractdiff.map.json
+```
+
+```text title="npx contractdiff gen --check"
+up to date: 2 file(s)
+```
+
+`diff.decisions: "error"` makes a breaking change without an `x-change` fail the run as well; see
+[Decisions](/docs/guides/decisions). Leave it out to keep the default, `warn`.
+
+## The workflow
+
+`diff` needs the contract as it is on the base branch. In 1.0.0 it reads files only, so the job
+writes the base version out with `git show` first. The checkout needs the base branch's history
+for that, hence `fetch-depth: 0`.
+
+```yaml
+name: contract
+on: pull_request
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - run: npm ci
+      - run: git show origin/${{ github.base_ref }}:openapi.yaml > base.yaml
+      - name: Breaking changes
+        run: npx contractdiff diff base.yaml openapi.yaml
+      - name: Breaking changes as SARIF
+        if: always()
+        run: npx contractdiff diff base.yaml openapi.yaml --sarif > contract.sarif || true
+      - uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: contract.sarif
+          category: contractdiff
+      - name: Lint
+        run: npx contractdiff lint --since merge-base
+      - name: Generated code is current
+        run: npx contractdiff gen --check
+```
+
+Notes on the steps:
+
+- **The SARIF step** prints SARIF instead of text, so it runs separately from the gating step; its
+  exit code is ignored because the gating step already reported it. Each finding lands on the
+  contract file in the pull request's code scanning view.
+- **`lint --since merge-base`** lints in full only the operations this pull request added or
+  changed. Drop `--since` once the contract is clean.
+- **A planned major.** A pull request that intends a breaking change still fails the `diff` step,
+  by design. Write the `x-change` and move the major version; then either run `diff` with
+  `--changeset <package>` so the release is recorded, or let a reviewer approve the red step.
+- **Exit codes.** `1` is a finding. `2` is a usage error and `3` a config that did not load; both
+  mean the job is wrong, not the contract.
+
+## Releases that stay in the field
+
+A team that supports more than the last release keeps the published contracts in a folder and
+checks the new one against all of them:
+
+```bash
+npx contractdiff diff releases/ openapi.yaml --transitive
+```
+
+The output names the oldest release each finding breaks. See
+[Breaking changes](/docs/guides/diff#every-past-release---transitive).

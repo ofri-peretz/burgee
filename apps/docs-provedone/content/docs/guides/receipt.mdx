@@ -1,0 +1,116 @@
+---
+title: The receipt
+description: "The receipt format provedone writes and reads: Verified-by, Captured and Not-checked git trailers, the none form with its reason, how long lines fold, the PR's Checked line, and where stamps and the gate log are kept."
+---
+
+A receipt is one record rendered two ways: as git trailers at the end of a commit message, and as
+a block in a pull request body. Both are plain text. Nothing about a receipt needs provedone to
+read it back.
+
+## The trailers
+
+```text
+Verified-by: npm test -> exit 0 (sha256:85f7e552faae)
+Captured: shots/home.png
+Not-checked: the docs site
+```
+
+| Trailer | One per | Value |
+| :-- | :-- | :-- |
+| `Verified-by:` | command run | `<command> -> exit <code> (sha256:<12 hex>)` |
+| `Verified-by:` | change with nothing to run | `none (<reason>)` |
+| `Captured:` | `--capture` path | the path as given |
+| `Not-checked:` | gap | the gap as given; no line for `nothing` |
+
+The digest is the first 12 hex digits of the sha256 of everything the command printed, stdout and
+stderr together. It is enough to tell two runs that printed different things apart, and short
+enough to sit on one line. It is not a signature: anyone can type one.
+
+A newline inside a command or a reason is turned into a space, so one value cannot end a trailer
+early.
+
+## Where they go
+
+Git reads trailers only from the last paragraph of a message. Paste them beside
+`Co-Authored-By:` with no blank line between, or `git log --format='%(trailers:key=Verified-by)'`
+will not see them.
+
+```text
+feat(cli): print help without loading every command
+
+The help path now reads the command table only.
+
+Verified-by: npm test -> exit 0 (sha256:85f7e552faae)
+Not-checked: Windows
+Co-Authored-By: A Person <a@example.com>
+```
+
+## Long lines fold at 100 columns
+
+commitlint's default `footer-max-line-length` is 100, so `stamp` folds each trailer to 100
+columns, breaking at spaces. Each continuation line starts with a space, which git reads as part
+of the same trailer. A single word longer than 100 characters stays whole, because breaking it
+would change the command.
+
+```js title="fold.mjs"
+import { trailers } from 'provedone';
+
+const receipt = {
+  checks: [],
+  captures: [],
+  notChecked: ['the docs site on a phone-width viewport, the dark theme, the search dialog and the offline fallback page'],
+};
+console.log(trailers(receipt).join('\n'));
+```
+
+```text title="node fold.mjs"
+Not-checked: the docs site on a phone-width viewport, the dark theme, the search dialog and the
+ offline fallback page
+```
+
+The gate unfolds a trailer before it reads it, so a long `Verified-by: none (...)` that was folded
+still counts as having a reason.
+
+## The PR block
+
+```text
+## How this was checked
+
+Checked: `npm test` (pass), `npm run build` (exit 1); looked at `shots/home.png`. Not checked: the docs site.
+
+Verified-by: npm test -> exit 0 (sha256:85f7e552faae)
+Verified-by: npm run build -> exit 1 (sha256:0c1d2e3f4a5b)
+Captured: shots/home.png
+Not-checked: the docs site
+```
+
+The `Checked:` line is for a person: each command with `pass` or its exit code, what was looked
+at, then what was not checked. The trailers below it are what the gate reads when it runs on a PR
+body. [`stamp --pr`](/docs/guides/stamp#the-pr-block) prints this block.
+
+## What the gate counts as a receipt
+
+[The gate](/docs/guides/gate) reads only the presence and shape of `Verified-by:`:
+
+- at least one `Verified-by:` line with a value, or
+- `Verified-by: none (<reason>)` with a non-empty reason.
+
+It does not re-run the command, compare the digest, or read the exit code. Lines that start with
+`#` are a commit template's comments and are skipped. A message whose subject starts with `Merge `
+passes, because a merge carries its parents' receipts.
+
+## Where provedone keeps what it saw
+
+Stamps and the gate log are JSON lines, appended, under `provedone/` in the repository's common
+git directory, usually `.git/provedone/`:
+
+| File | Written by | Read by |
+| :-- | :-- | :-- |
+| `stamps.jsonl` | every `stamp` run: branch, time, command, exit, digest, and the intent and criterion when cited | `done` |
+| `gate.jsonl` | every `gate` run that reads a message: time, session, mode, whether it was ok, blocked or a bypass, and the reason | the escape, and you |
+
+They are never in the working tree, so they are never committed. Because they sit in the common
+git directory, every worktree of one clone shares them. Outside a git repository the store is
+`.provedone/` under the root. A clone that ran provedone under its earlier name keeps a
+`.git/proofline/` directory; the first run moves it to `.git/provedone/`, so its history carries
+over.

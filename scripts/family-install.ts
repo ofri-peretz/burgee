@@ -67,6 +67,19 @@ export function releasedManifests(root: string): Map<string, Manifest> {
   return manifestsWhere(root, released);
 }
 
+/**
+ * How long a lock's setup may take to pack and install `packages` packages. 240 s was the budget
+ * for ten (it replaced 120 s, which timed out on CI's Windows runners on 2026-10-11 with every
+ * assertion passing), and the work grows with the count: at seventeen published packages the
+ * fixed 240 s timed out again on Windows (Compatibility run 45523119782: the quick-start lock at
+ * 240030 ms and the independence lock at 240026 ms, while install-graph finished in 204840 ms).
+ * So each package brings the same 24 s, and ten is the floor.
+ */
+export const SETUP_MS_PER_PACKAGE = 24_000;
+/** The family size the first 240 s was set for. */
+const SETUP_FLOOR_PACKAGES = 10;
+export const familySetupTimeoutMs = (packages: number): number => SETUP_MS_PER_PACKAGE * Math.max(packages, SETUP_FLOOR_PACKAGES);
+
 /** Every name a manifest lets its code import. */
 export const declaredBy = (m: Manifest): string[] => Object.keys({ ...m.dependencies, ...m.peerDependencies, ...m.optionalDependencies });
 

@@ -1,0 +1,97 @@
+---
+title: Coming from danger
+description: "Move the review-rule part of a Dangerfile to triggerlist: each rule that checks which files changed becomes a checklist item with a trigger, warn() and fail() become a question and a check, and danger ci becomes triggerlist brief; what stays in danger, and why."
+---
+
+**triggerlist** covers one half of what a Dangerfile is usually used for: the rules that say
+"this file changed, so check that". It is not a drop-in for danger, claims no compatibility with
+the Dangerfile API, and does not post on the pull request. Keep danger for the rules that must.
+
+## The concepts, side by side
+
+| danger | triggerlist |
+| :-- | :-- |
+| `dangerfile.ts` / `dangerfile.js` | `.sdlc/checklist.yaml`, data rather than code |
+| `danger.git.modified_files`, `created_files`, `deleted_files` | `trigger.paths`: globs over every changed path, deleted files included |
+| `danger.git.diffForFile()` and a check of its text | `trigger.pattern`: a regular expression on added and removed lines |
+| `warn()`, `fail()`, `message()` | an item's `question` and `check`, for the reviewer to answer |
+| `markdown()` | `REVIEW.md`, written by `triggerlist compile` |
+| `danger ci` | `triggerlist brief <base> --head <sha>` handed to a reviewer, or `match` |
+| `danger local`, `danger pr <url>` | `triggerlist match main --worktree` while editing |
+| the Dangerfile in the checkout | the checklist read from the base ref |
+| a comment danger posts | none: the reviewer posts, or nothing does |
+| `schedule()`, async rules, plugins | none: a rule cannot run code |
+
+## A rule, before and after
+
+A typical Dangerfile rule:
+
+```ts
+// dangerfile.ts
+import { danger, warn } from 'danger';
+
+const migrations = danger.git.created_files.filter((path) => path.startsWith('migrations/') && path.endsWith('.up.sql'));
+for (const up of migrations) {
+  const down = up.replace('.up.sql', '.down.sql');
+  if (!danger.git.created_files.includes(down)) warn(`${up} has no down migration`);
+}
+```
+
+As a checklist item, the trigger says when to ask and the reviewer does the comparison:
+
+```yaml
+- id: migration-has-down
+  trigger:
+    paths: ["migrations/*.up.sql"]
+  question: Does every new up migration have a matching down migration?
+  check: ls migrations/ and compare the up and down files
+  sources: ["docs/decisions/0007-reversible-migrations.md"]
+```
+
+The danger rule is exact and posts by itself. The item is read by a reviewer, which is weaker for
+a rule a script can decide and stronger for one it cannot ("does this route validate its input
+before reading it?").
+
+## Migrating
+
+1. **Install triggerlist**: `npm install -D triggerlist`.
+2. **Sort the Dangerfile's rules.** A rule that only looks at which files or lines changed and
+   asks a human to look moves to the checklist. A rule that computes a fact (a lockfile changed
+   without `package.json`, a pull request over a size) and must fail by itself stays in danger or
+   becomes a CI step, and the item's `check` can name it.
+3. **Write one item per moved rule** in `.sdlc/checklist.yaml`: the paths and lines the rule
+   looked at become `trigger`, the message becomes `question`, and the pull request that caused
+   the rule goes in `sources`. [The checklist file](/docs/guides/checklist) has every field.
+4. **Check what each item fires** on a branch with `npx triggerlist match main --worktree`.
+5. **Compile** `REVIEW.md` with `npx triggerlist compile`, and commit both files. Land them in a
+   pull request of their own: until they are on the base branch, CI reads nothing.
+6. **Swap the step** where the Dangerfile ran:
+
+```diff
+  # .github/workflows/review.yml
+-     - run: npx danger ci
++     - run: npx triggerlist brief origin/${{ github.base_ref }} --head ${{ github.sha }} > brief.md
+```
+
+7. **Hand the brief to the reviewer.** [GitHub Actions](/docs/recipes/github-actions) has the
+   composite action that gives it to Claude and handles the rounds.
+
+## What is different on purpose
+
+- **The rules come from the base branch.** A Dangerfile is code in the checkout CI runs, and on a
+  pull request that is usually the branch's copy, so the pull request can change it. The
+  checklist is read with `git show <base>:<path>`.
+- **Nothing from the repository runs.** Compiling and matching parse YAML and compile regular
+  expressions. There is no Dangerfile to evaluate.
+- **The reviewer answers, not the rule.** An item asks a question; whether it holds is the
+  reviewer's call, with the check to settle it.
+- **A rule needs a reason.** `sources` is required.
+
+## What is not built
+
+- Posting comments, inline or summary, and failing a status from a rule.
+- Access to the pull request's metadata (title, body, labels, author, reviewers). A trigger sees
+  only paths and changed lines.
+- Plugins, `schedule()` and async rules.
+- Other platforms' integrations. triggerlist reads git; the [composite
+  action](/docs/recipes/github-actions) is GitHub Actions only.

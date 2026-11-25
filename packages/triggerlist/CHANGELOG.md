@@ -1,5 +1,19 @@
 # triggerlist
 
+## 1.0.1
+
+### Patch Changes
+
+- [#1814](https://github.com/ofri-peretz/burgee/pull/1814) [`06089bd`](https://github.com/ofri-peretz/burgee/commit/06089bd8a1cdee49927e49a508e36ae7fa57ae78) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - triggerlist's docs have a site of their own at https://triggerlist.interlace.tools: guides for the checklist file and each command, reading from the base branch, the reviewer's brief, recipes for GitHub Actions, a pre-push hook, monorepos and agents, and a migration guide from danger. The package's `homepage` and its README's Docs line point there.
+
+- [#1813](https://github.com/ofri-peretz/burgee/pull/1813) [`4821145`](https://github.com/ofri-peretz/burgee/commit/482114557947f01bc8df543daf317dada2664c21) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `match` on a base ref with no checklist file yet matches nothing and says so (`bootstrap: true`), as `brief` and `protect` do; a ref the checkout lacks still fails with its fix, and a base checklist that does not parse still fails. `seed` drafts each lock test's `check` with a command that fits the repository it reads: `npx vitest run --config <file>` for a root vitest config that names the lock folder, `npx vitest run` where vitest is otherwise in use, and `run <file>` where it is not. The README's exit-code table says `protect` exits 1 only with `--enforce`.
+
+- [#1818](https://github.com/ofri-peretz/burgee/pull/1818) [`5e75589`](https://github.com/ofri-peretz/burgee/commit/5e7558982812c583768b782ba5adcc1983eba43c) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `protect` and `brief` now fail on a base checklist that is there and does not parse, as `match`
+  already did. Only a missing checklist file is let through as a bootstrap, so a broken base
+  checklist can no longer turn `protect --enforce` into a pass.
+- Updated dependencies [[`4821145`](https://github.com/ofri-peretz/burgee/commit/482114557947f01bc8df543daf317dada2664c21)]:
+  - burgee@2.2.2
+
 ## 1.0.0
 
 ### Major Changes

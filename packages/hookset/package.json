@@ -1,6 +1,6 @@
 {
   "name": "hookset",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": false,
   "description": "Git hooks presets for AI coding agents: lefthook presets pulled by a pinned tag, a Claude Code hook pack that denies skipped hooks, and `hookset init` and `check`. No dependency outside the burgee family. A husky migration path.",
   "keywords": [
@@ -15,7 +15,7 @@
     "cli"
   ],
   "license": "MIT",
-  "homepage": "https://burgee.interlace.tools",
+  "homepage": "https://hookset.interlace.tools",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ofri-peretz/burgee.git",
@@ -57,7 +57,7 @@
     "lint": "cd ../.. && eslint packages/hookset/src --max-warnings 0"
   },
   "dependencies": {
-    "burgee": "^2.1.3"
+    "burgee": "^2.2.2"
   },
   "devDependencies": {
     "vitest": "^5.0.1"

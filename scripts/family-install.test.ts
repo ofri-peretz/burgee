@@ -20,7 +20,7 @@ import { join } from 'node:path';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
-import { installStamp, type Outcome } from './family-install.js';
+import { familySetupTimeoutMs, installStamp, type Outcome, publishedManifests, SETUP_MS_PER_PACKAGE } from './family-install.js';
 import { discard } from './scratch-dir.js';
 
 const made: string[] = [];
@@ -43,6 +43,20 @@ function scratch(): { env: NodeJS.ProcessEnv; lock: string; tarballs: string[]; 
 
 /** A suite shaped like vitest's: one test at the top, the rest one describe down. */
 const suite = (...states: string[]): Outcome => ({ tasks: [{ result: { state: 'pass' } }, { tasks: states.map((state) => ({ result: { state } })) }] });
+
+describe('familySetupTimeoutMs', () => {
+  it('gives ten packages the 240 s they had, and each package past ten its own 24 s', () => {
+    expect(familySetupTimeoutMs(3)).toBe(240_000);
+    expect(familySetupTimeoutMs(10)).toBe(240_000);
+    expect(familySetupTimeoutMs(17)).toBe(17 * SETUP_MS_PER_PACKAGE);
+  });
+
+  it('is above the fixed 240 s that timed out on Windows, for the family as it is', () => {
+    const root = join(import.meta.dirname, '..');
+    expect(publishedManifests(root).size).toBeGreaterThan(10);
+    expect(familySetupTimeoutMs(publishedManifests(root).size)).toBeGreaterThan(240_000);
+  });
+});
 
 describe('installStamp', () => {
   it('misses on a fresh cache, remembers a run that passed, and then names the stamp it skips for', () => {

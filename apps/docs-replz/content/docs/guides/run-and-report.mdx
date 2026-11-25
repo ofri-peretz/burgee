@@ -1,0 +1,157 @@
+---
+title: Run and report
+description: "What replz run does to each case, what every line of its report means (recall per stage, false alarms on controls, last-stage severity, the firing table, checks that never fired, capped cases) and the history line --record appends."
+---
+
+## What a run does
+
+```bash
+npx replz run --set test --model <the cheapest current model>
+```
+
+For each case, one at a time, in file-name order:
+
+1. Add a git worktree, detached at the case's `head`, in a temporary folder.
+2. Run `setup`, if the config has one. A non-zero exit stops the run.
+3. Run the reviewer and read its JSON findings.
+4. Run every check, one after another, and note which exited non-zero.
+5. On a bug case, send each finding to the grader with the answer key, up to `maxFindings`,
+   last-stage findings first. A control is never graded.
+6. Remove the worktree, whether the case passed or failed.
+
+Then score every case together and print the report. Any step that fails stops the whole run
+with exit 1, the case it failed on, and a `fix:`. A run that stops halfway prints no partial
+report: a score over some of the cases would not be comparable with the last one.
+
+| Option | Default | What it does |
+| :-- | :-- | :-- |
+| `--set <tune\|test>` | both | Only the cases of that set. |
+| `--model <id>` | the config's `model` | Replaces `{model}` in the grader command. |
+| `--max-findings <n>` | the config's `maxFindings` | The most findings graded per case. |
+| `--record` | off | Append the report to `.sdlc/replz/history.jsonl`. |
+| `--repo`, `--config`, `--cases` | `.` and the default paths | Where to read from. |
+
+## The report
+
+This is a real run, on a small repository with a [stand-in
+reviewer](/docs/recipes/stand-in-reviewer), so no model was called. It replayed one bug and one
+control:
+
+```text
+1 bug case(s), 1 control(s)
+
+recall per stage:
+  raw: 1 of 1 (100%)
+  final: 1 of 1 (100%)
+false alarms on controls: 0 of 1 (0%)
+last-stage findings: must-fix 1, should-fix 0, nit 1, pre-existing 0
+
+firing (fired / right):
+  check has-readme: 0 / 0
+  check no-todo: 2 / 1
+
+never fired: has-readme. fix: keep or drop each, in a decision
+```
+
+- **Recall per stage.** For each stage, how many bug cases had at least one finding at that stage
+  the grader matched to the answer key. A bug found at `raw` and missing at `final` was found and
+  then dropped by the reviewer's own verification: the fix is in that step, not in its search.
+- **False alarms on controls.** Controls with a `must-fix` or `should-fix` at the last stage. A
+  `nit` on a control is not a false alarm; a blocking finding on a clean pull request is.
+- **Last-stage findings.** Every finding at the last stage, bugs and controls together, by
+  severity.
+- **Firing.** For each check: how many cases it fired on, and how many of those were bug cases.
+  For each checklist item: how many findings named it, and how many of those matched the answer.
+  Here `no-todo` fired on the control too, because the bug's code was still in the tree at the
+  control's head.
+- **Never fired.** Every check and checklist item that fired on no case. Each costs CI time or a
+  reviewer's attention; on these cases it did not earn it. [Pruning
+  checks](/docs/recipes/prune-checks) is what to do with the list.
+- **Capped.** Cases with more findings than `--max-findings`; the findings past the cap were
+  not graded, so they count as not matching. The line appears only when a case was capped.
+
+Percentages are rounded, and read `n/a` when there are no cases of that kind.
+
+### The cap spends itself on the last stage first
+
+The grader takes the last stage's findings first, then each earlier stage's, each stage in the
+order the reviewer printed it. The last stage is what ships, so a small cap goes there before it
+goes to a finding the pipeline later dropped. With `--max-findings 1` on the same run, the bug's
+`final` finding was graded and its `raw` one was not, so raw recall read 0 of 1 while final read
+1 of 1. Lower the cap to cut cost; read the `capped` line before reading recall.
+
+## The same report from the API
+
+`runReplay` is the command, with the shell and the worktrees passed in. This one has a reviewer,
+a grader and the checks written in JavaScript, against getting started's config and its `test` cases, so
+it runs anywhere:
+
+```js title="report.mjs"
+import { runReplay } from 'replz';
+
+// A reviewer, a grader and checks written in JavaScript, so nothing is installed or paid for.
+const findings = {
+  12: [
+    { stage: 'raw', severity: 'should-fix', text: 'The cache in config.js is keyed by file name, so two projects share an entry.' },
+    { stage: 'raw', severity: 'nit', text: 'config.js has a long line.' },
+    { stage: 'final', severity: 'must-fix', text: 'The cache in config.js is keyed by file name, so two projects share an entry.' },
+  ],
+  13: [{ stage: 'final', severity: 'should-fix', text: 'usage.md links a page that does not exist.' }],
+};
+
+const shell = async (command, { env, input }) => {
+  if (command.includes('review.sh')) return { code: 0, stdout: JSON.stringify(findings[env.REPLZ_PR]), stderr: '' };
+  if (command.startsWith('claude')) return { code: 0, stdout: /keyed by file name/.test(input) ? 'yes' : 'no', stderr: '' };
+  if (command === 'npm test') return { code: env.REPLZ_PR === '12' ? 1 : 0, stdout: '', stderr: '' };
+  return { code: 0, stdout: '', stderr: '' };
+};
+const worktrees = { add: async () => ({ dir: '.', remove: async () => {} }) };
+
+const { report } = await runReplay({
+  repo: '.',
+  config: '.sdlc/replz/config.yaml',
+  cases: '.sdlc/replz/cases',
+  set: 'test',
+  model: 'a-cheap-model',
+  record: false,
+  shell,
+  worktrees,
+  now: () => new Date('2026-11-24'),
+});
+
+console.log('recall:', report.recall.map(({ stage, found }) => `${stage} ${found} of ${report.bugs}`).join(', '));
+console.log('false alarms:', report.falseAlarms, 'of', report.controls);
+console.log('last stage:', report.severity);
+for (const row of report.firing) console.log(`${row.kind} ${row.id}: fired ${row.fired}, right ${row.right}`);
+console.log('never fired:', report.neverFired);
+```
+
+```text title="node report.mjs"
+recall: raw 1 of 1, final 1 of 1
+false alarms: 1 of 1
+last stage: { 'must-fix': 1, 'should-fix': 1, nit: 0, 'pre-existing': 0 }
+check typecheck: fired 0, right 0
+check test: fired 1, right 1
+never fired: [ 'typecheck' ]
+```
+
+The control's `should-fix` about a broken link is a false alarm by replz's definition: the
+control is a pull request that shipped clean, so a blocking finding on it is one a person would
+have had to argue down. `test` fired once, on the bug, and was right. `typecheck` never fired.
+
+This is also how to test a reviewer adapter or a report consumer without a repository: the
+[API reference](/docs/api) has `replayCase` and `score` for one case or a set of results.
+
+## The history
+
+`--record` appends one line to `.sdlc/replz/history.jsonl`: the date, the set, the model, the
+cap, the case ids, and the report. From the stand-in run above with `--set test
+--max-findings 1 --record`:
+
+```json
+{"date":"2026-11-24","set":"test","maxFindings":1,"cases":["bug-3","control-4"],"report":{"bugs":1,"controls":1,"recall":[{"stage":"raw","found":0},{"stage":"final","found":1}],"severity":{"must-fix":1,"should-fix":0,"nit":1,"pre-existing":0},"falseAlarms":0,"firing":[{"id":"has-readme","kind":"check","fired":0,"right":0},{"id":"no-todo","kind":"check","fired":2,"right":1}],"neverFired":["has-readme"],"capped":["bug-3"]}}
+```
+
+`model` is absent from that line because the stand-in grader takes none. The file only grows, so
+two runs on the same set and cases are two lines to compare. Commit it with the change that
+moved the numbers.

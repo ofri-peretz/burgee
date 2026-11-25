@@ -1,0 +1,70 @@
+---
+title: Coming from Optic
+description: "Move from Optic's diff, lint and changelog to contractdiff: diff for breaking changes, lint with forwards-only adoption through --since, the changelog as diff output, and what Optic did that contractdiff does not, such as capturing traffic into a spec."
+---
+
+Optic checked OpenAPI changes in pull requests: `optic diff` reported breaking changes against a
+base branch, `optic lint` applied API standards, and its standards could be applied only to the
+operations a change touched, so a team could adopt a rule without fixing the whole spec first. Its
+repository was archived on 2026-01-12, as `.sdlc/intents/contractdiff/intent.md` records.
+contractdiff covers the diff, the lint and the forwards-only adoption, from npm.
+
+## How the names map
+
+| Optic                                             | contractdiff                                                                                    |
+| :------------------------------------------------ | :---------------------------------------------------------------------------------------------- |
+| `optic diff openapi.yaml --base main --check`     | `git show main:openapi.yaml > base.yaml`, then `contractdiff diff base.yaml openapi.yaml`       |
+| breaking-change standard                          | the default `diff` check; exit 1 on a breaking change                                           |
+| `optic lint openapi.yaml`                         | `contractdiff lint openapi.yaml`                                                                |
+| standards in `optic.yml`                          | `lint` in `contractdiff.config.json`: `extends`, per-rule levels; see [Lint](/docs/guides/lint) |
+| rules applied only to added or changed operations | `lint --since <ref>`, with `lint.legacy` for the rules that still run everywhere                |
+| the changelog in a PR comment                     | `diff` output, every change with its verdict; `--json` for a bot to render                      |
+| `optic ci`                                        | the steps in [CI gate](/docs/recipes/ci)                                                        |
+
+## Migrating
+
+1. `npm install -D contractdiff` and remove Optic from the project.
+2. Move the standards you relied on into `contractdiff.config.json`. The built-in `recommended` set
+   covers ids, descriptions, tags, success responses, references and examples; a Spectral ruleset
+   your `optic.yml` pointed at can be named in `lint.extends` as it is.
+3. Replace `optic diff --check` with a `diff` step against the base branch, and `optic lint` with
+   `lint --since merge-base` if you adopted rules forwards-only.
+4. If a bot posted Optic's changelog on pull requests, feed it `contractdiff diff --json` instead.
+
+A local check of the change in getting started, with the decision check on:
+
+```text title="npx contractdiff diff old.yaml new.yaml" exit="1"
+breaking: 1 breaking, 0 unknown, 1 non-breaking (--mode backward --side caller)
+
+getPet  #/paths/~1pets~1{id}/get
+  breaking      new-required-request-parameter  param:query:fields  - -> {"type":"string"}
+                fix: keep accepting at getPet param:query:fields what the old contract accepted, or release this as a major version
+  non-breaking  response-optional-property-removed  response:200:application/json /properties/tag  {"type":"string"} -> -
+
+decisions: 1 (--decisions warn)
+  warn          ac-decision-missing  getPet  param:query:fields  - -> {"type":"string"}
+                fix: breaking change (`new-required-request-parameter`) at getPet param:query:fields with no decision: add `x-change: <the decision>` to getPet param:query:fields, or an ancestor or its operation, naming who decided it; or revert the change
+```
+
+## What is different on purpose
+
+- **The diff states its question**, mode and side, on its first line, and can ask it for the
+  server as well as for callers.
+- **Decisions are in the contract.** Where an Optic workflow relied on a reviewer approving a
+  breaking change, contractdiff asks for an `x-change` beside the member, read back on every run.
+- **Beyond OpenAPI.** AsyncAPI, JSON Schema, MCP tool lists and protobuf go through the same
+  `diff` and `lint`.
+- **Code from the contract.** `gen` writes types, validators, clients, mocks and servers; Optic did
+  not generate code.
+
+## What is not built
+
+- **Capturing traffic into a spec** (`optic capture`). There is no traffic recorder; `extract`
+  writes a contract from code instead, for the sources [Code generation](/docs/guides/gen#code-to-contract-extract)
+  lists.
+- **Reading the base from git by itself.** The 1.0.0 bin refuses `git:<ref>:<path>`; write the base
+  out with `git show` first, as above.
+- **A hosted changelog or API catalog.** contractdiff is a local CLI with text, `--json` and SARIF
+  output.
+- **Reading `optic.yml`.** Move its standards by hand; the Spectral and Redocly readers are for
+  those two formats only.

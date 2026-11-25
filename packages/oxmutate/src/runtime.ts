@@ -14,6 +14,8 @@ export const FILE_KEY = 'file:';
 
 /** Arms one mutant from process start, for static mutants and isolated re-runs. */
 export const ACTIVE_MUTANT_ENV = '__OXMUTATE_ACTIVE_MUTANT__';
+/** Set for a dry run that tracks which tests read each static value (`static.readers`). */
+export const TRACK_READS_ENV = '__OXMUTATE_TRACK_READS__';
 
 export interface Namespace {
   activeMutant?: string | undefined;

@@ -1,0 +1,62 @@
+---
+title: Focused tests
+description: "no-focused-test reports .only, fit, ftest and fdescribe on test-runner calls in every spelling Vitest, Jest, Mocha and Playwright accept, and offers an editor suggestion that removes the focus."
+---
+
+A focused test runs alone. Locally that is a debugging aid; committed, it turns every other test
+in the file off, and the suite reports green while it runs one case. It is also the easiest one
+to leave behind: narrow a failing run with `.only`, fix the bug, forget the `.only`.
+
+`truepass/no-focused-test` reports it.
+
+## What it reports
+
+A test-runner call (see [What counts as a test](/docs/guides/eslint-config#what-counts-as-a-test))
+whose chain contains `.only` anywhere, or whose root is `fit`, `ftest` or `fdescribe`:
+
+```js title="focus.test.js"
+import { describe, it, test } from 'vitest';
+
+describe.only('checkout', () => {});
+it.only('charges the card', () => {});
+it.only.each([[1], [2]])('charges %i', () => {});
+test['only']('refunds', () => {});
+fit('jasmine-style focus', () => {});
+```
+
+```text title="npx eslint focus.test.js" exit="1"
+
+/your/project/focus.test.js
+  3:1  error  Focused test: A focused test (.only / fit / fdescribe) runs alone and turns every other test in the file off, so the suite reports green while running one case. fix: remove the focus. To run one test locally, pass a filter on the command line (vitest -t "<name>", jest -t "<name>", playwright test -g "<name>") instead of editing the file  truepass/no-focused-test
+  4:1  error  Focused test: A focused test (.only / fit / fdescribe) runs alone and turns every other test in the file off, so the suite reports green while running one case. fix: remove the focus. To run one test locally, pass a filter on the command line (vitest -t "<name>", jest -t "<name>", playwright test -g "<name>") instead of editing the file  truepass/no-focused-test
+  5:1  error  Focused test: A focused test (.only / fit / fdescribe) runs alone and turns every other test in the file off, so the suite reports green while running one case. fix: remove the focus. To run one test locally, pass a filter on the command line (vitest -t "<name>", jest -t "<name>", playwright test -g "<name>") instead of editing the file  truepass/no-focused-test
+  6:1  error  Focused test: A focused test (.only / fit / fdescribe) runs alone and turns every other test in the file off, so the suite reports green while running one case. fix: remove the focus. To run one test locally, pass a filter on the command line (vitest -t "<name>", jest -t "<name>", playwright test -g "<name>") instead of editing the file  truepass/no-focused-test
+  7:1  error  Focused test: A focused test (.only / fit / fdescribe) runs alone and turns every other test in the file off, so the suite reports green while running one case. fix: remove the focus. To run one test locally, pass a filter on the command line (vitest -t "<name>", jest -t "<name>", playwright test -g "<name>") instead of editing the file  truepass/no-focused-test
+
+✖ 5 problems (5 errors, 0 warnings)
+
+```
+
+`fit` here is an unbound global, which is how Jest and Jasmine provide it, so it is read as a
+test. `it.only.each(table)('name', fn)` is reported once, at the inner `it.only.each(table)`.
+
+## What it leaves alone
+
+- A call whose root is not a test-runner API: your own `only()`, or an `it` imported from a
+  module other than the test runners'.
+- A computed member that is not a string literal: `it[mode]('x', fn)` is not read, because the
+  rule cannot know what `mode` holds.
+- A filter on the command line. That is the fix the message names: `vitest -t "<name>"`,
+  `jest -t "<name>"` or `playwright test -g "<name>"` runs one test without editing the file.
+
+## The suggestion
+
+The rule offers one editor suggestion, **Remove the focus from this test.** It deletes `.only`
+from the chain, or turns `fit` into `it`, `ftest` into `test` and `fdescribe` into `describe`.
+It is a suggestion and not an autofix, so `eslint --fix` never applies it: removing a focus runs
+tests that did not run before, and that should be a choice someone makes.
+
+## Coming from no-focused-tests
+
+`@vitest/eslint-plugin`'s `no-focused-tests` covers the same ground under a different name. [Coming
+from @vitest/eslint-plugin](/docs/coming-from/vitest-eslint-plugin) maps it.

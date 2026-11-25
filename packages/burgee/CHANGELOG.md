@@ -1,5 +1,11 @@
 # burgee
 
+## 2.2.2
+
+### Patch Changes
+
+- [#1813](https://github.com/ofri-peretz/burgee/pull/1813) [`4821145`](https://github.com/ofri-peretz/burgee/commit/482114557947f01bc8df543daf317dada2664c21) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Help and a failure's `options:` rows print an option's or argument's default once: a description that already names it in a parenthesis (`(default: the current directory)`, `(default origin/main)`, `(defaults to …)`, `(the default)`) is no longer followed by `(default: <value>)`. A thrown value that falls through to `RUNTIME` keeps the `hint` and `fix` it carries, so `Object.assign(new Error(message), { fix })` prints that `fix:` and no usage block, exit 1 (D-20261124-help-default-once).
+
 ## 2.2.1
 
 ### Patch Changes

@@ -97,6 +97,7 @@ describe('fromCliBoxes', () => {
     } catch (error) {
       expect(error).toBeInstanceOf(PluginError);
       expect((error as PluginError).code).toBe('E_UNKNOWN_BORDER');
+      expect((error as PluginError).name).toBe('PluginError');
       expect((error as PluginError).fix).toContain('register a plugin that defines it');
     }
   });

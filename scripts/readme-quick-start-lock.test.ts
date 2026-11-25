@@ -47,7 +47,7 @@ import { promisify } from 'node:util';
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { declaredBy, discard, type Edge, type InstallStamp, installStamp, installTarballs, packFamily, publishedManifests, readManifest, undeclaredReaches } from './family-install.js';
+import { declaredBy, discard, type Edge, familySetupTimeoutMs, type InstallStamp, installStamp, installTarballs, packFamily, publishedManifests, readManifest, undeclaredReaches } from './family-install.js';
 import { scratchDirs } from './scratch-dir.js';
 
 /** Every scratch directory this file makes, removed after its last test (`scripts/scratch-dir.ts`). */
@@ -84,12 +84,8 @@ const READERS_OWN: Readonly<Record<string, Readonly<Record<string, string>>>> = 
   },
 };
 
-/**
- * One pack and one install, ~3 s idle. The margin is the independence and install-graph locks'
- * 240 s: at 120 s the setup timed out on CI's Windows runners twice on 2026-10-11 (Compatibility
- * runs 38108661838 and 38111836387) with every assertion it guards still passing.
- */
-const SETUP_TIMEOUT_MS = 240_000;
+/** One pack and one install, ~3 s idle; the budget grows with the family (`familySetupTimeoutMs`). */
+const SETUP_TIMEOUT_MS = familySetupTimeoutMs(publishedManifests(root).size);
 /** A quick start that has not exited by now is waiting for something a pipe will never send. */
 const RUN_TIMEOUT_MS = 20_000;
 

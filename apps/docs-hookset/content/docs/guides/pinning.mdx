@@ -1,0 +1,132 @@
+---
+title: Pinning by tag and upgrading
+description: "Why each repository pins the presets to a hookset@<version> git tag rather than a branch, what check says about a branch or an older tag, how `hookset init` moves the pin, and how a new preset version is released."
+---
+
+A repository's `lefthook.yml` pulls the presets through lefthook's `remotes`, and the `ref` of
+that remote is a git tag of the burgee repository: `hookset@<version>`, the version of the
+hookset package that wrote it.
+
+```yaml
+remotes:
+  - git_url: https://github.com/ofri-peretz/burgee
+    ref: hookset@1.0.0
+    configs:
+      - packages/hookset/presets/lefthook/commit-msg.yml
+      - packages/hookset/presets/lefthook/pre-commit.yml
+      - packages/hookset/presets/lefthook/pre-push.yml
+```
+
+## Why a tag
+
+- **A tag does not move.** A repository's hooks change only when that repository changes its
+  `ref`, in a pull request of its own that its own CI runs. A branch would change every
+  repository's hooks the moment burgee merged, with nobody looking.
+- **lefthook takes a tag or a branch, never a commit.** So a release is a tag.
+- **A shared file copied into each repository drifts.** The
+  [spec](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/intents/hookset/spec.md) rejected
+  a copy synced from elsewhere for that reason; `remotes` at a pinned tag is one file, read in
+  place.
+
+## What check says
+
+A branch is an error. The repository below pins `main`:
+
+```yaml title="branch/lefthook.yml"
+remotes:
+  - git_url: https://github.com/ofri-peretz/burgee
+    ref: main
+    configs:
+      - packages/hookset/presets/lefthook/commit-msg.yml
+      - packages/hookset/presets/lefthook/pre-commit.yml
+      - packages/hookset/presets/lefthook/pre-push.yml
+```
+
+```json title="branch/package.json"
+{
+  "private": true,
+  "scripts": {
+    "prepare": "lefthook install || true",
+    "hook:provedone": "provedone gate --mode enforce",
+    "hook:staged": "prettier --check",
+    "hook:verify": "npm test",
+    "hook:mutation": "npm run mutation:changed",
+    "hook:test-integrity": "truepass diff",
+    "hook:proofline": "node scripts/proofline.mjs",
+    "hook:triggerlist": "triggerlist protect origin/main"
+  }
+}
+```
+
+```text title="npx hookset check --cwd branch" exit="1"
+hookset: 1 error
+✗ the presets remote is pinned to main, not a hookset@<version> tag
+  fix: set `ref: hookset@1.0.0`
+```
+
+An older tag is a warning, not an error: the repository still runs a fixed set of hooks, just
+not the newest. Here a repository is pinned to `hookset@0.2.1`:
+
+```yaml title="lefthook.yml"
+remotes:
+  - git_url: https://github.com/ofri-peretz/burgee
+    ref: hookset@0.2.1
+    configs:
+      - packages/hookset/presets/lefthook/commit-msg.yml
+      - packages/hookset/presets/lefthook/pre-commit.yml
+      - packages/hookset/presets/lefthook/pre-push.yml
+```
+
+```text title="npx hookset check --cwd ."
+hookset: ok (hookset@0.2.1)
+! the presets are pinned to hookset@0.2.1; this hookset is hookset@1.0.0
+  fix: set `ref: hookset@1.0.0` (`hookset init` does it)
+! the mutation station is not declared yet (optional)
+  fix: add "hook:mutation" to package.json scripts when the repo has it: changed-lines mutation testing
+! the test-integrity station is not declared yet (observe)
+  fix: add "hook:test-integrity" to package.json scripts when the repo has it: no .only, .skip or weakened assertion in the diff
+! the proofline station is not declared yet (observe)
+  fix: add "hook:proofline" to package.json scripts when the repo has it: the change carries its Checked line
+! the triggerlist station is not declared yet (observe)
+  fix: add "hook:triggerlist" to package.json scripts when the repo has it: protected paths changed only with their trigger
+```
+
+## Upgrading
+
+Update the package, then let `init` move the pin:
+
+```bash
+npm install -D hookset@latest
+```
+
+```text title="npx hookset init"
+wrote lefthook.yml
+```
+
+```text title="npx hookset check"
+hookset: ok (hookset@1.0.0)
+! the mutation station is not declared yet (optional)
+  fix: add "hook:mutation" to package.json scripts when the repo has it: changed-lines mutation testing
+! the test-integrity station is not declared yet (observe)
+  fix: add "hook:test-integrity" to package.json scripts when the repo has it: no .only, .skip or weakened assertion in the diff
+! the proofline station is not declared yet (observe)
+  fix: add "hook:proofline" to package.json scripts when the repo has it: the change carries its Checked line
+! the triggerlist station is not declared yet (observe)
+  fix: add "hook:triggerlist" to package.json scripts when the repo has it: protected paths changed only with their trigger
+```
+
+`init` rewrites only the `ref:` line and leaves the rest of the file as it was. It moves the
+first `ref:` inside `remotes:`, so keep the hookset remote first in that block when a
+repository pulls from more than one.
+
+A new preset version can add an enforced station, as `hookset@1.0.0` added the
+`provedone` station on `commit-msg`. Run `hookset check` after the bump: it names the
+script to declare before the hook can pass. Read the [changelog](/docs/changelog) for what each
+version changed.
+
+## Releasing a preset version
+
+For maintainers of the burgee repository: bump `version` in `packages/hookset/package.json`
+through a changeset, merge, then tag the merge commit `hookset@<version>`. Every repository
+moves by changing its `ref`, which `hookset init` does, and `hookset check` warns on every
+repository still pinned behind.

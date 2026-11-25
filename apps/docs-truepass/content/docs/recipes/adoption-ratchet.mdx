@@ -1,0 +1,71 @@
+---
+title: The adoption ratchet
+description: "Adopt truepass over a suite with a backlog: the adoption preset reports every rule as a warning, --max-warnings pins today's count so it can only go down, and the switch to recommended comes when the count reaches zero."
+---
+
+A suite that has been green for years usually has a backlog of exactly what truepass reports. The
+`adoption` preset lets the rules run without failing anything, and ESLint's `--max-warnings` turns
+the count into a ratchet: it can go down, never up. This is the rollout truepass's spec plans for
+each repository: `adoption` until the warnings reach zero, then `recommended`.
+
+## Start at warn
+
+```js title="eslint.config.mjs"
+import { configs } from 'truepass/eslint';
+
+export default [{ files: ['**/*.test.js'], ...configs.adoption }];
+```
+
+A suite with three findings today:
+
+```js title="backlog.test.js"
+import { describe, it } from 'vitest';
+
+describe('reports', () => {
+  it.skip('exports to PDF', () => {});
+  it.todo('exports to CSV');
+
+  it('renders', async () => {
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  });
+});
+```
+
+## Pin the count
+
+Set `--max-warnings` to the number you have today. The run passes at that count:
+
+```text title="npx eslint --max-warnings 3 backlog.test.js"
+
+/your/project/backlog.test.js
+  4:3   warning  Unexplained skipped test: A test is skipped with no reason on record, so the suite reports green without running it and nobody is told to come back. fix: make the test pass and remove the skip. If it must stay skipped, add a comment on this line or the line above with the issue URL, the decision id (D-…), or the YYYY-MM-DD date it is skipped until                                                                       truepass/no-unexplained-skip
+  5:3   warning  Unexplained skipped test: A test is skipped with no reason on record, so the suite reports green without running it and nobody is told to come back. fix: make the test pass and remove the skip. If it must stay skipped, add a comment on this line or the line above with the issue URL, the decision id (D-…), or the YYYY-MM-DD date it is skipped until                                                                       truepass/no-unexplained-skip
+  8:11  warning  Fixed sleep in a test: The test waits a fixed setTimeout instead of for the thing it needs, so it is slow where the guess is long and flaky where it is short. fix: await the event or condition itself: the promise the code returns, an emitted event (events.once), a polling assertion (vi.waitFor, expect.poll, Playwright expect(locator).toBeVisible()), or fake timers (vi.advanceTimersByTimeAsync) for timer-driven code  truepass/no-fixed-sleep
+
+✖ 3 problems (0 errors, 3 warnings)
+
+```
+
+A new warning puts it over the count and fails the run, so nothing new gets in. As findings are
+fixed, lower the number in the lint script; a lower count is a one-line change in a pull request,
+and a higher one is visible in review.
+
+```json
+{
+  "scripts": {
+    "lint:tests": "eslint . --max-warnings 3"
+  }
+}
+```
+
+## Switch to recommended
+
+When the count reaches zero, change `configs.adoption` to `configs.recommended` and drop the
+`--max-warnings`. From then on every finding is an error.
+
+## Or pin per file
+
+`--max-warnings` is one number for the whole repository, so fixing a finding in one file makes room
+for a new one in another. [The suppressions file](/docs/guides/suppressions) pins the count per
+file and per rule instead, with the rules at `error` from the first day. burgee itself uses the
+suppressions file.

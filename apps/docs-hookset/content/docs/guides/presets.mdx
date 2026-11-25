@@ -1,0 +1,107 @@
+---
+title: Presets
+description: "The three lefthook presets hookset ships, one per git hook, and every station in them: the command each step runs, the repository script it calls, whether it is enforced, optional or observed, and why each one sits on the hook it does."
+---
+
+A preset is a lefthook config file under
+[`packages/hookset/presets/lefthook/`](https://github.com/ofri-peretz/burgee/tree/main/packages/hookset/presets/lefthook)
+in the burgee repository. A repository never copies one: its `lefthook.yml` pulls all three
+through lefthook's `remotes` at a pinned tag, so every repository runs the same file.
+
+Each step is a **station**: a named check with a fixed place in the flow. The list is data, in
+[`stations.json`](https://github.com/ofri-peretz/burgee/blob/main/packages/hookset/stations.json),
+and `hookset check` reads the same file the presets were written from.
+
+## The stations
+
+| Station | Hook | Step | Runs | Mode |
+| :-- | :-- | :-- | :-- | :-- |
+| commitlint | `commit-msg` | `hookset-commitlint` | `npx --no -- commitlint --edit {1}` | enforce |
+| provedone | `commit-msg` | `hookset-provedone` | `npm run --silent hook:provedone -- {1}` | enforce |
+| staged | `pre-commit` | `hookset-staged` | `npm run --silent hook:staged -- {staged_files}` | enforce |
+| verify | `pre-push` | `hookset-verify` | `npm run --silent hook:verify` | enforce |
+| mutation | `pre-push` | `hookset-mutation` | `npm run --silent --if-present hook:mutation` | optional |
+| test-integrity | `pre-push` | `hookset-test-integrity` | `npm run --silent --if-present hook:test-integrity` | observe |
+| proofline | `pre-push` | `hookset-proofline` | `npm run --silent --if-present hook:proofline` | observe |
+| triggerlist | `pre-push` | `hookset-triggerlist` | `npm run --silent --if-present hook:triggerlist` | observe |
+
+Every step's command starts with `PATH="$PATH:/opt/homebrew/bin:/usr/local/bin"`, left out of
+the table. It is for GUI git clients, which start hooks without the shell's `PATH`.
+
+## The modes
+
+- **enforce.** The step runs the script without `--if-present`, so a repository that has not
+  declared it fails the hook, and `hookset check` reports it as an error (`missing-script`).
+- **optional** and **observe.** The step runs with `--if-present`, so a repository that has not
+  declared the script passes. `hookset check` lists it as a warning (`station-off`). A station
+  ships in observe until it passes on a clean `main` everywhere; that is the constraint the
+  [intent](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/intents/hookset/intent.md)
+  sets: a preset never adds a step that cannot pass on a clean `main`.
+
+## commit-msg
+
+```yaml
+commit-msg:
+  commands:
+    hookset-commitlint:
+      run: PATH="$PATH:/opt/homebrew/bin:/usr/local/bin" npx --no -- commitlint --edit {1}
+    hookset-provedone:
+      run: PATH="$PATH:/opt/homebrew/bin:/usr/local/bin" npm run --silent hook:provedone -- {1}
+```
+
+- **commitlint** is the one station that calls a tool rather than a script: the repository's
+  own commitlint config decides the rules. `npx --no` never downloads it, so commitlint must be
+  a dev dependency. When the message fails, commitlint's own ✖ lines name the rule it
+  broke (type, scope, line length), and the hook points at them rather than guessing one.
+- **provedone** hands `hook:provedone` the message file. The usual script is
+  `provedone gate --mode enforce`, with [provedone](https://provedone.interlace.tools/docs)
+  as a dev dependency: a commit with no `Verified-by:` receipt fails. This station shipped in
+  `hookset@1.0.0`; a repository pinned to an earlier version does not run it
+  ([Pinning](/docs/guides/pinning)).
+
+## pre-commit
+
+```yaml
+pre-commit:
+  commands:
+    hookset-staged:
+      run: PATH="$PATH:/opt/homebrew/bin:/usr/local/bin" npm run --silent hook:staged -- {staged_files}
+```
+
+One station, on staged files only. lefthook replaces `{staged_files}` with the staged paths, so
+`hook:staged` receives them as arguments: `prettier --check`, `eslint`, or a script that does
+both. The budget is under 10 seconds; anything slower belongs on `pre-push`.
+
+## pre-push
+
+```yaml
+pre-push:
+  commands:
+    hookset-verify:
+      priority: 1
+      run: PATH="$PATH:/opt/homebrew/bin:/usr/local/bin" npm run --silent hook:verify
+    hookset-mutation:
+      priority: 2
+      run: PATH="$PATH:/opt/homebrew/bin:/usr/local/bin" npm run --silent --if-present hook:mutation
+    # test-integrity, proofline and triggerlist follow at priorities 3, 4 and 5
+```
+
+- **verify** is the one enforced pre-push station: the typecheck, the affected tests and the
+  build. The repository decides how (`turbo run … --affected`, `tsc && vitest run`, anything).
+- **mutation** runs changed-lines mutation testing when the repository declares it, for
+  example with [oxmutate](https://oxmutate.interlace.tools/docs).
+- **test-integrity** looks for a `.only`, a `.skip` or a weakened assertion in the diff, for
+  example with [truepass](https://truepass.interlace.tools/docs).
+- **proofline** checks that the change carries its Checked line.
+- **triggerlist** checks that protected paths changed only with their trigger, for example with
+  [triggerlist](https://triggerlist.interlace.tools/docs).
+
+`priority` sets the order lefthook runs them in: `verify` first, because a push that does not
+build has no use for the rest.
+
+## The failure text
+
+Each enforced step carries a `fail_text` that names the fix. The `verify` one ends with _never
+push with --no-verify_, and the [Claude Code hook pack](/docs/guides/claude-code-hooks) denies
+that flag, so neither a person reading the message nor an agent can take the shortcut by
+accident.

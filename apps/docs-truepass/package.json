@@ -1,0 +1,33 @@
+{
+  "name": "docs-truepass",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build --webpack",
+    "start": "next start",
+    "typecheck": "fumadocs-mdx && next typegen && tsc --noEmit",
+    "postinstall": "fumadocs-mdx",
+    "lint": "cd ../.. && eslint apps/docs-truepass/src --max-warnings 0",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@tailwindcss/postcss": "^4.3.5",
+    "docs-chassis": "*",
+    "fumadocs-mdx": "^15.4.10",
+    "next": "^16.4.5",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "tailwindcss": "^4.3.3"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "truepass": "*",
+    "vitest": "^5.0.1"
+  },
+  "imports": {
+    "#/*": "./src/*"
+  }
+}

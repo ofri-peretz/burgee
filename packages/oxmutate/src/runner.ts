@@ -40,7 +40,7 @@ import { BEAT_ENV, markTest, realNow, startHeartbeat } from './heartbeat.js';
 import { markText, markWriter, type MarkWriter } from './progress-file.js';
 import { isDeadlock, takeFloor, trackRpc, trackTimers, watch } from './quiescence.js';
 import { resolveEsm } from './resolve.js';
-import { ACTIVE_MUTANT_ENV, FILE_KEY, NAMESPACE, cwd, env, type Namespace } from './runtime.js';
+import { ACTIVE_MUTANT_ENV, FILE_KEY, NAMESPACE, TRACK_READS_ENV, cwd, env, type Namespace } from './runtime.js';
 
 type AnyTask = {
   id: string;
@@ -119,6 +119,14 @@ const progressPath = env['OXMUTATE_PROGRESS'];
 startHeartbeat(env[BEAT_ENV]); // the watchdog tells a wait from a loop by it (heartbeat.ts)
 const ns = ((globalThis as Record<string, unknown>)[NAMESPACE] ??= {}) as Namespace;
 ns.mutantCoverage ??= { static: {}, perTest: {} };
+// The armed mutant (`isolated`) and whether reads are tracked (`static.readers`) are set here, from
+// the environment this worker started with. The runtime header would read both from `process.env`
+// the first time instrumented code runs, and a test that imports the module under a stand-in
+// `process` (one emulating another platform) hides them there: its reads went untracked, so the
+// file was never run as a reader, and its static mutants ran unarmed (bellpull's node-which.ts,
+// four survivors no test could kill).
+if (mode === 'isolated' && env[ACTIVE_MUTANT_ENV]) ns.activeMutant ??= env[ACTIVE_MUTANT_ENV];
+ns.trackReads ??= env[TRACK_READS_ENV] === '1';
 
 interface Plan {
   /** test id → mutant ids to run, cheapest first. */

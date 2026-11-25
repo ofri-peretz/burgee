@@ -45,12 +45,13 @@ export interface RangeOptions {
 const range = (base: string): string => `${base}...HEAD`;
 
 /**
- * The checklist `match` reads, or none when the base ref has no checklist file yet, as `brief` and
- * `protect` treat it: the pull request that adds a repo's first checklist has nothing to match. Only
- * a missing file is let through; a checklist that is there and does not parse still fails, and so
- * does a ref the checkout lacks, at the diff.
+ * The checklist `match`, `protect` and `brief` read, or none when the base ref has no checklist file
+ * yet: the pull request that adds a repo's first checklist has nothing to match and no gate to
+ * protect. Only a missing file is let through; a checklist that is there and does not parse still
+ * fails, so a broken base checklist cannot turn `protect --enforce` into a pass. A ref the checkout
+ * lacks fails at the diff.
  */
-const matchedBy = async (options: RangeOptions): Promise<{ source: string; checklist: Checklist | undefined }> => {
+const baseChecklist = async (options: RangeOptions): Promise<{ source: string; checklist: Checklist | undefined }> => {
   if (options.worktree) return await loadChecklist(options.repo, options.git, options.checklist, undefined);
   const source = `${options.base}:${options.checklist}`;
   const text = await options.git.show(options.base, options.checklist).catch(() => undefined);
@@ -58,7 +59,7 @@ const matchedBy = async (options: RangeOptions): Promise<{ source: string; check
 };
 
 export const runMatch = async (options: RangeOptions): Promise<Data> => {
-  const { source, checklist } = await matchedBy(options);
+  const { source, checklist } = await baseChecklist(options);
   const changed = parseDiff(await options.git.diff(range(options.base)));
   const fired = checklist === undefined ? [] : match(checklist, changed);
   const data: Data = {
@@ -71,22 +72,8 @@ export const runMatch = async (options: RangeOptions): Promise<Data> => {
   return data;
 };
 
-/**
- * The checklist for `protect`, or none when the base branch has no checklist yet: the pull request
- * that adds a repo's first checklist must not fail its own pre-push, since nothing on the base
- * names a gate to protect.
- */
-const protectedBy = async (options: RangeOptions): Promise<{ source: string; checklist: Checklist | undefined }> => {
-  try {
-    return await loadChecklist(options.repo, options.git, options.checklist, options.worktree ? undefined : options.base);
-  } catch (error) {
-    if (options.worktree) throw error;
-    return { source: `${options.base}:${options.checklist}`, checklist: undefined };
-  }
-};
-
 export const runProtect = async (options: RangeOptions & { readonly enforce: boolean }): Promise<Data> => {
-  const { source, checklist } = await protectedBy(options);
+  const { source, checklist } = await baseChecklist(options);
   if (checklist === undefined) {
     const data: Data = { range: range(options.base), checklist: source, mode: options.enforce ? 'enforce' : 'observe', gates: [], code: [], flagged: false, bootstrap: true };
     data[TEXT] = () => `${source} does not exist yet: no gate to protect, so nothing is checked`;
@@ -124,10 +111,7 @@ export const runBrief = async (options: BriefOptions): Promise<Data> => {
   // The pull request that adds a repo's first REVIEW.md or checklist has neither on its base: brief
   // it with no rules and no items rather than failing the review.
   const rulesText = await options.git.show(options.base, options.review).catch(() => `(${options.base}:${options.review} does not exist yet: review against the repo's own instructions)`);
-  const { source, checklist } = await loadChecklist(options.repo, options.git, options.checklist, options.worktree ? undefined : options.base).catch((error: unknown) => {
-    if (options.worktree) throw error;
-    return { source: `${options.base}:${options.checklist}`, checklist: undefined };
-  });
+  const { source, checklist } = await baseChecklist(options);
   const fired = checklist === undefined ? [] : match(checklist, parseDiff(await options.git.diff(range(options.base))));
   const comments = options.comments === undefined ? [] : (JSON.parse(readFileSync(resolve(options.repo, options.comments), 'utf8')) as Comment[]);
   const round = previousRound(comments);

@@ -120,6 +120,14 @@ describe('the search, Windows’ way', () => {
     expect(await on(env({ PATHEXT: '.EXE;;.CMD' }), () => which.sync('tool'))).toBe(`${B}\\tool.EXE`);
   });
 
+  it('tries .EXE, .CMD, .BAT and .COM when PATHEXT is unset', async () => {
+    const unset = env({ PATHEXT: undefined });
+    expect(await on(unset, () => which.sync('git'))).toBe(`${A}\\git.EXE`);
+    expect(await on(unset, () => which.sync('npm'))).toBe(`${B}\\npm.CMD`);
+    expect(await on(unset, () => which.sync('local'))).toBe(`${CWD}\\local.BAT`);
+    expect(await on(unset, () => which.sync('fmt'))).toBe(`${A}\\fmt.COM`);
+  });
+
   it('judges a file by PATHEXT, so a name with a dot is not executable for having one', async () => {
     expect(await on(env({ PATHEXT: '.EXE' }), () => which.sync('readme.txt', { nothrow: true }))).toBeNull();
   });

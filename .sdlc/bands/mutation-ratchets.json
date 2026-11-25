@@ -3,7 +3,7 @@
   "ratchets": {
     "bellpull": {
       "status": "measured",
-      "floor": 90.5,
+      "floor": 100,
       "history": [
         {
           "floor": 90.1,
@@ -14,6 +14,16 @@
           "floor": 90.5,
           "setOn": "2026-11-05",
           "why": "Weekly run at c7582ed8df measured 90.58%, above the 90.1% floor; the floor follows it up."
+        },
+        {
+          "floor": 99.6,
+          "setOn": "2026-11-25",
+          "why": "Weekly run at 792b2896e5 measured 99.65%, above the 90.5% floor; the floor follows it up."
+        },
+        {
+          "floor": 100,
+          "setOn": "2026-11-25",
+          "why": "Weekly run at fba06fac4a measured 100%, above the 99.6% floor; the floor follows it up."
         }
       ],
       "observations": [
@@ -36,6 +46,26 @@
           "survived": 111,
           "noCoverage": 1,
           "minutes": 27.12
+        },
+        {
+          "date": "2026-11-25",
+          "commit": "792b2896e5",
+          "score": 99.65,
+          "killed": 1125,
+          "timeout": 17,
+          "survived": 4,
+          "noCoverage": 0,
+          "minutes": 5.3
+        },
+        {
+          "date": "2026-11-25",
+          "commit": "fba06fac4a",
+          "score": 100,
+          "killed": 1129,
+          "timeout": 17,
+          "survived": 0,
+          "noCoverage": 0,
+          "minutes": 11.56
         }
       ]
     },
@@ -74,7 +104,7 @@
     },
     "caique": {
       "status": "measured",
-      "floor": 87.3,
+      "floor": 100,
       "history": [
         {
           "floor": 87.8,
@@ -91,6 +121,16 @@
           "setOn": "2026-11-01",
           "why": "oxmutate 1.1.0 added NumericLiteral; the 2026-10-31 run at bd98f43aae measured 87.38% with it, below the 88.1% floor set without it. Restated to that run, rounded down to one decimal.",
           "decision": "D-20261101-mutation-floors-numericliteral-restate"
+        },
+        {
+          "floor": 99.9,
+          "setOn": "2026-11-25",
+          "why": "Weekly run at b841d68597 measured 99.99%, above the 87.3% floor; the floor follows it up."
+        },
+        {
+          "floor": 100,
+          "setOn": "2026-11-25",
+          "why": "Weekly run at b729fc7ac9 measured 100%, above the 99.9% floor; the floor follows it up."
         }
       ],
       "observations": [
@@ -133,12 +173,32 @@
           "survived": 864,
           "noCoverage": 3,
           "minutes": 100.87
+        },
+        {
+          "date": "2026-11-25",
+          "commit": "b841d68597",
+          "score": 99.99,
+          "killed": 6262,
+          "timeout": 579,
+          "survived": 1,
+          "noCoverage": 0,
+          "minutes": 26.95
+        },
+        {
+          "date": "2026-11-25",
+          "commit": "b729fc7ac9",
+          "score": 100,
+          "killed": 6273,
+          "timeout": 569,
+          "survived": 0,
+          "noCoverage": 0,
+          "minutes": 31.25
         }
       ]
     },
     "closeout": {
       "status": "measured",
-      "floor": 89.9,
+      "floor": 100,
       "history": [
         {
           "floor": 90.3,
@@ -150,6 +210,11 @@
           "setOn": "2026-11-01",
           "why": "oxmutate 1.1.0 added NumericLiteral; the 2026-10-31 run at bd98f43aae measured 89.9% with it, below the 90.3% floor set without it. Restated to that run, rounded down to one decimal.",
           "decision": "D-20261101-mutation-floors-numericliteral-restate"
+        },
+        {
+          "floor": 100,
+          "setOn": "2026-11-24",
+          "why": "Full run at 4821145579 (oxmutate 2.18.5): 100% (827 detected of 827; 16 mutants ignored, each by a reasoned Stryker disable), above the 89.9% floor; no survivor left to kill. Rounded down to one decimal."
         }
       ],
       "observations": [
@@ -182,6 +247,16 @@
           "survived": 84,
           "noCoverage": 0,
           "minutes": 3.35
+        },
+        {
+          "date": "2026-11-24",
+          "commit": "4821145579",
+          "score": 100,
+          "killed": 825,
+          "timeout": 2,
+          "survived": 0,
+          "noCoverage": 0,
+          "minutes": 2.3
         }
       ]
     },
@@ -290,7 +365,7 @@
     },
     "controlroom": {
       "status": "measured",
-      "floor": 91.3,
+      "floor": 100,
       "history": [
         {
           "floor": 92.4,
@@ -302,6 +377,11 @@
           "setOn": "2026-11-01",
           "why": "oxmutate 1.1.0 added NumericLiteral; the 2026-10-31 run at bd98f43aae measured 91.34% with it, below the 92.4% floor set without it. Restated to that run, rounded down to one decimal.",
           "decision": "D-20261101-mutation-floors-numericliteral-restate"
+        },
+        {
+          "floor": 100,
+          "setOn": "2026-11-24",
+          "why": "Full run at d5b6c855a3 (oxmutate 2.18.5): 100% (1042 detected of 1042; 35 mutants ignored, each by a reasoned Stryker disable), above the 91.3% floor; no survivor left to kill. Rounded down to one decimal."
         }
       ],
       "observations": [
@@ -344,12 +424,22 @@
           "survived": 93,
           "noCoverage": 0,
           "minutes": 1.24
+        },
+        {
+          "date": "2026-11-24",
+          "commit": "d5b6c855a3",
+          "score": 100,
+          "killed": 1036,
+          "timeout": 6,
+          "survived": 0,
+          "noCoverage": 0,
+          "minutes": 1.35
         }
       ]
     },
     "flagstaff": {
       "status": "measured",
-      "floor": 86.1,
+      "floor": 100,
       "history": [
         {
           "floor": 87.7,
@@ -361,6 +451,16 @@
           "setOn": "2026-11-01",
           "why": "oxmutate 1.1.0 added NumericLiteral; the 2026-10-31 run at bd98f43aae measured 86.17% with it, below the 87.7% floor set without it. Restated to that run, rounded down to one decimal.",
           "decision": "D-20261101-mutation-floors-numericliteral-restate"
+        },
+        {
+          "floor": 99.9,
+          "setOn": "2026-11-25",
+          "why": "Weekly run at 792b2896e5 measured 99.94%, above the 86.1% floor; the floor follows it up."
+        },
+        {
+          "floor": 100,
+          "setOn": "2026-11-25",
+          "why": "Weekly run at b729fc7ac9 measured 100%, above the 99.9% floor; the floor follows it up."
         }
       ],
       "observations": [
@@ -393,6 +493,26 @@
           "survived": 236,
           "noCoverage": 0,
           "minutes": 5.65
+        },
+        {
+          "date": "2026-11-25",
+          "commit": "792b2896e5",
+          "score": 99.94,
+          "killed": 1616,
+          "timeout": 10,
+          "survived": 1,
+          "noCoverage": 0,
+          "minutes": 2.24
+        },
+        {
+          "date": "2026-11-25",
+          "commit": "b729fc7ac9",
+          "score": 100,
+          "killed": 1617,
+          "timeout": 10,
+          "survived": 0,
+          "noCoverage": 0,
+          "minutes": 2.75
         }
       ]
     },
@@ -421,7 +541,7 @@
     },
     "linegauge": {
       "status": "measured",
-      "floor": 89.6,
+      "floor": 100,
       "history": [
         {
           "floor": 88.4,
@@ -432,6 +552,11 @@
           "floor": 89.6,
           "setOn": "2026-11-05",
           "why": "Weekly run at c1e0ba5f54 measured 89.67%, above the 88.4% floor; the floor follows it up."
+        },
+        {
+          "floor": 100,
+          "setOn": "2026-11-25",
+          "why": "Weekly run at baee70a418 measured 100%, above the 89.6% floor; the floor follows it up."
         }
       ],
       "observations": [
@@ -464,6 +589,16 @@
           "survived": 305,
           "noCoverage": 0,
           "minutes": 66.32
+        },
+        {
+          "date": "2026-11-25",
+          "commit": "baee70a418",
+          "score": 100,
+          "killed": 2755,
+          "timeout": 84,
+          "survived": 0,
+          "noCoverage": 0,
+          "minutes": 53.81
         }
       ]
     },
@@ -545,7 +680,7 @@
     },
     "paratext": {
       "status": "measured",
-      "floor": 84.4,
+      "floor": 100,
       "history": [
         {
           "floor": 85.2,
@@ -557,6 +692,11 @@
           "setOn": "2026-11-01",
           "why": "oxmutate 1.1.0 added NumericLiteral; the 2026-10-31 run at bd98f43aae measured 84.41% with it, below the 85.2% floor set without it. Restated to that run, rounded down to one decimal.",
           "decision": "D-20261101-mutation-floors-numericliteral-restate"
+        },
+        {
+          "floor": 100,
+          "setOn": "2026-11-25",
+          "why": "Weekly run at 792b2896e5 measured 100%, above the 84.4% floor; the floor follows it up."
         }
       ],
       "observations": [
@@ -599,6 +739,16 @@
           "survived": 218,
           "noCoverage": 7,
           "minutes": 0.76
+        },
+        {
+          "date": "2026-11-25",
+          "commit": "792b2896e5",
+          "score": 100,
+          "killed": 1331,
+          "timeout": 3,
+          "survived": 0,
+          "noCoverage": 0,
+          "minutes": 0.67
         }
       ]
     },
@@ -650,7 +800,7 @@
     },
     "roundel": {
       "status": "measured",
-      "floor": 93.1,
+      "floor": 100,
       "history": [
         {
           "floor": 79.4,
@@ -671,6 +821,11 @@
           "floor": 93.1,
           "setOn": "2026-10-31",
           "why": "Weekly run at bd98f43aae measured 93.11%, above the 91.8% floor; the floor follows it up."
+        },
+        {
+          "floor": 100,
+          "setOn": "2026-11-25",
+          "why": "Weekly run at 792b2896e5 measured 100%, above the 93.1% floor; the floor follows it up."
         }
       ],
       "observations": [
@@ -723,12 +878,22 @@
           "survived": 153,
           "noCoverage": 1,
           "minutes": 13.61
+        },
+        {
+          "date": "2026-11-25",
+          "commit": "792b2896e5",
+          "score": 100,
+          "killed": 2190,
+          "timeout": 11,
+          "survived": 0,
+          "noCoverage": 0,
+          "minutes": 7.89
         }
       ]
     },
     "seniority": {
       "status": "measured",
-      "floor": 90.8,
+      "floor": 100,
       "history": [
         {
           "floor": 91,
@@ -745,6 +910,16 @@
           "floor": 90.8,
           "setOn": "2026-11-05",
           "why": "Weekly run at c1e0ba5f54 measured 90.84%, above the 90.7% floor; the floor follows it up."
+        },
+        {
+          "floor": 99.9,
+          "setOn": "2026-11-25",
+          "why": "Weekly run at baee70a418 measured 99.94%, above the 90.8% floor; the floor follows it up."
+        },
+        {
+          "floor": 100,
+          "setOn": "2026-11-25",
+          "why": "Weekly run at b729fc7ac9 measured 100%, above the 99.9% floor; the floor follows it up."
         }
       ],
       "observations": [
@@ -777,6 +952,26 @@
           "survived": 475,
           "noCoverage": 0,
           "minutes": 18.96
+        },
+        {
+          "date": "2026-11-25",
+          "commit": "baee70a418",
+          "score": 99.94,
+          "killed": 4702,
+          "timeout": 117,
+          "survived": 3,
+          "noCoverage": 0,
+          "minutes": 10.43
+        },
+        {
+          "date": "2026-11-25",
+          "commit": "b729fc7ac9",
+          "score": 100,
+          "killed": 4705,
+          "timeout": 117,
+          "survived": 0,
+          "noCoverage": 0,
+          "minutes": 10.99
         }
       ]
     },

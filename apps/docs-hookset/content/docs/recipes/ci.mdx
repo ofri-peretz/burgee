@@ -1,0 +1,51 @@
+---
+title: Check the hooks in CI
+description: "Run `hookset check` on every pull request, either through burgee's reusable hookset-check workflow, which needs no install or build, or as one step of a job that already ran `npm ci`."
+---
+
+A hook only runs on a machine where someone installed it. CI is where a repository proves its
+hooks are still wired: the station scripts are declared, the presets are pinned, and the Claude
+pack has not drifted.
+
+## The reusable workflow
+
+```yaml
+jobs:
+  hookset:
+    uses: ofri-peretz/burgee/.github/workflows/hookset-check.yml@main
+```
+
+What [`hookset-check.yml`](https://github.com/ofri-peretz/burgee/blob/main/.github/workflows/hookset-check.yml)
+does:
+
+1. Reads the `hookset@<version>` tag the caller's `lefthook.yml` pins. No tag fails the job
+   with the fix: run `hookset init`.
+2. Checks out `packages/hookset` from the burgee repository **at that tag**, sparse, beside the
+   caller.
+3. Runs `src/core.ts` under Node 24's type stripping: no `npm ci`, no build.
+4. Prints the same text `hookset check` prints, plus a GitHub annotation per problem, and fails
+   on any error.
+
+Because it checks against the tag the repository pins, a repository is judged by the presets it
+chose, not by whatever burgee's `main` holds today. It needs `contents: read` and nothing else.
+
+The workflow is called at `@main`, which moves. A repository that wants the workflow itself
+pinned can call it at a commit SHA instead.
+
+## As a step
+
+A repository that already installs its dependencies in a job can run the installed bin:
+
+```yaml
+- run: npm ci
+- run: npx hookset check
+```
+
+This checks against the hookset version in the lockfile, so it also warns when the `ref` is
+behind that version.
+
+## Reading it from a script
+
+`npx hookset check --json` prints one envelope: `data.problems` is the list, each with `id`,
+`severity`, `message` and `fix` ([The two commands](/docs/guides/commands)). A bot that comments
+on pull requests can post the `fix` lines as they are.

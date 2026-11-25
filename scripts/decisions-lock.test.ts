@@ -79,12 +79,14 @@ const to = (dir: string, id: string): string => `.sdlc/${dir}/${id}.md`;
  * Tracked files that name an entry path, as `[path, text]` — `git grep` picks them, so the check
  * reads a few dozen files rather than every file in the tree (the first version read all of them
  * and timed out at 30 s on a loaded pre-push). None of the caller's GIT_* variables leak in.
+ * A package's own site (apps/docs-<name>) shows the reader's ledger, so a decision path there
+ * names a file in the reader's repository, not one of this repo's.
  */
 function citingFiles(): [string, string][] {
   const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('GIT_')));
   let listed = '';
   try {
-    listed = execFileSync('git', ['grep', '-l', '-z', '-E', String.raw`(decisions|gaps)/[A-Z][A-Za-z0-9-]*\.md`, '--', '.', ':!package-lock.json', ':!.sdlc/research/issues', ':!**/vendor/**'], {
+    listed = execFileSync('git', ['grep', '-l', '-z', '-E', String.raw`(decisions|gaps)/[A-Z][A-Za-z0-9-]*\.md`, '--', '.', ':!package-lock.json', ':!.sdlc/research/issues', ':!**/vendor/**', ':!apps/docs-*/content/**'], {
       cwd: REPO_ROOT,
       env,
       encoding: 'utf8',
