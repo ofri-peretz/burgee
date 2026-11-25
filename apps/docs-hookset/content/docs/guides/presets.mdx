@@ -51,8 +51,8 @@ commit-msg:
 
 - **commitlint** is the one station that calls a tool rather than a script: the repository's
   own commitlint config decides the rules. `npx --no` never downloads it, so commitlint must be
-  a dev dependency. When the message fails, the hook prints: _The message must be
-  `<type>(<scope>): <subject>`, with a scope from commitlint.config._
+  a dev dependency. When the message fails, commitlint's own ✖ lines name the rule it
+  broke (type, scope, line length), and the hook points at them rather than guessing one.
 - **provedone** hands `hook:provedone` the message file. The usual script is
   `provedone gate --mode enforce`, with [provedone](https://provedone.interlace.tools/docs)
   as a dev dependency: a commit with no `Verified-by:` receipt fails. This station shipped in
