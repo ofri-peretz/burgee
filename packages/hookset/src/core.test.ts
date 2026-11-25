@@ -106,6 +106,7 @@ describe('the package', () => {
       { event: 'PostToolUseFailure', matcher: 'Bash', file: 'verify-before-stop.mjs' },
       { event: 'Stop', matcher: '', file: 'verify-before-stop.mjs' },
       { event: 'SessionStart', matcher: '', file: 'codegraph.mjs' },
+      { event: 'SessionStart', matcher: '', file: 'worktree-sweep.mjs' },
     ]);
   });
 });
@@ -339,6 +340,7 @@ describe('checkRepo', () => {
         { id: 'claude-missing', severity: 'error', message: '.claude/hooks/stop-after-3.mjs is missing', fix: 'run `hookset init --claude`' },
         { id: 'claude-missing', severity: 'error', message: '.claude/hooks/verify-before-stop.mjs is missing', fix: 'run `hookset init --claude`' },
         { id: 'claude-missing', severity: 'error', message: '.claude/hooks/codegraph.mjs is missing', fix: 'run `hookset init --claude`' },
+        { id: 'claude-missing', severity: 'error', message: '.claude/hooks/worktree-sweep.mjs is missing', fix: 'run `hookset init --claude`' },
         unwired('guard-bash.mjs', 'PreToolUse', 'Bash'),
         unwired('guard-bash.mjs', 'PreToolUse', 'Edit|Write|MultiEdit|NotebookEdit'),
         unwired('stop-after-3.mjs', 'PostToolUse', 'Bash'),
@@ -347,6 +349,7 @@ describe('checkRepo', () => {
         unwired('verify-before-stop.mjs', 'PostToolUseFailure', 'Bash'),
         unwired('verify-before-stop.mjs', 'Stop', ''),
         unwired('codegraph.mjs', 'SessionStart', ''),
+        unwired('worktree-sweep.mjs', 'SessionStart', ''),
         {
           id: 'verify-skill-missing',
           severity: 'error',
@@ -391,10 +394,11 @@ describe('checkRepo', () => {
       '.claude/settings.json does not run verify-before-stop.mjs on PostToolUseFailure (Bash)',
       '.claude/settings.json does not run verify-before-stop.mjs on Stop ()',
       '.claude/settings.json does not run codegraph.mjs on SessionStart ()',
+      '.claude/settings.json does not run worktree-sweep.mjs on SessionStart ()',
       '.claude/settings.json does not enable the codegraph server, so every session asks first',
     ]);
     writeFileSync(join(dir, '.claude/settings.json'), '{}');
-    expect(checkRepo(dir, PKG).problems).toHaveLength(9);
+    expect(checkRepo(dir, PKG).problems).toHaveLength(10);
   });
 
   it('wants the codegraph server pinned in .mcp.json, its index gitignored, and the server enabled', () => {
@@ -494,6 +498,7 @@ describe('initRepo', () => {
         '.claude/hooks/stop-after-3.mjs',
         '.claude/hooks/verify-before-stop.mjs',
         '.claude/hooks/codegraph.mjs',
+        '.claude/hooks/worktree-sweep.mjs',
         '.claude/hookset.json',
         '.claude/skills/verify/SKILL.md',
         '.claude/settings.json',
@@ -516,7 +521,7 @@ describe('initRepo', () => {
             PostToolUse: [{ matcher: 'Bash', hooks: [...command('stop-after-3.mjs'), ...command('verify-before-stop.mjs')] }],
             PostToolUseFailure: [{ matcher: 'Bash', hooks: [...command('stop-after-3.mjs'), ...command('verify-before-stop.mjs')] }],
             Stop: [{ matcher: '', hooks: command('verify-before-stop.mjs') }],
-            SessionStart: [{ matcher: '', hooks: command('codegraph.mjs') }],
+            SessionStart: [{ matcher: '', hooks: [...command('codegraph.mjs'), ...command('worktree-sweep.mjs')] }],
           },
           enabledMcpjsonServers: ['codegraph'],
           permissions: { allow: ['mcp__codegraph__codegraph_explore'] },
@@ -541,6 +546,7 @@ describe('initRepo', () => {
       '.claude/hooks/stop-after-3.mjs',
       '.claude/hooks/verify-before-stop.mjs',
       '.claude/hooks/codegraph.mjs',
+      '.claude/hooks/worktree-sweep.mjs',
       '.claude/skills/verify/SKILL.md',
       '.claude/settings.json',
       '.mcp.json',
@@ -645,6 +651,7 @@ describe('the checks, at their edges', () => {
       '.claude/settings.json does not run verify-before-stop.mjs on PostToolUseFailure (Bash)',
       '.claude/settings.json does not run verify-before-stop.mjs on Stop ()',
       '.claude/settings.json does not run codegraph.mjs on SessionStart ()',
+      '.claude/settings.json does not run worktree-sweep.mjs on SessionStart ()',
       '.claude/settings.json does not enable the codegraph server, so every session asks first',
     ]);
   });

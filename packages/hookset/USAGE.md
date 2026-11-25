@@ -41,6 +41,10 @@ private until it has run in every Interlace repo. Intent: [`.sdlc/intents/hookse
   - `codegraph.mjs` (SessionStart): builds the CodeGraph index in the background (`init` on a
     fresh clone, `sync` otherwise) when `.mcp.json` runs the `codegraph` server, which `init
     --claude` adds at the pinned version along with `.codegraph/` in `.gitignore`.
+  - `worktree-sweep.mjs` (SessionStart): at most once a day per clone, starts the repo's own
+    `hookset worktrees --prune` in the background, which removes only worktrees that hold no work.
+    `HOOKSET_WORKTREES=0` turns it off, `HOOKSET_WORKTREES_OLDER_THAN=<days>` sets the age, and
+    `git worktree lock <path>` keeps a worktree out of every sweep.
   - `skills/verify/SKILL.md`: the template `init --claude` writes to `.claude/skills/verify/` once.
     The repo fills it in (how to boot, drive and inspect the app, and a feature map); `check`
     fails while it is missing, keeps a `TODO(verify)` line, or loses `name: verify` or
