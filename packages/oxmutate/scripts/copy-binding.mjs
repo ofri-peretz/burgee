@@ -11,5 +11,6 @@ const target = path.join(out, `oxmutate.${process.platform}-${process.arch}.node
 // A new file, not an overwrite: macOS kills a process that loads a code-signed dylib rewritten in
 // place (exit 9, seen 2026-10-27), so a running e2e test or server never sees a half-copied core.
 rmSync(target, { force: true });
-copyFileSync(path.join(here, '..', 'native', 'target', 'release', lib), target);
+// CARGO_TARGET_DIR: cargo's own override, which the mutation lane's container sets to a shared volume.
+copyFileSync(path.join(process.env.CARGO_TARGET_DIR || path.join(here, '..', 'native', 'target'), 'release', lib), target);
 console.log(path.relative(path.join(here, '..'), target));

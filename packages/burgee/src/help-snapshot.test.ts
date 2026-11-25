@@ -228,6 +228,8 @@ describe('the root help carries the exit codes, completion and examples (agent-l
   it('R8: the global --timeout steps aside for a command that declares its own, and so does its exit code', async () => {
     const own = defineProgram({ name: 'own', commands: [defineCommand({ name: 'wait', effects: 'read_only', options: { timeout: { type: 'string' } }, run: ok })] });
     expect(producibleExits(own)).not.toContain('TIMEOUT');
+    // Only TIMEOUT steps aside: every other code is still the engine's own.
+    expect(producibleExits(own)).toContain('USAGE');
     expect((await runCommand(own, ['--help'])).stdout).not.toMatch(/^ {2}6 /m);
     expect(producibleExits(nested)).toContain('TIMEOUT');
   });

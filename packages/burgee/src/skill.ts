@@ -32,6 +32,7 @@ const GENERATED = '<!-- Generated from the program\'s declaration by `burgee ski
 export function skillName(name: string): string {
   // Split, not trimmed with `^-+|-+$`: a pattern anchored at both ends backtracks on a long run of
   // `-` (CodeQL js/polynomial-redos), and joining the words leaves no leading, trailing or doubled `-`.
+  // Stryker disable next-line Regex: a run split one character at a time leaves empty words, which the filter drops, so `+` changes nothing
   const joined = name.toLowerCase().split(/[^a-z0-9]+/u).filter((w) => w !== '').join('-').slice(0, NAME_MAX);
   const normal = joined.endsWith('-') ? joined.slice(0, -1) : joined;
   return normal === '' ? 'cli' : normal;
@@ -40,8 +41,8 @@ export function skillName(name: string): string {
 /** A command's summary as the object of "use it to …": its first letter lowered, unless it is an acronym. */
 const verbPhrase = (s: string): string => (/^[A-Z][a-z]/.test(s) ? `${s.charAt(0).toLowerCase()}${s.slice(1)}` : s).replace(/\.$/, '');
 
-/** "a, b or c". */
-const either = (items: string[]): string => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} or ${items.at(-1) as string}`);
+/** "a, b or c", from one item or more: the caller never hands it none. */
+const either = (items: string[]): string => (items.length === 1 ? (items[0] as string) : `${items.slice(0, -1).join(', ')} or ${items.at(-1) as string}`);
 
 /** A YAML scalar: plain when it reads back as itself, else double-quoted (JSON's escapes are YAML's). */
 const scalar = (s: string): string => (/^[\w(][^\n]*$/.test(s) && !/: | #|:$/.test(s) ? s : JSON.stringify(s));

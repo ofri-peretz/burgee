@@ -65,7 +65,7 @@ const steps = (): readonly Step[] =>
  * Rows `intent check --evidence` re-runs on `main`. Raise it when you add rows; lowering it is a
  * decision: say in the PR which row went and why.
  */
-const RERUN_FLOOR = 9;
+const RERUN_FLOOR = 16;
 
 interface Rerunnable {
   readonly id: string;

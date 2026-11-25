@@ -37,7 +37,8 @@
  * in-process mutant can reach). One list, imported, so the two denominators cannot drift.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
@@ -322,13 +323,16 @@ export function disableProblems(file: string, source: string): string[] {
  * `import()` of it from elsewhere cannot.
  */
 export function wrapperConfig(packageDir: string, skipped: readonly string[]): string {
+  // Paths from the file itself, not the host's: the changed lane runs it inside a container.
+  const setup = path.relative(path.join(packageDir, WRAPPER_DIR), SETUP_FILE).split(path.sep).join('/');
   return [
+    "import { fileURLToPath } from 'node:url';",
     "import { configDefaults, defineConfig, mergeConfig } from 'vitest/config';",
     "import base from '../vitest.config.ts';",
     '',
     'export default mergeConfig(base, defineConfig({',
-    `  root: ${JSON.stringify(packageDir)},`,
-    `  test: { setupFiles: [${JSON.stringify(SETUP_FILE)}], exclude: [...configDefaults.exclude, ...${JSON.stringify(skipped)}] },`,
+    "  root: fileURLToPath(new URL('..', import.meta.url)),",
+    `  test: { setupFiles: [fileURLToPath(new URL(${JSON.stringify(setup)}, import.meta.url))], exclude: [...configDefaults.exclude, ...${JSON.stringify(skipped)}] },`,
     '}));',
     '',
   ].join('\n');
@@ -376,7 +380,7 @@ export function strykerConfig(o: RunOptions): Record<string, unknown> {
  * run, which it refuses unless `allowEmpty` is set; Stryker reports nothing to score and exits 0
  * (#1361). Nothing is hidden by it: a mutant that no test runs is still NoCoverage, which fails.
  */
-export function oxmutateConfig(o: RunOptions): Record<string, unknown> {
+export function oxmutateConfig(o: RunOptions & { pkg: string; host?: boolean | undefined }): Record<string, unknown> {
   return {
     mutate: [...o.mutate],
     allowEmpty: true,
@@ -389,11 +393,40 @@ export function oxmutateConfig(o: RunOptions): Record<string, unknown> {
     // A push after the first re-decides only what changed: a verdict is reused when its source, its
     // tests and their module graph are unchanged (fingerprint), and one in twenty reused is re-run.
     ...(o.incrementalFile && { incremental: true, incrementalFile: o.incrementalFile }),
-    // The lane runs this checkout's own oxmutate, built here: a machine-wide container default
-    // (OXMUTATE_CONTAINER) would send it to a container that has neither the build nor the native core.
-    container: false,
+    // In the lane's container unless `host`: the host builds nothing and starts no mutant. `false`
+    // also overrides a machine-wide OXMUTATE_CONTAINER, whose container has no build of this checkout.
+    container: o.host ? false : laneContainer(o.pkg),
   };
 }
+
+const RUST_VOLUME = 'burgee-mutation-rust';
+
+/**
+ * oxmutate's container for the changed lane: this checkout's oxmutate and its native core, both
+ * built inside by `scripts/mutation-container.sh` (installs on the sync, builds on the run). The
+ * Rust toolchain, crates and target dir live in one volume every worktree shares; the package
+ * builds and node_modules in the worktree's own. The run's vitest and oxmutate configs are
+ * gitignored, so `include` sends them.
+ */
+export function laneContainer(pkg: string): Record<string, unknown> {
+  const hash = createHash('sha256');
+  for (const f of ['packages/oxmutate/native/Cargo.lock', 'scripts/mutation-container.sh']) hash.update(readFileSync(path.join(REPO_ROOT, f)));
+  return {
+    image: `node:${process.versions.node.split('.')[0]!}-bookworm`,
+    // The install reruns when its command changes: the hash makes a Cargo.lock or script change one.
+    install: `sh scripts/mutation-container.sh install ${hash.digest('hex').slice(0, LOCK_HASH_CHARS)}`,
+    setup: 'sh src/scripts/mutation-container.sh setup',
+    command: 'node ../oxmutate/dist/bin.js',
+    volume: laneVolume(),
+    include: [`packages/${pkg}/${WRAPPER_DIR}/*`],
+    env: ['CARGO_HOME=/rust/cargo', 'RUSTUP_HOME=/rust/rustup', 'CARGO_TARGET_DIR=/rust/target', 'PATH=/rust/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'],
+    args: ['-v', `${RUST_VOLUME}:/rust`],
+  };
+}
+
+const LOCK_HASH_CHARS = 12;
+/** This worktree's volume, named so a run stopped at the budget can have its containers removed. */
+const laneVolume = (): string => `burgee-mutation-${createHash('sha256').update(realpathSync.native(REPO_ROOT)).digest('hex').slice(0, LOCK_HASH_CHARS)}`;
 
 export interface PackageRun {
   pkg: string;
@@ -502,23 +535,45 @@ export function removeWrapper(w: Wrapper): void {
   rmSync(w.vitestConfig, { force: true });
 }
 
+/**
+ * The run's config, written, and how to start it. oxmutate's config and report sit in the package,
+ * named relative to it, so its container gets them and copies the report back; Stryker's are in
+ * `work`. A report an earlier run left is removed first.
+ */
+function writeRunConfig(engine: Engine, r: { pkg: string; packageDir: string; work: string; wrapper: Wrapper; mutate: readonly string[]; o: { concurrency: number; timeoutMS: number; dryRunTimeoutMinutes: number; host?: boolean } }): { reportFile: string; configFile: string; argv: string[] } {
+  const { packageDir, wrapper, mutate, o } = r;
+  const rel = (f: string): string => path.relative(packageDir, f);
+  if (engine === 'oxmutate') {
+    const reportFile = path.join(wrapper.dir, 'report.json');
+    const configFile = path.join(wrapper.dir, 'oxmutate.config.json');
+    rmSync(reportFile, { force: true });
+    // oxmutate reads Stryker's keys from a config of its own; it never writes the sources.
+    writeFileSync(configFile, JSON.stringify(oxmutateConfig({ ...o, pkg: r.pkg, vitestConfig: rel(wrapper.vitestConfig), mutate, reportFile: rel(reportFile), incrementalFile: rel(wrapper.incrementalFile) }), null, 2));
+    return { reportFile, configFile, argv: [OXMUTATE_BIN, 'run', '--config', rel(configFile)] };
+  }
+  const reportFile = path.join(r.work, 'report.json');
+  const configFile = path.join(r.work, 'stryker.config.json');
+  writeFileSync(configFile, JSON.stringify(strykerConfig({ ...o, vitestConfig: wrapper.vitestConfig, mutate, reportFile }), null, 2));
+  return { reportFile, configFile, argv: [STRYKER_BIN, 'run', configFile] };
+}
+
+/** The budget's SIGKILL ends the host's oxmutate, not the container it started: this removes that too. */
+function removeLaneContainers(): void {
+  const ids = spawnSync('docker', ['ps', '-q', '--filter', `label=dev.oxmutate.volume=${laneVolume()}`], { encoding: 'utf8' }).stdout.split(/\s/u).filter(Boolean);
+  if (ids.length > 0) spawnSync('docker', ['rm', '-f', ...ids]);
+}
+
 /** Stryker over `mutate` in one package. `budgetMs` kills it, and the run reports why. */
-export function runPackage(pkg: string, mutate: readonly string[], o: { concurrency: number; timeoutMS: number; dryRunTimeoutMinutes: number; budgetMs?: number; engine?: Engine }): PackageRun {
+export function runPackage(pkg: string, mutate: readonly string[], o: { concurrency: number; timeoutMS: number; dryRunTimeoutMinutes: number; budgetMs?: number; engine?: Engine; host?: boolean }): PackageRun {
   const engine = o.engine ?? 'stryker';
   const name = engine === 'oxmutate' ? 'oxmutate' : 'Stryker';
   const packageDir = path.join(REPO_ROOT, 'packages', pkg);
   const work = mkdtempSync(path.join(tmpdir(), `mutation-${pkg}-`));
-  const reportFile = path.join(work, 'report.json');
-  const configFile = path.join(work, 'stryker.config.json');
   const wrapper = writeWrapper(packageDir, Object.keys(SKIPPED_TESTS[pkg] ?? {}));
-  const { vitestConfig } = wrapper;
-  // oxmutate reads the same keys from a config of its own; it never writes the sources, so the
-  // snapshot below only ever finds Stryker's leftovers.
-  const config = engine === 'oxmutate' ? oxmutateConfig({ ...o, vitestConfig, mutate, reportFile, incrementalFile: wrapper.incrementalFile }) : strykerConfig({ ...o, vitestConfig, mutate, reportFile });
-  writeFileSync(configFile, JSON.stringify(config, null, 2));
+  const { reportFile, configFile, argv } = writeRunConfig(engine, { pkg, packageDir, work, wrapper, mutate, o });
   const before = snapshot(packageDir, mutate);
   const started = Date.now();
-  const r = spawnSync(process.execPath, engine === 'oxmutate' ? [OXMUTATE_BIN, 'run', '--config', configFile] : [STRYKER_BIN, 'run', configFile], {
+  const r = spawnSync(process.execPath, argv, {
     cwd: packageDir,
     stdio: 'inherit',
     timeout: o.budgetMs,
@@ -535,6 +590,7 @@ export function runPackage(pkg: string, mutate: readonly string[], o: { concurre
     const left = restore(packageDir, before);
     if (left.length > 0) return result(`${name} left ${String(left.length)} file(s) instrumented (${left.join(', ')}); restored from before the run, and this run's report is not trusted`);
     if (r.error && (r.error as NodeJS.ErrnoException).code === 'ETIMEDOUT') {
+      if (engine === 'oxmutate' && !o.host) removeLaneContainers();
       return result(`over the lane's budget: stopped after ${String(minutes)} minutes. Split the pull request, or kill the mutants in a smaller one first`);
     }
     if (r.status !== 0 || !existsSync(reportFile)) return result(`${name} exited ${String(r.status ?? r.signal)} without a report — its own error is above`);
@@ -545,6 +601,8 @@ export function runPackage(pkg: string, mutate: readonly string[], o: { concurre
     return result(undefined, summary);
   } finally {
     rmSync(work, { recursive: true, force: true });
+    rmSync(configFile, { force: true });
+    rmSync(reportFile, { force: true });
     removeWrapper(wrapper);
   }
 }
@@ -793,7 +851,7 @@ function fullCommand(): number {
   const sources = shard ? shardOf(allSources(pkg), shard) : allSources(pkg);
   const run: PackageRun = sources.length === 0
     ? { pkg, ok: false, error: 'no mutation source — every file is a test, a fixture or tested in another process', minutes: 0 }
-    : runPackage(pkg, sources, { concurrency: concurrency(), timeoutMS: PR_BUDGET.timeoutMS, dryRunTimeoutMinutes: 15, engine: engineArg() });
+    : runPackage(pkg, sources, { concurrency: concurrency(), timeoutMS: PR_BUDGET.timeoutMS, dryRunTimeoutMinutes: 15, engine: engineArg(), host: true });
   const result: FullResult = { pkg, commit: head(), ok: run.ok, error: run.error, summary: run.summary, minutes: run.minutes, ...(shard ? { shard } : {}) };
   const out = arg('--out');
   if (out) writeFileSync(out, `${JSON.stringify(result, null, 2)}\n`);

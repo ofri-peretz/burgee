@@ -78,11 +78,10 @@ describe('package.json and pre-push run the script', () => {
 });
 
 describe('the script is the whole lane', () => {
-  it('plans, builds, builds the native core, then mutates, with the same flags', () => {
+  it('plans, builds the dispatching oxmutate, then mutates, with the same flags', () => {
     const steps = [
       'npx tsx scripts/mutation.ts changed --event "$event" --base "$base" --plan',
-      "npx turbo run build --filter='./packages/*' --concurrency=\"$concurrency\"",
-      '(cd packages/oxmutate && npm run build:native)',
+      'npx turbo run build --filter=oxmutate --output-logs=errors-only',
       'npx tsx scripts/mutation.ts changed --event "$event" --base "$base" --concurrency "$concurrency" ${GITHUB_STEP_SUMMARY:+--summary "$GITHUB_STEP_SUMMARY"}',
     ];
     const at = steps.map((s) => code.indexOf(s));
@@ -93,11 +92,11 @@ describe('the script is the whole lane', () => {
     expect(code.indexOf('exit 0')).toBeLessThan(at[1]!);
   });
 
-  it('fails loudly, with a fix line, when cargo is missing, before the native build', () => {
-    const check = code.indexOf('command -v cargo');
-    expect(check).toBeGreaterThan(-1);
-    expect(check).toBeLessThan(code.indexOf('npm run build:native'));
-    expect(code).toMatch(/echo "fix: install rustup[^\n]*>&2\n\s*exit 1/);
+  it('builds no other package and no native core on the host: the container does (mutation-container.sh)', () => {
+    const run = code.split('\n').filter((l) => !l.trimStart().startsWith('#')).join('\n');
+    expect(run).not.toContain('cargo');
+    expect(run).not.toContain('build:native');
+    expect(run).not.toContain("--filter='./packages/*'");
   });
 
   it.skipIf(process.platform === 'win32')('ends successfully, having built nothing, when the event is not a pull request', () => {

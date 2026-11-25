@@ -8,7 +8,7 @@ import { Readable } from 'node:stream';
 import { describe, expect, it } from 'vitest';
 
 import { defineCommand, defineProgram, runCommand } from './execute.js';
-import { linesOf } from './mcp.js';
+import { linesOf, toolName } from './mcp.js';
 import { host } from './runtime.js';
 
 interface Reply {
@@ -133,5 +133,11 @@ describe('linesOf', () => {
       }),
     ];
     expect(lines).toEqual(['ab', 'cd']);
+  });
+});
+
+describe('toolName', () => {
+  it('names the root of a program of two words with an underscore', () => {
+    expect(toolName({ path: ['git', 'remote'], options: {} } as never, ['git', 'remote'])).toBe('git_remote');
   });
 });

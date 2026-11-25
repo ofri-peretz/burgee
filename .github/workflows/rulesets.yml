@@ -1,0 +1,67 @@
+# Repository rulesets as code: applies every `.github/rulesets/*.json` to the repositories it
+# lists (scripts/apply-rulesets.mts), creating or replacing each ruleset by name.
+#
+# On a pull request that changes a declaration it only validates and prints the plan, so a bad
+# file fails before it merges; on the push to main that lands it, and on demand, it applies.
+# Applying needs a token with Administration read/write on each listed repository. Every token
+# this repository already holds is offered, in order (RULESETS_TOKEN, the release App's
+# installation token, RELEASE_BOT_PAT, SCORECARD_REPO_TOKEN); each write tries them in turn and the
+# log names the one that landed, or, if none may, says which to grant. With none set it dry-runs.
+name: rulesets
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/rulesets/**"
+      - "scripts/apply-rulesets.mts"
+      - ".github/workflows/rulesets.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/rulesets/**"
+      - "scripts/apply-rulesets.mts"
+      - ".github/workflows/rulesets.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rulesets-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  apply:
+    name: Apply rulesets
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      HAS_APP_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY != '' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
+        with:
+          node-version-file: .nvmrc
+
+      # The release App's token, asked for Administration write across the owner's repos. An App
+      # not granted that permission fails this step, and the run goes on with the other tokens.
+      - name: Release App token
+        id: app
+        if: github.event_name != 'pull_request' && vars.RELEASE_APP_ID != '' && env.HAS_APP_KEY == 'true'
+        continue-on-error: true
+        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+        with:
+          client-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          permission-administration: write
+
+      - name: Apply the declared rulesets
+        env:
+          RULESETS_TOKEN: ${{ github.event_name != 'pull_request' && secrets.RULESETS_TOKEN || '' }}
+          RULESETS_APP_TOKEN: ${{ steps.app.outputs.token }}
+          RELEASE_BOT_PAT: ${{ github.event_name != 'pull_request' && secrets.RELEASE_BOT_PAT || '' }}
+          SCORECARD_REPO_TOKEN: ${{ github.event_name != 'pull_request' && secrets.SCORECARD_REPO_TOKEN || '' }}
+        run: node scripts/apply-rulesets.mts
