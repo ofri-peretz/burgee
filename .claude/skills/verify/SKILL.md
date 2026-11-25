@@ -1,6 +1,6 @@
 ---
 name: verify
-description: Build the burgee package you changed and run its CLI as a user would, reading back exit code and output. Use before committing a behaviour change, and as the smoke test after a fix.
+description: Run the burgee CLI you changed from its build and read back exit code and output. Use before committing a behaviour change.
 ---
 
 # Verify a change by running it
