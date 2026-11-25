@@ -1,0 +1,65 @@
+---
+title: The gate in CI
+description: "Run provedone gate on a pull request body in GitHub Actions so a PR with no How this was checked block fails, and give each CI run its own escape session."
+---
+
+The `commit-msg` hook runs on the machine that commits; a contributor without the hooks installed
+skips it. A CI job that gates the pull request body catches what the hook did not, and puts the
+receipt where reviewers read it.
+
+provedone ships no workflow of its own. This is a job you add.
+
+## Gate the PR body
+
+```yaml
+# .github/workflows/receipt.yml
+name: receipt
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: The PR body carries a receipt
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+          PROVEDONE_SESSION: ci-${{ github.run_id }}
+        run: |
+          printf '%s\n' "$BODY" > pr-body.md
+          npx provedone gate pr-body.md --mode enforce
+```
+
+The body goes through an environment variable, never straight into the script, so nothing in it is
+run as shell. `edited` re-runs the job when the author pastes the block in.
+
+`PROVEDONE_SESSION` gives each run its own session. The store is created fresh in every job's
+checkout, so the escape never opens in CI: every run starts with no blocks.
+
+## Write the block
+
+The block the job looks for is what `stamp --pr` prints:
+
+```bash
+npx provedone stamp --run "npm test" --not-checked "the docs site" --pr
+```
+
+Paste it under the PR template's "How this was checked" heading. This repository's template asks
+for exactly that.
+
+## Check every commit in the range
+
+The gate reads one file. To fail a PR on any commit without a receipt, ask git:
+
+```bash
+git log --format='%H %(trailers:key=Verified-by,valueonly,separator=%x2C)' origin/main..HEAD \
+  | awk 'NF < 2 { print "no receipt: " $1; bad = 1 } END { exit bad }'
+```
+
+A merge commit has no trailer of its own; add `--no-merges` to leave them out.

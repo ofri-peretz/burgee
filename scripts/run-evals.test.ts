@@ -89,6 +89,15 @@ describe('layer 1 — scripts', () => {
     });
     expect(missingScripts(['docs/a.md'], root)).toEqual(['docs/a.md → scripts/gone.ts', 'docs/a.md → npm run gone']);
   });
+
+  it("reads the scripts a package's own site names as the reader's, not this repository's", () => {
+    const root = repo({
+      'package.json': JSON.stringify({ scripts: {} }),
+      'apps/docs-pkg/content/docs/a.mdx': 'run: npm run --silent hook:test, or npm run deploy, then scripts/gone.ts',
+      'apps/docs/content/docs/b.md': 'npm run gone',
+    });
+    expect(missingScripts(['apps/docs-pkg/content/docs/a.mdx', 'apps/docs/content/docs/b.md'], root)).toEqual(['apps/docs/content/docs/b.md → npm run gone']);
+  });
 });
 
 describe('layer 1 — floor ids', () => {

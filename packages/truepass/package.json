@@ -12,7 +12,7 @@
   "bugs": {
     "url": "https://github.com/ofri-peretz/burgee/issues"
   },
-  "homepage": "https://burgee.interlace.tools",
+  "homepage": "https://truepass.interlace.tools",
   "type": "module",
   "private": false,
   "sideEffects": [

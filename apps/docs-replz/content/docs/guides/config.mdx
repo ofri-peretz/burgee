@@ -1,0 +1,149 @@
+---
+title: The config
+description: "replz's config names shell commands, not a model API: the setup, the reviewer that prints its findings as JSON, the grader that answers yes or no, and the checks that fire by exiting non-zero."
+---
+
+The config is `.sdlc/replz/config.yaml` (`--config <path>` for another). Every command in it is
+a shell command line, run with `sh -c`. That is on purpose: the reviewer replz grades is the
+same script and prompt your CI runs, not a copy of it rewritten for an eval harness.
+
+```yaml
+setup: npm ci --ignore-scripts --no-audit --no-fund
+reviewer: bash "$REPLZ_REPO/review.sh"
+grader: claude -p --model {model}
+model: a-cheap-model # optional; --model overrides it
+maxFindings: 10
+stages: [raw, final]
+checks:
+  - { id: typecheck, command: npx tsc --noEmit }
+  - { id: test, command: npm test }
+checklist: .sdlc/checklist.yaml # optional
+```
+
+| Key | Required | What it does |
+| :-- | :-- | :-- |
+| `setup` | no | Runs first in each case's worktree, which starts with nothing installed. A non-zero exit stops the run. |
+| `reviewer` | yes | Prints the findings, as JSON, on stdout. |
+| `grader` | yes | Reads one prompt on stdin and answers yes or no. `{model}` in it is replaced by the run's model. |
+| `model` | no | The default for `--model`. |
+| `maxFindings` | yes | The most findings graded per bug case, a whole number from 1. `--max-findings` overrides it. |
+| `stages` | yes | The reviewer's stages, in order. The last one is what ships. |
+| `checks` | yes | Each `{ id, command }`. A check fires when its command exits non-zero. May be `[]`. |
+| `checklist` | no | A YAML file with `items: [{ id }]`, so an item that never fires is named in the report. |
+
+Ids and stage names are lowercase letters, digits and dashes. Any other key is refused.
+
+## Where the commands run
+
+Each case gets a fresh git worktree, detached at the case's `head`. Every command runs with that
+worktree as its working directory. `setup`, the reviewer and every check also get four
+variables:
+
+| Variable | Value |
+| :-- | :-- |
+| `REPLZ_BASE` | the case's `base` |
+| `REPLZ_HEAD` | the case's `head` |
+| `REPLZ_PR` | the case's `pr` |
+| `REPLZ_REPO` | the repository `replz run` started in, as an absolute path |
+
+The rest of your environment is passed through, so a key the reviewer needs is read as it
+always is.
+
+**A path in a command is read inside the worktree, at the case's commit.** A reviewer script you
+added last week does not exist at a bug's head from last year, and `bash .sdlc/review.sh` fails
+there with "No such file". Point at the script in your own checkout instead, through
+`REPLZ_REPO`:
+
+```yaml
+reviewer: bash "$REPLZ_REPO/.sdlc/replz/review.sh"
+```
+
+A variable you export when you start the run (`REVIEW_SH=$PWD/review.sh npx replz run`, with
+`reviewer: bash "$REVIEW_SH"`) works too.
+
+## What the reviewer prints
+
+A JSON array on stdout, one object per finding. Print `[]` when there is nothing.
+
+```json
+[
+  { "stage": "raw", "severity": "should-fix", "text": "The cache in config.js is keyed by file name, so two projects share an entry." },
+  { "stage": "final", "severity": "must-fix", "text": "The cache in config.js is keyed by file name, so two projects share an entry.", "item": "cache-keys" }
+]
+```
+
+| Field | Values |
+| :-- | :-- |
+| `stage` | One of the config's `stages`. A stage the config does not list is an error, never dropped. |
+| `severity` | `must-fix`, `should-fix`, `nit` or `pre-existing`. |
+| `text` | The finding, in a sentence. This is what the grader reads. |
+| `item` | Optional: the checklist item that prompted it. |
+
+A reviewer that exits non-zero, prints something that is not JSON, or prints an object with a
+missing or unknown field stops the run with the reason and a `fix:`. Run it by hand in a worktree
+at the commit the error names to see why.
+
+**Stages** are how a reviewer that checks its own work is measured. A pipeline that lists every
+suspicion (`raw`) and then keeps only what it confirmed (`final`) can find a bug and then drop
+it. Recall per stage shows where that happened; one end-to-end score would hide it.
+[Claude Code as the reviewer](/docs/recipes/claude-code-reviewer) writes both stages from one
+prompt.
+
+## How the grader is called
+
+Once per finding of a bug case, up to `maxFindings`: the last stage's findings first, then each
+earlier stage's, each stage in the order the reviewer printed it. The
+prompt arrives on stdin (and as the file named by `REPLZ_INPUT`, for a command that wants a
+path):
+
+```text
+You grade a code reviewer against a known bug.
+The bug (answer key): The config cache is keyed by file name only, so a second project reads the first one's config.
+The reviewer's finding: The cache in config.js is keyed by file name, so two projects share an entry.
+Does the finding describe this bug: the same defect, not merely the same file or area? Answer yes or no, and nothing else.
+```
+
+The finding matches when the first word of the answer is `yes`, in any case and after any
+punctuation. Anything else is no. A grader that exits non-zero stops the run.
+
+When the grader command contains `{model}` and neither `--model` nor `model` gives one, the run
+stops at the first bug case before its reviewer runs, so nothing is paid for a review that could
+not be graded.
+Use the cheapest model that grades reliably: it is called far more often than the reviewer.
+
+## Checks
+
+A check is any command your CI runs: a type check, the test suite, a linter, a lock test. replz
+runs each one in the case's worktree after the reviewer and records whether it exited non-zero.
+It does not read their output. A check that fires on a bug case is counted as right; one that
+never fires on any case is named in the report. Checks run one after another, because they
+share the worktree and its build output.
+
+A check runs on the whole tree at the case's head, not only on the diff, so a check can fire on a
+control because of something already in the tree. [Pruning checks](/docs/recipes/prune-checks)
+reads the table with that in mind.
+
+## What `check` refuses in a config
+
+```yaml title="strict/config.yaml"
+reviewer: bash review.sh
+grader: claude -p --model {model}
+maxFindings: 0
+stages: [Raw, final]
+checks:
+  - { id: test, run: npm test }
+```
+
+```text title="npx replz check --config strict/config.yaml" exit="1"
+error: strict/config.yaml is not a valid replz config:
+  /maxFindings: expected a number of at least 1, got number 0. fix: send 1 or more
+  /stages/0: expected a string matching /^[a-z0-9][a-z0-9-]*$/, got string "Raw". fix: send a value the pattern accepts
+  /checks/0/command: expected a value, got undefined. fix: add "command"
+  /checks/0/run: expected no such key, got string "npm test". fix: remove "run"
+fix: correct each field named above
+{"error":{"kind":"runtime","code":1,"message":"strict/config.yaml is not a valid replz config:\n  /maxFindings: expected a number of at least 1, got number 0. fix: send 1 or more\n  /stages/0: expected a string matching /^[a-z0-9][a-z0-9-]*$/, got string \"Raw\". fix: send a value the pattern accepts\n  /checks/0/command: expected a value, got undefined. fix: add \"command\"\n  /checks/0/run: expected no such key, got string \"npm test\". fix: remove \"run\""}}
+```
+
+Every problem in the file is listed at once. `check` does not run any of the commands: a reviewer
+that is missing at old commits is found by the first `run`, which is a reason to try one case
+first, with a [stand-in reviewer](/docs/recipes/stand-in-reviewer).

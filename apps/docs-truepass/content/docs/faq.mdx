@@ -1,0 +1,70 @@
+---
+title: FAQ
+description: "Short answers about truepass: which test runners it reads, legacy configs, keeping a skip, fixing a focus automatically, where the diff check's reasons go, shallow CI clones, suppressions, and what it does not check, each with where to read more."
+---
+
+## Which test runners does it read?
+
+Vitest, Jest, Mocha, Playwright, `node:test` and `bun:test`. A call is a test when its root is a
+test-runner name that is an unbound global or is imported from one of those modules.
+[What counts as a test](/docs/guides/eslint-config#what-counts-as-a-test).
+
+## Does it work with `.eslintrc`?
+
+No. It ships flat-config presets only, for ESLint 9 and later. [The ESLint
+config](/docs/guides/eslint-config).
+
+## I need to keep a test skipped. How?
+
+Put the reason in a comment on the skip's line or the line above: an issue link, a decision id
+such as `D-107`, or the `YYYY-MM-DD` date it is skipped until. A date that has passed is reported
+again. [Skipped tests](/docs/guides/skips).
+
+## Why does `eslint --fix` not remove `.only`?
+
+Removing a focus runs tests that were not running, so truepass offers it as an editor suggestion
+rather than an autofix. [Focused tests](/docs/guides/focused-tests#the-suggestion).
+
+## Why is `await sleep(ms)` not reported?
+
+`no-fixed-sleep` reports a wait whose length is written into the test: a number, or arithmetic over
+numbers. A variable is not a fixed guess it can see. [Sleeps and
+retries](/docs/guides/sleeps-and-retries#no-fixed-sleep).
+
+## Our end-to-end suite retries on purpose. Can it stay?
+
+Yes: cite the decision or issue in a comment on the `retries` line or the line above.
+[A retry that is policy](/docs/guides/sleeps-and-retries#a-retry-that-is-policy).
+
+## I loosened an assertion on purpose. How do I get past `truepass diff`?
+
+Add a line starting `Assertion:` with the reason to a commit message in the range. A changed
+snapshot takes a `Snapshot:` line the same way. There is no ignore file for these two checks.
+[The reasons](/docs/guides/truepass-diff#the-reasons-assertion-and-snapshot).
+
+## `truepass diff` exits 2 in CI.
+
+The checkout does not have the base. Check out with `fetch-depth: 0`, and pass the target branch
+as `--base`. [Hooks and CI](/docs/guides/hooks-and-ci#in-ci).
+
+## How do I turn it on over a suite that already breaks the rules?
+
+Record today's findings in ESLint's suppressions file and keep the rules at `error`, or start on
+the `adoption` preset with `--max-warnings`. [The suppressions file](/docs/guides/suppressions)
+and [The adoption ratchet](/docs/recipes/adoption-ratchet).
+
+## Does it replace @vitest/eslint-plugin?
+
+It covers two of its rules, `no-focused-tests` and `no-disabled-tests`, under its own names. Keep
+the plugin for the rest. [Coming from @vitest/eslint-plugin](/docs/coming-from/vitest-eslint-plugin).
+
+## Does it check coverage or mutation score?
+
+No. Coverage drops are a coverage tool's job, and mutation score is
+[oxmutate](https://oxmutate.interlace.tools/docs)'s. [What it leaves out on
+purpose](/docs/why-truepass#what-it-leaves-out-on-purpose).
+
+## Does the CLI need ESLint?
+
+No. `truepass diff` needs only git and Node 22.13 or later; ESLint is an optional peer, used only
+by `truepass/eslint`. [Getting started](/docs/getting-started).

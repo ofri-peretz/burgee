@@ -1,0 +1,189 @@
+---
+title: Input formats
+description: "contractdiff reads OpenAPI 3.x, Swagger 2.0, AsyncAPI 2.x and 3.x, JSON Schema, MCP tool lists and protobuf into one model, so diff, lint, explain and gen work the same on HTTP APIs, events and agent tools; plus OpenAPI Overlays and explain."
+---
+
+Every command reads its contract through an adapter into one model: operations, each with
+payloads that travel in a direction, each payload a JSON Schema. `diff`, `lint`, `explain`,
+`props` and most generators work on the model, so they work on every format below. The format is
+detected from the document; there is no flag to set.
+
+| format                                             | what is an operation                                                            | what is a payload                                                                        |
+| :------------------------------------------------- | :------------------------------------------------------------------------------ | :--------------------------------------------------------------------------------------- |
+| OpenAPI 3.0, 3.1, 3.2                              | an HTTP operation, by `operationId`                                             | each parameter, the request body per media type, each response per status and media type |
+| Swagger 2.0                                        | the same, read through the OpenAPI adapter's model                              | the same                                                                                 |
+| AsyncAPI 2.x and 3.x                               | each `operations.<id>` (3.x), or each channel's `publish` and `subscribe` (2.x) | each message, its headers, each channel parameter                                        |
+| JSON Schema (2020-12, 2019-09, draft-07, -06, -04) | the root schema, and each `$defs` or `definitions` entry                        | the value being validated                                                                |
+| MCP snapshot                                       | each tool (and `prompt:<name>`, `resource:<uriTemplate>`)                       | the tool's `inputSchema`, and `outputSchema` when declared                               |
+| protobuf                                           | each RPC method, `<package>.<Service>.<Method>`                                 | its input and output messages, in their proto3 JSON shape                                |
+
+YAML is read by `seniority/yaml`, which reads JSON too, so any of these can be either.
+
+## AsyncAPI
+
+Directions are the document owner's: in 3.x, `action: send` is a message the application sends and
+`action: receive` one it receives. A 2.x document names them from the client's side, so it is read
+the other way round, and one finding per document says so. A message in another file, a payload in
+a schema format other than JSON Schema (Avro, RAML, protobuf), traits and message bindings are not
+read, each with a finding.
+
+```yaml title="events-v1.yaml"
+asyncapi: 3.0.0
+info:
+  title: Orders
+  version: 1.0.0
+channels:
+  orders:
+    address: orders
+    messages:
+      orderPlaced:
+        payload:
+          type: object
+          required: [id]
+          properties:
+            id:
+              type: string
+            total:
+              type: number
+operations:
+  publishOrder:
+    action: send
+    channel:
+      $ref: "#/channels/orders"
+```
+
+```yaml title="events-v2.yaml"
+asyncapi: 3.0.0
+info:
+  title: Orders
+  version: 1.1.0
+channels:
+  orders:
+    address: orders
+    messages:
+      orderPlaced:
+        payload:
+          type: object
+          required: [id, total]
+          properties:
+            id:
+              type: string
+            total:
+              type: number
+operations:
+  publishOrder:
+    action: send
+    channel:
+      $ref: "#/channels/orders"
+```
+
+Making `total` required in a message the application sends is safe for consumers built on the old
+contract: they get a field they already allowed for. Asked from the application's side
+(`--side server`), it is breaking: an application still on the old contract may leave `total` out,
+and consumers built on the new one rely on it.
+
+```text title="npx contractdiff diff events-v1.yaml events-v2.yaml --decisions off"
+non-breaking: 0 breaking, 0 unknown, 1 non-breaking (--mode backward --side caller)
+
+publishOrder  #/operations/publishOrder
+  non-breaking  ac-property-became-required  message:orderPlaced /properties/total  false -> true
+```
+
+```text title="npx contractdiff diff events-v1.yaml events-v2.yaml --side server --decisions off" exit="1"
+breaking: 1 breaking, 0 unknown, 0 non-breaking (--mode backward --side server)
+
+publishOrder  #/operations/publishOrder
+  breaking      ac-property-became-required  message:orderPlaced /properties/total  false -> true
+                fix: keep accepting at publishOrder message:orderPlaced /properties/total what the old contract accepted, or release this as a major version
+```
+
+oasdiff's rule ids cover HTTP only, so a change to a message has a contractdiff id such as
+`ac-property-became-required`.
+
+## MCP tool lists
+
+A snapshot is what a server's `tools/list` returns (`{ "tools": [...] }`), a `prompts/list` or
+`resources/templates/list` result, the JSON-RPC response that carries one, or a single tool
+definition. Committing one beside the server turns a tool's schema change into a diff a review sees.
+
+```json title="tools-v1.json"
+{
+  "tools": [
+    {
+      "name": "search_pets",
+      "description": "Find pets by name",
+      "inputSchema": {
+        "type": "object",
+        "required": ["query"],
+        "properties": {
+          "query": { "type": "string" },
+          "limit": { "type": "integer" }
+        }
+      }
+    }
+  ]
+}
+```
+
+```json title="tools-v2.json"
+{
+  "tools": [
+    {
+      "name": "search_pets",
+      "description": "Find pets by name",
+      "inputSchema": {
+        "type": "object",
+        "required": ["query"],
+        "properties": {
+          "query": { "type": "string" },
+          "limit": { "type": "integer", "maximum": 50 }
+        }
+      }
+    }
+  ]
+}
+```
+
+```text title="npx contractdiff diff tools-v1.json tools-v2.json --decisions off" exit="1"
+breaking: 1 breaking, 0 unknown, 0 non-breaking (--mode backward --side caller)
+
+search_pets  #/tools/0
+  breaking      ac-maximum-set  arguments /properties/limit/maximum  - -> 50
+                fix: keep accepting at search_pets arguments /properties/limit/maximum what the old contract accepted, or release this as a major version
+```
+
+An agent that learned the tool from the old list may send `limit: 100`, which the new schema
+refuses, so a new maximum is breaking for the caller.
+
+## protobuf
+
+A `.proto` file, or a folder holding `buf.yaml`, is compiled by your own `buf` (`buf build -o
+-#format=json`) and its image read; contractdiff never depends on buf, and asks you to install it
+when it is missing. An image written by `buf build -o image.json` is read directly, with no buf at
+all. Streaming methods, `google.protobuf.Any` payloads and proto2 groups are reported as findings.
+
+`diff --level <file|package|wire-json|wire>` also runs `buf breaking` at that category on two
+protobuf sides and counts its findings as breaking, beside the model's own.
+
+## OpenAPI Overlays
+
+`overlays` in `contractdiff.config.json` applies OpenAPI Overlay files (1.0, 1.1 and 1.2) to the
+input before it is read, in order: a team keeps its renames, hidden internal routes and added `x-`
+hints for a contract it does not own in a file of its own.
+
+## Looking at one operation: `explain`
+
+`contractdiff explain <operation>` prints one operation, message or tool with every `$ref` resolved,
+from the `--input` file or the config's `input`. `--list` prints the ids, and `--max-bytes <n>` cuts
+the deepest schemas first until the JSON fits, listing the cuts under `truncated`.
+
+```text title="npx contractdiff explain --list --input events-v1.yaml"
+publishOrder
+```
+
+```text title="npx contractdiff explain publishOrder --input events-v1.yaml --json"
+{"ok":true,"data":{"id":"publishOrder","format":"asyncapi","source":"#/operations/publishOrder","payloads":[{"name":"message:orderPlaced","direction":"publish","required":true,"schema":{"type":"object","required":["id"],"properties":{"id":{"type":"string"},"total":{"type":"number"}}}}]},"meta":{"provenance":{"input":{"source":"flag","location":"--input"}}}}
+```
+
+Its text output is Markdown, one section per payload, which is what an agent's context wants; see
+[Agents](/docs/recipes/agents).

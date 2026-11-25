@@ -1,0 +1,4 @@
+{
+  "title": "Recipes",
+  "pages": ["claude-code-reviewer", "stand-in-reviewer", "scheduled-run", "prune-checks"]
+}

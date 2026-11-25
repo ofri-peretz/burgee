@@ -1,0 +1,114 @@
+---
+title: Sleeps and retries
+description: "no-fixed-sleep reports a test that waits a fixed time instead of for what it needs, and no-test-retry reports retries in tests and runner configs unless a comment cites the decision or issue that allows them."
+---
+
+A fixed sleep and a retry are the two ways a flaky test is made to look stable. The sleep guesses
+how long something takes: too long and the suite is slow, too short and it fails on a busy
+machine. The retry runs a failing test again until it passes, which hides the flake the test
+exists to report. truepass has one rule for each.
+
+## no-fixed-sleep
+
+`truepass/no-fixed-sleep` reads [test files only](/docs/guides/eslint-config#which-files-to-scope-it-to),
+and reports:
+
+- `new Promise((resolve) => setTimeout(resolve, n))` and its spellings, with the global
+  `setTimeout`;
+- `setTimeout(n)` and `scheduler.wait(n)` imported from `timers/promises` or
+  `node:timers/promises`;
+- `await sleep(n)`, `await delay(n)`, `await wait(n)` and `await pause(n)` with a numeric
+  literal, or arithmetic over literals such as `2 * 1000`;
+- Playwright's `page.waitForTimeout(n)` and Cypress's `cy.wait(n)` with a number.
+
+```js title="sleep.test.js"
+import { setTimeout as sleep } from 'node:timers/promises';
+import { expect, test } from '@playwright/test';
+
+test('shows the toast', async ({ page }) => {
+  await page.click('text=Save');
+  await page.waitForTimeout(1000);
+  await sleep(200);
+  await new Promise((r) => setTimeout(r, 2 * 250));
+  expect(await page.isVisible('.toast')).toBe(true);
+});
+```
+
+```text title="npx eslint sleep.test.js" exit="1"
+
+/your/project/sleep.test.js
+  6:9  error  Fixed sleep in a test: The test waits a fixed waitForTimeout() instead of for the thing it needs, so it is slow where the guess is long and flaky where it is short. fix: await the event or condition itself: the promise the code returns, an emitted event (events.once), a polling assertion (vi.waitFor, expect.poll, Playwright expect(locator).toBeVisible()), or fake timers (vi.advanceTimersByTimeAsync) for timer-driven code                   truepass/no-fixed-sleep
+  7:9  error  Fixed sleep in a test: The test waits a fixed setTimeout() from timers/promises instead of for the thing it needs, so it is slow where the guess is long and flaky where it is short. fix: await the event or condition itself: the promise the code returns, an emitted event (events.once), a polling assertion (vi.waitFor, expect.poll, Playwright expect(locator).toBeVisible()), or fake timers (vi.advanceTimersByTimeAsync) for timer-driven code  truepass/no-fixed-sleep
+  8:9  error  Fixed sleep in a test: The test waits a fixed setTimeout instead of for the thing it needs, so it is slow where the guess is long and flaky where it is short. fix: await the event or condition itself: the promise the code returns, an emitted event (events.once), a polling assertion (vi.waitFor, expect.poll, Playwright expect(locator).toBeVisible()), or fake timers (vi.advanceTimersByTimeAsync) for timer-driven code                         truepass/no-fixed-sleep
+
+✖ 3 problems (3 errors, 0 warnings)
+
+```
+
+The fix is to wait for the thing itself, and the message lists the usual ways: the promise the
+code returns, an event (`events.once`), a polling assertion (`vi.waitFor`, `expect.poll`,
+Playwright's `await expect(locator).toBeVisible()`), or fake timers
+(`vi.advanceTimersByTimeAsync`) for code that is driven by a timer.
+
+A helper named `sleep` that takes a variable (`await sleep(ms)`) is not reported, and neither is a
+`setTimeout` callback that does anything other than resolve: the rule reports a wait whose length
+is written into the test, not every use of a timer.
+
+## no-test-retry
+
+`truepass/no-test-retry` reports:
+
+- a `retry` or `retries` key with a non-zero value in a runner config file
+  (`vitest.config.*`, `vite.config.*`, `jest.config.*`, `playwright.config.*`,
+  `vitest.workspace.*`);
+- the same key anywhere else when it sits in an object passed to a test-runner call
+  (`it('x', { retry: 3 }, fn)`, `test.describe.configure({ retries: 2 })`) or to `defineConfig`,
+  `defineProject`, `defineWorkspace` or `mergeConfig`;
+- `jest.retryTimes(n)` and Mocha's `this.retries(n)`.
+
+`retry: 0` is not a retry and is never reported.
+
+```js title="vitest.config.js"
+import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  test: {
+    retry: 2,
+  },
+});
+```
+
+```text title="npx eslint vitest.config.js" exit="1"
+
+/your/project/vitest.config.js
+  5:5  error  Test retry: Retries turn an intermittent failure into a pass, hiding the flakiness the test exists to report. fix: remove the retry and fix the cause of the flake (a race, shared state, a fixed sleep, an unmocked clock or network). If the retry is a deliberate policy, cite the decision id (D-…) or issue URL in a comment on this line or the line above  truepass/no-test-retry
+
+✖ 1 problem (1 error, 0 warnings)
+
+```
+
+## A retry that is policy
+
+Some retries are deliberate: an end-to-end suite against a staging environment you do not control,
+say. A comment on the line, or the line above, that cites a decision id or an issue link allows
+it. A date does not: a retry has no "until".
+
+```js title="playwright.config.js"
+import { defineConfig } from '@playwright/test';
+
+export default defineConfig({
+  // D-212: staging restarts nightly; e2e retries once until it has a health check
+  retries: 1,
+});
+```
+
+```text title="npx eslint playwright.config.js"
+```
+
+This example's `eslint.config.mjs` lints the runner configs too:
+
+```js title="eslint.config.mjs"
+import { configs } from 'truepass/eslint';
+
+export default [{ files: ['**/*.test.js', '**/*.config.js'], ...configs.recommended }];
+```

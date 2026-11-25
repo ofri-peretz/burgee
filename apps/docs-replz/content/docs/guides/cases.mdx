@@ -1,0 +1,99 @@
+---
+title: Case files
+description: "A replz case is one merged pull request at the commits it had at review time: a bug with a one-sentence answer key, or a clean control of a similar size, in the tune set or the held-out test set."
+---
+
+A case is a YAML file under `.sdlc/replz/cases/`, one per pull request. replz reads every
+`*.yaml` file in that folder, sorted by name. `--cases <dir>` points any command at another
+folder.
+
+```yaml
+# feat: cache the config (#12)
+id: bug-12
+kind: bug
+pr: 12
+base: "a1a1a1a1a1a1"
+head: "b2b2b2b2b2b2"
+answer: "The config cache is keyed by file name only, so a second project reads the first one's config."
+set: test
+```
+
+| Field | What it holds |
+| :-- | :-- |
+| `id` | Lowercase letters, digits and dashes. Distinct across every case, in both sets. |
+| `kind` | `bug` or `control`. |
+| `pr` | The pull request number, a whole number from 1. |
+| `base` | The commit the pull request was reviewed against: 7 to 40 lowercase hex characters. |
+| `head` | The commit the reviewer saw, the pull request applied to `base`. The same pattern. |
+| `answer` | What the bug is, in one sentence. Required on a bug, refused on a control. |
+| `set` | `tune` or `test`. |
+
+Any other key is refused, so a typo is an error rather than a field nobody reads. Quote the
+commits: a sha made only of digits would otherwise be read as a number. The comment on the first
+line is not read; `replz propose` writes the pull request's subject there so a person knows
+which change the file is about.
+
+## Bugs and the answer key
+
+A bug case is a pull request that shipped a defect, which a later revert or fix pinned on it. The
+`answer` is what a grader compares each finding with, so write the defect, not the area: "the
+cache is keyed by file name only, so a second project reads the first one's config" grades well;
+"a bug in the cache" lets any finding about the cache count.
+
+A finding counts only when the grader says it describes that bug: the same defect, not merely
+the same file. That is the whole point of the key. A reviewer that writes ten comments on the
+right file and none about the defect scores nothing on the case.
+
+## Controls
+
+A control is a clean merged pull request of a similar size to a bug, one that no revert or fix
+names. It has no answer, so its findings are never graded and cost no grader call. What a
+control measures is noise: a control on which the reviewer raises a `must-fix` or `should-fix`
+at its last stage is counted as a false alarm. A reviewer that blocks everything would score
+full recall on the bugs; the controls are what make that visible.
+
+## Two sets: tune and test
+
+`tune` holds the cases you look at while you change the reviewer: its prompt, its rules, its
+checklist. `test` holds the ones you judge the change on, and do not read while making it.
+`replz run --set test` replays only that set. Keeping them apart is the difference between a
+reviewer that got better and one that learned these particular cases.
+
+`replz propose` alternates the sets as it drafts, newest first, so neither set is all old or all
+new bugs, and gives each bug's control the same set as the bug.
+
+## What `check` refuses
+
+`replz check` reads every case and the config and stops at the first file that does not parse,
+naming every problem in it with its fix:
+
+```yaml title="broken/bug-14.yaml"
+id: bug-14
+kind: bug
+pr: 14
+base: "c3c3c3c3c3c3"
+head: "d4d4d4"
+set: holdout
+```
+
+```text title="npx replz check --cases broken" exit="1"
+error: broken/bug-14.yaml is not a valid case:
+  /head: expected a string matching /^[0-9a-f]{7,40}$/, got string "d4d4d4". fix: send a value the pattern accepts
+  /set: expected one of "tune", "test", got string "holdout". fix: send one of them
+fix: correct each field named above
+{"error":{"kind":"runtime","code":1,"message":"broken/bug-14.yaml is not a valid case:\n  /head: expected a string matching /^[0-9a-f]{7,40}$/, got string \"d4d4d4\". fix: send a value the pattern accepts\n  /set: expected one of \"tune\", \"test\", got string \"holdout\". fix: send one of them"}}
+```
+
+The last line is the same error as one JSON object. burgee writes it to stderr whenever stderr is
+not a terminal, so a script or an agent can read the failure from one line; at a terminal you see
+only the prose. [JSON and agents](/docs/guides/json-and-agents) has the rest.
+
+It also refuses a bug with no `answer`, a control with one, two cases with the same `id`, a bug
+whose answer still starts with the draft's `TODO`, a file not named `<id>.yaml`, and a set that
+lacks a bug or a control (a `test` set with no controls cannot show false alarms). Each comes
+with the `fix:` that repairs it.
+
+## What `check` does not refuse
+
+- **Commits that do not exist.** `check` reads no git history; `run` finds a missing commit when
+  it adds the worktree, and its error says to fetch it.

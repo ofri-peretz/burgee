@@ -1,0 +1,65 @@
+---
+title: Agents
+description: "How a coding agent uses provedone: stamp before it commits, read the gate's fix line, call the commands as MCP tools or with --json, and why the escape keeps it from being stuck behind its own gate."
+---
+
+provedone was written for a repository where much of the work is done by coding agents. An agent
+says "done" easily; the receipt makes it say how.
+
+## The loop
+
+1. Make the change.
+2. Run the commands that prove it through `stamp`, naming what was not checked:
+   `npx provedone stamp --run "npm test" --run "npm run build" --not-checked "the docs site"`.
+3. Paste the printed lines into the commit message's last paragraph, beside `Co-Authored-By:`.
+4. Commit. If the gate blocks, read its `fix:` and do that.
+
+An instruction file can say it in one line: "End every commit message with the lines
+`npx provedone stamp --run <the check> --not-checked <the gap>` prints."
+
+## Fix lines
+
+Every finding provedone prints ends in `fix:` with the command or line that resolves it, so an
+agent reads one line and acts. A usage error exits 2 and prints its `fix:` on its own line.
+Captured through a pipe, as an agent's shell captures it, the error follows as one line of JSON.
+
+```text title="npx provedone stamp" exit="2"
+error: nothing to stamp
+fix: provedone stamp --run "<command>" --not-checked "<gap>", or provedone stamp --none "<reason>"
+{"error":{"kind":"usage","code":2,"message":"nothing to stamp"}}
+```
+
+## --json, --schema and MCP
+
+provedone's commands are declared once on burgee, so every surface comes from the same
+declaration:
+
+- `--json` on any command prints one envelope on stdout, with the receipt, verdict or report as
+  fields.
+- `--schema` prints every command, option, default and environment variable as JSON.
+- `provedone --mcp` serves `stamp`, `gate`, `done` and `intent` as MCP tools, with the effect of
+  each declared (`gate` and `stamp` write to the store; `done` and `intent check` only read).
+
+```text title="npx provedone stamp --run 'node check.mjs' --not-checked nothing --json"
+{"ok":true,"data":{"exitCode":0,"changed":true,"receipt":{"checks":[{"command":"node check.mjs","exit":0,"digest":"sha256:49870237b565"}],"captures":[],"notChecked":[]},"trailers":["Verified-by: node check.mjs -> exit 0 (sha256:49870237b565)"],"checked":"Checked: `node check.mjs` (pass). Not checked: nothing.","pr":"## How this was checked\n\nChecked: `node check.mjs` (pass). Not checked: nothing.\n\nVerified-by: node check.mjs -> exit 0 (sha256:49870237b565)"},"meta":{"provenance":{"run":{"source":"flag","location":"--run"},"notChecked":{"source":"flag","location":"--not-checked"}},"changed":true}}
+```
+
+## The escape is for agents
+
+An agent that does not understand why it was blocked tends to retry, and a gate that blocks every
+retry leaves it two options: give up or skip the hooks. After two blocks in one session, provedone
+lets the next commit through and logs a `bypass`. The session is the agent's own
+(`CLAUDE_CODE_SESSION_ID` or `CLAUDE_SESSION_ID`), so one agent's bypass is not another's.
+[Modes and the escape](/docs/guides/modes-and-escape).
+
+Read the log to see how often it happens:
+
+```bash
+grep '"bypass":true' .git/provedone/gate.jsonl
+```
+
+## Done, for a task with an intent
+
+When the task has an intent under `.sdlc/intents/`, stamp each criterion with `--intent` and
+`--criterion`, and end with `npx provedone done <slug>`: its first line is the `Checked:` line for
+the PR, and it fails while any criterion is unproved. [Done](/docs/guides/done).

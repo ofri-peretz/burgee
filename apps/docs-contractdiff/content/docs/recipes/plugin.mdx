@@ -1,0 +1,78 @@
+---
+title: Write a plugin
+description: "Scaffold a contractdiff generator, extractor, input adapter or lint rule with contractdiff plugin new, prove it with the conformance suite from contractdiff/testing, and load it from contractdiff.config.json."
+---
+
+Every built-in target is a plugin, written against the same `Plugin` type yours is. A plugin is one
+plain object that contributes generators (contract to code), extractors (code to contract),
+adapters (an input format) or lint rules.
+
+## Scaffold one
+
+```text title="npx contractdiff plugin new my-target"
+write plugin-my-target.ts
+write plugin-my-target.test.ts
+write README.md
+
+next: node --test plugin-my-target.test.ts
+```
+
+It wrote three files, all yours: `plugin-my-target.ts` with a one-operation `sample`, a
+`plugin-my-target.test.ts` that runs the conformance suite, and a `README.md`. A second run writes
+nothing and never overwrites a file you changed:
+
+```text title="npx contractdiff plugin new my-target"
+unchanged plugin-my-target.ts
+unchanged plugin-my-target.test.ts
+unchanged README.md
+
+next: node --test plugin-my-target.test.ts
+```
+
+`--kind extractor`, `--kind adapter` and `--kind rules` scaffold the other kinds; `--out <dir>`
+writes elsewhere. `--kind rules --from finding.json` seeds a lint rule from one finding of
+`contractdiff lint --json`, with that finding as its sample.
+
+## Prove it
+
+```ts
+import { test } from "node:test";
+import { conformance } from "contractdiff/testing";
+import { plugin } from "./plugin-my-target.js";
+
+test("conforms", async () => {
+  await conformance(plugin);
+});
+```
+
+`conformance(plugin)` throws a `ConformanceError` naming every rule the plugin breaks, each with a
+`fix:` line. It runs under `node:test`, Vitest and Jest alike.
+
+| rule            | what it asks                                                                             |
+| :-------------- | :--------------------------------------------------------------------------------------- |
+| `schema`        | the plugin validates, and contributes a generator, an extractor, an adapter or a rule    |
+| `sample`        | `run` on `sample.document` returns exactly `sample.files`                                |
+| `deterministic` | two runs give the same bytes                                                             |
+| `regeneration`  | after a contract change, every `owner: 'user'` file is byte for byte what it was         |
+| `roundtrip`     | with `{ extractor }`: extracting what the generator wrote gives back the sample contract |
+| `fix-lines`     | every refusal and every finding says what to do                                          |
+| `paths`         | every path stays inside the output folder, even for an operation id with `../` in it     |
+| `no-io`         | a rule reads only the node and the contract it is given                                  |
+
+## Load it
+
+The files are ES modules; keep them in a package with `"type": "module"`. Name the plugin in the
+config, by package name or relative path (nothing else is loaded), and use its generator in a
+target:
+
+```json
+{
+  "input": "openapi.yaml",
+  "plugins": ["./plugins/plugin-my-target.js"],
+  "targets": { "ids": { "generator": "my-target", "out": "src/generated" } }
+}
+```
+
+The types (`Plugin`, `Contract`, `GeneratedFile`) and the conformance suite come from
+`contractdiff/testing`; the contract model the plugin receives is `contractdiff/core`. Both are in
+the [API reference](/docs/api).

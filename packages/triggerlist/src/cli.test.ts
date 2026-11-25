@@ -9,7 +9,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { type Git } from './git.js';
 
-import { loadChecklist, program, runCompile, runMatch, runProtect, runSeed, VERSION } from './index.js';
+import { loadChecklist, program, runBrief, runCompile, runMatch, runProtect, runSeed, VERSION } from './index.js';
 
 const TEXT = Symbol.for('burgee.text');
 const text = (data: Record<string | symbol, unknown>): string => (data[TEXT] as () => string)();
@@ -139,6 +139,12 @@ describe('runProtect', () => {
     expect(JSON.parse(JSON.stringify(data))).toEqual({ range: 'b...HEAD', checklist: 'b:c.yaml', mode: 'enforce', gates: [], code: [], flagged: false, bootstrap: true });
     expect(text(data)).toBe('b:c.yaml does not exist yet: no gate to protect, so nothing is checked');
     await expect(runProtect({ repo: '/nowhere', git, base: 'b', checklist: 'c.yaml', worktree: true, enforce: true })).rejects.toThrow();
+  });
+
+  it('still fails on a base checklist that is there and does not parse, so enforce cannot pass on it', async () => {
+    const git = fakeGit(GATE_DIFF, { 'b:c.yaml': 'items: {' });
+    await expect(runProtect({ repo: '/', git, base: 'b', checklist: 'c.yaml', worktree: false, enforce: true })).rejects.toThrow();
+    await expect(runBrief({ repo: '/', git, base: 'b', checklist: 'c.yaml', worktree: false, review: 'R.md', head: 'h' })).rejects.toThrow();
   });
 
   it('passes in enforce mode when not flagged', async () => {

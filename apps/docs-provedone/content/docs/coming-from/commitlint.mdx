@@ -1,0 +1,87 @@
+---
+title: Coming from commitlint
+description: "Keep @commitlint/cli for the message's shape and add provedone gate beside it in the commit-msg hook: the concept mapping, the migration steps, what moves out of commitlint.config, what differs on purpose and what is not built."
+---
+
+provedone does not replace commitlint. It takes over one job commitlint can be configured to do,
+requiring a `Verified-by:` trailer, and does the parts of that job a linter cannot. This repository
+runs both in the same `commit-msg` hook: commitlint for the message's shape, provedone for its
+receipt.
+
+## Concepts
+
+| commitlint | provedone |
+| :-- | :-- |
+| `commitlint --edit {1}` in `commit-msg` | `provedone gate {1}` in `commit-msg`, beside it |
+| `trailer-exists: [2, 'always', 'Verified-by:']` | `gate --mode enforce`: a `Verified-by:` line with a value |
+| the rule at level `1` (warning) | `gate` in `observe` mode, which also logs what it would block |
+| the rule at level `0` (off) | `--mode off`, or `PROVEDONE_MODE=off` |
+| `footer-max-line-length` (100 in config-conventional) | `stamp` folds trailers to 100 columns |
+| writing the trailer by hand | `provedone stamp --run "<command>" --not-checked "<gap>"` |
+| `--no-verify` to get past a rule | the escape: the third commit in a session passes, logged |
+| type, scope, subject rules | not provedone's job; keep them in commitlint |
+
+## The switch
+
+Add the gate beside commitlint:
+
+```diff
+  # lefthook.yml
+  commit-msg:
+    commands:
+      commitlint:
+        run: npx commitlint --edit {1}
++     provedone:
++       run: npx provedone gate {1}
+```
+
+and take the `Verified-by:` rule out of commitlint's config, if you had one:
+
+```diff
+  // commitlint.config.mjs
+  export default {
+    extends: ['@commitlint/config-conventional'],
+    rules: {
+-     'trailer-exists': [2, 'always', 'Verified-by:'],
+    },
+  };
+```
+
+Then:
+
+1. `npm install -D provedone`.
+2. Leave the hook in the default `observe` mode for a while. Read `.git/provedone/gate.jsonl` to
+   see what it would have blocked.
+3. When the log shows only real misses, add `--mode enforce` to the hook, or set
+   `PROVEDONE_MODE=enforce`.
+4. Teach the team, and the agents, to end a change with `provedone stamp`
+   ([Agents](/docs/recipes/agents)).
+
+If the repository uses hookset's presets, the `commit-msg` preset already carries both stations;
+[the hook recipe](/docs/recipes/commit-msg-hook#through-the-hookset-preset) shows it.
+
+## What differs, on purpose
+
+- **`none` needs a reason.** `trailer-exists` is satisfied by `Verified-by: none`. The gate
+  blocks it until it reads `Verified-by: none (<reason>)`.
+- **A merge passes.** A subject starting with `Merge ` carries its parents' receipts.
+- **The gate cannot trap anyone.** commitlint fails every time a rule fails; the gate lets the
+  third attempt in a session through and logs it. A gate that is bypassed is visible in the log; a
+  hook skipped with `--no-verify` is not.
+- **One line, one fix.** The gate prints one line ending in `fix:`, rather than a report per rule.
+- **Folded trailers are read whole.** A long `Verified-by:` folded over two lines, as `stamp`
+  writes it, counts as one.
+
+## What is not built
+
+- **No message-shape rules.** provedone has no `type-enum`, `scope-enum`, header length or case
+  rule, and no plan to add them.
+- **No config file and no shareable configs.** The gate's only setting is its mode.
+- **No `--from`/`--to` range.** commitlint can lint every commit in a range; the gate reads one
+  file. To check a range in CI, run `git log --format='%(trailers:key=Verified-by)'` over it
+  ([Querying history](/docs/recipes/querying-history)).
+- **No prompt.** There is no `@commitlint/prompt` equivalent; `stamp` prints the lines and you paste
+  them.
+
+No commitlint suite is graded against provedone, and it claims no compatibility with commitlint's
+API or config.

@@ -8,6 +8,8 @@ import { type ReactNode } from 'react';
 
 import { homeHero } from './home-hero';
 import { homeSection } from './home-section';
+import { homeStats } from './home-stats';
+import { homeStatsView } from './home-stats-view';
 import { homeTitle } from './home-title';
 import { JsonLd } from './json-ld';
 import { cardGrid, linkCard } from './link-card';
@@ -72,7 +74,9 @@ function bands(site: Site, source: DocsSource): ReactNode[] {
       packages. These pages cover all of them.
     </>
   );
+  const stats = homeStats(site.name);
   return [
+    stats.length === 0 ? null : homeSection({ id: 'numbers', eyebrow: 'By the numbers', title: 'Measured, with the file each number comes from' }, homeStatsView(stats)),
     start.length === 0 ? null : homeSection({ id: 'start', eyebrow: 'Start here', title: `Learn ${site.name} in this order` }, cardGrid(start.map(({ page, title }) => pageCard(page, title)))),
     guides.length === 0
       ? null

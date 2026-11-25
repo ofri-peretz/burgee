@@ -1,0 +1,149 @@
+---
+title: The reviewer's brief
+description: "triggerlist brief <base> --head <sha> writes the prompt for one review round: the base branch's REVIEW.md, the items the diff fires, the reviewer's findings from the previous round, the author's replies since, and the marker line its summary must end with."
+---
+
+```bash
+npx triggerlist brief <base> --head <sha> [--comments <file>] [--replies <file>] [--review <path>] [--checklist <path>]
+```
+
+`brief` is the prompt an agent reviewer is handed in CI. It is plain Markdown on stdout, so it
+goes into any reviewer: a model's prompt, a file the reviewer reads, or a person's checklist.
+
+## What it contains
+
+1. **The rules**: `REVIEW.md` as the base branch has it (`--review` names another file).
+2. **The rules this diff fires**: what [`match`](/docs/guides/match) prints for `<base>...HEAD`.
+3. **Your findings from the previous round**: the last pull request comment that carries the
+   triggerlist marker, from `--comments`. On the first round it says there are none.
+4. **The author's replies since that round**, from `--replies`: only when there was a previous
+   round and someone answered it.
+5. **The commit under review**, `--head`, and the marker line the reviewer's summary must end
+   with: `<!-- triggerlist-review head=<sha> -->`.
+
+The marker is how the next round finds this one. It also records which commit was reviewed, so
+the next brief can say "Reviewed at `<sha>`" and ask which findings the new commits fixed.
+
+## One round, built by hand
+
+The pieces are exported, so a test or a bot can build the same brief without git. Here the
+previous round left one finding, and the author answered it afterwards:
+
+```json title="comments.json"
+[
+  { "body": "Looks fine.", "created_at": "2026-11-20T09:00:00Z" },
+  {
+    "body": "- src/build.ts:1 spawns through child_process directly; use src/run.ts.\n\n<!-- triggerlist-review head=1a2b3c4 -->",
+    "created_at": "2026-11-20T10:00:00Z"
+  }
+]
+```
+
+```json title="replies.json"
+[
+  { "body": "Before the review, nothing to see.", "created_at": "2026-11-20T09:30:00Z", "user": { "login": "dana", "type": "User" } },
+  { "body": "run.ts cannot stream stdout yet, so build.ts spawns directly until #240 lands.", "created_at": "2026-11-20T11:00:00Z", "user": { "login": "dana", "type": "User" }, "path": "src/build.ts", "line": 1 },
+  { "body": "Coverage: 91%", "created_at": "2026-11-20T11:05:00Z", "user": { "login": "codecov[bot]", "type": "Bot" } }
+]
+```
+
+```js title="brief.mjs"
+import { readFileSync } from 'node:fs';
+import { briefText, match, parseChecklist, parseDiff, previousRound, repliesSince } from 'triggerlist';
+
+const checklist = parseChecklist('main:.sdlc/checklist.yaml', readFileSync('.sdlc/checklist.yaml', 'utf8'));
+const diff = `diff --git a/src/build.ts b/src/build.ts
+--- a/src/build.ts
++++ b/src/build.ts
+@@ -0,0 +1,1 @@
++import { execSync } from 'node:child_process';
+`;
+
+const round = previousRound(JSON.parse(readFileSync('comments.json', 'utf8')));
+const replies = repliesSince(JSON.parse(readFileSync('replies.json', 'utf8')), round?.created_at);
+
+console.log(briefText({
+  rules: 'main:REVIEW.md',
+  rulesText: '# REVIEW.md\n\n- `spawn-through-helper` Does new code spawn a process directly instead of through src/run.ts?',
+  range: 'main...HEAD',
+  fired: match(checklist, parseDiff(diff)),
+  previous: round?.body ?? undefined,
+  replies,
+  head: '5d6e7f8',
+}));
+```
+
+```text title="node brief.mjs"
+## The rules (main:REVIEW.md, as the base branch has them)
+
+# REVIEW.md
+
+- `spawn-through-helper` Does new code spawn a process directly instead of through src/run.ts?
+
+## The rules this diff fires (main...HEAD)
+
+1 checklist item(s) fire for main...HEAD:
+
+spawn-through-helper: Does new code spawn a process directly instead of through src/run.ts?
+  check: a child_process import outside src/run.ts is a finding
+  at: src/build.ts:1
+
+## Your findings from the previous round
+
+Reviewed at 1a2b3c4. Say which of these the new commits fixed, and do not repeat a finding that still stands unless it changed.
+
+- src/build.ts:1 spawns through child_process directly; use src/run.ts.
+
+<!-- triggerlist-review head=1a2b3c4 -->
+
+## The author's replies since that round
+
+A finding the author answered here is not repeated unless the new diff changes the facts it rests on. Instead, say in one line that it was answered and why that answer holds or does not.
+
+- @dana, 2026-11-20T11:00:00Z on src/build.ts:1:
+
+> run.ts cannot stream stdout yet, so build.ts spawns directly until #240 lands.
+
+## The commit under review
+
+5d6e7f8. End your one summary comment with this line, exactly:
+
+<!-- triggerlist-review head=5d6e7f8 -->
+```
+
+Only the author's reply posted after the previous round reaches the reviewer. The one before it
+and the bot's comment are left out.
+
+## Comments and replies
+
+`--comments` and `--replies` each take a JSON array in the shape GitHub's REST API lists
+comments: `gh api repos/<owner>/<repo>/issues/<n>/comments` for the conversation, and
+`.../pulls/<n>/comments` for review threads. Only `body` and `created_at` are read from a
+comment; a reply also uses `user.login`, `user.type`, `path` and `line`.
+
+- **Filter `--comments` to the reviewer's own comments** before passing them. Anyone can comment
+  on a pull request, and the last comment with the marker is taken as the previous findings.
+- **Replies are trimmed.** Those posted after the previous round's `created_at` are kept, bots
+  (a `Bot` type or a login ending in `[bot]`) and empty bodies are dropped, the latest 10 are
+  kept, and each is cut at 1,200 characters with `[trimmed]`. Those limits are `MAX_REPLIES` and
+  `MAX_REPLY_CHARS` in `src/brief.ts`.
+- With no previous round, replies are not shown: there is nothing they answer.
+
+## What the reviewer is asked to do
+
+The brief tells the reviewer to say which previous findings the new commits fixed, not to repeat
+a finding that still stands unless it changed, and not to repeat a finding the author answered
+unless the new diff changes the facts it rests on. It ends with the marker line the summary must
+end with, exactly.
+
+## With `--json`
+
+`brief --json` prints the facts instead of the prompt: `rules`, `range`, `checklist`, the ids and
+places that fired, whether there was a previous round, how many replies reached it, `head` and
+the `marker`. A CI step can use it to log what the reviewer was given.
+
+## Stale reviews
+
+`brief` records the head it was given; it does not watch the pull request. Checking that the head
+did not move while the reviewer ran is the CI step's job, and the [GitHub Actions
+recipe](/docs/recipes/github-actions) shows the composite action that does it.

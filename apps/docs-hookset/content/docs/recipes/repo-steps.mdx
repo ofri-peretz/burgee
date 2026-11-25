@@ -1,0 +1,43 @@
+---
+title: Repository steps
+description: "Add a step only one repository needs as a local command in lefthook.yml below the remotes block, without repeating a step a preset already runs, which hookset check reports as a duplicate to delete."
+---
+
+The presets cover the stations every repository shares. A step only one repository needs (an
+end-to-end smoke test, a schema check, a hook on `post-merge`) goes in that repository's own
+`lefthook.yml`, under the hook it belongs to, below the `remotes:` block `hookset init` wrote:
+
+```yaml
+remotes:
+  - git_url: https://github.com/ofri-peretz/burgee
+    ref: hookset@1.0.0
+    configs:
+      - packages/hookset/presets/lefthook/commit-msg.yml
+      - packages/hookset/presets/lefthook/pre-commit.yml
+      - packages/hookset/presets/lefthook/pre-push.yml
+
+pre-push:
+  commands:
+    e2e:
+      priority: 10
+      run: npm run test:e2e
+post-merge:
+  commands:
+    install:
+      run: npm install
+```
+
+lefthook merges the local commands with the ones the remote brings. A `priority` above the
+presets' (they use 1 to 5 on `pre-push`) runs the local step after them.
+
+## Never repeat a station
+
+A local step that runs a station's script (`hook:verify`, `hook:staged`, and the rest), or
+`commitlint --edit` on `commit-msg`, runs that station twice. `hookset check` fails on it with
+`duplicate` and names the command to delete. The fix is always the same: change what the
+station script runs in `package.json`, and delete the local step.
+
+## Name local steps for what they do
+
+The preset steps are all named `hookset-<station>`. Keep that prefix for the presets, so a
+reader of the lefthook output can tell a shared step from one this repository added.

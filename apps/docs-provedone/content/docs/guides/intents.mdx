@@ -1,0 +1,143 @@
+---
+title: Intents
+description: "provedone intent new writes an intent and its spec from your templates; intent check holds every intent to the rules, and with --evidence re-runs each shipped intent's evidence commands and fails when one no longer prints what it recorded."
+---
+
+An intent is what "done" means, written down before the work: what is wanted, why now, the
+constraints, and success criteria a person or a command can check. provedone reads intents in the
+format this repository's `.sdlc/intents/` uses, so another repository gets the same rules without
+copying a test.
+
+## Write one
+
+```bash
+npx provedone intent new faster-help --owner @me
+```
+
+It copies `.sdlc/intents/_template/intent.md` and `spec.md` into
+`.sdlc/intents/faster-help/`, fills `<YYYY-MM-DD>` with today (UTC, or `--date`) and `<handle>`
+with `--owner` (or `git config user.name`), and prints the two paths. It refuses a slug that
+already exists, a slug that is not kebab case (and prints the kebab-case one), and a missing
+template. `--dir` points at another intents directory.
+
+## Check them all
+
+`provedone intent check` reads every directory under `.sdlc/intents/` except `_template/` and holds
+each intent to these rules:
+
+| Rule | The intent must have |
+| :-- | :-- |
+| `title` | a first line `# Intent — <title>` |
+| `status` | `**Status:** draft`, `review`, `approved`, `shipped` or `dropped` |
+| `section` | `## What is wanted`, `## Why now` and `## Constraints` |
+| `success` | `## Success criteria` (or `## How we will know it worked`) |
+| `spec` | a `spec.md`, once it is `approved` or `shipped` |
+| `rejected` | in `spec.md`, a section starting `## Rejected`, `## Non-goals`, `## Explicit non-goals`, `## Out of scope` or `## Risks and rejected` |
+| `index` | the same status in `.sdlc/intents/README.md`'s index row as in its own header |
+
+Here is an intent that breaks two of them.
+
+```md title=".sdlc/intents/faster-help/intent.md"
+# Intent — `--help` answers in under 100 ms
+
+**Status:** approved · **Opened:** `2026-11-20` · **Owner:** `@me`
+
+## What is wanted
+
+`mycli --help` prints before a person notices a wait.
+
+## Constraints
+
+The help text does not change.
+
+## Success criteria
+
+- `--help` answers in under 100 ms.
+```
+
+```text title="npx provedone intent check" exit="1"
+faster-help: lacks ## Why now. fix: add a `## Why now` section
+faster-help: is "approved" but has no spec.md. fix: write .sdlc/intents/faster-help/spec.md, or set the status back to review
+2 intents, 2 problems, 0 shipped with no evidence
+```
+
+The last line counts intents, problems, and shipped intents that record no evidence at all.
+
+## Evidence tables
+
+A shipped intent records how its criteria were proved. provedone reads a pipe table whose first
+header cell is `Criterion`, with the command in the second cell and what it printed in the third.
+
+```md title=".sdlc/intents/fast-start/intent.md"
+# Intent — the CLI starts in under 50 ms
+
+**Status:** shipped · **Opened:** `2026-11-01` · **Owner:** `@me`
+
+## What is wanted
+
+`mycli` with no arguments prints its banner fast.
+
+## Why now
+
+Users notice the wait.
+
+## Constraints
+
+No new dependency.
+
+## Success criteria
+
+- The banner prints in under 50 ms.
+- The banner names the version.
+
+## Shipped
+
+| Criterion | Command | Output |
+| :-- | :-- | :-- |
+| C1. under 50 ms | `node start-time.mjs` | `start: 22 ms` |
+| C2. names the version | `node banner.mjs` | `mycli 1.4.0` |
+```
+
+```md title=".sdlc/intents/fast-start/spec.md"
+# Design — the CLI starts in under 50 ms
+
+## Out of scope
+
+- Startup on Windows.
+```
+
+```js title="start-time.mjs"
+console.log('start: 22 ms');
+```
+
+```js title="banner.mjs"
+console.log('mycli 1.5.0');
+```
+
+The command cell must be one code span and nothing else to be re-run; a cell with prose around it,
+or one that names a file in the repository that is not a script, is listed as not re-run, never as
+passing. The output cell's code spans must each appear in what the command prints now, and an
+`exit <n>` in it is the exit code the command must end with (0 when it names none).
+
+## Re-run the evidence
+
+`--evidence` re-runs every runnable row of every `shipped` intent, one at a time, and fails on any
+whose exit code changed or whose recorded output no longer appears. The banner above has moved on
+to 1.5.0, so its row is stale.
+
+```text title="npx provedone intent check --evidence" exit="1"
+faster-help: lacks ## Why now. fix: add a `## Why now` section
+faster-help: is "approved" but has no spec.md. fix: write .sdlc/intents/faster-help/spec.md, or set the status back to review
+fast-start: `node banner.mjs` no longer prints `mycli 1.4.0`. fix: re-run it and update the evidence row, or restore what it proved
+2 intents, 3 problems, 0 shipped with no evidence, 2 re-run, 0 not re-run
+```
+
+That is the check that tells you a shipped claim has stopped being true. It runs commands, so it is
+slower than the rules alone; this repository's intent suggests running it on a schedule rather
+than on every push. `--command-timeout` caps each command (600 seconds by default).
+
+## As data
+
+`intent check --json` carries the findings (intent, rule, message, fix), the shipped intents with
+no evidence, every re-run with its expected and actual exit and the missing output, and every row
+that was not re-run.

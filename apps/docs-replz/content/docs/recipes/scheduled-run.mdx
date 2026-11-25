@@ -1,0 +1,72 @@
+---
+title: Run replz on a schedule
+description: "A monthly GitHub Actions workflow that replays the held-out cases, records the report in history.jsonl and opens a pull request with it, plus the replz check step that keeps every case runnable on every push."
+---
+
+A run calls the reviewer once per case and the grader once per graded finding, so it belongs on
+a schedule, not on every pull request. The cheap part, keeping the cases valid, runs on every
+push.
+
+## On every push: keep the cases runnable
+
+`replz check` costs nothing. Add it to the job that runs your tests:
+
+```yaml
+- run: npx replz check
+```
+
+It refuses everything that would make a later run meaningless before any model is paid for: an
+answer still the `TODO` placeholder `propose` writes, a file not named `<id>.yaml`, two cases
+with one `id`, and a set without both a bug and a control. [Case files](/docs/guides/cases) lists
+each refusal.
+
+## Once a month: the run
+
+```yaml
+# .github/workflows/replz.yml
+name: replz
+on:
+  schedule:
+    - cron: '0 6 1 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # every case's commits
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci
+      - run: npx replz run --set test --model "$GRADER_MODEL" --record
+        env:
+          GRADER_MODEL: ${{ vars.REPLZ_GRADER_MODEL }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      - run: |
+          git switch -c replz/$(date +%F)
+          git add .sdlc/replz/history.jsonl
+          git -c user.name=replz -c user.email=replz@users.noreply.github.com commit -m "chore: replz run $(date +%F)"
+          git push -u origin HEAD
+          gh pr create --fill
+        env:
+          GH_TOKEN: ${{ github.token }}
+```
+
+- **`fetch-depth: 0`.** Each case is a worktree at an old commit; a shallow checkout does not
+  have it, and the run stops with "fetch the commit the case names".
+- **The model names live in the workflow's variables**, not in the config, so the config never
+  pins a model that will be retired.
+- **The history line goes through a pull request**, so the change in recall is reviewed and
+  stays in the repository's history beside the change that caused it.
+- The reviewer and grader commands must be installed on the runner: a `claude` CLI, or whatever
+  your config calls.
+
+Run `--set tune` by hand while you change the reviewer, and leave `--set test` to the schedule.
+[Pruning checks](/docs/recipes/prune-checks) is what to do with the report.

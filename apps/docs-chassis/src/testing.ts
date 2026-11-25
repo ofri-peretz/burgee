@@ -213,6 +213,27 @@ export function docsSiteSuite(testFileUrl: string): void {
     });
   });
 
+  describe(`${app.row.workspace}: a command over its output renders as a terminal`, () => {
+    // The first page whose source has a ```text title="<command>"``` fence, if any page does.
+    const content = join(app.dir, 'content', 'docs');
+    const page = mdxFiles(content).find((abs) => /^```text title="[^"]+"/mu.test(readFileSync(abs, 'utf8')));
+    it.runIf(page !== undefined)('draws it with the prompt and a button that copies the command', () => {
+      const url = urlOf(content, page ?? '');
+      const html = app.built(`${url.slice(1)}.html`);
+      expect(html, `${url} has a terminal fence but no terminal block — is source-config.mjs still marking it, and mdx.tsx rendering the mark?`).toContain('data-testid="terminal-block"');
+      expect(html).toContain('data-testid="terminal-block-copy"');
+    });
+  });
+
+  describe(`${app.row.workspace}: every docs page offers itself as Markdown`, () => {
+    it('renders the page actions, pointed at the page’s own .md twin', () => {
+      const url = app.urls.find((u) => u !== '/docs') ?? '/docs';
+      const html = app.built(`${url.slice(1)}.html`);
+      expect(html, `${url} has no page actions — does docs-page.tsx still render pageActions?`).toContain('data-testid="page-actions"');
+      expect(html).toContain(`${url}.md`);
+    });
+  });
+
   describe(`${app.row.workspace}: PostHog is on every page, through the same origin`, () => {
     it('the prerendered home page references the Analytics client component, which captures pageviews', () => {
       const html = app.built('index.html');

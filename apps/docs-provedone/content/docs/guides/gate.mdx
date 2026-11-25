@@ -1,0 +1,110 @@
+---
+title: The gate
+description: "provedone gate reads a commit message or a PR body and decides whether it carries a receipt: what passes, what blocks, the fix it prints, its exit codes and its --json envelope."
+---
+
+`provedone gate <file>` reads one file, a commit message or a pull request body, and asks one
+question: does it say how the change was checked? It answers in one line, and in `enforce` mode
+it exits 1 when the answer is no.
+
+```bash
+npx provedone gate .git/COMMIT_EDITMSG                 # observe: passes, logs what enforce would block
+npx provedone gate pr-body.md --mode enforce           # blocks a body with no receipt
+```
+
+In a `commit-msg` hook, lefthook passes the message file as `{1}`;
+[the hook recipe](/docs/recipes/commit-msg-hook) shows the wiring.
+
+## What passes
+
+A message with at least one `Verified-by:` line that has a value.
+
+```text title="receipt.txt"
+feat: faster help
+
+Verified-by: npm test -> exit 0 (sha256:85f7e552faae)
+Not-checked: Windows
+```
+
+```text title="npx provedone gate receipt.txt --mode enforce"
+provedone: receipt
+```
+
+A message that says it was not verified, and why.
+
+```text title="none.txt"
+docs: fix a typo
+
+Verified-by: none (typo in a comment)
+```
+
+```text title="npx provedone gate none.txt --mode enforce"
+provedone: unverified, with a reason
+```
+
+A merge commit, whose subject starts with `Merge `: it carries its parents' receipts.
+
+```text title="merge.txt"
+Merge branch 'main' into faster-help
+```
+
+```text title="npx provedone gate merge.txt --mode enforce"
+provedone: merge commit
+```
+
+## What blocks
+
+No `Verified-by:` line at all.
+
+```text title="bare.txt"
+fix: make CI green
+
+# Verified-by: lines in a commit template's comments are not read.
+```
+
+```text title="npx provedone gate bare.txt --mode enforce" exit="1"
+provedone: no Verified-by: line. fix: run `provedone stamp --run "<the command that proves it>" --not-checked "<what you did not check>"` and paste its lines, or add `Verified-by: none (<why it needs no check>)`
+```
+
+A `none` with no reason. "Not verified" is an answer only with the reason beside it.
+
+```text title="bare-none.txt"
+chore: bump
+
+Verified-by: none
+```
+
+```text title="npx provedone gate bare-none.txt --mode enforce" exit="1"
+provedone: "Verified-by: none" gives no reason. fix: write it as `Verified-by: none (<why it needs no check>)`
+```
+
+Every block ends in `fix:`, naming the line to add.
+
+## What it does not check
+
+The gate reads the shape of the receipt, not its truth. It does not re-run the command, compare
+the digest, or look at the exit code: a pasted `-> exit 1` passes, and so does a typed line that
+`stamp` never wrote. What it guarantees is that every commit says something about how it was
+checked, in a form `git log` can query. Whether that was enough is for the reviewer who reads it,
+and, for an intent's success criteria, for [`provedone done`](/docs/guides/done), which reads the
+stamps that actually ran.
+
+## Exit codes
+
+| Exit | When |
+| :-- | :-- |
+| `0` | a receipt; or any message in `observe` or `off`; or the escape let it through |
+| `1` | `enforce`, no receipt, and fewer than two blocks in this session |
+| `2` | a usage error: no such file, an unknown mode |
+
+[Modes and the escape](/docs/guides/modes-and-escape) covers the modes, and what "two blocks in
+this session" means.
+
+## As data
+
+`--json` prints burgee's envelope: the verdict, the decision and the fix as fields. The run
+below names its own session, so the two blocks above do not count against it.
+
+```text title="PROVEDONE_SESSION=json-demo npx provedone gate bare.txt --mode enforce --json" exit="1"
+{"ok":false,"data":{"exitCode":1,"mode":"enforce","ok":false,"reason":"no Verified-by: line","fix":"run `provedone stamp --run \"<the command that proves it>\" --not-checked \"<what you did not check>\"` and paste its lines, or add `Verified-by: none (<why it needs no check>)`","blocked":true,"bypass":false},"meta":{"provenance":{"mode":{"source":"flag","location":"--mode"}}}}
+```

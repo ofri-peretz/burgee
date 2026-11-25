@@ -1,0 +1,82 @@
+---
+title: Coming from husky
+description: "Move a repository from husky to hookset: each .husky/ script becomes the station script its hook calls, `prepare` runs lefthook instead, and hookset init writes the lefthook.yml. A concept map, the steps, what differs on purpose and what is not built."
+---
+
+husky installs the hook scripts a repository keeps in `.husky/`. hookset keeps one set of hooks
+for every repository, as lefthook presets pinned by tag, and moves each repository's commands
+into scripts with fixed names. The switch changes where the commands live, not what they do.
+
+No husky suite is graded against hookset, and hookset does not claim to be a drop-in: it does
+not read `.husky/`, and it runs hooks through lefthook.
+
+## Concept map
+
+| husky | hookset |
+| :-- | :-- |
+| `npx husky init` | `npx hookset init` |
+| `"prepare": "husky"` | `"prepare": "lefthook install \|\| true"` |
+| `.husky/pre-commit` | the `hook:staged` script, which lefthook hands the staged paths |
+| `.husky/commit-msg` running `commitlint --edit $1` | the `commitlint` station, in the `commit-msg` preset |
+| `.husky/pre-push` | the `hook:verify` script, plus the optional and observed pre-push stations |
+| a step only this repository has | a local step in `lefthook.yml`, below `remotes:` ([Repository steps](/docs/recipes/repo-steps)) |
+| `core.hooksPath` set to `.husky/_` | lefthook installs into `.git/hooks`; nothing moves `core.hooksPath` |
+| `HUSKY=0` to skip the hooks | none for agents: guard-bash denies `HUSKY=0` and `LEFTHOOK=0` before a commit or push |
+
+## The steps
+
+1. **Install.**
+
+   ```bash
+   npm uninstall husky
+   npm install -D hookset lefthook
+   ```
+
+2. **Move each script.** Whatever `.husky/pre-commit` ran on staged files becomes
+   `hook:staged`; whatever `.husky/pre-push` ran becomes `hook:verify`. A commitlint line in
+   `.husky/commit-msg` needs nothing: the preset runs commitlint. Declare `hook:provedone` too,
+   for the `commit-msg` station on `main` ([Presets](/docs/guides/presets)).
+
+   ```diff
+     "scripts": {
+   -   "prepare": "husky",
+   +   "prepare": "lefthook install || true",
+   +   "hook:provedone": "provedone gate --mode enforce",
+   +   "hook:staged": "prettier --check",
+   +   "hook:verify": "npm run typecheck && npm test && npm run build"
+     }
+   ```
+
+3. **Write the config.** `npx hookset init` writes `lefthook.yml`.
+
+4. **Give git its hooks back.** husky 9 points `core.hooksPath` at `.husky/_`. Unset it so git
+   runs the hooks lefthook installs, then install them:
+
+   ```bash
+   git config --unset core.hooksPath
+   npx lefthook install
+   ```
+
+5. **Delete `.husky/`**, and run `npx hookset check`. It names anything still missing, each with
+   its fix.
+
+## What is different on purpose
+
+- **The hook is not the repository's file.** A repository cannot edit the preset; it edits what
+  its `hook:*` script runs, or adds a local step. That is what keeps the same station the same
+  everywhere.
+- **The version is a tag in `lefthook.yml`.** husky's hooks change when the repository's files
+  change. hookset's presets change when the repository moves its `ref`
+  ([Pinning](/docs/guides/pinning)).
+- **There is a check.** `hookset check` in CI fails a repository whose hooks are missing or
+  drifted. husky has no equivalent; a deleted `.husky/pre-push` is silent.
+- **Skipping is denied to agents.** A person can still skip a hook from their own terminal.
+  Claude Code cannot, once the [hook pack](/docs/guides/claude-code-hooks) is in.
+
+## What is not built
+
+- **Husky presets.** The intent planned presets for husky as well as lefthook, and took lefthook
+  first; the husky ones follow once a repository outside the family asks.
+- **Reading `.husky/`.** `init` does not convert the scripts for you; step 2 is by hand.
+- **Hooks other than `commit-msg`, `pre-commit` and `pre-push`.** A repository that uses
+  `post-merge` or `prepare-commit-msg` keeps them as local steps in `lefthook.yml`.

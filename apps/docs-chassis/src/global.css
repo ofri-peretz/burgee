@@ -47,3 +47,73 @@ body {
 .dark body {
   background-image: none;
 }
+
+/* A docs table on a narrow screen folds into one card per row instead of scrolling sideways
+ * (`rehype-table-stack.mjs` marks it and labels every cell with its column's header). The
+ * wrapper fumadocs puts around each table is the container, so a table folds when the column
+ * it sits in is narrow, not only on a phone. 30rem is Interlace's `xs` step: below it, a
+ * two-column table cannot hold a code span and its translation side by side. */
+div:has(> table[data-stack]) {
+  container-type: inline-size;
+}
+
+@container (max-width: 30rem) {
+  table[data-stack],
+  table[data-stack] tbody,
+  table[data-stack] tr,
+  table[data-stack] td,
+  table[data-stack] th {
+    display: block;
+    width: 100%;
+  }
+
+  /* The header row is still there for a screen reader, which reads every cell's header from
+   * the explicit roles; on screen, each cell carries its own label instead. */
+  table[data-stack] thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  table[data-stack] tbody tr {
+    border: 1px solid var(--color-fd-border);
+    border-radius: 0.75rem;
+    background: var(--color-fd-card);
+    padding: 0.5rem 0.75rem;
+  }
+
+  table[data-stack] tbody tr + tr {
+    margin-top: 0.75rem;
+  }
+
+  table[data-stack] td,
+  table[data-stack] th {
+    border: 0;
+    background: transparent;
+    padding: 0.375rem 0;
+    /* `!important` only to beat the inline `style="text-align:right"` GFM writes for a
+     * right-aligned column: a number reads from the start once it sits under its label
+     * rather than beside its neighbours. */
+    text-align: start !important;
+    /* A long call like `string({ min: a, max: b, length: n, pattern: r })` breaks inside the
+     * card rather than pushing it wider than the column. */
+    overflow-wrap: anywhere;
+  }
+
+  table[data-stack] [data-label]::before {
+    content: attr(data-label) / '';
+    display: block;
+    margin-bottom: 0.125rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--color-fd-muted-foreground);
+  }
+
+  /* A row header (a row-labelled table's first cell) is the card's title. */
+  table[data-stack] th[scope='row'] {
+    font-weight: 600;
+  }
+}

@@ -1,0 +1,84 @@
+---
+title: Generated and frozen files
+description: "List generated files in .claude/hookset.json, each glob with the command that writes it, and guard-bash denies an agent's Edit or Write on them and names that command; list frozen globs and it denies edits that only a recorded decision may make."
+---
+
+Every repository has files nobody should edit by hand: an API reference built from types, a
+lockfile, a registry built by a script. A CLAUDE.md that says "regenerate, don't hand-edit" is
+read once and forgotten. guard-bash turns it into a denial that names the command to run
+instead.
+
+## The two lists
+
+`.claude/hookset.json` holds them, beside the `ask` list:
+
+```json title=".claude/hookset.json"
+{
+  "ask": [],
+  "frozen": ["docs/decisions/**"],
+  "generated": {
+    "content/docs/api/**": "npx tsx scripts/api-reference.ts",
+    "package-lock.json": "npm install"
+  }
+}
+```
+
+- **`generated`** maps a glob to the command that writes the files it matches. An Edit or a
+  Write on a match is denied, and the reason names the command.
+- **`frozen`** is a list of globs that change only by a decision: a decision record, a policy
+  file, a published identifier. An Edit or a Write on a match is denied, and the reason says to
+  record the decision first and change the list in a pull request of its own.
+
+`generated` shipped in hookset 1.0.0: the guard-bash that earlier versions vendor reads
+`frozen` only, and ignores a `generated` key without an error.
+
+## The globs
+
+`*` matches within one path segment, `**` across segments, and `?` one character. Paths are
+compared relative to the repository, with forward slashes, after `a/../b` and `./a` are folded,
+so a dotted path cannot step around a glob.
+
+## What an agent sees
+
+After `hookset init --claude` has vendored the pack:
+
+```text title="npx hookset init --claude"
+wrote lefthook.yml, .claude/hooks/guard-bash.mjs, .claude/hooks/stop-after-3.mjs, .claude/settings.json
+```
+
+This script sends guard-bash the Edit and Write calls Claude Code would:
+
+```js title="try-edits.mjs"
+import { spawnSync } from 'node:child_process';
+import { join } from 'node:path';
+
+const files = ['content/docs/api/index.md', './docs/../docs/decisions/D-1.md', 'package-lock.json', 'src/index.ts'];
+const env = { ...process.env, CLAUDE_PROJECT_DIR: process.cwd() };
+for (const file of files) {
+  const call = { tool_name: 'Edit', tool_input: { file_path: join(process.cwd(), file) } };
+  const r = spawnSync(process.execPath, ['.claude/hooks/guard-bash.mjs'], { input: JSON.stringify(call), encoding: 'utf8', env });
+  const out = r.stdout ? JSON.parse(r.stdout).hookSpecificOutput : undefined;
+  console.log(out ? `${out.permissionDecision}: ${out.permissionDecisionReason}` : `no opinion: ${file} is editable`);
+}
+```
+
+```text title="node try-edits.mjs"
+deny: [guard-bash:generated] content/docs/api/index.md is generated (`content/docs/api/**` in .claude/hookset.json). Edit its source, then run `npx tsx scripts/api-reference.ts`.
+deny: [guard-bash:frozen] docs/decisions/D-1.md matches the frozen glob `docs/decisions/**` in .claude/hookset.json. It changes only by a decision: record one, then edit the list in its own PR.
+deny: [guard-bash:generated] package-lock.json is generated (`package-lock.json` in .claude/hookset.json). Edit its source, then run `npm install`.
+no opinion: src/index.ts is editable
+```
+
+The agent is not stuck: the reason tells it which source to change and what to run, and the
+generated file then changes the way it always should have.
+
+## Choosing what goes where
+
+- **Generated**: anything a command in the repository rewrites. If the command exists, name it.
+- **Frozen**: anything whose change is a decision rather than an edit. If there is a command
+  that writes it, it is generated, not frozen.
+- **Neither**: a file a person edits by hand often. A denial there trains agents to ask for an
+  override, which is worse than no rule.
+
+A person editing in their own editor is not affected: these are Claude Code hooks, and they
+run only on Claude Code's tool calls.

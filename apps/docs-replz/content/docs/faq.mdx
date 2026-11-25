@@ -1,0 +1,64 @@
+---
+title: FAQ
+description: "Short answers about replz: what it costs, where the cases come from, why controls, why a grader model, what counts as a match, running in CI, other reviewers, and what check does not catch, each with where to read more."
+---
+
+## What does a run cost?
+
+One reviewer call per case and one grader call per graded finding of a bug case, at most
+`maxFindings` per case. Controls are never graded. `check` and `propose` call no model.
+[Run and report](/docs/guides/run-and-report).
+
+## Should it run on every pull request?
+
+No. It replays past pull requests, so the score only changes when the reviewer or the cases do.
+Run it by hand while you change the reviewer, and on a schedule otherwise.
+[Run replz on a schedule](/docs/recipes/scheduled-run).
+
+## Where do the cases come from?
+
+From your history: `replz propose` drafts a bug case for each pull request that a revert or a
+fix naming it blamed, and a size-matched control for each. You write the answer keys.
+[Drafting cases](/docs/guides/propose).
+
+## Does `propose` write the case files?
+
+No, it prints them, each after a line naming its file. `--json` gives them as data, and one
+line of Node saves them. [Saving the drafts](/docs/guides/propose#saving-the-drafts).
+
+## Why are there controls?
+
+Without them, a reviewer that blocks every pull request scores full recall. A blocking finding on
+a clean pull request is counted as a false alarm. [Controls](/docs/guides/cases#controls).
+
+## Why grade with a model instead of matching keywords?
+
+A finding can name the right file and the wrong bug. The grader is asked whether the finding
+describes the same defect, one finding at a time. [How the grader is
+called](/docs/guides/config#how-the-grader-is-called).
+
+## Can I use a reviewer that is not Claude?
+
+Yes. The reviewer is any shell command that prints the findings as JSON, and the grader any
+command that answers yes or no. [The config](/docs/guides/config).
+
+## My reviewer script is "not found" on old cases.
+
+The commands run inside a worktree at the case's commit, where your script may not exist yet.
+Point at it in your own checkout. [Where the commands run](/docs/guides/config#where-the-commands-run).
+
+## Does a low score fail the run?
+
+No. A finished run exits 0 whatever the recall; exit 1 means a case could not be replayed. Read
+`--json` in your own step if you want a floor. [Exit codes](/docs/guides/json-and-agents#exit-codes).
+
+## Why is final recall lower after I lowered `--max-findings`?
+
+The cap takes findings in the order the reviewer printed them, so a reviewer that prints all of
+its `raw` findings first can spend the cap before it reaches `final`. The `capped` line names the
+cases. [The cap cuts in print order](/docs/guides/run-and-report#the-cap-cuts-in-print-order).
+
+## Is replz a drop-in for promptfoo?
+
+No. It covers the code-review part of what a promptfoo suite can do, with its own config, and
+claims no compatibility. [Coming from promptfoo](/docs/coming-from/promptfoo).

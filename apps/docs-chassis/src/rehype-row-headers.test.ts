@@ -77,7 +77,7 @@ describe('rehypeRowHeaders', () => {
   });
 
   it('is in the MDX pipeline every docs app compiles with', () => {
-    expect(sourceConfig.mdxOptions).toMatchObject({ rehypePlugins: [rehypeRowHeaders] });
+    expect(sourceConfig.mdxOptions).toMatchObject({ rehypePlugins: expect.arrayContaining([rehypeRowHeaders]) as unknown });
   });
 });
 

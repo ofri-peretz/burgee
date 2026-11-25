@@ -2,7 +2,7 @@
  * One docs page from the loader, and the metadata every crawler and agent reads off it —
  * canonical, the `.md` alternate, Open Graph — the same on every site.
  */
-import { DocsBody, DocsDescription, DocsPage, DocsTitle } from 'fumadocs-ui/layouts/docs/page';
+import { DocsBody, DocsDescription, DocsPage, DocsTitle, MarkdownCopyButton, ViewOptionsPopover } from 'fumadocs-ui/layouts/docs/page';
 import { type Metadata } from 'next';
 
 import { getMDXComponents } from './mdx';
@@ -19,15 +19,33 @@ type Params = Promise<{ slug?: string[] }>;
 /** Title, description, body and table of contents of the page at `params.slug`. */
 export async function DocsPageView({ source, params }: { readonly source: DocsSource; readonly params: Params }) {
   const { slug } = await params;
-  const { body: MDX, toc, title, description } = source.getPageOrNotFound(slug).data;
+  const page = source.getPageOrNotFound(slug);
+  const { body: MDX, toc, title, description } = page.data;
+  const markdownUrl = `${page.url}.md`;
   return (
     <DocsPage toc={toc}>
       <DocsTitle>{title}</DocsTitle>
-      <DocsDescription>{description}</DocsDescription>
+      <DocsDescription className="mb-0">{description}</DocsDescription>
+      {pageActions(markdownUrl)}
       <DocsBody>
         <MDX components={getMDXComponents()} />
       </DocsBody>
     </DocsPage>
+  );
+}
+
+/**
+ * Under the description, the page for a reader who is not a browser: copy it as Markdown (the
+ * `.md` twin every page already has), or open it in an assistant. Interlace treats agents as a
+ * reader its pages are written for (`/llms-full.txt`, the agent skills), and this puts that
+ * door on every page rather than only in `llms.txt`. fumadocs' own buttons, on its tokens.
+ */
+function pageActions(markdownUrl: string) {
+  return (
+    <div data-slot="page-actions" data-testid="page-actions" className="flex flex-row flex-wrap items-center gap-2 border-b pb-6">
+      <MarkdownCopyButton markdownUrl={markdownUrl} />
+      <ViewOptionsPopover markdownUrl={markdownUrl} />
+    </div>
   );
 }
 

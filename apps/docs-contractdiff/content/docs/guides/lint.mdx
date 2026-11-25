@@ -1,0 +1,139 @@
+---
+title: Lint
+description: "contractdiff lint checks a contract's form with the recommended and agent-ready rulesets, per-rule levels in contractdiff.config.json, Spectral and Redocly ruleset files read as they are, and forwards-only adoption with --since."
+---
+
+`contractdiff lint [specs...]` checks the form of a contract, not its change: that operations have
+ids and descriptions, that references resolve, that examples match their schemas. Every finding has
+a rule id, a location and a `fix:` line. With no file named, it lints the config's `input`.
+
+## The built-in rulesets
+
+- **`recommended`** (the default) checks standards: `info-description`, `operation-operation-id`,
+  `operation-operation-id-unique`, `operation-description`, `operation-tags`,
+  `operation-success-response`, `parameter-description`, `no-unresolved-ref`,
+  `no-unused-component`, `path-no-trailing-slash` and `example-valid`.
+- **`agent-ready`** checks what an agent needs to call an API as tools: an id and a description on
+  every operation, descriptions on parameters and properties, descriptions long enough and distinct
+  enough to choose between (`description-length`, `description-overlap`), and valid examples.
+
+Every rule in both sets is at `warn`, so nothing fails until a team raises a rule to `error`.
+
+```text title="npx contractdiff lint old.yaml"
+old.yaml
+  warn   info-description  #  `info.description` is missing
+         fix: add `info.description`
+  warn   operation-description  #/paths/~1pets~1{id}/get  has no description or summary
+         fix: add a `description` saying what the operation does and when to call it
+  warn   operation-tags  #/paths/~1pets~1{id}/get  `tags` is missing
+         fix: add `tags` naming the resource the operation belongs to
+  warn   parameter-description  #/paths/~1pets~1{id}/get/parameters/0  id: `description` is missing
+         fix: add a `description` saying what the parameter does and what values it takes
+
+0 error(s), 4 warning(s). Checked 11 rule(s) on 1 input(s), 14 node(s); not carried: none.
+recommended: 71% (10 of 14 checks passed)
+```
+
+The last line is a score: the share of checks that passed, per ruleset. The same contract, read as
+tools:
+
+```text title="npx contractdiff lint old.yaml --ruleset agent-ready"
+old.yaml
+  warn   operation-description  #/paths/~1pets~1{id}/get  has no description or summary
+         fix: add a `description` saying what the operation does and when to call it
+  warn   property-description  #/paths/~1pets~1{id}/get response:200:application/json/properties/name  name: `description` is missing
+         fix: add a `description` saying what the property holds, with its unit if it has one
+  warn   property-description  #/paths/~1pets~1{id}/get response:200:application/json/properties/tag  tag: `description` is missing
+         fix: add a `description` saying what the property holds, with its unit if it has one
+  warn   parameter-description  #/paths/~1pets~1{id}/get/parameters/0  id: `description` is missing
+         fix: add a `description` saying what the parameter does and what values it takes
+
+0 error(s), 4 warning(s). Checked 7 rule(s) on 1 input(s), 11 node(s); not carried: none.
+agent-ready: 63% (7 of 11 checks passed)
+```
+
+`agent-ready` works on any input format, including an MCP tool list; see
+[Agents](/docs/recipes/agents).
+
+## Levels in the config
+
+`lint` in `contractdiff.config.json` sets the rulesets a run starts from (`extends`) and a level per
+rule over them (`rules`: `error`, `warn` or `off`). A rule at `error` fails the run with exit 1. `lint` reads
+`contractdiff.config.json` from the folder it runs in.
+
+```json
+{
+  "input": "old.yaml",
+  "lint": {
+    "extends": ["recommended"],
+    "rules": { "operation-tags": "error", "info-description": "off" },
+    "warnFor": "0d"
+  }
+}
+```
+
+With that config, a plain `npx contractdiff lint` reports `operation-tags` as an `error` and exits 1;
+[CI gate](/docs/recipes/ci) runs exactly that, and shows the output.
+
+`warnFor` is how long a rule that is new at `error` only warns first, counted from the date the rule
+entered the ruleset in git history: `"14d"` by default, so a team that turns on a rule gets two
+weeks of warnings before it blocks anyone. `"0d"` turns that grace off, as above. Outside a git
+repository the dates cannot be read, and the summary line says so.
+
+## Spectral and Redocly files
+
+A team that already has a `.spectral.yaml` or a `redocly.yaml` keeps it: name the file in
+`lint.extends`. A rule is carried when its `given` stays inside the JSONPath subset contractdiff
+reads and its `then` uses a core function whose options mean the same. Everything that is not
+carried is listed as a `rule-not-carried` finding with the reason, never dropped.
+
+```yaml
+extends: spectral:oas
+rules:
+  operation-id-camel-case:
+    description: Operation ids are camelCase.
+    severity: error
+    given: $.paths[*][*].operationId
+    then:
+      function: casing
+      functionOptions:
+        type: camel
+```
+
+```json
+{ "input": "openapi.yaml", "lint": { "extends": [".spectral.yaml"] } }
+```
+
+The run then lists the carried rules\' findings as usual, and one `rule-not-carried` warning for the
+part of `spectral:oas` it has no equivalent for, naming the rules it did carry.
+
+`extends: spectral:oas` carries the rules of Spectral's OpenAPI ruleset that have a contractdiff
+equivalent and reports the rest of it in one entry. Redocly's configurable `rule/<name>` assertions
+are carried the same way. Whether a carried rule finds exactly what Spectral or Redocly would find
+on the same contract is _unmeasured_.
+
+## Adopting rules on a contract that already exists
+
+- **`--since <ref>`** lints in full only the operations `diff` sees as added or changed since that
+  git ref; the rest run only the rules listed in `lint.legacy` (none by default). `merge-base`
+  means the base with `origin/main`. It is how a new rule lands on a large contract without a
+  cleanup first.
+- **`--rules-from <ref>`** reads the config and its ruleset files at that ref, so a pull request
+  that changes the rules is judged by the old ones.
+- **`--stats <file>`** counts each rule's runs and findings into a JSON file meant for a CI cache,
+  once per commit; with **`--idle 90d`** it lists the rules that ran and found nothing in 90 days,
+  as candidates to retire.
+
+These read git history, so this site does not run them:
+
+```bash
+npx contractdiff lint --since merge-base
+npx contractdiff lint --rules-from merge-base --stats .cache/lint-stats.json --idle 90d
+```
+
+## Output and exit codes
+
+`--json` prints every finding as data and `--sarif` prints SARIF 2.1.0. The exit code is 0 when no
+finding is at `error`, 1 when one is, 2 for a usage error such as an unknown ruleset, and 3 for a
+config that did not load. A rule of your own is a lint plugin: `contractdiff plugin new <name>
+--kind rules`, see [Write a plugin](/docs/recipes/plugin).
