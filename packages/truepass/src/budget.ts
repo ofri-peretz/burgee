@@ -83,6 +83,7 @@ export function budgetFrom(env: NodeJS.ProcessEnv, fallback: number = DEFAULT_BU
  */
 export async function strict(env: NodeJS.ProcessEnv): Promise<boolean> {
   const { outputMode } = await import('roundel/policy');
+  // Stryker disable next-line ObjectLiteral: equivalent, roundel reads a missing stdout as not a TTY, the same as false
   return outputMode({ env, isTTY: { stdout: false } }) === 'ci';
 }
 
