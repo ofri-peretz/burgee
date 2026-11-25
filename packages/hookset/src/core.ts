@@ -436,7 +436,7 @@ export function initRepo(repo: string, pkg: string, options: { force?: boolean; 
     // A skill is the repo's to fill in: written once from the template, never overwritten.
     for (const skill of stations.claude.skills) if (!existsSync(join(repo, skill.path))) write(skill.path, readText(join(pkg, skill.template)));
     write('.claude/settings.json', mergeSettings(repo, stations));
-    if (stations.claude.mcp.length > 0) write('.mcp.json', mergeMcp(repo, stations));
+    write('.mcp.json', mergeMcp(repo, stations));
     write('.gitignore', mergeIgnore(repo, stations));
   }
   return { changed: written.length > 0, written };
@@ -508,10 +508,8 @@ function mergeSettings(repo: string, stations: Stations): string {
     else groups.push({ matcher: h.matcher, hooks: [{ type: 'command', command: hookCommand(h.file) }] });
   }
   settings.hooks = Object.fromEntries(events);
-  if (stations.claude.mcp.length > 0) {
-    settings.enabledMcpjsonServers = union(settings.enabledMcpjsonServers, stations.claude.mcp.map((m) => m.id));
-    settings.permissions = { ...settings.permissions, allow: union(settings.permissions?.allow, stations.claude.mcp.flatMap((m) => m.allow)) };
-  }
+  settings.enabledMcpjsonServers = union(settings.enabledMcpjsonServers, stations.claude.mcp.map((m) => m.id));
+  settings.permissions = { ...settings.permissions, allow: union(settings.permissions?.allow, stations.claude.mcp.flatMap((m) => m.allow)) };
   return `${JSON.stringify(settings, undefined, 2)}\n`;
 }
 
