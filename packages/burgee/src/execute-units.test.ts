@@ -10,7 +10,7 @@ import { definePlugin } from './plugin.js';
 
 /** `demo go` with `options`, answering with the options it was handed. */
 const echo = (options: Record<string, unknown>, extra: Record<string, unknown> = {}): ReturnType<typeof defineProgram> =>
-  defineProgram({ name: 'demo', ...extra, commands: [defineCommand({ name: 'go', effects: 'read_only', options, run: ({ options: given }) => given } as never)] });
+  defineProgram({ name: 'demo', ...extra, commands: [defineCommand({ name: 'go', effects: 'read_only', options, run: ({ options: given }: { options: Record<string, unknown> }) => given } as never)] });
 
 /** The options `demo go` was handed for `argv`. */
 const optionsOf = async (program: ReturnType<typeof defineProgram>, argv: string[]): Promise<Record<string, unknown>> =>
@@ -18,7 +18,8 @@ const optionsOf = async (program: ReturnType<typeof defineProgram>, argv: string
 
 describe('defineProgram', () => {
   it('reads config: false and config: null as no config', async () => {
-    for (const config of [false, null]) expect((await runCommand(echo({}, { config }), ['config', 'explain'])).code).toBe(2);
+    const runs = await Promise.all([false, null].map(async (config) => runCommand(echo({}, { config }), ['config', 'explain'])));
+    expect(runs.map((r) => r.code)).toEqual([2, 2]);
   });
 });
 
@@ -40,25 +41,27 @@ describe('the parse', () => {
   });
 });
 
+/** `demo go`, returning `value`. */
+const returning = (value: unknown): ReturnType<typeof defineProgram> => defineProgram({ name: 'demo', commands: [defineCommand({ name: 'go', effects: 'read_only', run: () => value })] });
+
 describe('a handler that returns nothing', () => {
   it('prints an empty line for undefined or null', async () => {
-    for (const value of [undefined, null]) {
-      const program = defineProgram({ name: 'demo', commands: [defineCommand({ name: 'go', effects: 'read_only', run: () => value })] });
-      expect((await runCommand(program, ['go'])).stdout).toBe('\n');
-    }
+    const runs = await Promise.all([undefined, null].map(async (value) => runCommand(returning(value), ['go'])));
+    expect(runs.map((r) => r.stdout)).toEqual(['\n', '\n']);
   });
 });
 
-describe('the name a command goes by', () => {
-  const nested = (log: string[]): ReturnType<typeof defineProgram> => {
-    const program = defineProgram({
-      name: 'demo',
-      commands: [defineCommand({ name: 'remote', commands: [defineCommand({ name: 'add', effects: 'idempotent', run: () => ({ done: true }) })] })],
-    });
-    program.use(definePlugin({ name: 'log', hooks: { preRun: { handler: ({ command }) => void log.push(command) } } }));
-    return program;
-  };
+/** `demo remote add`, with a plugin logging the name each preRun hook is told. */
+const nested = (log: string[]): ReturnType<typeof defineProgram> => {
+  const program = defineProgram({
+    name: 'demo',
+    commands: [defineCommand({ name: 'remote', commands: [defineCommand({ name: 'add', effects: 'idempotent', run: () => ({ done: true }) })] })],
+  });
+  program.use(definePlugin({ name: 'log', hooks: { preRun: { handler: ({ command }) => void log.push(command) } } }));
+  return program;
+};
 
+describe('the name a command goes by', () => {
   it('is its path below the root, spaced, for a hook and for the N7 refusal', async () => {
     const log: string[] = [];
     const { stderr } = await runCommand(nested(log), ['remote', 'add']);
