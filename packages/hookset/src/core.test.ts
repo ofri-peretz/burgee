@@ -57,6 +57,12 @@ const command = (file: string): { type: string; command: string }[] => [{ type: 
 
 /** A verify skill a repo has filled in: the template's required lines, no placeholder left. */
 const FILLED_SKILL = '---\nname: verify\ndescription: run the CLI\n---\n\n## Feature map\n\n| Feature | Reach it by | Working means |\n| --- | --- | --- |\n| help | `x --help` | exit 0 |\n';
+/** What check says about a repo that has not wired the codegraph MCP server. */
+const CODEGRAPH_UNWIRED: Problem[] = [
+  { id: 'codegraph-mcp-missing', severity: 'error', message: '.mcp.json does not run the codegraph server: CodeGraph, a prebuilt symbol graph Claude queries instead of grepping; codegraph.mjs builds its index on SessionStart', fix: 'run `hookset init --claude`' },
+  { id: 'codegraph-not-ignored', severity: 'error', message: '.gitignore does not list .codegraph/, the codegraph index', fix: 'add `.codegraph/` to .gitignore (`hookset init --claude` does)' },
+  { id: 'codegraph-mcp-disabled', severity: 'error', message: '.claude/settings.json does not enable the codegraph server, so every session asks first', fix: 'add "codegraph" to enabledMcpjsonServers (`hookset init --claude` does)' },
+];
 const fillSkill = (dir: string): void => writeFileSync(join(dir, '.claude/skills/verify/SKILL.md'), FILLED_SKILL);
 
 const STATION_OFF: Problem[] = [
@@ -99,6 +105,7 @@ describe('the package', () => {
       { event: 'PostToolUse', matcher: 'Bash', file: 'verify-before-stop.mjs' },
       { event: 'PostToolUseFailure', matcher: 'Bash', file: 'verify-before-stop.mjs' },
       { event: 'Stop', matcher: '', file: 'verify-before-stop.mjs' },
+      { event: 'SessionStart', matcher: '', file: 'codegraph.mjs' },
     ]);
   });
 });
@@ -331,6 +338,7 @@ describe('checkRepo', () => {
         { id: 'claude-missing', severity: 'error', message: '.claude/hooks/guard-bash.mjs is missing', fix: 'run `hookset init --claude`' },
         { id: 'claude-missing', severity: 'error', message: '.claude/hooks/stop-after-3.mjs is missing', fix: 'run `hookset init --claude`' },
         { id: 'claude-missing', severity: 'error', message: '.claude/hooks/verify-before-stop.mjs is missing', fix: 'run `hookset init --claude`' },
+        { id: 'claude-missing', severity: 'error', message: '.claude/hooks/codegraph.mjs is missing', fix: 'run `hookset init --claude`' },
         unwired('guard-bash.mjs', 'PreToolUse', 'Bash'),
         unwired('guard-bash.mjs', 'PreToolUse', 'Edit|Write|MultiEdit|NotebookEdit'),
         unwired('stop-after-3.mjs', 'PostToolUse', 'Bash'),
@@ -338,12 +346,14 @@ describe('checkRepo', () => {
         unwired('verify-before-stop.mjs', 'PostToolUse', 'Bash'),
         unwired('verify-before-stop.mjs', 'PostToolUseFailure', 'Bash'),
         unwired('verify-before-stop.mjs', 'Stop', ''),
+        unwired('codegraph.mjs', 'SessionStart', ''),
         {
           id: 'verify-skill-missing',
           severity: 'error',
           message: '.claude/skills/verify/SKILL.md is missing: the skill that boots the app, drives the change and checks what it shows, with a feature map',
           fix: 'run `hookset init --claude`, then fill in every TODO(verify) line',
         },
+        ...CODEGRAPH_UNWIRED,
       ],
     });
     initRepo(dir, PKG, { claude: true });
@@ -380,9 +390,28 @@ describe('checkRepo', () => {
       '.claude/settings.json does not run verify-before-stop.mjs on PostToolUse (Bash)',
       '.claude/settings.json does not run verify-before-stop.mjs on PostToolUseFailure (Bash)',
       '.claude/settings.json does not run verify-before-stop.mjs on Stop ()',
+      '.claude/settings.json does not run codegraph.mjs on SessionStart ()',
+      '.claude/settings.json does not enable the codegraph server, so every session asks first',
     ]);
     writeFileSync(join(dir, '.claude/settings.json'), '{}');
-    expect(checkRepo(dir, PKG).problems).toHaveLength(7);
+    expect(checkRepo(dir, PKG).problems).toHaveLength(9);
+  });
+
+  it('wants the codegraph server pinned in .mcp.json, its index gitignored, and the server enabled', () => {
+    const dir = repo({ 'package.json': ALL_SCRIPTS, 'lefthook.yml': lefthookTemplate(STATIONS, REF), '.claude/hookset.json': '{}', '.gitignore': 'node_modules' });
+    initRepo(dir, PKG, { claude: true });
+    fillSkill(dir);
+    expect(read(dir, '.gitignore')).toBe('node_modules\n# MCP server indexes, rebuilt per session by .claude/hooks (hookset)\n.codegraph/\n');
+    expect(JSON.parse(read(dir, '.mcp.json'))).toEqual({ mcpServers: { codegraph: STATIONS.claude.mcp[0]?.server } });
+    expect(checkRepo(dir, PKG).problems).toEqual([]);
+    const mcp = { mcpServers: { mine: { command: 'x' }, codegraph: { command: 'codegraph', args: ['serve', '--mcp'] } } };
+    writeFileSync(join(dir, '.mcp.json'), JSON.stringify(mcp));
+    expect(checkRepo(dir, PKG).problems.map((p) => p.id)).toEqual(['codegraph-mcp-drift']);
+    // init puts the pin back and keeps the repo's own servers.
+    initRepo(dir, PKG, { claude: true });
+    expect(Object.keys((JSON.parse(read(dir, '.mcp.json')) as { mcpServers: object }).mcpServers)).toEqual(['mine', 'codegraph']);
+    expect(read(dir, '.gitignore').match(/\.codegraph\//g)).toHaveLength(1);
+    expect(checkRepo(dir, PKG).problems).toEqual([]);
   });
 
   it('wants the verify skill to keep its name and its feature map', () => {
@@ -460,7 +489,17 @@ describe('initRepo', () => {
     const dir = repo({ 'lefthook.yml': lefthookTemplate(STATIONS, REF) });
     expect(initRepo(dir, PKG, { claude: true })).toEqual({
       changed: true,
-      written: ['.claude/hooks/guard-bash.mjs', '.claude/hooks/stop-after-3.mjs', '.claude/hooks/verify-before-stop.mjs', '.claude/hookset.json', '.claude/skills/verify/SKILL.md', '.claude/settings.json'],
+      written: [
+        '.claude/hooks/guard-bash.mjs',
+        '.claude/hooks/stop-after-3.mjs',
+        '.claude/hooks/verify-before-stop.mjs',
+        '.claude/hooks/codegraph.mjs',
+        '.claude/hookset.json',
+        '.claude/skills/verify/SKILL.md',
+        '.claude/settings.json',
+        '.mcp.json',
+        '.gitignore',
+      ],
     });
     expect(read(dir, '.claude/skills/verify/SKILL.md')).toBe(readFileSync(join(PKG, 'claude/skills/verify/SKILL.md'), 'utf8'));
     expect(read(dir, '.claude/hooks/stop-after-3.mjs')).toBe(readFileSync(join(PKG, 'claude/stop-after-3.mjs'), 'utf8'));
@@ -477,7 +516,10 @@ describe('initRepo', () => {
             PostToolUse: [{ matcher: 'Bash', hooks: [...command('stop-after-3.mjs'), ...command('verify-before-stop.mjs')] }],
             PostToolUseFailure: [{ matcher: 'Bash', hooks: [...command('stop-after-3.mjs'), ...command('verify-before-stop.mjs')] }],
             Stop: [{ matcher: '', hooks: command('verify-before-stop.mjs') }],
+            SessionStart: [{ matcher: '', hooks: command('codegraph.mjs') }],
           },
+          enabledMcpjsonServers: ['codegraph'],
+          permissions: { allow: ['mcp__codegraph__codegraph_explore'] },
         },
         undefined,
         2,
@@ -498,13 +540,16 @@ describe('initRepo', () => {
       '.claude/hooks/guard-bash.mjs',
       '.claude/hooks/stop-after-3.mjs',
       '.claude/hooks/verify-before-stop.mjs',
+      '.claude/hooks/codegraph.mjs',
       '.claude/skills/verify/SKILL.md',
       '.claude/settings.json',
+      '.mcp.json',
+      '.gitignore',
     ]);
     expect(read(dir, '.claude/hookset.json')).toBe('{"frozen":["a/**"]}');
     const merged = JSON.parse(read(dir, '.claude/settings.json')) as { permissions: unknown; hooks: Record<string, { matcher?: string; hooks: { command: string }[] }[]> };
-    expect(merged.permissions).toEqual(settings.permissions);
-    expect(Object.keys(merged.hooks)).toEqual(['PreToolUse', 'PostToolUse', 'PostToolUseFailure', 'Stop']);
+    expect(merged.permissions).toEqual({ allow: ['Bash(ls)', 'mcp__codegraph__codegraph_explore'] });
+    expect(Object.keys(merged.hooks)).toEqual(['PreToolUse', 'PostToolUse', 'PostToolUseFailure', 'Stop', 'SessionStart']);
     expect(merged.hooks['PreToolUse']?.map((g) => [g.matcher, g.hooks.length])).toEqual([
       ['Bash', 1],
       ['Edit|Write|MultiEdit|NotebookEdit', 1],
@@ -599,6 +644,8 @@ describe('the checks, at their edges', () => {
       '.claude/settings.json does not run verify-before-stop.mjs on PostToolUse (Bash)',
       '.claude/settings.json does not run verify-before-stop.mjs on PostToolUseFailure (Bash)',
       '.claude/settings.json does not run verify-before-stop.mjs on Stop ()',
+      '.claude/settings.json does not run codegraph.mjs on SessionStart ()',
+      '.claude/settings.json does not enable the codegraph server, so every session asks first',
     ]);
   });
 
