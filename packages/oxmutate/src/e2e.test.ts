@@ -27,7 +27,7 @@ if (!native && process.env['OXMUTATE_REQUIRE_NATIVE'] === '1') throw new Error('
 // A case that runs whole mutation runs — 6–15 s each on a contended runner — runs in the local
 // weekly run, `npm run mutation:weekly`, which sets BURGEE_NIGHTLY (D-20261101-tests-under-5s,
 // D-20261101-no-mutation-in-gha). Each one is named in NIGHTLY_ONLY in
-// scripts/vitest-case-budget-reporter.ts, the only exemption from the five-second budget.
+// scripts/nightly-only.ts, the only exemption from the five-second budget.
 const nightly = process.env['BURGEE_NIGHTLY'] === '1';
 
 interface ReportMutant {

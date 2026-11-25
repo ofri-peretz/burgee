@@ -50,6 +50,8 @@
  */
 import { fileURLToPath } from 'node:url';
 
+import { CASE_BUDGET_HINT, CASE_BUDGET_MS, NIGHTLY_ONLY } from './scripts/nightly-only.js';
+
 /**
  * ## Measured on the cell, not guessed from it (windows-lane-holds R1)
  *
@@ -66,13 +68,17 @@ const durationsReporter = DURATIONS === undefined || DURATIONS === '' ? [] : [fi
  * ## And no case over five seconds (D-20261101-tests-under-5s)
  *
  * The timeouts above are bets on the machine and sit far above what a case takes; they are not a
- * speed limit. `scripts/vitest-case-budget-reporter.ts` is: it fails the run when any case's own
- * duration is over 5,000 ms. Every suite that spreads `timeouts` loads it, and the three that set
- * their own clocks (benchmarks, conformance, oxmutate's compat suite) spread `caseBudget` alone;
- * `scripts/case-budget-lock.test.ts` holds every vitest config to one or the other.
+ * speed limit. truepass's budget reporter is: it fails the run when any case's own duration is
+ * over 5,000 ms and still over it alone. It is loaded from source, not from truepass's build: it
+ * imports nothing outside node until a case is over, so no suite waits on a package it does not
+ * use. Its one exemption list and its advice are `scripts/nightly-only.ts`. Every suite that
+ * spreads `timeouts` loads it, and the three that set their own clocks (benchmarks, conformance,
+ * oxmutate's compat suite) spread `caseBudget` alone; `scripts/case-budget-lock.test.ts` holds
+ * every vitest config to one or the other.
  */
-const caseBudgetReporter = fileURLToPath(new URL('./scripts/vitest-case-budget-reporter.ts', import.meta.url));
-export const caseBudget: { reporters: string[] } = { reporters: ['default', caseBudgetReporter, ...durationsReporter] };
+const caseBudgetReporter = fileURLToPath(new URL('./packages/truepass/src/vitest-reporter.ts', import.meta.url));
+const caseBudgetOptions = { budgetMs: CASE_BUDGET_MS, exempt: NIGHTLY_ONLY, root: fileURLToPath(new URL('.', import.meta.url)), hint: CASE_BUDGET_HINT };
+export const caseBudget: { reporters: (string | [string, typeof caseBudgetOptions])[] } = { reporters: ['default', [caseBudgetReporter, caseBudgetOptions], ...durationsReporter] };
 
 export const timeouts = {
   testTimeout: 30_000,
