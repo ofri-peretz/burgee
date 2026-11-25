@@ -1,5 +1,13 @@
 # provedone
 
+## 1.0.1
+
+### Patch Changes
+
+- [#1814](https://github.com/ofri-peretz/burgee/pull/1814) [`06089bd`](https://github.com/ofri-peretz/burgee/commit/06089bd8a1cdee49927e49a508e36ae7fa57ae78) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - provedone's docs have a site of their own, provedone.interlace.tools, with guides for `stamp`, `gate`, `done` and `intent`, the receipt format, the modes and the escape, a commitlint migration page and recipes for the commit-msg hook, CI and agents. The package's `homepage` and its README's Docs line point there.
+- Updated dependencies [[`4821145`](https://github.com/ofri-peretz/burgee/commit/482114557947f01bc8df543daf317dada2664c21)]:
+  - burgee@2.2.2
+
 ## 1.0.0
 
 ### Major Changes

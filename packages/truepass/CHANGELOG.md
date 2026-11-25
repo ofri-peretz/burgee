@@ -1,5 +1,15 @@
 # truepass
 
+## 1.0.1
+
+### Patch Changes
+
+- [#1814](https://github.com/ofri-peretz/burgee/pull/1814) [`06089bd`](https://github.com/ofri-peretz/burgee/commit/06089bd8a1cdee49927e49a508e36ae7fa57ae78) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - truepass's docs have a site of their own at https://truepass.interlace.tools: getting started, guides, a page for coming from @vitest/eslint-plugin, recipes and the API reference. The package's `homepage` and README point there.
+
+- [#1813](https://github.com/ofri-peretz/burgee/pull/1813) [`4821145`](https://github.com/ofri-peretz/burgee/commit/482114557947f01bc8df543daf317dada2664c21) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `no-fixed-sleep` no longer reports a zero or omitted delay (`setTimeout(r, 0)`, `setTimeout(r)`, `sleep(0)`, `waitForTimeout(0)`): it is a tick flush, as inside React's `act()`, not a fixed sleep. `truepass diff` runs its three git calls one after another, so a bad `--base` always quotes the first git command that failed, and `--help` names the default base once.
+- Updated dependencies [[`4821145`](https://github.com/ofri-peretz/burgee/commit/482114557947f01bc8df543daf317dada2664c21)]:
+  - burgee@2.2.2
+
 ## 1.0.0
 
 ### Major Changes
