@@ -1,0 +1,8 @@
+# chore(deps): bump the all-packages group (supersedes #1291) (#1329)
+# Size-matched control for bug-1354 (2124 vs 2106 lines): no fix or revert traces back to it.
+id: control-1329
+kind: control
+pr: 1329
+base: "c2c42450f34c"
+head: "b01a2295ac6c"
+set: test

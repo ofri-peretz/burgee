@@ -67,15 +67,44 @@ replz propose --limit 10                       # prints ten bug drafts and ten s
 replz check                                    # the config and every case, and each set's count
 replz run --set test                           # the score on the held-out cases
 replz run --set tune --max-findings 5 --record # a cheaper run, appended to the history
+replz scorecard                                # escapes, receipts, recall and false alarms, each with its next fix
 ```
 
 | Command | Exit 1 when |
 | :-- | :-- |
 | `check` | the config or a case file is invalid, a case file is not named `<id>.yaml`, an answer is still the draft's `TODO`, or a set lacks a bug or a control, each with the `fix:` that repairs it |
 | `run` | a case could not be replayed |
+| `scorecard` | `--ratchet` names a band file and a measure has left its band, with the `fix:` the measure points at |
 
 `run` calls a model once per case and once per graded finding, so it is never a per-pull-request
-step: run it by hand or on a schedule. `check` and `propose` cost nothing.
+step: run it by hand or on a schedule. `check`, `propose` and `scorecard` cost nothing.
+
+### The scorecard
+
+`replz scorecard` scores how well a repository's checks catch bugs, from its history alone, over
+the last `--days` (30). Every measure ends in a `next:` line that names the fix:
+
+| Measure | What it counts | `next:` points at |
+| :-- | :-- | :-- |
+| escape rate | merged pull requests a later revert or `fix` traced back to, less those dismissed | each suspect to confirm as a case or dismiss |
+| receipts | merged pull requests carrying a provedone `Verified-by:` | the pull requests without one |
+| recall | bug cases the reviewer found at the last stage, from the last `run --record` | the check a missed case lacks |
+| false alarms | clean controls the reviewer flagged, from the same run | the check or item to narrow |
+
+A fix that names the pull request it repairs (`regressed in #12`) or a revert counts as named. A
+fix that names none is traced with SZZ: the code lines it removed or changed are blamed at its
+parent (`git blame -w -M -C`), and the pull requests that last touched them are the suspects.
+Blank, comment and import lines are not blamed, and a fix that follows an upstream release
+(`follow`, `re-vendor`, `re-grade`, `bump`) is not a fix to our own bug. A fix that only adds lines
+has nothing to blame and is counted as untraceable.
+
+A traced escape is a suspect until it is triaged: a `bug-<pr>.yaml` case confirms it, and
+`.sdlc/replz/triage.json` dismisses it with a reason, `{ "dismissed": { "1813": "<why it is not
+one>" } }`. A dismissed escape leaves the rate; the text marks each escape `confirmed`,
+`dismissed` or `suspect`.
+
+`--ratchet <file>` holds the card to bands, `{ "maxEscapeRate": 0.2, "minReceipts": 0.12, "minRecall": 0.8 }`,
+and exits 1 when one is left. An unmeasured value is held to no band.
 
 Every command in the config runs in the case's worktree with `REPLZ_BASE`, `REPLZ_HEAD`,
 `REPLZ_PR` and `REPLZ_REPO` set. `REPLZ_REPO` is the repository `replz run` started in, as an
@@ -110,7 +139,7 @@ No suite is graded against this package yet, so there is no compatibility number
 
 ## For agents
 
-- **`replz check --json`**, **`run --json`** and **`propose --json`** print burgee's `--json`
+- **`replz check --json`**, **`run --json`**, **`propose --json`** and **`scorecard --json`** print burgee's `--json`
   envelope; a failure carries its remedy as `error.fix`, and prose prints it on a `fix:` line.
 - **`--json`, `--schema` and an MCP server** come from one declaration on burgee:
   `replz --mcp` serves its commands as tools.
@@ -123,7 +152,7 @@ No suite is graded against this package yet, so there is no compatibility number
 
 | Import | What it gives you |
 | :-- | :-- |
-| `replz` | `parseLog()`, `propose()`, `parseCase()`, `selectCases()`, `parseConfig()`, `replayCase()`, `score()` and `program` |
+| `replz` | `parseLog()`, `propose()`, `parseCase()`, `selectCases()`, `parseConfig()`, `replayCase()`, `score()`, `scorecard()`, `traceFix()`, `breaches()` and `program` |
 
 The `replz` bin is that API, declared once on burgee.
 
@@ -135,7 +164,7 @@ Node 22.13 or later, and git.
 
 It hosts no plugin key of its own.
 
-Nothing in this family builds on it yet, and it builds on `bellpull`, `burgee`, `seniority`, `truefit`.
+Nothing in this family builds on it yet, and it builds on `bellpull`, `burgee`, `provedone`, `seniority`, `truefit`.
 
 ## The family
 

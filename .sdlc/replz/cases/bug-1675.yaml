@@ -1,0 +1,9 @@
+# feat(oxmutate): container install gets registry auth, its own oxmutate, include, yarn 2+, bun (#1675)
+# Confirmed from the diff on 2026-11-25: fixed by #1690.
+id: bug-1675
+kind: bug
+pr: 1675
+base: "31ad0add883b"
+head: "5b0d8b395367"
+answer: "container mode forwards ~/.npmrc with its 0600 mode, so the install user inside the container cannot read it and a private-registry install fails with EACCES."
+set: tune

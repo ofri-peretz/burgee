@@ -1,0 +1,9 @@
+# feat(hookset,triggerlist): enforce provedone in the commit-msg preset and fix triggerlist bootstrap (#1805)
+# Confirmed from the diff on 2026-11-25: fixed by #1818.
+id: bug-1805
+kind: bug
+pr: 1805
+base: "5cc7359f2217"
+head: "0ad24f0e5549"
+answer: "triggerlist protect treats every error reading the base branch's checklist as the bootstrap case, so a checklist that is there but does not parse lets `protect --enforce` pass."
+set: tune

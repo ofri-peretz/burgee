@@ -1,0 +1,8 @@
+# test(burgee): kill the surviving mutants across shards 1-5 (#1843)
+# Size-matched control for bug-1706 (2409 vs 2374 lines): no fix or revert traces back to it.
+id: control-1843
+kind: control
+pr: 1843
+base: "d9a110a502a0"
+head: "0325e5014b57"
+set: tune

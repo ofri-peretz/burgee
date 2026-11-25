@@ -133,12 +133,13 @@
     },
     {
       "name": "replz",
-      "count": 8,
+      "count": 9,
       "installed": [
         "bellpull",
         "burgee",
         "closeout",
         "linegauge",
+        "provedone",
         "replz",
         "roundel",
         "seniority",

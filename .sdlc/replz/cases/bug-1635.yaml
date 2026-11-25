@@ -1,0 +1,9 @@
+# feat(apicontract): gen nest, controllers that regenerate without touching your code (PLAN.md 6.6) (#1635)
+# Confirmed from the diff on 2026-11-25: fixed by #1639.
+id: bug-1635
+kind: bug
+pr: 1635
+base: "4c2211895ec1"
+head: "e14584c6d557"
+answer: "the generated NestJS send() passes through a body on a response declared with no content, instead of answering 500 Problem Details as it does for an undeclared status."
+set: tune

@@ -139,7 +139,7 @@ describe('the program', () => {
   it('declares its version and commands, with run marked as not idempotent', async () => {
     const r = await runBurgee(program, { argv: ['--schema'] });
     const { commands } = JSON.parse(r.stdout) as { commands: { name: string; effects: string }[] };
-    expect(Object.fromEntries(commands.map((c) => [c.name, c.effects]))).toEqual({ check: 'read_only', run: 'non_idempotent', propose: 'read_only', completion: 'read_only' });
+    expect(Object.fromEntries(commands.map((c) => [c.name, c.effects]))).toEqual({ check: 'read_only', run: 'non_idempotent', propose: 'read_only', scorecard: 'read_only', completion: 'read_only' });
     expect((await runBurgee(program, { argv: ['--version'] })).stdout).toContain(VERSION);
   });
 

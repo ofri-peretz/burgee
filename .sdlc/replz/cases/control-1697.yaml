@@ -1,0 +1,8 @@
+# docs(docs): evidence sweep of the apicontract lanes and the validator, 2026-11-22 (#1697)
+# Size-matched control for bug-1695 (190 vs 188 lines): no fix or revert traces back to it.
+id: control-1697
+kind: control
+pr: 1697
+base: "120a5cffe3bc"
+head: "894f10935123"
+set: test

@@ -6,7 +6,7 @@
  * rewrites. That is the whole point: a compatibility claim graded by tests we wrote
  * would be graded by our reading of the host's behaviour, which is the thing under test.
  */
-import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, isAbsolute, join, relative, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -588,6 +588,21 @@ function writeEntries(host: Host, { hostDir, target, packageType }: { hostDir: s
     } catch {
       writeFileSync(at, `// generated per run — COMPAT_TARGET=${target}\nmodule.exports = require(${JSON.stringify(file)});\n`);
     }
+  }
+}
+
+/**
+ * The symlinks a host declares in `links`, made beside the vendored suite before it runs. A link
+ * already there is replaced, so a run never reads one an earlier run left pointing elsewhere.
+ */
+export function writeLinks(host: Host, hostDir: string): void {
+  for (const [path, target] of Object.entries(host.links ?? {})) {
+    const at = join(hostDir, path);
+    mkdirSync(dirname(at), { recursive: true });
+    // `unlinkSync`, not `rmSync`: a link to a directory reads as that directory to `rmSync`,
+    // which refuses it ("Path is a directory") on every run after the first.
+    if (lstatSync(at, { throwIfNoEntry: false }) !== undefined) unlinkSync(at);
+    symlinkSync(target, at);
   }
 }
 
@@ -1438,6 +1453,7 @@ export function grade(host: Host, vendorDir: string, target: string, reference =
   writeInternalShims(host, { hostDir, target, internals: source.internals ?? [], packageType });
   writeAliasHook(host, hostDir, target);
   writeEntries(host, { hostDir, target, packageType });
+  writeLinks(host, hostDir);
 
   if (host.runner === 'exit-code') {
     const outcome = runExitCodes(host, hostDir, files, target);

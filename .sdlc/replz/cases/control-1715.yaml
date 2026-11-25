@@ -1,0 +1,8 @@
+# feat(truemark): test-integrity checks as a burgee package (#1715)
+# Size-matched control for bug-1707 (2749 vs 2837 lines): no fix or revert traces back to it.
+id: control-1715
+kind: control
+pr: 1715
+base: "68702a2282ea"
+head: "233d8653f27c"
+set: test

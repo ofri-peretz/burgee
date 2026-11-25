@@ -1,0 +1,8 @@
+# feat(oxmutate): catch writes outside the sandbox, put them back, and re-run what they touched (#1465)
+# Size-matched control for bug-1675 (460 vs 469 lines): no fix or revert traces back to it.
+id: control-1465
+kind: control
+pr: 1465
+base: "b8392f8beb7d"
+head: "5b4c3d151dae"
+set: tune

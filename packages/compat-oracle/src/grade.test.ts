@@ -238,6 +238,15 @@ describe('a node:test suite, run for real', () => {
   // case the two grades read 4.0 s on CI (D-20261101-tests-under-5s).
   const slow = ["import test from 'node:test';", "test('slow', async () => { await new Promise((resolve) => setTimeout(resolve, 1500)); });", "test('fast', () => {});"].join('\n');
 
+  // find-up's `fixture/directory-link -> .` loops, and a repository holding a loop cannot be
+  // downloaded as a GitHub action, so the link is made per run (`Host.links`). The suite reads it.
+  it("makes the host's links before the suite reads them", () => {
+    const h = host({ links: { 'fixture/loop': '.' } });
+    const reads = ["import test from 'node:test';", "import assert from 'node:assert';", "import { lstatSync, readlinkSync } from 'node:fs';", "test('link', () => { const at = new URL('../fixture/loop', import.meta.url); assert.ok(lstatSync(at).isSymbolicLink()); assert.equal(readlinkSync(at), '.'); });"].join('\n');
+    vendored(h, { 'a.test.js': reads });
+    expect(grade(h, vendorDir, 'fake', 1)).toMatchObject({ tests: 1, passed: 1 });
+  });
+
   it('holds each case to the per-test timeout upstream declares', () => {
     vendored(host({ timeoutMs: 300 }), { 'a.test.js': slow });
     // node tallies a timed-out case as `# cancelled`, not `# fail`: it is simply not a pass.

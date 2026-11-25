@@ -1,0 +1,453 @@
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+import { describe, expect, it } from 'vitest';
+
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
+import { runScorecard } from './cli.js';
+import { type Report } from './score.js';
+import {
+  blameShas,
+  breaches,
+  isCode,
+  isFix,
+  isInert,
+  isRelease,
+  type MainCommit,
+  MAX_RANGES,
+  oldRanges,
+  parseMainLog,
+  scorecard,
+  scorecardText,
+  traceFix,
+} from './scorecard.js';
+
+const TEXT = Symbol.for('burgee.text');
+const RECEIPT = 'Verified-by: npx vitest run -> exit 0 (abc)';
+const at = (sha: string, date: string, subject: string, body = ''): MainCommit => ({ sha, date, subject, body });
+
+describe('parseMainLog', () => {
+  it('reads sha, date, subject and body per record', () => {
+    const log = `\0aaa\t2026-11-20\tfeat: x (#1)\tline one\tstill body\u0001\n\0bbb\t2026-11-21\tfix: y (#2)\t\u0001\n`;
+    expect(parseMainLog(log)).toEqual([at('aaa', '2026-11-20', 'feat: x (#1)', 'line one\tstill body'), at('bbb', '2026-11-21', 'fix: y (#2)')]);
+    expect(parseMainLog('no records here')).toEqual([]);
+  });
+});
+
+describe('classifiers', () => {
+  it('counts a fix to behaviour, not to docs, and not a feature that mentions a fix', () => {
+    expect(['fix: a', 'fix(x): a', 'fix!: a', 'fix(x)!: a'].map(isFix)).toEqual([true, true, true, true]);
+    expect(['fix(docs): a', 'fix(doc): a', 'fix(deps): a', 'feat: fix a', 'fixup: a', 'Fix: a'].map(isFix)).toEqual([false, false, false, false, false, false]);
+  });
+
+  it('does not count following an upstream release as a fix to our own bug', () => {
+    expect(['fix(caique): follow @inquirer/core 12.1.1', 'fix(x): re-vendor y', 'fix(x): revendor y', 'fix: bump z'].map(isFix)).toEqual([false, false, false, false]);
+    expect(isFix('fix(x): the follower list drops one')).toBe(true);
+  });
+
+  it('knows a release commit', () => {
+    expect(isRelease('chore(release): version packages (#9)')).toBe(true);
+    expect(isRelease('Version Packages (#9)')).toBe(true);
+    expect(isRelease('chore: release notes (#9)')).toBe(false);
+  });
+
+  it('traces code, never tests, fixtures, declarations or docs', () => {
+    expect(['src/a.ts', 'a.mjs', 'x/b.tsx', 'c.vue', 'd.sh', 'e.cts'].map(isCode)).toEqual([true, true, true, true, true, true]);
+    expect(['src/a.test.ts', 'src/a.spec.js', 'src/__fixtures__/a.ts', 'test/fixtures/a.js', 'dist/a.js', 'a.d.ts', 'README.md', 'a.json', 'b.bench.ts'].map(isCode)).toEqual(
+      Array.from({ length: 9 }, () => false),
+    );
+  });
+});
+
+describe('isInert', () => {
+  it('knows the lines that carry no behaviour', () => {
+    expect(['', '  ', '// x', ' /** x', ' * x', '# x', "import { a } from './a.js';", "export { a } from './a.js';"].map(isInert)).toEqual(Array.from({ length: 8 }, () => true));
+    expect(['const a = 1;', '#!/usr/bin/env node', 'return a; // x', "export const a = 'import';"].map(isInert)).toEqual([false, false, false, false]);
+  });
+});
+
+describe('oldRanges', () => {
+  it('takes the removed code lines of code files as ranges, skipping inert lines, tests and additions', () => {
+    const diff = [
+      'diff --git a/src/a.ts b/src/a.ts',
+      '--- a/src/a.ts',
+      '+++ b/src/a.ts',
+      '@@ -3,3 +3,3 @@ x',
+      '-const a = 1;',
+      '-// a comment',
+      '-const b = 2;',
+      '+const a = 2;',
+      '@@ -10,2 +11 @@',
+      '-const c = 3;',
+      '-const d = 4;',
+      '+const cd = 7;',
+      '@@ -20,0 +22,1 @@',
+      '+const e = 5;',
+      'diff --git a/src/a.test.ts b/src/a.test.ts',
+      '--- a/src/a.test.ts',
+      '+++ b/src/a.test.ts',
+      '@@ -1 +1 @@',
+      '-expect(1);',
+      '+expect(2);',
+      'diff --git a/src/new.ts b/src/new.ts',
+      '--- /dev/null',
+      '+++ b/src/new.ts',
+      '@@ -0,0 +1 @@',
+      '+const f = 1;',
+    ].join('\n');
+    expect(oldRanges(diff)).toEqual([
+      { path: 'src/a.ts', start: 3, count: 1 },
+      { path: 'src/a.ts', start: 5, count: 1 },
+      { path: 'src/a.ts', start: 10, count: 2 },
+    ]);
+  });
+});
+
+describe('blameShas', () => {
+  it('names each blamed commit once', () => {
+    const a = 'a'.repeat(40);
+    const b = 'b'.repeat(40);
+    expect(blameShas(`${a} 1 1 2\nauthor x\n\tline\n${a} 2 2\n\tline\n${b} 9 3 1\n\tline\nnot ${a} 1 1`)).toEqual([a, b]);
+  });
+});
+
+describe('traceFix', () => {
+  it('blames each old range at the fix parent, at most MAX_RANGES of them', async () => {
+    const hunks = Array.from({ length: MAX_RANGES + 3 }, (_, index) => `@@ -${String(index * 2 + 1)} +${String(index * 2 + 1)} @@`);
+    const calls: string[][] = [];
+    const git = (args: readonly string[]): Promise<string> => {
+      calls.push([...args]);
+      if (args[0] === 'diff') return Promise.resolve(['--- a/src/a.ts', '+++ b/src/a.ts', ...hunks.flatMap((hunk) => [hunk, '-const x = 1;', '+const x = 2;'])].join('\n'));
+      return Promise.resolve(`${'c'.repeat(40)} 1 1 1\n`);
+    };
+    expect(await traceFix(git, 'fff')).toEqual(['c'.repeat(40)]);
+    expect(calls[0]).toEqual(['diff', '-U0', '--no-color', '--no-ext-diff', 'fff^', 'fff']);
+    expect(calls[1]).toEqual(['blame', '-w', '-M', '-C', '--porcelain', '-L', '1,+1', 'fff^', '--', 'src/a.ts']);
+    expect(calls).toHaveLength(1 + 40);
+    expect(MAX_RANGES).toBe(40);
+  });
+});
+
+const COMMITS: MainCommit[] = [
+  at('s9', '2026-11-24', 'chore(release): version packages (#9)'),
+  at('s8', '2026-11-23', 'fix(x): repair the parser (#8)', RECEIPT),
+  at('s7', '2026-11-22', 'Revert "feat(y): cache (#5)" (#7)'),
+  at('s6', '2026-11-21', 'fix: straight push with no pr', ''),
+  at('s5', '2026-11-20', 'feat(y): cache (#5)', RECEIPT),
+  at('s4', '2026-11-19', 'feat(x): parser (#4)'),
+  at('s3', '2026-11-18', 'feat(z): z (#3)', 'Verified-by: none (docs only)'),
+  at('s2', '2026-10-01', 'feat(old): old (#2)'),
+];
+
+describe('scorecard', () => {
+  const traced = new Map([
+    ['s8', ['s4', 's8', 'unknown']],
+    ['s6', ['s2']],
+  ]);
+  const card = scorecard({ commits: COMMITS, since: '2026-11-01', traced, cased: new Set([5]) });
+
+  it('counts merged pull requests in the window, without releases or straight pushes', () => {
+    expect(card.merged).toBe(5);
+    expect(card.fixes).toBe(3);
+    expect(card.untraced).toBe(0);
+  });
+
+  it('finds escapes by name and by trace, keeps older ones out of the rate, never blames a fix on itself', () => {
+    expect(card.escapes).toEqual([
+      { pr: 5, subject: 'feat(y): cache (#5)', date: '2026-11-20', fixedBy: ['#7'], how: 'named', status: 'confirmed' },
+      { pr: 4, subject: 'feat(x): parser (#4)', date: '2026-11-19', fixedBy: ['#8'], how: 'traced', status: 'suspect' },
+      { pr: 2, subject: 'feat(old): old (#2)', date: '2026-10-01', fixedBy: ['s6'], how: 'traced', status: 'suspect' },
+    ]);
+    expect(card.escapeRate).toMatchObject({ value: 0.4, of: '2 of 5 merged pull requests: 1 confirmed, 1 to triage, 0 dismissed' });
+    expect(card.triage).toEqual({ confirmed: 1, dismissed: 0, suspect: 1 });
+  });
+
+  it('points the escape rate at the suspects in the window that are neither a case nor dismissed', () => {
+    expect(card.uncased).toEqual([4]);
+    expect(card.escapeRate.next).toBe('confirm each suspect as a replz case with an answer key, or dismiss it in .sdlc/replz/triage.json with a reason: #4');
+  });
+
+  it('takes a dismissed escape out of the rate, and says when every escape is triaged', () => {
+    const triaged = scorecard({ commits: COMMITS, since: '2026-11-01', traced, cased: new Set([5]), dismissed: new Map([[4, 'the fix reworded a message']]) });
+    expect(triaged.escapes.map((escape) => escape.status)).toEqual(['confirmed', 'dismissed', 'suspect']);
+    expect(triaged.escapeRate).toMatchObject({ value: 0.2, of: '1 of 5 merged pull requests: 1 confirmed, 0 to triage, 1 dismissed' });
+    expect(triaged.escapeRate.next).toContain('every escape is triaged');
+  });
+
+  it('counts a receipt, including a reasoned none, and lists the pull requests without one', () => {
+    expect(card.receipts).toMatchObject({ value: 0.6, of: '3 of 5 merged pull requests' });
+    expect(card.unreceipted).toEqual([7, 4]);
+  });
+
+  it('leaves recall and false alarms unmeasured until replz has run, and says how to run it', () => {
+    expect(card.recall.value).toBeNull();
+    expect(card.falseAlarms.value).toBeNull();
+    expect(card.recall.next).toContain('replz run --set test --record');
+  });
+
+  it('reads recall at the last stage and false alarms from the last run', () => {
+    const report: Pick<Report, 'bugs' | 'controls' | 'recall' | 'falseAlarms'> = { bugs: 4, controls: 5, recall: [{ stage: 'raw', found: 4 }, { stage: 'final', found: 3 }], falseAlarms: 1 };
+    const ran = scorecard({ commits: COMMITS, since: '2026-11-01', traced, cased: new Set(), history: { date: '2026-11-20', set: 'test', report } });
+    expect(ran.recall).toMatchObject({ value: 0.75, of: '3 of 4 bug cases at stage final, 2026-11-20' });
+    expect(ran.falseAlarms).toMatchObject({ value: 0.2, of: '1 of 5 clean controls' });
+  });
+
+  it('calls a fix with no suspects untraceable, and scores an empty window as unmeasured', () => {
+    const none = scorecard({ commits: COMMITS, since: '2026-11-01', traced: new Map(), cased: new Set() });
+    expect(none.untraced).toBe(2);
+    expect(scorecard({ commits: COMMITS, since: '2027-01-01', traced, cased: new Set() }).escapeRate.value).toBeNull();
+  });
+
+  it('says what to keep doing when nothing is missing', () => {
+    const clean = scorecard({ commits: [at('s1', '2026-11-20', 'feat: a (#1)', RECEIPT)], since: '2026-11-01', traced: new Map(), cased: new Set() });
+    expect(clean.escapeRate.next).toBe('no escape: keep the checks');
+    expect(clean.receipts.next).toContain('every merged pull request carries a receipt');
+  });
+
+  it('prints one line per measure with its next action, and the escapes', () => {
+    const text = scorecardText(card);
+    expect(text).toContain('verification scorecard since 2026-11-01: 5 merged pull requests, 3 fixes or reverts (0 untraceable)');
+    expect(text).toContain('escape rate        40.0%  2 of 5 merged pull requests: 1 confirmed, 1 to triage, 0 dismissed');
+    expect(text).toContain('recall        unmeasured  no recorded run');
+    expect(text).toContain('  #4 2026-11-19 suspect   traced fixed by #8  feat(x): parser (#4)');
+  });
+});
+
+describe('breaches', () => {
+  const card = scorecard({ commits: COMMITS, since: '2026-11-01', traced: new Map([['s8', ['s4']]]), cased: new Set() });
+
+  it('names each band the card breaks, with its fix', () => {
+    const broken = breaches(card, { maxEscapeRate: 0.3, minReceipts: 0.7, minRecall: 0.5 });
+    expect(broken).toHaveLength(2);
+    expect(broken[0]).toMatch(/^escape rate 40\.0% is above its band 30\.0%\. fix: /u);
+    expect(broken[1]).toMatch(/^receipts 60\.0% is below its band 70\.0%\. fix: /u);
+  });
+
+  it('holds an unmeasured value to no band, and a card inside its bands to none', () => {
+    expect(breaches(card, { maxEscapeRate: 0.4, minReceipts: 0.6 })).toEqual([]);
+    expect(breaches(card, {})).toEqual([]);
+  });
+});
+
+const git = (dir: string, ...args: string[]): string =>
+  execFileSync('git', args, { cwd: dir, encoding: 'utf8', env: { ...process.env, GIT_AUTHOR_DATE: '2026-11-20T10:00:00Z', GIT_COMMITTER_DATE: '2026-11-20T10:00:00Z' } });
+
+describe('runScorecard on a real repository', () => {
+  const scratch = scratchDirs();
+
+  it('traces a fix to the pull request that wrote the line it changed, and holds the card to its ratchet', async () => {
+    const dir = scratch('scorecard-');
+    git(dir, 'init', '-q', '-b', 'main');
+    git(dir, 'config', 'user.email', 'a@b.c');
+    git(dir, 'config', 'user.name', 'a');
+    writeFileSync(join(dir, 'a.ts'), 'export const a = 1;\nexport const b = 2;\n');
+    git(dir, 'add', '.');
+    git(dir, 'commit', '-qm', `feat: a and b (#1)\n\n${RECEIPT}`);
+    writeFileSync(join(dir, 'a.ts'), 'export const a = 1;\nexport const b = 3;\n');
+    git(dir, 'commit', '-qam', 'fix: b is three (#2)');
+    const options = { repo: dir, ref: 'main', days: 30, cases: '.sdlc/replz/cases', git: (args: readonly string[]) => Promise.resolve(git(dir, ...args)), now: () => new Date('2026-11-25T00:00:00Z') };
+    const data = await runScorecard(options);
+    expect(data).toMatchObject({ merged: 2, fixes: 1, untraced: 0, uncased: [1] });
+    expect((data[TEXT] as () => string)()).toContain('escape rate        50.0%');
+    writeFileSync(join(dir, 'bands.json'), JSON.stringify({ maxEscapeRate: 0.25 }));
+    await expect(runScorecard({ ...options, ratchet: 'bands.json' })).rejects.toThrow('the scorecard left its bands: escape rate 50.0% is above its band 25.0%. fix: confirm each suspect as a replz case');
+    mkdirSync(join(dir, '.sdlc/replz/cases'), { recursive: true });
+    writeFileSync(join(dir, '.sdlc/replz/triage.json'), JSON.stringify({ dismissed: { 1: 'b changed on purpose' } }));
+    expect(await runScorecard(options)).toMatchObject({ triage: { confirmed: 0, dismissed: 1, suspect: 0 }, uncased: [] });
+    writeFileSync(join(dir, '.sdlc/replz/triage.json'), JSON.stringify({ dismissed: {} }));
+    writeFileSync(join(dir, '.sdlc/replz/cases/bug-1.yaml'), 'id: bug-1\n');
+    writeFileSync(join(dir, '.sdlc/replz/cases/control-2.yaml'), 'id: control-2\n');
+    expect(await runScorecard(options)).toMatchObject({ triage: { confirmed: 1, dismissed: 0, suspect: 0 } });
+    writeFileSync(join(dir, '.sdlc/replz/triage.json'), JSON.stringify({ dismissed: { x: '', 1: ' ' } }));
+    await expect(runScorecard(options)).rejects.toThrow('.sdlc/replz/triage.json dismisses 1, x without a pull request number and a reason');
+  });
+});
+
+describe('the edges of each reader', () => {
+  it('trims the body, keeps its tabs, and reads a record with empty fields', () => {
+    expect(parseMainLog('\0aaa\t2026-11-20\tfeat: x (#1)\t a\tb \n\u0001')[0]?.body).toBe('a\tb');
+    expect(parseMainLog('\0aaa\t2026-11-20\tfeat: x\t\u0001')[0]).toEqual(at('aaa', '2026-11-20', 'feat: x'));
+  });
+
+  it('anchors each subject rule at the start, and reads a scope of any length', () => {
+    expect(['x chore(release): y', 'x Version Packages'].map(isRelease)).toEqual([false, false]);
+    expect(['chore: fix(x): a', 'fix(ab): a'].map(isFix)).toEqual([false, true]);
+    expect(isFix('fix(y): a fix(docs) b')).toBe(true);
+    expect(['fix(x):follow y', 'fix: regrade y', 'fix: re-grade y'].map(isFix)).toEqual([false, false, false]);
+    expect(isFix('fix(x): a :follow b')).toBe(false);
+    expect(isFix('fix(x): followed')).toBe(true);
+  });
+
+  it('knows a test, fixture or build folder only as a whole path segment', () => {
+    expect(['src/__tests__/a.ts', 'src/__snapshots__/a.ts', 'fixtures/a.ts', 'node_modules/x/a.js', 'dist/a.js', 'a.test.tsx', 'a.spec.cjs', 'a.d.mts'].map(isCode)).toEqual(
+      Array.from({ length: 8 }, () => false),
+    );
+    expect(['src/myfixtures/a.ts', 'src/fixtures2/a.ts', 'src/distx/a.ts', 'src/xnode_modules/a.js', 'src/test.ts', 'src/a.ts.d'].map(isCode)).toEqual([true, true, true, true, true, false]);
+    expect(isCode('src/my__tests__/a.ts')).toBe(true);
+    expect(['a.test.js', 'a.spec.jsx', 'a.bench.mts', 'a.test.cts', 'a.d.ts', 'a.d.cts', 'src/__fixtures__/a.ts', 'node_modules/a.ts'].map(isCode)).toEqual(Array.from({ length: 8 }, () => false));
+    expect(['a.tests.ts', 'a.testx.ts', 'a.d.tsx', 'test/a.ts', 'src/dist.ts', 'a.test.js.ts', 'a.d.ts.ts', 'a.spec.tsx.mjs'].map(isCode)).toEqual(Array.from({ length: 8 }, () => true));
+  });
+
+  it('calls an export without a source live code', () => {
+    expect(isInert('export { a };')).toBe(false);
+    expect(isInert("export {a, b} from 'x';")).toBe(true);
+    expect(isInert('importer();')).toBe(false);
+    expect(isInert("run(); export { a } from 'b';")).toBe(false);
+  });
+
+  it('reads a hunk header only at the start of a line, and a file header only as one', () => {
+    const diff = ['--- a/src/a.ts', '+++ b/src/a.ts', '@@ -5 +5 @@', '-const s = "@@ -90 +1";', '-const t = 1;', '+x', '--- a/README.md', '+++ b/README.md', '@@ -1 +1 @@', '-# a', '--- /dev/null', '+++ b/src/n.ts', '@@ -0,0 +1 @@', '+n'].join('\n');
+    expect(oldRanges(diff)).toEqual([{ path: 'src/a.ts', start: 5, count: 2 }]);
+    expect(oldRanges(['--- a/src/a.ts', '@@ -3 +3 @@', '-a();', '--- a/src/b.ts', '@@ -4 +4 @@', '-b();'].join('\n'))).toEqual([
+      { path: 'src/a.ts', start: 3, count: 1 },
+      { path: 'src/b.ts', start: 4, count: 1 },
+    ]);
+  });
+
+  it('reads a blame header only at a line start, with numbers of any width', () => {
+    const a = 'a'.repeat(40);
+    expect(blameShas(`${a} 12 34 5\nx${'b'.repeat(40)} 1 1`)).toEqual([a]);
+  });
+});
+
+const sha = (n: number): string => String(n).repeat(40).slice(0, 40);
+
+describe('the edges of the score', () => {
+  const SHORT_SHA = '666666666666';
+
+  it('counts a pull request merged on the first day of the window', () => {
+    const card = scorecard({ commits: [at('s1', '2026-11-01', 'feat: a (#1)')], since: '2026-11-01', traced: new Map(), cased: new Set() });
+    expect(card.merged).toBe(1);
+  });
+
+  it('names a straight push by twelve characters of its sha, and sorts the fixes and the escapes', () => {
+    const commits = [
+      at(sha(6), '2026-11-21', 'fix: straight push'),
+      at('s9', '2026-11-21', 'fix: b (#9)'),
+      at('s8', '2026-11-21', 'fix: a (#8)'),
+      at('s3', '2026-11-20', 'feat: c (#3)'),
+      at('s2', '2026-11-20', 'feat: b (#2)'),
+    ];
+    const card = scorecard({
+      commits,
+      since: '2026-11-01',
+      traced: new Map([
+        [sha(6), ['s2']],
+        ['s9', ['s2', 's3']],
+        ['s8', ['s2']],
+      ]),
+      cased: new Set(),
+    });
+    expect(card.escapes.map((escape) => [escape.pr, escape.fixedBy])).toEqual([
+      [3, ['#9']],
+      [2, ['#8', '#9', SHORT_SHA]],
+    ]);
+  });
+
+  it('skips a named pull request that is not on main or is a release, and lets a name outrank a trace in either order', () => {
+    const commits = [
+      at('s7', '2026-11-23', 'fix: a, regressed in #4 (#7)'),
+      at('s6', '2026-11-22', 'fix: b (#6)'),
+      at('s5', '2026-11-22', 'fix: c, regressed in #99 and (#5)'),
+      at('s3', '2026-11-21', 'fix: d, regressed in #2 (#3)'),
+      at('s2', '2026-11-20', 'chore(release): version packages (#2)'),
+      at('s4', '2026-11-19', 'feat: e (#4)'),
+      at('s1', '2026-11-18', 'feat: f (#1)'),
+    ];
+    const traced = new Map([
+      ['s6', ['s4', 's1']],
+      ['s5', ['s1']],
+      ['s3', ['s1']],
+    ]);
+    const card = scorecard({ commits, since: '2026-11-01', traced, cased: new Set() });
+    expect(card.escapes.map((escape) => [escape.pr, escape.how, escape.fixedBy])).toEqual([
+      [4, 'named', ['#6', '#7']],
+      [1, 'traced', ['#6']],
+    ]);
+    expect(card.untraced).toBe(0);
+  });
+
+  it('calls a fix untraceable when it traces only to a commit with no pull request', () => {
+    const commits = [at('s2', '2026-11-21', 'fix: a (#2)'), at(sha(1), '2026-11-20', 'feat: straight')];
+    expect(scorecard({ commits, since: '2026-11-01', traced: new Map([['s2', [sha(1)]]]), cased: new Set() }).untraced).toBe(1);
+  });
+
+  it('lists five pull requests and counts the rest', () => {
+    const commits = Array.from({ length: 7 }, (_, index) => at(`s${String(index)}`, '2026-11-20', `feat: a (#${String(index + 1)})`));
+    const card = scorecard({ commits, since: '2026-11-01', traced: new Map(), cased: new Set() });
+    expect(card.receipts.next).toBe('add the provedone gate so no pull request merges without `Verified-by:`; missing on #1, #2, #3, #4, #5 and 2 more');
+    const five = scorecard({ commits: commits.slice(0, 5), since: '2026-11-01', traced: new Map(), cased: new Set() });
+    expect(five.receipts.next).toBe('add the provedone gate so no pull request merges without `Verified-by:`; missing on #1, #2, #3, #4, #5');
+    const clean = scorecard({ commits: [at('s1', '2026-11-20', 'feat: a (#1)', RECEIPT)], since: '2026-11-01', traced: new Map(), cased: new Set() });
+    expect(clean.receipts.next).toBe('every merged pull request carries a receipt: gate on it (provedone gate --enforce)');
+  });
+
+  it('reads the last stage of a run, and calls a run with no stage unrun', () => {
+    const report = { bugs: 4, controls: 2, recall: [{ stage: 'raw', found: 4 }, { stage: 'mid', found: 3 }, { stage: 'final', found: 1 }], falseAlarms: 0 };
+    const ran = scorecard({ commits: COMMITS, since: '2026-11-01', traced: new Map(), cased: new Set(), history: { date: '2026-11-20', set: 'test', report } });
+    expect(ran.recall).toEqual({ value: 0.25, of: '1 of 4 bug cases at stage final, 2026-11-20', next: 'for each missed case, add the lint rule, lock test or checklist item that would have caught it' });
+    expect(ran.falseAlarms).toEqual({ value: 0, of: '0 of 2 clean controls', next: 'drop or narrow the check or item that fired on a clean control' });
+    const empty = scorecard({ commits: COMMITS, since: '2026-11-01', traced: new Map(), cased: new Set(), history: { date: '2026-11-20', set: 'test', report: { ...report, recall: [] } } });
+    expect(empty.recall.value).toBeNull();
+    expect(empty.falseAlarms.value).toBeNull();
+  });
+
+  it('prints the whole card, at most ten escapes, and no escape section when there are none', () => {
+    const commits = [
+      at('f', '2026-11-25', 'fix: many (#100)'),
+      ...Array.from({ length: 11 }, (_, index) => at(`s${String(index)}`, `2026-11-${String(20 - index).padStart(2, '0')}`, `feat: ${String(index)} (#${String(index + 1)})`)),
+    ];
+    const card = scorecard({ commits, since: '2026-11-01', traced: new Map([['f', commits.slice(1).map((commit) => commit.sha)]]), cased: new Set([1]) });
+    const text = scorecardText(card);
+    expect(text.split('\n').slice(0, 11)).toEqual([
+      'verification scorecard since 2026-11-01: 12 merged pull requests, 1 fixes or reverts (0 untraceable)',
+      '',
+      'escape rate        91.7%  11 of 12 merged pull requests: 1 confirmed, 10 to triage, 0 dismissed',
+      '                          next: confirm each suspect as a replz case with an answer key, or dismiss it in .sdlc/replz/triage.json with a reason: #2, #3, #4, #5, #6 and 5 more',
+      'receipts            0.0%  0 of 12 merged pull requests',
+      '                          next: add the provedone gate so no pull request merges without `Verified-by:`; missing on #100, #1, #2, #3, #4 and 7 more',
+      'recall        unmeasured  no recorded run',
+      '                          next: run `replz run --set test --record` to score the reviewer and the checks on the case set',
+      'false alarms  unmeasured  no recorded run',
+      '                          next: run `replz run --set test --record` to score the reviewer and the checks on the case set',
+      '',
+    ]);
+    expect(text.split('\n').slice(11)).toEqual([
+      'escapes (newest first):',
+      '  #1 2026-11-20 confirmed traced fixed by #100  feat: 0 (#1)',
+      ...Array.from({ length: 9 }, (_, index) => `  #${String(index + 2)} 2026-11-${String(19 - index)} suspect   traced fixed by #100  feat: ${String(index + 1)} (#${String(index + 2)})`),
+      '  and 1 more (--json lists every one)',
+    ]);
+    const ten = scorecard({ ...{ commits: commits.slice(0, 11) }, since: '2026-11-01', traced: new Map([['f', commits.slice(1, 11).map((commit) => commit.sha)]]), cased: new Set() });
+    expect(scorecardText(ten)).not.toContain('more (--json');
+    expect(scorecardText(scorecard({ commits: [], since: '2026-11-01', traced: new Map(), cased: new Set() }))).not.toContain('escapes (newest first)');
+    const one = scorecard({ commits: [at('f', '2026-11-22', 'fix: x (#9)'), at('g', '2026-11-21', 'fix: y (#8)'), at('s', '2026-11-20', 'feat: z (#1)')], since: '2026-11-01', traced: new Map([['f', ['s']], ['g', ['s']]]), cased: new Set() });
+    expect(scorecardText(one).split('\n').slice(-2)).toEqual(['escapes (newest first):', '  #1 2026-11-20 suspect   traced fixed by #8, #9  feat: z (#1)']);
+    const named = scorecard({ commits: [at('f', '2026-11-22', 'fix: x, regressed in #1 (#9)'), at('s', '2026-11-20', 'feat: z (#1)')], since: '2026-11-01', traced: new Map(), cased: new Set() });
+    expect(scorecardText(named).split('\n').at(-1)).toBe('  #1 2026-11-20 suspect   named  fixed by #9  feat: z (#1)');
+  });
+});
+
+describe('the edges of a band', () => {
+  const card = scorecard({ commits: COMMITS, since: '2026-11-01', traced: new Map([['s8', ['s4']]]), cased: new Set() });
+  const report = { bugs: 4, controls: 2, recall: [{ stage: 'final', found: 1 }], falseAlarms: 0 };
+  const ran = scorecard({ commits: COMMITS, since: '2026-11-01', traced: new Map([['s8', ['s4']]]), cased: new Set(), history: { date: '2026-11-20', set: 'test', report } });
+
+  it('holds a value equal to its band inside it', () => {
+    expect(breaches(ran, { maxEscapeRate: 0.4, minReceipts: 0.6, minRecall: 0.25 })).toEqual([]);
+  });
+
+  it('says each band in full, recall included', () => {
+    expect(breaches(ran, { maxEscapeRate: 0.39, minReceipts: 0.61, minRecall: 0.26 })).toEqual([
+      `escape rate 40.0% is above its band 39.0%. fix: ${ran.escapeRate.next}`,
+      `receipts 60.0% is below its band 61.0%. fix: ${ran.receipts.next}`,
+      'recall 25.0% is below its band 26.0%. fix: for each missed case, add the lint rule, lock test or checklist item that would have caught it',
+    ]);
+  });
+
+  it('holds an unmeasured value to no band, and breaks no band that is not set', () => {
+    expect(breaches(card, { minRecall: 0.9 })).toEqual([]);
+    expect(breaches(ran, {})).toEqual([]);
+  });
+});
