@@ -152,6 +152,7 @@ const schema = (message: string, fix: string): PluginError => new PluginError('E
  * *first-party* duplicate is a decision about every program rather than about plugins, and is
  * left alone here.
  */
+// Stryker disable next-line ArrayDeclaration: a path no plugin contributes in the default reads the same as none
 export function validate(plugin: unknown, taken: readonly string[] = []): asserts plugin is Plugin {
   if (!isRecord(plugin)) throw schema('a plugin is a plain object', 'export an object, not a function or an array');
   const name = plugin['name'];

@@ -107,6 +107,7 @@ const PLAIN: Paint = { heading: identity, command: identity, flag: identity, val
  *
  * It lives here, not in the engine, so the startup path pays for none of it (W4).
  */
+// Stryker disable next-line ArrayDeclaration: colorLevel reads only --color and --no-color out of argv, and a default holds neither
 export function colorFor(env: Record<string, string | undefined>, interactive: boolean, argv: readonly string[] = []): boolean {
   return colorLevel({ env, isTTY: { stdout: interactive }, argv }) > 0;
 }
@@ -273,6 +274,7 @@ export function wrap(text: string, width: number): string[] {
   for (const line of text.split('\n')) {
     // Kept verbatim: a line the author indented, and a line that already fits.
     if (/^\s/.test(line) || displayWidth(line) <= width) out.push(line);
+    // Stryker disable next-line ObjectLiteral: hard is false by default; it is spelled out because that default is the point
     else out.push(...fold(line, width, { hard: false }).split('\n'));
   }
   return out;
@@ -296,6 +298,7 @@ function termColumn(rows: Row[], width: number): number {
 let say: (english: string) => string = String;
 
 function layout(rows: Row[], width: number, column: number, paint: Paint): string[] {
+  // Stryker disable next-line NumericLiteral: linegauge folds at 0 columns as it does at 1, one word a line
   const textWidth = Math.max(1, width - INDENT.length - column - GUTTER);
   const lines: string[] = [];
   for (const { term, text, kind } of rows) {
@@ -382,6 +385,7 @@ export function renderHelp(manifest: Manifest, node: CommandNode, opts: HelpOpti
   if (opts.format === 'markdown') return import('./help-markdown.js').then((m) => m.markdownHelp(model, node));
   const width = opts.width ?? DEFAULT_WIDTH;
   const paint = paintOf(opts);
+  // Stryker disable next-line StringLiteral: the fallback is the root alone, whose path is one word, so its separator joins nothing
   const shown = node.path.slice(manifest.rootPath.length).join(' ') || node.path.join(' ');
   const column = termColumn(model.sections.filter((s) => s.title !== 'Examples:').flatMap((s) => s.rows), width);
   const lines: string[] = [`${paint.heading(say('Usage:'))} ${shown} ${model.usage}`, ''];
