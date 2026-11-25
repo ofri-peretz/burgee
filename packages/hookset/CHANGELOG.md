@@ -1,5 +1,15 @@
 # hookset
 
+## 1.1.1
+
+### Patch Changes
+
+- [#1845](https://github.com/ofri-peretz/burgee/pull/1845) [`2ce60be`](https://github.com/ofri-peretz/burgee/commit/2ce60be944df04598293801c08f4de78fea2d619) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `verify-before-stop`'s `recordPass` takes the test run as one `{ command, failed }` argument, so the vendored hook passes a consumer's `max-params` lint at four parameters (serverless's eslint flagged five).
+
+- [#1845](https://github.com/ofri-peretz/burgee/pull/1845) [`2ce60be`](https://github.com/ofri-peretz/burgee/commit/2ce60be944df04598293801c08f4de78fea2d619) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `verify-before-stop` records a pass only from a run that proves one: a foreground test command that runs last, with no `|`, `||`, `;` or `&` that could hide its failure or edit code after it (`npm test || true`, `npx vitest run | tail` and `npm test && sed -i … a.ts` no longer count). It reads `git status` from the work-tree root, so a hook whose cwd is a package still fingerprints the right files, and a code file renamed to a doc still counts as a code change.
+
+  The `triggerlist-review` action that ships with this tag keeps `coderabbitai[bot]`'s comments out of the reviewer's prompt by default (`exclude-comments-by-actor`), as eslint's own review step did.
+
 ## 1.1.0
 
 ### Minor Changes
