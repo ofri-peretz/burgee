@@ -1,6 +1,6 @@
 ---
 title: roundel
-description: "Terminal colors for a CLI: one output policy decided from the runtime, nine semantic tokens over util.styleText, and a contrast-checked theme. Zero dependencies. Drop-in alternative to chalk, colorette, kleur, picocolors, supports-color and yoctocolors."
+description: "Terminal colors for a CLI. Zero dependencies. Drop-in alternative to chalk, colorette, kleur, picocolors, supports-color and yoctocolors."
 ---
 
 **roundel** is the colours a CLI carries: one output policy decided once from the runtime,
