@@ -23,6 +23,10 @@
  *       family's own mutation tester on the same mutate list, wrapper and budgets; it writes
  *       Stryker's report schema, so `summarise` and `record` read it unchanged.
  *
+ *   npx tsx scripts/mutation.ts full --package burgee --shard 2/4 --out <file>
+ *       The same, on every 4th source file from the 2nd, for a package too slow for one sitting.
+ *       `record` sums a complete set of shards at one commit into one observation.
+ *
  *   npx tsx scripts/mutation.ts record --results <dir> [--date YYYY-MM-DD]
  *       Folds result files into `.sdlc/bands/mutation-ratchets.json`: appends the observation,
  *       raises a floor the run beat, sets a first floor for a package measured for the first
@@ -228,6 +232,13 @@ const SCALE = 100;
 const round = (n: number): number => Math.round(n * SCALE) / SCALE;
 const MS_PER_MINUTE = 60_000;
 
+/** Detected ÷ (detected + undetected) as a percentage to two decimals; null when nothing was scored. */
+function scoreOf(s: Pick<Summary, 'killed' | 'timeout' | 'survived' | 'noCoverage'>): number | null {
+  const detected = s.killed + s.timeout;
+  const scored = detected + s.survived + s.noCoverage;
+  return scored === 0 ? null : round((detected / scored) * PERCENT);
+}
+
 /** Counts, the score and the undetected mutants of one report. `prefix` is prepended to each file (the package dir). */
 export function summarise(report: StrykerReport, prefix = ''): Summary {
   const s: Summary = { killed: 0, timeout: 0, survived: 0, noCoverage: 0, invalid: 0, ignored: 0, score: null, undetected: [], silentSurvivors: [] };
@@ -256,9 +267,7 @@ export function summarise(report: StrykerReport, prefix = ''): Summary {
       }
     }
   }
-  const detected = s.killed + s.timeout;
-  const scored = detected + s.survived + s.noCoverage;
-  s.score = scored === 0 ? null : round((detected / scored) * PERCENT);
+  s.score = scoreOf(s);
   s.undetected.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line || a.column - b.column);
   return s;
 }
@@ -393,6 +402,61 @@ export interface PackageRun {
   error?: string;
   summary?: Summary;
   minutes: number;
+  /** Set by `full --shard k/n`: this run mutated every n-th source file, starting at the k-th. */
+  shard?: { index: number; of: number };
+}
+
+/** `k/n` with 1 <= k <= n, or undefined for anything else. */
+export function parseShard(text: string | undefined): { index: number; of: number } | undefined {
+  const m = /^(\d+)\/(\d+)$/u.exec(text ?? '');
+  if (!m) return undefined;
+  const index = Number(m[1]);
+  const of = Number(m[2]);
+  return index >= 1 && index <= of ? { index, of } : undefined;
+}
+
+/** The sources shard `k/n` mutates: every n-th file of the sorted list, from the k-th. */
+export const shardOf = <T>(sources: readonly T[], shard: { index: number; of: number }): T[] => sources.filter((_, i) => i % shard.of === shard.index - 1);
+
+/**
+ * Shards of one package at one commit folded into one result, so a package too slow for one run
+ * is still recorded once, as the sum of its parts. A set missing a shard is left out with a note:
+ * a partial run is not the package's score.
+ */
+export function mergeShards(results: readonly FullResult[]): { results: FullResult[]; notes: string[] } {
+  const whole = results.filter((r) => r.shard === undefined);
+  const groups = new Map<string, FullResult[]>();
+  for (const r of results) {
+    if (r.shard === undefined) continue;
+    const key = `${r.pkg}@${r.commit}/${String(r.shard.of)}`;
+    groups.set(key, [...(groups.get(key) ?? []), r]);
+  }
+  const notes: string[] = [];
+  for (const [key, parts] of groups) {
+    const of = parts[0]!.shard!.of;
+    const seen = new Set(parts.map((p) => p.shard!.index));
+    if (seen.size !== of) {
+      notes.push(`${key}: ${String(seen.size)} of ${String(of)} shards present, not recorded`);
+      continue;
+    }
+    const failed = parts.find((p) => !p.ok || !p.summary);
+    const minutes = round(parts.reduce((n, p) => n + p.minutes, 0));
+    if (failed) {
+      whole.push({ pkg: failed.pkg, commit: failed.commit, ok: false, error: `shard ${String(failed.shard!.index)}/${String(of)}: ${failed.error ?? 'no summary'}`, minutes });
+      continue;
+    }
+    const summaries = parts.map((p) => p.summary!);
+    const sum = (k: 'killed' | 'timeout' | 'survived' | 'noCoverage' | 'invalid' | 'ignored'): number => summaries.reduce((n, x) => n + x[k], 0);
+    const summary: Summary = {
+      killed: sum('killed'), timeout: sum('timeout'), survived: sum('survived'), noCoverage: sum('noCoverage'), invalid: sum('invalid'), ignored: sum('ignored'),
+      score: null,
+      undetected: summaries.flatMap((x) => x.undetected),
+      silentSurvivors: summaries.flatMap((x) => x.silentSurvivors),
+    };
+    summary.score = scoreOf(summary);
+    whole.push({ pkg: parts[0]!.pkg, commit: parts[0]!.commit, ok: true, summary, minutes });
+  }
+  return { results: whole, notes };
 }
 
 /** The files a `mutate` list names (`src/x.ts:10-12` → `src/x.ts`), with their text now. */
@@ -720,11 +784,16 @@ function fullCommand(): number {
     process.stderr.write(`mutation full: --package must name a directory under packages/ (got ${String(pkg)})\n`);
     return 1;
   }
-  const sources = allSources(pkg);
+  const shard = parseShard(arg('--shard'));
+  if (arg('--shard') !== undefined && !shard) {
+    process.stderr.write(`mutation full: --shard takes k/n with 1 <= k <= n (got ${String(arg('--shard'))})\n`);
+    return 1;
+  }
+  const sources = shard ? shardOf(allSources(pkg), shard) : allSources(pkg);
   const run: PackageRun = sources.length === 0
     ? { pkg, ok: false, error: 'no mutation source — every file is a test, a fixture or tested in another process', minutes: 0 }
     : runPackage(pkg, sources, { concurrency: concurrency(), timeoutMS: PR_BUDGET.timeoutMS, dryRunTimeoutMinutes: 15, engine: engineArg() });
-  const result: FullResult = { pkg, commit: head(), ok: run.ok, error: run.error, summary: run.summary, minutes: run.minutes };
+  const result: FullResult = { pkg, commit: head(), ok: run.ok, error: run.error, summary: run.summary, minutes: run.minutes, ...(shard ? { shard } : {}) };
   const out = arg('--out');
   if (out) writeFileSync(out, `${JSON.stringify(result, null, 2)}\n`);
   const s = run.summary;
@@ -741,7 +810,9 @@ function recordCommand(): number {
     return 1;
   }
   const files = readdirSync(dir, { recursive: true, encoding: 'utf8' }).filter((f) => f.endsWith('.json'));
-  const results = files.map((f) => JSON.parse(readFileSync(path.join(dir, f), 'utf8')) as FullResult);
+  const merged = mergeShards(files.map((f) => JSON.parse(readFileSync(path.join(dir, f), 'utf8')) as FullResult));
+  for (const n of merged.notes) process.stdout.write(`${n}\n`);
+  const results = merged.results;
   const file = path.join(REPO_ROOT, RATCHETS_FILE);
   const doc = JSON.parse(readFileSync(file, 'utf8')) as RatchetsDoc;
   const date = arg('--date') ?? new Date().toISOString().slice(0, 'YYYY-MM-DD'.length);
