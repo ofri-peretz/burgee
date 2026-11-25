@@ -3,12 +3,12 @@
  * document pinned, so every description, default and requirement an agent reads is held, and
  * what `brand` and `migrate` do with an option left out.
  */
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it, vi } from 'vitest';
 
+import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { defineBurgee, opposedField } from './brand.js';
 import { runCommand } from './execute.js';
 import { program } from './program.js';
@@ -18,7 +18,8 @@ vi.mock('./migrate.js', () => ({ migrate }));
 
 const colours = { lead: '#f5a623', follow: '#4ecdc4' };
 const PASSING = ['--lead', colours.lead, '--follow', colours.follow];
-const scratch = (): string => mkdtempSync(join(tmpdir(), 'burgee-program-units-'));
+const dirs = scratchDirs();
+const scratch = (): string => dirs('burgee-program-units-');
 
 /** What `brand --json` returned. */
 async function brand(argv: string[]): Promise<{ flag?: string; files: string[]; contrast: unknown[] }> {
