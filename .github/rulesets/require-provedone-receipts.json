@@ -1,15 +1,32 @@
 {
-  "$comment": "Every commit on a pull request carries its provedone receipt (a `Verified-by:` line) before it can merge. burgee is not listed: its `Quality Gate`, already required, needs the `provedone receipts` job (quality.yml), so a second required context would only add a name to keep in step with scripts/required-checks.mts. Admins and GitHub Actions (app 15368) bypass, so release and data-refresh pushes to main keep working. Applied by .github/workflows/rulesets.yml.",
+  "$comment": "Every commit on a pull request carries its provedone receipt (a `Verified-by:` line) before it can merge. burgee is not listed: its `Quality Gate`, already required, needs the `provedone receipts` job (quality.yml), so a second required context would only add a name to keep in step with scripts/required-checks.mts. Repository admins bypass (RELEASE_BOT_PAT acts as one). GitHub Actions cannot be a bypass actor on a personal account's repos (the API answers 422); no workflow here pushes to main with GITHUB_TOKEN, they all open PRs. Applied by .github/workflows/rulesets.yml.",
   "owner": "ofri-peretz",
-  "repos": ["eslint", "agents", "subagent-gateway", "interlace", "blog", "serverless"],
+  "repos": [
+    "eslint",
+    "agents",
+    "subagent-gateway",
+    "interlace",
+    "blog",
+    "serverless"
+  ],
   "ruleset": {
     "name": "Require provedone receipts",
     "target": "branch",
     "enforcement": "active",
-    "conditions": { "ref_name": { "include": ["~DEFAULT_BRANCH"], "exclude": [] } },
+    "conditions": {
+      "ref_name": {
+        "include": [
+          "~DEFAULT_BRANCH"
+        ],
+        "exclude": []
+      }
+    },
     "bypass_actors": [
-      { "actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always" },
-      { "actor_id": 15368, "actor_type": "Integration", "bypass_mode": "always" }
+      {
+        "actor_id": 5,
+        "actor_type": "RepositoryRole",
+        "bypass_mode": "always"
+      }
     ],
     "rules": [
       {
@@ -17,7 +34,12 @@
         "parameters": {
           "strict_required_status_checks_policy": false,
           "do_not_enforce_on_create": true,
-          "required_status_checks": [{ "context": "hookset / provedone receipts", "integration_id": 15368 }]
+          "required_status_checks": [
+            {
+              "context": "hookset / provedone receipts",
+              "integration_id": 15368
+            }
+          ]
         }
       }
     ]
