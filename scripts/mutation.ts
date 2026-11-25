@@ -402,8 +402,6 @@ export interface PackageRun {
   error?: string;
   summary?: Summary;
   minutes: number;
-  /** Set by `full --shard k/n`: this run mutated every n-th source file, starting at the k-th. */
-  shard?: { index: number; of: number };
 }
 
 /** `k/n` with 1 <= k <= n, or undefined for anything else. */
@@ -435,8 +433,9 @@ export function mergeShards(results: readonly FullResult[]): { results: FullResu
   for (const [key, parts] of groups) {
     const of = parts[0]!.shard!.of;
     const seen = new Set(parts.map((p) => p.shard!.index));
-    if (seen.size !== of) {
-      notes.push(`${key}: ${String(seen.size)} of ${String(of)} shards present, not recorded`);
+    // A shard counted twice (a re-run left beside the first) would double its mutants.
+    if (seen.size !== of || parts.length !== of) {
+      notes.push(`${key}: ${String(seen.size)} of ${String(of)} shards present in ${String(parts.length)} results, not recorded`);
       continue;
     }
     const failed = parts.find((p) => !p.ok || !p.summary);
@@ -599,6 +598,8 @@ export interface FullResult {
   error?: string;
   summary?: Summary;
   minutes: number;
+  /** Set by `full --shard k/n`: this run mutated every n-th source file, starting at the k-th. */
+  shard?: { index: number; of: number };
 }
 
 /** A floor is the measured score rounded down to one decimal: a re-run of the same code holds it. */

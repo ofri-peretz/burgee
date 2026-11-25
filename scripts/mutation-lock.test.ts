@@ -349,8 +349,9 @@ describe('a package measured in shards', () => {
     expect(record({ $comment: '', ratchets: { a: { status: 'unmeasured', reason: 'never run' } } }, results, '2026-11-25').doc.ratchets.a).toMatchObject({ floor: 90.9, observations: [{ killed: 98 }] });
   });
 
-  it('leaves out a set missing a shard, and fails a set with a failed shard', () => {
-    expect(mergeShards([part(1, 3, [9, 0]), part(3, 3, [9, 0])])).toEqual({ results: [], notes: ['a@abc/3: 2 of 3 shards present, not recorded'] });
+  it('leaves out a set missing a shard or counting one twice, and fails a set with a failed shard', () => {
+    expect(mergeShards([part(1, 3, [9, 0]), part(3, 3, [9, 0])])).toEqual({ results: [], notes: ['a@abc/3: 2 of 3 shards present in 2 results, not recorded'] });
+    expect(mergeShards([part(1, 2, [9, 0]), part(1, 2, [9, 0]), part(2, 2, [9, 0])])).toEqual({ results: [], notes: ['a@abc/2: 2 of 2 shards present in 3 results, not recorded'] });
     const failed = mergeShards([part(1, 2, [9, 0]), { ...part(2, 2, [0, 0], false), error: 'dry run failed' }]).results;
     expect(failed).toEqual([expect.objectContaining({ ok: false, error: 'shard 2/2: dry run failed' })]);
   });
