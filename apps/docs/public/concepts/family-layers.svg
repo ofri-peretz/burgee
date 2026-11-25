@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 328" width="760" height="328" role="img" aria-labelledby="t d">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 448" width="760" height="448" role="img" aria-labelledby="t d">
   <title id="t">The burgee family's dependency graph</title>
-  <desc id="d">burgee depends on bellpull, closeout, linegauge, roundel, seniority. caique depends on bellpull, closeout, linegauge, paratext, roundel. contractdiff depends on bellpull, burgee, seniority, truefit. controlroom depends on caique, closeout, flagstaff, linegauge, paratext, roundel. flagstaff depends on closeout, linegauge, paratext, roundel. hookset depends on burgee. oxmutate depends on bellpull, burgee. provedone depends on bellpull, burgee. replz depends on bellpull, burgee, seniority, truefit. triggerlist depends on bellpull, burgee, seniority, truefit. truepass depends on bellpull, burgee, roundel. bellpull, closeout, linegauge, paratext, roundel, seniority, truefit depend on nothing.</desc>
+  <desc id="d">burgee depends on bellpull, closeout, linegauge, roundel, seniority. caique depends on bellpull, closeout, linegauge, paratext, roundel. contractdiff depends on bellpull, burgee, seniority, truefit. controlroom depends on caique, closeout, flagstaff, linegauge, paratext, roundel. flagstaff depends on closeout, linegauge, paratext, roundel. hookset depends on burgee. oxmutate depends on bellpull, burgee. provedone depends on bellpull, burgee. replz depends on bellpull, burgee, provedone, seniority, truefit. triggerlist depends on bellpull, burgee, seniority, truefit. truepass depends on bellpull, burgee, roundel. bellpull, closeout, linegauge, paratext, roundel, seniority, truefit depend on nothing.</desc>
   <defs>
     <marker id="a0" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#3b82f6"/></marker>
     <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#f59e0b"/></marker>
@@ -14,80 +14,81 @@
     <marker id="a9" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#ef4444"/></marker>
     <marker id="a10" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#3b82f6"/></marker>
   </defs>
-  <line x1="163.0" y1="184" x2="-15.5" y2="262" stroke="#3b82f6" stroke-width="2" marker-end="url(#a0)"/>
-  <line x1="163.0" y1="184" x2="93.0" y2="262" stroke="#3b82f6" stroke-width="2" marker-end="url(#a0)"/>
-  <line x1="163.0" y1="184" x2="201.5" y2="262" stroke="#3b82f6" stroke-width="2" marker-end="url(#a0)"/>
-  <line x1="163.0" y1="184" x2="418.5" y2="262" stroke="#3b82f6" stroke-width="2" marker-end="url(#a0)"/>
-  <line x1="163.0" y1="184" x2="527.0" y2="262" stroke="#3b82f6" stroke-width="2" marker-end="url(#a0)"/>
-  <line x1="380.0" y1="184" x2="-1.5" y2="262" stroke="#f59e0b" stroke-width="2" marker-end="url(#a1)"/>
-  <line x1="380.0" y1="184" x2="107.0" y2="262" stroke="#f59e0b" stroke-width="2" marker-end="url(#a1)"/>
-  <line x1="380.0" y1="184" x2="215.5" y2="262" stroke="#f59e0b" stroke-width="2" marker-end="url(#a1)"/>
-  <line x1="380.0" y1="184" x2="324.0" y2="262" stroke="#f59e0b" stroke-width="2" marker-end="url(#a1)"/>
-  <line x1="380.0" y1="184" x2="432.5" y2="262" stroke="#f59e0b" stroke-width="2" marker-end="url(#a1)"/>
-  <line x1="42.4" y1="64" x2="12.5" y2="262" stroke="#10b981" stroke-width="2" marker-end="url(#a2)"/>
-  <line x1="42.4" y1="64" x2="121.0" y2="142" stroke="#10b981" stroke-width="2" marker-end="url(#a2)"/>
-  <line x1="42.4" y1="64" x2="555.0" y2="262" stroke="#10b981" stroke-width="2" marker-end="url(#a2)"/>
-  <line x1="42.4" y1="64" x2="663.5" y2="262" stroke="#10b981" stroke-width="2" marker-end="url(#a2)"/>
-  <line x1="138.9" y1="64" x2="352.0" y2="142" stroke="#a855f7" stroke-width="2" marker-end="url(#a3)"/>
-  <line x1="138.9" y1="64" x2="135.0" y2="262" stroke="#a855f7" stroke-width="2" marker-end="url(#a3)"/>
-  <line x1="138.9" y1="64" x2="569.0" y2="142" stroke="#a855f7" stroke-width="2" marker-end="url(#a3)"/>
-  <line x1="138.9" y1="64" x2="243.5" y2="262" stroke="#a855f7" stroke-width="2" marker-end="url(#a3)"/>
-  <line x1="138.9" y1="64" x2="352.0" y2="262" stroke="#a855f7" stroke-width="2" marker-end="url(#a3)"/>
-  <line x1="138.9" y1="64" x2="460.5" y2="262" stroke="#a855f7" stroke-width="2" marker-end="url(#a3)"/>
-  <line x1="597.0" y1="184" x2="149.0" y2="262" stroke="#ef4444" stroke-width="2" marker-end="url(#a4)"/>
-  <line x1="597.0" y1="184" x2="257.5" y2="262" stroke="#ef4444" stroke-width="2" marker-end="url(#a4)"/>
-  <line x1="597.0" y1="184" x2="366.0" y2="262" stroke="#ef4444" stroke-width="2" marker-end="url(#a4)"/>
-  <line x1="597.0" y1="184" x2="474.5" y2="262" stroke="#ef4444" stroke-width="2" marker-end="url(#a4)"/>
-  <line x1="235.3" y1="64" x2="163.0" y2="142" stroke="#3b82f6" stroke-width="2" marker-end="url(#a5)"/>
-  <line x1="331.8" y1="64" x2="68.5" y2="262" stroke="#f59e0b" stroke-width="2" marker-end="url(#a6)"/>
-  <line x1="331.8" y1="64" x2="177.0" y2="142" stroke="#f59e0b" stroke-width="2" marker-end="url(#a6)"/>
-  <line x1="428.2" y1="64" x2="82.5" y2="262" stroke="#10b981" stroke-width="2" marker-end="url(#a7)"/>
-  <line x1="428.2" y1="64" x2="191.0" y2="142" stroke="#10b981" stroke-width="2" marker-end="url(#a7)"/>
-  <line x1="524.7" y1="64" x2="96.5" y2="262" stroke="#a855f7" stroke-width="2" marker-end="url(#a8)"/>
-  <line x1="524.7" y1="64" x2="205.0" y2="142" stroke="#a855f7" stroke-width="2" marker-end="url(#a8)"/>
-  <line x1="524.7" y1="64" x2="639.0" y2="262" stroke="#a855f7" stroke-width="2" marker-end="url(#a8)"/>
-  <line x1="524.7" y1="64" x2="747.5" y2="262" stroke="#a855f7" stroke-width="2" marker-end="url(#a8)"/>
-  <line x1="621.1" y1="64" x2="110.5" y2="262" stroke="#ef4444" stroke-width="2" marker-end="url(#a9)"/>
-  <line x1="621.1" y1="64" x2="219.0" y2="142" stroke="#ef4444" stroke-width="2" marker-end="url(#a9)"/>
-  <line x1="621.1" y1="64" x2="653.0" y2="262" stroke="#ef4444" stroke-width="2" marker-end="url(#a9)"/>
-  <line x1="621.1" y1="64" x2="761.5" y2="262" stroke="#ef4444" stroke-width="2" marker-end="url(#a9)"/>
-  <line x1="717.6" y1="64" x2="124.5" y2="262" stroke="#3b82f6" stroke-width="2" marker-end="url(#a10)"/>
-  <line x1="717.6" y1="64" x2="233.0" y2="142" stroke="#3b82f6" stroke-width="2" marker-end="url(#a10)"/>
-  <line x1="717.6" y1="64" x2="558.5" y2="262" stroke="#3b82f6" stroke-width="2" marker-end="url(#a10)"/>
-  <rect x="109.0" y="144" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#3b82f6" stroke-width="2"/>
-  <text x="163.0" y="169" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">burgee</text>
+  <line x1="163.0" y1="304" x2="-15.5" y2="382" stroke="#3b82f6" stroke-width="2" marker-end="url(#a0)"/>
+  <line x1="163.0" y1="304" x2="93.0" y2="382" stroke="#3b82f6" stroke-width="2" marker-end="url(#a0)"/>
+  <line x1="163.0" y1="304" x2="201.5" y2="382" stroke="#3b82f6" stroke-width="2" marker-end="url(#a0)"/>
+  <line x1="163.0" y1="304" x2="418.5" y2="382" stroke="#3b82f6" stroke-width="2" marker-end="url(#a0)"/>
+  <line x1="163.0" y1="304" x2="527.0" y2="382" stroke="#3b82f6" stroke-width="2" marker-end="url(#a0)"/>
+  <line x1="380.0" y1="304" x2="-1.5" y2="382" stroke="#f59e0b" stroke-width="2" marker-end="url(#a1)"/>
+  <line x1="380.0" y1="304" x2="107.0" y2="382" stroke="#f59e0b" stroke-width="2" marker-end="url(#a1)"/>
+  <line x1="380.0" y1="304" x2="215.5" y2="382" stroke="#f59e0b" stroke-width="2" marker-end="url(#a1)"/>
+  <line x1="380.0" y1="304" x2="324.0" y2="382" stroke="#f59e0b" stroke-width="2" marker-end="url(#a1)"/>
+  <line x1="380.0" y1="304" x2="432.5" y2="382" stroke="#f59e0b" stroke-width="2" marker-end="url(#a1)"/>
+  <line x1="54.5" y1="184" x2="12.5" y2="382" stroke="#10b981" stroke-width="2" marker-end="url(#a2)"/>
+  <line x1="54.5" y1="184" x2="121.0" y2="262" stroke="#10b981" stroke-width="2" marker-end="url(#a2)"/>
+  <line x1="54.5" y1="184" x2="555.0" y2="382" stroke="#10b981" stroke-width="2" marker-end="url(#a2)"/>
+  <line x1="54.5" y1="184" x2="663.5" y2="382" stroke="#10b981" stroke-width="2" marker-end="url(#a2)"/>
+  <line x1="163.0" y1="184" x2="352.0" y2="262" stroke="#a855f7" stroke-width="2" marker-end="url(#a3)"/>
+  <line x1="163.0" y1="184" x2="135.0" y2="382" stroke="#a855f7" stroke-width="2" marker-end="url(#a3)"/>
+  <line x1="163.0" y1="184" x2="569.0" y2="262" stroke="#a855f7" stroke-width="2" marker-end="url(#a3)"/>
+  <line x1="163.0" y1="184" x2="243.5" y2="382" stroke="#a855f7" stroke-width="2" marker-end="url(#a3)"/>
+  <line x1="163.0" y1="184" x2="352.0" y2="382" stroke="#a855f7" stroke-width="2" marker-end="url(#a3)"/>
+  <line x1="163.0" y1="184" x2="460.5" y2="382" stroke="#a855f7" stroke-width="2" marker-end="url(#a3)"/>
+  <line x1="597.0" y1="304" x2="149.0" y2="382" stroke="#ef4444" stroke-width="2" marker-end="url(#a4)"/>
+  <line x1="597.0" y1="304" x2="257.5" y2="382" stroke="#ef4444" stroke-width="2" marker-end="url(#a4)"/>
+  <line x1="597.0" y1="304" x2="366.0" y2="382" stroke="#ef4444" stroke-width="2" marker-end="url(#a4)"/>
+  <line x1="597.0" y1="304" x2="474.5" y2="382" stroke="#ef4444" stroke-width="2" marker-end="url(#a4)"/>
+  <line x1="271.5" y1="184" x2="163.0" y2="262" stroke="#3b82f6" stroke-width="2" marker-end="url(#a5)"/>
+  <line x1="380.0" y1="184" x2="68.5" y2="382" stroke="#f59e0b" stroke-width="2" marker-end="url(#a6)"/>
+  <line x1="380.0" y1="184" x2="177.0" y2="262" stroke="#f59e0b" stroke-width="2" marker-end="url(#a6)"/>
+  <line x1="488.5" y1="184" x2="82.5" y2="382" stroke="#10b981" stroke-width="2" marker-end="url(#a7)"/>
+  <line x1="488.5" y1="184" x2="191.0" y2="262" stroke="#10b981" stroke-width="2" marker-end="url(#a7)"/>
+  <line x1="380.0" y1="64" x2="96.5" y2="382" stroke="#a855f7" stroke-width="2" marker-end="url(#a8)"/>
+  <line x1="380.0" y1="64" x2="205.0" y2="262" stroke="#a855f7" stroke-width="2" marker-end="url(#a8)"/>
+  <line x1="380.0" y1="64" x2="530.5" y2="142" stroke="#a855f7" stroke-width="2" marker-end="url(#a8)"/>
+  <line x1="380.0" y1="64" x2="639.0" y2="382" stroke="#a855f7" stroke-width="2" marker-end="url(#a8)"/>
+  <line x1="380.0" y1="64" x2="747.5" y2="382" stroke="#a855f7" stroke-width="2" marker-end="url(#a8)"/>
+  <line x1="597.0" y1="184" x2="110.5" y2="382" stroke="#ef4444" stroke-width="2" marker-end="url(#a9)"/>
+  <line x1="597.0" y1="184" x2="219.0" y2="262" stroke="#ef4444" stroke-width="2" marker-end="url(#a9)"/>
+  <line x1="597.0" y1="184" x2="653.0" y2="382" stroke="#ef4444" stroke-width="2" marker-end="url(#a9)"/>
+  <line x1="597.0" y1="184" x2="761.5" y2="382" stroke="#ef4444" stroke-width="2" marker-end="url(#a9)"/>
+  <line x1="705.5" y1="184" x2="124.5" y2="382" stroke="#3b82f6" stroke-width="2" marker-end="url(#a10)"/>
+  <line x1="705.5" y1="184" x2="233.0" y2="262" stroke="#3b82f6" stroke-width="2" marker-end="url(#a10)"/>
+  <line x1="705.5" y1="184" x2="558.5" y2="382" stroke="#3b82f6" stroke-width="2" marker-end="url(#a10)"/>
+  <rect x="109.0" y="264" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#3b82f6" stroke-width="2"/>
+  <text x="163.0" y="289" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">burgee</text>
+  <rect x="326.0" y="264" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#f59e0b" stroke-width="2"/>
+  <text x="380.0" y="289" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">caique</text>
+  <rect x="0.5" y="144" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#10b981" stroke-width="2"/>
+  <text x="54.5" y="169" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">contractdiff</text>
+  <rect x="109.0" y="144" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#a855f7" stroke-width="2"/>
+  <text x="163.0" y="169" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">controlroom</text>
+  <rect x="543.0" y="264" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#ef4444" stroke-width="2"/>
+  <text x="597.0" y="289" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">flagstaff</text>
+  <rect x="217.5" y="144" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#3b82f6" stroke-width="2"/>
+  <text x="271.5" y="169" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">hookset</text>
   <rect x="326.0" y="144" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#f59e0b" stroke-width="2"/>
-  <text x="380.0" y="169" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">caique</text>
-  <rect x="-11.6" y="24" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#10b981" stroke-width="2"/>
-  <text x="42.4" y="49" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">contractdiff</text>
-  <rect x="84.9" y="24" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#a855f7" stroke-width="2"/>
-  <text x="138.9" y="49" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">controlroom</text>
+  <text x="380.0" y="169" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">oxmutate</text>
+  <rect x="434.5" y="144" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#10b981" stroke-width="2"/>
+  <text x="488.5" y="169" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">provedone</text>
+  <rect x="326.0" y="24" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#a855f7" stroke-width="2"/>
+  <text x="380.0" y="49" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">replz</text>
   <rect x="543.0" y="144" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#ef4444" stroke-width="2"/>
-  <text x="597.0" y="169" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">flagstaff</text>
-  <rect x="181.3" y="24" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#3b82f6" stroke-width="2"/>
-  <text x="235.3" y="49" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">hookset</text>
-  <rect x="277.8" y="24" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#f59e0b" stroke-width="2"/>
-  <text x="331.8" y="49" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">oxmutate</text>
-  <rect x="374.2" y="24" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#10b981" stroke-width="2"/>
-  <text x="428.2" y="49" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">provedone</text>
-  <rect x="470.7" y="24" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#a855f7" stroke-width="2"/>
-  <text x="524.7" y="49" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">replz</text>
-  <rect x="567.1" y="24" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#ef4444" stroke-width="2"/>
-  <text x="621.1" y="49" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">triggerlist</text>
-  <rect x="663.6" y="24" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#3b82f6" stroke-width="2"/>
-  <text x="717.6" y="49" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">truepass</text>
-  <rect x="0.5" y="264" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#71717a" stroke-width="2"/>
-  <text x="54.5" y="289" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">bellpull</text>
-  <rect x="109.0" y="264" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#71717a" stroke-width="2"/>
-  <text x="163.0" y="289" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">closeout</text>
-  <rect x="217.5" y="264" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#71717a" stroke-width="2"/>
-  <text x="271.5" y="289" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">linegauge</text>
-  <rect x="326.0" y="264" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#71717a" stroke-width="2"/>
-  <text x="380.0" y="289" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">paratext</text>
-  <rect x="434.5" y="264" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#71717a" stroke-width="2"/>
-  <text x="488.5" y="289" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">roundel</text>
-  <rect x="543.0" y="264" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#71717a" stroke-width="2"/>
-  <text x="597.0" y="289" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">seniority</text>
-  <rect x="651.5" y="264" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#71717a" stroke-width="2"/>
-  <text x="705.5" y="289" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">truefit</text>
+  <text x="597.0" y="169" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">triggerlist</text>
+  <rect x="651.5" y="144" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#3b82f6" stroke-width="2"/>
+  <text x="705.5" y="169" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">truepass</text>
+  <rect x="0.5" y="384" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#71717a" stroke-width="2"/>
+  <text x="54.5" y="409" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">bellpull</text>
+  <rect x="109.0" y="384" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#71717a" stroke-width="2"/>
+  <text x="163.0" y="409" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">closeout</text>
+  <rect x="217.5" y="384" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#71717a" stroke-width="2"/>
+  <text x="271.5" y="409" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">linegauge</text>
+  <rect x="326.0" y="384" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#71717a" stroke-width="2"/>
+  <text x="380.0" y="409" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">paratext</text>
+  <rect x="434.5" y="384" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#71717a" stroke-width="2"/>
+  <text x="488.5" y="409" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">roundel</text>
+  <rect x="543.0" y="384" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#71717a" stroke-width="2"/>
+  <text x="597.0" y="409" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">seniority</text>
+  <rect x="651.5" y="384" width="108" height="40" rx="6" fill="#f4f4f5" stroke="#71717a" stroke-width="2"/>
+  <text x="705.5" y="409" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#18181b">truefit</text>
 </svg>
