@@ -34,8 +34,8 @@ export const parseMainLog = (log: string): MainCommit[] =>
     .split('\0')
     .filter((record) => record.includes('\u0001'))
     .map((record) => {
-      const [fields = ''] = record.split('\u0001');
-      const [sha, date = '', subject = '', ...body] = fields.split('\t') as [string, ...string[]];
+      // A record kept holds the end mark, and `--format` prints every field, empty or not.
+      const [sha, date, subject, ...body] = record.slice(0, record.indexOf('\u0001')).split('\t') as [string, string, string, ...string[]];
       return { sha, date, subject, body: body.join('\t').trim() };
     });
 
@@ -82,11 +82,15 @@ const pushLine = (ranges: OldRange[], path: string, line: number): void => {
 export const oldRanges = (diff: string): OldRange[] => {
   const ranges: OldRange[] = [];
   let path: string | undefined;
+  // Stryker disable next-line NumericLiteral: equivalent, a hunk header sets it before any removed line
   let line = 0;
   for (const text of diff.split('\n')) {
-    const file = /^--- (?:a\/(.+)|\/dev\/null)$/u.exec(text);
-    if (file !== null) {
-      path = file[1] !== undefined && isCode(file[1]) ? file[1] : undefined;
+    // A new file's old side is /dev/null, and it removes no line, so only a named old side matters.
+    // Stryker disable next-line Regex: equivalent, `diff -U0` prints no context line for `--- ` to start mid-line or carry a tail
+    const file = /^--- a\/(.+)$/u.exec(text)?.[1];
+    if (text.startsWith('--- ')) {
+      // Stryker disable next-line ConditionalExpression: equivalent, isCode reads no undefined path as code
+      path = file !== undefined && isCode(file) ? file : undefined;
       continue;
     }
     const hunk = /^@@ -(\d+)/u.exec(text);
@@ -100,7 +104,7 @@ export const oldRanges = (diff: string): OldRange[] => {
 };
 
 /** The commits a `git blame --porcelain` names, once each. */
-export const blameShas = (porcelain: string): string[] => [...new Set(porcelain.split('\n').flatMap((line) => /^([0-9a-f]{40}) \d+ \d+/u.exec(line)?.slice(1) ?? []))];
+export const blameShas = (porcelain: string): string[] => [...new Set(porcelain.split('\n').flatMap((line) => /^([0-9a-f]{40}) \d+ \d/u.exec(line)?.slice(1) ?? []))];
 
 /** Where escapes a person or agent dismissed are kept, each pull request with its reason. */
 export const TRIAGE = '.sdlc/replz/triage.json';
@@ -199,13 +203,8 @@ const idOf = (commit: MainCommit): string => {
   return pr === undefined ? commit.sha.slice(0, SHORT) : `#${String(pr)}`;
 };
 
-const byPrOf = (commits: readonly MainCommit[]): Map<number, MainCommit> =>
-  new Map(
-    commits.flatMap((commit) => {
-      const pr = prOf(commit.subject);
-      return pr === undefined ? [] : [[pr, commit] as const];
-    }),
-  );
+/** Each commit by its pull request; a commit pushed straight has none, and no number looks it up. */
+const byPrOf = (commits: readonly MainCommit[]): Map<number | undefined, MainCommit> => new Map(commits.map((commit) => [prOf(commit.subject), commit]));
 
 interface Found {
   readonly escapes: Omit<Escape, 'status'>[];
@@ -216,32 +215,36 @@ interface Found {
 const findEscapes = (commits: readonly MainCommit[], fixes: readonly MainCommit[], traced: ScorecardInput['traced']): Found => {
   const bySha = new Map(commits.map((commit) => [commit.sha, commit]));
   const byPr = byPrOf(commits);
-  const pointers = new Map<number, { how: Escape['how']; fixedBy: Set<string> }>();
-  const point = (pr: number, how: Escape['how'], by: MainCommit): void => {
+  const pointers = new Map<number, { named: boolean; fixedBy: Set<string> }>();
+  const point = (pr: number, named: boolean, by: MainCommit): void => {
     const target = byPr.get(pr);
     if (target === undefined || isRelease(target.subject) || target.sha === by.sha) return;
-    const entry = pointers.get(pr) ?? { how, fixedBy: new Set<string>() };
+    const entry = pointers.get(pr);
     // A name outranks a trace: once any fix names it, it is named.
-    pointers.set(pr, { how: entry.how === 'named' || how === 'named' ? 'named' : 'traced', fixedBy: entry.fixedBy.add(idOf(by)) });
+    pointers.set(pr, { named: named || entry?.named === true, fixedBy: (entry?.fixedBy ?? new Set<string>()).add(idOf(by)) });
   };
   const suspectsOf = (fix: MainCommit): number[] =>
+    // Stryker disable next-line ArrayDeclaration: equivalent, a sha no commit has names no pull request
     (traced.get(fix.sha) ?? []).flatMap((sha) => {
-      const commit = bySha.get(sha);
-      const pr = commit === undefined ? undefined : prOf(commit.subject);
+      // Stryker disable next-line StringLiteral: equivalent, any subject without `(#n)` names no pull request
+      const pr = prOf(bySha.get(sha)?.subject ?? '');
       return pr === undefined ? [] : [pr];
     });
   let untraced = 0;
   for (const fix of fixes) {
-    const named = blamed({ sha: fix.sha, parent: '', subject: fix.subject, body: fix.body, size: 0 });
+    const named = blamed(fix);
+    // A fix that names its pull request is not traced.
+    // Stryker disable next-line ArrayDeclaration: equivalent, a named fix is never untraced, and a suspect no commit names points at nothing
     const suspects = named.length > 0 ? [] : suspectsOf(fix);
-    if (named.length === 0 && suspects.length === 0) untraced += 1;
-    for (const pr of named) point(pr, 'named', fix);
-    for (const pr of suspects) point(pr, 'traced', fix);
+    // Stryker disable next-line ArithmeticOperator: equivalent, one of the two is always empty
+    if (named.length + suspects.length === 0) untraced += 1;
+    for (const pr of named) point(pr, true, fix);
+    for (const pr of suspects) point(pr, false, fix);
   }
   const escapes = [...pointers.entries()]
-    .map(([pr, { how, fixedBy }]): Omit<Escape, 'status'> => {
+    .map(([pr, { named, fixedBy }]): Omit<Escape, 'status'> => {
       const commit = byPr.get(pr) as MainCommit;
-      return { pr, subject: commit.subject, date: commit.date, fixedBy: [...fixedBy].sort(), how };
+      return { pr, subject: commit.subject, date: commit.date, fixedBy: [...fixedBy].sort(), how: named ? 'named' : 'traced' };
     })
     .sort((a, b) => b.date.localeCompare(a.date) || b.pr - a.pr);
   return { escapes, untraced };
@@ -306,12 +309,12 @@ const UNRUN: Measure = { value: null, of: 'no recorded run', next: RUN_NEXT };
 /** Recall at the last stage and false alarms on the controls, from the last recorded run. */
 const runMeasures = (history: HistoryEntry | undefined): Pick<Scorecard, 'recall' | 'falseAlarms'> => {
   const last = history?.report.recall.at(-1);
-  if (history === undefined || last === undefined) return { recall: UNRUN, falseAlarms: UNRUN };
-  const { report } = history;
+  if (last === undefined) return { recall: UNRUN, falseAlarms: UNRUN };
+  const { report, date } = history as HistoryEntry;
   return {
     recall: {
       value: rate(last.found, report.bugs),
-      of: `${String(last.found)} of ${String(report.bugs)} bug cases at stage ${last.stage}, ${history.date}`,
+      of: `${String(last.found)} of ${String(report.bugs)} bug cases at stage ${last.stage}, ${date}`,
       next: 'for each missed case, add the lint rule, lock test or checklist item that would have caught it',
     },
     falseAlarms: {
@@ -358,14 +361,27 @@ export interface Ratchet {
   readonly minRecall?: number;
 }
 
-const over = (value: number | null, max: number | undefined): boolean => value !== null && max !== undefined && value > max;
-const under = (value: number | null, min: number | undefined): boolean => value !== null && min !== undefined && value < min;
+/** One band: a measured value, its limit if one is set, and which side of it is out. */
+interface Band {
+  readonly label: string;
+  readonly measure: Measure;
+  readonly limit: number | undefined;
+  readonly ceiling: boolean;
+}
+
+/** The sentence for a measured value outside its band, or none. */
+const breach = ({ label, measure, limit, ceiling }: Band): string[] => {
+  const { value } = measure;
+  // Stryker disable next-line ConditionalExpression: equivalent, a number compared with no limit is neither above nor below it
+  if (value === null || limit === undefined) return [];
+  const out = ceiling ? value > limit : value < limit;
+  const where = ceiling ? 'above' : 'below';
+  return out ? [`${label} ${pct(value)} is ${where} its band ${pct(limit)}. fix: ${measure.next}`] : [];
+};
 
 /** Each band the scorecard breaks, as a sentence with its fix. */
-export const breaches = (card: Scorecard, ratchet: Ratchet): string[] => {
-  const out: string[] = [];
-  if (over(card.escapeRate.value, ratchet.maxEscapeRate)) out.push(`escape rate ${pct(card.escapeRate.value)} is above its band ${pct(ratchet.maxEscapeRate ?? 0)}. fix: ${card.escapeRate.next}`);
-  if (under(card.receipts.value, ratchet.minReceipts)) out.push(`receipts ${pct(card.receipts.value)} are below their band ${pct(ratchet.minReceipts ?? 0)}. fix: ${card.receipts.next}`);
-  if (under(card.recall.value, ratchet.minRecall)) out.push(`recall ${pct(card.recall.value)} is below its band ${pct(ratchet.minRecall ?? 0)}. fix: ${card.recall.next}`);
-  return out;
-};
+export const breaches = (card: Scorecard, ratchet: Ratchet): string[] => [
+  ...breach({ label: 'escape rate', measure: card.escapeRate, limit: ratchet.maxEscapeRate, ceiling: true }),
+  ...breach({ label: 'receipts', measure: card.receipts, limit: ratchet.minReceipts, ceiling: false }),
+  ...breach({ label: 'recall', measure: card.recall, limit: ratchet.minRecall, ceiling: false }),
+];

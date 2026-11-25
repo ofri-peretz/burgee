@@ -16,7 +16,7 @@ import { KINDS, parseCase, selectCases, … } from 'replz';
 The pull requests a commit says were bugs: the one a revert undoes, or the one a fix names.
 
 ```ts
-const blamed: (commit: Commit) => number[];
+const blamed: (commit: Pick<Commit, "subject" | "body">) => number[];
 ```
 
 ### breaches
