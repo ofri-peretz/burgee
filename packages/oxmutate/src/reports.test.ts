@@ -271,6 +271,9 @@ describe('the terminal summary', () => {
     expect(textSummary(await run({ stats: stats({ serversSpawned: 9, serversReleased: 0 }) }))).not.toContain('closed for sitting idle');
     expect(textSummary(await run({ stats: stats({ serversRecycled: 3, workerMemoryCeiling: 1536 * 1024 ** 2, workerRssPeak: 1800 * 1024 ** 2 }) }))).toContain('  memory: 3 server(s) recycled past 1.5 GiB each (resources.workerMemoryLimit); the most one held was 1.8 GiB');
     expect(textSummary(await run({ stats: stats({ serversRecycled: 0 }) }))).not.toContain('recycled past');
+    expect(textSummary(await run({ stats: stats({ serversRecycled: 1, workerMemoryCeiling: 800 * 1024 ** 2, workerRssPeak: 900 * 1024 ** 2 }) }))).toContain('  memory: 1 server(s) recycled past 800 MiB each');
+    // No ceiling, nothing recycled for memory: no line, whatever the count says.
+    expect(textSummary(await run({ stats: stats({ serversRecycled: 1, workerMemoryCeiling: undefined }) }))).not.toContain('recycled past');
     expect(textSummary(await run({ stats: stats({ watchdogGraced: 1 }) }))).toContain('  watchdog: 1 blocked run(s) given 3x their budget in place, not a server restart');
     expect(textSummary(await run({ stats: stats({ watchdogGraced: 0 }) }))).not.toContain('blocked run(s)');
     expect(textSummary(await run({ stats: stats({ heldByLoadMs: 1600 }) }))).toContain('  governor: unit starts held 2 s while the machine was past resources.maxLoad');

@@ -18,7 +18,8 @@ import os from 'node:os';
 const KIB = 1024;
 const MIB = KIB * KIB;
 const GIB = MIB * KIB;
-const UNITS: Record<string, number> = { b: 1, k: KIB, kb: KIB, m: MIB, mb: MIB, g: GIB, gb: GIB };
+/** Each unit a size takes, as Docker's `--memory` writes them; none is MiB. */
+const UNITS: Record<string, number> = { '': MIB, b: 1, k: KIB, kb: KIB, m: MIB, mb: MIB, g: GIB, gb: GIB };
 /** cgroup v1 reports "no limit" as a number this large or larger (a page-rounded LONG_MAX). */
 const V1_UNLIMITED = 2 ** 60;
 /** `auto` keeps this share of the memory the run has for its servers; the rest is the coordinator's, the engine's and the page cache's. */
@@ -31,33 +32,24 @@ const PERCENT = 100;
 export type MemorySetting = 'off' | 'auto' | { share: number } | { bytes: number };
 
 /**
- * Reads the setting. `false`, `0`, `'off'`: off. A number (or a string of one) is MiB. A string is `auto`, a share of the
- * memory the run has (`25%`), or a size with a unit (`b`, `k`, `m`, `g`, with or without `b`).
- * Anything else throws the one line with its fix.
+ * Reads the setting. `false`, `0`, `'off'`: off. A number, or text of one with no unit
+ * (`--worker-memory-limit 800`), is MiB. Text is also `auto`, a share of the memory the run has
+ * (`25%`, above 0 and at most 100), or a size with a unit as Docker's `--memory` writes it (`b`,
+ * `k`, `m`, `g`, with or without `b`). Anything else throws the one line with its fix.
  */
 export function memorySetting(raw: unknown): MemorySetting | undefined {
   if (raw === undefined || raw === null) return undefined;
   if (raw === false || raw === 0 || raw === 'off') return 'off';
   if (raw === 'auto') return 'auto';
-  // A bare number, written as one or as text (`--worker-memory-limit 800`), is MiB.
-  const mib = typeof raw === 'string' && /^\s*\d+(?:\.\d+)?\s*$/u.test(raw) ? Number(raw) : raw;
-  if (typeof mib === 'number' && mib > 0) return { bytes: Math.floor(mib * MIB) };
-  if (typeof raw === 'string') {
-    const share = /^(\d+(?:\.\d+)?)\s*%$/u.exec(raw.trim());
-    if (share && Number(share[1]) > 0 && Number(share[1]) <= PERCENT) return { share: Number(share[1]) / PERCENT };
-    const size = parseSize(raw);
-    if (size !== undefined) return { bytes: size };
-  }
+  const m = /^(\d+(?:\.\d+)?)\s*(%|[a-z]*)$/iu.exec(String(raw).trim());
+  const n = Number(m?.[1]);
+  // No match leaves the unit 'undefined', which no unit is (as `true` is no number).
+  const unit = String(m?.[2]).toLowerCase();
+  const share = unit === '%' && n <= PERCENT ? n / PERCENT : undefined;
+  if (n > 0 && share !== undefined) return { share };
+  const per = UNITS[unit];
+  if (n > 0 && per !== undefined) return { bytes: Math.floor(n * per) };
   throw new Error(`resources.workerMemoryLimit is 'auto', 'off', a share such as '25%', or a size such as '1.5g' or 800 (MiB), not ${JSON.stringify(raw)}. fix: resources.workerMemoryLimit: 'auto'`);
-}
-
-/** A size such as `512m`, `1.5g`, `800mb` or `1048576` (bytes), as Docker's `--memory` takes it; undefined when it is not one. */
-export function parseSize(text: string): number | undefined {
-  const m = /^(\d+(?:\.\d+)?)\s*([a-z]*)$/iu.exec(text.trim());
-  if (!m) return undefined;
-  const unit = UNITS[(m[2] ?? '').toLowerCase() || 'b'];
-  const n = Number(m[1]);
-  return unit === undefined || n <= 0 ? undefined : Math.floor(n * unit);
 }
 
 /** A size for a person: `1.5 GiB`, `800 MiB`. */
@@ -67,6 +59,7 @@ export function formatBytes(bytes: number): string {
 }
 
 type Read = (file: string) => string;
+// Stryker disable next-line StringLiteral: without an encoding readFileSync answers a Buffer, which Number and RegExp#exec read as its UTF-8 text all the same
 const readText: Read = (file) => readFileSync(file, 'utf8');
 
 /**
@@ -78,13 +71,13 @@ export function cgroupLimit(read: Read = readText): number | undefined {
   for (const file of ['/sys/fs/cgroup/memory.max', '/sys/fs/cgroup/memory/memory.limit_in_bytes']) {
     let text: string;
     try {
-      text = read(file).trim();
+      text = read(file);
     } catch {
       continue;
     }
-    if (text === 'max') return undefined;
+    // v2's `max` and anything else that is not a number read as NaN, which no comparison passes.
     const n = Number(text);
-    return Number.isFinite(n) && n > 0 && n < V1_UNLIMITED ? n : undefined;
+    return n > 0 && n < V1_UNLIMITED ? n : undefined;
   }
   return undefined;
 }
@@ -122,8 +115,9 @@ export function vmRss(status: string): number {
 export function treeRss(pid: number, own: number, fs: { read: Read; list: (dir: string) => string[] } = { read: readText, list: (d) => readdirSync(d) }): number {
   const childrenOf = (p: number): number[] => {
     try {
-      return fs.list(`/proc/${String(p)}/task`).flatMap((tid) => fs.read(`/proc/${String(p)}/task/${tid}/children`).trim().split(/\s+/u).filter(Boolean).map(Number));
+      return fs.list(`/proc/${String(p)}/task`).flatMap((tid) => (fs.read(`/proc/${String(p)}/task/${tid}/children`).match(/\d+/gu) ?? []).map(Number));
     } catch {
+      // Stryker disable next-line ArrayDeclaration: a placeholder child is NaN, which has no /proc entry and is never queued twice (a Set holds NaN once)
       return [];
     }
   };

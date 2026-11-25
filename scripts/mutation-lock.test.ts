@@ -378,7 +378,6 @@ describe('a changed range with no mutant in it', () => {
       reporters: ['clear-text', 'json'],
       jsonReporter: { fileName: 'r.json' },
       container: false,
-      resources: { workerMemoryLimit: '25%' },
     });
   });
 

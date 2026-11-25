@@ -173,7 +173,8 @@ function staticLine(r: RunResult): string[] {
 /** What the servers gave back while the run went on: recycled past their memory ceiling, closed for sitting idle. */
 function serverLines(s: RunResult['stats']): string[] {
   const lines: string[] = [];
-  if (s.serversRecycled > 0) lines.push(`  memory: ${String(s.serversRecycled)} server(s) recycled past ${formatBytes(s.workerMemoryCeiling ?? 0)} each (resources.workerMemoryLimit); the most one held was ${formatBytes(s.workerRssPeak)}`);
+  const ceiling = s.workerMemoryCeiling;
+  if (ceiling !== undefined && s.serversRecycled > 0) lines.push(`  memory: ${String(s.serversRecycled)} server(s) recycled past ${formatBytes(ceiling)} each (resources.workerMemoryLimit); the most one held was ${formatBytes(s.workerRssPeak)}`);
   if (s.serversReleased > 0) lines.push(`  servers: ${String(s.serversSpawned)} started, ${String(s.serversReleased)} closed for sitting idle (resources.workerIdleTimeout)`);
   return lines;
 }

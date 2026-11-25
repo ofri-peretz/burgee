@@ -1389,3 +1389,109 @@ describe('cleaning up', () => {
     }
   });
 });
+
+describe('cleaning up, at the edges', () => {
+  const C = { ...NPX, engine: 'engine' };
+
+  it('names its label, every unknown key, and keeps flags that only start like its own', () => {
+    expect(RUN_LABEL).toBe('dev.oxmutate.run');
+    expect(() => containerOf({ cleanup: { volumes: 'keep', fail: 'keep' } })).toThrow('container.cleanup has no key volumes, fail. fix:');
+    expect(withoutContainerFlags(['--keep-failed-containers', '--keep-on-interrupt-x', '--container-volumes=x'])).toEqual(['--keep-failed-containers', '--keep-on-interrupt-x', '--container-volumes=x']);
+  });
+
+  it('gives each run an id of its own, 12 characters of a random UUID', async () => {
+    const top = repo({ 'package.json': '{}' });
+    const names = [fake({ code: 0 }), fake({ code: 0 })];
+    for (const f of names) {
+      // eslint-disable-next-line reliability/no-await-in-loop -- one volume, two runs in turn
+      await runInContainer(C, { root: top, keep: [] }, [], { spawn: f.spawn });
+    }
+    const [a, b] = names.map((f) => runArgs(f)[runArgs(f).indexOf('--name') + 1]);
+    expect(a).toMatch(/^oxmutate-run-[0-9a-f-]{12}$/u);
+    expect(a).not.toBe(b);
+  });
+
+  it('with volume keep-on-failure, keeps the volume when the run failed before it ran', async () => {
+    const top = repo({ 'package.json': '{}' });
+    const f = fake({ createFails: true });
+    const said = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    try {
+      await expect(runInContainer({ ...C, volume: 'v', cleanup: { ...C.cleanup, volume: 'keep-on-failure' } }, { root: top, keep: [] }, [], { spawn: f.spawn })).rejects.toThrow('could not be created');
+    } finally {
+      said.mockRestore();
+    }
+    expect(f.verbs()).not.toContain('volume rm');
+  });
+
+  it('removes the volume once after an interrupt, and the host staging before it exits', async () => {
+    const top = repo({ 'package.json': '{}' });
+    const sig = signals();
+    let staged = true;
+    const f = fake({ duringRun: () => sig.send('SIGINT') });
+    const exit = vi.fn(() => {
+      staged = existsSync(f.io());
+    });
+    const said = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    try {
+      await runInContainer({ ...C, volume: 'v', ephemeral: true }, { root: top, keep: [] }, [], { spawn: f.spawn, signals: sig.s, exit });
+    } finally {
+      said.mockRestore();
+    }
+    expect(exit).toHaveBeenCalledWith(130);
+    expect(f.io()).not.toBe('');
+    expect(staged).toBe(false);
+    expect(f.ofEngine().filter((c) => c.args.join(' ') === 'volume rm -f v')).toHaveLength(1);
+  });
+
+  it('removes no volume for an interrupt that came before the volume was named', async () => {
+    const top = repo({ 'package.json': '{}' });
+    commit(top);
+    const sig = signals();
+    const f = fake({ code: 0 });
+    const { promise: done, resolve: exited } = Promise.withResolvers<void>();
+    const exit = vi.fn(() => exited());
+    let calls = 0;
+    // The second call is the --since commit's lookup: after the guard listens, before the volume has a name. It waits for the cleanup to end.
+    const spawn: typeof f.spawn = async (cmd, args, o) => {
+      calls += 1;
+      if (calls === 2) {
+        sig.send('SIGTERM');
+        await done;
+      }
+      return f.spawn(cmd, args, o);
+    };
+    const said = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    try {
+      // The process would have ended at exit; here the run goes on into the staging the cleanup removed, and fails.
+      await runInContainer({ ...C, volume: 'v', ephemeral: true }, { root: top, keep: [], since: 'HEAD' }, [], { spawn, signals: sig.s, exit }).catch(() => undefined);
+    } finally {
+      said.mockRestore();
+    }
+    expect(exit).toHaveBeenCalledWith(143);
+    expect(f.verbs()).not.toContain('volume rm');
+  });
+
+  it('says a cleanup that failed, and exits all the same; an empty listing removes nothing', async () => {
+    const top = repo({ 'package.json': '{}' });
+    const said = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    try {
+      const sig = signals();
+      const exit = vi.fn();
+      const f = fake({ duringRun: () => sig.send('SIGHUP') });
+      const refusing: typeof f.spawn = async (cmd, args, o) => {
+        if (args[0] === 'ps' && args[1] === '-aq') throw new Error('engine went away');
+        return f.spawn(cmd, args, o);
+      };
+      await runInContainer(C, { root: top, keep: [] }, [], { spawn: refusing, signals: sig.s, exit });
+      expect(exit).toHaveBeenCalledWith(129);
+      expect(said).toHaveBeenCalledWith(expect.stringMatching(/^oxmutate: cleaning up after SIGHUP failed \(.*engine went away.*\)\. fix: oxmutate prune\n$/u));
+
+      const none = signals();
+      const g = fake({ listed: { containers: '\n', volumes: '' }, duringRun: () => none.send('SIGINT') });
+      await runInContainer(C, { root: top, keep: [] }, [], { spawn: g.spawn, signals: none.s, exit: vi.fn() });
+      expect(g.ofEngine().some((c) => c.args[0] === 'rm')).toBe(false);
+    } finally {
+      said.mockRestore();
+    }
+  });
+});

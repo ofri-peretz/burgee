@@ -162,7 +162,7 @@ export const containerDefaults = (): Container => ({ engine: 'docker', image: `n
 export const cleanupDefaults = (): Cleanup => ({ volume: 'keep', failed: 'remove', interrupt: 'remove' });
 
 /** `ephemeral` and `cleanup.volume: 'remove'` are one setting: either sets both. */
-const cleanupFields = (raw: unknown, ephemeral: boolean): Pick<Container, 'ephemeral' | 'cleanup'> => {
+const cleanupFields = (raw: unknown, ephemeral = false): Pick<Container, 'ephemeral' | 'cleanup'> => {
   const cleanup = cleanupOf(raw, ephemeral);
   return { ephemeral: cleanup.volume === 'remove', cleanup };
 };
@@ -230,7 +230,7 @@ export function withFlags(c: Container | undefined, o: Record<string, unknown>):
     ...(o['keepOnInterrupt'] === true && { interrupt: 'keep' }),
   };
   if (Object.keys(flags).length === 0) return on;
-  return { ...on, ...cleanupFields({ ...on.cleanup, ...flags }, false) };
+  return { ...on, ...cleanupFields({ ...on.cleanup, ...flags }) };
 }
 
 /**
@@ -798,7 +798,6 @@ interface Guard {
  * removes the host's staging, and exits 128 + the signal. A cleanup that fails says so and exits all the same.
  */
 function guardRun({ c, engine, runId, io, signals, exit }: { c: Container; engine: Engine; runId: string; io: string; signals: Signals; exit: (code: number) => void }): Guard {
-  const guard: Guard = { stop: () => undefined };
   const cleanUpAfter = async (signal: Interrupt): Promise<void> => {
     stderr.write(interruptLine(signal, c.cleanup.interrupt));
     if (c.cleanup.interrupt === 'remove') {
@@ -808,12 +807,14 @@ function guardRun({ c, engine, runId, io, signals, exit }: { c: Container; engin
     removeWorkDir(io);
     exit(INTERRUPTS[signal]);
   };
-  guard.stop = listenForInterrupts(signals, (signal) => {
-    guard.interrupted = cleanUpAfter(signal).catch((e: unknown) => {
-      stderr.write(`oxmutate: cleaning up after ${signal} failed (${e instanceof Error ? e.message : String(e)}). fix: oxmutate prune\n`);
-      exit(INTERRUPTS[signal]);
-    });
-  });
+  const guard: Guard = {
+    stop: listenForInterrupts(signals, (signal) => {
+      guard.interrupted = cleanUpAfter(signal).catch((e: unknown) => {
+        stderr.write(`oxmutate: cleaning up after ${signal} failed (${e instanceof Error ? e.message : String(e)}). fix: oxmutate prune\n`);
+        exit(INTERRUPTS[signal]);
+      });
+    }),
+  };
   return guard;
 }
 
