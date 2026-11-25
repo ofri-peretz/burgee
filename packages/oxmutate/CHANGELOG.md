@@ -1,5 +1,16 @@
 # oxmutate
 
+## 2.18.6
+
+### Patch Changes
+
+- [#1825](https://github.com/ofri-peretz/burgee/pull/1825) [`c4002dd`](https://github.com/ofri-peretz/burgee/commit/c4002ddb498b27e035ebd94a8221e5c9b6fe73df) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - A static mutant whose module a test imports under a stand-in `process` (one that emulates another
+  platform with its own `env`) is now run armed and in that test. The runtime header read both the
+  armed mutant and whether reads are tracked from `process.env` the first time instrumented code
+  ran, so the stub hid them: the test was never counted as a reader and the mutant ran unarmed,
+  which reported survivors that no test could kill. The test worker now sets both from the
+  environment it started with.
+
 ## 2.18.5
 
 ### Patch Changes
