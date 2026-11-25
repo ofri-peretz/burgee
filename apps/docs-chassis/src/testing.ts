@@ -225,6 +225,20 @@ export function docsSiteSuite(testFileUrl: string): void {
     });
   });
 
+  describe(`${app.row.workspace}: an install command comes in every package manager`, () => {
+    // The first page whose source has a shell fence of `npm install` lines alone, if any page does.
+    const content = join(app.dir, 'content', 'docs');
+    const page = mdxFiles(content).find((abs) => /^```(?:bash|sh|shell|zsh)\n(?:npm (?:install|i|add) [^\n]+\n)+```/mu.test(readFileSync(abs, 'utf8')));
+    it.runIf(page !== undefined)('renders it as npm, pnpm, yarn and bun tabs, npm first', () => {
+      const url = urlOf(content, page ?? '');
+      const html = app.built(`${url.slice(1)}.html`);
+      for (const manager of ['npm', 'pnpm', 'yarn', 'bun']) {
+        expect(html, `${url} has an install fence but no ${manager} tab — is source-config.mjs still running remarkInstallTabs?`).toContain(`-trigger-${manager}"`);
+      }
+      expect(html).toMatch(/aria-selected="true"[^>]*-trigger-npm"/u);
+    });
+  });
+
   describe(`${app.row.workspace}: every docs page offers itself as Markdown`, () => {
     it('renders the page actions, pointed at the page’s own .md twin', () => {
       const url = app.urls.find((u) => u !== '/docs') ?? '/docs';

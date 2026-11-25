@@ -19,7 +19,7 @@ import { describe, expect, it } from "vitest";
 import { APPS, EXCLUDED, familyApp, PENDING, siteForPackage } from "../apps/docs-chassis/src/config";
 
 import { FAMILY_SITE_REFERENCES, STANDARD_SITES } from "./api-reference.js";
-import { orphans, pages, render, renderChangelog } from "./sync-package-docs.js";
+import { orphans, pages, pinSchemaVersion, render, renderChangelog } from "./sync-package-docs.js";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -55,6 +55,21 @@ describe("package docs pages are projected from the READMEs", () => {
   it("matches what is on disk, in every app", () => {
     const stale = [...pages()].filter(([file, text]) => !existsSync(join(REPO_ROOT, file)) || readFileSync(join(REPO_ROOT, file), "utf8") !== text);
     expect(stale.map(([f]) => f), "Run `npx tsx scripts/sync-package-docs.ts`.").toEqual([]);
+  });
+
+  it("pins the package's own --schema line on its site to the manifest version, and nothing else", () => {
+    const page = [
+      "```text title=\"npx truepass --schema\"",
+      '{"schemaVersion":1,"clispec":"0.3","name":"truepass","commands":[],"version":"1.0.0","description":"d"}',
+      "```",
+      '{"schemaVersion":1,"name":"other","version":"1.0.0","description":"d"}',
+      "truepass 1.0.0 shipped the diff command.",
+    ].join("\n");
+    const pinned = pinSchemaVersion(page, "truepass", "1.0.1");
+    expect(pinned).toContain('"name":"truepass","commands":[],"version":"1.0.1"');
+    expect(pinned).toContain('{"schemaVersion":1,"name":"other","version":"1.0.0"');
+    expect(pinned).toContain("truepass 1.0.0 shipped");
+    expect(pinSchemaVersion(pinned, "truepass", "1.0.1")).toBe(pinned);
   });
 
   it("keeps a pending app's package as a front-door section too, since every link still points there", () => {
