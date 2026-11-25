@@ -50,6 +50,9 @@ export interface ClaudeMcp {
   detail: string;
   /** The `.mcp.json` entry, written as is under `mcpServers.<id>`. */
   server: { type: string; command: string; args: string[]; env?: Record<string, string> };
+  /** What the server puts in every session (its instructions and tool definitions), in characters. */
+  contextChars: number;
+  contextSource: string;
   /** The folder the server writes into the repo, which .gitignore must list. */
   ignore: string;
   /** The tool names settings.json allows without a prompt. */

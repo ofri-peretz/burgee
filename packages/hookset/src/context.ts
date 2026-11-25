@@ -2,7 +2,10 @@
  * The always-loaded context budget: what Claude Code reads into every session in a repo before
  * any work starts. That is CLAUDE.md plus its `@`-imports, plus the name and description of every
  * skill, command and subagent under .claude/, except a skill or command marked
- * `disable-model-invocation: true`, whose description stays out until someone types its command.
+ * `disable-model-invocation: true`, whose description stays out until someone types its command,
+ * plus what each MCP server in .mcp.json sends (instructions and tool definitions). A server's text
+ * is only known by running it, so a pack server counts the size stations.json records for it, and
+ * any other server is listed as unmeasured.
  *
  * Tokens are estimated as characters / 4. The ceiling is `context.tokens` in .claude/hookset.json
  * and may only go down: `hookset context --update` lowers it and refuses to raise it.
@@ -11,6 +14,8 @@
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, posix } from 'node:path';
+
+import { loadStations, packageRoot } from './core.js';
 
 export interface ContextEntry {
   file: string;
@@ -23,6 +28,8 @@ export interface ContextMeasure {
   memoryFiles: string[];
   memoryChars: number;
   entries: ContextEntry[];
+  /** MCP servers in .mcp.json whose size is not recorded: they load text this measure cannot see. */
+  unmeasured: string[];
 }
 
 export interface ContextResult extends ContextMeasure {
@@ -91,15 +98,33 @@ function entryOf(repo: string, file: string): ContextEntry {
   return { file, chars, userOnly };
 }
 
-export function measureContext(repo: string): ContextMeasure {
+/** One entry per MCP server in .mcp.json that hookset records a size for; the rest by name. */
+function servers(repo: string, pkg: string): { entries: ContextEntry[]; unmeasured: string[] } {
+  const file = join(repo, '.mcp.json');
+  if (!existsSync(file)) return { entries: [], unmeasured: [] };
+  const names = Object.keys((JSON.parse(String(readFileSync(file))) as { mcpServers?: Record<string, unknown> }).mcpServers ?? {});
+  const known = new Map(loadStations(pkg).claude.mcp.map((m) => [m.id, m.contextChars]));
+  const entries: ContextEntry[] = [];
+  const unmeasured: string[] = [];
+  for (const name of names) {
+    const chars = known.get(name);
+    if (chars === undefined) unmeasured.push(name);
+    else entries.push({ file: `.mcp.json#${name}`, chars, userOnly: false });
+  }
+  return { entries, unmeasured };
+}
+
+export function measureContext(repo: string, pkg: string = packageRoot()): ContextMeasure {
   const mem = memory(repo);
-  const entries = listed(repo).map((file) => entryOf(repo, file));
+  const mcp = servers(repo, pkg);
+  const entries = [...listed(repo).map((file) => entryOf(repo, file)), ...mcp.entries];
   const chars = entries.reduce((sum, entry) => sum + entry.chars, mem.chars);
   return {
     tokens: tokensOf(chars),
     memoryFiles: mem.files,
     memoryChars: mem.chars,
     entries,
+    unmeasured: mcp.unmeasured,
   };
 }
 
@@ -165,6 +190,7 @@ export function contextText(result: ContextResult): string {
   }
   if (result.updated) return `ceiling set to ${result.tokens} tokens`;
   const ceiling = result.ceiling as number;
-  const line = `✔ always-loaded context: ${result.tokens} tokens (ceiling ${ceiling})`;
+  const unmeasured = result.unmeasured.length > 0 ? ` + MCP servers not measured: ${result.unmeasured.join(', ')}` : '';
+  const line = `✔ always-loaded context: ${result.tokens} tokens${unmeasured} (ceiling ${ceiling})`;
   return result.tokens < ceiling ? `${line}\n  below the ceiling: run \`hookset context --update\` to lock in the cut` : line;
 }

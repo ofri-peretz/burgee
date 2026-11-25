@@ -37,6 +37,8 @@
           "args": ["-y", "@colbymchenry/codegraph@1.6.4", "serve", "--mcp", "--no-telemetry"],
           "env": { "CODEGRAPH_TELEMETRY": "0" }
         },
+        "contextChars": 8652,
+        "contextSource": "codegraph 1.6.4 serve --mcp: initialize instructions (6,718 chars) plus the codegraph_explore tool definition (1,934 chars), measured over stdio on 2026-11-25",
         "ignore": ".codegraph/",
         "allow": ["mcp__codegraph__codegraph_explore"]
       }
