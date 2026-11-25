@@ -45,8 +45,8 @@ export {
 function meow<Flags extends AnyFlags>(helpMessage: string, options: Options<Flags>): Result<Flags>;
 function meow<Flags extends AnyFlags>(options: Options<Flags>): Result<Flags>;
 function meow(helpText: string | Settings, options: Settings = {}): Result<AnyFlags> {
-  const opts: Settings = typeof helpText === 'string' ? { help: helpText, ...options } : helpText;
-  if (typeof helpText !== 'string' && Object.keys(options).length > 0) Object.assign(opts, options);
+  // A JavaScript caller can pass settings twice, `meow(settings, more)`: the second merges in, as upstream's does.
+  const opts: Settings = typeof helpText === 'string' ? { help: helpText, ...options } : Object.assign(helpText, options);
 
   // `flags: null` is refused rather than read as "no flags" — only an absent key means that.
   const flagSpecs = (opts.flags === undefined ? {} : opts.flags) as Record<string, FlagSpec>;
@@ -56,7 +56,8 @@ function meow(helpText: string | Settings, options: Settings = {}): Result<AnyFl
   if (opts.input !== undefined && typeof opts.input !== 'string' && Object.prototype.toString.call(opts.input) !== '[object Object]') {
     throw new TypeError('The `input` option must be a string or an object.');
   }
-  if (typeof opts.input === 'object' && opts.input !== null) {
+  // Past the check above, an object here is a plain one: `null` was refused.
+  if (typeof opts.input === 'object') {
     const required = (opts.input as { isRequired?: unknown }).isRequired;
     if (required !== undefined && typeof required !== 'boolean' && typeof required !== 'function') {
       throw new TypeError('The `input.isRequired` option must be a boolean or a function.');
@@ -71,14 +72,16 @@ function meow(helpText: string | Settings, options: Settings = {}): Result<AnyFl
   const rawArgv = [...(opts.argv ?? host.argv.slice(2))];
   const strict = opts.allowUnknownFlags === false;
 
+  // Stryker disable ArrayDeclaration: a stand-in entry only declares a flag named after it
   const booleans: string[] = [];
   const strings: string[] = [];
   const numbers: string[] = [];
   const defaults: Record<string, unknown> = {};
   const arrays: string[] = [];
+  // Stryker restore ArrayDeclaration
   for (const [name, spec] of Object.entries(flagSpecs)) {
     if (name === '--') continue;
-    const type = spec.type ?? (spec.default === undefined ? undefined : typeofDefault(spec.default));
+    const type = spec.type ?? typeofDefault(spec.default);
     if (type === 'boolean') booleans.push(name);
     else if (type === 'number') numbers.push(name);
     else if (type === 'string') strings.push(name);
@@ -105,7 +108,8 @@ function meow(helpText: string | Settings, options: Settings = {}): Result<AnyFl
       // belongs to the child, unparsed — so the parent stops there.
       'halt-at-non-option': opts.commands !== undefined,
       'parse-numbers': opts.inferType === true,
-      'parse-positional-numbers': opts.inferType === true,
+      // The parser reads a positional as a number only where `parse-numbers` is on, so this follows inferType too.
+      'parse-positional-numbers': true,
       'populate--': flagSpecs['--'] !== undefined,
       // meow keeps every spelling a caller used: `cli.flags` carries `fooBar`, `foo` and
       // `f` together, which is what `unnormalized flags` asserts. Stripping either would
@@ -151,7 +155,8 @@ function meow(helpText: string | Settings, options: Settings = {}): Result<AnyFl
     const inputType = isPlainObject(opts.input) ? (opts.input as { type?: string }).type : (opts.input as string | undefined);
     if (inputType === 'number') return Number(v);
     if (inputType === 'string') return String(v);
-    return opts.inferType === true ? v : String(v);
+    // Without inferType the parser leaves positionals as typed, and typed words are strings.
+    return v;
   };
   let command: string | undefined;
   let input: string[];
@@ -167,25 +172,28 @@ function meow(helpText: string | Settings, options: Settings = {}): Result<AnyFl
       // `--`, where it is a word like any other. Re-parsing what precedes `--` is the only
       // reliable way to tell, because the same string can be an earlier flag's value. Only
       // the flags before the first non-flag are the parent's; the rest are the child's.
+      // Stryker disable next-line StringLiteral,LogicalOperator,ConditionalExpression: checking finds nothing for a word with no dash (no flags precede it) or outside strict mode (a dashed word gets here only after `--` or as a negative number)
       if (strict && word.startsWith('-')) {
         const separator = rawArgv.indexOf('--');
         const afterSeparator = separator !== -1 && !(parse(rawArgv.slice(0, separator))['_'] as unknown[]).map(String).includes(word);
         if (!afterSeparator) {
-          const firstWord = positional.findIndex((item) => typeof item !== 'string' || !item.startsWith('-'));
+          const firstWord = positional.findIndex((item) => !String(item).startsWith('-'));
           checkUnknownFlags(firstWord === -1 ? positional : positional.slice(0, firstWord));
         }
       }
       host.stderr.write(`Unknown command: ${word}\nAvailable commands: ${opts.commands.join(', ')}\n${help}\n`);
       host.exit(ExitCode.USAGE);
+      // Stryker disable next-line ArrayDeclaration: never read, host.exit does not return
       input = [];
     }
   }
 
   if (strict && opts.commands === undefined) {
-    // After `--` everything is input, unless the caller declared `--` to collect it — then
-    // the parser already set it aside and the positionals are clean.
+    // After `--` everything is input, unless the caller declared `--` to collect it: either way
+    // only the words before it are checked.
     const separator = rawArgv.indexOf('--');
-    const tokens = separator !== -1 && flagSpecs['--'] === undefined ? (parse(rawArgv.slice(0, separator))['_'] as unknown[]) : positional;
+    // A declared `--` leaves the positionals as the words before it, which is what reading them again gives.
+    const tokens = separator === -1 ? positional : (parse(rawArgv.slice(0, separator))['_'] as unknown[]);
     checkUnknownFlags(tokens);
   }
 
@@ -197,6 +205,7 @@ function meow(helpText: string | Settings, options: Settings = {}): Result<AnyFl
   const dropped = new Set<string>();
   for (const spec of Object.values(flagSpecs)) {
     if (typeof spec.shortFlag === 'string') dropped.add(spec.shortFlag);
+    // Stryker disable next-line ArrayDeclaration: a stand-in alias only drops a flag named after it
     for (const extra of spec.aliases ?? []) dropped.add(extra);
   }
   const flags: Record<string, unknown> = {};
