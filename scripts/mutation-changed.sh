@@ -64,4 +64,19 @@ fi
 # (scripts/mutation-container.sh, `laneContainer` in scripts/mutation.ts).
 npx turbo run build --filter=oxmutate --output-logs=errors-only
 
-npx tsx scripts/mutation.ts changed --event "$event" --base "$base" --concurrency "$concurrency" ${GITHUB_STEP_SUMMARY:+--summary "$GITHUB_STEP_SUMMARY"}
+# Where no container engine answers (a cloud session, CI without Docker), the lane runs as it did
+# before the container: every package and oxmutate's native core built here, and `--host`.
+host=""
+if ! docker info >/dev/null 2>&1 && ! podman info >/dev/null 2>&1; then
+  echo "mutation:changed: no container engine answers (docker info, podman info), so the lane runs on this host and builds every package and oxmutate's native core here." >&2
+  npx turbo run build --filter='./packages/*' --concurrency="$concurrency" --output-logs=errors-only
+  if ! command -v cargo >/dev/null 2>&1; then
+    echo "mutation:changed: oxmutate's native core is Rust, and cargo is not on PATH, so the changed lines cannot be mutated on this host." >&2
+    echo "fix: start Docker (or Podman), or install rustup (curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh), and run npm run mutation:changed again." >&2
+    exit 1
+  fi
+  (cd packages/oxmutate && npm run build:native)
+  host="--host"
+fi
+
+npx tsx scripts/mutation.ts changed --event "$event" --base "$base" --concurrency "$concurrency" ${GITHUB_STEP_SUMMARY:+--summary "$GITHUB_STEP_SUMMARY"} $host

@@ -92,11 +92,18 @@ describe('the script is the whole lane', () => {
     expect(code.indexOf('exit 0')).toBeLessThan(at[1]!);
   });
 
-  it('builds no other package and no native core on the host: the container does (mutation-container.sh)', () => {
-    const run = code.split('\n').filter((l) => !l.trimStart().startsWith('#')).join('\n');
-    expect(run).not.toContain('cargo');
-    expect(run).not.toContain('build:native');
-    expect(run).not.toContain("--filter='./packages/*'");
+  it('builds no other package and no native core on the host while an engine answers: the container does (mutation-container.sh)', () => {
+    // Everything the host builds beyond oxmutate sits inside the one branch taken when neither engine answers.
+    const fallback = /^if ! docker info >\/dev\/null 2>&1 && ! podman info >\/dev\/null 2>&1; then\n([\s\S]*?)\n {2}host="--host"\nfi$/mu.exec(code);
+    expect(fallback, 'the no-engine branch').not.toBeNull();
+    const outside = code.replace(fallback![0], '');
+    expect(outside).not.toContain('cargo');
+    expect(outside).not.toContain('build:native');
+    expect(outside).not.toContain("--filter='./packages/*'");
+    // Without an engine the lane still runs, on this host, and says so; the mutation step is told.
+    expect(fallback![1]).toContain("--filter='./packages/*'");
+    expect(fallback![1]).toContain('npm run build:native');
+    expect(code).toContain('${GITHUB_STEP_SUMMARY:+--summary "$GITHUB_STEP_SUMMARY"} $host');
   });
 
   it.skipIf(process.platform === 'win32')('ends successfully, having built nothing, when the event is not a pull request', () => {

@@ -778,7 +778,8 @@ function runChanged(specs: ReadonlyMap<string, string[]>): PackageRun[] {
   return [...specs].map(([pkg, mutate]) => {
     const budgetMs = deadline - Date.now();
     if (budgetMs <= 0) return { pkg, ok: false, error: 'the lane ran out of budget before reaching it', minutes: 0 };
-    return runPackage(pkg, mutate, { concurrency: concurrency(), timeoutMS: PR_BUDGET.timeoutMS, dryRunTimeoutMinutes: PR_BUDGET.dryRunTimeoutMinutes, budgetMs, engine: engineArg() });
+    // `--host`: no container engine answered, so mutation-changed.sh built everything here.
+    return runPackage(pkg, mutate, { concurrency: concurrency(), timeoutMS: PR_BUDGET.timeoutMS, dryRunTimeoutMinutes: PR_BUDGET.dryRunTimeoutMinutes, budgetMs, engine: engineArg(), host: process.argv.includes('--host') });
   });
 }
 
