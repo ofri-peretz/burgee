@@ -13,20 +13,22 @@
  * The person decides the policy: the age, whether a commit only on this machine keeps a worktree
  * (`keepLocalCommits`, default true), and whether anything is removed at all (`prune`). Removal is
  * `git worktree remove` without `--force`, so git refuses anything it would lose. Branches are kept.
- *
- * Builtins only and erasable syntax only, like core.ts.
+ * git runs through bellpull, the family's process layer.
  */
-import { spawnSync } from 'node:child_process';
 import { existsSync, lstatSync, readdirSync, realpathSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-const MB = 1024 * 1024;
+import { ambientRuntime, run } from 'bellpull';
+
+const DAY_MS = 86_400_000;
+const MB = 1_048_576;
 const SHORT_SHA = 7;
 /** Days a clean worktree sits unchanged before a sweep removes it. */
 export const DEFAULT_OLDER_THAN_DAYS = 3;
 /** Directories the age walk does not enter: installs and build output change without an agent. */
-const SKIP_FOR_AGE = new Set(['.git', 'node_modules', '.turbo', '.next', 'dist', 'coverage']);
+export const SKIP_FOR_AGE: ReadonlySet<string> = new Set(['.git', 'node_modules', '.turbo', '.next', 'dist', 'coverage']);
+/** What a hook may set that would point git at another checkout than the one in `cwd`. */
+export const HOOK_GIT_VARS: ReadonlySet<string> = new Set(['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE']);
 
 export interface WorktreeOptions {
   /** Remove the removable worktrees, then `git worktree prune`. */
@@ -78,20 +80,21 @@ export interface WorktreeResult {
 }
 
 export interface Git {
-  code: number;
+  ok: boolean;
   out: string;
   err: string;
 }
-export type GitRunner = (cwd: string, args: string[]) => Git;
+export type GitRunner = (cwd: string, args: string[]) => Promise<Git>;
 
-/**
- * git in `cwd`, without the GIT_DIR, GIT_WORK_TREE and GIT_INDEX_FILE a hook may have set: each
- * worktree is read as its own checkout, never as the clone the hook runs for.
- */
-export const runGit: GitRunner = (cwd, args) => {
-  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE'].includes(k)));
-  const r = spawnSync('git', args, { cwd, encoding: 'utf8', env });
-  return { code: r.status === 0 ? 0 : 1, out: r.stdout, err: r.stderr.trim() };
+/** The environment for git in a worktree: the caller's, less the variables a hook sets. */
+export const gitEnv = (env: Readonly<Record<string, string | undefined>>): Record<string, string | undefined> =>
+  Object.fromEntries(Object.entries(env).filter(([key]) => !HOOK_GIT_VARS.has(key)));
+
+/** git in `cwd`, read as its own checkout, never as the clone a hook runs for. */
+export const runGit: GitRunner = async (cwd, args) => {
+  const runtime = ambientRuntime();
+  const r = await run('git', args, { cwd, env: gitEnv(runtime.env), runtime });
+  return { ok: r.ok, out: r.stdout, err: r.stderr.trim() };
 };
 
 interface Listed {
@@ -104,47 +107,45 @@ interface Listed {
 /** `git worktree list --porcelain`: one block per worktree, the main one first. */
 export function parseWorktrees(porcelain: string): Listed[] {
   const out: Listed[] = [];
-  for (const block of porcelain.split(/\n\s*\n/)) {
-    const lines = block.split('\n').filter(Boolean);
-    const path = lines.find((l) => l.startsWith('worktree '))?.slice('worktree '.length);
+  for (const block of porcelain.split('\n\n')) {
+    const lines = block.split('\n');
+    const field = (key: string): string | undefined => lines.find((l) => l.startsWith(`${key} `))?.slice(key.length + 1);
+    const path = field('worktree');
     if (path === undefined) continue;
-    const ref = lines.find((l) => l.startsWith('branch '))?.slice('branch '.length);
-    out.push({
-      path,
-      head: lines.find((l) => l.startsWith('HEAD '))?.slice('HEAD '.length) ?? '',
-      branch: ref?.replace(/^refs\/heads\//, ''),
-      locked: lines.some((l) => l === 'locked' || l.startsWith('locked ')),
-    });
+    out.push({ path, head: field('HEAD') ?? '', branch: field('branch')?.replace('refs/heads/', ''), locked: lines.some((l) => l.split(' ')[0] === 'locked') });
   }
   return out;
 }
 
-/** The newest mtime under `dir`, outside SKIP_FOR_AGE, and the bytes of every file when asked. */
-export function walk(dir: string, withSize: boolean): { newest: number; bytes: number } {
+/** The newest mtime under `dir`, not entering SKIP_FOR_AGE. */
+export function newestUnder(dir: string): number {
   let newest = statSync(dir).mtimeMs;
-  let bytes = 0;
-  const visit = (at: string, counted: boolean): void => {
-    for (const entry of readdirSync(at, { withFileTypes: true })) {
-      const full = join(at, entry.name);
-      const skip = SKIP_FOR_AGE.has(entry.name);
-      if (skip && !withSize) continue;
-      const stat = lstatSync(full);
-      if (counted && !skip) newest = Math.max(newest, stat.mtimeMs);
-      if (entry.isDirectory()) visit(full, counted && !skip);
-      else if (withSize) bytes += stat.size;
-    }
-  };
-  visit(dir, true);
-  return { newest, bytes };
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (SKIP_FOR_AGE.has(entry.name)) continue;
+    const full = join(dir, entry.name);
+    newest = Math.max(newest, entry.isDirectory() ? newestUnder(full) : lstatSync(full).mtimeMs);
+  }
+  return newest;
 }
 
-const same = (a: string, b: string): boolean => {
+/** The bytes of every file under `dir`, installs and build output included; links are not followed. */
+export function bytesUnder(dir: string): number {
+  let bytes = 0;
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name);
+    bytes += entry.isDirectory() ? bytesUnder(full) : lstatSync(full).size;
+  }
+  return bytes;
+}
+
+/** Whether two paths are one directory; a path that does not resolve is never the same. */
+export function samePath(a: string, b: string): boolean {
   try {
     return realpathSync(a) === realpathSync(b);
   } catch {
     return false;
   }
-};
+}
 
 /** Why a worktree stays, or undefined when nothing in it would be lost. */
 export function keepReason(w: Omit<Worktree, 'keep' | 'removed'>, olderThanDays: number, keepLocalCommits: boolean): string | undefined {
@@ -167,88 +168,84 @@ interface Inspect {
   keepLocalCommits: boolean;
 }
 
-function inspect(l: Listed, main: boolean, o: Inspect): Worktree {
-  const missing = !existsSync(l.path);
-  const current = same(l.path, o.top);
-  if (missing) {
-    const gone = { ...l, main, current, missing, dirty: 0, localCommits: 0, idleDays: 0 };
-    return { ...gone, keep: keepReason(gone, o.olderThanDays, o.keepLocalCommits), removed: false };
+const lineCount = (text: string): number => text.split('\n').filter(Boolean).length;
+
+async function inspect(l: Listed, main: boolean, o: Inspect): Promise<Worktree> {
+  const current = samePath(l.path, o.top);
+  const facts = { ...l, main, current, missing: !existsSync(l.path), dirty: 0, localCommits: 0, idleDays: 0 };
+  if (!facts.missing) {
+    facts.dirty = lineCount((await o.git(l.path, ['status', '--porcelain'])).out);
+    if (l.head !== '') facts.localCommits = Number((await o.git(l.path, ['rev-list', '--count', 'HEAD', '--not', '--remotes'])).out) || 0;
+    // The main and the current worktree are never removed: their age is not worth a walk.
+    if (!main && !current) facts.idleDays = Math.max(0, (o.now - newestUnder(l.path)) / DAY_MS);
   }
-  // The main and the current worktree are never removed: their age is not worth a walk.
-  const seen = o.size || (!main && !current) ? walk(l.path, o.size) : { newest: o.now, bytes: 0 };
-  const local = l.head === '' ? '0' : o.git(l.path, ['rev-list', '--count', 'HEAD', '--not', '--remotes']).out;
-  const base = {
-    ...l,
-    main,
-    current,
-    missing,
-    dirty: o.git(l.path, ['status', '--porcelain']).out.split('\n').filter(Boolean).length,
-    localCommits: Number(local.trim()) || 0,
-    idleDays: Math.max(0, (o.now - seen.newest) / DAY_MS),
-    ...(o.size ? { bytes: seen.bytes } : {}),
-  };
-  return { ...base, keep: keepReason(base, o.olderThanDays, o.keepLocalCommits), removed: false };
+  const sized = o.size && !facts.missing ? { bytes: bytesUnder(l.path) } : {};
+  return { ...facts, ...sized, keep: keepReason(facts, o.olderThanDays, o.keepLocalCommits), removed: false };
 }
 
-/** `git worktree remove` on each removable worktree, then `git worktree prune`; whether the prune ran. */
-function prune(repo: string, worktrees: Worktree[], git: GitRunner): boolean {
+/** `git worktree remove` on each removable worktree, one at a time, then `git worktree prune`; whether the prune ran. */
+async function prune(repo: string, worktrees: Worktree[], git: GitRunner): Promise<boolean> {
   for (const w of worktrees.filter((t) => t.keep === undefined)) {
-    const r = git(repo, ['worktree', 'remove', w.path]);
-    if (r.code === 0) w.removed = true;
-    else w.error = r.err;
+    // eslint-disable-next-line reliability/no-await-in-loop -- each removal takes the clone's worktree lock; run together they would race on it
+    const r = await git(repo, ['worktree', 'remove', w.path]);
+    w.removed = r.ok;
+    if (!r.ok) w.error = r.err;
   }
-  return git(repo, ['worktree', 'prune']).code === 0;
+  return (await git(repo, ['worktree', 'prune'])).ok;
 }
 
-export function sweepWorktrees(repo: string, options: WorktreeOptions = {}): WorktreeResult {
+export async function sweepWorktrees(repo: string, options: WorktreeOptions = {}): Promise<WorktreeResult> {
   const git = options.git ?? runGit;
-  const listed = git(repo, ['worktree', 'list', '--porcelain']);
-  if (listed.code !== 0) {
+  const listed = await git(repo, ['worktree', 'list', '--porcelain']);
+  if (!listed.ok) {
     return { repo, worktrees: [], removable: 0, removed: 0, pruned: false, ok: false, error: listed.err || 'git worktree list failed', fix: 'run it inside a git clone, or pass --cwd' };
   }
   const o: Inspect = {
     git,
-    top: git(repo, ['rev-parse', '--show-toplevel']).out.trim(),
+    top: (await git(repo, ['rev-parse', '--show-toplevel'])).out.trim(),
     now: options.now ?? Date.now(),
     size: options.size === true,
     olderThanDays: options.olderThanDays ?? DEFAULT_OLDER_THAN_DAYS,
     keepLocalCommits: options.keepLocalCommits ?? true,
   };
-  const worktrees = parseWorktrees(listed.out).map((l, index) => inspect(l, index === 0, o));
-  const pruned = options.prune === true && prune(repo, worktrees, git);
-  const failed = worktrees.filter((w) => w.error !== undefined);
-  return {
+  const worktrees = await Promise.all(parseWorktrees(listed.out).map((l, index) => inspect(l, index === 0, o)));
+  const pruned = options.prune === true && (await prune(repo, worktrees, git));
+  const failed = worktrees.filter((w) => w.error !== undefined).map((w) => w.path);
+  const result: WorktreeResult = {
     repo,
     worktrees,
     removable: worktrees.filter((w) => w.keep === undefined).length,
     removed: worktrees.filter((w) => w.removed).length,
     pruned,
     ok: failed.length === 0,
-    ...(failed.length === 0 ? {} : { error: `git refused to remove ${failed.map((w) => w.path).join(', ')}`, fix: 'read the error on each; git keeps what it would lose' }),
   };
+  if (failed.length > 0) Object.assign(result, { error: `git refused to remove ${failed.join(', ')}`, fix: 'read the error on each; git keeps what it would lose' });
+  return result;
 }
 
-const mb = (bytes: number): string => `${(bytes / MB).toFixed(0)} MB`;
+const mb = (bytes: number): string => `${Math.round(bytes / MB).toString()} MB`;
 
 function stateOf(w: Worktree): string {
   if (w.removed) return 'removed';
   if (w.error !== undefined) return `refused: ${w.error}`;
-  return w.keep === undefined ? 'removable' : `kept: ${w.keep}`;
+  if (w.keep !== undefined) return `kept: ${w.keep}`;
+  return 'removable';
 }
 
 function tailOf(result: WorktreeResult): string {
   if (result.pruned) return `removed ${String(result.removed)} of ${String(result.removable)} removable`;
-  return result.removable > 0 ? `${String(result.removable)} removable: run with --prune` : 'nothing to remove';
+  if (result.removable > 0) return `${String(result.removable)} removable: run with --prune`;
+  return 'nothing to remove';
 }
 
 export function worktreesText(result: WorktreeResult): string {
-  if (result.error !== undefined && result.worktrees.length === 0) return `hookset worktrees: ${result.error}`;
+  if (result.worktrees.length === 0 && result.error !== undefined) return `hookset worktrees: ${result.error}`;
+  const sized = result.worktrees.filter((w) => w.bytes !== undefined);
+  const total = sized.length > 0 ? `, ${mb(sized.reduce((sum, w) => sum + (w.bytes as number), 0))} in all` : '';
+  const head = `hookset worktrees: ${String(result.worktrees.filter((w) => !w.main).length)} linked worktree(s)${total}; ${tailOf(result)}`;
   const lines = result.worktrees.map((w) => {
     const size = w.bytes === undefined ? '' : ` ${mb(w.bytes)}`;
     return `  ${w.path} [${w.branch ?? w.head.slice(0, SHORT_SHA)}]${size} ${stateOf(w)}`;
   });
-  const linked = result.worktrees.filter((w) => !w.main).length;
-  const total = result.worktrees.reduce((sum, w) => sum + (w.bytes ?? 0), 0);
-  const sized = result.worktrees.some((w) => w.bytes !== undefined) ? `, ${mb(total)} in all` : '';
-  return [`hookset worktrees: ${String(linked)} linked worktree(s)${sized}; ${tailOf(result)}`, ...lines].join('\n');
+  return [head, ...lines].join('\n');
 }

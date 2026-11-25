@@ -3,7 +3,7 @@
  * projected from this declaration. Handlers return data; the text a person reads rides along under
  * burgee's text symbol. All logic is in `core.ts`.
  */
-import { defineCommand, defineProgram, ExitCode } from 'burgee';
+import { defineCommand, defineProgram, ExitCode, UsageError } from 'burgee';
 
 import { checkContext, contextText } from './context.js';
 import { checkRepo, checkText, initRepo, packageRoot, packageVersion } from './core.js';
@@ -100,15 +100,11 @@ const worktreesCommand = defineCommand({
     size: { type: 'boolean', description: 'add each worktree\'s size on disk (walks every file, node_modules included)' },
     cwd: { type: 'string', description: 'any directory in the clone (default: the current directory)' },
   },
-  run: ({ options }) => {
+  run: async ({ options }) => {
     const o = options as Record<string, unknown>;
     const days = o['olderThan'] as number;
-    if (days < 0) {
-      const bad: Record<string | symbol, unknown> = { ok: false, exitCode: ExitCode.USAGE, error: `--older-than takes a number of days, not ${String(o['olderThan'])}`, fix: 'pass --older-than 7' };
-      bad[TEXT] = () => String(bad['error']);
-      return bad;
-    }
-    const result = sweepWorktrees(repoOf(o), { prune: o['prune'] === true, olderThanDays: days, keepLocalCommits: o['includeLocalCommits'] !== true, size: o['size'] === true });
+    if (days < 0) throw new UsageError(`--older-than takes a number of days, not ${String(days)}`, 'pass --older-than 7');
+    const result = await sweepWorktrees(repoOf(o), { prune: o['prune'] === true, olderThanDays: days, keepLocalCommits: o['includeLocalCommits'] !== true, size: o['size'] === true });
     const data: Record<string | symbol, unknown> = { ...result, changed: result.removed > 0, ...(result.ok ? {} : { exitCode: ExitCode.RUNTIME }) };
     data[TEXT] = () => worktreesText(result);
     return data;
