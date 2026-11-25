@@ -109,7 +109,9 @@ function invokeOn(program: Manifest | CommanderLike | YargsLike, kind: Loaded['k
     }
     else if (kind === 'yargs') await (program as YargsLike).burgee(seam).parseAsync(argv);
     else await (program as CommanderLike).parseAsync(argv, { from: 'user', ...seam });
-    return { stdout: out.join(''), stderr: err.join(''), code };
+    // Stryker disable next-line StringLiteral: every surface writes stdout in one chunk (a result, an envelope, help, --version, --schema), so no separator lands; stderr's two chunks pin its join
+    const stdout = out.join('');
+    return { stdout, stderr: err.join(''), code };
   };
 }
 
