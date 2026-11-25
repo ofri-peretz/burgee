@@ -92,6 +92,13 @@ describe('extends (V7)', () => {
     expect(loaded.chain).toEqual([realpathSync(join(dir, 'nm/node_modules/acme-base/config.json')), top]);
   });
 
+  it('reads a relative extends target as a path, so a missing one is a missing file, not a package', async () => {
+    const f = write('m/app.config.json', { extends: './gone.json' });
+    const error: unknown = await loadWithExtends(f).catch((caught: unknown) => caught);
+    expect(String(error)).toContain(join(dir, 'm/gone.json'));
+    expect(String(error)).not.toContain('cannot be resolved');
+  });
+
   it('names an unresolvable extends target', async () => {
     const f = write('u/app.config.json', { extends: 'no-such-package-xyz' });
     await expect(loadWithExtends(f)).rejects.toThrow(expect.objectContaining({ message: `${f} extends "no-such-package-xyz", which cannot be resolved`, hint: 'use a relative path or an installed package' }));
