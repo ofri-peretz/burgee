@@ -229,7 +229,7 @@ jobs:
       # The five-second per-case budget is held once, by Quality (Full)'s Unit Tests and the
       # pre-push hook (D-20261101-tests-under-5s); these cells grade correctness on every OS, and
       # the half-timeout report above names their slow cases.
-      VITEST_CASE_BUDGET_MS: "0"
+      TRUEPASS_BUDGET_MS: "0"
     strategy:
       fail-fast: false
       matrix:
@@ -390,7 +390,7 @@ jobs:
       PACKAGES: ${{ needs.affected.outputs.packages }}
       VITEST_DURATIONS_DIR: ${{ github.workspace }}/vitest-durations
       # Held by Quality (Full)'s Unit Tests, not here, as in `matrix` above (D-20261101-tests-under-5s).
-      VITEST_CASE_BUDGET_MS: "0"
+      TRUEPASS_BUDGET_MS: "0"
     strategy:
       fail-fast: false
       matrix:
@@ -448,6 +448,6 @@ jobs:
           set -o pipefail
           { echo '## Cases above half their timeout'; echo; echo '```'; npx --no tsx scripts/slow-cases.mts vitest-durations; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
 
-  # No `heavy-tests` job: the NIGHTLY_ONLY cases (scripts/vitest-case-budget-reporter.ts) each run
+  # No `heavy-tests` job: the NIGHTLY_ONLY cases (scripts/nightly-only.ts) each run
   # oxmutate end to end, and no mutation runs in GitHub Actions (D-20261101-no-mutation-in-gha).
   # `npm run mutation:weekly` runs them with BURGEE_NIGHTLY set, before the full mutation runs.

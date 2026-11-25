@@ -103,7 +103,7 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           # Four suites at once leave no quiet moment to re-measure a slow case in, so each run
           # leaves its over-budget cases here and the next step judges them (D-20261101-tests-under-5s).
-          VITEST_CASE_BUDGET_DEFER: ${{ runner.temp }}/case-budget
+          TRUEPASS_BUDGET_DEFER: ${{ runner.temp }}/case-budget
         run: |
           set -euo pipefail
           args=(--event "$EVENT" --base "$BASE")
