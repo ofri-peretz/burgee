@@ -103,6 +103,19 @@ describe('burgee check refuses, as data, with an exit code', () => {
     });
   });
 
+  it('sends borders and components to flagstaff and capabilities to paratext', async () => {
+    const { layers } = (await checkPlugin(plugin("export default { name: 'acme', contract: 1, borders: {}, capabilities: {}, components: {} };\n"))) as CheckReport;
+    expect(layers?.map(({ host, keys }) => ({ host, keys }))).toEqual([
+      { host: 'flagstaff', keys: ['borders', 'components'] },
+      { host: 'paratext', keys: ['capabilities'] },
+    ]);
+  });
+
+  it('carries no problems key on a refusal that has none', async () => {
+    const { refused } = (await checkPlugin(plugin("export default { name: 'getter', contract: 1, get hooks() { throw new Error('hooks exploded'); } };\n"))) as CheckRefusal;
+    expect(refused).not.toHaveProperty('problems');
+  });
+
   it('rethrows what is not an Error at all, rather than inventing a message for it', async () => {
     const file = plugin("export default { name: 'thrower', contract: 1, get commands() { throw 'not an error'; } };\n");
     await expect(checkPlugin(file)).rejects.toBe('not an error');
@@ -117,6 +130,11 @@ describe('burgee check refuses, as data, with an exit code', () => {
 const pack = (locales: unknown): string => plugin(`export default ${JSON.stringify({ name: 'pack', contract: 1, locales })};\n`);
 
 describe('burgee check reads a locale pack (R4)', () => {
+
+  it('renders a single-string message with {count} at zero', async () => {
+    const { locales } = (await checkPlugin(pack({ de: { 'usage.stdinOnce': '{count} Datei(en)' } }))) as CheckReport;
+    expect(locales?.[0]?.messages).toEqual([{ id: 'usage.stdinOnce', text: '0 Datei(en)' }]);
+  });
 
   it('renders every message of every locale, each plural form apart, with each placeholder named', async () => {
     const file = pack({

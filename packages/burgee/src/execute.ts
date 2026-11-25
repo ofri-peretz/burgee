@@ -213,7 +213,9 @@ function addTree(manifest: Manifest, parent: string[], commands: AnyCommand[]): 
     manifest.add({
       path,
       ...helpFields(c),
+      // Stryker disable next-line ConditionalExpression: a run or load key holding undefined is read as absent everywhere it is read
       ...(c.run === undefined ? {} : { run: c.run as (ctx: RunContext) => unknown }),
+      // Stryker disable next-line ConditionalExpression: as the line above
       ...(c.load === undefined ? {} : { load: c.load }),
     });
     if (c.commands !== undefined) addTree(manifest, path, c.commands);
@@ -234,8 +236,11 @@ export function sharedOptions<const T extends OptionSpecs>(name: string, specs: 
 export function defineProgram(program: Program): Manifest {
   const manifest = new Manifest();
   manifest.rootPath = [program.name];
+  // Stryker disable next-line ConditionalExpression: assigning undefined to a field that is undefined changes nothing
   if (program.version !== undefined) manifest.version = program.version;
+  // Stryker disable next-line ConditionalExpression: as the line above
   if (program.envPrefix !== undefined) manifest.envPrefix = program.envPrefix;
+  // Stryker disable next-line ConditionalExpression: as the line above
   if (program.schemaBudget !== undefined) manifest.schemaBudget = program.schemaBudget;
   // agent-lint-conformance R8 — help and `--schema` print the variable as the way to recover from
   // `auth`, so it has to be one a shell can set. Checked here, not in `definition.ts`: every
@@ -287,6 +292,7 @@ const actionRequired = (spec: ActionRequiredSpec): never => {
 /** `ctx.exit(code)` unwinds through this when the injected exit returns instead of leaving. */
 class ExitSignal extends Error {
   constructor(readonly code: number) {
+    // Stryker disable next-line StringLiteral: the signal is caught by its class and code; its message is never printed
     super(`exit ${code}`);
   }
 }
@@ -314,6 +320,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
  */
 async function render(value: unknown): Promise<string> {
   if (value === undefined || value === null) return '';
+  // Stryker disable next-line ConditionalExpression,StringLiteral: render hands a string back as it is; the test only skips loading it
   return typeof value === 'string' ? value : (await import('./render.js')).render(value);
 }
 
@@ -373,10 +380,12 @@ function canonical(values: Values, specs: Record<string, OptionSpec>, tokens: re
     const bare = camel(key.startsWith(NO) ? key.slice(NO.length) : key);
     return specs[bare]?.type === 'boolean' ? bare : '';
   };
+  // Stryker disable next-line ConditionalExpression,BooleanLiteral,MethodExpression: the handler's options are picked by declared name afterwards, so an extra key here never reaches it
   for (const [k, v] of Object.entries(values)) if (!k.startsWith(NO) || !negatable(k)) out[camel(k)] = v;
   for (const token of tokens) {
     if (token.kind !== 'option') continue;
     const bare = negatable(token.name);
+    // Stryker disable next-line ConditionalExpression: as above, a '' key is never a declared name
     if (bare) out[bare] = !token.name.startsWith(NO);
   }
   return out;
@@ -396,6 +405,7 @@ interface Resolved2 {
  */
 async function resolution(manifest: Manifest, specs: Record<string, OptionSpec>, values: Values, io: Io): Promise<ReturnType<typeof resolveLayers>> {
   const layers: Layers = { flags: values, env: io.env };
+  // Stryker disable next-line ConditionalExpression: an undefined envPrefix reads as none
   if (manifest.envPrefix !== undefined) layers.envPrefix = manifest.envPrefix;
   if (manifest.config !== undefined) Object.assign(layers, await (await import('./config-layers.js')).configLayers(manifest.config.name, values, io));
   return resolveLayers(specs, layers);
@@ -439,6 +449,7 @@ function splitPositionals(tokens: readonly Token[]): { positionals: string[]; pa
     const { kind } = token;
     const value = 'value' in token ? token.value : undefined;
     if (kind === 'option-terminator') after = true;
+    // Stryker disable next-line ConditionalExpression: parseArgs gives every positional token a string value
     else if (kind === 'positional' && typeof value === 'string') (after ? passthrough : positionals).push(value);
   }
   return { positionals, passthrough };
@@ -569,6 +580,7 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
   // and `schema.ts` publishes that same list. The check is its own chunk (U5), loaded only
   // for a command that declares a relation.
   const relations = relationsOf(node);
+  // Stryker disable next-line ConditionalExpression,EqualityOperator: checkRelations over no relations refuses nothing; the test only skips loading it
   if (relations.length > 0) (await import('./relations.js')).checkRelations(relations, resolved.values, provenance);
   const values = await coerce(node.options, resolved.values);
   const { positionals, passthrough } = splitPositionals(parsed.tokens);
@@ -578,6 +590,7 @@ async function dispatch(manifest: Manifest, { node, rest: typed, name }: Resolve
   // positionals, `--` tail and value keys together: parseArgs keeps one value per option it saw and is
   // given no defaults, so an option named twice is one token more than its key (a `--` is one more
   // too, and loads the chunk for nothing). Inline, not a helper: B4's bundle ceiling had no room for one.
+  // Stryker disable next-line ConditionalExpression,EqualityOperator,ArithmeticOperator: refuse() finds nothing to refuse in a parse that has none; this test only skips loading it
   if (positionals.length !== (node.arguments?.length ?? 0) || parsed.tokens.length > positionals.length + passthrough.length + Object.keys(parsed.values).length) (await import('./parse-refusals.js')).refuse(node, positionals, parsed, rest, typed);
   // typed-positionals R2 — each declared positional by name: a variadic one takes the rest, an absent
   // one its default. R3's types and choices are their own chunk (M2), loaded only for a command whose
@@ -608,6 +621,7 @@ async function emit(io: Io, outcome: Outcome): Promise<void> {
     return await leave(io, ExitCode.OK);
   }
   // `meta.provenance` says where every option value came from (V3) — the difference between one call and five for an agent.
+  // Stryker disable next-line ConditionalExpression: meta is printed as JSON, which drops a key holding undefined
   const meta = { provenance: outcome.provenance, ...(outcome.changed === undefined ? {} : { changed: outcome.changed }) };
   // `ok` is the exit code's verdict, not "the handler returned": a result that names a non-zero
   // `exitCode` (a `check` refusal, `migrate` with refusals) leaves non-zero, so it says `false`.
@@ -668,6 +682,7 @@ function ioOf(opts: RunOptions): Io {
     // An injected `exit` is the whole definition of "this run does not own the process":
     // the harness, the MCP loop and every façade test pass one, and none of them may have
     // nine listeners attached to the runner's own process on their behalf.
+    // Stryker disable next-line ConditionalExpression,ArrayDeclaration: telling these apart would wire the test runner's own process (as in shutdown.ts)
     teardown: opts.exit === undefined ? processTeardown([host.stdout, host.stderr]) : detachedTeardown(),
   };
 }
@@ -681,10 +696,12 @@ export async function execute(manifest: Manifest, opts: RunOptions & { root?: st
   const root = opts.root ?? manifest.rootPath;
 
   // Only a `--json` before `--` asks for the envelope; after it, it is pass-through (G5).
+  // Stryker disable next-line MethodExpression: pass() reads json again from argv before anything prints
   let json = beforeTerminator(typed).some(isJsonFlag);
   let name = '';
   // D-122 — `shutdown` fires once, on whichever path the run leaves by, through the same
   // teardown `ctx.onExit` uses. Registered only when a plugin declares one.
+  // Stryker disable next-line ConditionalExpression,StringLiteral: firing shutdown with no plugin hooking it does nothing; the label is read only if a hook throws
   if (manifest.declares('shutdown')) io.teardown.add(async () => await manifest.fire('shutdown', name, {}), 'plugin shutdown hooks');
   let argv = typed;
   // One pass over argv, from resolution to the exit. A refusal whose only fault was how JSON was
@@ -696,6 +713,7 @@ export async function execute(manifest: Manifest, opts: RunOptions & { root?: st
       // facade-projection-fidelity R5 — each alias typed in a command's place becomes that command's
       // name, so dispatch, help, `--schema` and `__complete` all read one spelling. Its own chunk (M2),
       // loaded only for a program that declares an alias.
+      // Stryker disable next-line ConditionalExpression: unalias with no aliases hands argv back as it was
       if (manifest.commands.some((c) => c.aliases)) argv = (await import('./aliases.js')).unalias(manifest, argv, root);
       json = beforeTerminator(argv).some(isJsonFlag);
       // U5 — every surface lives in `surfaces.js`, imported only when argv could be asking for one.
@@ -744,6 +762,7 @@ export async function runCommand(manifest: Manifest, argv: readonly string[], op
   const out: string[] = [];
   const err: string[] = [];
   let code: number = ExitCode.OK;
+  // Stryker disable next-line StringLiteral: with argv given, only from: 'node' slices it
   await execute(manifest, { ...opts, argv: [...argv], from: 'user', stdout: { write: (s) => out.push(s) }, stderr: { write: (s) => err.push(s) }, exit: (c) => void (code = c) });
   return { code, stdout: out.join(''), stderr: err.join('') };
 }

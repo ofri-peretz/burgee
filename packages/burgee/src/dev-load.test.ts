@@ -18,6 +18,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { discard } from './__fixtures__/scratch-dir.js';
 import { dev, load, report } from './dev.js';
 import { defineCommand, defineProgram } from './execute.js';
+import { renderHelp } from './help.js';
 import { Manifest } from './manifest.js';
 
 const src = dirname(fileURLToPath(import.meta.url));
@@ -100,6 +101,48 @@ describe('the reload report (W3)', () => {
     m.rootPath = ['bare'];
     m.add({ path: ['bare', 'x'], options: {}, effects: 'read_only', examples: [{ command: 'bare x' }], output: { cardinality: 'single' }, run: () => undefined });
     expect(report(undefined, loaded(m))).toBe('loaded bare (burgee) in 1 ms — 1 commands, 1 MCP tools\n  + bare x\n');
+  });
+});
+
+describe('load(), the details', () => {
+  it('refuses an object with a manifest and no seam of any kind', async () => {
+    await expect(load(entry('export default { manifest: { commands: [], rootPath: [] } };\n'), 1)).rejects.toThrow(/exports no program/);
+  });
+
+  it('times each kind from its own trigger, and reads a commander run that never exits as 0', async () => {
+    const files = [
+      entry(`import { defineProgram } from ${spec('index.ts')};\nexport const program = defineProgram({ name: 'b', commands: [] });\n`),
+      entry(`import { Command } from ${spec('commander.ts')};\nexport const program = new Command('cc');\nprogram.command('add').argument('<a>').effects('read_only').action(() => undefined);\n`),
+      entry(`import yargs from ${spec('yargs.ts')};\nexport default yargs([]).scriptName('yy');\n`),
+    ];
+    for (const file of files) {
+      const before = performance.now();
+      // eslint-disable-next-line reliability/no-await-in-loop -- each load is timed alone; run together, one would count the others' time
+      const { ms } = await load(file, 1);
+      expect(ms).toBeLessThanOrEqual(performance.now() - before);
+    }
+    expect(await (await load(files[1] as string, 2)).invoke(['add', '1'])).toEqual({ stdout: '', stderr: '', code: 0 });
+  });
+
+  it('joins everything a run writes, in order and with nothing between', async () => {
+    const file = entry(`import { defineCommand, defineProgram } from ${spec('index.ts')};
+export const program = defineProgram({ name: 'app', commands: [defineCommand({ name: 'boom', effects: 'read_only', run: () => { throw new Error('x'); } })] });
+`);
+    const { stderr } = await (await load(file, 1)).invoke(['boom']);
+    expect(stderr).toBe('error: x\nusage: app boom\n{"error":{"kind":"runtime","code":1,"message":"x"}}\n');
+  });
+});
+
+describe('the reload report, for a program named in two words', () => {
+  it('names the program and its root command in full, and ends on the help with one blank line before it', () => {
+    const m = new Manifest();
+    m.rootPath = ['my', 'app'];
+    m.add({ path: ['my', 'app'], options: {}, effects: 'read_only', output: { cardinality: 'single' }, run: () => undefined });
+    const root = m.find(['my', 'app']);
+    const text = report(undefined, loaded(m));
+    expect(text.split('\n').slice(0, 2)).toEqual(['loaded my app (burgee) in 1 ms — 1 commands, 1 MCP tools', '  + my app']);
+    expect(text).toContain('warning: command "my app" declares no examples');
+    expect(text.endsWith(`\n\n${renderHelp(m, root as NonNullable<typeof root>).trimEnd()}\n`)).toBe(true);
   });
 });
 

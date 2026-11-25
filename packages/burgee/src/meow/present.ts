@@ -26,6 +26,7 @@ export function readPackageUp(importMeta: ImportMeta | undefined): Record<string
   if (importMeta?.url === undefined) return {};
   for (const at of findUpMultipleSync('package.json', { cwd: dirname(fileURLToPath(importMeta.url)) })) {
     try {
+      // Stryker disable next-line StringLiteral: with no encoding the read is a Buffer, which JSON.parse stringifies as UTF-8 all the same
       return JSON.parse(readFileSync(at, 'utf8')) as Record<string, unknown>;
     } catch {
       // Not JSON: keep walking, as the hand-written loop did.
@@ -42,19 +43,22 @@ const isNewline = (c: string | undefined): boolean => c === '\n' || c === '\r';
  * not reach the end (CodeQL #99).
  */
 export function trimNewlines(text: string): string {
+  // No bound beside each test: an index off either end reads `undefined`, which is not a newline,
+  // so each scan stops there. An all-newline text leaves `end` below `start`, and the slice is ''.
   let start = 0;
   let end = text.length;
-  while (start < end && isNewline(text[start])) start += 1;
-  while (end > start && isNewline(text[end - 1])) end -= 1;
+  while (isNewline(text[start])) start += 1;
+  while (isNewline(text[end - 1])) end -= 1;
   return text.slice(start, end);
 }
 
 /** `help.replace(/\t+\n*$/, '')` — trailing tabs and the newlines after them — in linear time (CodeQL #100). */
 export function cutTrailingTabs(text: string): string {
+  // As in `trimNewlines`: `text[-1]` is `undefined`, so each scan stops at the start by itself.
   let end = text.length;
-  while (end > 0 && text[end - 1] === '\n') end -= 1;
+  while (text[end - 1] === '\n') end -= 1;
   let tabs = end;
-  while (tabs > 0 && text[tabs - 1] === '\t') tabs -= 1;
+  while (text[tabs - 1] === '\t') tabs -= 1;
   return tabs < end ? text.slice(0, tabs) : text;
 }
 
@@ -63,7 +67,7 @@ function stripIndent(text: string): string {
   const indents = text.match(/^[ \t]*(?=\S)/gmu);
   if (indents === null) return text;
   const smallest = Math.min(...indents.map((i) => i.length));
-  return smallest === 0 ? text : text.replace(new RegExp(`^[ \\t]{${smallest}}`, 'gmu'), '');
+  return text.replace(new RegExp(`^[ \\t]{${smallest}}`, 'gmu'), '');
 }
 
 /** `redent`: `strip-indent`, then `indent-string`, which leaves whitespace-only lines alone. */

@@ -97,9 +97,12 @@ export function rootExamples(manifest: Manifest, node: CommandNode): Example[] {
   const out: Example[] = [];
   for (const c of manifest.commands) {
     const top = c.path.slice(0, depth + 1);
+    // Stryker disable next-line StringLiteral: every key shares the node's words and differs only in its last one, so no separator can make two collide
     const key = top.join(' ');
     const first = c.examples?.[0];
-    if (first === undefined || c.path.length <= depth || seen.has(key) || c.hidden === true || manifest.find(top)?.hidden === true) continue;
+    // Stryker disable next-line EqualityOperator,ConditionalExpression: the root itself reaches here only without examples, so `first` skips it below
+    if (c.path.length <= depth) continue;
+    if (first === undefined || seen.has(key) || c.hidden === true || manifest.find(top)?.hidden === true) continue;
     seen.add(key);
     out.push(first);
   }
