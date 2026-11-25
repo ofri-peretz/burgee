@@ -49,7 +49,7 @@ export function ratio(a: string, b: string): number {
   return round2(contrast(a, b));
 }
 
-export function check(what: string, a: string, b: string, required = AA.GRAPHIC): ContrastFinding {
+export function check(what: string, a: string, b: string, required: number = AA.GRAPHIC): ContrastFinding {
   const value = ratio(a, b);
   return { what, a, b, ratio: value, required, passes: value >= required };
 }
@@ -74,9 +74,11 @@ export function fieldColorAt(stops: ReadonlyArray<{ offset: number; color: strin
   if (first === undefined || last === undefined) throw new Error('burgee: a field needs at least one stop');
   if (at <= first.offset) return first.color;
   if (at >= last.offset) return last.color;
+  // Stryker disable next-line NumericLiteral: equivalent — from 0, the first pass's `hi` is the first stop, which the return above has already ruled out, so it never reads its `lo`
   for (let i = 1; i < ordered.length; i++) {
     const lo = ordered[i - 1]!;
     const hi = ordered[i]!;
+    // Stryker disable next-line EqualityOperator: equivalent — at a middle stop's own offset, `<` mixes from it with a weight of 0 where `<=` mixes to it with a weight of 1: one colour either way
     if (at <= hi.offset) {
       // Never zero: the loop has already returned for any point at or below `lo`, so a
       // second stop at `lo`'s offset is stepped past before it can be `hi` here.
