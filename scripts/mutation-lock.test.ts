@@ -31,14 +31,17 @@ import {
   floorOf,
   type FullResult,
   isMutationSource,
+  mergeShards,
   mutateSpecs,
   oxmutateConfig,
   parseChangedLines,
+  parseShard,
   RATCHETS_FILE,
   type RatchetsDoc,
   record,
   removeWrapper,
   type ReportMutant,
+  shardOf,
   SKIPPED_TESTS,
   summarise,
   writeWrapper,
@@ -315,6 +318,47 @@ describe('recording a weekly run (R6)', () => {
     const out = record(base, [{ ...res('a', null, false), error: 'dry run failed' }, { ...res('b', null, false), error: 'dry run failed' }], '2026-10-24');
     expect(out.breaches).toEqual([expect.stringContaining('a: ')]);
     expect(out.doc.ratchets.b).toMatchObject({ status: 'unmeasured', reason: expect.stringContaining('dry run failed') });
+  });
+});
+
+/** Shard `index`/`of` of package `a`: `killed` killed, `survived` survived, one timeout. */
+const part = (index: number, of: number, [killed, survived]: readonly [number, number], ok = true): FullResult => ({
+  pkg: 'a', commit: 'abc', ok, minutes: 2, shard: { index, of },
+  summary: { killed, timeout: 1, survived, noCoverage: 0, invalid: 0, ignored: 0, score: null, undetected: [], silentSurvivors: [] },
+});
+
+describe('a package measured in shards', () => {
+
+  it('reads k/n and refuses anything else', () => {
+    expect(parseShard('2/4')).toEqual({ index: 2, of: 4 });
+    expect(parseShard('4/4')).toEqual({ index: 4, of: 4 });
+    expect([parseShard('0/4'), parseShard('5/4'), parseShard('2'), parseShard(undefined), parseShard('a/b')]).toEqual([undefined, undefined, undefined, undefined, undefined]);
+  });
+
+  it('splits the sources so every file is in exactly one shard', () => {
+    const files = ['a', 'b', 'c', 'd', 'e'];
+    const shards = [1, 2, 3].map((index) => shardOf(files, { index, of: 3 }));
+    expect(shards).toEqual([['a', 'd'], ['b', 'e'], ['c']]);
+  });
+
+  it('records a complete set once, as the sum of its shards', () => {
+    const { results, notes } = mergeShards([part(1, 2, [90, 9]), part(2, 2, [8, 1])]);
+    expect(notes).toEqual([]);
+    expect(results).toEqual([expect.objectContaining({ pkg: 'a', ok: true, minutes: 4, summary: expect.objectContaining({ killed: 98, timeout: 2, survived: 10, score: 90.91 }) })]);
+    expect(results[0]).not.toHaveProperty('shard');
+    expect(record({ $comment: '', ratchets: { a: { status: 'unmeasured', reason: 'never run' } } }, results, '2026-11-25').doc.ratchets.a).toMatchObject({ floor: 90.9, observations: [{ killed: 98 }] });
+  });
+
+  it('leaves out a set missing a shard or counting one twice, and fails a set with a failed shard', () => {
+    expect(mergeShards([part(1, 3, [9, 0]), part(3, 3, [9, 0])])).toEqual({ results: [], notes: ['a@abc/3: 2 of 3 shards present in 2 results, not recorded'] });
+    expect(mergeShards([part(1, 2, [9, 0]), part(1, 2, [9, 0]), part(2, 2, [9, 0])])).toEqual({ results: [], notes: ['a@abc/2: 2 of 2 shards present in 3 results, not recorded'] });
+    const failed = mergeShards([part(1, 2, [9, 0]), { ...part(2, 2, [0, 0], false), error: 'dry run failed' }]).results;
+    expect(failed).toEqual([expect.objectContaining({ ok: false, error: 'shard 2/2: dry run failed' })]);
+  });
+
+  it('passes a whole-package result through untouched', () => {
+    const whole = res('b', 50);
+    expect(mergeShards([whole]).results).toEqual([whole]);
   });
 });
 
