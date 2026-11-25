@@ -86,16 +86,22 @@ the last `--days` (30). Every measure ends in a `next:` line that names the fix:
 
 | Measure | What it counts | `next:` points at |
 | :-- | :-- | :-- |
-| escape rate | merged pull requests a later revert or `fix` traced back to | each escape without a replz case |
+| escape rate | merged pull requests a later revert or `fix` traced back to, less those dismissed | each suspect to confirm as a case or dismiss |
 | receipts | merged pull requests carrying a provedone `Verified-by:` | the pull requests without one |
 | recall | bug cases the reviewer found at the last stage, from the last `run --record` | the check a missed case lacks |
 | false alarms | clean controls the reviewer flagged, from the same run | the check or item to narrow |
 
 A fix that names the pull request it repairs (`regressed in #12`) or a revert counts as named. A
 fix that names none is traced with SZZ: the code lines it removed or changed are blamed at its
-parent (`git blame -w -M -C`), and the pull requests that last touched them are the suspects. A fix
-that only adds lines has nothing to blame and is counted as untraceable. Traced escapes are
-suspects, not verdicts: writing the case's answer key is where a person confirms one.
+parent (`git blame -w -M -C`), and the pull requests that last touched them are the suspects.
+Blank, comment and import lines are not blamed, and a fix that follows an upstream release
+(`follow`, `re-vendor`, `re-grade`, `bump`) is not a fix to our own bug. A fix that only adds lines
+has nothing to blame and is counted as untraceable.
+
+A traced escape is a suspect until it is triaged: a `bug-<pr>.yaml` case confirms it, and
+`.sdlc/replz/triage.json` dismisses it with a reason, `{ "dismissed": { "1813": "<why it is not
+one>" } }`. A dismissed escape leaves the rate; the text marks each escape `confirmed`,
+`dismissed` or `suspect`.
 
 `--ratchet <file>` holds the card to bands, `{ "maxEscapeRate": 0.2, "minReceipts": 0.12, "minRecall": 0.8 }`,
 and exits 1 when one is left. An unmeasured value is held to no band.

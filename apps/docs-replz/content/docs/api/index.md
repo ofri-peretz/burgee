@@ -93,7 +93,7 @@ const KINDS: readonly ["bug", "control"];
 
 ### oldRanges
 
-The old-side ranges of a `git diff -U0` in code files; a hunk that only adds lines has none.
+The old-side lines of a `git diff -U0` in code files that a fix removed or changed, skipping inert ones, as ranges.
 
 ```ts
 const oldRanges: (diff: string) => OldRange[];
@@ -394,7 +394,13 @@ interface Scorecard {
     readonly receipts: Measure;
     readonly recall: Measure;
     readonly falseAlarms: Measure;
-    /** Escapes with no replz case yet: the case backlog, newest first. */
+    /** Escapes in the window by triage status. */
+    readonly triage: {
+        readonly confirmed: number;
+        readonly dismissed: number;
+        readonly suspect: number;
+    };
+    /** Escapes in the window that are neither a case nor dismissed: the triage backlog, newest first. */
     readonly uncased: readonly number[];
     /** Merged pull requests without a receipt, newest first. */
     readonly unreceipted: readonly number[];
