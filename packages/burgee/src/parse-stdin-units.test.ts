@@ -28,7 +28,10 @@ describe('stdinFor', () => {
   const stdin = new PassThrough();
 
   it('covers every position past a variadic file argument from the last argument', () => {
-    const args = [{ name: 'name', type: 'string' }, { name: 'files', type: 'file', variadic: true }] as ArgumentSpec[];
+    const args = [
+      { name: 'name', type: 'string' },
+      { name: 'files', type: 'file', variadic: true },
+    ] as ArgumentSpec[];
     expect(stdinFor(args, ['x', 'y', '-'], stdin)).toEqual({ stdin });
   });
 
@@ -38,12 +41,9 @@ describe('stdinFor', () => {
 
   it('says what to pass when - names two file arguments', () => {
     const args = [{ name: 'files', type: 'file', variadic: true }] as ArgumentSpec[];
-    expect(() => stdinFor(args, ['-', '-'], stdin)).toThrow('"-" was given for 2 file arguments, and standard input can be read once');
-    try {
-      stdinFor(args, ['-', '-'], stdin);
-    } catch (error) {
-      expect((error as { hint?: string }).hint).toBe('pass a path for all but one of them');
-    }
+    expect(() => stdinFor(args, ['-', '-'], stdin)).toThrow(
+      expect.objectContaining({ message: '"-" was given for 2 file arguments, and standard input can be read once', hint: 'pass a path for all but one of them' }),
+    );
   });
 });
 
