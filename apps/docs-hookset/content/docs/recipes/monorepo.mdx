@@ -1,0 +1,50 @@
+---
+title: Monorepo
+description: "Wire hookset once at the root of a monorepo: one lefthook.yml, one package.json whose hook:staged and hook:verify scripts hand off to the workspace tool, and check run from the root or with --cwd."
+---
+
+git runs one set of hooks per repository, so a monorepo has one `lefthook.yml`, at its root.
+hookset wires that one, and `hookset check` reads the root `package.json` for the station
+scripts.
+
+## The root scripts decide the scope
+
+The presets call `npm run hook:verify` and `npm run hook:staged`; in a monorepo those scripts
+hand off to the workspace tool. With turbo, for example:
+
+```json
+{
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "prepare": "lefthook install || true",
+    "hook:provedone": "provedone gate --mode enforce",
+    "hook:staged": "prettier --check",
+    "hook:verify": "turbo run typecheck test build --affected"
+  }
+}
+```
+
+- **`hook:verify`** is where the affected-only logic belongs. The preset does not know the
+  repository is a monorepo, and does not need to.
+- **`hook:staged`** gets the staged paths from every workspace. Keep it to tools that take a
+  list of files: under 10 seconds is the budget.
+
+## Workspaces have no hooks of their own
+
+Do not run `hookset init` inside a workspace: lefthook installs hooks for the repository, not
+for a folder, and a second `lefthook.yml` there is never read by git. `hookset check --cwd
+packages/x` on a workspace will report `no-lefthook`, correctly.
+
+## Check from anywhere
+
+```bash
+npx hookset check --cwd "$(git rev-parse --show-toplevel)"
+```
+
+`--cwd` takes the directory to read. Both commands take it.
+
+## pnpm, yarn and bun
+
+The presets run `npm run --silent`, which runs a `package.json` script whichever tool installed
+the dependencies. The station scripts themselves can call `pnpm`, `yarn` or `bun` freely.

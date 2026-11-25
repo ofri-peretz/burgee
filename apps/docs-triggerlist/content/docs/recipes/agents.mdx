@@ -1,0 +1,61 @@
+---
+title: For agents
+description: "How an agent drives triggerlist: every command's --json envelope, --schema for the whole program, the MCP server from --mcp, exit codes as the contract, and the brief as the prompt for an agent reviewer."
+---
+
+triggerlist is a [burgee](https://burgee.interlace.tools/docs/packages/burgee) program, so the
+machine surfaces come from one declaration and behave the same as every other package in the
+family.
+
+## `--json`
+
+Every command prints one JSON envelope on stdout with `--json`: `{"ok": true, "data": …}` on
+success, and `ok: false` with an `error` or with `data.exitCode` and `data.fix` on a failure.
+
+```text title="npx triggerlist compile --json"
+{"ok":true,"data":{"out":"REVIEW.md","rules":3,"bytes":850,"budget":150000,"changed":true},"meta":{"provenance":{"repo":{"source":"default"},"checklist":{"source":"default"},"out":{"source":"default"},"budget":{"source":"default"}},"changed":true}}
+```
+
+`meta.provenance` says where each option's value came from: a default, a flag, or the
+environment.
+
+| Command | `data` holds |
+| :-- | :-- |
+| `match` | `range`, `checklist` (where it was read), `fired[]` with `id`, `question`, `check`, `sources`, `at[]` |
+| `brief` | `rules`, `range`, `checklist`, `fired[]` (`id`, `at`), `previous`, `replies`, `head`, `marker` |
+| `protect` | `range`, `checklist`, `mode`, `gates`, `code`, `flagged`, and `bootstrap` before the first checklist |
+| `compile` | `out`, `rules`, `bytes`, `budget`, `changed`, and `stale` or `drop` |
+| `seed` | `drafted`, `skipped`, `items[]` |
+
+## `--schema` and `--mcp`
+
+`npx triggerlist --schema` prints every command, option, default and environment variable as
+JSON, in one call. `npx triggerlist --mcp` serves the commands as MCP tools, each marked with its
+effect: `match`, `brief`, `protect` and `seed` are read-only, `compile` is idempotent.
+
+## Exit codes are the contract
+
+| Code | Meaning |
+| :-- | :-- |
+| `0` | It ran. `match` and `brief` exit 0 whatever fires; `protect` exits 0 in observe mode. |
+| `1` | A check failed (`compile --check` stale, `compile` over budget, `protect --enforce` flagged), or git or the checklist could not be read. The message ends in `fix:`. |
+| `2` | A usage error: an unknown option, a missing `<base>` or `--head`. |
+
+## An agent as the reviewer
+
+[`brief`](/docs/guides/brief) is the prompt. Hand it to the agent as it is: it already says what
+fired, what the agent found last round, what the author answered, and the marker line its summary
+must end with. Two things keep the agent honest:
+
+- **Restore the base's rules in the checkout** before the agent starts, so a file it opens is the
+  base's too. The [composite action](/docs/recipes/github-actions#with-claude-as-the-reviewer)
+  does it.
+- **Pass only the agent's own comments as `--comments`.** The last comment with the marker is
+  read as its previous findings, and anyone can post one.
+
+## An agent editing the checklist
+
+An agent adding an item can check its work without a pull request: `triggerlist match <base>
+--worktree --json` shows what the new item fires on the branch, and `triggerlist compile` then
+`compile --check` keeps `REVIEW.md` in step. It should land the checklist change in a pull request
+of its own, which is what `protect` asks for anyway.

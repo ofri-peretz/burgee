@@ -1,0 +1,153 @@
+---
+title: Getting started
+description: "Install truepass, turn its four ESLint rules on over your test files, read what they report on a test file that passes for the wrong reasons, and add truepass diff to the push."
+---
+
+truepass has two halves. Its ESLint rules read what a test file says: a focused test, a skip with
+no reason, a fixed sleep, a retry. Its `truepass diff` command reads what a change did: an
+assertion moved to a weaker matcher, and a snapshot rewritten with no reason given. Both exist for
+the same failure: a suite that reports green because it checks less than it did.
+
+## Install
+
+```bash
+npm install -D truepass
+```
+
+ESLint 9 or later is an optional peer. The rules run inside your project's own ESLint, so install
+it if you have not; `truepass diff` needs only git and Node 22.13 or later.
+
+## Turn the rules on
+
+The rules ship as a flat-config preset. Scope it to your test files and your runner configs:
+
+```js title="eslint.config.mjs"
+import { configs } from 'truepass/eslint';
+
+export default [
+  {
+    files: ['**/*.test.js', '**/vitest.config.js'],
+    ...configs.recommended,
+  },
+];
+```
+
+`configs.recommended` sets all four rules to `error`. [The ESLint config](/docs/guides/eslint-config)
+covers the other preset, the plugin on its own, and which files each rule reads.
+
+## Lint a test file
+
+This file passes under Vitest. Each of its four tests is a way it passes for the wrong reason:
+
+```js title="cart.test.js"
+import { describe, expect, it } from 'vitest';
+
+import { total } from './cart.js';
+
+describe('cart', () => {
+  it.only('adds two items', () => {
+    expect(total([1, 2])).toBe(3);
+  });
+
+  it.skip('applies a discount', () => {
+    expect(total([10], 0.5)).toBe(5);
+  });
+
+  it('waits for the price feed', async () => {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    expect(total([])).toBe(0);
+  });
+
+  it('rounds', { retry: 3 }, () => {
+    expect(total([0.1, 0.2])).toBe(0.3);
+  });
+});
+```
+
+```text title="npx eslint cart.test.js" exit="1"
+
+/your/project/cart.test.js
+   6:3   error  Focused test: A focused test (.only / fit / fdescribe) runs alone and turns every other test in the file off, so the suite reports green while running one case. fix: remove the focus. To run one test locally, pass a filter on the command line (vitest -t "<name>", jest -t "<name>", playwright test -g "<name>") instead of editing the file                                                                                  truepass/no-focused-test
+  10:3   error  Unexplained skipped test: A test is skipped with no reason on record, so the suite reports green without running it and nobody is told to come back. fix: make the test pass and remove the skip. If it must stay skipped, add a comment on this line or the line above with the issue URL, the decision id (D-…), or the YYYY-MM-DD date it is skipped until                                                                       truepass/no-unexplained-skip
+  15:11  error  Fixed sleep in a test: The test waits a fixed setTimeout instead of for the thing it needs, so it is slow where the guess is long and flaky where it is short. fix: await the event or condition itself: the promise the code returns, an emitted event (events.once), a polling assertion (vi.waitFor, expect.poll, Playwright expect(locator).toBeVisible()), or fake timers (vi.advanceTimersByTimeAsync) for timer-driven code  truepass/no-fixed-sleep
+  19:18  error  Test retry: Retries turn an intermittent failure into a pass, hiding the flakiness the test exists to report. fix: remove the retry and fix the cause of the flake (a race, shared state, a fixed sleep, an unmocked clock or network). If the retry is a deliberate policy, cite the decision id (D-…) or issue URL in a comment on this line or the line above                                                                    truepass/no-test-retry
+
+✖ 4 problems (4 errors, 0 warnings)
+
+```
+
+Every message has the same three parts: what is wrong, why it matters, and `fix:` with what to do
+instead. ESLint's default formatter prints your file's absolute path on the first line; this site
+prints it as `/your/project`.
+
+The `.only` is the one that does the most damage: it turns the other three tests off, so the run
+is green while it checks one case. The skip has no reason on record. The sleep guesses how long the
+price feed takes. The retry turns a rounding failure into a pass on some later attempt.
+
+## Fix it
+
+Each fix is the one the message names. A skip that has to stay gets a reason in a comment: an issue
+link, a decision id, or the date it is skipped until.
+
+```js title="cart-fixed.test.js"
+import { describe, expect, it } from 'vitest';
+import { once } from 'node:events';
+
+import { priceFeed, total } from './cart.js';
+
+describe('cart', () => {
+  it('adds two items', () => {
+    expect(total([1, 2])).toBe(3);
+  });
+
+  // https://github.com/acme/shop/issues/482: discounts move to the pricing service
+  it.skip('applies a discount', () => {
+    expect(total([10], 0.5)).toBe(5);
+  });
+
+  it('waits for the price feed', async () => {
+    await once(priceFeed, 'ready');
+    expect(total([])).toBe(0);
+  });
+
+  it('rounds', () => {
+    expect(total([0.1, 0.2])).toBeCloseTo(0.3);
+  });
+});
+```
+
+```text title="npx eslint cart-fixed.test.js"
+```
+
+No output and exit 0: ESLint found nothing.
+
+## Add truepass diff to the push
+
+A lint rule sees a file. It cannot see that a change replaced `.toBe(3)` with `.toBeDefined()`, or
+that a snapshot was regenerated with `-u`. `truepass diff` reads the commits since a base and
+reports both:
+
+```bash
+npx truepass diff --base origin/main
+```
+
+```text
+src/sum.test.js:5 weakened-assertion Weakened assertion: expect(sum(1,2)) moved from .toBe() to the weaker .toBeDefined() in this change. fix: keep the strict matcher and fix the code, or assert the new exact value with .toBe(). If the looser claim is intended, add an "Assertion: <why>" line to the commit message.
+```
+
+It exits 1 on a finding and 0 on none, which is what a pre-push hook needs. It reads a git range,
+so this page shows its output as plain text rather than running it; [truepass
+diff](/docs/guides/truepass-diff) runs the same check over a diff you can see.
+
+Every titled output block on this site is checked: `tests/examples.test.ts` writes each titled
+file, runs the command in the block's title, and compares.
+
+## Where next
+
+- [Guides](/docs/guides/eslint-config): the flat config, each rule group with its real output,
+  `truepass diff`, the suppressions file, and the hook and CI wiring.
+- [Why truepass](/docs/why-truepass): what it checks that a test-style plugin does not, and what
+  it leaves out on purpose.
+- [Coming from @vitest/eslint-plugin](/docs/coming-from/vitest-eslint-plugin): which two rules it
+  covers, and which it does not.
+- [API reference](/docs/api): every export of `truepass` and `truepass/eslint`.

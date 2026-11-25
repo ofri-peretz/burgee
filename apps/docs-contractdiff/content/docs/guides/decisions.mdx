@@ -1,0 +1,197 @@
+---
+title: Decisions in the contract
+description: "x-change, x-sunset and x-replaced-by: how contractdiff diff holds a breaking change to the decision written beside it, catches a stale or misspelled marker and a member kept past its sunset, and how --decisions warn, error or off sets the level."
+---
+
+A breaking change is sometimes the right call. What goes wrong is a breaking change nobody decided:
+a field renamed in a refactor, a parameter made required by a code generator default. `diff` reads
+three markers written in the contract, beside the member they are about, and holds each change to
+them.
+
+| marker          | on                                                | says                                                                                     |
+| :-------------- | :------------------------------------------------ | :--------------------------------------------------------------------------------------- |
+| `x-change`      | the changed member, an ancestor, or the operation | the decision behind a breaking change: an ADR id, a ticket, a URL. Opaque, never fetched |
+| `x-sunset`      | a member                                          | the date, `YYYY-MM-DD`, after which it is removed                                        |
+| `x-replaced-by` | a member                                          | the member that takes its place: a sibling's name, or a JSON Pointer from its parent     |
+
+OpenAPI's own `deprecated: true` is read alongside them. The markers are read, never diffed: adding
+or editing one is not itself a change.
+
+## What it reports
+
+Each finding is an `ac-decision-*` id, printed after the changes under `decisions:`.
+
+| id                                                 | when                                                                             |
+| :------------------------------------------------- | :------------------------------------------------------------------------------- |
+| `ac-decision-missing`                              | a breaking change with no `x-change` on the member, an ancestor or the operation |
+| `ac-decision-stale`                                | an `x-change` that matches no change                                             |
+| `ac-decision-unversioned`                          | a decided breaking change, and the major version did not move                    |
+| `ac-decision-overdue`                              | a member still present after its `x-sunset`                                      |
+| `ac-decision-replacement-missing`                  | an `x-replaced-by` that names no member of the new contract                      |
+| `ac-decision-misspelled`, `-misplaced`, `-invalid` | a marker such as `x-chnage`, one where it means nothing, or a bad value          |
+
+## Deciding the change
+
+The getting-started change adds a required `fields` parameter with no decision. Here it is with
+one:
+
+```yaml title="decided.yaml"
+openapi: 3.1.0
+info:
+  title: Pets
+  version: 1.1.0
+paths:
+  /pets/{id}:
+    get:
+      operationId: getPet
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: fields
+          in: query
+          required: true
+          x-change: "ADR-12: callers say which fields they want"
+          schema:
+            type: string
+      responses:
+        "200":
+          description: A pet
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [name]
+                properties:
+                  name:
+                    type: string
+```
+
+```text title="npx contractdiff diff old.yaml decided.yaml" exit="1"
+breaking: 1 breaking, 0 unknown, 1 non-breaking (--mode backward --side caller)
+
+getPet  #/paths/~1pets~1{id}/get
+  breaking      new-required-request-parameter  param:query:fields  - -> {"type":"string"}
+                fix: keep accepting at getPet param:query:fields what the old contract accepted, or release this as a major version
+  non-breaking  response-optional-property-removed  response:200:application/json /properties/tag  {"type":"string"} -> -
+
+decisions: 1 (--decisions warn)
+  warn          ac-decision-unversioned  getPet  param:query:fields  "1.0.0" -> "1.1.0"
+                fix: `x-change: ADR-12: callers say which fields they want` at getPet param:query:fields decides a breaking change, and the major version did not move: move the path to a new major segment (/v3/ to /v4/), raise the major of `info.version`, or pass `--changeset` to write a major bump
+```
+
+The decision is found, and the next question is the version: a decided breaking change has to move
+the major. Any of these counts: a new major path segment (`/v3/` to `/v4/`), the major of
+`info.version`, or `--changeset`, which writes a major bump. With `info.version: 2.0.0` the
+decision finding goes away:
+
+```yaml title="major.yaml"
+openapi: 3.1.0
+info:
+  title: Pets
+  version: 2.0.0
+paths:
+  /pets/{id}:
+    get:
+      operationId: getPet
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: fields
+          in: query
+          required: true
+          x-change: "ADR-12: callers say which fields they want"
+          schema:
+            type: string
+      responses:
+        "200":
+          description: A pet
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [name]
+                properties:
+                  name:
+                    type: string
+```
+
+```text title="npx contractdiff diff old.yaml major.yaml" exit="1"
+breaking: 1 breaking, 0 unknown, 1 non-breaking (--mode backward --side caller)
+
+getPet  #/paths/~1pets~1{id}/get
+  breaking      new-required-request-parameter  param:query:fields  - -> {"type":"string"}
+                fix: keep accepting at getPet param:query:fields what the old contract accepted, or release this as a major version
+  non-breaking  response-optional-property-removed  response:200:application/json /properties/tag  {"type":"string"} -> -
+```
+
+The run still exits 1. A decision explains a breaking change; it does not make it compatible. A
+pipeline that ships planned majors runs `diff` with a step that expects the 1, or reads the
+`--json` verdict and the `decisions` list separately.
+
+## Sunsets
+
+A member marked for removal carries its date and its replacement:
+
+```yaml title="sunset.yaml"
+openapi: 3.1.0
+info:
+  title: Pets
+  version: 1.0.0
+paths:
+  /pets/{id}:
+    get:
+      operationId: getPet
+      responses:
+        "200":
+          description: A pet
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tag:
+                    type: string
+                    deprecated: true
+                    x-sunset: "2026-12-31"
+                    x-replaced-by: label
+                  label:
+                    type: string
+```
+
+`--today` pins the date the sunset is judged against; without it, `diff` uses today's UTC date.
+
+```text title="npx contractdiff diff sunset.yaml sunset.yaml --today 2027-01-15"
+no changes between sunset.yaml and sunset.yaml
+
+decisions: 1 (--decisions warn)
+  warn          ac-decision-overdue  getPet  response:200:application/json /properties/tag  "2026-12-31" -> "2027-01-15"
+                fix: getPet response:200:application/json /properties/tag was to go after 2026-12-31 and is still here: remove it as decided, or move `x-sunset` to a date that still holds
+```
+
+## The level: `--decisions`
+
+| setting                       | effect                                                                              |
+| :---------------------------- | :---------------------------------------------------------------------------------- |
+| `warn` (the default in 1.0.0) | the findings print, and appear in SARIF at `warning`; the exit code does not change |
+| `error`                       | the findings fail the run, exit 1                                                   |
+| `off`                         | the markers are not read                                                            |
+
+The setting comes from, in order: the `--decisions` flag; `diff.decisions` in the
+`contractdiff.config.json` at the base ref, when the old side is a `git:<ref>:<path>` (which the
+1.0.0 bin does not read yet, as [Breaking changes](/docs/guides/diff#reading-a-contract-at-a-git-ref)
+says); the working tree's config; then `warn`. The base ref's config wins over the working tree's so that a pull request
+cannot switch off the check it is being judged by. Only the flag, which lives in the CI file, is
+above it.
+
+```json
+{ "diff": { "decisions": "error" } }
+```
+
+The 0.1.0 changelog said the default would become `error` in the next minor. It has not: in 1.0.0
+the default is still `warn`, and a change to it would now be a major.

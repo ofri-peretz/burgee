@@ -2,12 +2,6 @@
   "title": "Packages",
   "pages": [
     "index",
-    "burgee",
-    "contractdiff",
-    "hookset",
-    "provedone",
-    "replz",
-    "triggerlist",
-    "truepass"
+    "burgee"
   ]
 }

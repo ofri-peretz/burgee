@@ -1,0 +1,67 @@
+---
+title: protect
+description: "triggerlist protect <base> flags a branch that changes a gate file (a lock test, a hook, REVIEW.md, the checklist) together with other files, in observe mode by default and failing with --enforce, with the gate list read from the base branch."
+---
+
+```bash
+npx triggerlist protect <base> [--enforce] [--checklist <path>] [--repo <dir>] [--worktree] [--json]
+```
+
+A gate is a file that judges code: a lock test, a hook's config, `REVIEW.md`, the checklist. A
+change that edits a gate and the code it judges in one pull request can make the gate agree with
+the code instead of the other way round. `protect` flags exactly that.
+
+## What it does
+
+It lists the files changed in `<base>...HEAD`, splits them into those that match a glob in the
+checklist's `gates` and the rest, and flags the branch when both lists are non-empty. A change
+to gates alone, or to code alone, passes.
+
+```text
+main...HEAD changes 1 gate file(s) together with 2 other file(s) (observe mode: not failing):
+  gate: test/api.lock.test.ts
+fix: land the gate change in its own pull request first, so the code is judged by a gate it did not change
+```
+
+The fix is the point of the rule: change the gate first, in its own pull request, reviewed on its
+own. Then the code lands against a gate it did not touch.
+
+The `gates` list is read from `<base>`, like the items, so a pull request cannot take a file off
+the list in the same change that edits it. See [Reading from the base
+branch](/docs/guides/base-branch).
+
+## Observe, then enforce
+
+By default `protect` reports and exits 0, even when it flags. That is observe mode: run it for a
+while, read what it flags, and narrow the `gates` list until a flag is something you would stop.
+Then add `--enforce`, which exits 1 when flagged:
+
+```text
+main...HEAD changes 1 gate file(s) together with 2 other file(s):
+  gate: test/api.lock.test.ts
+fix: land the gate change in its own pull request first, so the code is judged by a gate it did not change
+```
+
+The JSON envelope carries `mode` (`observe` or `enforce`), `gates`, `code`, `flagged` and, when it
+fails, `exitCode` and `fix`.
+
+## Which files to list
+
+- Lock and contract tests: `"scripts/*-lock.test.ts"`, `"test/**/*.lock.test.ts"`.
+- Hook and CI config that runs the checks: `lefthook.yml`, `.husky/**`, the review workflow.
+- `REVIEW.md` and the checklist itself.
+- `CODEOWNERS`, if it decides who approves.
+
+Keep ordinary tests off the list. A feature and its tests belong together; a lock that holds an
+old incident closed does not.
+
+## Every file that is not a gate is code
+
+`protect` does not know which code a gate judges. Any other file changed alongside a gate counts,
+including a README. If that flags too often, split the work, or keep the gates list to the files
+whose change really needs its own review.
+
+## Before there is a checklist
+
+When `<base>` has no checklist yet, there is nothing to protect: `protect` says so and exits 0,
+so the pull request that adds the first checklist passes its own pre-push.

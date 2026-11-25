@@ -1,0 +1,67 @@
+---
+title: FAQ
+description: "Short answers about provedone: whether it replaces commitlint, whether the gate checks the digest, none with a reason, the escape, where stamps live, CI, merges and agents, each with where to read more."
+---
+
+## Does it replace commitlint?
+
+No. commitlint checks the message's shape; provedone checks its receipt. Run both in the
+`commit-msg` hook, and move only a `trailer-exists` rule for `Verified-by:` over.
+[Coming from commitlint](/docs/coming-from/commitlint).
+
+## Does the gate check that the command really passed?
+
+No. It checks that a `Verified-by:` line is there and well formed. It does not re-run the
+command, read the exit code or verify the digest. [What it does not check](/docs/guides/gate#what-it-does-not-check).
+
+## What do I write when there is nothing to check?
+
+`Verified-by: none (<reason>)`, or run `provedone stamp --none "<reason>"`. A bare
+`Verified-by: none` is blocked. [Stamp](/docs/guides/stamp#a-change-that-needs-no-check).
+
+## Why is `--not-checked` required?
+
+A receipt that lists only what passed reads as if everything was checked. Say what you left out,
+or `--not-checked nothing`. [Stamp](/docs/guides/stamp#the-gaps-are-required).
+
+## My trailers are not showing up in `git log`.
+
+Git reads trailers from the message's last paragraph only. Put them beside `Co-Authored-By:`
+with no blank line between. [The receipt](/docs/guides/receipt#where-they-go).
+
+## Why did a commit with no receipt pass in `enforce`?
+
+Either its subject starts with `Merge `, or it was the third attempt after two blocks in one
+session, which the gate lets through and logs as a bypass.
+[Modes and the escape](/docs/guides/modes-and-escape#the-escape).
+
+## Where are stamps and the gate log kept?
+
+In `provedone/` under the repository's common git directory, usually `.git/provedone/`, as
+`stamps.jsonl` and `gate.jsonl`. Never in the working tree.
+[Where provedone keeps what it saw](/docs/guides/receipt#where-provedone-keeps-what-it-saw).
+
+## Should I start in `enforce`?
+
+The default is `observe`, which passes and logs what `enforce` would block, so you can read the
+false-block rate first. [Observe first](/docs/guides/modes-and-escape#observe-first).
+
+## Can it gate a pull request?
+
+Yes: `provedone gate pr-body.md --mode enforce` reads a PR body as it reads a commit message.
+[The gate in CI](/docs/recipes/ci).
+
+## Does `done` see stamps from CI?
+
+No. Stamps are local to the clone that ran `stamp`, and `done` reads the current branch's.
+[Done](/docs/guides/done#what-counts).
+
+## Can an agent call it as a tool?
+
+Yes: `provedone --mcp` serves its commands as MCP tools, and `--json` works on every command.
+[Agents](/docs/recipes/agents).
+
+## Does it need a network?
+
+No. `stamp`, `gate`, `done` and `intent check` make no network calls. It needs Node 22.13 or later,
+and git.

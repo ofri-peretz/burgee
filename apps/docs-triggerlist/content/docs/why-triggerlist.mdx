@@ -1,0 +1,58 @@
+---
+title: Why triggerlist
+description: "What triggerlist does that a Dangerfile or a long review prompt does not: rules as data with a trigger each, only the fired ones shown to the reviewer, read from the base branch so a pull request cannot edit them, and a budget on the rulebook. And what it leaves out on purpose."
+---
+
+Most repositories keep their review rules in one of two places. Some are code, in a Dangerfile
+or a CI script that comments on the pull request. The rest are prose, in a contributing guide or
+an AI reviewer's prompt, read in full on every review. Both work until there are many rules.
+
+A long prompt has a limit, and past it rules drop without a word. A reviewer that reads fifty
+rules on every pull request learns to skim them. And either kind of rule, kept in the
+repository, can be changed by the pull request it is meant to review.
+
+## What it does differently
+
+- **Each rule says when it applies.** An item has a trigger: the paths it watches and, if it
+  needs one, a pattern on the changed lines. A reviewer is shown the items the diff fires, each
+  with the lines that fired it, and nothing else.
+- **Rules are data, not code.** An item is a question and the check that answers it. A person
+  can read it, a model can be prompted with it, and `compile` turns the whole list into
+  `REVIEW.md` without running anything from the repository.
+- **The rules come from the base branch.** `match`, `brief` and `protect` read the checklist and
+  `REVIEW.md` from the base ref, so a pull request is reviewed by rules it did not write. [Reading
+  from the base branch](/docs/guides/base-branch) shows it on a branch that deletes a rule.
+- **The rulebook has a budget.** `compile` refuses to write a `REVIEW.md` over its byte budget
+  and names the rules that fired least as the ones to drop, instead of letting a reviewer cut
+  them silently.
+- **Each rule keeps its reason.** `sources` is required, and `seed` drafts items from the lock
+  tests and decision files a repository already has.
+- **A change to a gate is its own change.** `protect` flags a branch that edits a lock test, a
+  hook or the rules together with the code they judge.
+- **Rounds remember each other.** `brief` carries the reviewer's previous findings and the
+  author's replies into the next round, so an answered finding is not posted again.
+
+## What it leaves out on purpose
+
+- **It does not review.** triggerlist selects and formats the rules. The reviewer is a person or
+  a model you already have; [the GitHub Actions recipe](/docs/recipes/github-actions) hands the
+  brief to Claude.
+- **It does not post on the pull request.** No comments, labels or statuses. A rule that must
+  post by itself is still a job for danger or a CI step; see [Coming from
+  danger](/docs/coming-from/danger).
+- **No code in a rule.** A trigger is globs and a regular expression, nothing that runs. A rule
+  that needs to compute something (a bundle size, a coverage delta) belongs in a check that CI
+  runs, named in the item's `check`.
+- **No syntax-aware triggers.** The intent asked for an AST pattern as an option; the shipped
+  trigger is a regular expression on changed lines.
+- **It does not measure the reviewer.** Whether the reviewer catches what the rules ask for is
+  [replz](https://replz.interlace.tools/docs)'s job, and its firing counts feed
+  `compile --firings`.
+- **One reviewer.** The design rejects stacking a second reviewer model and tunes the one
+  instead (`.sdlc/intents/triggerlist/spec.md`).
+
+## How well it selects
+
+The intent's success criterion is that `match` on the last 20 merged burgee pull requests selects
+at most 10 items per pull request, each judged relevant by a person. The intent's evidence
+table (`.sdlc/intents/triggerlist/intent.md`) has no row for it yet, so how well the selection works on a real history is _unmeasured_.

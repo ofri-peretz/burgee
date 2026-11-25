@@ -1,0 +1,116 @@
+---
+title: Getting started
+description: "Install hookset beside lefthook, declare the three station scripts a repository owns, run `hookset init` to write a lefthook.yml pinned to a release tag, and read what `hookset check` reports."
+---
+
+hookset does one thing: it makes the git hooks of every repository the same, and checks that
+they stay the same. The hooks themselves are lefthook presets that live in the burgee
+repository. A repository pulls them at a pinned `hookset@<version>` tag, and each preset step
+calls one of the repository's own scripts by a fixed name, so the wiring is shared and the work
+is local.
+
+## Install
+
+```bash
+npm install -D hookset lefthook
+```
+
+hookset needs Node 22.13 or later and git. lefthook runs the hooks; hookset writes and checks
+its configuration.
+
+## Declare the stations
+
+A preset step runs `npm run hook:<name>`. Three of those names are enforced, so the repository
+declares them in `package.json`, and `prepare` installs the hooks after every `npm install`:
+
+```json title="package.json"
+{
+  "name": "my-app",
+  "private": true,
+  "scripts": {
+    "prepare": "lefthook install || true",
+    "hook:provedone": "provedone gate --mode enforce",
+    "hook:staged": "prettier --check",
+    "hook:verify": "npm run typecheck && npm test && npm run build"
+  }
+}
+```
+
+What each script runs is the repository's choice. `hook:staged` gets the staged paths as
+arguments; `hook:verify` runs before a push. [Presets](/docs/guides/presets) lists every
+station and what calls it.
+
+## Check before anything is wired
+
+`hookset check` is the gate. In a repository with no `lefthook.yml` it says so, with the fix:
+
+```text title="npx hookset check" exit="1"
+hookset: 1 error, 4 warnings
+✗ there is no lefthook.yml
+  fix: run `hookset init`
+! the mutation station is not declared yet (optional)
+  fix: add "hook:mutation" to package.json scripts when the repo has it: changed-lines mutation testing
+! the test-integrity station is not declared yet (observe)
+  fix: add "hook:test-integrity" to package.json scripts when the repo has it: no .only, .skip or weakened assertion in the diff
+! the proofline station is not declared yet (observe)
+  fix: add "hook:proofline" to package.json scripts when the repo has it: the change carries its Checked line
+! the triggerlist station is not declared yet (observe)
+  fix: add "hook:triggerlist" to package.json scripts when the repo has it: protected paths changed only with their trigger
+```
+
+## Write the config
+
+```text title="npx hookset init"
+wrote lefthook.yml
+```
+
+The file it wrote pulls the three presets from the burgee repository at the tag of the hookset
+you installed, and nothing else (shown here without its comments):
+
+```yaml
+remotes:
+  - git_url: https://github.com/ofri-peretz/burgee
+    ref: hookset@1.0.0
+    configs:
+      - packages/hookset/presets/lefthook/commit-msg.yml
+      - packages/hookset/presets/lefthook/pre-commit.yml
+      - packages/hookset/presets/lefthook/pre-push.yml
+```
+
+Run it again and nothing changes:
+
+```text title="npx hookset init"
+already up to date
+```
+
+## Check again
+
+```text title="npx hookset check"
+hookset: ok (hookset@1.0.0)
+! the mutation station is not declared yet (optional)
+  fix: add "hook:mutation" to package.json scripts when the repo has it: changed-lines mutation testing
+! the test-integrity station is not declared yet (observe)
+  fix: add "hook:test-integrity" to package.json scripts when the repo has it: no .only, .skip or weakened assertion in the diff
+! the proofline station is not declared yet (observe)
+  fix: add "hook:proofline" to package.json scripts when the repo has it: the change carries its Checked line
+! the triggerlist station is not declared yet (observe)
+  fix: add "hook:triggerlist" to package.json scripts when the repo has it: protected paths changed only with their trigger
+```
+
+The repository passes: every enforced station has its script, and the presets are pinned to a
+tag. The lines that start with `!` are warnings. Those four stations are wired with
+`npm run --if-present`, so a repository that has not declared them passes, and `check` lists
+them so you know they exist. `✗` lines are errors, and any error makes `check` exit 1.
+
+Every output block on this site is checked: `tests/examples.test.ts` writes each titled file,
+runs the command in the block's title in order, and compares.
+
+## Where next
+
+- [Presets](/docs/guides/presets): what each hook runs, station by station.
+- [The two commands](/docs/guides/commands): every flag, every problem `check` reports, and
+  `--json`.
+- [Claude Code hooks](/docs/guides/claude-code-hooks): `hookset init --claude` and what the
+  pack denies.
+- [Coming from husky](/docs/coming-from/husky): move `.husky/` scripts into the station scripts.
+- [Run it in CI](/docs/recipes/ci): the reusable workflow.

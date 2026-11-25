@@ -1,0 +1,100 @@
+---
+title: The checklist file
+description: "Every field of .sdlc/checklist.yaml: the gates list, an item's id, its trigger of path globs and an optional line pattern, the question, the check and the sources, and how a malformed file is refused."
+---
+
+The checklist is one YAML file, `.sdlc/checklist.yaml` by default (`--checklist <path>` on any
+command names another). It holds two lists and nothing else: an unknown key at the top or in an
+item is an error, not ignored.
+
+```yaml
+gates:
+  - REVIEW.md
+  - .sdlc/checklist.yaml
+  - "scripts/*-lock.test.ts"
+
+items:
+  - id: subprocess-through-helper
+    trigger:
+      paths: ["packages/*/src/**/*.ts"]
+      pattern: "node:child_process"
+    question: Does new code spawn a process directly instead of through the helper?
+    check: a direct child_process import is a finding
+    sources: ["https://github.com/acme/app/pull/212"]
+```
+
+## `gates`
+
+Globs naming the files that judge code: lock tests, hook config, `REVIEW.md`, the checklist
+itself. Only [`protect`](/docs/guides/protect) reads them. The list may be empty.
+
+## An item
+
+| Field | Required | What it is |
+| :-- | :-- | :-- |
+| `id` | yes | Lowercase letters, digits and `-`, starting with a letter or digit. Unique in the file. |
+| `trigger.paths` | yes, at least one | Globs matched against the repo-relative path of each changed file. |
+| `trigger.pattern` | no | A regular expression tested against each added or removed line of a matching file. |
+| `question` | yes | What the reviewer answers when the item fires. |
+| `check` | yes | What answers it: a command to run, a file to read, a thing to compare. |
+| `sources` | yes, at least one | Why the item exists: a pull request, an incident, a decision file or a lock test. The first one is the link `REVIEW.md` gives. |
+
+## How a trigger fires
+
+- **Paths.** Each glob is matched with Node's `path.matchesGlob` against the path git prints,
+  relative to the repository root. `src/**/*.ts` matches `src/a.ts` and `src/x/y/b.ts`;
+  `*.ts` matches only files at the root. Quote a glob that starts with `*` or contains `{`, since
+  YAML reads those characters itself.
+- **No pattern.** Any change to a matching file fires the item once for that file, at its first
+  added line, else its first removed line, else the file itself (a binary or mode-only change).
+- **A pattern.** The item fires at every added or removed line the pattern finds, and nowhere
+  else in the file. A removed line counts: deleting a `child_process` import is still a change a
+  reviewer may want to see. The pattern is compiled with the `u` flag, so escape a backslash
+  once more inside a double-quoted YAML string: `"console\\.log"`.
+- **Deleted files** keep their old path, so a trigger on that path fires when the file goes away.
+  Renames are read as a deletion and an addition (`git diff --no-renames`).
+
+Items fire in checklist order. Order the file the way you want a reviewer to read it.
+
+## Malformed files are refused
+
+A checklist that does not parse, or does not fit the schema, stops every command with the
+pointer to the problem. It never matches as an empty list. Here an item's pattern is not a
+regular expression:
+
+```yaml title="broken.yaml"
+gates: []
+items:
+  - id: bad-pattern
+    trigger: { paths: ["src/**"], pattern: "(unclosed" }
+    question: Is this ever asked?
+    check: no
+    sources: ["#1"]
+```
+
+```text title="npx triggerlist compile --checklist broken.yaml --out BROKEN.md" exit="1"
+error: broken.yaml: `bad-pattern` has a pattern that is not a regex: Invalid regular expression: /(unclosed/u: Unterminated group. fix: correct trigger.pattern
+usage: triggerlist compile [options]
+options:
+  --repo <dir>        the repository to read (default: the current directory)
+  --checklist <path>  the checklist file (default: .sdlc/checklist.yaml)
+  --out <path>        the file to write (default: REVIEW.md)
+  --budget <bytes>    the most bytes it may be (default: 150000)
+  --firings <path>    a JSON file of firing counts per item id, to choose which rules to drop
+  --check             write nothing; exit 1 when the file is stale
+{"error":{"kind":"runtime","code":1,"message":"broken.yaml: `bad-pattern` has a pattern that is not a regex: Invalid regular expression: /(unclosed/u: Unterminated group. fix: correct trigger.pattern"}}
+```
+
+A duplicated `id`, a missing `sources`, an extra key such as `severity:` and a YAML syntax error
+are refused the same way, each with a `fix:`.
+
+## Writing good items
+
+- **Narrow the trigger until it fires rarely.** An item that fires on every pull request is read
+  as noise. `paths: ["**"]` is where [`seed`](/docs/guides/seed) starts a draft, never where an
+  item should stay.
+- **Ask a question with a yes or no answer**, and make `check` the way to get it. A check a
+  reviewer can run is better than one they have to judge.
+- **Keep the incident in `sources`.** A rule nobody remembers the reason for gets deleted.
+- **Prefer a pattern to a wider path.** `pattern: "child_process"` on `src/**/*.ts` asks about
+  the one line that matters; `paths: ["src/**"]` alone asks about every change under `src/`.

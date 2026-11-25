@@ -1,0 +1,96 @@
+---
+title: Reading from the base branch
+description: "Why match, brief and protect read the checklist and REVIEW.md from the base ref and not the working tree: a pull request that edits its own rules is still reviewed by the rules it did not write. What --worktree is for, and what happens before a repository has a checklist."
+---
+
+Every command that takes a `<base>` reads the rules from that ref with `git show <base>:<path>`:
+`match`, `brief` and `protect` read the checklist, and `brief` reads `REVIEW.md` too. The files on
+disk, which are the pull request's copies, are not read.
+
+## Why
+
+A review rule that lives in the repository can be changed by the pull request it reviews. If CI
+read the branch's copy, a change could delete the item that would have caught it, narrow its
+trigger, or take a file off the gates list, and the review would pass by the rules the change
+wrote.
+
+Read from the base, the rules a pull request is held to are the ones that were already merged.
+A change to the checklist still happens through a pull request, and that pull request is
+reviewed by the checklist before it.
+
+Here a branch deletes the `no-console-in-lib` item in the same change that adds a
+`console.log`:
+
+```bash
+npx triggerlist match main
+```
+
+```text
+3 checklist item(s) fire for main...HEAD:
+
+spawn-through-helper: Does new code spawn a process directly instead of through src/run.ts?
+  check: a child_process import outside src/run.ts is a finding
+  at: src/build.ts:1
+
+migration-has-down: Does every new migration have a matching down migration?
+  check: ls migrations/ and compare the up and down files
+  at: migrations/0003_users.up.sql:1
+
+no-console-in-lib: Does library code print to the console instead of returning or logging through the logger?
+  check: npx eslint src
+  at: src/build.ts:4
+```
+
+The deleted item still fires, because `main` still has it. And [`protect`](/docs/guides/protect)
+flags the branch, since it changes a gate file and code together:
+
+```text
+main...HEAD changes 1 gate file(s) together with 2 other file(s) (observe mode: not failing):
+  gate: .sdlc/checklist.yaml
+fix: land the gate change in its own pull request first, so the code is judged by a gate it did not change
+```
+
+## `--worktree`, for editing the checklist
+
+While you write a new item you want to see what it fires before it is merged. `--worktree`
+reads the checklist from the working tree instead:
+
+```bash
+npx triggerlist match main --worktree
+```
+
+```text
+2 checklist item(s) fire for main...HEAD:
+
+spawn-through-helper: Does new code spawn a process directly instead of through src/run.ts?
+  check: a child_process import outside src/run.ts is a finding
+  at: src/build.ts:1
+
+migration-has-down: Does every new migration have a matching down migration?
+  check: ls migrations/ and compare the up and down files
+  at: migrations/0003_users.up.sql:1
+```
+
+Never pass it in CI: it gives back exactly the hole the base-branch read closes.
+
+## Paths are the repository's
+
+`git show <base>:<path>` reads a path relative to the repository root, whatever directory the
+command runs in, and git prints the diff's paths from the root too. So the `--checklist` path and
+every glob in it are root-relative. `--worktree` reads the file relative to `--repo` instead; run
+from the root and the two agree.
+
+## Before there is a checklist
+
+The pull request that adds a repository's first checklist has none on its base. `brief` then
+briefs the reviewer with no items and says the rules do not exist yet, and `protect` prints
+`main:.sdlc/checklist.yaml does not exist yet: no gate to protect, so nothing is checked` and
+exits 0, so that pull request does not fail its own review. `match` has nothing to select from
+and exits 1 because git cannot show the file on the base; use `--worktree` on that one branch.
+
+## The reviewer's copy on disk
+
+A reviewer that runs in the checkout, such as an agent with file access, could open the branch's
+`REVIEW.md` and read the edited rules anyway. The [GitHub Actions
+recipe](/docs/recipes/github-actions) restores the base's copies of `REVIEW.md` and the checklist
+into the checkout before the reviewer starts, and removes a rules file the base does not have.

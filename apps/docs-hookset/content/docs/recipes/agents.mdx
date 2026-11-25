@@ -1,0 +1,55 @@
+---
+title: Repositories where agents work
+description: "Give a repository that Claude Code works in the git hooks and the hook pack in one command, list its deploys under ask and its generated files under generated, and replace the CLAUDE.md sentences the hooks now enforce."
+---
+
+An agent reads CLAUDE.md once per session and acts on it when it remembers. A hook runs on every
+tool call. hookset moves the rules an agent can break with one command out of prose and into
+hooks.
+
+## One command
+
+```bash
+npx hookset init --claude
+```
+
+That writes the `lefthook.yml` and vendors the [Claude Code hook pack](/docs/guides/claude-code-hooks):
+guard-bash on every Bash, Edit and Write call, and stop-after-3 after every Bash call.
+
+## Fill in .claude/hookset.json
+
+```json
+{
+  "ask": ["npm run deploy", "vercel --prod"],
+  "frozen": [".sdlc/decisions/**"],
+  "generated": { "content/docs/api/**": "npx tsx scripts/api-reference.ts" }
+}
+```
+
+- **`ask`**: the commands a person approves. Publishes are always asked; this list adds the
+  repository's own deploys and syncs.
+- **`frozen`** and **`generated`**: [Generated and frozen files](/docs/guides/generated-files).
+
+## Delete what the hooks now say
+
+Each of these was a sentence in a CLAUDE.md that guard-bash or stop-after-3 now enforces, with
+the fix in its denial:
+
+| The sentence | The hook |
+| :-- | :-- |
+| "Never use `--no-verify`." | guard-bash `no-verify` |
+| "Do not poll CI in a loop; use `gh pr checks --watch`." | guard-bash `ci-poll-loop` |
+| "A commit takes minutes, it is not a hang." | guard-bash `hooked-timeout` |
+| "Ask before publishing." | guard-bash `publish`, `repo-ask` |
+| "Regenerate X, do not hand-edit it." | guard-bash `generated` |
+| "After three failed attempts, stop and ask." | stop-after-3 |
+
+A denial is better documentation than the sentence: it arrives at the moment the rule applies,
+and it names the command to run instead.
+
+## Keep the pack current
+
+`hookset check` fails when a vendored file differs from the package's copy (`claude-drift`) or
+is no longer wired (`claude-unwired`). After upgrading hookset, `npx hookset init --claude`
+rewrites the vendored files and leaves `.claude/hookset.json` and the rest of
+`.claude/settings.json` as they were.

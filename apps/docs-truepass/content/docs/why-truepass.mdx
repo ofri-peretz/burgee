@@ -1,0 +1,74 @@
+---
+title: Why truepass
+description: "What truepass checks that a test-style lint plugin does not: a reason on every skip, fixed sleeps, retries, and, from the diff, assertions moved to a weaker matcher and snapshots rewritten with no reason; and what it leaves out on purpose. Compared with @vitest/eslint-plugin."
+---
+
+A test suite can be made to pass in two ways: fix the code, or make the suite check less. The
+second is quicker, it passes CI, and from the outside it looks the same. The cheap forms are well
+known: a `.only`, a skip, a retry, a longer sleep, a looser matcher, `-u` on the snapshots. Each
+one removes a claim the suite used to make.
+
+truepass reports those, and only those. Its intent puts the reason in four words, "agents make red
+suites green" ([the intent](https://github.com/ofri-peretz/burgee/tree/main/.sdlc/intents/truepass)):
+an agent asked for a passing suite reaches for the same shortcuts a hurried person does.
+Each finding names its fix in the message, so the agent that made the shortcut can undo it without
+opening the docs.
+
+## What it does that a test-style plugin does not
+
+`@vitest/eslint-plugin` is a broad plugin about how tests are written: titles, hooks, expect
+calls, matcher style. truepass is narrow, and covers two of its rules (`no-focused-tests` and
+`no-disabled-tests`) under its own names. Beyond those two:
+
+- **A skip can carry its reason.** `no-unexplained-skip` accepts a skip with an issue link, a
+  decision id or an unexpired date in a comment, and reports one whose date has passed. A rule
+  that reports every skip pushes a team to turn it off; one that asks for a reason can stay on.
+  [Skipped tests](/docs/guides/skips).
+- **Fixed sleeps and retries.** `no-fixed-sleep` and `no-test-retry` report the two usual ways a
+  flaky test is made to look stable, in test files and in runner configs.
+  [Sleeps and retries](/docs/guides/sleeps-and-retries).
+- **What a change did.** `truepass diff` reads the changed lines and commit messages since a base,
+  and reports an assertion moved to a weaker matcher on the same subject and a snapshot changed
+  with no `Snapshot:` line saying why. A lint rule reads one version of a file and cannot see
+  either. [truepass diff](/docs/guides/truepass-diff).
+- **A call is a test only when it is one.** Every rule checks that the call's root is a test-runner
+  name that is an unbound global or imported from a test-runner module, so a program's own `only()`
+  or an `it` from your own module is never reported.
+- **One finding shape for people and agents.** Every message is "what is wrong: why it matters.
+  fix: what to do". `truepass diff --json` prints the same findings as burgee's `--json` envelope,
+  and `truepass --mcp` serves `diff` as a read-only tool. [For agents](/docs/recipes/agents).
+
+## What it leaves out on purpose
+
+- **Test style.** Titles, hook order, `expect` validity, matcher preferences such as
+  `prefer-to-be`: none of these makes a suite check less, so truepass has no rule for them. Keep
+  `@vitest/eslint-plugin` for them; the two run side by side.
+- **Coverage drops.** A coverage tool already gates those
+  ([the spec's out of scope](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/intents/truepass/spec.md#out-of-scope)).
+- **Mutation score.** That is [oxmutate](https://oxmutate.interlace.tools/docs)'s job.
+- **Whole files in the diff check.** `truepass diff` reads only the changed lines and the commit
+  messages. Reading whole files would be slower and would hand a model more to read than the check
+  needs.
+- **A severity per matcher.** `MATCHER_RANK` is one ordering. A weakening is either explained in
+  the commit message or reported.
+- **Matchers outside the table.** Six matchers are ranked: `toBe`, `toStrictEqual`, `toEqual`,
+  `toMatchObject`, `toBeTruthy` and `toBeDefined`. Others are not read until a missed weakening
+  shows one is needed.
+
+## The evidence
+
+truepass's 1.0 was cut on [D-20261124-verification-family-1-0](https://github.com/ofri-peretz/burgee/blob/main/.sdlc/decisions/D-20261124-verification-family-1-0.md),
+which records its measurements on 2026-11-24:
+
+| Measure                          | Result                                    |
+| :------------------------------- | :---------------------------------------- |
+| tests                            | 201                                       |
+| statements / branches / lines    | 388 / 388, 265 / 265, 282 / 282           |
+| mutation (oxmutate, full run)    | 907 killed, 1 timeout, 0 survived: 100%   |
+
+No suite is graded against truepass, so there is no compatibility figure: it does not claim to be
+a drop-in for any plugin. How fast it lints against `@vitest/eslint-plugin` is _unmeasured_.
+
+burgee runs it on itself: the four rules at `error` over its own tests, its earlier findings in an
+ESLint suppressions file, and `truepass diff` on every push
+([The suppressions file](/docs/guides/suppressions#how-burgee-runs-it)).

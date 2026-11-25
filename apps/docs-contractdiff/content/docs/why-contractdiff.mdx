@@ -1,0 +1,80 @@
+---
+title: Why contractdiff
+description: "What contractdiff does that oasdiff, Optic and openapi-typescript do not: one model for HTTP, events and agent tools, a stated compatibility question, decisions read from the contract, code generation that knows its own files, and what it leaves out on purpose."
+---
+
+A team with an API contract usually runs three tools on it: one generates types from it
+(openapi-typescript), one checks changes for breakage (oasdiff, or Optic before it was archived),
+and one lints it. Each reads the contract its own way, and none of them reads AsyncAPI, an MCP tool
+list or a JSON Schema the same way it reads OpenAPI. contractdiff is one package that does all
+three on one model of the contract, and adds the parts none of them has.
+
+## What it adds
+
+- **One model for every contract.** OpenAPI 3.x, Swagger 2.0, AsyncAPI 2.x and 3.x, JSON Schema,
+  MCP tool lists and protobuf are all read into operations with payloads that travel in a direction.
+  `diff`, `lint`, `explain`, `props` and the generators work on that model, so a breaking change
+  to a Kafka message or an agent tool is caught by the same engine as one to a REST endpoint. See
+  [Input formats](/docs/guides/inputs).
+- **The compatibility question is yours.** oasdiff answers for a client that followed the old
+  contract. `diff` asks for the side you name (`caller` or `server`) under the mode you name
+  (`backward`, `forward` or `full`), and prints the question on its first line. See
+  [Breaking changes](/docs/guides/diff).
+- **Usage and history.** `--usage` lets a breaking change nobody uses pass; `--transitive` checks a
+  release against every past one and names the oldest it breaks.
+- **The decision is in the contract.** `x-change`, `x-sunset` and `x-replaced-by` sit beside the
+  member they are about, and `diff` holds every change to them, including a member kept past its
+  sunset. See [Decisions](/docs/guides/decisions).
+- **Code generation that knows its own files.** `contractdiff.map.json` records every file `gen`
+  wrote, so a hand edit is refused instead of overwritten, a removed operation's files are deleted,
+  and a file you own is written once. `gen --check` fails CI when generated code is stale.
+- **Validators without eval.** The `validator` target compiles each payload's schema ahead of time
+  with truefit's emitter, so the guards run under a Content-Security-Policy that forbids
+  `new Function`. See [The validator target](/docs/guides/validators).
+- **The contract tested, not just checked.** `props` draws values from every payload and checks
+  that the validator, JSON round-trip, normalisation and `diff`'s own verdicts agree. See
+  [Property tests](/docs/recipes/property-tests).
+- **Every finding names its fix,** as the same record in text, `--json` and SARIF, and the CLI has
+  `--schema` and an `--mcp` server, so an agent drives it without parsing prose. See
+  [Agents](/docs/recipes/agents).
+- **Dependencies.** Four, all in the burgee family (`bellpull`, `burgee`, `seniority`, `truefit`),
+  and the generators need no TypeScript compiler.
+
+## Where the incumbents are ahead
+
+- **oasdiff** has years of OpenAPI rules behind it, a composed mode across many spec files,
+  changelog renderings (Markdown, HTML, JUnit), API stability levels and a hosted service.
+  contractdiff uses oasdiff's rule ids for the HTTP changes it names, but whether it finds every
+  change oasdiff finds is _unmeasured_ here.
+- **Optic** captured live traffic into a spec. contractdiff has no traffic recorder.
+- **openapi-typescript** is the reference for its own output. contractdiff's `types` target and
+  `contractdiff/openapi-typescript` entry follow it, but the compat-oracle host for it is
+  `planned`, not graded, so no compatibility is claimed. See
+  [Coming from openapi-typescript](/docs/coming-from/openapi-typescript#is-it-compatible).
+
+## What it leaves out on purpose
+
+- **The network.** contractdiff reads local files. It does not fetch a spec from a URL, and the
+  `openapiTS` entry refuses a remote address with a `fix:` line.
+- **A TypeScript compiler.** Types are written as text, which is why `transform`, `postTransform`
+  and `transformProperty`, which hand compiler nodes across, are not supported.
+- **A hosted service.** No dashboard, no account, no approval gate: exit codes, `--json` and SARIF,
+  in your own CI.
+- **Guessing.** Where the generator had to invent something (a mock body with no example, a
+  contract-test request), it says so as a finding.
+
+## What is not built yet
+
+- **`diff git:<ref>:<path>`.** The argument form is declared, and the 1.0.0 bin refuses it because
+  it does not spawn git yet; write the base out with `git show` first.
+- **`check`**, call sites in code checked against the contract statically, is declared and exits
+  with a `fix:` naming the phase that delivers it.
+- **The NestJS, Hono and tRPC extractors** for `extract` are not built; `standard-schema`,
+  `openapi-from-schemas` and `ts-rest` are.
+
+## What is not in this page
+
+- **Speed.** No benchmark of contractdiff against oasdiff or openapi-typescript is recorded in this
+  repository, so there is no speed claim. The family's
+  [benchmarks page](https://burgee.interlace.tools/docs/benchmarks) is where one would appear.
+- **Adoption.** This page names no download or star counts, for either side.

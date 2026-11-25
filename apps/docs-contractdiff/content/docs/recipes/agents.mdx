@@ -1,0 +1,87 @@
+---
+title: Agents
+description: "How a coding agent uses contractdiff: explain one operation resolved and size-capped instead of reading the whole spec, lint a contract or an MCP tool list for agent-readiness, and drive every command through --json, --schema and the --mcp server."
+---
+
+A coding agent that calls an API from memory gets parameter names and required fields wrong. A
+contract has the answer, but a whole OpenAPI document rarely fits in a context window, and its
+`$ref`s point everywhere. contractdiff gives an agent the piece it needs, and tells it how good the
+contract is for its purposes.
+
+## One operation, resolved: `explain`
+
+`contractdiff explain <operation> --json` prints one operation, message or tool with every `$ref`
+resolved, as one JSON value:
+
+```text title="npx contractdiff explain getPet --input old.yaml --json"
+{"ok":true,"data":{"id":"getPet","format":"openapi","source":"#/paths/~1pets~1{id}/get","method":"GET","path":"/pets/{id}","payloads":[{"name":"param:path:id","direction":"request","required":true,"schema":{"type":"string"}},{"name":"response:200:application/json","direction":"response","required":true,"schema":{"type":"object","required":["name"],"properties":{"name":{"type":"string"},"tag":{"type":"string"}}}}]},"meta":{"provenance":{"input":{"source":"flag","location":"--input"}}}}
+```
+
+- **`--list`** prints the ids, one per line, so an agent can find the one it needs first.
+- **`--max-bytes <n>`** cuts the deepest schemas first until the JSON fits, and lists the cuts
+  under `truncated`. When even an emptied operation does not fit, the error says the smallest
+  budget that would, as a `fix:`:
+
+```text title="npx contractdiff explain getPet --input old.yaml --max-bytes 150" exit="2"
+error: "getPet" does not fit in 150 bytes even with every schema emptied (364 bytes)
+fix: pass --max-bytes 364 or more
+{"error":{"kind":"usage","code":2,"message":"\"getPet\" does not fit in 150 bytes even with every schema emptied (364 bytes)"}}
+```
+
+Without `--json`, `explain` prints the same thing as Markdown, a heading per payload with its schema
+in a fenced block, ready to paste into a prompt. The `markdown` generator writes that page for every
+operation, plus an `llms.txt`; see [Code generation](/docs/guides/gen).
+
+## Is this contract usable as tools?
+
+The `agent-ready` ruleset checks what an agent needs to pick and call an operation: an id and a
+description on each, descriptions on parameters and properties, descriptions long enough and
+distinct enough to choose between, and examples that match. It reads MCP tool lists too:
+
+```json title="tools.json"
+{
+  "tools": [
+    {
+      "name": "search_pets",
+      "description": "Find pets by name",
+      "inputSchema": {
+        "type": "object",
+        "required": ["query"],
+        "properties": {
+          "query": { "type": "string" },
+          "limit": { "type": "integer" }
+        }
+      }
+    }
+  ]
+}
+```
+
+```text title="npx contractdiff lint tools.json --ruleset agent-ready"
+tools.json
+  warn   property-description  #/tools/0 arguments/properties/limit  limit: `description` is missing
+         fix: add a `description` saying what the property holds, with its unit if it has one
+  warn   property-description  #/tools/0 arguments/properties/query  query: `description` is missing
+         fix: add a `description` saying what the property holds, with its unit if it has one
+
+0 error(s), 2 warning(s). Checked 7 rule(s) on 1 input(s), 8 node(s); not carried: none.
+agent-ready: 75% (6 of 8 checks passed)
+```
+
+A committed `tools.json` snapshot also makes a tool's schema change a reviewable `diff`; see
+[Input formats](/docs/guides/inputs#mcp-tool-lists).
+
+## Driving contractdiff from an agent
+
+contractdiff is declared once on burgee, so every command has the same machine surface:
+
+- **`--json`** prints one envelope on stdout: `{ "ok": true, "data": … }`, or `"ok": false` with
+  the error's `kind`, exit `code` and a message that ends in a `fix:`.
+- **`--schema`** prints every command, option, default and exit code as JSON, in one call.
+- **`contractdiff --mcp`** serves the commands as MCP tools.
+- **Exit codes are the contract**: `0` ok, `1` a finding, `2` a usage error, `3` a config that did
+  not load. An agent branches on them without parsing text.
+- **Every finding names its fix**, the same record in text, `--json` and SARIF.
+
+The package's `AGENTS.md` is the guide for an agent writing a plugin; [Write a plugin](/docs/recipes/plugin)
+covers the same ground.

@@ -1,0 +1,137 @@
+---
+title: The ESLint config
+description: "Turn truepass's four rules on in an ESLint flat config: the recommended and adoption presets, the plugin on its own, which files to scope them to, and how a rule decides that a call is a test."
+---
+
+`truepass/eslint` is a plain ESLint plugin. It needs ESLint 9 or later and a flat config
+(`eslint.config.js` or `.mjs`); it has no legacy `.eslintrc` preset. It exports three things:
+
+| Export    | What it is                                                                     |
+| :-------- | :----------------------------------------------------------------------------- |
+| `configs` | `recommended` (every rule at `error`) and `adoption` (every rule at `warn`)    |
+| `plugin`  | the plugin object, for `plugins: { truepass: plugin }`                         |
+| `rules`   | the four rule modules by name, for a config that wants to set each one itself |
+
+Both presets are built from `rules`, so a rule added in a later release is in both presets
+without a config change.
+
+## The recommended preset
+
+A preset is one config object: `plugins` and `rules`. Spread it into an object that says which
+files it applies to:
+
+```js
+import { configs } from 'truepass/eslint';
+
+export default [
+  {
+    files: ['**/*.test.{js,ts,tsx}', '**/*.spec.{js,ts,tsx}', '**/vitest.config.ts', '**/playwright.config.ts'],
+    ...configs.recommended,
+  },
+];
+```
+
+Put `files` before the spread or after it; the preset has no `files` of its own.
+
+## The adoption preset
+
+`configs.adoption` sets the same four rules to `warn`. ESLint exits 0 on warnings, so the rules
+report without failing the run:
+
+```js title="eslint.config.mjs"
+import { configs } from 'truepass/eslint';
+
+export default [{ files: ['**/*.test.js'], ...configs.adoption }];
+```
+
+```js title="legacy.test.js"
+import { it } from 'vitest';
+
+it.skip('parses the old format', () => {});
+```
+
+```text title="npx eslint legacy.test.js"
+
+/your/project/legacy.test.js
+  3:1  warning  Unexplained skipped test: A test is skipped with no reason on record, so the suite reports green without running it and nobody is told to come back. fix: make the test pass and remove the skip. If it must stay skipped, add a comment on this line or the line above with the issue URL, the decision id (D-…), or the YYYY-MM-DD date it is skipped until  truepass/no-unexplained-skip
+
+✖ 1 problem (0 errors, 1 warning)
+
+```
+
+`--max-warnings` turns the count into a gate. With `--max-warnings 0`, any warning fails the run:
+
+```text title="npx eslint --max-warnings 0 legacy.test.js" exit="1"
+
+/your/project/legacy.test.js
+  3:1  warning  Unexplained skipped test: A test is skipped with no reason on record, so the suite reports green without running it and nobody is told to come back. fix: make the test pass and remove the skip. If it must stay skipped, add a comment on this line or the line above with the issue URL, the decision id (D-…), or the YYYY-MM-DD date it is skipped until  truepass/no-unexplained-skip
+
+✖ 1 problem (0 errors, 1 warning)
+
+ESLint found too many warnings (maximum: 0).
+```
+
+Set `--max-warnings` to today's count and lower it as findings are fixed, and the count can only
+go down. [The adoption ratchet](/docs/recipes/adoption-ratchet) walks through it, and [The
+suppressions file](/docs/guides/suppressions) is the per-file version of the same idea.
+
+## The plugin on its own
+
+To set each rule yourself, register the plugin under the `truepass` key:
+
+```js
+import { plugin } from 'truepass/eslint';
+
+export default [
+  {
+    files: ['**/*.test.ts'],
+    plugins: { truepass: plugin },
+    rules: {
+      'truepass/no-focused-test': 'error',
+      'truepass/no-unexplained-skip': 'error',
+      'truepass/no-fixed-sleep': 'warn',
+      'truepass/no-test-retry': 'error',
+    },
+  },
+];
+```
+
+No rule takes options. Each rule's `meta.docs.url` links to the package README.
+
+## Which files to scope it to
+
+Each rule reads its own set of files, whatever `files` you give it:
+
+| Rule                  | Reads                                                                                                                                                                                                |
+| :-------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `no-focused-test`     | every file it is given, but only calls that are test-runner APIs                                                                                                                                     |
+| `no-unexplained-skip` | every file it is given, but only calls that are test-runner APIs                                                                                                                                     |
+| `no-fixed-sleep`      | test files only, by name: `*.test.*`, `*.spec.*`, `*.e2e.*`, `*.bench.*`, or a file under `__tests__/`, `test/`, `tests/`, `e2e/`, `spec/` or `specs/`                                              |
+| `no-test-retry`       | runner configs by name (`vitest.config.*`, `vite.config.*`, `jest.config.*`, `playwright.config.*`, `vitest.workspace.*`), and `retry` options passed to a test-runner call or a config factory elsewhere |
+
+So the `files` glob decides what ESLint hands the rules, and the rules then decide what in those
+files they read. Including your runner config in `files` is what lets `no-test-retry` see a
+`retry` set there.
+
+## What counts as a test
+
+A call is a test-runner call only when its root name is one of `it`, `test`, `describe`, `suite`,
+`context`, `bench` or their `x`/`f` forms (`xit`, `fit`, `fdescribe` and the rest), **and** that
+name is either an unbound global (Vitest with `globals: true`, Jest, Mocha) or imported from a
+test-runner module: `vitest`, `@jest/globals`, `@playwright/test`, `node:test`, `bun:test` or
+`mocha`.
+
+So a program's own function named `only`, or an `it` imported from your own module, is never
+reported:
+
+```js title="iterators.test.js"
+import { it } from './my-iterators.js';
+
+it.only([1, 2, 3]);
+```
+
+```text title="npx eslint iterators.test.js"
+```
+
+The imported name is what counts, so `import { test as it } from 'vitest'` is read as a test, and
+Playwright's default export (`import test from '@playwright/test'`) is too.

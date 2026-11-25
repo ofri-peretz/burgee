@@ -1,0 +1,141 @@
+---
+title: Claude Code hooks
+description: "`hookset init --claude` vendors two Claude Code hooks into .claude/hooks/ and wires them in .claude/settings.json: guard-bash denies skipped git hooks, a moved core.hooksPath, CI polling loops and a short-timeout commit or push, and asks before a publish; stop-after-3 ends the turn after the third failed test run in a row."
+---
+
+A rule an agent can break with one command is a check, not a sentence. The git hooks stop a
+bad commit; the Claude Code hooks stop an agent from getting around them. `hookset init
+--claude` puts two of them into a repository:
+
+```text title="npx hookset init --claude"
+wrote lefthook.yml, .claude/hooks/guard-bash.mjs, .claude/hooks/stop-after-3.mjs, .claude/settings.json
+```
+
+- **`.claude/hooks/guard-bash.mjs`** and **`.claude/hooks/stop-after-3.mjs`** are copied byte
+  for byte from the package. `hookset check` fails when either differs (`claude-drift`): change
+  the canonical copy in burgee, never the vendored one.
+- **`.claude/hookset.json`** is the repository's own list of what to ask about and what not to
+  edit. `init` writes `{ "ask": [], "frozen": [] }` only when the file is missing, and never
+  overwrites it. This repository already had one (it is shown below), so `init` left it alone.
+- **`.claude/settings.json`** gains four hook entries. Any settings already there are kept, and
+  an entry that is already wired is not added twice.
+
+## What settings.json runs
+
+```json
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "PreToolUse": [
+      { "matcher": "Bash", "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-bash.mjs\"" }] },
+      { "matcher": "Edit|Write|MultiEdit|NotebookEdit", "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-bash.mjs\"" }] }
+    ],
+    "PostToolUse": [
+      { "matcher": "Bash", "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/stop-after-3.mjs\"" }] }
+    ],
+    "PostToolUseFailure": [
+      { "matcher": "Bash", "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/stop-after-3.mjs\"" }] }
+    ]
+  }
+}
+```
+
+`init` writes each entry on lines of its own; this is the same content, folded.
+`hookset check` fails when one is missing (`claude-unwired`).
+
+## guard-bash
+
+guard-bash reads the tool call Claude Code is about to make on stdin and prints a decision, or
+nothing. It reads a command as words, not as a pattern over the raw text, so a commit message or
+a heredoc that mentions `--no-verify` is data, not a match.
+
+| Rule | Decision | What it catches |
+| :-- | :-- | :-- |
+| `no-verify` | deny | `--no-verify`, `git commit -n`, `LEFTHOOK=0` or `HUSKY=0` before a commit or push |
+| `hooks-path` | deny | `git config core.hooksPath …`, `git -c core.hooksPath=…` |
+| `ci-poll-loop` | deny | an `until` or `while` loop that runs `gh` and `sleep`; it names `gh pr checks <PR> --watch` instead |
+| `hooked-timeout` | deny | a foreground `git commit` or `git push` with a timeout under 5 minutes; their hooks outlive it |
+| `publish` | ask | `npm publish`, `pnpm publish`, `yarn npm publish`, `changeset publish`, also with options before `publish` |
+| `repo-ask` | ask | a phrase the repository lists under `ask` in `.claude/hookset.json` |
+| `frozen`, `generated` | deny | an Edit or Write on a listed path ([Generated files](/docs/guides/generated-files)) |
+
+Here a repository asks before its deploy:
+
+```json title=".claude/hookset.json"
+{
+  "ask": ["npm run deploy"],
+  "frozen": []
+}
+```
+
+And this script sends guard-bash four tool calls the way Claude Code does, one at a time:
+
+```js title="ask-guard.mjs"
+import { spawnSync } from 'node:child_process';
+
+const calls = [
+  { tool_name: 'Bash', tool_input: { command: 'git push --no-verify' } },
+  { tool_name: 'Bash', tool_input: { command: 'git commit -m "docs: never use --no-verify"', timeout: 600000 } },
+  { tool_name: 'Bash', tool_input: { command: 'git push' } },
+  { tool_name: 'Bash', tool_input: { command: 'npm run deploy' } },
+];
+const env = { ...process.env, CLAUDE_PROJECT_DIR: process.cwd() };
+for (const call of calls) {
+  const r = spawnSync(process.execPath, ['.claude/hooks/guard-bash.mjs'], { input: JSON.stringify(call), encoding: 'utf8', env });
+  const out = r.stdout ? JSON.parse(r.stdout).hookSpecificOutput : undefined;
+  console.log(out ? `${out.permissionDecision}: ${out.permissionDecisionReason}` : 'no opinion: the call runs');
+}
+```
+
+```text title="node ask-guard.mjs"
+deny: [guard-bash:no-verify] Git hooks are this repo's gate: never skip them (--no-verify, commit -n, LEFTHOOK=0). If a hook fails, fix what it reports. If it is slow, wait: commit/push hooks can take 3–4 minutes, and a killed push may still have landed (check `git log origin/<branch> -1` before retrying).
+no opinion: the call runs
+deny: [guard-bash:hooked-timeout] `git push` runs this repo's pre-push hooks, which take minutes: not a hang. Run it again with `timeout: 600000` (or `run_in_background: true`) and wait for it. If an earlier push was killed, check `git log origin/<branch> -1` first: it may have landed.
+ask: [guard-bash:repo-ask] This repo lists `npm run deploy` in .claude/hookset.json as a step a person approves: it overwrites or ships something that is hard to take back.
+```
+
+The second call mentions `--no-verify` only inside its message, and runs with a long timeout,
+so guard-bash has no opinion. The third is a push on Claude Code's default timeout, which the
+pre-push hook would outlive.
+
+The file carries its own cases. `--self-test` runs them:
+
+```text title="node .claude/hooks/guard-bash.mjs --self-test"
+ok: 34 denied, 23 allowed, 24 asked, 10 timed, 5 edits
+```
+
+## stop-after-3
+
+"After three failed tries, stop and ask" can be written in a CLAUDE.md, and an agent can read
+past it. stop-after-3 counts failed test runs per session after every Bash call: a passing run
+resets the count, and the third failure in a row ends the turn (`continue: false`) with a
+message telling the agent to show the person what fails, what it tried, and the options.
+
+A test run is a command whose first word, past `npx`, `pnpm exec` and the like, is a test
+runner: `vitest`, `jest`, `mocha`, `pytest`, `ava`, `tap`, `npm test`, `npm run test*`,
+`npm run ci:local`, `turbo run test`, `node --test`, `cargo test`, `go test` or
+`playwright test`. `echo npm test` runs echo, and does not count. An interrupted run leaves the
+count where it was. The count lives in a file under the system's temporary directory.
+
+```text title="node .claude/hooks/stop-after-3.mjs --self-test"
+ok: 9 counted, 7 ignored, stop on 3
+```
+
+## check sees the pack
+
+Once `.claude/hookset.json` exists, `hookset check` also checks the pack:
+
+```text title="npx hookset check"
+hookset: ok (hookset@1.0.0)
+! the mutation station is not declared yet (optional)
+  fix: add "hook:mutation" to package.json scripts when the repo has it: changed-lines mutation testing
+! the test-integrity station is not declared yet (observe)
+  fix: add "hook:test-integrity" to package.json scripts when the repo has it: no .only, .skip or weakened assertion in the diff
+! the proofline station is not declared yet (observe)
+  fix: add "hook:proofline" to package.json scripts when the repo has it: the change carries its Checked line
+! the triggerlist station is not declared yet (observe)
+  fix: add "hook:triggerlist" to package.json scripts when the repo has it: protected paths changed only with their trigger
+```
+
+A repository with a `.claude/` directory and no `.claude/hookset.json` gets a
+`claude-not-adopted` warning, so the pack reaches every repository where an agent works.

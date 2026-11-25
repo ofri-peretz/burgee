@@ -1,0 +1,79 @@
+---
+title: Coming from oasdiff
+description: "Move a breaking-change check from oasdiff to contractdiff diff: the same rule ids for HTTP changes, a compatibility question you choose instead of a fixed one, AsyncAPI, JSON Schema and MCP on the same engine, and what oasdiff has that contractdiff does not."
+---
+
+oasdiff compares two OpenAPI documents and reports breaking changes, from the point of view of a
+client that followed the old document. It is a Go binary, installed from GitHub releases, brew or
+Docker. contractdiff's `diff` does the same job from npm, reports the same rule ids for the HTTP
+changes oasdiff names, and lets you choose whose side the question is asked from.
+
+## How the names map
+
+| oasdiff                                                                           | contractdiff                                                                                                                 |
+| :-------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------- |
+| `oasdiff breaking base.yaml revision.yaml`                                        | `contractdiff diff base.yaml revision.yaml`                                                                                  |
+| `oasdiff changelog`                                                               | the same `diff`: non-breaking changes are listed beside the breaking ones                                                    |
+| `--fail-on ERR`                                                                   | the default: a breaking or unknown change exits 1                                                                            |
+| `--fail-on WARN`                                                                  | `--dangerous-breaking`, the closest: dangerous changes (a default changed, a value a reader may not expect) fail the run too |
+| levels `ERR`, `WARN`, `INFO`                                                      | verdicts `breaking`, `dangerous`, `non-breaking`, plus `unknown` for what was not classified                                 |
+| checker ids (`new-required-request-parameter`, `response-success-status-removed`) | the same ids where oasdiff names the change; an `ac-` id otherwise                                                           |
+| `--format json`                                                                   | `--json`                                                                                                                     |
+| `--format githubactions`                                                          | `--sarif`, uploaded to code scanning; see [CI gate](/docs/recipes/ci)                                                        |
+| a client's point of view, fixed                                                   | `--side caller` or `--side server`, and `--mode backward`, `forward` or `full`                                               |
+| deprecation and `x-sunset`                                                        | `x-sunset`, `x-replaced-by` and `x-change`; see [Decisions](/docs/guides/decisions)                                          |
+
+The id table lives in `packages/contractdiff/src/diff-rules.ts`, one row per change, with oasdiff's id
+beside contractdiff's. Whether contractdiff finds every change oasdiff finds on the same pair is
+not claimed: no grade of the two against each other is recorded in this repository.
+
+## Migrating a CI step
+
+1. `npm install -D contractdiff` in the project that owns the contract.
+2. Replace the oasdiff step. oasdiff reads the base from a file or URL; in 1.0.0 contractdiff reads
+   files, so write the base version out first:
+
+   ```bash
+   git show origin/main:openapi.yaml > base.yaml
+   npx contractdiff diff base.yaml openapi.yaml
+   ```
+
+3. If your pipeline matched on oasdiff's ids, it keeps working for HTTP changes. Grep the `--json`
+   output's `findings[].id`, or upload `--sarif`.
+4. Decide what to do with decision findings: `--decisions off` to match oasdiff's behaviour, or
+   leave the default `warn` and start writing `x-change` on breaking changes.
+
+The output for the getting-started pair:
+
+```text title="npx contractdiff diff old.yaml new.yaml --decisions off" exit="1"
+breaking: 1 breaking, 0 unknown, 1 non-breaking (--mode backward --side caller)
+
+getPet  #/paths/~1pets~1{id}/get
+  breaking      new-required-request-parameter  param:query:fields  - -> {"type":"string"}
+                fix: keep accepting at getPet param:query:fields what the old contract accepted, or release this as a major version
+  non-breaking  response-optional-property-removed  response:200:application/json /properties/tag  {"type":"string"} -> -
+```
+
+## What is different on purpose
+
+- **The question is stated.** oasdiff's verdicts are for a client of the old contract.
+  contractdiff's first line names the mode and side, and `--side server` asks the other question:
+  a new required request parameter is breaking for callers and not for the server.
+- **One engine for every format.** The same `diff` reads AsyncAPI, JSON Schema, MCP tool lists and
+  protobuf; oasdiff's ids are HTTP-only, so those changes get `ac-` ids. See
+  [Input formats](/docs/guides/inputs).
+- **Usage and history.** `--usage` turns a breaking change nobody uses into a non-breaking one, and
+  `--transitive` checks a release against every past one, not only the last.
+- **The decision is part of the check.** A breaking change without an `x-change`, or one that did
+  not move the major version, is reported.
+
+## What is not built
+
+- **Reading a URL or a git ref.** contractdiff reads local files. `git:<ref>:<path>` appears in the
+  help text and is refused by the 1.0.0 bin with a `fix:` line.
+- **oasdiff's composed mode**, which matches operations across many spec files.
+- **Changelog renderings**: oasdiff's Markdown, HTML and JUnit formats. contractdiff has text,
+  `--json` and SARIF.
+- **oasdiff's API stability levels** (`x-stability-level`).
+- **A hosted service.** oasdiff offers a hosted MCP server and a paid PR approval gate; contractdiff
+  is a local CLI, and its `--mcp` server runs on your machine.

@@ -1,0 +1,187 @@
+---
+title: Breaking changes
+description: "How contractdiff diff decides whether a contract change breaks callers or servers: the backward, forward and full modes, the caller and server sides, the four verdicts, rule ids, --usage, --transitive, SARIF, changesets and exit codes."
+---
+
+`contractdiff diff <old> <new>` reads two versions of a contract and reports each change with a
+verdict. The verdict is not a property of the change alone: adding a required request parameter
+breaks the callers of an API and costs its server nothing. So every run answers one stated
+question, printed on the first line of its output.
+
+## The question: mode and side
+
+- **`--side caller`** (the default) asks about the code that calls the API, the clients.
+  **`--side server`** asks about the code that implements it, or, for AsyncAPI, the other end of
+  the channel.
+- **`--mode backward`** (the default) asks whether the side, still built on the old contract, keeps
+  working against the other side built on the new one. **`--mode forward`** asks whether the side
+  can move to the new contract first. **`--mode full`** asks both.
+
+Underneath, every change to a payload either widens what it allows, narrows it, or does neither.
+Who sends the payload decides which of those is safe: a server that accepts more is fine for old
+callers, and a server that returns less (a property it no longer sends) is not. The rule is written
+as a model in `.sdlc/intents/contractdiff/compat.qnt`, and the classifier follows it.
+
+The getting-started pair, under each question:
+
+```text title="npx contractdiff diff old.yaml new.yaml --decisions off" exit="1"
+breaking: 1 breaking, 0 unknown, 1 non-breaking (--mode backward --side caller)
+
+getPet  #/paths/~1pets~1{id}/get
+  breaking      new-required-request-parameter  param:query:fields  - -> {"type":"string"}
+                fix: keep accepting at getPet param:query:fields what the old contract accepted, or release this as a major version
+  non-breaking  response-optional-property-removed  response:200:application/json /properties/tag  {"type":"string"} -> -
+```
+
+```text title="npx contractdiff diff old.yaml new.yaml --mode full --side server --decisions off" exit="1"
+breaking: 1 breaking, 0 unknown, 1 non-breaking (--mode full --side server)
+
+getPet  #/paths/~1pets~1{id}/get
+  breaking      new-required-request-parameter  param:query:fields  - -> {"type":"string"}
+                fix: keep accepting at getPet param:query:fields what the old contract accepted, or release this as a major version
+  non-breaking  response-optional-property-removed  response:200:application/json /properties/tag  {"type":"string"} -> -
+```
+
+Under `--mode full` the server is asked both ways: an old server must accept what new callers send
+(they now send `fields`, which it never declared, and it accepts that), and a new server must
+accept what old callers send (they leave out `fields`, which it now requires). The second fails.
+
+## The four verdicts
+
+| verdict        | meaning                                                                                                               | fails the run                    |
+| :------------- | :-------------------------------------------------------------------------------------------------------------------- | :------------------------------- |
+| `breaking`     | a peer that followed the old contract can fail                                                                        | yes, exit 1                      |
+| `unknown`      | the change could not be classified, such as a schema keyword the model does not compare                               | yes, exit 1                      |
+| `dangerous`    | every value is still valid, but a reader that assumed more than the contract said may fail, such as a changed default | only with `--dangerous-breaking` |
+| `non-breaking` | nothing a peer could rely on changed                                                                                  | no                               |
+
+A run with no change prints one line and exits 0:
+
+```text title="npx contractdiff diff old.yaml old.yaml"
+no changes between old.yaml and old.yaml
+```
+
+## Rule ids
+
+Every finding has a stable id. Where oasdiff names the same HTTP change, the id is oasdiff's
+checker id (`new-required-request-parameter`, `response-optional-property-removed`). Where it does
+not, the id is contractdiff's own, prefixed `ac-` (`ac-property-became-required`,
+`ac-security-narrowed`, `ac-path-parameter-renamed`). oasdiff's ids cover HTTP only, so a change
+to an AsyncAPI message or an MCP tool argument always gets an `ac-` id. The mapping table is
+`packages/contractdiff/src/diff-rules.ts`, and since 1.0.0 the ids are part of the semver contract:
+a change `diff` calls breaking today stays breaking on every 1.x.
+
+## Who uses it: `--usage`
+
+A breaking change nobody uses breaks nobody. `--usage` takes a JSON file saying which operations,
+and which of their members, callers use; an operation with no `members` list uses all of them.
+
+```json title="usage.json"
+{ "operations": { "getPet": { "members": ["id"], "callers": ["web"] } } }
+```
+
+```text title="npx contractdiff diff old.yaml new.yaml --usage usage.json --decisions off"
+non-breaking: 0 breaking, 0 unknown, 2 non-breaking (--mode backward --side caller)
+
+getPet  #/paths/~1pets~1{id}/get
+  non-breaking  new-required-request-parameter  param:query:fields  - -> {"type":"string"}  (unused)
+  non-breaking  response-optional-property-removed  response:200:application/json /properties/tag  {"type":"string"} -> -
+```
+
+`fields` is a new parameter, so no caller can be using it yet, and the run passes with the change
+marked `(unused)`. The file is data you hand in; contractdiff collects nothing. A
+`contractdiff.map.json` from a client generation is read as a usage file too, with the generated
+files as the callers.
+
+## Every past release: `--transitive`
+
+A client released against 1.0 may still be in the field when 1.2 ships. `--transitive` compares the
+last contract with every one before it, oldest first, and names the oldest release each finding
+breaks. A directory among the old ones stands for its `.json`, `.yaml` and `.yml` files in version
+order (`v2` before `v10`).
+
+```yaml title="next.yaml"
+openapi: 3.1.0
+info:
+  title: Pets
+  version: 1.2.0
+paths:
+  /pets/{id}:
+    get:
+      operationId: getPet
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: fields
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: A pet
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [name]
+                properties:
+                  name:
+                    type: string
+                  tag:
+                    type: integer
+```
+
+Against 1.1 alone, 1.2 only relaxes `fields` and adds a `tag` property. Against 1.0, `tag` was a
+string and is now an integer:
+
+```text title="npx contractdiff diff old.yaml new.yaml next.yaml --transitive --decisions off" exit="1"
+breaking: 1 breaking, 0 unknown, 3 non-breaking (--mode backward --side caller)
+against 2 release(s), oldest first: old.yaml, new.yaml; oldest broken: old.yaml
+
+getPet  #/paths/~1pets~1{id}/get
+  breaking      response-property-type-changed  response:200:application/json /properties/tag  ["string"] -> ["integer"]  (against old.yaml)
+                fix: keep getPet response:200:application/json /properties/tag within what the old contract allowed, or release this as a major version
+  non-breaking  new-optional-request-parameter  param:query:fields  - -> {"type":"string"}  (against old.yaml)
+  non-breaking  request-parameter-became-optional  param:query:fields  true -> false  (against new.yaml)
+  non-breaking  response-optional-property-added  response:200:application/json /properties/tag  - -> {"type":"integer"}  (against new.yaml)
+```
+
+## Output for machines
+
+- **`--json`** prints one envelope with every finding as data: `id`, `verdict`, `operation`,
+  `pointer`, `before`, `after` and `fix`.
+- **`--sarif`** prints SARIF 2.1.0 instead of text, one result per finding at the contract file,
+  for GitHub code scanning. Breaking is `error`, dangerous and unknown are `warning`,
+  non-breaking is `note`. [CI gate](/docs/recipes/ci) uploads it.
+- **`--changeset <package>`** writes `.changeset/<hash>.md` bumping that package by the verdict
+  (major for breaking, minor otherwise), named by its content's hash so a rerun writes nothing new.
+
+```text title="npx contractdiff diff old.yaml new.yaml --changeset pets-api --decisions off --json" exit="1"
+{"ok":false,"data":{"mode":"backward","side":"caller","verdict":"breaking","summary":{"breaking":1,"unknown":0,"dangerous":0,"non-breaking":1},"findings":[{"id":"new-required-request-parameter","scheme":"oasdiff","verdict":"breaking","effect":"narrows","operation":"getPet","source":"#/paths/~1pets~1{id}/get","document":"new","payload":"param:query:fields","direction":"request","pointer":"","after":{"type":"string"},"fix":"keep accepting at getPet param:query:fields what the old contract accepted, or release this as a major version"},{"id":"response-optional-property-removed","scheme":"oasdiff","verdict":"non-breaking","effect":"neutral","operation":"getPet","source":"#/paths/~1pets~1{id}/get","document":"new","payload":"response:200:application/json","direction":"response","pointer":"/properties/tag","before":{"type":"string"},"fix":"nothing to do"}],"decisions":[],"old":"old.yaml","new":"new.yaml","changed":true,"changeset":".changeset/contractdiff-df40a293.md","exitCode":1,"fix":"make each breaking change compatible as its own fix line says, or release it as a major version"},"meta":{"provenance":{"changeset":{"source":"flag","location":"--changeset"},"decisions":{"source":"flag","location":"--decisions"}},"changed":true}}
+```
+
+## Reading a contract at a git ref
+
+The `old` and `new` arguments accept `git:<ref>:<path>` in their help text, but in 1.0.0 the
+command refuses it: the bin does not spawn git yet, and the error says so with a `fix:` line. Until
+it does, write the base version to a file first:
+
+```bash
+git show origin/main:openapi.yaml > base.yaml
+npx contractdiff diff base.yaml openapi.yaml
+```
+
+## Exit codes
+
+| code | when                                                                                                                            |
+| :--- | :------------------------------------------------------------------------------------------------------------------------------ |
+| `0`  | no breaking or unknown change (dangerous ones only with `--dangerous-breaking`), and no decision finding at `--decisions error` |
+| `1`  | a breaking or unknown change, or a decision finding at `--decisions error`                                                      |
+| `2`  | a usage error: an unknown flag, three contracts without `--transitive`, a bad `--today`                                         |
+| `3`  | a config that did not load, with the field to fix                                                                               |
+
+Protobuf has one more option, `--level`, which also runs `buf breaking` at that category and counts
+its findings as breaking; see [Input formats](/docs/guides/inputs).

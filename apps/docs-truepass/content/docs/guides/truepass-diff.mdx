@@ -1,0 +1,179 @@
+---
+title: truepass diff
+description: "truepass diff reads the changed lines and commit messages of the commits since a base, and reports an assertion moved to a weaker matcher and a snapshot changed with no reason; an Assertion: or Snapshot: line in a commit message accepts the change."
+---
+
+A lint rule reads a file as it is. Two of the cheapest ways to turn a red suite green leave a file
+that looks fine: `expect(sum(1, 2)).toBe(3)` becomes `expect(sum(1, 2)).toBeDefined()`, or
+`vitest -u` rewrites a snapshot to whatever the code now prints. Only the change shows them.
+`truepass diff` reads the change.
+
+## What it reads
+
+```bash
+npx truepass diff --base origin/main
+```
+
+Three git commands, run in the current directory:
+
+- `git diff --unified=0 <base>...HEAD`: the changed lines of every file, with no context;
+- `git diff --name-only --diff-filter=d <base>...HEAD`: the paths that changed, without deleted
+  files;
+- `git log --format=%B <base>..HEAD`: the full messages of the commits in the range.
+
+It never reads a whole file, and it never reads the working tree: what it checks is what you are
+about to push. `--base` defaults to `origin/main`.
+
+```text title="npx truepass diff --help"
+Usage: diff [options]
+
+Report assertions moved to a weaker matcher and snapshots changed with no reason, in the commits
+since a base
+
+Options:
+  --base <value>        the ref the range starts from (default: origin/main)
+
+Global options:
+  --json                machine-readable output
+  --help                show this help
+  --color <when>        always, never or auto (default: auto); NO_COLOR is honoured
+  --no-color            the same as --color=never
+  -q, --quiet           silence progress and hints; data and errors still print
+  --timeout <duration>  end the run after this long, exit 6: 500ms, 5s, 2m
+  --explain <option>    where an option's value came from
+
+Examples:
+  $ truepass diff
+    the commits since origin/main, as a lefthook pre-push step
+  $ truepass diff --base main --json
+    the same findings as the --json envelope
+```
+
+## weakened-assertion
+
+Within one hunk, an `expect(subject).matcher(` that was removed and an `expect(subject).matcher(`
+that was added, on the same subject, where the added matcher ranks lower. The subject is compared
+with its whitespace removed, so reformatting does not hide it. The ranks are `MATCHER_RANK`:
+
+| Matcher                     | Rank |
+| :-------------------------- | ---: |
+| `toBe`, `toStrictEqual`     |    4 |
+| `toEqual`                   |    3 |
+| `toMatchObject`             |    2 |
+| `toBeTruthy`, `toBeDefined` |    1 |
+
+A matcher that is not in the table is not read, and neither is a negated one: `.not.toBe()` makes
+a different claim, not a weaker one. `check()` is the whole command without the command line: it
+takes the base and a function that runs git, so this page can hand it the answers a real
+repository would give.
+
+```js title="weakened.mjs"
+import { check } from 'truepass';
+
+// What git answers for a branch with one commit that loosened two assertions.
+const answers = {
+  diff: `diff --git a/src/sum.test.js b/src/sum.test.js
+--- a/src/sum.test.js
++++ b/src/sum.test.js
+@@ -5,2 +5,2 @@
+-  expect(sum(1, 2)).toBe(3);
+-  expect(parse('a=1')).toStrictEqual({ a: 1 });
++  expect(sum(1, 2)).toBeDefined();
++  expect(parse('a=1')).toMatchObject({ a: 1 });
+`,
+  'name-only': 'src/sum.test.js\n',
+  log: 'fix: make CI green\n',
+};
+const git = async (args) => answers[args[0] === 'log' ? 'log' : args.includes('--name-only') ? 'name-only' : 'diff'];
+
+for (const f of await check('origin/main', git)) console.log(`${f.path}:${f.line} ${f.check}\n  ${f.message}`);
+```
+
+```text title="node weakened.mjs"
+src/sum.test.js:5 weakened-assertion
+  Weakened assertion: expect(sum(1,2)) moved from .toBe() to the weaker .toBeDefined() in this change. fix: keep the strict matcher and fix the code, or assert the new exact value with .toBe(). If the looser claim is intended, add an "Assertion: <why>" line to the commit message.
+src/sum.test.js:6 weakened-assertion
+  Weakened assertion: expect(parse('a=1')) moved from .toStrictEqual() to the weaker .toMatchObject() in this change. fix: keep the strict matcher and fix the code, or assert the new exact value with .toStrictEqual(). If the looser claim is intended, add an "Assertion: <why>" line to the commit message.
+```
+
+## unexplained-snapshot
+
+A changed path that ends in `.snap` or sits under a `__snapshots__/` directory. Updating a snapshot
+is how a wrong output becomes the expected one, so the change has to say what it accepts. A
+deleted snapshot file is not reported: it asserts nothing new.
+
+## The reasons: Assertion: and Snapshot:
+
+A deliberate change is accepted by one line in any commit message of the range:
+
+- `Assertion: <why>` accepts every weakened assertion in the range;
+- `Snapshot: <why>` accepts every changed snapshot in the range.
+
+The line starts with the word, a colon and at least one more character, at the start of a line of
+the message (case-insensitive). There is no suppression file and no inline comment for these two
+checks: the reason travels with the commit, where a reviewer reads it.
+
+```js title="accepted.mjs"
+import { parseUnifiedDiff, unexplainedSnapshots, weakenedAssertions } from 'truepass';
+
+const diff = `--- a/src/sum.test.js
++++ b/src/sum.test.js
+@@ -5 +5 @@
+-  expect(sum(1, 2)).toBe(3);
++  expect(sum(1, 2)).toBeDefined();
+`;
+const paths = ['src/__snapshots__/view.test.js.snap'];
+
+const hurried = 'fix: make CI green';
+const explained = `fix: sum returns a Decimal
+
+Assertion: sum() now returns a Decimal; decimal.test.js checks its value
+Snapshot: the view renders prices in italics since the design change`;
+
+for (const message of [hurried, explained]) {
+  const findings = [...weakenedAssertions(parseUnifiedDiff(diff), message), ...unexplainedSnapshots(paths, message)];
+  console.log(findings.map((f) => f.check));
+}
+```
+
+```text title="node accepted.mjs"
+[ 'weakened-assertion', 'unexplained-snapshot' ]
+[]
+```
+
+## Output and exit codes
+
+In a repository, a branch whose one commit loosened an assertion and rewrote a snapshot prints a
+line per finding: path, line, check and message.
+
+```text
+src/sum.test.js:5 weakened-assertion Weakened assertion: expect(sum(1,2)) moved from .toBe() to the weaker .toBeDefined() in this change. fix: keep the strict matcher and fix the code, or assert the new exact value with .toBe(). If the looser claim is intended, add an "Assertion: <why>" line to the commit message.
+src/__snapshots__/view.test.js.snap:1 unexplained-snapshot Unexplained snapshot update: A snapshot changed and no commit in the range says why the new output is correct. fix: add a "Snapshot: <what changed and why it is right>" line to the commit message, or revert the snapshot and fix the code.
+```
+
+With the two reason lines in the commit message, the same branch prints `no findings since
+origin/main`.
+
+| Exit | When                                                                                     |
+| ---: | :--------------------------------------------------------------------------------------- |
+|    0 | no findings                                                                              |
+|    1 | at least one finding                                                                     |
+|    2 | a usage error, such as a base this checkout does not have; the hint names the fetch to run |
+
+A base the checkout does not have is the error a shallow CI clone hits. It prints git's own words
+and the fix on stderr. When stderr is not a terminal, as in a hook's log, the same error follows as
+one JSON line. The git command it quotes is whichever of the three failed first:
+
+```text
+error: git could not compare against origin/main: git diff --name-only --diff-filter=d origin/main...HEAD failed: fatal: ambiguous argument 'origin/main...HEAD': unknown revision or path not in the working tree.
+Use '--' to separate paths from revisions, like this:
+'git <command> [<revision>...] -- [<file>...]'
+hint: fetch origin/main first, or pass --base with a ref this checkout has
+usage: truepass diff [options]
+options:
+  --base <value>  the ref the range starts from (default origin/main) (default: origin/main)
+{"error":{"kind":"usage","code":2,"message":"git could not compare against origin/main: git diff --name-only --diff-filter=d origin/main...HEAD failed: fatal: ambiguous argument 'origin/main...HEAD': unknown revision or path not in the working tree.\nUse '--' to separate paths from revisions, like this:\n'git <command> [<revision>...] -- [<file>...]'"}}
+```
+
+[Hooks and CI](/docs/guides/hooks-and-ci) has the fetch for CI, and [For agents](/docs/recipes/agents)
+covers `--json`.

@@ -18,7 +18,7 @@ export interface Check {
 }
 
 export interface Config {
-  /** Run first in each case's worktree, which starts with no dependencies installed. */
+  /** Run first in each case's worktree, which starts without node_modules. */
   readonly setup?: string | undefined;
   readonly reviewer: string;
   /** `{model}` in it is replaced by the model a run grades with. */

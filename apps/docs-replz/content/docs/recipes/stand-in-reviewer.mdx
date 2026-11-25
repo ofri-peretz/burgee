@@ -1,0 +1,92 @@
+---
+title: A stand-in reviewer
+description: "Check that the replz config, the worktrees, the checks and the report all work before paying for a model: a reviewer and a grader written as two small Node scripts, run with the real replz run on a real history."
+---
+
+`replz check` validates the files but runs nothing. The first real `run` is where a missing
+script, a setup that fails at an old commit, or a check that needs a service shows up, and each
+case before the failure has already paid for a review. A stand-in reviewer finds those for free.
+
+## Two scripts
+
+A reviewer that prints fixed findings per pull request:
+
+```js
+// .sdlc/replz/stand-in-reviewer.mjs
+// A stand-in reviewer: fixed findings per pull request, so the wiring runs without a model.
+const findings = {
+  3: [
+    { stage: 'raw', severity: 'should-fix', text: 'cache.js keys the cache by file name, so two projects share one entry.' },
+    { stage: 'final', severity: 'must-fix', text: 'cache.js keys the cache by file name, so two projects share one entry.' },
+  ],
+  4: [{ stage: 'final', severity: 'nit', text: 'docs.md repeats the word usage on every line.' }],
+};
+console.log(JSON.stringify(findings[process.env.REPLZ_PR] ?? []));
+```
+
+And a grader that says yes when a finding names the cache. A real grader is a model; this one
+only proves the prompt reaches it and its answer is read:
+
+```js
+// .sdlc/replz/stand-in-grader.mjs
+// A stand-in grader: yes when the finding names the cache. A real grader is a model call.
+import { readFileSync } from 'node:fs';
+const prompt = readFileSync(0, 'utf8');
+const finding = prompt.split('\n').find((line) => line.startsWith("The reviewer's finding:")) ?? '';
+console.log(/cache/i.test(finding) ? 'yes' : 'no');
+```
+
+## A config for them
+
+```yaml
+reviewer: node "$REPLZ_REPO/.sdlc/replz/stand-in-reviewer.mjs"
+grader: node "$REPLZ_REPO/.sdlc/replz/stand-in-grader.mjs"
+maxFindings: 10
+stages: [raw, final]
+checks:
+  - { id: has-readme, command: test -f README.md }
+  - { id: no-todo, command: "! grep -rn TODO --include=*.js ." }
+```
+
+Pass it with `--config` so your real config stays as it is, and add your real `setup` and
+`checks` once the stand-ins pass: those are what the dry run is for.
+
+## A run
+
+On a repository of five commits, where `#3` added a config cache with a `TODO` in it and `#5`
+fixed it ("broken by #3"), `replz propose` drafted `bug-3` and its control `control-4`. With an
+answer written for `bug-3`, the run printed:
+
+```text
+1 bug case(s), 1 control(s)
+
+recall per stage:
+  raw: 1 of 1 (100%)
+  final: 1 of 1 (100%)
+false alarms on controls: 0 of 1 (0%)
+last-stage findings: must-fix 1, should-fix 0, nit 1, pre-existing 0
+
+firing (fired / right):
+  check has-readme: 0 / 0
+  check no-todo: 2 / 1
+
+never fired: has-readme. fix: keep or drop each, in a decision
+```
+
+Each line is explained in [Run and report](/docs/guides/run-and-report#the-report).
+
+## What it found that `check` could not
+
+The same config with the reviewer as `node .sdlc/replz/stand-in-reviewer.mjs` (a path relative
+to the repository) stopped on the first case:
+
+```text
+error: the reviewer failed on bug-3 (exit 1): node:internal/modules/cjs/loader:1568
+  throw err;
+  ^
+
+Error: Cannot find module '/tmp/replz-case-AVsFtQ/tree/.sdlc/replz/stand-in-reviewer.mjs'
+```
+
+The scripts were not committed at `bug-3`'s head, and the command runs inside that worktree.
+That is the mistake a dry run exists to find; the fix is the `git rev-parse` path above.
