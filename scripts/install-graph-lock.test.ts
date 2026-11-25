@@ -35,7 +35,7 @@ import { fileURLToPath } from 'node:url';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { discard, type Manifest, npm } from './family-install.js';
+import { discard, familySetupTimeoutMs, type Manifest, npm, releasedManifests } from './family-install.js';
 import { GRAPH_FILE, type Installed, installAlone, installScripts, licenceProblems, measureFamily, outsiders, PAGE_FILE, project, render, table, withTable } from './install-graph.js';
 import { scratchDirs } from './scratch-dir.js';
 
@@ -47,8 +47,8 @@ const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 /** A count as the README's prose spells it. */
 const NUMBERS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
 
-/** One pack of ten packages and ten installs, then two fixtures packed and installed. */
-const SETUP_TIMEOUT_MS = 240_000;
+/** One pack of the family and one install each, then two fixtures packed and installed (`familySetupTimeoutMs`). */
+const SETUP_TIMEOUT_MS = familySetupTimeoutMs(releasedManifests(ROOT).size);
 
 describe('installing a published package installs only the family, and runs nothing', () => {
   let base: string;
