@@ -38,10 +38,13 @@ const POSIX = ['LC_ALL', 'LC_MESSAGES', 'LANG'] as const;
  */
 function normalise(raw: string): string | undefined {
   const bare = (raw.split(/[.@]/u)[0] as string).replaceAll('_', '-');
-  if (bare === 'C' || bare === 'POSIX') return undefined;
+  // `C` needs no test of its own: Intl.Locale refuses a one-letter language. `POSIX` it would read.
+  if (bare === 'POSIX') return undefined;
   try {
+    // Stryker disable BlockStatement: an emptied catch returns undefined, which is what it returns
     return new Intl.Locale(bare).toString();
   } catch {
+    // Stryker restore BlockStatement
     return undefined;
   }
 }
@@ -55,8 +58,11 @@ function normalise(raw: string): string | undefined {
  * or an explicit `BURGEE_LOCALE` localises for it (the intent's first open question).
  */
 export function resolveLocale(option: string | undefined, env: Record<string, string | undefined>): string | undefined {
+  // Stryker disable next-line BooleanLiteral: whether stdout is a terminal decides `interactive`, never `agent`
   const agent = detectAgent(env, false).agent !== undefined;
-  const asked = [option, env['BURGEE_LOCALE'], ...(agent ? [] : POSIX.map((name) => env[name]))].find((v) => v !== undefined && v !== '');
+  // Stryker disable next-line ArrayDeclaration: any word an agent run adds here is not a tag Intl.Locale reads, so it resolves to the base language as no word does
+  const posix = agent ? [] : POSIX.map((name) => env[name]);
+  const asked = [option, env['BURGEE_LOCALE'], ...posix].find((v) => v !== undefined && v !== '');
   return asked === undefined ? undefined : normalise(asked);
 }
 
@@ -92,6 +98,7 @@ const MILLION = 1_000_000;
  */
 export function countFor(locale: string, form: string): number {
   const rules = new Intl.PluralRules(locale);
+  // Stryker disable next-line NumericLiteral: 101 is filed under other, which an earlier sample already selects in every locale
   const samples = [...Array.from({ length: 101 }, (_, n) => n), FRACTION, MILLION];
   return samples.find((n) => rules.select(n) === form) as number;
 }
@@ -210,8 +217,8 @@ export function render(message: Message, values: Readonly<Record<string, string>
  */
 function patternOf(template: string): RegExp {
   const escaped = template.replaceAll(/[.*+?^$()|[\]\\]/gu, '\\$&').replaceAll(/\\?\{(\w+)\\?\}/gu, '(?<$1>.+?)');
-  // eslint-disable-next-line secure-coding/detect-non-literal-regexp -- built from the committed catalog, escaped above; matched only against lines of at most LONGEST characters
-  return new RegExp(`^${escaped}$`, 'u');
+  // Stryker disable next-line StringLiteral: the catalog's literals are ASCII, and `.+?` takes a whole astral character with the flag or without it
+  return new RegExp(`^${escaped}$`, 'u'); // eslint-disable-line secure-coding/detect-non-literal-regexp -- built from the committed catalog, escaped above; matched only against lines of at most LONGEST characters
 }
 
 /** The longest line `say` matches: past it a line is returned in English, so no typed value makes matching slow. */
@@ -254,6 +261,7 @@ export function localiserOf(plugins: readonly Plugin[], locale: string | undefin
   for (const plugin of packs) checkLocales(plugin);
   const merged = new Map<string, Message>();
   for (const tag of tags) {
+    // Stryker disable next-line OptionalChaining: every pack here was kept for having locales
     for (const plugin of packs) for (const [id, message] of Object.entries(plugin.locales?.[tag] ?? {})) merged.set(id, message as Message);
   }
   if (merged.size === 0) return undefined;
