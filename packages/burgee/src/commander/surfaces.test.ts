@@ -30,9 +30,17 @@ describe('commander façade: completion, loaded on demand', () => {
     expect(out).toContain('tool');
   });
 
-  it('prints a Fig spec as JSON', async () => {
-    const { out } = await run(['completion', 'fig']);
+  it('prints a Fig spec as JSON, indented by two, and nothing after it', async () => {
+    const { out, code } = await run(['completion', 'fig']);
     expect(JSON.parse(out)).toMatchObject({ name: 'tool' });
+    expect(out.startsWith('{\n  "')).toBe(true);
+    expect(out.endsWith('}\n')).toBe(true);
+    expect(code).toBe(0);
+  });
+
+  it('prints a script and nothing after it', async () => {
+    const { code } = await run(['completion', 'bash']);
+    expect(code).toBe(0);
   });
 
   it('falls through to --schema when the shell is unknown', async () => {

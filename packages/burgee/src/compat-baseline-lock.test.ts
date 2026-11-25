@@ -22,7 +22,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { GRADED, GRADED_MAJORS, type Graded, PREVIOUS_MAJOR_ENTRIES, SUPPORTED_MAJORS } from './compat.js';
+import { GRADED, GRADED_MAJORS, type Graded, isLevel, PREVIOUS_MAJOR_ENTRIES, SUPPORTED_MAJORS } from './compat.js';
 
 const BASELINE = resolve(fileURLToPath(new URL('..', import.meta.url)), '../compat-oracle/baseline');
 
@@ -88,5 +88,16 @@ describe('the graded numbers migrate reports', () => {
     expect(oracle('commander').reference).toBeGreaterThan(0);
     expect(CONTROL.size).toBeGreaterThan(20);
     expect(oracle('majors/commander-14').reference).toBeGreaterThan(0);
+  });
+});
+
+describe('isLevel', () => {
+  it('is level only for a graded host that passes at least what its control passes', () => {
+    expect(isLevel('commander')).toBe(true);
+    expect(isLevel('not-a-graded-host')).toBe(false);
+    const row = { reference: 10, rate: 0.9, control: 10 };
+    expect(isLevel('x', { x: { ...row, passed: 10 } })).toBe(true);
+    expect(isLevel('x', { x: { ...row, passed: 11 } })).toBe(true);
+    expect(isLevel('x', { x: { ...row, passed: 9 } })).toBe(false);
   });
 });

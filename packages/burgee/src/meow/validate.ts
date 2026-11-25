@@ -40,12 +40,12 @@ export function validateFlags(flags: Record<string, FlagSpec>): void {
   // back, so meow refuses the declaration rather than every value a user could type.
   const mistyped = pick((spec) => spec.type !== undefined && Array.isArray(spec.choices) && spec.choices.some((c) => typeof c !== spec.type));
   if (mistyped.length > 0) {
-    const described = mistyped.map((n) => `(\`--${decamelize(n, '-')}\`, type: '${String(flags[n]?.type)}')`);
+    const described = mistyped.map((n) => `(\`--${decamelize(n)}\`, type: '${String((flags[n] as FlagSpec).type)}')`);
     errors.push(`Each value of the option \`choices\` must be of the same type as its flag. Invalid flags: ${described.join(', ')}`);
   }
   // A default outside its own `choices` is a mistake in the declaration, so it is reported
   // here, before parsing, and by the name the caller wrote.
-  const outside = pick((spec) => Object.hasOwn(spec, 'default') && Array.isArray(spec.choices) && ![spec.default].flat().every((d) => spec.choices?.includes(d)));
+  const outside = pick((spec) => Object.hasOwn(spec, 'default') && Array.isArray(spec.choices) && ![spec.default].flat().every((d) => (spec.choices as unknown[]).includes(d)));
   if (outside.length > 0) errors.push(`Each value of the option \`default\` must exist within the option \`choices\`. Invalid flags: ${listed(outside)}`);
 
   if (errors.length > 0) throw new Error(errors.join('\n'));
@@ -122,7 +122,7 @@ export function checkChoices(specs: Record<string, FlagSpec>, flags: Record<stri
       continue;
     }
     const values = Array.isArray(value) ? value : [value];
-    const bad = values.filter((v) => !spec.choices?.includes(v));
+    const bad = values.filter((v) => !(spec.choices as unknown[]).includes(v));
     if (bad.length > 0) {
       errors.push(`Unknown value${bad.length > 1 ? 's' : ''} for flag \`${label}\`: ${bad.map((b) => `\`${String(b)}\``).join(', ')}. ${allowed}`);
     }

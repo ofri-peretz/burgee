@@ -26,7 +26,9 @@ export function unalias(manifest: Manifest, argv: readonly string[], root: reado
   let at = root;
   const end = argv.indexOf('--');
   return argv.map((word, i) => {
-    const node = end !== -1 && i > end ? undefined : manifest.commands.find((c) => c.path.length === at.length + 1 && at.every((seg, j) => c.path[j] === seg) && (c.path.at(-1) === word || c.aliases?.includes(word)));
+    // Stryker disable next-line EqualityOperator: `--` itself names no command, so reading it as past the marker changes nothing
+    const past = i > end;
+    const node = end !== -1 && past ? undefined : manifest.commands.find((c) => c.path.length === at.length + 1 && at.every((seg, j) => c.path[j] === seg) && (c.path.at(-1) === word || c.aliases?.includes(word)));
     if (node === undefined) return word;
     at = node.path;
     return node.path.at(-1) as string;

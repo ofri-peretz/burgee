@@ -16,6 +16,7 @@ export async function serveSurface(cmd: Command, head: string[]): Promise<boolea
   const root = cmd._root();
   const writeOut = root._outputConfiguration.writeOut;
   if (head[0] === 'completion') {
+    // Stryker disable next-line StringLiteral: no word stands in for a missing shell that names one
     const shell = head[1] ?? '';
     const known = SHELLS.find((s) => s === shell);
     if (shell === 'fig') writeOut(`${JSON.stringify(renderFigSpec(cmd.manifest), null, 2)}\n`);
@@ -24,6 +25,7 @@ export async function serveSurface(cmd: Command, head: string[]): Promise<boolea
     return true;
   }
   // G3: held before the first tool call; `invoke` replaces `_outputConfiguration`.
+  // Stryker disable StringLiteral,ArrayDeclaration,NumericLiteral: as burgee's own --mcp (surfaces.ts), a tool call ends through exit and prints its envelope in one write
   const invoke = async (args: string[]): Promise<{ stdout: string; stderr: string; code: number }> => {
     const out: string[] = [];
     const err: string[] = [];
@@ -31,6 +33,7 @@ export async function serveSurface(cmd: Command, head: string[]): Promise<boolea
     await root.parseAsync(args, { from: 'user', stdout: sink(out), stderr: sink(err), exit: (c) => void (code = c) });
     return { stdout: out.join(''), stderr: err.join(''), code };
   };
+  // Stryker restore all
   await serveMcp(cmd.manifest, { input: host.stdin, output: { write: writeOut }, invoke });
   return true;
 }

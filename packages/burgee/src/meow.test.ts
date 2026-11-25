@@ -132,6 +132,11 @@ describe('declarations meow refuses before it parses', () => {
     );
   });
 
+  it('names a camelCase flag with mistyped choices by its dashed spelling', () => {
+    const flags = { maxCount: { type: 'number', choices: [1, '2'] } } as never;
+    expect(() => meow({ importMeta, pkg, argv: [], flags })).toThrow("Invalid flags: (`--max-count`, type: 'number')");
+  });
+
   it('refuses `booleanDefault: null` for a boolean flag with no default of its own', () => {
     expect(() => meow({ importMeta, pkg, argv: ['--foo'], booleanDefault: null as never, flags: { foo: { type: 'boolean' } } })).toThrow(
       new TypeError('Expected "foo" default value to be of type "boolean", got "null"'),

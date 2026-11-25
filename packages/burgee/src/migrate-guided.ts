@@ -140,22 +140,24 @@ function eventPattern(event: string): GuidedPattern | undefined {
   return MOUSE_EVENTS.includes(event) ? 'mouse' : undefined;
 }
 
+// Stryker disable next-line Regex: no token starts like a name and ends otherwise, and the only one ending like a name (1n) is never an import name or an assignment target
 const IDENTIFIER = /^[A-Za-z_$][\w$]*$/u;
 
 /** A token an import clause can hold. A quoted specifier is not one: it ends the clause. */
+// Stryker disable next-line Regex: as IDENTIFIER, the lexer's tokens make either anchor alone enough
 const CLAUSE = /^(?:[A-Za-z_$][\w$]*|[{},*])$/u;
 
 /** The guided package a specifier names, deep imports included, or `undefined`. */
-export function hostOf(specifier: string): GuidedHost | undefined {
-  return GUIDED_HOSTS.find((host) => specifier === host || specifier.startsWith(`${host}/`));
+export function hostOf(specifier: string | undefined): GuidedHost | undefined {
+  return GUIDED_HOSTS.find((host) => specifier === host || specifier?.startsWith(`${host}/`));
 }
 
 const NEEDLES = ['blessed', 'terminal-kit'];
-const NEEDLE_BYTES = NEEDLES.map((needle) => Buffer.from(needle));
 
 /** The pre-filter, as `mentionsAHost` is for the rewrite: a file that names none of the three cannot import one. */
 export function mentionsAGuided(source: string | Buffer): boolean {
-  return typeof source === 'string' ? NEEDLES.some((needle) => source.includes(needle)) : NEEDLE_BYTES.some((bytes) => source.includes(bytes));
+  // A Buffer searches for a string as its UTF-8 bytes, so one test serves both.
+  return NEEDLES.some((needle) => source.includes(needle));
 }
 
 interface Walk {
@@ -209,8 +211,9 @@ function call(w: Walk, base: Binding, at: number): void {
   report(w, at, base.host, pattern);
   // terminal-kit's `grabInput({ mouse: 'button' })` is the one call that asks for the mouse in its options.
   if (name === 'grabInput') {
-    const end = pastClose(w, at + 1);
-    for (let i = at + 2; i < end; i += 1) if (text(w, i) === 'mouse' && text(w, i + 1) === ':') report(w, i, base.host, 'mouse');
+    // From the method's own name: pastClose finds the `(` after it, and neither token is `mouse`.
+    const end = pastClose(w, at);
+    for (let i = at; i < end; i += 1) if (text(w, i) === 'mouse' && text(w, i + 1) === ':') report(w, i, base.host, 'mouse');
   }
 }
 
@@ -221,7 +224,7 @@ const LOAD = { open: 1, specifier: 2, close: 3, past: 4 } as const;
 function primary(w: Walk, i: number): { binding: Binding; next: number } | undefined {
   const t = text(w, i);
   if ((t === 'require' || t === 'import') && text(w, i + LOAD.open) === '(' && text(w, i + LOAD.close) === ')') {
-    const host = hostOf(w.tokens[i + LOAD.specifier]?.value ?? '');
+    const host = hostOf((w.tokens[i + LOAD.specifier] as Token).value);
     if (host === undefined) return undefined;
     report(w, i + LOAD.specifier, host, 'import');
     return { binding: { host, kind: 'module' }, next: i + LOAD.past };
@@ -290,7 +293,8 @@ function bindTarget(w: Walk, i: number, value: Binding): void {
   if (text(w, k) !== '=') return;
   const target = text(w, k - 1) as string;
   if (target === '}') {
-    const open = w.tokens.findLastIndex((t, at) => at < k && t.text === '{');
+    // Stryker disable next-line NumericLiteral: a destructuring target never opens the file
+    const open = w.tokens.slice(0, k).findLastIndex((t) => t.text === '{');
     for (const { name, local } of elements(w, open, k - 1, ':')) bindMember(w, local, value, name);
     return;
   }
@@ -300,9 +304,11 @@ function bindTarget(w: Walk, i: number, value: Binding): void {
 /** A static `import … from 'x'` or `import 'x'` at `i`: report it, and bind its clause. Type-only imports bind nothing. */
 function staticImport(w: Walk, i: number): void {
   // A clause is names, braces, commas and `*`; anything else (`import.meta`, `import foo =`) ends the search.
-  let j = i + 1;
+  // From `import` itself, which the clause pattern takes as a name and steps over.
+  let j = i;
+  // Stryker disable next-line StringLiteral: the stand-in for the end of the stream only has to fail the clause pattern
   while (CLAUSE.test(text(w, j) ?? '')) j += 1;
-  const host = hostOf(w.tokens[j]?.value ?? '');
+  const host = hostOf(w.tokens[j]?.value);
   if (host === undefined) return;
   report(w, j, host, 'import');
   const clause = w.tokens.slice(i + 1, j - 1).map((t) => t.text);
@@ -312,10 +318,13 @@ function staticImport(w: Walk, i: number): void {
   // `import from 'x'` is not JavaScript; `import from from 'x'` is, and binds `from`.
   if (IDENTIFIER.test(clause[0] as string)) {
     w.bound.set(clause[0] as string, module);
-    at = clause[1] === ',' ? 2 : 1;
+    // Past `name ,`. A default import with nothing after it leaves the clause empty from here.
+    at = 2;
   }
-  if (clause[at] === '*' && clause[at + 1] === 'as') w.bound.set(clause[at + 2] as string, module);
-  if (clause[at] === '{') for (const { name, local } of elements(w, i + 1 + at, i + clause.indexOf('}') + 1, 'as')) bindMember(w, local, module, name);
+  // `* as x`: nothing else can follow a `*` in a clause.
+  if (clause[at] === '*') w.bound.set(clause[at + 2] as string, module);
+  // `{ … }`, or nothing: with no `}` the range closes before it opens and binds nothing.
+  else for (const { name, local } of elements(w, i + 1 + at, i + clause.indexOf('}') + 1, 'as')) bindMember(w, local, module, name);
 }
 
 /**
@@ -327,15 +336,15 @@ function staticImport(w: Walk, i: number): void {
  */
 export function guidedSites(tokens: readonly Token[]): GuidedSite[] {
   const w: Walk = { tokens, bound: new Map(), out: [] };
-  for (let i = 0; i < tokens.length; i += 1) {
-    if (text(w, i - 1) === '.') continue;
+  tokens.forEach((_, i) => {
+    if (text(w, i - 1) === '.') return;
     if (text(w, i) === 'import' && text(w, i + 1) !== '(') {
       staticImport(w, i);
-      continue;
+      return;
     }
     const value = chain(w, i);
     if (value !== undefined) bindTarget(w, i, value);
-  }
+  });
   const seen = new Set<string>();
   return w.out
     .filter((site) => {

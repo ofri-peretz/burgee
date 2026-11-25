@@ -2,19 +2,19 @@ const maxDistance = 3;
 
 /** Optimal string alignment distance (Damerau–Levenshtein, no substring edited twice). */
 function editDistance(a: string, b: string): number {
-  if (Math.abs(a.length - b.length) > maxDistance) return Math.max(a.length, b.length);
-  const d: number[][] = [];
-  for (let i = 0; i <= a.length; i++) d[i] = [i];
-  for (let j = 0; j <= b.length; j++) (d[0] ??= [])[j] = j;
-  // Every cell read below is filled before it is read: row 0 and column 0 above, and each
-  // other cell by an earlier step of these loops (j outer, i inner, both ascending).
+  // Row 0 counts insertions, column 0 deletions. Every other cell read below is filled before it
+  // is read, by an earlier step of these loops (j outer, i inner, both ascending).
+  const d: number[][] = [Array.from({ length: b.length + 1 }, (_, j) => j)];
+  for (let i = 1; i <= a.length; i++) d[i] = [i];
   for (let j = 1; j <= b.length; j++) {
     for (let i = 1; i <= a.length; i++) {
       const cost = a[i - 1] === b[j - 1] ? 0 : 1;
       const row = d[i] as number[];
       const prev = d[i - 1] as number[];
       row[j] = Math.min((prev[j] as number) + 1, (row[j - 1] as number) + 1, (prev[j - 1] as number) + cost);
-      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+      // A swap of neighbours. On the first row or column `a[-1]` or `b[-1]` is undefined, which
+      // no character equals, so the test needs no bounds of its own.
+      if (a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
         row[j] = Math.min(row[j] as number, ((d[i - 2] as number[])[j - 2] as number) + 1);
       }
     }
@@ -24,7 +24,7 @@ function editDistance(a: string, b: string): number {
 
 /** Close matches, restricted to the same number of edits, as `\n(Did you mean …?)`. */
 export function suggestSimilar(word: string, candidates: string[] | undefined): string {
-  if (!candidates || candidates.length === 0) return '';
+  // `new Set(undefined)` is empty: no candidates, no suggestion.
   candidates = Array.from(new Set(candidates));
 
   const searchingOptions = word.startsWith('--');

@@ -100,3 +100,10 @@ describe('a refused credential exits AUTH (E6)', () => {
     expect(new Set(taken).size, 'two names share one exit code, which E7 calls a startup failure').toBe(taken.length);
   });
 });
+
+describe('AuthError', () => {
+  it('names itself, so a log line or a stack says which failure it was', () => {
+    expect(new AuthError('no').name).toBe('AuthError');
+    expect(String(new AuthError('the token expired'))).toBe('AuthError: the token expired');
+  });
+});
