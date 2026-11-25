@@ -61,6 +61,15 @@ requirements. Nothing below is deleted; the original text stands and carries a m
 | R5 | `--record`, `--evaluate` with the Western Electric rules, a breach writes `control-band-<id>/intent.md` and opens a PR | yes | `scripts/control-bands.test.ts` › "reports the breach with the numbers a reader needs to argue with it"; `scripts/band-series.test.ts` › "is still idempotent against what is already recorded"; the PR step in `.github/workflows/control-bands.yml` | held |
 | R6 | watcher unit tests: the WE rules on synthetic series; the generated intent passes R1 | all four rules and the generated intent (rules 2 and 3 since 2026-10-19) | `scripts/control-bands.test.ts` › "rule 1 — a single point beyond 3σ", › "rule 4 — eight consecutive on one side is drift, even with no unusual point", › "satisfies the schema the intent lock enforces"; `scripts/control-bands.test.ts` › "rule 2 — two of the last three beyond 2σ on one side, with no point beyond 3σ", › "rule 3 — four of the last five beyond 1σ on one side, with a point between that breaks the run" | held (2026-10-19) |
 
+Re-run weekly by `provedone intent check --evidence` (`.github/workflows/intent-evidence.yml`), the
+held rows only:
+
+| Criterion | Command | Output |
+| :-- | :-- | :-- |
+| S1, R1. a malformed intent turns `npm test` red | `npx vitest run --config vitest.root.config.ts scripts/intent-artifacts-lock.test.ts` | exit 0, `scripts/intent-artifacts-lock.test.ts` |
+| R4. the bands file and the collectors agree | `npx vitest run --root benchmarks bands.test.ts -t "band for band"` | exit 0, `bands.test.ts`, `1 passed` |
+| S4, R5, R6. the four Western Electric rules, the breach report, and a breach intent that passes the lock | `npx vitest run --config vitest.root.config.ts scripts/control-bands.test.ts` | exit 0, `scripts/control-bands.test.ts` |
+
 What changed, one row at a time:
 
 - **S1, R1.** The lock shipped as `scripts/intent-artifacts-lock.test.ts`, not under
