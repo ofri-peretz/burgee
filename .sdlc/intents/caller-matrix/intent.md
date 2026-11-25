@@ -101,6 +101,15 @@ falls"), and `/docs/callers` was regenerated: **48 held · 7 n/a · 0 missing**.
 The ceiling at 0 was proven red by marking the three component cells `missing` again (`expected 3
 to be less than or equal to 0`).
 
+Re-run weekly by `provedone intent check --evidence` (`.github/workflows/intent-evidence.yml`):
+
+| Criterion | Command | Output |
+| :-- | :-- | :-- |
+| 1. the matrix page is generated with 0 missing cells, under a ceiling that only falls | `npx vitest run --config vitest.root.config.ts scripts/callers-lock.test.ts` | exit 0, `scripts/callers-lock.test.ts` |
+| 2. the `agent` and `ci` cells of `prompts`: a question with no TTY exits, never hangs | `npx vitest run --config vitest.root.config.ts scripts/prompt-exit-codes.test.ts` | exit 0, `scripts/prompt-exit-codes.test.ts` |
+| 3. the `accessible` cell of `spinner`: the static projection once per state change | `npx vitest run --root packages/flagstaff src/loop.test.ts -t "the static projection once per state change, no repaint"` | exit 0, `src/loop.test.ts`, `3 passed` |
+| 3. the `accessible` cell of `prompts`: no escape sequence and no carriage return | `npx vitest run --root packages/caique src/ask.test.ts -t "writes no escape sequence and no carriage return"` | exit 0, `src/ask.test.ts`, `1 passed` |
+
 ## Verified against `main` — 2026-09-09
 
 Checked criterion by criterion on `61bd11b9`. **Zero of four met.** `draft` is the honest

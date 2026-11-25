@@ -15,10 +15,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { discard } from './__fixtures__/scratch-dir.js';
 
 type Listener = (event: string, filename: string | Buffer | null) => void;
-const watched = vi.hoisted(() => ({ listener: undefined as Listener | undefined, closed: 0 }));
+const watched = vi.hoisted(() => ({ listener: undefined as Listener | undefined, closed: 0, calls: 0, opts: undefined as unknown }));
 vi.mock('node:fs', async (actual) => ({
   ...(await actual<typeof import('node:fs')>()),
-  watch: (_dir: string, _opts: unknown, listener: Listener) => {
+  watch: (_dir: string, opts: unknown, listener: Listener) => {
+    watched.calls += 1;
+    watched.opts = opts;
     watched.listener = listener;
     return { close: () => void (watched.closed += 1) };
   },
@@ -37,14 +39,15 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-async function started(debounceMs?: number): Promise<{ loads: () => number; close: () => void }> {
+async function started(debounceMs?: number, watch?: false): Promise<{ loads: () => number; close: () => void; input: PassThrough; done: Promise<void> }> {
   dir = mkdtempSync(join(tmpdir(), 'burgee-watch-'));
   const entry = join(dir, 'cli.ts');
   writeFileSync(entry, ENTRY);
   const logged: string[] = [];
-  const handle = dev({ entry, input: new PassThrough(), output: new PassThrough(), log: { write: (s) => logged.push(s) }, ...(debounceMs === undefined ? {} : { debounceMs }) });
+  const input = new PassThrough();
+  const handle = dev({ entry, input, output: new PassThrough(), log: { write: (s) => logged.push(s) }, ...(debounceMs === undefined ? {} : { debounceMs }), ...(watch === undefined ? {} : { watch }) });
   await handle.ready;
-  return { loads: () => logged.filter((l) => /^(re)?loaded /.test(l)).length, close: handle.close };
+  return { loads: () => logged.filter((l) => /^(re)?loaded /.test(l)).length, close: handle.close, input, done: handle.done };
 }
 
 /**
@@ -97,5 +100,50 @@ describe('the watcher reloads on source files only (W5)', () => {
     await vi.waitFor(() => expect(loads()).toBe(2), SETTLE);
     close();
     expect(watched.closed).toBeGreaterThan(0);
+  });
+
+  it('watches the whole tree under the entry, and nothing when asked not to watch', async () => {
+    const calls = watched.calls;
+    const { close } = await started(5);
+    expect(watched.opts).toEqual({ recursive: true });
+    close();
+    const quiet = await started(5, false);
+    expect(watched.calls).toBe(calls + 1);
+    quiet.close();
+  });
+
+  it('reloads on a .cjs file, and not on a source name with more after it', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const { close } = await started(5);
+    fire('cli.json.bak');
+    expect(vi.getTimerCount()).toBe(0);
+    fire('lib/util.cjs');
+    expect(vi.getTimerCount()).toBe(1);
+    close();
+  });
+
+  it('fires the default debounce at exactly 50 ms', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const { close } = await started();
+    fire('cli.ts');
+    await vi.advanceTimersByTimeAsync(50);
+    expect(vi.getTimerCount()).toBe(0);
+    close();
+  });
+
+  it('drops a pending reload on close', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const { close } = await started(5);
+    fire('cli.ts');
+    close();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('stops watching once the MCP input closes', async () => {
+    const { input, done } = await started(5);
+    const closed = watched.closed;
+    input.end();
+    await done;
+    expect(watched.closed).toBe(closed + 1);
   });
 });
