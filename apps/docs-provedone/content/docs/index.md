@@ -76,7 +76,7 @@ provedone intent check --evidence                                # the intent ru
 | `stamp` | a `--run` command failed (it is still recorded) |
 | `gate` | `enforce`, no `Verified-by:` line or a `none` with no reason, and fewer than two blocks this session |
 | `done` | a success criterion has no passing stamp on this branch; each gets a `fix:` naming the stamp to run |
-| `intent check` | an intent breaks a rule, the index disagrees, or a re-run evidence command no longer matches |
+| `intent check` | an intent breaks a rule, the index disagrees, a shipped evidence row filters tests by name with no `N passed` recorded, or a re-run evidence command no longer matches |
 
 ```text
 Verified-by: npm test -> exit 0 (sha256:85f7e552faae)

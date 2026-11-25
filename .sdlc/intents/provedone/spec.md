@@ -14,7 +14,9 @@ Intent: [`intent.md`](./intent.md). **Status:** draft.
 - **R3** For each `shipped` intent, `intent check --evidence` parses the evidence table
   (`| Criterion | Command… | Output |`), re-runs each row whose command is a plain shell command,
   and fails when the exit code differs or the recorded output no longer appears. Rows it cannot
-  run are listed as `not re-run`, never as passing.
+  run are listed as `not re-run`, never as passing. A row whose command filters tests by name
+  (`-t`, `--testNamePattern`, `--test-name-pattern`, `--grep`) must record an `N passed` code
+  span, or `intent check` reports `filter-count`: a filter that matches nothing exits 0.
 - **R4** `provedone stamp` writes a receipt: commands with exit codes and output digests, app
   captures by path, and a required `not checked:` list (may be `nothing`). It prints the
   `Verified-by:` trailer and a PR-body block.
