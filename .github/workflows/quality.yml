@@ -13,6 +13,7 @@ run-name: >-
 #   - Markdown Lint
 #   - Workflow Conventions (scripts/lint-workflows.ts)
 #   - Lockfile Sync
+#   - provedone receipts (on a PR: every commit carries its Verified-by: line)
 #
 # `Quality Gate` is the single required status check for branch protection.
 # ─────────────────────────────────────────────────────────────────────────────
@@ -182,17 +183,60 @@ jobs:
         if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
         run: npm run evals:config
 
+  # The `provedone receipts` job of hookset-check.yml, which every other repo calls: burgee cannot
+  # call that workflow (its lefthook.yml pins no preset), so the same step runs here, inside the
+  # required Quality Gate. The commit-msg hook enforces the receipt locally; this catches a
+  # commit made in the web editor or past a bypassed hook. Keep the two steps in step.
+  receipts:
+    name: provedone receipts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # The job runs on every event, because the gate release.yml waits for on a push to main needs
+    # it (heavy-ci-nightly-lock); off a pull request its steps skip and it passes.
+    steps:
+      - if: github.event_name == 'pull_request'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - if: github.event_name == 'pull_request'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
+        with:
+          node-version-file: .nvmrc
+      - name: Every commit in the pull request carries a receipt
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REF: ${{ github.head_ref }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: |
+          set -euo pipefail
+          if [ "$HEAD_REF" = "changeset-release/main" ]; then echo "The Version PR's commits come from changesets: exempt."; exit 0; fi
+          case "$PR_AUTHOR" in *"[bot]") echo "$PR_AUTHOR opened this PR: exempt."; exit 0 ;; esac
+          failed=0
+          for sha in $(git rev-list --no-merges "$BASE_SHA..$HEAD_SHA"); do
+            git log -1 --format=%B "$sha" > "$RUNNER_TEMP/message"
+            # One session per commit, so the gate's two-blocks-then-pass escape never applies here.
+            if ! PROVEDONE_SESSION="ci-$sha" npx --yes provedone@1.0.1 gate "$RUNNER_TEMP/message" --mode enforce --quiet; then
+              echo "::error::$(git log -1 --format='%h %s' "$sha") carries no receipt. fix: reword it with \`Verified-by: <command> -> exit 0\` or \`Verified-by: none (<why no check applies>)\` beside Co-Authored-By:, then push."
+              failed=1
+            fi
+          done
+          exit "$failed"
+
   quality-gate:
     name: Quality Gate
     runs-on: ubuntu-latest
     timeout-minutes: 2
-    needs: [lint, fast]
+    needs: [lint, fast, receipts]
     if: always()
     steps:
       - name: Render gate report
         env:
           R_LINT: ${{ needs.lint.result }}
           R_FAST: ${{ needs.fast.result }}
+          R_RECEIPTS: ${{ needs.receipts.result }}
           # Per-check outcomes, for the table. A check that never ran (the job was cancelled
           # or never started) has no outcome; its row falls back to the job's result.
           O_MARKDOWN: ${{ needs.fast.outputs.markdown || needs.fast.result }}
@@ -209,7 +253,7 @@ jobs:
           # Pass/fail reads the two JOB results: `fast` is green only if every one of its
           # checks was. The per-check outcomes below are the report, not the verdict.
           all_pass=true
-          for r in "$R_LINT" "$R_FAST"; do [ "$r" = "success" ] || all_pass=false; done
+          for r in "$R_LINT" "$R_FAST" "$R_RECEIPTS"; do [ "$r" = "success" ] || all_pass=false; done
           {
             if $all_pass; then echo "# ✅ Fast quality gates passed"; else echo "# ❌ One or more fast quality gates failed"; fi
             echo ""
@@ -224,6 +268,7 @@ jobs:
             echo "| Generated pages match their sources (family diagram) | $(icon "$O_LAYERS_PAGE") $O_LAYERS_PAGE |"
             echo "| Generated pages match their sources (callers) | $(icon "$O_CALLERS_PAGE") $O_CALLERS_PAGE |"
             echo "| Evals layer 1 (links, scripts, floor ids) | $(icon "$O_EVALS_CONFIG") $O_EVALS_CONFIG |"
+            echo "| provedone receipts (every PR commit) | $(icon "$R_RECEIPTS") $R_RECEIPTS |"
             echo ""
             echo "_Heavy gates (test / build / typecheck) run in \`quality-full.yml\` once the PR is ready for review or labelled \`run-full-ci\`._"
           } >> "$GITHUB_STEP_SUMMARY"
