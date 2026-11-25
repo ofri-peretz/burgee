@@ -82,3 +82,7 @@ pre-push:
       priority: 6
       glob: '*.md'
       run: npx --no -- markdownlint-cli2 {push_files}
+    lint-guidance:
+      priority: 6
+      glob: '*.md'
+      run: npm run -s lint:guidance
