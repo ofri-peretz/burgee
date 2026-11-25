@@ -1,0 +1,62 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+# Weekly: re-run the evidence of every shipped intent (provedone intent, success criterion 1,
+# spec R3). `provedone intent check --evidence` re-runs each evidence row whose command is one
+# plain shell command and fails when its exit code differs or a recorded output is gone; rows it
+# cannot run are listed as not re-run, never as passing.
+#
+# A run that re-runs nothing measures nothing, so the job fails then too.
+# `scripts/intent-evidence-workflow-lock.test.ts` holds this file to that, and holds at least one
+# shipped intent to a re-runnable row.
+name: Intent evidence
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 5 * * 0"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: intent-evidence
+  cancel-in-progress: false
+
+jobs:
+  evidence:
+    name: Re-run shipped intents' evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup
+
+      - name: Build every package (an evidence command may read any dist/)
+        run: npx turbo run build --concurrency=2
+
+      - name: provedone intent check --evidence
+        run: |
+          set -euo pipefail
+          status=0
+          node packages/provedone/dist/bin.js intent check --evidence --command-timeout 600 --json > evidence.json || status=$?
+          node --input-type=module -e '
+            import { readFileSync, appendFileSync } from "node:fs";
+            const { data } = JSON.parse(readFileSync("evidence.json", "utf8"));
+            const failed = data.reruns.filter((r) => r.exit !== r.expected || r.missing.length > 0);
+            const lines = [
+              "## Intent evidence",
+              "",
+              `${data.intents} intents · ${data.reruns.length} rows re-run · ${failed.length} failed · ${data.notRerun.length} not re-run · ${data.noEvidence.length} shipped with no evidence`,
+              "",
+              ...failed.map((r) => `- **${r.intent}** ${r.criterion}: \`${r.command}\` exit ${r.exit} (recorded ${r.expected})${r.missing.length > 0 ? `, missing ${r.missing.map((m) => `\`${m}\``).join(", ")}` : ""}`),
+            ];
+            appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${lines.join("\n")}\n`);
+            for (const r of failed) console.log(`::error::${r.intent}: ${r.criterion} — \`${r.command}\` no longer gives its recorded result. fix: re-run it, then fix the code or re-record the row`);
+            if (data.reruns.length === 0) {
+              console.log("::error::no evidence row was re-run, so this run measured nothing. fix: give a shipped intent a | Criterion | Command | Output | row whose command is one code span");
+              process.exitCode = 1;
+            }
+          '
+          exit "$status"

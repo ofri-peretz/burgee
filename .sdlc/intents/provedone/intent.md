@@ -80,4 +80,5 @@ Each is a default, not a decision; overturning one in review is a new decision f
 
 - The package keeps the working name `provedone` until it publishes.
 - The receipt lives in the commit trailer and the PR body only, not as a file under `.sdlc/`.
-- `intent check --evidence` runs weekly beside `mutation:weekly`, not on every push.
+- `intent check --evidence` runs weekly (Sunday, `.github/workflows/intent-evidence.yml`), not on
+  every push, and fails when it re-runs nothing.
