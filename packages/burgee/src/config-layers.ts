@@ -62,6 +62,7 @@ export async function configLayers(
   const explicit = values['config'];
   // Flags are canonical (camelCase) by now: `--no-config` reads as `noConfig`.
   const disabled = values['noConfig'] === true;
+  // Stryker disable next-line ConditionalExpression: --config parses as a string or not at all, and seniority reads an undefined explicit as none
   const loaded = await discover({ name, cwd: io.cwd, env: io.env, ...(typeof explicit === 'string' ? { explicit } : {}), disabled });
   const out: Pick<Layers, 'config' | 'pkg'> = {};
   // The layer as seniority loaded it: each key cited at the file in the chain that set it, with

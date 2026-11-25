@@ -49,6 +49,7 @@ export interface GlobalArg {
 }
 
 /** `-q, --quiet` or `--timeout <duration>`: the short flag, the name, and whether it takes a value. */
+// Stryker disable next-line Regex: every term is a row help renders, which starts at its flag and ends at its value, so neither anchor decides a match
 const TERM = /^(?:(-\w), )?--([\w-]+)(?: <\w+>)?$/u;
 
 /**
