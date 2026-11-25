@@ -1,0 +1,64 @@
+---
+title: Per-case time budget
+description: "truepass/vitest-reporter fails a run when a test case takes longer than its budget (5 seconds by default) and is still over it when measured again alone; truepass budget judges the cases a battery deferred."
+---
+
+A test that takes a long time to run becomes a test that people skip. A timeout does not stop
+this. It is set far above what a case usually takes, so it fails whichever case happens to lose
+the bet with the machine, not the case that is slow. The per-case budget sets a limit for each
+case instead: by default, no case may take longer than 5 seconds.
+
+## The reporter
+
+```ts
+// vitest.config.ts
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  test: {
+    reporters: ["default", ["truepass/vitest-reporter", { budgetMs: 5000 }]],
+  },
+});
+```
+
+When the run ends, the reporter reads how long each case took. That covers the case's body and
+its `beforeEach` and `afterEach` hooks. Any case over the budget is run again alone (its file by
+itself, with `-t` naming the case), up to two times. The case fails the run only if its best
+alone reading is also over the budget. A single reading on a loaded machine measures the
+machine, not the case.
+
+- On CI (`CI=true`), every alone reading counts.
+- On a developer machine, a case is printed as **unjudged** instead of failed when every alone
+  reading was taken with the load average above the core count. CI judges it later.
+- On a developer machine, alone readings stop after two minutes in total. The rest are left to CI.
+- A run with coverage on is not judged, because coverage slows the body of every case.
+
+| Option     | Default              | What it does                                                    |
+| :--------- | :------------------- | :-------------------------------------------------------------- |
+| `budgetMs` | `5000`               | Milliseconds a case may take. `TRUEPASS_BUDGET_MS` overrides it. `0` turns the gate off. |
+| `exempt`   | `{}`                 | Cases that may take longer, keyed `<file> > <full name>`, each with the reason. |
+| `root`     | the vitest directory | What the file part of a key is relative to.                     |
+| `hint`     | a generic fix        | The advice printed under the slow cases.                        |
+
+An exemption is for a case that truly needs a heavy operation. Each one carries its reason, so
+whoever reads the list can see what each case is waiting on.
+
+## Inside a battery
+
+Inside `turbo run test`, many suites run at once, so a case measured "alone" is never really
+alone. To handle this, set `TRUEPASS_BUDGET_DEFER` to a directory. Each run then writes its
+candidates there instead of judging them. When the battery ends, `truepass budget` measures each
+candidate alone and exits 1 if any is still over the budget:
+
+```yaml
+# lefthook.yml
+pre-push:
+  commands:
+    test:
+      run: TRUEPASS_BUDGET_DEFER="$PWD/node_modules/.cache/truepass-budget" npx turbo run test
+    case-budget:
+      run: npx truepass budget node_modules/.cache/truepass-budget
+```
+
+Each candidate records the budget its run used, so `truepass budget` judges it by that same
+budget. The directory is emptied after it is read.

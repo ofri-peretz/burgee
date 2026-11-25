@@ -23,6 +23,11 @@ Intent: [`intent.md`](./intent.md). **Status:** draft.
 - **R6** The CLI is a burgee program (`--json`, `--schema`, `--mcp` from `defineProgram`), and git
   is spawned through bellpull. `eslint` is an optional peer: `truepass/eslint` imports its types
   only, and the CLI needs only git.
+- **R7** `truepass/vitest-reporter` fails a run on a case whose own duration is over `budgetMs`
+  (default 5000, `TRUEPASS_BUDGET_MS` overrides, `0` is off) and whose best of two alone readings
+  is over it too; off CI, readings taken under load leave the case unjudged. With
+  `TRUEPASS_BUDGET_DEFER` set it writes its candidates there, and `truepass budget <dir>` judges
+  them after the battery by the budget each run used. Ported from burgee's own five-second gate.
 
 ## Design
 
