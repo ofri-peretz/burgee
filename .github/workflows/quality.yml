@@ -62,6 +62,9 @@ jobs:
       # The config loads truepass's rules from its dist (dogfooded, not installed from npm).
       - run: npm run lint:prereq
       - run: npx eslint . --max-warnings 0
+      # CLAUDE.md, AGENTS.md and skills: the conventions plugin's guidance preset holds their
+      # size and keeps enforceable rules out of prose (eslint.guidance.config.mjs).
+      - run: npm run lint:guidance
 
   # The four cheap checks share one job. Each used to be its own job, and each spent more
   # time waiting for a runner than running: on the saturated account (20 concurrent jobs,
