@@ -122,6 +122,15 @@ Today's descriptions open with what the package does in our own words ("Runs a s
    > controlroom (#19), roundel (#20) and flagstaff (#34) did not, so the intent stays open on
    > those four. The reading was taken hours after publish, and a one-week re-reading confirms or
    > clears the misses before any rewording.
+   >
+   > **2026-11-25: misses confirmed** ([reading](../../research/npm-search-rank-2026-11-25.md)). A
+   > week on, with no description changed, caique #16, controlroom #21, roundel #21 and flagstaff
+   > #35; closeout #7, linegauge #4 and paratext #2 hold. No within-reach rank moved more than two
+   > places, so npm's score does not lag the description. By this criterion the four are a design
+   > failure and **the intent is reopened** on caique, controlroom, roundel and flagstaff. The
+   > downloads-bound four (bellpull #174, burgee #96, oxmutate #50, seniority #94) go to an adoption
+   > intent. The seven packages added to the phrase table since (truepass, contractdiff, truefit,
+   > provedone, replz, hookset, triggerlist) are all >250 on their first reading, a baseline.
 
 ## Open questions
 
