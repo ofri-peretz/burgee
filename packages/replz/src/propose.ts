@@ -41,7 +41,7 @@ export const prOf = (subject: string): number | undefined => {
 const isFix = (subject: string): boolean => subject.startsWith('fix');
 
 /** The pull requests a commit says were bugs: the one a revert undoes, or the one a fix names. */
-export const blamed = (commit: Commit): number[] => {
+export const blamed = (commit: Pick<Commit, 'subject' | 'body'>): number[] => {
   const reverted = REVERTED.exec(commit.subject)?.[1];
   const fromRevert = reverted === undefined ? undefined : prOf(reverted);
   const named = isFix(commit.subject) ? FIXES.exec(`${commit.subject}\n${commit.body}`)?.[1] : undefined;

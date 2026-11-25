@@ -1,0 +1,9 @@
+# feat(hookset): deny a foreground git push under the default timeout; lint changed files on pre-push (#1774)
+# Confirmed from the diff on 2026-11-25: fixed by #1790.
+id: bug-1774
+kind: bug
+pr: 1774
+base: "6a0897a422a5"
+head: "70f425240bf3"
+answer: "guard-bash exempts `git push --dry-run` from the long-timeout rule, but a dry-run push still runs the pre-push hook, so it can be killed at the default timeout."
+set: tune

@@ -1,0 +1,8 @@
+# chore(workspace): record AI citation probe (#1521)
+# Size-matched control for bug-1790 (111 vs 111 lines): no fix or revert traces back to it.
+id: control-1521
+kind: control
+pr: 1521
+base: "a3c8f38a8675"
+head: "1350444030cd"
+set: test

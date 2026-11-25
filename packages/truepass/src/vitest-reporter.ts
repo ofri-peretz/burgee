@@ -7,14 +7,18 @@
  * After the run it reads each case's own duration (body plus its beforeEach/afterEach) and sets
  * the exit code to 1 when one is over the budget and still over it alone. A run with coverage on
  * is not judged: the instrument slows the body. See `budget.ts`.
+ *
+ * It imports nothing outside node until a case is over the budget, so a monorepo whose own
+ * packages truepass depends on can load it from source without building them first.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { ExitCode } from 'burgee';
-
 import { budgetFrom, type Candidate, DEFAULT_BUDGET_MS, DEFER_ENV, type Exemptions, judge, type Machine, overBudget, realMachine, repoPath } from './budget.js';
 import { cwd as processCwd, pid, setExitCode } from './runtime.js';
+
+/** burgee's `ExitCode.RUNTIME`, written out so the reporter loads without burgee built. */
+const RUNTIME_EXIT = 1;
 
 export interface BudgetOptions {
   /** Milliseconds a case may take; `TRUEPASS_BUDGET_MS` overrides it. Default 5000. */
@@ -71,6 +75,6 @@ export default class TruepassBudget {
       this.machine.write(`\n${String(candidates.length)} case(s) over the ${String(budget)} ms budget in this run; \`truepass budget ${defer}\` judges them alone after the battery.\n`);
       return;
     }
-    if (!(await judge(candidates, budget, this.options.hint, this.machine))) setExitCode(ExitCode.RUNTIME);
+    if (!(await judge(candidates, budget, this.options.hint, this.machine))) setExitCode(RUNTIME_EXIT);
   }
 }

@@ -36,6 +36,17 @@ describe('config explain, row by row', () => {
     expect(resolve).toHaveBeenLastCalledWith(expect.objectContaining({ region: expect.anything(), tier: expect.anything() }), { config: 'x.json' });
   });
 
+  it('reads --config <path> before the command word as a flag too', async () => {
+    const resolve = answer({ values: {}, provenance: {} });
+    await explainConfig(program, ['--config', 'x.json', 'deploy'], resolve);
+    expect(resolve).toHaveBeenLastCalledWith(expect.objectContaining({ region: expect.anything() }), { config: 'x.json' });
+  });
+
+  it('prints a value that is not a string as JSON', async () => {
+    const text = await explainConfig(program, ['deploy'], answer({ values: { region: ['eu', 'us'] }, provenance: { region: { source: 'config' } } }));
+    expect(text.split('\n')[1]).toBe('  --region  ["eu","us"]  (config)');
+  });
+
   it('says a command takes no options, rather than printing an empty table', async () => {
     const text = await explainConfig(program, [], answer({ values: {}, provenance: {} }));
     expect(text).toMatch(/\n {2}\(this command takes no options\)\n$/);

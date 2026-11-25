@@ -1,0 +1,9 @@
+# feat(workspace): validator parity, waves 1 and 2: from 34 to 97 of 154 features (#1570)
+# Confirmed from the diff on 2026-11-25: fixed by #1623.
+id: bug-1570
+kind: bug
+pr: 1570
+base: "593c0b4d1e26"
+head: "f52e164e259c"
+answer: "the validator checks a required key with `in`, so a shape naming __proto__, toString or constructor is satisfied by {} through Object.prototype."
+set: tune

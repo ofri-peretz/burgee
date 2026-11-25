@@ -34,7 +34,7 @@ pre-push:
     # alone (D-20261101-tests-under-5s).
     battery:
       priority: 1
-      run: rm -rf node_modules/.cache/case-budget && VITEST_CASE_BUDGET_DEFER="$PWD/node_modules/.cache/case-budget" npx --no turbo run typecheck test build --output-logs=errors-only --concurrency=2
+      run: rm -rf node_modules/.cache/case-budget && TRUEPASS_BUDGET_DEFER="$PWD/node_modules/.cache/case-budget" npx --no turbo run typecheck test build --output-logs=errors-only --concurrency=2
     # `turbo run test` covers workspaces, and `scripts/` is not one — the root vitest config
     # is the only thing that runs `scripts/**/*.test.ts`. So the gate that is supposed to be
     # what CI runs was missing a whole directory of locks, and `plan-progress-lock.test.ts`
@@ -46,8 +46,8 @@ pre-push:
     # The changed-lines mutation lane (scripts/mutation-changed.sh), against origin/main: the
     # per-PR mutation gate. No workflow runs it (D-20261101-no-mutation-in-gha), so this hook is
     # the only place a surviving mutant on a changed line is caught before merge. It skips in
-    # seconds when no package source line changed; otherwise it needs cargo for oxmutate's
-    # native core, and says `fix:` without it.
+    # seconds when no package source line changed; otherwise it runs in oxmutate's Docker container
+    # (builds, native core and mutants all inside), and says `fix:` when Docker is not running.
     mutation-changed:
       priority: 3
       run: npm run mutation:changed

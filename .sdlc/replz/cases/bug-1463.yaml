@@ -1,0 +1,9 @@
+# feat(oxmutate): a worker calls and tears down its own deadlocks; no test waited on past 5 s (#1463)
+# Confirmed from the diff on 2026-11-25: fixed by #1588.
+id: bug-1463
+kind: bug
+pr: 1463
+base: "46827c35b2c8"
+head: "a67cb8b60616"
+answer: "the deadlock confirm window can open before guard() armed the wait it guards, so a call just inside the window is read as a deadlock."
+set: test

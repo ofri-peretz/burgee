@@ -36,7 +36,7 @@ import { formatsOf } from './formats.js';
 import { checkLocales, countFor, formsOf, isOwnedElsewhere, type LocaleMessages, type LocaleRefusal, type Locales, type Message, render } from './locale.js';
 import { Manifest } from './manifest.js';
 import { MESSAGES } from './messages.js';
-import { type Plugin, PluginError, validate } from './plugin.js';
+import { type Plugin, PluginError } from './plugin.js';
 
 export interface CheckReport {
   name: string;
@@ -136,7 +136,7 @@ async function load(path: string): Promise<unknown> {
 export async function checkPlugin(file: string): Promise<CheckReport | CheckRefusal> {
   const plugin = await load(resolve(file));
   try {
-    validate(plugin, []);
+    // `use()` validates first, as a program's registration does, so the refusal is the one a program would get.
     new Manifest().use(plugin as Plugin);
     checkLocales(plugin as Plugin);
     // Beside burgee's own, as a program would hold them: a name burgee registers is refused here too.
@@ -155,10 +155,12 @@ export async function checkPlugin(file: string): Promise<CheckReport | CheckRefu
   const report: CheckReport = {
     name,
     commands: commands.map((c) => ({ path: c.path.join(' '), description: c.description ?? '', effects: String(c.effects ?? 'undeclared') })),
-    hooks: STAGES.filter((stage) => hooks[stage] !== undefined).map((stage) => ({
-      stage,
-      applies: hooks[stage]?.filter?.command === undefined ? 'every command' : `commands matching ${String(hooks[stage]?.filter?.command)}`,
-    })),
+    hooks: STAGES.flatMap((stage) => {
+      const hook = hooks[stage];
+      if (hook === undefined) return [];
+      const command = hook.filter?.command;
+      return [{ stage, applies: command === undefined ? 'every command' : `commands matching ${String(command)}` }];
+    }),
     ...(locales === undefined ? {} : { locales: rendered(locales) }),
     ...(formats === undefined ? {} : { formats: Object.entries(formats).map(([format, { description }]) => ({ name: format, description })) }),
     ...(layers.length === 0 ? {} : { layers }),

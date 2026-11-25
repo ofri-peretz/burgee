@@ -1,0 +1,9 @@
+# feat(hookset): lefthook presets, a Claude hook pack, init/check, and two reusable workflows (#1709)
+# Confirmed from the diff on 2026-11-25: fixed by #1802.
+id: bug-1709
+kind: bug
+pr: 1709
+base: "2baec490f6cc"
+head: "481c36fbefed"
+answer: "guard-bash matches hook-skipping only in its exact spellings, so an abbreviated `git commit --no-veri`, `export LEFTHOOK=0; git push`, `lefthook uninstall` or editing .git/hooks skips the hooks with no denial."
+set: tune

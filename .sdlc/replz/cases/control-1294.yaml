@@ -1,0 +1,8 @@
+# feat(benchmarks): spawn-delta rows for linegauge and closeout, a current published measurement, three umbrellas shipped (#1294)
+# Size-matched control for bug-1636 (7963 vs 6919 lines): no fix or revert traces back to it.
+id: control-1294
+kind: control
+pr: 1294
+base: "db19cc64224c"
+head: "a1fa9810ca13"
+set: test

@@ -1,0 +1,8 @@
+# feat(apicontract): explain, gen markdown and gen mcp (PLAN.md 6.8) (#1627)
+# Size-matched control for bug-1709 (2153 vs 2131 lines): no fix or revert traces back to it.
+id: control-1627
+kind: control
+pr: 1627
+base: "737ca9a47e82"
+head: "d9050c3dd338"
+set: tune

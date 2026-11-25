@@ -8,7 +8,9 @@
  * Lock — no test case takes more than five seconds, and the gate that says so cannot quietly stop
  * running (D-20261101-tests-under-5s).
  *
- * The gate is `scripts/vitest-case-budget-reporter.ts`. It only gates a run it is loaded into, so
+ * The gate is truepass's budget reporter, loaded from `packages/truepass/src/vitest-reporter.ts`
+ * with this repository's exemptions and advice (`scripts/nightly-only.ts`). It only gates a run it
+ * is loaded into, so
  * this holds the places it has to be: every vitest config in a workspace loads it (through
  * `timeouts`, or `caseBudget` for a config with its own clocks), the required `Unit Tests` job and
  * the pre-push hook run those configs without turning it off, and `NIGHTLY_ONLY` — the one
@@ -24,8 +26,11 @@ import { join } from 'node:path';
 import { load as loadYaml } from 'js-yaml';
 import { describe, expect, it } from 'vitest';
 
+// eslint-disable-next-line import-next/no-relative-packages -- by path, the source every suite loads: a bare `truepass` resolves to a dist/ that may not be built
+import { budgetFrom, caseKey, type Candidate, judge, LOCAL_ALONE_BUDGET_MS, type Machine, overBudget, skipAlone, strict, withoutGitEnv } from '../packages/truepass/src/budget.js';
+
+import { CASE_BUDGET_HINT, CASE_BUDGET_MS, NIGHTLY_ONLY } from './nightly-only.js';
 import { readWorkflow, REPO_ROOT, type Step } from './required-checks.mjs';
-import { budgetFrom, CASE_BUDGET_MS, caseKey, describeOverBudget, LOCAL_ALONE_BUDGET_MS, NIGHTLY_ONLY, overBudget, skipAlone, strict, withoutGitEnv } from './vitest-case-budget-reporter.js';
 
 describe('the budget', () => {
   it('is the owner’s five seconds, and a case at exactly the budget is within it', () => {
@@ -47,19 +52,19 @@ describe('the budget', () => {
     expect(overBudget(cases, CASE_BUDGET_MS, { [caseKey(cases[0]!)]: 'a real install' }).map((c) => c.name)).toEqual(['heavy too']);
   });
 
-  it('reads VITEST_CASE_BUDGET_MS, where 0 turns the gate off, and refuses one that is not a number', () => {
-    expect(budgetFrom({})).toBe(CASE_BUDGET_MS);
-    expect(budgetFrom({ VITEST_CASE_BUDGET_MS: '' })).toBe(CASE_BUDGET_MS);
-    expect(budgetFrom({ VITEST_CASE_BUDGET_MS: '0' })).toBe(0);
-    expect(budgetFrom({ VITEST_CASE_BUDGET_MS: '2500' })).toBe(2_500);
-    expect(() => budgetFrom({ VITEST_CASE_BUDGET_MS: 'soon' })).toThrow(/not a number/);
-    expect(() => budgetFrom({ VITEST_CASE_BUDGET_MS: '-1' })).toThrow(/not a number/);
+  it('reads TRUEPASS_BUDGET_MS, where 0 turns the gate off, and refuses one that is not a number', () => {
+    expect(budgetFrom({}, CASE_BUDGET_MS)).toBe(CASE_BUDGET_MS);
+    expect(budgetFrom({ TRUEPASS_BUDGET_MS: '' }, CASE_BUDGET_MS)).toBe(CASE_BUDGET_MS);
+    expect(budgetFrom({ TRUEPASS_BUDGET_MS: '0' }, CASE_BUDGET_MS)).toBe(0);
+    expect(budgetFrom({ TRUEPASS_BUDGET_MS: '2500' }, CASE_BUDGET_MS)).toBe(2_500);
+    expect(() => budgetFrom({ TRUEPASS_BUDGET_MS: 'soon' }, CASE_BUDGET_MS)).toThrow(/not a number/);
+    expect(() => budgetFrom({ TRUEPASS_BUDGET_MS: '-1' }, CASE_BUDGET_MS)).toThrow(/not a number/);
   });
 
-  it('judges strictly on CI, whatever the load; off CI an overloaded machine leaves a case unjudged', () => {
-    expect(strict({ CI: 'true' })).toBe(true);
-    expect(strict({})).toBe(false);
-    expect(strict({ CI: 'false' })).toBe(false);
+  it('judges strictly on CI, whatever the load; off CI an overloaded machine leaves a case unjudged', async () => {
+    expect(await strict({ CI: 'true' })).toBe(true);
+    expect(await strict({})).toBe(false);
+    expect(await strict({ CI: '' })).toBe(false);
   });
 
   it('measures every case alone on CI; off CI it stops when the machine is overloaded or the alone readings have run long', () => {
@@ -74,11 +79,14 @@ describe('the budget', () => {
     expect(withoutGitEnv({ GIT_DIR: '/r/.git/worktrees/w', GIT_INDEX_FILE: 'i', GITHUB_ACTIONS: 'true', PATH: '/bin' })).toEqual({ GITHUB_ACTIONS: 'true', PATH: '/bin' });
   });
 
-  it('names each slow case with both readings, and what to do about it', () => {
-    const text = describeOverBudget([{ file: 'a.test.ts', name: 's > slow', duration: 6_200.4, alone: 5_900 }], CASE_BUDGET_MS);
-    expect(text).toContain('1 test case over the 5000 ms per-case budget');
+  it('names each slow case with both readings, and what to do about it', async () => {
+    let text = '';
+    const machine: Machine = { env: { CI: 'true' }, measure: () => Promise.resolve(5_900), overloaded: () => false, now: () => 0, write: (t) => (text += t), cores: 1 };
+    const slow: Candidate = { file: 'a.test.ts', name: 's > slow', title: 'slow', path: '/r/a.test.ts', cwd: '/r', config: undefined, duration: 6_200.4 };
+    expect(await judge([slow], CASE_BUDGET_MS, CASE_BUDGET_HINT, machine)).toBe(false);
+    expect(text).toContain('1 test case(s) over the 5000 ms per-case budget');
     expect(text).toContain('6200 ms, 5900 ms alone  a.test.ts > s > slow');
-    expect(text).toContain('NIGHTLY_ONLY');
+    expect(text).toContain('NIGHTLY_ONLY (scripts/nightly-only.ts)');
   });
 });
 
@@ -115,13 +123,14 @@ describe('every suite loads the gate', () => {
 
   it('the shared clocks carry the reporter', () => {
     const text = readFileSync(join(REPO_ROOT, 'vitest-timeouts.config.ts'), 'utf8');
-    expect(text).toContain("'./scripts/vitest-case-budget-reporter.ts'");
+    expect(text).toContain("'./packages/truepass/src/vitest-reporter.ts'");
+    expect(text).toMatch(/exempt: NIGHTLY_ONLY/u);
     expect(text).toMatch(/\.\.\.caseBudget,\n\};/u);
   });
 });
 
 describe('the required check and the pre-push hook run it', () => {
-  const turnsOff = /VITEST_CASE_BUDGET_MS|--reporter/u;
+  const turnsOff = /TRUEPASS_BUDGET_MS|--reporter/u;
 
   it("Quality (Full)'s Unit Tests job runs the root suite, defers the package suites' candidates, then judges them", () => {
     const job = readWorkflow('quality-full.yml').jobs['test'];
@@ -134,14 +143,14 @@ describe('the required check and the pre-push hook run it', () => {
     const judge = at(/npx tsx scripts\/case-budget\.ts "\$RUNNER_TEMP\/case-budget"/u);
     expect([root, suites, judge].every((i) => i >= 0), 'a step went missing').toBe(true);
     expect(suites).toBeLessThan(judge);
-    expect(steps[suites]?.env?.['VITEST_CASE_BUDGET_DEFER']).toBe('${{ runner.temp }}/case-budget');
-    expect(steps[root]?.env?.['VITEST_CASE_BUDGET_DEFER'], 'the root suite runs alone and judges its own cases').toBeUndefined();
+    expect(steps[suites]?.env?.['TRUEPASS_BUDGET_DEFER']).toBe('${{ runner.temp }}/case-budget');
+    expect(steps[root]?.env?.['TRUEPASS_BUDGET_DEFER'], 'the root suite runs alone and judges its own cases').toBeUndefined();
   });
 
   it('the pre-push hook defers the battery’s candidates, judges them after it, and runs the root suite with the gate on', () => {
     const hooks = loadYaml(readFileSync(join(REPO_ROOT, 'lefthook.yml'), 'utf8')) as { 'pre-push': { commands: Record<string, { run: string; priority: number }> } };
     const { battery, 'case-budget': judge, 'root-suite': root } = hooks['pre-push'].commands;
-    expect(battery?.run).toMatch(/^rm -rf node_modules\/\.cache\/case-budget && VITEST_CASE_BUDGET_DEFER="\$PWD\/node_modules\/\.cache\/case-budget" npx --no turbo run typecheck test build/u);
+    expect(battery?.run).toMatch(/^rm -rf node_modules\/\.cache\/case-budget && TRUEPASS_BUDGET_DEFER="\$PWD\/node_modules\/\.cache\/case-budget" npx --no turbo run typecheck test build/u);
     expect(judge?.run).toBe('npx --no tsx scripts/case-budget.ts node_modules/.cache/case-budget');
     expect(judge!.priority).toBeGreaterThan(battery!.priority);
     expect(root?.run).toBe('npx --no vitest run --config vitest.root.config.ts');
@@ -150,13 +159,13 @@ describe('the required check and the pre-push hook run it', () => {
 
   it('turbo hands the budget variables to every test task', () => {
     const turbo = JSON.parse(readFileSync(join(REPO_ROOT, 'turbo.json'), 'utf8')) as { tasks: { test: { passThroughEnv: string[] } } };
-    expect(turbo.tasks.test.passThroughEnv).toEqual(expect.arrayContaining(['VITEST_CASE_BUDGET_MS', 'VITEST_CASE_BUDGET_DEFER']));
+    expect(turbo.tasks.test.passThroughEnv).toEqual(expect.arrayContaining(['TRUEPASS_BUDGET_MS', 'TRUEPASS_BUDGET_DEFER']));
   });
 
   it('only the compat cells turn it off, where correctness is graded on every OS', () => {
     const offs = readdirSync(join(REPO_ROOT, '.github/workflows'))
       .filter((f) => f.endsWith('.yml'))
-      .flatMap((f) => [...readFileSync(join(REPO_ROOT, '.github/workflows', f), 'utf8').matchAll(/VITEST_CASE_BUDGET_MS: (.*)$/gmu)].map((m) => `${f}: ${m[1] ?? ''}`));
+      .flatMap((f) => [...readFileSync(join(REPO_ROOT, '.github/workflows', f), 'utf8').matchAll(/TRUEPASS_BUDGET_MS: (.*)$/gmu)].map((m) => `${f}: ${m[1] ?? ''}`));
     expect(offs).toEqual(['compat.yml: "0"', 'compat.yml: "0"']);
   });
 });

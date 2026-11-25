@@ -1,0 +1,9 @@
+# perf(oxmutate): run the 3x re-runs in the pool, not after it (1.21x on pathe) (#1695)
+# Confirmed from the diff on 2026-11-25: fixed by #1734.
+id: bug-1695
+kind: bug
+pr: 1695
+base: "894f10935123"
+head: "fbdb450e0d8e"
+answer: "a mutant whose worker crashed is scored RuntimeError on the spot, though the crash may be a neighbour's (the kernel kills the biggest worker), so the wrong mutant takes the blame."
+set: test

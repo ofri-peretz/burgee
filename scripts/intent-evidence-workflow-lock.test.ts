@@ -22,7 +22,8 @@
  *   5. a row that filters its test file by name (`-t "…"`) records a passed count. A `-t` that
  *      matches nothing exits 0 with every case skipped, so a renamed or deleted test would leave
  *      the row green; the count is what makes it fail (seen 2026-11-25: `-t "band for bnad"`
- *      exited 0, and with `1 passed` recorded `intent check --evidence` reported it).
+ *      exited 0, and with `1 passed` recorded `intent check --evidence` reported it). The rule
+ *      itself is provedone's `filter-count` finding, so other repos get it from `intent check`.
  */
 import { readdirSync, readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
@@ -31,7 +32,7 @@ import { load as loadYaml } from "js-yaml";
 import { describe, expect, it } from "vitest";
 
 // eslint-disable-next-line import-next/no-relative-packages -- by path, never by name: a bare `provedone` resolves from another checkout's dist/ in an uninstalled worktree
-import { evidenceRows, statusOf } from "../packages/provedone/src/intents.js";
+import { checkIntent, evidenceRows, statusOf } from "../packages/provedone/src/intents.js";
 // eslint-disable-next-line import-next/no-relative-packages -- as above
 import { runnable } from "../packages/provedone/src/store.js";
 
@@ -64,7 +65,7 @@ const steps = (): readonly Step[] =>
  * Rows `intent check --evidence` re-runs on `main`. Raise it when you add rows; lowering it is a
  * decision: say in the PR which row went and why.
  */
-const RERUN_FLOOR = 9;
+const RERUN_FLOOR = 16;
 
 interface Rerunnable {
   readonly id: string;
@@ -140,10 +141,14 @@ describe("shipped intents’ evidence is re-run weekly (provedone criterion 1, R
   });
 
   it("records a passed count on every row that filters tests by name", () => {
-    const blind = rerunnable()
-      .filter((row) => /\s-t\s/u.test(row.command))
-      .filter((row) => !/`\d+ passed`/u.test(row.output))
-      .map((row) => row.id);
+    const blind = readdirSync(INTENTS)
+      .map((slug) => [slug, join(INTENTS, slug, "intent.md")] as const)
+      .filter(([, file]) => existsSync(file))
+      .flatMap(([slug, file]) =>
+        checkIntent(slug, readFileSync(file, "utf8"), undefined),
+      )
+      .filter((finding) => finding.rule === "filter-count")
+      .map((finding) => `${finding.intent}: ${finding.message}`);
     expect(
       blind,
       "fix: add the run's count to the Output cell, e.g. `1 passed`: a -t that matches nothing exits 0",

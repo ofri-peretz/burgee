@@ -1,0 +1,8 @@
+# feat(triggerlist): brief the review bot with what fired and what it already said (#1782)
+# Size-matched control for bug-1455 (346 vs 347 lines): no fix or revert traces back to it.
+id: control-1782
+kind: control
+pr: 1782
+base: "15d9269472c6"
+head: "cbfa42f48495"
+set: tune

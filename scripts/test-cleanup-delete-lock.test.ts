@@ -24,7 +24,7 @@
  *
  * **Why a static lock and not a hook-duration budget.** The stall is the machine's, not the
  * suite's: every offender passes alone in 1–2 s, and only a loaded pre-push run crosses 60 s. A
- * duration gate that re-measures alone, as `vitest-case-budget-reporter.ts` must to stay
+ * duration gate that re-measures alone, as truepass's budget reporter must to stay
  * trustworthy, would acquit every one of them; one that does not would go red on load and get
  * re-run. The delete is the cause, and the cause is visible in the source, deterministically.
  *

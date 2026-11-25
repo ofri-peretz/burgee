@@ -25,7 +25,7 @@ const ready = native && existsSync(bin);
 // A case that runs whole mutation runs — 6–15 s each on a contended CI runner — runs on the nightly
 // schedule, compat.yml's `heavy-tests` job, which sets BURGEE_NIGHTLY (D-20261101-tests-under-5s,
 // D-20261101-heavy-ci-runs-nightly). Each one is named in NIGHTLY_ONLY in
-// scripts/vitest-case-budget-reporter.ts, the only exemption from the five-second budget.
+// scripts/nightly-only.ts, the only exemption from the five-second budget.
 const nightly = process.env['BURGEE_NIGHTLY'] === '1';
 // Skipped in a plain local `vitest run` without the native core, as e2e.test.ts is. Never skipped
 // where a skip would read as a pass: in CI (OXMUTATE_REQUIRE_NATIVE) or under `npm run test:sensitivity`.

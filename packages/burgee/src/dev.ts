@@ -99,12 +99,19 @@ function invokeOn(program: Manifest | CommanderLike | YargsLike, kind: Loaded['k
   return async (argv) => {
     const out: string[] = [];
     const err: string[] = [];
+    // Stryker disable next-line NumericLiteral: every façade calls exit, a success included, so the seed is never what a run returns
     let code = 0;
     const seam: Seam = { stdout: { write: (s) => out.push(s) }, stderr: { write: (s) => err.push(s) }, exit: (c) => void (code = c) };
-    if (kind === 'burgee') await execute(program as Manifest, { argv, from: 'user', entry, ...seam });
+    if (kind === 'burgee') {
+      // Stryker disable next-line StringLiteral: execute drops the first two words only for 'node'; any other value reads argv as the user's
+      const run = { argv, from: 'user' as const, entry, ...seam };
+      await execute(program as Manifest, run);
+    }
     else if (kind === 'yargs') await (program as YargsLike).burgee(seam).parseAsync(argv);
     else await (program as CommanderLike).parseAsync(argv, { from: 'user', ...seam });
-    return { stdout: out.join(''), stderr: err.join(''), code };
+    // Stryker disable next-line StringLiteral: every surface writes stdout in one chunk (a result, an envelope, help, --version, --schema), so no separator lands; stderr's two chunks pin its join
+    const stdout = out.join('');
+    return { stdout, stderr: err.join(''), code };
   };
 }
 
@@ -115,13 +122,18 @@ function invokeOn(program: Manifest | CommanderLike | YargsLike, kind: Loaded['k
 export async function load(entry: string, generation: number): Promise<Loaded> {
   const started = performance.now();
   const url = pathToFileURL(resolve(entry));
+  // Stryker disable next-line StringLiteral: any parameter name makes a new URL; the generation is what makes each one different
   url.searchParams.set('burgee-dev', String(generation));
   // The whole point of the command: the module the user pointed it at, as a fresh graph.
   // eslint-disable-next-line node-security/no-dynamic-dependency-loading -- the entry is the user's own file, named on the command line
   const mod = (await import(url.href)) as Record<string, unknown>;
   const exported = mod['program'] ?? mod['default'];
   if (isManifest(exported)) return { manifest: exported, invoke: invokeOn(exported, 'burgee', entry), kind: 'burgee', ms: performance.now() - started };
-  if (isCommander(exported)) return { manifest: exported.manifest, invoke: invokeOn(exported, 'commander', entry), kind: 'commander', ms: performance.now() - started };
+  if (isCommander(exported)) {
+    // Stryker disable next-line StringLiteral: invokeOn's last branch is commander's, so any kind but burgee and yargs reaches it
+    const invoke = invokeOn(exported, 'commander', entry);
+    return { manifest: exported.manifest, invoke, kind: 'commander', ms: performance.now() - started };
+  }
   if (isYargs(exported)) return { manifest: exported.manifest, invoke: invokeOn(exported, 'yargs', entry), kind: 'yargs', ms: performance.now() - started };
   throw new Error(`${entry} exports no program: export a burgee manifest, a commander Command or a yargs instance as \`program\` or default`);
 }
@@ -162,6 +174,7 @@ export function report(before: Manifest | undefined, loaded: Loaded): string {
 }
 
 export function dev(opts: DevOptions): DevHandle {
+  // Stryker disable next-line NumericLiteral: only that each reload's generation differs from the last is read, never its value
   let generation = 0;
   let current: Manifest | undefined;
   let server: ReturnType<typeof startMcp> | undefined;
@@ -171,6 +184,7 @@ export function dev(opts: DevOptions): DevHandle {
   const entry = resolve(opts.entry);
 
   const reloadNow = async (): Promise<Loaded> => {
+    // Stryker disable next-line AssignmentOperator: counting down gives every reload a distinct generation as counting up does
     generation += 1;
     const loaded = await load(entry, generation);
     opts.log.write(report(current, loaded));

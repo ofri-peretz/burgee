@@ -9,9 +9,9 @@
 # The sequence:
 #   1. `mutation.ts changed --plan` decides whether any package source line changed; when none
 #      did, the lane ends here, successfully, having built nothing.
-#   2. Every package is built (a suite may read a sibling's dist), then oxmutate's native core,
-#      which is Rust and which no `build` produces.
-#   3. `mutation.ts changed` mutates those lines and fails on a mutant no test detects.
+#   2. oxmutate is built on the host, and nothing else: it only hands the run to its container.
+#   3. `mutation.ts changed` mutates those lines in oxmutate's container (Docker), which builds
+#      every package and oxmutate's Rust native core itself, and fails on a mutant no test detects.
 #
 # Environment — unset in pre-push; set MUTATION_EVENT to run the lane as that event would:
 #   MUTATION_EVENT        the GitHub event the diff stands for. Unset: `pull_request`, the event a
@@ -58,13 +58,10 @@ if ! tail -n 1 <<<"$plan" | node -e '
   exit 0
 fi
 
-npx turbo run build --filter='./packages/*' --concurrency="$concurrency"
-
-if ! command -v cargo >/dev/null 2>&1; then
-  echo "mutation:changed: oxmutate's native core is Rust, and cargo is not on PATH, so the changed lines cannot be mutated." >&2
-  echo "fix: install rustup (curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh), open a new shell, and run npm run mutation:changed again." >&2
-  exit 1
-fi
-(cd packages/oxmutate && npm run build:native)
+# The host builds only the oxmutate that hands the run to its container (after the pre-push battery,
+# a turbo cache hit). Every package build, oxmutate's native core and every mutant run in there, on
+# Docker's disk image, which the endpoint agents do not inspect file by file
+# (scripts/mutation-container.sh, `laneContainer` in scripts/mutation.ts).
+npx turbo run build --filter=oxmutate --output-logs=errors-only
 
 npx tsx scripts/mutation.ts changed --event "$event" --base "$base" --concurrency "$concurrency" ${GITHUB_STEP_SUMMARY:+--summary "$GITHUB_STEP_SUMMARY"}
