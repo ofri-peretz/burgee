@@ -10,7 +10,7 @@
  * Builtins only and erasable syntax only, like core.ts.
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join, normalize } from 'node:path';
+import { join, posix } from 'node:path';
 
 export interface ContextEntry {
   file: string;
@@ -44,6 +44,7 @@ const LISTED_KEYS: ReadonlyArray<readonly [string, RegExp]> = [
 
 export const tokensOf = (chars: number): number => Math.round(chars / CHARS_PER_TOKEN);
 
+// Paths stay POSIX so the measure reads the same on Windows.
 function memory(repo: string): { chars: number; files: string[] } {
   const files: string[] = [];
   let chars = 0;
@@ -52,7 +53,7 @@ function memory(repo: string): { chars: number; files: string[] } {
     files.push(file);
     const text = String(readFileSync(join(repo, file)));
     chars += text.length;
-    for (const match of text.matchAll(/^@(\S+)/gm)) load(normalize(join(dirname(file), match[1] as string)));
+    for (const match of text.matchAll(/^@(\S+)/gm)) load(posix.normalize(posix.join(posix.dirname(file), match[1] as string)));
   };
   load('CLAUDE.md');
   return { chars, files };
