@@ -32,10 +32,17 @@ function isParseArgsFailure(cause: unknown): boolean {
   return typeof code === 'string' && code.startsWith('ERR_PARSE_ARGS_');
 }
 
-/** `ctx.exit(code)` or a harness exit: an E1 code to honour, with nothing to print. */
+/**
+ * `ctx.exit(code)` or a harness exit: an E1 code to honour, with nothing to print. A `ctx.exit` with
+ * a code outside the contract (a child's 137) leaves RUNTIME, as silent: the program
+ * already said what happened, and the command's usage is no help with a run that was killed.
+ */
 function exitSignal(cause: unknown): ExitCodeType | undefined {
   const code = (cause as { code?: unknown } | null)?.code;
-  return typeof code === 'number' && isExitCode(code) ? code : undefined;
+  if (typeof code !== 'number') return undefined;
+  if (isExitCode(code)) return code;
+  // Known by the message `ctxExit` gives it, not by a marker: the entry point pays no byte for a path only a failure loads.
+  return cause instanceof Error && cause.message === `exit ${String(code)}` ? ExitCode.RUNTIME : undefined;
 }
 
 export interface Failure {
