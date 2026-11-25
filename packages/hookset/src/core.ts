@@ -44,12 +44,24 @@ export interface ClaudeSkill {
   detail: string;
 }
 
+/** An MCP server every repo runs: written into .mcp.json, its index folder gitignored, its tools allowed. */
+export interface ClaudeMcp {
+  id: string;
+  detail: string;
+  /** The `.mcp.json` entry, written as is under `mcpServers.<id>`. */
+  server: { type: string; command: string; args: string[]; env?: Record<string, string> };
+  /** The folder the server writes into the repo, which .gitignore must list. */
+  ignore: string;
+  /** The tool names settings.json allows without a prompt. */
+  allow: string[];
+}
+
 export interface Stations {
   remote: string;
   tagPrefix: string;
   presets: Record<Hook, string>;
   stations: Station[];
-  claude: { files: string[]; hooks: ClaudeHook[]; skills: ClaudeSkill[] };
+  claude: { files: string[]; hooks: ClaudeHook[]; skills: ClaudeSkill[]; mcp: ClaudeMcp[] };
 }
 
 export interface Problem {
@@ -325,6 +337,27 @@ function checkClaude(repo: string, pkg: string, stations: Stations): Problem[] {
     }
   }
   for (const skill of stations.claude.skills) problems.push(...checkSkill(repo, skill));
+  for (const mcp of stations.claude.mcp) problems.push(...checkMcp(repo, mcp));
+  return problems;
+}
+
+const readJson = <T>(file: string, fallback: T): T => (existsSync(file) ? (JSON.parse(readText(file)) as T) : fallback);
+type McpJson = { mcpServers?: Record<string, unknown> } & Record<string, unknown>;
+
+/** A pack MCP server the repo must run: in .mcp.json as hookset pins it, its index gitignored, enabled in settings.json. */
+export function checkMcp(repo: string, mcp: ClaudeMcp): Problem[] {
+  const problems: Problem[] = [];
+  const server = readJson<McpJson>(join(repo, '.mcp.json'), {}).mcpServers?.[mcp.id];
+  if (server === undefined) problems.push({ id: `${mcp.id}-mcp-missing`, severity: 'error', message: `.mcp.json does not run the ${mcp.id} server: ${mcp.detail}`, fix: 'run `hookset init --claude`' });
+  else if (JSON.stringify(server) !== JSON.stringify(mcp.server)) problems.push({ id: `${mcp.id}-mcp-drift`, severity: 'error', message: `.mcp.json runs ${mcp.id} differently from the hookset pin (${mcp.server.args.join(' ')})`, fix: 'run `hookset init --claude`; change the pin in burgee packages/hookset/stations.json' });
+  const ignore = join(repo, '.gitignore');
+  if (!(existsSync(ignore) && readText(ignore).split(/\r?\n/).some((l) => l.trim() === mcp.ignore))) {
+    problems.push({ id: `${mcp.id}-not-ignored`, severity: 'error', message: `.gitignore does not list ${mcp.ignore}, the ${mcp.id} index`, fix: `add \`${mcp.ignore}\` to .gitignore (\`hookset init --claude\` does)` });
+  }
+  const settings = readJson<Settings>(join(repo, '.claude', 'settings.json'), {});
+  if (!(settings.enabledMcpjsonServers ?? []).includes(mcp.id)) {
+    problems.push({ id: `${mcp.id}-mcp-disabled`, severity: 'error', message: `.claude/settings.json does not enable the ${mcp.id} server, so every session asks first`, fix: `add "${mcp.id}" to enabledMcpjsonServers (\`hookset init --claude\` does)` });
+  }
   return problems;
 }
 
@@ -400,6 +433,8 @@ export function initRepo(repo: string, pkg: string, options: { force?: boolean; 
     // A skill is the repo's to fill in: written once from the template, never overwritten.
     for (const skill of stations.claude.skills) if (!existsSync(join(repo, skill.path))) write(skill.path, readText(join(pkg, skill.template)));
     write('.claude/settings.json', mergeSettings(repo, stations));
+    if (stations.claude.mcp.length > 0) write('.mcp.json', mergeMcp(repo, stations));
+    write('.gitignore', mergeIgnore(repo, stations));
   }
   return { changed: written.length > 0, written };
 }
@@ -431,7 +466,27 @@ function repin(yaml: string, ref: string, remote: string): string {
 }
 
 type HookGroup = { matcher?: string; hooks: { type: string; command: string }[] };
-type Settings = { hooks?: Record<string, HookGroup[]> } & Record<string, unknown>;
+type Settings = { hooks?: Record<string, HookGroup[]>; enabledMcpjsonServers?: string[]; permissions?: { allow?: string[] } & Record<string, unknown> } & Record<string, unknown>;
+
+/** .mcp.json with every pack server at its pinned entry; servers the repo added stay as they are. */
+function mergeMcp(repo: string, stations: Stations): string {
+  const mcp = readJson<McpJson>(join(repo, '.mcp.json'), {});
+  mcp.mcpServers = { ...mcp.mcpServers, ...Object.fromEntries(stations.claude.mcp.map((m) => [m.id, m.server])) };
+  return `${JSON.stringify(mcp, undefined, 2)}\n`;
+}
+
+/** .gitignore with each pack server's index folder appended when it is not listed yet. */
+function mergeIgnore(repo: string, stations: Stations): string {
+  const file = join(repo, '.gitignore');
+  const text = existsSync(file) ? readText(file) : '';
+  const lines = text.split(/\r?\n/).map((l) => l.trim());
+  const missing = stations.claude.mcp.map((m) => m.ignore).filter((i) => !lines.includes(i));
+  if (missing.length === 0) return text;
+  const sep = text === '' || text.endsWith('\n') ? '' : '\n';
+  return `${text}${sep}# MCP server indexes, rebuilt per session by .claude/hooks (hookset)\n${missing.join('\n')}\n`;
+}
+
+const union = (a: string[] | undefined, b: string[]): string[] => [...new Set([...(a ?? []), ...b])];
 
 function mergeSettings(repo: string, stations: Stations): string {
   const file = join(repo, '.claude', 'settings.json');
@@ -450,6 +505,10 @@ function mergeSettings(repo: string, stations: Stations): string {
     else groups.push({ matcher: h.matcher, hooks: [{ type: 'command', command: hookCommand(h.file) }] });
   }
   settings.hooks = Object.fromEntries(events);
+  if (stations.claude.mcp.length > 0) {
+    settings.enabledMcpjsonServers = union(settings.enabledMcpjsonServers, stations.claude.mcp.map((m) => m.id));
+    settings.permissions = { ...settings.permissions, allow: union(settings.permissions?.allow, stations.claude.mcp.flatMap((m) => m.allow)) };
+  }
   return `${JSON.stringify(settings, undefined, 2)}\n`;
 }
 

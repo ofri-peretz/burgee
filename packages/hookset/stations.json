@@ -18,13 +18,28 @@
     { "id": "triggerlist", "hook": "pre-push", "mode": "observe", "command": "hookset-triggerlist", "script": "hook:triggerlist", "detail": "protected paths changed only with their trigger" }
   ],
   "claude": {
-    "files": ["guard-bash.mjs", "stop-after-3.mjs", "verify-before-stop.mjs"],
+    "files": ["guard-bash.mjs", "stop-after-3.mjs", "verify-before-stop.mjs", "codegraph.mjs"],
     "hooks": [
       { "event": "PreToolUse", "matcher": "Bash", "file": "guard-bash.mjs" },
       { "event": "PreToolUse", "matcher": "Edit|Write|MultiEdit|NotebookEdit", "file": "guard-bash.mjs" },
       { "event": "PostToolUse", "matcher": "Bash", "file": "stop-after-3.mjs" },
       { "event": "PostToolUse", "matcher": "Bash", "file": "verify-before-stop.mjs" },
-      { "event": "Stop", "matcher": "", "file": "verify-before-stop.mjs" }
+      { "event": "Stop", "matcher": "", "file": "verify-before-stop.mjs" },
+      { "event": "SessionStart", "matcher": "", "file": "codegraph.mjs" }
+    ],
+    "mcp": [
+      {
+        "id": "codegraph",
+        "detail": "CodeGraph, a prebuilt symbol graph Claude queries instead of grepping; codegraph.mjs builds its index on SessionStart",
+        "server": {
+          "type": "stdio",
+          "command": "npx",
+          "args": ["-y", "@colbymchenry/codegraph@1.6.4", "serve", "--mcp", "--no-telemetry"],
+          "env": { "CODEGRAPH_TELEMETRY": "0" }
+        },
+        "ignore": ".codegraph/",
+        "allow": ["mcp__codegraph__codegraph_explore"]
+      }
     ],
     "skills": [
       { "id": "verify", "path": ".claude/skills/verify/SKILL.md", "template": "claude/skills/verify/SKILL.md", "requires": ["name: verify", "## Feature map"], "placeholder": "TODO(verify)", "detail": "the skill that boots the app, drives the change and checks what it shows, with a feature map" }
