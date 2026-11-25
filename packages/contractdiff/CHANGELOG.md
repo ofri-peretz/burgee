@@ -1,5 +1,25 @@
 # contractdiff
 
+## 1.1.0
+
+### Minor Changes
+
+- [#1813](https://github.com/ofri-peretz/burgee/pull/1813) [`4821145`](https://github.com/ofri-peretz/burgee/commit/482114557947f01bc8df543daf317dada2664c21) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `extract --from standard-schema` reads truefit's schemas. A plain truefit schema, or one wrapped by `truefit/standard`, has no `~standard.jsonSchema`, so the extractor dropped it without a word and wrote an empty `$defs`; it now writes it through `truefit/json-schema`, as `standardJson(…)` would. A module that exports no schema the extractor reads is a `no-schemas` finding instead of an empty document alone. `extract --help` names only the extractors that run (`standard-schema`, `openapi-from-schemas`, `ts-rest`): the NestJS, Hono and tRPC extractors it named are not built yet.
+
+### Patch Changes
+
+- [#1813](https://github.com/ofri-peretz/burgee/pull/1813) [`4821145`](https://github.com/ofri-peretz/burgee/commit/482114557947f01bc8df543daf317dada2664c21) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The CLI's output reads as it should. A refusal that names its fix prints `error:` and `fix:` once, with no usage block after it, and under `--json` puts the fix in `error.fix` (a missing contract file is now such a refusal, not Node's `ENOENT`). A decision finding's fix line no longer says `fix:` twice. `diff --changeset` names its file `.changeset/contractdiff-<hash>.md` instead of `apicontract-diff-<hash>.md`. `gen`, `extract`, `migrate` and `plugin new` print what they wrote, edited and found as text unless `--json` is passed, instead of their data's fields.
+
+- [#1814](https://github.com/ofri-peretz/burgee/pull/1814) [`06089bd`](https://github.com/ofri-peretz/burgee/commit/06089bd8a1cdee49927e49a508e36ae7fa57ae78) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - contractdiff's docs have a site of their own at https://contractdiff.interlace.tools: getting started, guides, a page for each of oasdiff, Optic and openapi-typescript, recipes and the API reference. The package's `homepage` and README point there.
+
+- [#1813](https://github.com/ofri-peretz/burgee/pull/1813) [`4821145`](https://github.com/ofri-peretz/burgee/commit/482114557947f01bc8df543daf317dada2664c21) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `diff` and `props` read a `git:<ref>:<path>` side through git, as the README and `--help` say they do. The bin used to refuse every such side with "this build of contractdiff does not run git"; it now runs `git show <ref>:./<path>` (through bellpull) in the folder it was run in, reads the base ref's `contractdiff.config.json` for `--decisions` from the same ref, and refuses a side git cannot show with git's own words and a `fix:` line.
+
+- [#1813](https://github.com/ofri-peretz/burgee/pull/1813) [`4821145`](https://github.com/ofri-peretz/burgee/commit/482114557947f01bc8df543daf317dada2664c21) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `migrate` writes `out` as the folder `gen` writes into. `migrate openapi-typescript` copied `-o src/api/types.ts` into `out`, which `gen` reads as a folder, so the next `gen` wrote `src/api/types.ts/types.ts`; it now writes `out: "src/api"`, and an output file named other than `types.ts` is an `output-renamed` finding naming the import to change. `migrate openapi-fetch` puts the `fetch` target in the same folder, and `migrate orval` uses the folder of orval's `target`. The `read` field lists what the settings were read from (the incumbent's config file and `package.json`) instead of `null` when there was no config file.
+
+- [#1813](https://github.com/ofri-peretz/burgee/pull/1813) [`4821145`](https://github.com/ofri-peretz/burgee/commit/482114557947f01bc8df543daf317dada2664c21) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `gen validator` writes a payload that says nothing is sent (a response or a request body with no content) as a guard of `undefined`: `export type X = undefined` and `(value): value is X => value === undefined`. It used to write `!(true)`, which rejected every value, `undefined` included, beside a type of `unknown`.
+- Updated dependencies [[`4821145`](https://github.com/ofri-peretz/burgee/commit/482114557947f01bc8df543daf317dada2664c21)]:
+  - burgee@2.2.2
+
 ## 1.0.0
 
 ### Major Changes
