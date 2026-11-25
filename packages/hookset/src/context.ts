@@ -9,19 +9,19 @@
  *
  * Builtins only and erasable syntax only, like core.ts.
  */
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, normalize } from 'node:path';
 
 export interface ContextEntry {
   file: string;
-  tokens: number;
+  chars: number;
   userOnly: boolean;
 }
 
 export interface ContextMeasure {
   tokens: number;
   memoryFiles: string[];
-  memoryTokens: number;
+  memoryChars: number;
   entries: ContextEntry[];
 }
 
@@ -33,81 +33,82 @@ export interface ContextResult extends ContextMeasure {
   fix?: string;
 }
 
-const tokensOf = (chars: number): number => Math.round(chars / 4);
+const CHARS_PER_TOKEN = 4;
+const LARGEST_SHOWN = 5;
+const FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---/;
+const USER_ONLY = /^disable-model-invocation:[ \t]*true[ \t]*$/m;
+const LISTED_KEYS: ReadonlyArray<readonly [string, RegExp]> = [
+  ['name', /^name:[ \t]*(.*(?:\n[ \t].*)*)/m],
+  ['description', /^description:[ \t]*(.*(?:\n[ \t].*)*)/m],
+];
 
-export function frontmatter(text: string): string {
-  const match = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
-  return match?.[1] ?? '';
-}
-
-export function field(fm: string, key: string): string | undefined {
-  const match = new RegExp(`^${key}:[ \\t]*(.*(?:\\n[ \\t]+.*)*)`, 'm').exec(fm);
-  return match?.[1];
-}
-
-export function isUserOnly(fm: string): boolean {
-  return /^disable-model-invocation:\s*true\s*$/m.test(fm);
-}
+export const tokensOf = (chars: number): number => Math.round(chars / CHARS_PER_TOKEN);
 
 function memory(repo: string): { chars: number; files: string[] } {
-  const seen: string[] = [];
+  const files: string[] = [];
   let chars = 0;
   const load = (file: string): void => {
-    if (seen.includes(file) || !existsSync(join(repo, file))) return;
-    seen.push(file);
-    const text = readFileSync(join(repo, file), 'utf8');
+    if (files.includes(file) || !existsSync(join(repo, file))) return;
+    files.push(file);
+    const text = String(readFileSync(join(repo, file)));
     chars += text.length;
-    for (const match of text.matchAll(/^@(\S+)/gm)) load(normalize(join(dirname(file), match[1] ?? '')));
+    for (const match of text.matchAll(/^@(\S+)/gm)) load(normalize(join(dirname(file), match[1] as string)));
   };
   load('CLAUDE.md');
-  return { chars, files: seen };
+  return { chars, files };
 }
 
 function listed(repo: string): string[] {
   const out: string[] = [];
-  const walk = (dir: string, keep: (file: string) => boolean): void => {
+  const walk = (dir: string, suffix: string): void => {
     if (!existsSync(join(repo, dir))) return;
     for (const entry of readdirSync(join(repo, dir), { withFileTypes: true })) {
       const rel = `${dir}/${entry.name}`;
-      if (entry.isDirectory()) walk(rel, keep);
-      else if (keep(rel)) out.push(rel);
+      if (entry.isDirectory()) walk(rel, suffix);
+      else if (rel.endsWith(suffix)) out.push(rel);
     }
   };
-  walk('.claude/skills', (f) => f.endsWith('/SKILL.md'));
-  walk('.claude/commands', (f) => f.endsWith('.md'));
-  walk('.claude/agents', (f) => f.endsWith('.md'));
+  walk('.claude/skills', '/SKILL.md');
+  walk('.claude/commands', '.md');
+  walk('.claude/agents', '.md');
   return out.sort();
+}
+
+function entryOf(repo: string, file: string): ContextEntry {
+  const text = String(readFileSync(join(repo, file)));
+  // Stryker disable next-line StringLiteral,NumericLiteral: equivalent, no frontmatter names no key, and the whole match finds the same keys
+  const fm = FRONTMATTER.exec(text)?.[1] ?? '';
+  // A subagent has no user-only switch: its description is always offered to the model.
+  const userOnly = !file.startsWith('.claude/agents/') && USER_ONLY.test(fm);
+  let chars = 0;
+  if (!userOnly) {
+    for (const [key, pattern] of LISTED_KEYS) {
+      const value = pattern.exec(fm)?.[1];
+      if (value !== undefined) chars += `${key}: ${value}`.length;
+    }
+  }
+  return { file, chars, userOnly };
 }
 
 export function measureContext(repo: string): ContextMeasure {
   const mem = memory(repo);
-  let chars = mem.chars;
-  const entries = listed(repo).map((file): ContextEntry => {
-    const fm = frontmatter(readFileSync(join(repo, file), 'utf8'));
-    // A subagent has no user-only switch: its description is always offered to the model.
-    const userOnly = !file.startsWith('.claude/agents/') && isUserOnly(fm);
-    let own = 0;
-    if (!userOnly) {
-      for (const key of ['name', 'description']) {
-        const value = field(fm, key);
-        if (value !== undefined) own += key.length + 2 + value.length;
-      }
-    }
-    chars += own;
-    return { file, tokens: tokensOf(own), userOnly };
-  });
-  return { tokens: tokensOf(chars), memoryFiles: mem.files, memoryTokens: tokensOf(mem.chars), entries };
+  const entries = listed(repo).map((file) => entryOf(repo, file));
+  const chars = entries.reduce((sum, entry) => sum + entry.chars, mem.chars);
+  return {
+    tokens: tokensOf(chars),
+    memoryFiles: mem.files,
+    memoryChars: mem.chars,
+    entries,
+  };
 }
 
 function readConfig(repo: string): Record<string, unknown> {
   const path = join(repo, '.claude', 'hookset.json');
-  return existsSync(path) ? (JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>) : {};
+  return existsSync(path) ? (JSON.parse(String(readFileSync(path))) as Record<string, unknown>) : {};
 }
 
 function ceilingOf(config: Record<string, unknown>): number | undefined {
-  const context = config['context'];
-  if (typeof context !== 'object' || context === null) return undefined;
-  const tokens = (context as Record<string, unknown>)['tokens'];
+  const tokens = (config['context'] as { tokens?: unknown } | null | undefined)?.tokens;
   return typeof tokens === 'number' ? tokens : undefined;
 }
 
@@ -115,56 +116,54 @@ export function checkContext(repo: string, options: { update?: boolean } = {}): 
   const measured = measureContext(repo);
   const config = readConfig(repo);
   const ceiling = ceilingOf(config);
+  const fail = (error: string, fix: string): ContextResult => ({
+    ...measured,
+    ok: false,
+    ceiling,
+    updated: false,
+    error,
+    fix,
+  });
   if (options.update === true) {
-    if (ceiling !== undefined && measured.tokens > ceiling) {
-      return {
-        ...measured,
-        ok: false,
-        ceiling,
-        updated: false,
-        error: `${measured.tokens} tokens is over the ceiling of ${ceiling}; --update only lowers it`,
-        fix: 'cut what was added, or raise context.tokens in .claude/hookset.json by decision',
-      };
+    if (measured.tokens > (ceiling ?? Infinity)) {
+      return fail(
+        `${measured.tokens} tokens is over the ceiling of ${ceiling}; --update only lowers it`,
+        'cut what was added, or raise context.tokens in .claude/hookset.json by decision',
+      );
     }
     const next = { ...config, context: { tokens: measured.tokens } };
+    mkdirSync(join(repo, '.claude'), { recursive: true });
     writeFileSync(join(repo, '.claude', 'hookset.json'), `${JSON.stringify(next, undefined, 2)}\n`);
     return { ...measured, ok: true, ceiling: measured.tokens, updated: true };
   }
   if (ceiling === undefined) {
-    return {
-      ...measured,
-      ok: false,
-      ceiling,
-      updated: false,
-      error: 'no context ceiling in .claude/hookset.json',
-      fix: 'run `hookset context --update` to set it at the current size',
-    };
+    return fail('no context ceiling in .claude/hookset.json', 'run `hookset context --update` to set it at the current size');
   }
   if (measured.tokens > ceiling) {
-    return {
-      ...measured,
-      ok: false,
-      ceiling,
-      updated: false,
-      error: `always-loaded context is ${measured.tokens} tokens, over the ceiling of ${ceiling}`,
-      fix: 'shorten what you added, move a rule into a check, or mark a skill the model should never start itself `disable-model-invocation: true`',
-    };
+    return fail(
+      `always-loaded context is ${measured.tokens} tokens, over the ceiling of ${ceiling}`,
+      'shorten what you added, move a rule into a check, or mark a skill the model should never start itself `disable-model-invocation: true`',
+    );
   }
   return { ...measured, ok: true, ceiling, updated: false };
 }
 
 export function contextText(result: ContextResult): string {
-  const lines: string[] = [];
   if (result.error !== undefined) {
-    lines.push(`✖ ${result.error}`);
-    lines.push(`  CLAUDE.md and imports: ${result.memoryTokens} tokens (${result.memoryFiles.join(', ') || 'none'})`);
-    const top = [...result.entries].sort((a, b) => b.tokens - a.tokens).slice(0, 5).filter((e) => e.tokens > 0);
-    if (top.length) lines.push('  largest descriptions:', ...top.map((e) => `    ${e.tokens}  ${e.file}`));
-    lines.push(`  fix: ${result.fix ?? ''}`);
-    return lines.join('\n');
+    const top = result.entries
+      .filter((e) => e.chars > 0)
+      .sort((a, b) => b.chars - a.chars)
+      .slice(0, LARGEST_SHOWN)
+      .map((e) => `    ${tokensOf(e.chars)}  ${e.file}`);
+    return [
+      `✖ ${result.error}`,
+      `  CLAUDE.md and imports: ${tokensOf(result.memoryChars)} tokens (${result.memoryFiles.join(', ') || 'none'})`,
+      ...(top.length > 0 ? ['  largest descriptions:', ...top] : []),
+      `  fix: ${result.fix as string}`,
+    ].join('\n');
   }
   if (result.updated) return `ceiling set to ${result.tokens} tokens`;
-  lines.push(`✔ always-loaded context: ${result.tokens} tokens (ceiling ${result.ceiling ?? 'none'})`);
-  if (result.ceiling !== undefined && result.tokens < result.ceiling) lines.push('  below the ceiling: run `hookset context --update` to lock in the cut');
-  return lines.join('\n');
+  const ceiling = result.ceiling as number;
+  const line = `✔ always-loaded context: ${result.tokens} tokens (ceiling ${ceiling})`;
+  return result.tokens < ceiling ? `${line}\n  below the ceiling: run \`hookset context --update\` to lock in the cut` : line;
 }
