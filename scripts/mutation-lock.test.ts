@@ -31,6 +31,7 @@ import {
   floorOf,
   type FullResult,
   isMutationSource,
+  laneContainer,
   mergeShards,
   mutateSpecs,
   oxmutateConfig,
@@ -44,6 +45,7 @@ import {
   shardOf,
   SKIPPED_TESTS,
   summarise,
+  wrapperConfig,
   writeWrapper,
 } from './mutation.js';
 import { decisionNumber } from './ratchet-steps.js';
@@ -365,7 +367,7 @@ describe('a package measured in shards', () => {
 describe('a changed range with no mutant in it', () => {
   // #1361 changed one type-only line, an interface's call signature. Stryker scored nothing and
   // passed; oxmutate refused its dry run as having no test to run, and the lane went red.
-  const o = { vitestConfig: 'v.config.ts', mutate: ['src/types.ts:90-92'], concurrency: 2, timeoutMS: 1000, dryRunTimeoutMinutes: 5, reportFile: 'r.json' };
+  const o = { pkg: 'hookset', host: true, vitestConfig: 'v.config.ts', mutate: ['src/types.ts:90-92'], concurrency: 2, timeoutMS: 1000, dryRunTimeoutMinutes: 5, reportFile: 'r.json' };
 
   it('is scored as nothing, not refused, under oxmutate as under Stryker', () => {
     expect(oxmutateConfig(o)).toEqual({
@@ -383,9 +385,38 @@ describe('a changed range with no mutant in it', () => {
 
   it('keeps verdicts between runs under oxmutate when given a file for them (roadmap 3.2)', () => {
     expect(oxmutateConfig({ ...o, incrementalFile: '.mutation/i.json' })).toMatchObject({ incremental: true, incrementalFile: '.mutation/i.json' });
-    // The lane runs this checkout's own build: a machine-wide OXMUTATE_CONTAINER must not send it to a container.
+    // A host run (the weekly ratchet) stays on the host: a machine-wide OXMUTATE_CONTAINER must not send it to a container.
     expect(oxmutateConfig(o)).toMatchObject({ container: false });
     expect(oxmutateConfig(o)).not.toHaveProperty('incremental');
+  });
+});
+
+describe('the changed lane runs in oxmutate\'s container, not on the host', () => {
+  // Host-side builds, cargo and mutant processes drove the endpoint agents to 420–460% CPU (2026-11-23).
+  const o = { pkg: 'hookset', vitestConfig: '.mutation/vitest.config.ts', mutate: ['src/core.ts:236-236'], concurrency: 2, timeoutMS: 1000, dryRunTimeoutMinutes: 5, reportFile: '.mutation/report.json' };
+
+  it('carries the lane container unless the run asks for the host', () => {
+    expect(oxmutateConfig(o)['container']).toEqual(laneContainer('hookset'));
+    expect(oxmutateConfig({ ...o, host: false })['container']).toEqual(laneContainer('hookset'));
+  });
+
+  it('builds and runs this checkout\'s oxmutate inside, and sends the run\'s gitignored configs', () => {
+    const c = laneContainer('hookset');
+    expect(c).toMatchObject({
+      command: 'node ../oxmutate/dist/bin.js',
+      setup: 'sh src/scripts/mutation-container.sh setup',
+      install: expect.stringMatching(/^sh scripts\/mutation-container\.sh install [\da-f]{12}$/u),
+      include: ['packages/hookset/.mutation/*'],
+      volume: expect.stringMatching(/^burgee-mutation-[\da-f]{12}$/u),
+    });
+    expect(c['image']).toBe(`node:${process.versions.node.split('.')[0]!}-bookworm`);
+  });
+
+  it('names every path in the run\'s files relative to the package, so they hold inside', () => {
+    expect(oxmutateConfig(o)).toMatchObject({ vitest: { configFile: '.mutation/vitest.config.ts' }, jsonReporter: { fileName: '.mutation/report.json' } });
+    const wrapper = wrapperConfig('/host/repo/packages/hookset', []);
+    expect(wrapper).not.toContain('/host/repo');
+    expect(wrapper).toContain("new URL('..', import.meta.url)");
   });
 
   it('passes the lane with no score', () => {

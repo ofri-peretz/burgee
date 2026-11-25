@@ -46,8 +46,8 @@ pre-push:
     # The changed-lines mutation lane (scripts/mutation-changed.sh), against origin/main: the
     # per-PR mutation gate. No workflow runs it (D-20261101-no-mutation-in-gha), so this hook is
     # the only place a surviving mutant on a changed line is caught before merge. It skips in
-    # seconds when no package source line changed; otherwise it needs cargo for oxmutate's
-    # native core, and says `fix:` without it.
+    # seconds when no package source line changed; otherwise it runs in oxmutate's Docker container
+    # (builds, native core and mutants all inside), and says `fix:` when Docker is not running.
     mutation-changed:
       priority: 3
       run: npm run mutation:changed
