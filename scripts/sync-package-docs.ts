@@ -51,7 +51,7 @@ const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const PACKAGES = join(REPO_ROOT, "packages");
 const BLOB = "https://github.com/ofri-peretz/burgee/blob/main/packages";
 
-type Manifest = { name: string; description: string; private?: boolean };
+type Manifest = { name: string; description: string; version?: string; private?: boolean };
 
 /**
  * README text → the docs page body, for the package living in `packages/<dir>`.
@@ -150,6 +150,42 @@ function changelogPage(dir: string, manifest: Manifest, siteDir: string, onFamil
   return [`${siteDir}/content/docs/changelog.md`, renderChangelog(manifest, readFileSync(path, "utf8"))];
 }
 
+/**
+ * A page's example output with the package's own `--schema` line pinned to `version`.
+ *
+ * The examples test runs each titled command and compares its output to the page byte for
+ * byte, and a `--schema` line carries the program's version. The version PR bumps the package
+ * and runs this script (`changeset:version`), so the pages move with it instead of failing
+ * the release. Only a line that is the program schema of `name` changes; a version anywhere
+ * else on a page is prose about some other release.
+ */
+export function pinSchemaVersion(text: string, name: string, version: string): string {
+  return text.replace(/^\{"schemaVersion":\d+,.*$/gm, (line) => {
+    if (!line.includes(`,"name":${JSON.stringify(name)},`)) return line;
+    return line.replaceAll(/"version":"\d+\.\d+\.\d+(?:-[\w.]+)?"/g, `"version":${JSON.stringify(version)}`);
+  });
+}
+
+/** Every hand-written page under `<site>/content`, as repo-relative paths. */
+function contentPages(site: string): string[] {
+  const root = join(REPO_ROOT, site, "content");
+  if (!existsSync(root)) return [];
+  return readdirSync(root, { recursive: true, encoding: "utf8" })
+    .filter((file) => /\.mdx?$/.test(file))
+    .map((file) => `${site}/content/${file}`);
+}
+
+/** Adds each page of `site` whose `--schema` line names an older version, pinned to the manifest's. */
+function pinSite(out: Map<string, string>, site: string | undefined, manifest: Manifest): void {
+  if (site === undefined || manifest.version === undefined) return;
+  for (const file of contentPages(site)) {
+    if (out.has(file)) continue;
+    const text = readFileSync(join(REPO_ROOT, file), "utf8");
+    const pinned = pinSchemaVersion(text, manifest.name, manifest.version);
+    if (pinned !== text) out.set(file, pinned);
+  }
+}
+
 /** The directory of the app built for `pkg` alone — deployable, or `pending` its Vercel project — or nothing. */
 function ownSite(pkg: string): string | undefined {
   const site = siteForPackage(pkg);
@@ -181,6 +217,7 @@ export function pages(): Map<string, string> {
     if (site !== undefined) out.set(`${site}/content/docs/index.md`, render(e.name, manifest, readme, family.productionUrl));
     const changelog = changelogPage(e.name, manifest, site ?? family.dir, site === undefined);
     if (changelog !== undefined) out.set(...changelog);
+    pinSite(out, site, manifest);
   }
   // The family's own package first, then any package kept as a section, alphabetically.
   const names = sections.toSorted((a, b) => Number(b === family.package) - Number(a === family.package) || a.localeCompare(b));
