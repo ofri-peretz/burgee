@@ -11,7 +11,7 @@ import { applyMutant, batches, checkSurvivors, parseDiagnostics, tsgoBin, type C
 // The real-compiler case — `npx tsc` per batch, 15.1 s on a contended CI runner — runs on the nightly
 // schedule, compat.yml's `heavy-tests` job, which sets BURGEE_NIGHTLY (D-20261101-tests-under-5s,
 // D-20261101-heavy-ci-runs-nightly). Each one is named in NIGHTLY_ONLY in
-// scripts/vitest-case-budget-reporter.ts, the only exemption from the five-second budget.
+// scripts/nightly-only.ts, the only exemption from the five-second budget.
 const nightly = process.env['BURGEE_NIGHTLY'] === '1';
 
 const typed = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'test', 'fixtures', 'typed');
