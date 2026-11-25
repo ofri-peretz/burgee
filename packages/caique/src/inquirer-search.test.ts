@@ -108,6 +108,28 @@ describe('search', () => {
     expect(getScreen()).not.toContain('not an error');
   });
 
+  it('keeps the fresh results when an aborted call returns after them', async () => {
+    let calls = 0;
+    const { events, getScreen, nextRender } = await render(search, {
+      message: 'Fruit',
+      source: async (term?: string) => {
+        calls++;
+        if (term === undefined) return ['a'];
+        if (calls === 2) {
+          await new Promise((resolve) => setTimeout(resolve, 20));
+          return ['stale'];
+        }
+        return ['fresh'];
+      },
+    });
+    await nextRender();
+    events.type('x');
+    events.type('y');
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    expect(getScreen()).toContain('fresh');
+    expect(getScreen()).not.toContain('stale');
+  });
+
   it('ignores an aborted call that fails, too', async () => {
     let calls = 0;
     const { events, getScreen, nextRender } = await render(search, {
