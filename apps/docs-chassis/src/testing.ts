@@ -201,6 +201,11 @@ export function docsSiteSuite(testFileUrl: string): void {
       expect(line, 'the home has no install line — does package-home.tsx still render homeHero?').toBe(`npm install ${app.row.package}`);
     });
 
+    it('offers the install line in every package manager, sharing the docs pages\u2019 choice', () => {
+      const html = app.built('index.html');
+      for (const manager of ['npm', 'pnpm', 'yarn', 'bun']) expect(html, `the home install line has no ${manager} choice — does install-command.tsx still list it?`).toContain(`data-testid="home-install-${manager}"`);
+    });
+
     it('links every page under content/docs/coming-from as a card that carries its description', () => {
       const html = app.built('index.html');
       const guides = app.urls.filter((url) => url.startsWith('/docs/coming-from/'));
@@ -228,7 +233,7 @@ export function docsSiteSuite(testFileUrl: string): void {
   describe(`${app.row.workspace}: an install command comes in every package manager`, () => {
     // The first page whose source has a shell fence of `npm install` lines alone, if any page does.
     const content = join(app.dir, 'content', 'docs');
-    const page = mdxFiles(content).find((abs) => /^```(?:bash|sh|shell|zsh)\n(?:npm (?:install|i|add) [^\n]+\n)+```/mu.test(readFileSync(abs, 'utf8')));
+    const page = mdxFiles(content).find((abs) => /^```(?:bash|sh|shell|zsh)\n(?:npm (?:install|i|add)(?: [\w@./=-]+)+\n)+```/mu.test(readFileSync(abs, 'utf8')));
     it.runIf(page !== undefined)('renders it as npm, pnpm, yarn and bun tabs, npm first', () => {
       const url = urlOf(content, page ?? '');
       const html = app.built(`${url.slice(1)}.html`);

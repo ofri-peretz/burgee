@@ -21,7 +21,7 @@ export function homeHero(site: Site): ReactNode {
         <span className="font-mono lowercase">{site.name}</span>
       </h1>
       <p className="max-w-[60ch] text-lg text-balance text-fd-muted-foreground sm:text-xl">{site.description}</p>
-      <div className="flex w-full flex-col items-center gap-3 sm:w-auto sm:flex-row">
+      <div className="flex w-full flex-col items-center gap-3 sm:w-auto sm:flex-row sm:items-start">
         <Link
           href="/docs"
           data-testid="home-docs"
