@@ -3,7 +3,7 @@
   "ratchets": {
     "bellpull": {
       "status": "measured",
-      "floor": 99.6,
+      "floor": 100,
       "history": [
         {
           "floor": 90.1,
@@ -19,6 +19,11 @@
           "floor": 99.6,
           "setOn": "2026-11-25",
           "why": "Weekly run at 792b2896e5 measured 99.65%, above the 90.5% floor; the floor follows it up."
+        },
+        {
+          "floor": 100,
+          "setOn": "2026-11-25",
+          "why": "Weekly run at fba06fac4a measured 100%, above the 99.6% floor; the floor follows it up."
         }
       ],
       "observations": [
@@ -51,6 +56,16 @@
           "survived": 4,
           "noCoverage": 0,
           "minutes": 5.3
+        },
+        {
+          "date": "2026-11-25",
+          "commit": "fba06fac4a",
+          "score": 100,
+          "killed": 1129,
+          "timeout": 17,
+          "survived": 0,
+          "noCoverage": 0,
+          "minutes": 11.56
         }
       ]
     },
@@ -89,7 +104,7 @@
     },
     "caique": {
       "status": "measured",
-      "floor": 99.9,
+      "floor": 100,
       "history": [
         {
           "floor": 87.8,
@@ -111,6 +126,11 @@
           "floor": 99.9,
           "setOn": "2026-11-25",
           "why": "Weekly run at b841d68597 measured 99.99%, above the 87.3% floor; the floor follows it up."
+        },
+        {
+          "floor": 100,
+          "setOn": "2026-11-25",
+          "why": "Weekly run at b729fc7ac9 measured 100%, above the 99.9% floor; the floor follows it up."
         }
       ],
       "observations": [
@@ -163,6 +183,16 @@
           "survived": 1,
           "noCoverage": 0,
           "minutes": 26.95
+        },
+        {
+          "date": "2026-11-25",
+          "commit": "b729fc7ac9",
+          "score": 100,
+          "killed": 6273,
+          "timeout": 569,
+          "survived": 0,
+          "noCoverage": 0,
+          "minutes": 31.25
         }
       ]
     },
@@ -409,7 +439,7 @@
     },
     "flagstaff": {
       "status": "measured",
-      "floor": 99.9,
+      "floor": 100,
       "history": [
         {
           "floor": 87.7,
@@ -426,6 +456,11 @@
           "floor": 99.9,
           "setOn": "2026-11-25",
           "why": "Weekly run at 792b2896e5 measured 99.94%, above the 86.1% floor; the floor follows it up."
+        },
+        {
+          "floor": 100,
+          "setOn": "2026-11-25",
+          "why": "Weekly run at b729fc7ac9 measured 100%, above the 99.9% floor; the floor follows it up."
         }
       ],
       "observations": [
@@ -468,6 +503,16 @@
           "survived": 1,
           "noCoverage": 0,
           "minutes": 2.24
+        },
+        {
+          "date": "2026-11-25",
+          "commit": "b729fc7ac9",
+          "score": 100,
+          "killed": 1617,
+          "timeout": 10,
+          "survived": 0,
+          "noCoverage": 0,
+          "minutes": 2.75
         }
       ]
     },
@@ -848,7 +893,7 @@
     },
     "seniority": {
       "status": "measured",
-      "floor": 99.9,
+      "floor": 100,
       "history": [
         {
           "floor": 91,
@@ -870,6 +915,11 @@
           "floor": 99.9,
           "setOn": "2026-11-25",
           "why": "Weekly run at baee70a418 measured 99.94%, above the 90.8% floor; the floor follows it up."
+        },
+        {
+          "floor": 100,
+          "setOn": "2026-11-25",
+          "why": "Weekly run at b729fc7ac9 measured 100%, above the 99.9% floor; the floor follows it up."
         }
       ],
       "observations": [
@@ -912,6 +962,16 @@
           "survived": 3,
           "noCoverage": 0,
           "minutes": 10.43
+        },
+        {
+          "date": "2026-11-25",
+          "commit": "b729fc7ac9",
+          "score": 100,
+          "killed": 4705,
+          "timeout": 117,
+          "survived": 0,
+          "noCoverage": 0,
+          "minutes": 10.99
         }
       ]
     },
