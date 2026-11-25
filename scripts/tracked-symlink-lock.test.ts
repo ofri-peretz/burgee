@@ -81,7 +81,6 @@ describe("tracked symlinks stay inside the repository", () => {
         "packages/compat-oracle/vendor/commander/tests/fixtures/another-dir/pm",
         "packages/compat-oracle/vendor/commander/tests/fixtures/other-dir/pm",
         "packages/compat-oracle/vendor/commander/tests/fixtures/pmlink",
-        "packages/compat-oracle/vendor/find-up/fixture/directory-link",
         "packages/compat-oracle/vendor/find-up/fixture/file-link",
       ]
     `);
@@ -99,6 +98,22 @@ describe("tracked symlinks stay inside the repository", () => {
       .filter(([path, target]) => escapes(path, target))
       .map(([path, target]) => `${path} -> ${target}`);
     expect(outside).toEqual([]);
+  });
+
+  // Found 2026-11-25: `vendor/find-up/fixture/directory-link -> .` sat here inside the tree and
+  // passed both rules above, and GitHub refused every download of this repository as an action
+  // ("Too many levels of symbolic links"), so `.github/actions/triggerlist-review` failed at job
+  // setup in every repository that used it. A link to its own directory or an ancestor is a loop
+  // for any tool that walks the tree; compat-oracle makes such a link per run (`Host.links`).
+  it("records no target that is its own directory or an ancestor of it", () => {
+    const loops = links
+      .filter(([path, target]) => {
+        const from = resolve(REPO_ROOT, dirname(path));
+        const landing = resolve(from, target);
+        return from === landing || !relative(landing, from).startsWith("..");
+      })
+      .map(([path, target]) => `${path} -> ${target}`);
+    expect(loops, "make it per run instead: compat-oracle's Host.links").toEqual([]);
   });
 
   it("ignores a node_modules symlink, not only a node_modules directory", () => {

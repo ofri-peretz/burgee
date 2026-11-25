@@ -592,6 +592,19 @@ function writeEntries(host: Host, { hostDir, target, packageType }: { hostDir: s
 }
 
 /**
+ * The symlinks a host declares in `links`, made beside the vendored suite before it runs. A link
+ * already there is replaced, so a run never reads one an earlier run left pointing elsewhere.
+ */
+export function writeLinks(host: Host, hostDir: string): void {
+  for (const [path, target] of Object.entries(host.links ?? {})) {
+    const at = join(hostDir, path);
+    mkdirSync(dirname(at), { recursive: true });
+    rmSync(at, { force: true });
+    symlinkSync(target, at);
+  }
+}
+
+/**
  * On a control run of a host whose suite busts `require.cache` (`shim: 'cjs'`), the internal
  * path is a **symlink to the incumbent's own file** rather than a shim that requires it.
  *
@@ -1438,6 +1451,7 @@ export function grade(host: Host, vendorDir: string, target: string, reference =
   writeInternalShims(host, { hostDir, target, internals: source.internals ?? [], packageType });
   writeAliasHook(host, hostDir, target);
   writeEntries(host, { hostDir, target, packageType });
+  writeLinks(host, hostDir);
 
   if (host.runner === 'exit-code') {
     const outcome = runExitCodes(host, hostDir, files, target);

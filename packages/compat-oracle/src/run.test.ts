@@ -4,7 +4,7 @@
  * been shown to fail is not a gate.
  */
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -14,7 +14,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { discard, scratchDirs } from './__fixtures__/scratch-dir.js';
 import { type Host, HOSTS } from './hosts.js';
-import { type Baseline, cjsLoad, DEPS_MARKER, type Grade, grade as gradeHost, hoistJestMocks, TSD_SCRIPT, installSuiteDeps, internalShimBody, jestGlobals, mochaCli, internalShimFrom, parseFlatTap, parseNodeTest, regressed, summarize, tsLoaderArgs, unsatisfiedPins } from './run.js';
+import { type Baseline, cjsLoad, DEPS_MARKER, type Grade, grade as gradeHost, hoistJestMocks, TSD_SCRIPT, installSuiteDeps, internalShimBody, jestGlobals, mochaCli, internalShimFrom, parseFlatTap, parseNodeTest, regressed, summarize, tsLoaderArgs, unsatisfiedPins, writeLinks } from './run.js';
 import { declarationName, type TsdAssertion, type TsdDiagnostic, tsdTap } from './tsd.js';
 
 const scratch = scratchDirs();
@@ -812,5 +812,25 @@ describe('the tsd report as TAP', () => {
   it('hands the child its anchor and files as arguments, so the script itself names no path', () => {
     expect(TSD_SCRIPT).toContain('process.argv.slice(1)');
     expect(TSD_SCRIPT).not.toMatch(/node_modules\/tsd/);
+  });
+});
+
+describe("a host's links, made per run (Host.links)", () => {
+  it('makes each link with its recorded target, replacing one an earlier run left', () => {
+    const at = mkdtempSync(join(tmpdir(), 'host-links-'));
+    try {
+      mkdirSync(join(at, 'fixture'));
+      symlinkSync('elsewhere', join(at, 'fixture', 'directory-link'));
+      writeLinks({ links: { 'fixture/directory-link': '.', 'deep/new/link': '../x' } } as unknown as Host, at);
+      expect(readlinkSync(join(at, 'fixture', 'directory-link'))).toBe('.');
+      expect(readlinkSync(join(at, 'deep', 'new', 'link'))).toBe('../x');
+    } finally {
+      discard(at);
+    }
+  });
+
+  it("find-up's looping link is made per run, never committed", () => {
+    const findUp = HOSTS.find((h) => h.name === 'find-up');
+    expect(findUp?.links).toEqual({ 'fixture/directory-link': '.' });
   });
 });

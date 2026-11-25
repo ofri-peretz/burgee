@@ -68,3 +68,6 @@ vendor/*/packages/*/vitest.config.mjs
 vendor/*/packages/*/vitest.setup.mjs
 # A test of `run.ts` writes its probe here so that `vitest` resolves from it (run.test.ts).
 .setup-probe-*
+# A host's `links` (src/hosts.ts), made per run: find-up's `fixture/directory-link -> .` loops,
+# and a repository holding a loop cannot be downloaded as a GitHub action.
+vendor/find-up/fixture/directory-link
