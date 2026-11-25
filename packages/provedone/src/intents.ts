@@ -51,8 +51,8 @@ export const checkIntent = (slug: string, intent: string, spec: string | undefin
 };
 
 /** A test runner's filter by test name: vitest and jest `-t`/`--testNamePattern`, node `--test-name-pattern`, mocha and Playwright `--grep`. */
-const NAME_FILTER = /(?:^|\s)(?:-t|--testNamePattern|--test-name-pattern|--grep)(?:[\s=]|$)/u;
-/** A recorded count of passing tests, as a code span of the Output cell. */
+const NAME_FILTER = /\s(?:-t|--testNamePattern|--test-name-pattern|--grep)[\s=]/u;
+/** A recorded count of passing tests: a code span of the Output cell that is the count and nothing else. */
 const PASSED_COUNT = /^\d+ passed$/u;
 
 /**
@@ -63,6 +63,7 @@ const PASSED_COUNT = /^\d+ passed$/u;
  */
 const countless = (intent: string): EvidenceRow[] =>
   evidenceRows(intent).filter(
+    // Stryker disable next-line ConditionalExpression: the guard is for the type; NAME_FILTER reads undefined as "undefined", which never matches
     (row) => row.command !== undefined && NAME_FILTER.test(row.command) && !codeSpans(row.output).some((span) => PASSED_COUNT.test(span)),
   );
 

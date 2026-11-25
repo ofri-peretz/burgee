@@ -124,6 +124,17 @@ describe('checkIntent', () => {
     expect(rules('f', text, '## Rejected alternatives\n')).toEqual(['filter-count']);
   });
 
+  it.each([
+    ['a flag that only starts like a filter', '`npx foo --grepx y`', '`ok`'],
+    ['a flag with no value', '`npx vitest run -t`', '`ok`'],
+  ])('leaves alone %s', (_what, command, output) => {
+    expect(rules('f', intent('shipped', evidence(command, output)), '## Rejected alternatives\n')).toEqual([]);
+  });
+
+  it.each(['`of 1 passed`', '`1 passed (1)`'])('wants a span that is the count and nothing else, not %s', (output) => {
+    expect(rules('f', intent('shipped', evidence('`npx vitest run -t x`', output)), '## Rejected alternatives\n')).toEqual(['filter-count']);
+  });
+
   it('leaves alone a passed count outside a code span, a -t inside a word, prose rows and intents not shipped', () => {
     const rows = ['| C1. a | `npx vitest run -t x` | 1 passed |', '| C2. b | `npx tsc --project-t x` | `ok` |', '| C3. c | ran `npx vitest -t x` | `ok` |'];
     const table = `\n| Criterion | Command | Output |\n| --- | --- | --- |\n${rows.join('\n')}`;
