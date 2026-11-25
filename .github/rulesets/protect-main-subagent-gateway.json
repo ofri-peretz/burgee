@@ -1,5 +1,5 @@
 {
-  "$comment": "The default branch of subagent-gateway takes changes only through a pull request that passes its gates: no force-push, no deletion, linear history, and these checks, each of which reported success on every one of the repo's last 15 merged PRs (so none can sit unreported and stall a merge). No approving review is required, because Claude merges its own PRs once green. Admins and GitHub Actions (app 15368) bypass, so release and data-refresh pushes keep working. Applied by .github/workflows/rulesets.yml.",
+  "$comment": "The default branch of subagent-gateway takes changes only through a pull request that passes its gates: no force-push, no deletion, linear history, and these checks, each of which reported success on every one of the repo's last 15 merged PRs (so none can sit unreported and stall a merge). No approving review is required, because Claude merges its own PRs once green. Repository admins bypass (RELEASE_BOT_PAT acts as one). GitHub Actions cannot be a bypass actor on a personal account's repos (the API answers 422); no workflow here pushes to main with GITHUB_TOKEN, they all open PRs. Applied by .github/workflows/rulesets.yml.",
   "owner": "ofri-peretz",
   "repos": [
     "subagent-gateway"
@@ -20,11 +20,6 @@
       {
         "actor_id": 5,
         "actor_type": "RepositoryRole",
-        "bypass_mode": "always"
-      },
-      {
-        "actor_id": 15368,
-        "actor_type": "Integration",
         "bypass_mode": "always"
       }
     ],
