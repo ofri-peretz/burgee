@@ -44,7 +44,7 @@ function aside(path: string): string | undefined {
     }
   }
   // A rename the OS refused (a Windows handle still open): the slow way, which still keeps the promise.
-  rmSync(path, { recursive: true, force: true });
+  rmSync(path, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   return undefined;
 }
 

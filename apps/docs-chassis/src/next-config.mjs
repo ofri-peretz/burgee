@@ -14,6 +14,8 @@ import { createMDX } from 'fumadocs-mdx/next';
 
 const TABLE = JSON.parse(readFileSync(new URL('../../../.github/vercel-apps.json', import.meta.url), 'utf8'));
 const REPO_ROOT = fileURLToPath(new URL('../../../', import.meta.url));
+/** This directory, with the trailing slash webpack reads as "every file under it". */
+const CHASSIS_SRC = fileURLToPath(new URL('./', import.meta.url));
 
 /**
  * The PostHog PROJECT key, with the committed fallback the blog carries for the same reason:
@@ -125,7 +127,17 @@ export function docsNextConfig() {
     // through the app's tsconfig `paths`; webpack takes the `fumadocs-mdx:` prefix for a URI scheme
     // it has no reader for, so the request is rewritten to the generated `.source/` file before
     // resolution, which is where the `paths` entry points.
+    //
+    // The chassis is a build dependency of webpack's persistent cache (`.next/cache`, which CI
+    // restores between runs). That cache keys a compiled MDX page on the page, not on the remark
+    // and shiki options `source-config.mjs` gives fumadocs, which webpack cannot trace ("Parsing
+    // of fumadocs-mdx/dist/load-from-file… for build dependencies failed"). So after #1817 marked
+    // terminal fences there, a build over an old cache served the pages compiled without the
+    // mark, and every site's terminal-block test failed on CI while a clean build passed.
     webpack(config, { webpack }) {
+      if (config.cache && typeof config.cache === 'object') {
+        config.cache.buildDependencies = { ...config.cache.buildDependencies, docsChassis: [CHASSIS_SRC] };
+      }
       config.plugins.push(
         new webpack.NormalModuleReplacementPlugin(/^fumadocs-mdx:collections\//u, (resource) => {
           resource.request = join(process.cwd(), '.source', resource.request.slice('fumadocs-mdx:collections/'.length));

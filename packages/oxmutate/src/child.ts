@@ -20,7 +20,7 @@ import { declaredPool } from './declared-pool.js';
 import { VITEST_SAID } from './dry-failure.js';
 import { BEAT_ENV, beatFile, CPU_SAMPLE_MS } from './heartbeat.js';
 import { resolveEsm } from './resolve.js';
-import { ACTIVE_MUTANT_ENV, argv, env, exit, killGroup, pid, serverGroups, stderr } from './runtime.js';
+import { ACTIVE_MUTANT_ENV, TRACK_READS_ENV, argv, env, exit, killGroup, pid, serverGroups, stderr } from './runtime.js';
 import { instrumentedSources } from './vite-plugin.js';
 
 export interface ServerConfig {
@@ -217,8 +217,8 @@ async function runUnit(unit: Unit): Promise<void> {
   // Workers copy the environment when they start, so each run sees the unit's settings
   // (verified across re-runs of one instance, 2026-10-26).
   env['OXMUTATE_MODE'] = unit.mode;
-  if (unit.trackReads) env['__OXMUTATE_TRACK_READS__'] = '1';
-  else delete env['__OXMUTATE_TRACK_READS__'];
+  if (unit.trackReads) env[TRACK_READS_ENV] = '1';
+  else delete env[TRACK_READS_ENV];
   env['OXMUTATE_RESULTS'] = unit.results;
   env['OXMUTATE_PROGRESS'] = unit.progress;
   if (unit.plan) env['OXMUTATE_PLAN'] = unit.plan;

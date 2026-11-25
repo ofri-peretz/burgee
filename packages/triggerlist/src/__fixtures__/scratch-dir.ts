@@ -41,7 +41,9 @@ function aside(path: string): string | undefined {
     }
   }
   // A rename the OS refused (a Windows handle still open): the slow way, which still keeps the promise.
-  rmSync(path, { recursive: true, force: true });
+  // The handle can outlive its process by a moment, so EPERM and EBUSY are retried, not thrown
+  // (an `afterAll` on windows-latest failed on EPERM, #1819).
+  rmSync(path, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   return undefined;
 }
 
