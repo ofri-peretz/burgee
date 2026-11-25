@@ -99,3 +99,8 @@ or the real compiler, 6.4–28.7 s on a contended runner: ten in `e2e.test.ts`, 
 case in `checker.test.ts`. They are listed with their numbers in `NIGHTLY_ONLY`. Only oxmutate's
 source can make them fast — a faster cold path for a run — and two other lanes own that source
 today, so it is a follow-up, not part of this change. Each leaves the list by getting fast.
+
+**Update 2026-11-25.** The gate is now truepass's budget reporter
+(`packages/truepass/src/vitest-reporter.ts`), loaded from source by every suite through
+`vitest-timeouts.config.ts`. `NIGHTLY_ONLY` and the advice moved to `scripts/nightly-only.ts`,
+and the variables are `TRUEPASS_BUDGET_MS` and `TRUEPASS_BUDGET_DEFER`.

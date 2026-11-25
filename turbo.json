@@ -60,8 +60,8 @@
       ],
       "passThroughEnv": [
         "VITEST_DURATIONS_DIR",
-        "VITEST_CASE_BUDGET_MS",
-        "VITEST_CASE_BUDGET_DEFER",
+        "TRUEPASS_BUDGET_MS",
+        "TRUEPASS_BUDGET_DEFER",
         "OXMUTATE_REQUIRE_NATIVE"
       ],
       "outputs": []
