@@ -398,6 +398,8 @@ describe('the unknown-command refusal', () => {
   it('keeps a request for JSON after -- where it was, and spells --format=json as --json', async () => {
     expect((await runCommand(tool(), ['gret', '--', '--json'])).stderr).toContain('demo greet -- --json');
     expect((await runCommand(tool(), ['--format=json', 'gret'])).stderr).toContain('demo greet --json\n');
+    // A `--json` typed first is still read when a `--` comes later, and stays before it.
+    expect(JSON.parse((await runCommand(tool(), ['--json', 'greet', '--', 'x'])).stdout)).toMatchObject({ ok: true, data: 'hello' });
   });
 });
 

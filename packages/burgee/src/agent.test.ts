@@ -18,6 +18,10 @@ describe('agent detection, not just isTTY (N12)', () => {
     expect(detectAgent({ CURSOR_AGENT: '1' }, false)).toEqual({ agent: 'cursor', interactive: false });
     expect(detectAgent({ AI_AGENT: '1' }, true)).toEqual({ agent: 'generic', interactive: false });
     expect(detectAgent({ AI_AGENT: 'devin' }, true)).toEqual({ agent: 'devin', interactive: false });
+    // Any other probe names its own agent whatever it holds, and an empty value is no value.
+    expect(detectAgent({ CLAUDECODE: 'yes' }, false)).toStrictEqual({ agent: 'claude-code', interactive: false });
+    expect(detectAgent({ CODEX_THREAD_ID: 'th_1' }, false)).toStrictEqual({ agent: 'codex', interactive: false });
+    expect(detectAgent({ CLAUDECODE: '' }, true)).toStrictEqual({ interactive: true });
   });
   it('FORCE_TTY=1 overrides; a terminal with no agent is interactive; no terminal is not', () => {
     expect(detectAgent({ CLAUDECODE: '1', FORCE_TTY: '1' }, true)).toMatchObject({ interactive: true });

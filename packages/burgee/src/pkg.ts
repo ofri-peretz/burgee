@@ -15,12 +15,14 @@ export function nearestPackage(from: string): Package | undefined {
     const at = join(dir, 'package.json');
     if (existsSync(at)) {
       try {
+        // Stryker disable next-line StringLiteral: without an encoding readFileSync hands back a Buffer, which JSON.parse reads as the same UTF-8 text
         return { path: at, data: JSON.parse(readFileSync(at, 'utf8')) as Record<string, unknown> };
       } catch {
         return undefined;
       }
     }
     const up = dirname(dir);
+    // Stryker disable next-line ConditionalExpression: at the filesystem root dirname answers the root again, so the walk keeps finding nothing until its 64-step bound returns the same undefined
     if (up === dir) return undefined;
     dir = up;
   }
