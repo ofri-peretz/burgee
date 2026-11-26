@@ -2,21 +2,28 @@
 # the repo decides how). The rest are wired with --if-present: a station a repo has not declared
 # yet passes, and `hookset check` lists it. Stations in observe ship that way until they pass on a
 # clean main everywhere.
+# piped: the first failing step stops the push. Every step has a timeout: a hook never hangs.
 pre-push:
+  piped: true
   commands:
     hookset-verify:
+      timeout: 4m
       priority: 1
       run: PATH="$PATH:/opt/homebrew/bin:/usr/local/bin" npm run --silent hook:verify
       fail_text: "typecheck, tests or build failed. Fix what it reports; never push with --no-verify."
     hookset-mutation:
+      timeout: 5m
       priority: 2
       run: PATH="$PATH:/opt/homebrew/bin:/usr/local/bin" npm run --silent --if-present hook:mutation
     hookset-test-integrity:
+      timeout: 2m
       priority: 3
       run: PATH="$PATH:/opt/homebrew/bin:/usr/local/bin" npm run --silent --if-present hook:test-integrity
     hookset-proofline:
+      timeout: 2m
       priority: 4
       run: PATH="$PATH:/opt/homebrew/bin:/usr/local/bin" npm run --silent --if-present hook:proofline
     hookset-triggerlist:
+      timeout: 2m
       priority: 5
       run: PATH="$PATH:/opt/homebrew/bin:/usr/local/bin" npm run --silent --if-present hook:triggerlist

@@ -13,7 +13,9 @@
  * clean on 2 of 2 runs, at +37 s. The battery still runs every task; only how many run together
  * is bounded.
  *
- * What fails here: the flag dropped, or the battery no longer one turbo run of the three tasks.
+ * What fails here: the flag dropped from either turbo run, or the battery no longer builds,
+ * typechecks and tests. It is two sequential runs (packages built up front, then typecheck and test
+ * of what the push changed), never two parallel ones, so no two of them share a .next directory.
  */
 import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -28,11 +30,16 @@ describe('the pre-push battery', () => {
   const hook = (loadYaml(readFileSync(join(ROOT, 'lefthook.yml'), 'utf8')) as { 'pre-push': { commands: Record<string, { run: string }> } })['pre-push'];
   const run = hook.commands['battery']?.run ?? '';
 
-  it('is one turbo run of typecheck, test and build', () => {
-    expect(run).toMatch(/turbo run typecheck test build /);
+  const turbos = run.split('&&').filter((c) => c.includes('turbo run'));
+
+  it('builds the packages, then typechecks and tests what the push changed, one run after the other', () => {
+    expect(turbos).toHaveLength(2);
+    expect(turbos[0]).toMatch(/turbo run build --filter='\.\/packages\/\*' /);
+    expect(turbos[1]).toMatch(/turbo run typecheck test --affected /);
+    expect(run).not.toMatch(/[^&]&[^&]/);
   });
 
-  it('runs two tasks at a time', () => {
-    expect(run).toMatch(/ --concurrency=2(\s|$)/);
+  it('runs two tasks at a time in each run', () => {
+    for (const t of turbos) expect(t).toMatch(/ --concurrency=2(\s|$)/);
   });
 });

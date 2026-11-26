@@ -3,5 +3,6 @@
 pre-commit:
   commands:
     hookset-staged:
+      timeout: 30s
       run: PATH="$PATH:/opt/homebrew/bin:/usr/local/bin" npm run --silent hook:staged -- {staged_files}
       fail_text: "A staged file fails lint or format. Run the repo's fix script, re-stage, and commit again."

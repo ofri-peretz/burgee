@@ -4,8 +4,10 @@
 commit-msg:
   commands:
     hookset-commitlint:
+      timeout: 1m
       run: PATH="$PATH:/opt/homebrew/bin:/usr/local/bin" npx --no -- commitlint --edit {1}
       fail_text: "commitlint rejected the message. Each ✖ line above names the rule it broke (type, scope, length). Fix those and commit again."
     hookset-provedone:
+      timeout: 1m
       run: PATH="$PATH:/opt/homebrew/bin:/usr/local/bin" npm run --silent hook:provedone -- {1}
       fail_text: "No receipt. Add `Verified-by: <command> -> exit 0`, or `Verified-by: none (<why no check applies>)`, and commit again."

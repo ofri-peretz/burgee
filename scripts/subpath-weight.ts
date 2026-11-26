@@ -34,8 +34,9 @@
  * which is what makes "do not edit by hand" true rather than
  * aspirational. CI runs it after the build (compat.yml, `ratchet`).
  */
-import { execFileSync, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -123,23 +124,31 @@ function exportsOf(specifier: string): string[] {
   return JSON.parse(out) as string[];
 }
 
-function esbuildBin(): string {
-  return join(resolvePackage('esbuild').dir, 'bin', 'esbuild');
-}
+// One esbuild service for every bundle: a new esbuild process per export (about six hundred) and
+// its chunk and metafile files on disk took over two minutes on a machine whose endpoint scanner
+// inspects every process start and every new file. buildSync reuses one child, and write: false
+// keeps the output in memory.
+const esbuild = createRequire(import.meta.url)(resolvePackage('esbuild').dir) as typeof import('esbuild');
 
 /** Bundle one fixture and return its initial load: the entry chunk and everything it statically imports. */
 function bundled(stem: string, source: string): number {
   mkdirSync(SCRATCH, { recursive: true });
   const file = join(SCRATCH, `${stem}.mjs`);
   writeFileSync(file, source);
-  const outdir = join(SCRATCH, `${stem}.chunks`);
-  rmSync(outdir, { recursive: true, force: true });
-  const metafile = join(SCRATCH, `${stem}.meta.json`);
-  execFileSync(esbuildBin(), [file, '--bundle', '--minify', '--format=esm', '--platform=node', '--splitting', `--outdir=${outdir}`, `--metafile=${metafile}`], {
-    cwd: BENCH_ROOT,
-    stdio: 'pipe',
+  const { metafile } = esbuild.buildSync({
+    entryPoints: [file],
+    bundle: true,
+    minify: true,
+    format: 'esm',
+    platform: 'node',
+    splitting: true,
+    outdir: join(SCRATCH, `${stem}.chunks`),
+    metafile: true,
+    write: false,
+    absWorkingDir: BENCH_ROOT,
+    logLevel: 'silent',
   });
-  return initialBytes(JSON.parse(readFileSync(metafile, 'utf8')) as Metafile, `${stem}.js`);
+  return initialBytes(metafile as Metafile, `${stem}.js`);
 }
 
 interface Row {
