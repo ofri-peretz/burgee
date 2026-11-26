@@ -1,0 +1,53 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Gate protection (triggerlist protect)
+
+# The protected-checks job of .sdlc/intents/triggerlist (R6 in CI): a PR that edits a gate file
+# (the `gates` the base branch's .sdlc/checklist.yaml lists: lock tests, lefthook.yml, bands,
+# REVIEW.md, the checklist) together with the code those gates judge can loosen a gate and pass
+# it in one change. Observe mode: a flagged PR gets a warning and a summary, never a red check.
+# The pre-push step in lefthook.yml runs the same command; this is the copy a push without hooks
+# cannot skip. Moving to `--enforce` takes a decision file (the intent's constraint), read from
+# the warnings this job leaves.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: triggerlist-protect-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  protect:
+    name: triggerlist protect
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # Full history: protect diffs the base commit against the PR's merge commit.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+
+      - name: Build triggerlist
+        run: npx turbo run build --filter=triggerlist...
+
+      - name: Protect the gates
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -o pipefail
+          node packages/triggerlist/dist/bin.js protect "$BASE_SHA" 2>&1 | tee "$RUNNER_TEMP/protect.log"
+          node packages/triggerlist/dist/bin.js protect "$BASE_SHA" --json > "$RUNNER_TEMP/protect.json"
+          # The warning is the observe-mode record the enforce decision is read from.
+          node -e 'const r = require(process.argv[1]); if (r.data.flagged) console.log(`::warning title=triggerlist protect::${r.data.gates.length} gate file(s) changed with ${r.data.code.length} other file(s); observe mode, not failing`)' "$RUNNER_TEMP/protect.json"
+
+      - name: Summary
+        if: always()
+        run: |
+          { echo '## triggerlist protect'; echo; echo '```'; cat "$RUNNER_TEMP/protect.log" || echo '(no output)'; echo '```'; } >> "$GITHUB_STEP_SUMMARY"

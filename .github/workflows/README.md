@@ -105,11 +105,12 @@ to run still starts and passes in one step. `npm run lint:workflows` holds the l
 
 ## SDLC loop (Stage 4 and Stage 6)
 
-| Workflow                                   | Role                                                                                                                                                                                                                   |
-| :----------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`evals.yml`](./evals.yml)                 | Weekly and on dispatch, never on a PR: layer 1 link/script/floor-id checks; layer 2 task evals when a credential exists. Layer 1 also runs on every PR inside `Quality Gate`                                           |
-| [`control-bands.yml`](./control-bands.yml) | Weekly: records observations, evaluates Western Electric rules, opens an intent PR on a 2σ+ breach                                                                                                                     |
-| [`models.yml`](./models.yml)               | `.qnt` or `packages/closeout/src` changes: every Quint model holds its `safety` invariant over 20k simulated traces; open questions pinned as expected violations ([`JEV-AND-QUINT.md`](../../.sdlc/JEV-AND-QUINT.md)) |
+| Workflow                                               | Role                                                                                                                                                                                                                   |
+| :----------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`evals.yml`](./evals.yml)                             | Weekly and on dispatch, never on a PR: layer 1 link/script/floor-id checks; layer 2 task evals when a credential exists. Layer 1 also runs on every PR inside `Quality Gate`                                           |
+| [`control-bands.yml`](./control-bands.yml)             | Weekly: records observations, evaluates Western Electric rules, opens an intent PR on a 2σ+ breach                                                                                                                     |
+| [`models.yml`](./models.yml)                           | `.qnt` or `packages/closeout/src` changes: every Quint model holds its `safety` invariant over 20k simulated traces; open questions pinned as expected violations ([`JEV-AND-QUINT.md`](../../.sdlc/JEV-AND-QUINT.md)) |
+| [`triggerlist-protect.yml`](./triggerlist-protect.yml) | Every PR, not required: `triggerlist protect` against the base's checklist `gates`; a PR that edits a gate and the code it judges gets a warning (observe mode). `--enforce` takes a decision file                     |
 
 ## oxmutate
 
