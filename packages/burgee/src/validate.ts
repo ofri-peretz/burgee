@@ -24,8 +24,8 @@ export function toNumber(key: string, spec: OptionSpec, raw: unknown): number {
   const flag = `--${kebab(key)}`;
   if (!isFinite(n)) throw new UsageError(`${flag} expects a number, got "${String(raw)}"`, `pass ${flag} <number>`);
   if (spec.integer === true && !Number.isInteger(n)) throw new UsageError(`${flag} expects an integer, got ${n}`, `pass ${flag} ${Math.round(n)}`);
-  if (spec.minimum !== undefined && n < spec.minimum) throw new UsageError(`${flag} must be at least ${spec.minimum}, got ${n}`, `pass ${flag} ${spec.minimum}`);
-  if (spec.maximum !== undefined && n > spec.maximum) throw new UsageError(`${flag} must be at most ${spec.maximum}, got ${n}`, `pass ${flag} ${spec.maximum}`);
+  if (n < (spec.minimum ?? -Infinity)) throw new UsageError(`${flag} must be at least ${spec.minimum}, got ${n}`, `pass ${flag} ${spec.minimum}`);
+  if (n > (spec.maximum ?? Infinity)) throw new UsageError(`${flag} must be at most ${spec.maximum}, got ${n}`, `pass ${flag} ${spec.maximum}`);
   return n;
 }
 

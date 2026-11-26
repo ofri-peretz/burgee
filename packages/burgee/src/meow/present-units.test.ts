@@ -71,6 +71,7 @@ describe('setProcessTitle', () => {
     expect(titled({ name: 'tool@acme/x', bin: 'cli.js' })).toEqual(['tool@acme/x']);
     expect(titled({ name: '@acme/tool', bin: { run: 'cli.js' } })).toEqual(['run']);
     expect(titled({ name: '@acme/tool' })).toEqual(['@acme/tool']);
+    expect(titled({ name: 'tool', bin: null })).toEqual(['tool']);
   });
 
   it('sets no title for a package with no name', () => {

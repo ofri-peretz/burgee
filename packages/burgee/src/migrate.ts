@@ -1368,12 +1368,14 @@ function startsRegex(previous: string): boolean {
   // character, and the last line already reads it as the start of an expression.
   if (EXPRESSION_KEYWORDS.has(previous)) return true;
   if (DIVIDES.has(previous)) return false;
-  return !WORD.test(previous.charAt(previous.length - 1));
+  // A token is one word or one character, so its last character is a word character iff any is.
+  return !WORD.test(previous);
 }
 
 /** Index just past the end of a `'…'` or `"…"`, honouring backslash escapes. */
 function endOfString(source: string, open: number): number {
   const quote = source.charAt(open);
+  // Stryker disable next-line EqualityOperator: one step past the end reads `charAt` as '', which no branch takes, and the return below is the same
   for (let i = open + 1; i < source.length; i += 1) {
     const c = source.charAt(i);
     if (c === '\\') {
@@ -1424,6 +1426,7 @@ function endOfInterpolation(source: string, from: number): number {
 /** Index just past the end of a regular-expression literal, skipping character classes. */
 function endOfRegex(source: string, open: number): number {
   let inClass = false;
+  // Stryker disable next-line EqualityOperator: one step past the end reads `charAt` as '', which no branch takes, and the return below is the same
   for (let i = open + 1; i < source.length; i += 1) {
     const c = source.charAt(i);
     if (c === '\\') {
@@ -1489,7 +1492,9 @@ const CALLS: ReadonlyMap<string, ReadonlyMap<string, Call>> = new Map([
       ['doMock', 'refers'],
       ['unmock', 'refers'],
       ['doUnmock', 'refers'],
+      // Stryker disable next-line StringLiteral: every kind but `refers` and `requires` is read alike, as `import()` loads
       ['importActual', 'imports'],
+      // Stryker disable next-line StringLiteral: as above
       ['importMock', 'imports'],
     ]),
   ],
@@ -1526,7 +1531,8 @@ function trackCall(tokens: Tokens, text: string): void {
   if (tokens.angle > 0) {
     if (text === '<') tokens.angle += 1;
     else if (text === '>' && tokens.previous !== '=') tokens.angle -= 1;
-    if (tokens.angle === 0) tokens.ready = tokens.generic;
+    // Nothing reads `ready` while the angle is open, so it is set at every step and counts once it closes.
+    tokens.ready = tokens.generic;
   } else if (text === '(') tokens.opened = ready;
   else if (text === '<' && ready !== undefined) {
     tokens.angle = 1;
@@ -1697,6 +1703,7 @@ function push(tokens: Tokens, text: string, line: number): void {
   tokens.pending = text === '(' && (tokens.previous === 'import' || tokens.previous === 'require');
   trackCall(tokens, text);
   if (text === 'import' || text === 'export') tokens.clause = [];
+  // Stryker disable next-line ConditionalExpression,LogicalOperator,StringLiteral: A10 — no valid clause holds `(` or `=`, and none is read past its `from`; the reset keeps the list short
   else if (text === '(' || text === '=' || tokens.previous === 'from') tokens.clause = undefined;
   else tokens.clause?.push(text);
   tokens.fifth = tokens.fourth;
@@ -1704,7 +1711,8 @@ function push(tokens: Tokens, text: string, line: number): void {
   tokens.third = tokens.before;
   tokens.before = tokens.previous;
   tokens.previous = text;
-  if (tokens.angle === 0) tokens.ready ??= callOf(tokens);
+  // Inside type arguments `trackCall` sets `ready` at every step, so this assigns nothing there.
+  tokens.ready ??= callOf(tokens);
 }
 
 /** The specifier between the quotes at `open` and just before `close`, with its clause when it follows a `from`. */
@@ -1713,6 +1721,7 @@ function siteOf(source: string, at: { open: number; close: number; line: number 
   const site: Site = { specifier: source.slice(open + 1, close - 1), start: open + 1, end: close - 1, line };
   // The clause ends in the `from` just pushed; everything before it is the bindings. A bare
   // `import 'x'` binds nothing, which is an empty clause rather than an unreadable one.
+  // Stryker disable next-line LogicalOperator: at a site a clause is defined only after `from`, or after `import`, whose is set to [] below
   if (tokens.previous === 'from' && tokens.clause !== undefined) site.clause = tokens.clause.slice(0, -1);
   if (tokens.previous === 'import') site.clause = [];
   if (tokens.previous === '(' && (tokens.before === 'require' || tokens.opened === 'requires')) site.require = true;
@@ -1857,6 +1866,7 @@ const NEEDLE_BYTES = HOSTS.map((host) => Buffer.from(host));
  * on a `Buffer` it also skips decoding 3 MB of UTF-8 that nothing was going to read.
  */
 export function mentionsAHost(source: string | Buffer): boolean {
+  // Stryker disable next-line ConditionalExpression,EqualityOperator,StringLiteral: A10 — a Buffer encodes a string needle and a string decodes a Buffer one, so either finds the same names; the split saves that work
   return typeof source === 'string' ? HOSTS.some((host) => source.includes(host)) : NEEDLE_BYTES.some((bytes) => source.includes(bytes));
 }
 
@@ -1889,7 +1899,8 @@ export function bindingsOf(clause: readonly string[]): { typeOnly: boolean; name
       continue;
     }
     // `type x` / `type x as y`: the modifier. `type` alone, or `type as y`, is a binding named `type`.
-    const modifier = element[0] === 'type' && element.length > 1 && element[1] !== 'as';
+    // In a valid clause only `type x` and `type x as y` have a second token that is not `as`.
+    const modifier = element.length > 1 && element[1] !== 'as';
     const name = modifier ? element[1] : element[0];
     if (name !== undefined && name !== 'default' && WORD.test(name)) names.push(name);
     element = [];
@@ -1898,9 +1909,10 @@ export function bindingsOf(clause: readonly string[]): { typeOnly: boolean; name
 }
 
 /** The names in `site`'s clause that `to` does not export. Empty when there is no clause, or no table for `to`. */
-function missingFrom(site: Site, to: string): { typeOnly: boolean; missing: string[] } {
-  const exported = FACADE_EXPORTS[to];
-  if (site.clause === undefined || exported === undefined) return { typeOnly: false, missing: [] };
+function missingFrom(site: Site, to: string): { typeOnly?: boolean; missing: string[] } {
+  // Every target has a table: `migrate-identity-units.test.ts` holds FACADE_EXPORTS to MAPPING's targets.
+  const exported = FACADE_EXPORTS[to] as readonly string[];
+  if (site.clause === undefined) return { missing: [] };
   const { typeOnly, names } = bindingsOf(site.clause);
   return { typeOnly, missing: names.filter((name) => !exported.includes(name)) };
 }
@@ -1917,11 +1929,13 @@ function missingFrom(site: Site, to: string): { typeOnly: boolean; missing: stri
  */
 function crossing(site: Site, to: string, through: readonly string[] | undefined): Omit<Kept, 'file'> | undefined {
   const classes = IDENTITY[to] ?? [];
-  if (through === undefined || classes.length === 0 || site.refers === true) return undefined;
+  // A target with no classes keeps nothing: the filter below finds no name in an empty list.
+  if (through === undefined || site.refers === true) return undefined;
   const bindings = site.clause === undefined ? undefined : bindingsOf(site.clause);
   if (bindings?.typeOnly === true) return undefined;
   // Unreadable names might be any of the classes, so every one of them counts.
-  const named = bindings === undefined || site.clause?.includes('*') === true ? undefined : bindings.names;
+  // `bindings` is read off the clause, so the clause is there whenever they are.
+  const named = bindings === undefined || (site.clause as string[]).includes('*') ? undefined : bindings.names;
   const unreadable = named === undefined;
   const names = classes.filter((name) => named?.includes(name) ?? true);
   if (names.length === 0) return undefined;
@@ -2091,7 +2105,7 @@ type Manifest = ProjectManifest & Partial<Record<(typeof DECLARING)[number], Rec
 /** The manifest at `path`, or an empty one when there is none to read. */
 async function manifestAt(path: string): Promise<Manifest> {
   try {
-    return (JSON.parse(await readFile(path, 'utf8')) as Manifest | null) ?? {};
+    return (JSON.parse(String(await readFile(path))) as Manifest | null) ?? {};
   } catch {
     return {};
   }
@@ -2118,11 +2132,9 @@ async function jestConfigsIn(dir: string): Promise<string[]> {
 
 /** The version installed at `dir/node_modules/<name>`, when there is one. */
 async function installedVersion(dir: string, name: string): Promise<string | undefined> {
-  try {
-    return (JSON.parse(await readFile(join(dir, 'node_modules', name, 'package.json'), 'utf8')) as { version?: string }).version;
-  } catch {
-    return undefined;
-  }
+  return await readFile(join(dir, 'node_modules', name, 'package.json'))
+    .then((bytes) => (JSON.parse(String(bytes)) as { version?: string }).version)
+    .catch(() => undefined);
 }
 
 /**
@@ -2142,16 +2154,18 @@ async function majorsOf(dir: string, dependencies: Map<string, string>): Promise
   const entries = new Map<string, string>();
   const majors = new Map<string, number>();
   const offMajor = found.flatMap(({ from, found: version }) => {
-    const graded = GRADED_VERSIONS[from];
-    if (version === undefined || graded === undefined) return [];
-    const major = majorOf(version);
+    // Every host is graded (`supported-majors-lock.test.ts`), and a version that is not there has no digits to read.
+    const graded = GRADED_VERSIONS[from] as string;
+    const major = majorOf(String(version));
     if (major === undefined) return [];
     // A graded host always has its majors: `supported-majors-lock.test.ts` holds one list per graded host.
     const claimed = SUPPORTED_MAJORS[from] as readonly number[];
-    if (!claimed.includes(major)) return [{ from, found: version, graded, nearest: nearestOf(major, claimed) ?? null }];
+    if (!claimed.includes(major)) return [{ from, found: version as string, graded, nearest: nearestOf(major, claimed) ?? null }];
     if (GRADED_MAJORS[`${HOST_OF.get(from) as string}-${major}`] !== undefined) majors.set(from, major);
+    // Stryker disable next-line MethodExpression,ConditionalExpression: no two hosts have an older-major entry at the same major, so another host's specifiers find none here
     for (const specifier of Object.keys(MAPPING).filter((s) => packageOf(s) === from)) {
       const entry = PREVIOUS_MAJOR_ENTRIES[specifier]?.[major];
+      // Stryker disable next-line ConditionalExpression: a specifier with no entry here reads MAPPING's, which is what an undefined entry falls back to
       if (entry !== undefined) entries.set(specifier, entry);
     }
     return [];
@@ -2240,11 +2254,11 @@ const FAMILY: readonly string[] = [...new Set(Object.values(MAPPING).map(package
  */
 export async function familyVersions(here: string = dirname(fileURLToPath(import.meta.url))): Promise<Record<string, string>> {
   try {
-    const built = JSON.parse(await readFile(join(here, 'family-versions.json'), 'utf8')) as { versions?: Record<string, string> } & Record<string, string>;
+    const built = JSON.parse(String(await readFile(join(here, 'family-versions.json')))) as { versions?: Record<string, string> } & Record<string, string>;
     // `{ versions, since }` since migrate-pins-carry-the-drop-in; a flat map before it.
     return built.versions ?? built;
   } catch {
-    const found = await Promise.all(FAMILY.map(async (name) => [name, (await readFile(join(here, '..', '..', name, 'package.json'), 'utf8').catch(() => '{}')) as string] as const));
+    const found = await Promise.all(FAMILY.map(async (name) => [name, String(await readFile(join(here, '..', '..', name, 'package.json')).catch(() => '{}'))] as const));
     return Object.fromEntries(found.flatMap(([name, raw]) => {
       const { version } = JSON.parse(raw) as { version?: string };
       return version === undefined ? [] : [[name, version]];
@@ -2268,10 +2282,16 @@ export type SubpathFloors = Readonly<Record<string, Readonly<Record<string, stri
  */
 export async function subpathFloors(here: string = dirname(fileURLToPath(import.meta.url))): Promise<SubpathFloors> {
   try {
-    return (JSON.parse(await readFile(join(here, 'family-versions.json'), 'utf8')) as { since?: SubpathFloors }).since ?? {};
+    return (JSON.parse(String(await readFile(join(here, 'family-versions.json')))) as { since?: SubpathFloors }).since ?? {};
   } catch {
     return {};
   }
+}
+
+/** The lowest version of one package that carries every subpath the rewrite imports from it, and those specifiers. */
+interface Floor {
+  version: string;
+  specifiers: string[];
 }
 
 /**
@@ -2282,14 +2302,14 @@ export async function subpathFloors(here: string = dirname(fileURLToPath(import.
  * than the table — floors at the graded version: nothing older is known to carry it. A package
  * the table does not name at all has no floor.
  */
-function floorsOf(specifiers: readonly string[], since: SubpathFloors, graded: Readonly<Record<string, string>>): Map<string, { version: string; specifiers: string[] }> {
-  const floors = new Map<string, { version: string; specifiers: string[] }>();
+function floorsOf(specifiers: readonly string[], since: SubpathFloors, graded: Readonly<Record<string, string>>): Map<string, Floor> {
+  const floors = new Map<string, Floor>();
   for (const specifier of specifiers) {
     const name = packageOf(specifier);
     const table = since[name];
-    const at = graded[name];
-    if (table === undefined || at === undefined) continue;
-    const version = table[`.${specifier.slice(name.length)}`] ?? at;
+    if (table === undefined) continue;
+    // A package with no graded version is never pinned (`pinsUnder`), so its floor is never read.
+    const version = table[`.${specifier.slice(name.length)}`] ?? (graded[name] as string);
     const floor = floors.get(name);
     if (floor === undefined || byVersion(version, floor.version) > 0) floors.set(name, { version, specifiers: [specifier] });
     else if (byVersion(version, floor.version) === 0) floor.specifiers.push(specifier);
@@ -2359,17 +2379,20 @@ type Setting = Omit<ReleaseAge, 'pins' | 'note'> & { key: string };
  * starts with it is the setting and anything indented or commented out is not. A setting is
  * the reason a pinned install can still fail, so the report names the file it came from.
  */
-async function releaseAgeOf(dir: string): Promise<Setting | null> {
+export async function releaseAgeOf(dir: string): Promise<Setting | null> {
   for (const { file, key, exclude, separator } of RELEASE_AGE) {
+    // Stryker disable StringLiteral: a missing file is any text that names no key
     // eslint-disable-next-line reliability/no-await-in-loop -- three small files, in the order a reader would look, and the first one that answers wins
-    const text = await readFile(join(dir, file), 'utf8').catch(() => '');
+    const text = String(await readFile(join(dir, file)).catch(() => ''));
+    // Stryker restore StringLiteral
     const lines = text.split('\n');
     for (const line of lines) {
       if (!line.startsWith(key)) continue;
+      // Stryker disable next-line StringLiteral: a key with no separator has no value, and any default without digits reads as none
       const [name, value = ''] = line.split(separator);
       // A comment after a YAML value (`1440 # a day`) is not part of it.
       const digits = /^\d+/.exec(value.trim())?.[0];
-      if (name?.trim() !== key || digits === undefined) continue;
+      if ((name as string).trim() !== key || digits === undefined) continue;
       return { file, key, minutes: Number(digits), exclude: excludeOf(lines, exclude, separator) };
     }
   }
@@ -2424,7 +2447,7 @@ function globMatches(pattern: string, name: string): boolean {
 }
 
 /** The versions of `name` an exemption covers: every one (`'*'`), the listed ones, or none. */
-function exempted(name: string, exclude: readonly string[]): '*' | Set<string> {
+export function exempted(name: string, exclude: readonly string[]): '*' | Set<string> {
   const versions = new Set<string>();
   for (const entry of exclude) {
     const at = entry.lastIndexOf('@');
@@ -2444,17 +2467,15 @@ export type PublishTimes = (name: string) => Promise<Record<string, string> | un
  * costs the floor, and `next` falls back to the graded pins with the note that says why.
  */
 // ponytail: npmjs.org only; read `registry=` from the project's npmrc when a mirror user needs it.
+// Stryker disable next-line NumericLiteral: no test waits on the public registry
 const REGISTRY_TIMEOUT_MS = 5000;
 const MINUTE_MS = 60_000;
 
-const registryTimes: PublishTimes = async (name) => {
-  try {
-    const response = await fetch(`https://registry.npmjs.org/${encodeURIComponent(name)}`, { signal: AbortSignal.timeout(REGISTRY_TIMEOUT_MS) });
-    return response.ok ? ((await response.json()) as { time?: Record<string, string> }).time : undefined;
-  } catch {
-    return undefined;
-  }
-};
+const registryTimes: PublishTimes = async (name) =>
+  // Stryker disable next-line ObjectLiteral: the deadline only bounds a registry that hangs, and no test waits on one
+  await fetch(`https://registry.npmjs.org/${encodeURIComponent(name)}`, { signal: AbortSignal.timeout(REGISTRY_TIMEOUT_MS) })
+    .then(async (response) => (response.ok ? ((await response.json()) as { time?: Record<string, string> }).time : undefined))
+    .catch(() => undefined);
 
 /** Newest first within one major: `pinsUnder` only ever compares versions of the graded major. */
 const byVersion = (a: string, b: string): number => {
@@ -2478,7 +2499,7 @@ async function pinsUnder(
   age: Setting,
   add: readonly string[],
   graded: Readonly<Record<string, string>>,
-  clock: { times: PublishTimes; now: Date; floors: ReadonlyMap<string, { version: string; specifiers: string[] }> },
+  clock: { times: PublishTimes; now: Date; floors: ReadonlyMap<string, Floor> },
 ): Promise<{ pins: ReleaseAgePin[]; unread: string[] }> {
   const { times, now, floors } = clock;
   const wanted = add.filter((name) => graded[name] !== undefined && exempted(name, age.exclude) !== '*');
@@ -2490,6 +2511,7 @@ async function pinsUnder(
       const exempt = exempted(name, age.exclude) as Set<string>;
       const major = version.split('.')[0];
       const ofMajor = Object.entries(listed)
+        // Stryker disable next-line Regex: the major compared beside it already refuses anything before the digits
         .filter(([v]) => /^\d+\.\d+\.\d+$/.test(v) && v.split('.')[0] === major)
         .map(([v, at]) => ({ version: v, installable: exempt.has(v) ? Date.parse(at) : Date.parse(at) + age.minutes * MINUTE_MS }))
         .filter((c) => !Number.isNaN(c.installable));
@@ -2500,7 +2522,8 @@ async function pinsUnder(
       const ready = candidates.filter((c) => c.installable <= now.getTime()).sort((a, b) => byVersion(b.version, a.version))[0];
       const soonest = candidates.sort((a, b) => a.installable - b.installable)[0];
       const chosen = ready ?? soonest;
-      const requires = floor !== undefined && candidates.length < ofMajor.length ? { requires: { specifiers: floor.specifiers, since: floor.version } } : {};
+      // Only a floor passes a release over.
+      const requires = candidates.length < ofMajor.length ? { requires: { specifiers: (floor as Floor).specifiers, since: (floor as Floor).version } } : {};
       return { name, version, pin: chosen === undefined ? undefined : { name, version: chosen.version, graded: version, installable: new Date(chosen.installable).toISOString(), ...requires } };
     }),
   );
@@ -2517,7 +2540,7 @@ function releaseAgeNote(age: Setting, { pins, unread }: { pins: readonly Release
     const carrying = p.requires === undefined ? '' : ` that exports ${p.requires.specifiers.join(', ')} (first in ${p.requires.since})`;
     return Date.parse(p.installable) <= now.getTime()
       ? `${p.name} ${p.graded} is younger than that, so next pins ${style}${p.version}, the newest ${p.name} ${p.version.slice(0, p.version.indexOf('.'))}.x${carrying} old enough; run your tests on it`
-      : `no ${p.name} ${p.version.split('.')[0]}.x${carrying} is old enough until ${p.installable.replace('T', ' ').replace(/:\d\d\.\d+Z$/, '')} UTC, when ${p.version} is: the install fails before then, or exempt ${p.name} from the rule`;
+      : `no ${p.name} ${p.version.split('.')[0]}.x${carrying} is old enough until ${p.installable.replace('T', ' ').replace(/:\d\d\.\d+Z/, '')} UTC, when ${p.version} is: the install fails before then, or exempt ${p.name} from the rule`;
   });
   if (lines.length === 0 && unread.length === 0) lines.push('every family version in next is older than that');
   if (unread.length > 0) lines.push(`the registry did not say when ${unread.join(', ')} ${unread.length === 1 ? 'was' : 'were'} published, so next pins the graded version, which may be younger than that`);
@@ -2633,6 +2656,7 @@ function checkNames(options: MigrateOptions): void {
 /* ------------------------------------------------------------------ the run */
 
 /** A file the pre-filter rejected: never decoded, never scanned, never written. */
+// Stryker disable next-line StringLiteral,BooleanLiteral: nothing reads an unadmitted file's source, and its text is undefined either way
 const EMPTY: Rewrite = { source: '', mapped: [], refused: [], kept: [], relevant: false };
 
 /** One file's first pass: its rewrite, the incumbents it names, its guided sites — and its text, kept only while a second pass may need it. */
@@ -2773,6 +2797,7 @@ function workListed(summary: string, removed: number): string {
  * than decorative. The scan itself is 25 ms of the whole run — this is a filesystem budget,
  * which is exactly what "no AST" bought.
  */
+// Stryker disable next-line NumericLiteral: no project under test is a batch long
 const BATCH = 256;
 
 /**
@@ -2798,10 +2823,12 @@ async function gate(
 
 /** Write every rewritten file, {@link BATCH} at a time. */
 async function writeAll(dir: string, changed: readonly { file: string; source: string }[]): Promise<void> {
+  // Stryker disable EqualityOperator,MethodExpression: no project under test writes more than one batch, and one more pass writes an empty slice
   for (let i = 0; i < changed.length; i += BATCH) {
     // eslint-disable-next-line reliability/no-await-in-loop -- the await IS the bound (A10), as in the read loop
     await Promise.all(changed.slice(i, i + BATCH).map(async ({ file, source }) => await writeFile(join(dir, file), source)));
   }
+  // Stryker restore EqualityOperator,MethodExpression
 }
 
 /* ------------------------------------------------------------------ the text surface */
@@ -2924,17 +2951,18 @@ export async function migrate(options: MigrateOptions): Promise<MigrationReport>
   const files = [...sources, ...binsOf(dir, manifest.bin, sources)];
   const older = olderOf(offMajor);
   const scanned: Scanned[] = [];
-  // Stryker disable MethodExpression: a project of more than one batch is migrate-bench.test.ts's 1,000 files, which the mutation lane skips (SKIPPED_TESTS)
+  // Stryker disable MethodExpression,EqualityOperator: a project of more than one batch is migrate-bench.test.ts's 1,000 files, which the mutation lane skips (SKIPPED_TESTS)
   for (let i = 0; i < files.length; i += BATCH) {
     // eslint-disable-next-line reliability/no-await-in-loop -- the await IS the bound (A10). Each batch is 256 files in flight at once; awaiting one before opening the next is what keeps the command inside the open-file limit on a repository of any size, and `Promise.all` over every file in a monorepo is EMFILE.
     scanned.push(...(await scanBatch(dir, files.slice(i, i + BATCH), { skip, transitive: through, entries: ownEntries, older })));
   }
-  // Stryker restore MethodExpression
+  // Stryker restore MethodExpression,EqualityOperator
 
   // U12-4: what the first pass refused or kept is held everywhere, and a second pass over the
   // files that named an incumbent rewrites without it. Refusing never adds a refusal — it only
   // removes sites — so the second pass refuses nothing the first did not.
   const held = heldBy(scanned);
+  // Stryker disable next-line ConditionalExpression: with nothing held, the second pass rewrites each file as the first did
   const rewrites =
     held.length === 0
       ? scanned.map(({ file, result }) => ({ file, result }))
@@ -2970,6 +2998,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrationReport>
   const now = options.now ?? new Date();
   const under =
     age === null
+      // Stryker disable next-line ArrayDeclaration: with no release age nothing reads these
       ? { pins: [], unread: [] }
       : await pinsUnder(age, add, graded, { times: options.registry ?? registryTimes, now, floors: floorsOf([...new Set(all.map((m) => m.to))].sort(), options.since ?? (await subpathFloors()), graded) });
 

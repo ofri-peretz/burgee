@@ -73,5 +73,7 @@ describe('a program named in two words', () => {
     expect(lines.slice(at - 2, at + 2)).toEqual([expect.stringMatching(/^- `my app --schema <command>`/), '', '| Exit | Kind | Retry | What it asks of the caller |', '| :-- | :-- | :-- | :-- |']);
     const commands = lines.indexOf('## Commands');
     expect(lines.slice(commands, commands + 3)).toEqual(['## Commands', '', '- `my app`']);
+    const after = lines.findIndex((line) => line.startsWith("For any command's options"));
+    expect(lines.slice(after - 2, after)).toEqual(['- `my app go`: Go.', '']);
   });
 });
