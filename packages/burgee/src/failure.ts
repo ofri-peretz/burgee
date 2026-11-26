@@ -66,7 +66,7 @@ export interface Failure {
    * The line to run instead of reporting, program first: set only when the one thing wrong was how
    * JSON was asked for (`--format json`), so it runs the command as typed (D-20261009-json-asked-is-json).
    */
-  again?: string[];
+  again?: string[] | undefined;
 }
 
 /**
@@ -104,7 +104,6 @@ function namedCode(cause: unknown): ExitCodeType | undefined {
 
 /** What went wrong, in words: an Error's message, a refusal object's `message`, or the value itself. */
 function messageOf(cause: unknown): string {
-  if (cause instanceof Error) return cause.message;
   const said = (cause as { message?: unknown } | null | undefined)?.message;
   return typeof said === 'string' ? said : String(cause);
 }
@@ -117,7 +116,7 @@ function messageOf(cause: unknown): string {
  * threw saw only the command's own words, which are the line's tail; the program and the command
  * in front are here, so the `fix` is that line without them, quoted as every fix line is.
  */
-function carried(cause: unknown, line: readonly string[] = []): { hint?: string; fix?: string; usage?: Usage } {
+function carried(cause: unknown, line: readonly string[]): { hint?: string; fix?: string; usage?: Usage } {
   // Never nullish here: each caller has already matched `cause` by its class or its `code`.
   const { hint, fix, usage, omit, swap } = cause as { hint?: unknown; fix?: unknown; usage?: unknown; omit?: unknown; swap?: [number, string] };
   return {
@@ -171,7 +170,7 @@ async function classify(cause: unknown, argv: string[], node: CommandNode | unde
   const own = (cause as { constructor?: Record<symbol, unknown> } | null | undefined)?.constructor?.[Symbol.for('burgee.exitCode')];
   // clispec-conformance R2 — and its kind, the one `--schema` lists for that code. Read on this
   // path, which is already a failure's: `error-kinds.js` settles every defined class's kind.
-  if (typeof own === 'number') return { code: own as ExitCodeType, kind: definedErrors().find((row) => row.exit_code === own)?.kind, message, ...carried(cause) };
+  if (typeof own === 'number') return { code: own as ExitCodeType, kind: definedErrors().find((row) => row.exit_code === own)?.kind, message, ...carried(cause, argv) };
   // P2 / P3 / D-120 — a refusal that names its contract code by string (`code: 'USAGE'`,
   // `'CANCELLED'`, …) leaves with that code. It is how caique's prompt verdicts reach an exit
   // status with no dependency edge between the two packages: caique returns
@@ -181,7 +180,7 @@ async function classify(cause: unknown, argv: string[], node: CommandNode | unde
   // leads the message and its fix is the hint, so the refusal reads as it does in `burgee check`.
   if (cause instanceof PluginError) return { code: ExitCode.CONFIG, message: `${cause.code} ${message}`, hint: cause.fix };
   const byName = namedCode(cause);
-  if (byName !== undefined) return { code: byName, message, ...carried(cause) };
+  if (byName !== undefined) return { code: byName, message, ...carried(cause, argv) };
   if (isParseArgsFailure(cause)) {
     const dash = singleDashHint(argv);
     if (dash !== undefined) return { code: ExitCode.USAGE, message, hint: dash };
@@ -193,7 +192,7 @@ async function classify(cause: unknown, argv: string[], node: CommandNode | unde
   // one line to run next throws `Object.assign(new Error(message), { fix })` and the caller gets
   // that line instead of the usage block, as a UsageError's or a defined error's would. Before,
   // only a class that claimed a code could carry one, and RUNTIME is the code no class can claim.
-  return { code: ExitCode.RUNTIME, message, ...carried(Object(cause)) };
+  return { code: ExitCode.RUNTIME, message, ...carried(Object(cause), argv) };
 }
 
 function textFailure(failure: Failure, say: (english: string) => string): string {
@@ -225,7 +224,7 @@ function failureText(failure: Failure, manifest: Manifest, json: boolean, say: (
     return json ? `${JSON.stringify(body)}\n` : textFailure(rendered, say);
   }
   // E3 — `fix` beside `hint`: the exact flag or command, omitted rather than guessed.
-  const body = { kind: failure.kind, code: failure.code, message: failure.message, hint: failure.hint, ...(failure.fix === undefined ? {} : { fix: failure.fix }), ...(failure.usage === undefined ? {} : { usage: failure.usage }) };
+  const body = { kind: failure.kind, code: failure.code, message: failure.message, hint: failure.hint, fix: failure.fix, usage: failure.usage };
   return json ? `${JSON.stringify({ ok: false, error: body })}\n` : textFailure(failure, say);
 }
 

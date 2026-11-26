@@ -267,5 +267,21 @@ describe('burgee skill writes the files an author ships (agent-skill R3)', () =>
     expect(() => binDirOf(entry)).toThrow(`${entry}: no "bin" in the package.json that owns it; pass --out <dir>`);
     expect(() => binDirOf(join(dirname(entry), 'bin', 'nothing.ts'))).toThrow(/no "bin"/);
     expect(() => binDirOf(project({ fx: 3 }))).toThrow(/no "bin"/);
+    expect(() => binDirOf(project(null))).toThrow(/no "bin"/);
+    // Outside any package at all.
+    expect(() => binDirOf('/burgee-skill-nowhere/cli.js')).toThrow('/burgee-skill-nowhere/cli.js: no "bin"');
+  });
+
+  it('takes the first bin that is a path, past one that is not', () => {
+    const entry = project({ odd: 3, fx: './bin/fx.js' });
+    expect(binDirOf(entry)).toBe(join(dirname(entry), 'bin'));
+  });
+
+  it('says a fresh skill is unchanged under --check, and one rewritten file is a change', async () => {
+    const entry = project({ fx: './bin/fx.js' });
+    expect((await runCommand(burgee, ['skill', entry])).code).toBe(ExitCode.OK);
+    expect(JSON.parse((await runCommand(burgee, ['skill', entry, '--check', '--json'])).stdout)).toMatchObject({ data: { changed: false } });
+    writeFileSync(join(dirname(entry), 'bin', 'AGENTS.md'), 'stale\n');
+    expect(JSON.parse((await runCommand(burgee, ['skill', entry, '--json'])).stdout)).toMatchObject({ data: { changed: true } });
   });
 });

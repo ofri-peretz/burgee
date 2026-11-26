@@ -133,6 +133,13 @@ describe('the result', () => {
     expect(run(['--AB', '--foo_bar'], { flags: {} }).flags).toEqual({ ab: true, fooBar: true });
   });
 
+  it('reads a camel-cased flag typed with dashes as that flag, with its type and as one alias', () => {
+    const cli = run(['--dry-run', 'x'], { flags: { dryRun: { type: 'boolean' } } });
+    expect(cli.flags).toEqual({ dryRun: true });
+    expect(cli.input).toEqual(['x']);
+    expect(Object.getOwnPropertyDescriptor(cli.unnormalizedFlags, 'dry-run')).toBeUndefined();
+  });
+
   it('refuses a value outside a flag’s choices', () => {
     expect(() => run(['--level', 'loud'], { flags: { level: { type: 'string', choices: ['quiet', 'normal'] } } })).toThrow('Unknown value for flag `--level`: `loud`.');
   });

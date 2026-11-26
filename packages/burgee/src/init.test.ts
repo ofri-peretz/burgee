@@ -138,11 +138,20 @@ describe('first-cli — burgee init, in-process', () => {
     expect(() => quickstart('# burgee\n\n## Install\n')).toThrow('the burgee README has no "## Quick start" js block to write');
     expect(() => quickstart('\n## Quick start\n\nNo code.\n')).toThrow(/no "## Quick start" js block/);
     expect(() => quickstart('\n## Quick start\n\n```js\nrun()\n')).toThrow(/no "## Quick start" js block/);
+    // A js block with no quick start above it, and a quick start whose only block is not js.
+    expect(() => quickstart('# burgee\n\n```js\nrun()\n```\n')).toThrow(/no "## Quick start" js block/);
+    expect(() => quickstart('\n## Quick start\n\n```sh\nnpm i\n```\n')).toThrow(/no "## Quick start" js block/);
+  });
+
+  it('R2 — takes the js block under the quick start, not one above it', () => {
+    expect(quickstart('```js\nabove()\n```\n\n## Quick start\n\n```js\nbelow()\n```\n')).toBe('below()\n');
   });
 
   it('R3 — package.json is a module with a bin, and burgee at the running version is its only dependency', async () => {
     const dir = join(scratch(), 'My CLI');
     await runCommand(burgee, ['init', dir]);
+    // Two-space JSON with a final newline, as npm writes its own.
+    expect(readFileSync(join(dir, 'package.json'), 'utf8')).toMatch(/^\{\n {2}"name": "my-cli",\n[^]*\n\}\n$/u);
     expect(JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'))).toEqual({
       name: 'my-cli',
       version: '0.1.0',

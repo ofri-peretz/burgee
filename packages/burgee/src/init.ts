@@ -15,7 +15,6 @@ import { basename, join, resolve } from 'node:path';
 import { ambientRuntime, run } from 'bellpull';
 
 import { UsageError } from './errors.js';
-import { ExitCode } from './exit-code.js';
 import { shellLine, shellWord } from './unknown-option.js';
 
 /** The two files, in the order they are written and reported. */
@@ -27,9 +26,6 @@ const MANAGERS = ['npm', 'pnpm', 'yarn', 'bun'];
 /** An install is a network call that can be slow, never one that may hang (Y10). */
 const INSTALL_TIMEOUT = 600_000;
 
-/** The symbol `failure.ts` reads a class's own exit code from (E7), as `migrate.ts` spells it. */
-const EXIT_CODE = Symbol.for('burgee.exitCode');
-
 export interface InitWritten {
   dir: string;
   files: string[];
@@ -38,9 +34,8 @@ export interface InitWritten {
   installed: boolean;
 }
 
-/** R4 — the install ran and failed. A runtime failure, with the line that runs it again. */
+/** R4 — the install ran and failed. A runtime failure (the code no class claims), with the line that runs it again. */
 export class InstallError extends Error {
-  static readonly [EXIT_CODE] = ExitCode.RUNTIME;
   constructor(
     command: string,
     code: number | null,
@@ -53,7 +48,7 @@ export class InstallError extends Error {
 
 /** R2 — the `js` block of the README's `## Quick start`, exactly as the page shows it. */
 export function quickstart(readme: string): string {
-  const open = readme.indexOf('```js\n', readme.indexOf('\n## Quick start\n') + 1);
+  const open = readme.indexOf('```js\n', readme.indexOf('\n## Quick start\n'));
   const close = readme.indexOf('\n```', open);
   if (!readme.includes('\n## Quick start\n') || open === -1 || close === -1) throw new Error('the burgee README has no "## Quick start" js block to write');
   return readme.slice(open + '```js\n'.length, close + 1);
@@ -67,7 +62,7 @@ function packageName(dir: string): string {
 
 /** R4 — the manager the user ran this through, read off `npm_config_user_agent` (`pnpm/9.12.0 npm/? node/…`). */
 function managerOf(agent: string | undefined): string {
-  const [name] = (agent ?? '').split('/');
+  const [name] = String(agent).split('/');
   return MANAGERS.includes(name as string) ? (name as string) : 'npm';
 }
 
@@ -83,7 +78,7 @@ export async function init(opts: { dir: string; typed: string | undefined; force
   }
 
   const pkgRoot = new URL('../', import.meta.url);
-  const { version } = JSON.parse(readFileSync(new URL('package.json', pkgRoot), 'utf8')) as { version: string };
+  const { version } = JSON.parse(String(readFileSync(new URL('package.json', pkgRoot)))) as { version: string };
   const name = packageName(dir);
   const manifest = {
     name,
@@ -95,7 +90,7 @@ export async function init(opts: { dir: string; typed: string | undefined; force
     dependencies: { burgee: `^${version}` },
   };
   mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, 'cli.mjs'), quickstart(readFileSync(new URL('README.md', pkgRoot), 'utf8')));
+  writeFileSync(join(dir, 'cli.mjs'), quickstart(String(readFileSync(new URL('README.md', pkgRoot)))));
   writeFileSync(join(dir, 'package.json'), `${JSON.stringify(manifest, null, 2)}\n`);
 
   const manager = managerOf(opts.env['npm_config_user_agent']);

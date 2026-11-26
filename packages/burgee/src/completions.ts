@@ -65,7 +65,8 @@ function nodeOf(manifest: Manifest, c: CommandNode): Node {
   return {
     path: c.path.slice(depth),
     aliases: c.aliases ?? [],
-    spelled: c.path.slice(depth).map((seg, i) => [seg, ...(manifest.find(c.path.slice(0, depth + i + 1))?.aliases ?? [])].join(' ')),
+    // Every prefix of a walked node is a walked node: `children` reaches it only through them.
+    spelled: c.path.slice(depth).map((seg, i) => [seg, ...((manifest.find(c.path.slice(0, depth + i + 1)) as CommandNode).aliases ?? [])].join(' ')),
     description: c.summary ?? c.description ?? '',
     options: { ...visible, ...GLOBAL, ...(isRoot ? ROOT_ONLY : {}) },
     children: children(manifest, c.path),

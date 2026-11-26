@@ -269,7 +269,7 @@ export function fieldId(brand: BurgeeBrand): string {
       ? ['markings', markings]
       : markings,
   ].filter((v) => v !== undefined);
-  const source = JSON.stringify(extra.length === 0 ? base : [...base, ...extra]);
+  const source = JSON.stringify([...base, ...extra]);
   let h = HASH_SEED;
   for (let i = 0; i < source.length; i++) {
     h = ((h << HASH_SHIFT) + h + (source.codePointAt(i) as number)) >>> 0;
@@ -590,7 +590,7 @@ function flagGroup(brand: BurgeeBrand, x: number, y: number, size: number): stri
  * — the reason the cards are set in mono rather than a proportional face.
  */
 function wrap(text: string, columns: number): string[] {
-  if (text === '') return [];
+  // No guard for an empty text: it splits to one empty word, which is never pushed.
   const lines: string[] = [];
   let line = '';
   for (const word of text.split(/\s+/)) {
@@ -655,9 +655,8 @@ function renderCard(brand: BurgeeBrand, options: CardOptions, size: CardSize): s
   const centreY = height / 2;
   const textX = left + size.mark + gap;
 
-  const blockHeight =
-    titleSize +
-    (lines.length === 0 ? 0 : subSize * LAYOUT.SUBTITLE_LEAD + (lines.length - 1) * lineHeight);
+  // Read only when there are lines.
+  const blockHeight = titleSize + subSize * LAYOUT.SUBTITLE_LEAD + (lines.length - 1) * lineHeight;
   const titleY =
     lines.length === 0
       ? centreY + titleSize * LAYOUT.TITLE_CENTRE
