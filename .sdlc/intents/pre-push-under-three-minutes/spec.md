@@ -12,11 +12,16 @@ Intent: [`intent.md`](./intent.md).
 
 ## Design
 
-**R1 (this PR).** `weight-page` in `lefthook.yml` gains a `glob` of its inputs, read from
-`scripts/subpath-weight.ts`: `packages/*` (every package's build; lefthook's default matcher lets
-`*` cross directories), `apps/docs/content/docs/weight.mdx` (the page it writes),
-`scripts/subpath-weight.ts`, and `package-lock.json` (the dependency versions the bundles resolve).
-A push touching none of them skips the step; CI's ratchet runs it on every PR unchanged.
+**R1 (this PR).** `weight-page` in `lefthook.yml` runs behind a gate,
+`git diff --quiet origin/main...HEAD -- packages apps/docs/content/docs/weight.mdx scripts/subpath-weight.ts package-lock.json`.
+Those are its inputs, read from `scripts/subpath-weight.ts`: every package's build, the page it
+writes, the script, and the dependency versions the bundles resolve. Exit 0 (nothing changed)
+skips the step. Exit 1 (a change) and 128 (no `origin/main`, cannot tell) run it. CI's ratchet runs
+it on every PR unchanged.
+
+A lefthook `glob` was the first cut and was rejected after measuring it. On a branch's first push
+there is no upstream, so lefthook inspects every tracked file and the step ran anyway (110 s on a
+push that touched none of its inputs, 2026-11-26). Most agent pushes are first pushes.
 
 Measured first: `npm run weight:page -- --check` alone on a warm tree took 154.6 s real, 54.3 s
 user and 34.8 s sys. Wall time is mostly I/O, not esbuild, so making the step faster would mean
@@ -33,11 +38,13 @@ over HTTPS, which holds no connection open across the hooks.
 
 | Requirement | Check                                                                                                                                                                                                            |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| R1          | `scripts/weight-page-hook-lock.test.ts`. It fails when the glob drops `packages/*` (shown before commit), and lefthook 2.2.2 runs the step for `packages/hookset/src/core.ts` and skips it for `docs/readme.md`. |
+| R1          | `scripts/weight-page-hook-lock.test.ts` runs the gate in a throwaway repo: a change to each input runs the check, a docs-only change skips it, no `origin/main` runs it. It fails when `packages` is dropped from the gate (shown before commit). |
 | R2          | `summary: (done in N seconds)` from three docs-only pushes, median.                                                                                                                                              |
 | R3          | No `Connection reset` after green hooks in a week of the loop log.                                                                                                                                               |
 
 ## Rejected alternatives
+
+- **A lefthook `glob`.** It never skips on a branch's first push (above).
 
 - **Moving `weight-page` to CI only.** It was put in pre-push because a stale page cost six CI
   cycles in one week (2026-11-23). Keeping it for pushes that can change the page keeps that fix.
