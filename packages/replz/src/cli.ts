@@ -3,20 +3,22 @@
  * `run` calls a model once per case and once per graded finding, so it is never a per-PR step: it
  * runs by hand or on a schedule (replz intent, constraints). `check` and `propose` cost nothing.
  */
-import { appendFileSync, existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 
 import { defineCommand, defineProgram } from 'burgee';
 import { parse as parseYaml } from 'seniority/yaml';
 
 import { type Case, KINDS, parseCase, selectCases, SETS } from './cases.js';
+import { COMPARE, type CompareConfig, compareText, judge, type Output, parseCompareConfig } from './compare.js';
 import { CONFIG, type Config, parseConfig } from './config.js';
+import { candidatesMarkdown, findingsOf, ghQueries, mine, parseComments } from './mine.js';
 import { LOG_ARGS, parseLog, propose, toYaml } from './propose.js';
 import { refusing } from './refusal.js';
 import { replayCase, type Shell, type Worktrees } from './run.js';
 import { type CaseResult, score, toText } from './score.js';
 import { breaches, type Git, type HistoryEntry, isFix, isRevert, MAIN_LOG_ARGS, parseMainLog, type Ratchet, scorecard, scorecardText, traceFix, TRIAGE } from './scorecard.js';
-import { logOf, sh, worktreesIn } from './shell.js';
+import { ghOf, logOf, sh, worktreesIn } from './shell.js';
 
 export const VERSION = (JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }).version;
 
@@ -196,6 +198,133 @@ export const runScorecard = async (options: ScorecardOptions): Promise<Data> => 
   return data;
 };
 
+/** Where `mine --write` puts the draft, beside the cases a person finishes. */
+export const CANDIDATES = '.sdlc/replz/rule-candidates.md';
+
+/** Ten candidates: enough to pick from, few enough to read. */
+export const DEFAULT_CANDIDATES = 10;
+
+export interface MineCommandOptions {
+  readonly repo: string;
+  /** `owner/name`; the repository `gh` resolves in `repo` when absent. */
+  readonly slug?: string | undefined;
+  readonly days: number;
+  readonly minPrs: number;
+  readonly limit: number;
+  /** Write the draft to this path under the repository. */
+  readonly write?: string | undefined;
+  readonly gh: (args: readonly string[]) => Promise<string>;
+  readonly now: () => Date;
+}
+
+/** Writes `text` at `at` unless it is there already; true when the file changed. */
+const writeIfChanged = (at: string, text: string): boolean => {
+  if (existsSync(at) && readFileSync(at, 'utf8') === text) return false;
+  mkdirSync(dirname(at), { recursive: true });
+  writeFileSync(at, text);
+  return true;
+};
+
+export const runMine = async (options: MineCommandOptions): Promise<Data> => {
+  const slug = options.slug ?? (await options.gh(['api', 'repos/{owner}/{repo}', '--jq', '.full_name'])).trim();
+  const since = new Date(options.now().getTime() - options.days * DAY).toISOString().slice(0, 'yyyy-mm-dd'.length);
+  const comments = [];
+  for (const query of ghQueries(slug, since)) {
+    // eslint-disable-next-line reliability/no-await-in-loop -- two pages of the same API, one after the other, so a rate limit stops the first
+    comments.push(...parseComments(await options.gh(query)));
+  }
+  const findings = comments.flatMap(findingsOf);
+  const candidates = mine(findings, { minPrs: options.minPrs, limit: options.limit });
+  const draft = candidatesMarkdown(candidates, { slug, since, findings: findings.length });
+  const changed = options.write !== undefined && writeIfChanged(resolve(options.repo, options.write), draft);
+  const data: Data = { slug, since, findings: findings.length, candidates, written: options.write ?? null, changed };
+  const verb = changed ? 'written to' : 'unchanged in';
+  const where = options.write === undefined ? '' : `\n${verb} ${options.write}`;
+  data[TEXT] = () =>
+    candidates.length === 0
+      ? `no pattern in ${String(findings.length)} review finding(s) since ${since} recurs in ${String(options.minPrs)} or more pull requests. fix: widen --days, or lower --min-prs`
+      : `${draft}${where}`;
+  return data;
+};
+
+export interface CompareOptions {
+  readonly repo: string;
+  readonly config: string;
+  /** The ref the head is compared against. */
+  readonly base: string;
+  /** A ref for the head; left out, the repository as it stands, uncommitted changes included. */
+  readonly head?: string | undefined;
+  readonly shell: Shell;
+  readonly worktrees: Worktrees;
+}
+
+/** Every file in the inputs folder, sorted by name, with its text. */
+const readInputs = (repo: string, config: CompareConfig, source: string): { readonly name: string; readonly text: string }[] => {
+  const at = existing(repo, config.inputs, `the inputs field of ${source}`);
+  const names = readdirSync(at, { withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => entry.name)
+    .sort();
+  if (names.length === 0) throw new Error(`${config.inputs} holds no input. fix: add one file per input the command reads on stdin`);
+  return names.map((name) => ({ name, text: readFileSync(join(at, name), 'utf8') }));
+};
+
+/** The setup, then the command once per input, in one tree. */
+const outputsIn = async (tree: {
+  readonly shell: Shell;
+  readonly dir: string;
+  readonly ref: string;
+  readonly config: CompareConfig;
+  readonly inputs: readonly { readonly text: string }[];
+}): Promise<Output[]> => {
+  const { shell, dir, ref, config, inputs } = tree;
+  if (config.setup !== undefined) {
+    const setup = await shell(config.setup, { cwd: dir });
+    if (setup.code !== 0) throw new Error(`setup failed at ${ref} (exit ${String(setup.code)}): ${setup.stderr.trim()}. fix: make the setup command run in a fresh checkout of ${ref}`);
+  }
+  const outputs: Output[] = [];
+  for (const input of inputs) {
+    // eslint-disable-next-line reliability/no-await-in-loop -- one input at a time, so two runs never share the tree's build output
+    outputs.push(await shell(config.command, { cwd: dir, input: input.text }));
+  }
+  return outputs;
+};
+
+export const runCompare = async (options: CompareOptions): Promise<Data> => {
+  const config = parseCompareConfig(options.config, readFileSync(existing(options.repo, options.config, '--config'), 'utf8'));
+  const inputs = readInputs(options.repo, config, options.config);
+  const baseTree = await options.worktrees.add(options.base);
+  let base: Output[];
+  try {
+    base = await outputsIn({ shell: options.shell, dir: baseTree.dir, ref: options.base, config, inputs });
+  } finally {
+    await baseTree.remove();
+  }
+  const headRef = options.head ?? 'the working tree';
+  let head: Output[];
+  if (options.head === undefined) {
+    head = await outputsIn({ shell: options.shell, dir: resolve(options.repo), ref: headRef, config, inputs });
+  } else {
+    const headTree = await options.worktrees.add(options.head);
+    try {
+      head = await outputsIn({ shell: options.shell, dir: headTree.dir, ref: headRef, config, inputs });
+    } finally {
+      await headTree.remove();
+    }
+  }
+  const report = judge(
+    inputs.map((input, at) => ({ input: input.name, base: base[at] as Output, head: head[at] as Output })),
+    config,
+  );
+  const shown = compareText(report, { base: options.base, head: headRef });
+  if (report.differs.length > 0) {
+    throw new Error(`${shown}\n\nfix: repair the change, or add each approve entry above to approved in ${options.config} with the reason the new output is right`);
+  }
+  const data: Data = { base: options.base, head: headRef, ...report };
+  data[TEXT] = () => shown;
+  return data;
+};
+
 // No `(default: …)` in the description: burgee prints the default after it.
 const repoOption = { type: 'string', default: HERE, description: 'the repository', placeholder: 'dir' } as const;
 const configOption = { type: 'string', default: CONFIG, description: 'the replz config', placeholder: 'path' } as const;
@@ -281,6 +410,60 @@ export const program = defineProgram({
           cases: options.cases as string,
           ratchet: options.ratchet as string | undefined,
           git: (args) => logOf(options.repo as string, args),
+          now: () => new Date(),
+        }),
+      ),
+    }),
+    defineCommand({
+      name: 'compare',
+      description: 'Run the same inputs through the base and the head and fail on any output that changed, unless a person approved that change',
+      effects: 'read_only',
+      examples: [
+        { command: 'replz compare', description: `every input in ${COMPARE} through origin/main and the working tree` },
+        { command: 'replz compare --base v1.0.0 --head HEAD', description: 'a release against the last commit' },
+      ],
+      options: {
+        repo: repoOption,
+        config: { type: 'string', default: COMPARE, description: 'the compare config: setup, command, inputs, normalize and approved', placeholder: 'path' },
+        base: { type: 'string', default: 'origin/main', description: 'the ref the head is compared against', placeholder: 'ref' },
+        head: { type: 'string', description: 'a ref for the head (default: the working tree, uncommitted changes included)', placeholder: 'ref' },
+      },
+      run: refusing(({ options }) =>
+        runCompare({
+          repo: options.repo as string,
+          config: options.config as string,
+          base: options.base as string,
+          head: options.head as string | undefined,
+          shell: sh,
+          worktrees: worktreesIn(options.repo as string),
+        }),
+      ),
+    }),
+    defineCommand({
+      name: 'mine',
+      description: 'Draft lint-rule candidates from review findings written by hand in two or more pull requests, for a person to accept',
+      effects: 'idempotent',
+      examples: [
+        { command: 'replz mine', description: 'the patterns in the last 30 days of reviews' },
+        { command: `replz mine --days 90 --write ${CANDIDATES}`, description: 'a longer window, saved as a draft file' },
+      ],
+      options: {
+        repo: repoOption,
+        slug: { type: 'string', description: 'the GitHub repository, owner/name (default: the one gh resolves in --repo)', placeholder: 'owner/name' },
+        days: { type: 'number', default: DEFAULT_DAYS, description: 'how many days of review comments to read', placeholder: 'n' },
+        minPrs: { type: 'number', default: 2, description: 'the pull requests a pattern needs', placeholder: 'n' },
+        limit: { type: 'number', default: DEFAULT_CANDIDATES, description: 'the most candidates to draft', placeholder: 'n' },
+        write: { type: 'string', description: `write the draft to this file under --repo, e.g. ${CANDIDATES}`, placeholder: 'path' },
+      },
+      run: refusing(({ options }) =>
+        runMine({
+          repo: options.repo as string,
+          slug: options.slug as string | undefined,
+          days: options.days as number,
+          minPrs: options.minPrs as number,
+          limit: options.limit as number,
+          write: options.write as string | undefined,
+          gh: (args) => ghOf(options.repo as string, args),
           now: () => new Date(),
         }),
       ),

@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { type Shell, type Worktrees } from './run.js';
 
-import { CASES, HISTORY, program, readCases, runCheck, runPropose, runReplay, VERSION } from './index.js';
+import { CANDIDATES, CASES, DEFAULT_CANDIDATES, HISTORY, program, readCases, runCheck, runCompare, runMine, runPropose, runReplay, VERSION } from './index.js';
 
 const TEXT = Symbol.for('burgee.text');
 const text = (data: Record<string | symbol, unknown>): string => (data[TEXT] as () => string)();
@@ -139,7 +139,7 @@ describe('the program', () => {
   it('declares its version and commands, with run marked as not idempotent', async () => {
     const r = await runBurgee(program, { argv: ['--schema'] });
     const { commands } = JSON.parse(r.stdout) as { commands: { name: string; effects: string }[] };
-    expect(Object.fromEntries(commands.map((c) => [c.name, c.effects]))).toEqual({ check: 'read_only', run: 'non_idempotent', propose: 'read_only', scorecard: 'read_only', completion: 'read_only' });
+    expect(Object.fromEntries(commands.map((c) => [c.name, c.effects]))).toEqual({ check: 'read_only', run: 'non_idempotent', propose: 'read_only', scorecard: 'read_only', compare: 'read_only', mine: 'idempotent', completion: 'read_only' });
     expect((await runBurgee(program, { argv: ['--version'] })).stdout).toContain(VERSION);
   });
 
@@ -173,5 +173,155 @@ describe('the program', () => {
     const proposed = await runBurgee(program, { argv: ['propose', '--repo', repo, '--json'] });
     expect(proposed.code).toBe(ExitCode.RUNTIME);
     expect(JSON.stringify(proposed.json)).toContain('origin/main failed: fatal');
+  });
+});
+
+const line = (pr: number, body: string, inline = true): string => JSON.stringify({ pr, author: 'ofri', body, reply: false, inline });
+const NOW = (): Date => new Date('2026-11-26T12:00:00Z');
+
+describe('runMine', () => {
+  it('reads both comment sources through gh since --days back, resolves the repository, and drafts', async () => {
+    const asked: (readonly string[])[] = [];
+    const answers = ['o/r\n', `${line(3, 'An empty catch here')}\n`, `${line(1, '[Nit] empty catch again', false)}\n`];
+    const data = await runMine({
+      repo: '/r',
+      days: 10,
+      minPrs: 2,
+      limit: DEFAULT_CANDIDATES,
+      gh: (args) => {
+        asked.push(args);
+        return Promise.resolve(answers.shift() as string);
+      },
+      now: NOW,
+    });
+    expect(asked[0]).toEqual(['api', 'repos/{owner}/{repo}', '--jq', '.full_name']);
+    expect(asked[1]?.[2]).toBe('repos/o/r/pulls/comments?per_page=100&since=2026-11-16T00:00:00Z');
+    expect(asked[2]?.[2]).toBe('repos/o/r/issues/comments?per_page=100&since=2026-11-16T00:00:00Z');
+    expect(data).toMatchObject({ slug: 'o/r', since: '2026-11-16', findings: 2, written: null, changed: false, candidates: [{ phrase: 'empty catch', prs: [3, 1] }] });
+    expect(text(data)).toMatch(/^# Rule candidates for o\/r\n/);
+    expect(text(data)).not.toContain('written to');
+  });
+
+  it('takes --slug instead of asking gh, writes the draft under the repository, and says when it is already there', async () => {
+    const dir = folder({});
+    const asked: (readonly string[])[] = [];
+    const options = {
+      repo: dir,
+      slug: 'a/b',
+      days: 30,
+      minPrs: 2,
+      limit: 5,
+      write: CANDIDATES,
+      gh: (args: readonly string[]) => {
+        asked.push(args);
+        return Promise.resolve(`${line(4, 'stale cache key')}\n${line(5, 'a stale cache')}\n`);
+      },
+      now: NOW,
+    };
+    const data = await runMine(options);
+    expect(asked.map((args) => args[2])).toEqual([
+      'repos/a/b/pulls/comments?per_page=100&since=2026-10-27T00:00:00Z',
+      'repos/a/b/issues/comments?per_page=100&since=2026-10-27T00:00:00Z',
+    ]);
+    expect(data).toMatchObject({ written: CANDIDATES, changed: true });
+    expect(readFileSync(join(dir, CANDIDATES), 'utf8')).toContain('## 1. "stale cache": 2 pull requests');
+    expect(text(data)).toMatch(/\nwritten to \.sdlc\/replz\/rule-candidates\.md$/);
+    const again = await runMine(options);
+    expect(again).toMatchObject({ written: CANDIDATES, changed: false });
+    expect(text(again)).toMatch(/\nunchanged in \.sdlc\/replz\/rule-candidates\.md$/);
+  });
+
+  it('says what to widen when no pattern recurs', async () => {
+    const data = await runMine({ repo: '/r', slug: 'o/r', days: 30, minPrs: 3, limit: 5, gh: () => Promise.resolve(`${line(1, 'empty catch')}\n`), now: NOW });
+    expect(text(data)).toBe('no pattern in 2 review finding(s) since 2026-10-27 recurs in 3 or more pull requests. fix: widen --days, or lower --min-prs');
+  });
+});
+
+const COMPARE_YAML = 'setup: build\ncommand: cli\ninputs: in\nnormalize: ["\\\\d+ms"]\n';
+const repoWith = (yaml: string, inputs: Record<string, string> = { 'a.txt': 'A', 'b.txt': 'B' }): string =>
+  folder({ '.sdlc/replz/compare.yaml': yaml, ...Object.fromEntries(Object.entries(inputs).map(([name, body]) => [`in/${name}`, body])) });
+const trees = (): { worktrees: Worktrees; added: string[]; removed: string[] } => {
+  const added: string[] = [];
+  const removed: string[] = [];
+  return {
+    added,
+    removed,
+    worktrees: {
+      add: (ref) => {
+        added.push(ref);
+        return Promise.resolve({
+          dir: `/t/${ref}`,
+          remove: () => {
+            removed.push(ref);
+            return Promise.resolve();
+          },
+        });
+      },
+    },
+  };
+};
+/** The cli prints its input and how long it took; at the head, input B prints differently. */
+const cli =
+  (changed: boolean): Shell =>
+  (command, options) => {
+    if (command === 'build') return Promise.resolve({ code: 0, stdout: '', stderr: '' });
+    const head = !options.cwd.startsWith('/t/origin');
+    const took = head ? '9' : '1';
+    const stdout = changed && head && options.input === 'B' ? 'b!' : `${options.input ?? ''} in ${took}ms`;
+    return Promise.resolve({ code: 0, stdout, stderr: '' });
+  };
+
+const brokenSetup: Shell = (command) => Promise.resolve({ code: command === 'build' ? 2 : 0, stdout: '', stderr: ' no package.json \n' });
+
+describe('runCompare', () => {
+  it('runs setup and every input through the base worktree and the working tree, and passes when only noise differs', async () => {
+    const repo = repoWith(COMPARE_YAML);
+    const ran: string[] = [];
+    const { worktrees: wt, added, removed } = trees();
+    const data = await runCompare({
+      repo,
+      config: '.sdlc/replz/compare.yaml',
+      base: 'origin/main',
+      shell: (command, options) => {
+        ran.push(`${options.cwd === repo ? 'head' : options.cwd} ${command} ${options.input ?? ''}`.trim());
+        return cli(false)(command, options);
+      },
+      worktrees: wt,
+    });
+    expect(ran).toEqual(['/t/origin/main build', '/t/origin/main cli A', '/t/origin/main cli B', 'head build', 'head cli A', 'head cli B']);
+    expect([added, removed]).toEqual([['origin/main'], ['origin/main']]);
+    expect(data).toMatchObject({ base: 'origin/main', head: 'the working tree', inputs: 2, same: 2, differs: [] });
+    expect(text(data)).toBe('2 input(s) through origin/main and the working tree: 2 the same, 0 approved, 0 changed');
+  });
+
+  it('fails on a changed output with the entry that approves it, and passes once that entry is in the config', async () => {
+    const repo = repoWith(COMPARE_YAML);
+    const failure = runCompare({ repo, config: '.sdlc/replz/compare.yaml', base: 'origin/main', head: 'HEAD', shell: cli(true), worktrees: trees().worktrees });
+    await expect(failure).rejects.toThrow(/b\.txt: line 3 changed\n {2}- B in <0>\n {2}\+ b!\n {2}approve: \{ input: "b\.txt", base: [0-9a-f]{12}, head: [0-9a-f]{12}, reason: <why> \}\n\nfix: repair the change/);
+    const message = await failure.then(String, (error: unknown) => (error as Error).message);
+    const entry = /approve: (\{.*\})/.exec(message)?.[1]?.replace('<why>', 'the new output is right') as string;
+    writeFileSync(join(repo, '.sdlc/replz/compare.yaml'), `${COMPARE_YAML}approved:\n  - ${entry}\n`);
+    const { worktrees: wt, added, removed } = trees();
+    const data = await runCompare({ repo, config: '.sdlc/replz/compare.yaml', base: 'origin/main', head: 'HEAD', shell: cli(true), worktrees: wt });
+    expect(data).toMatchObject({ head: 'HEAD', same: 1, approved: ['b.txt'] });
+    expect([added, removed]).toEqual([
+      ['origin/main', 'HEAD'],
+      ['origin/main', 'HEAD'],
+    ]);
+  });
+
+  it('refuses a missing config, an empty inputs folder and a setup that fails, removing the worktree it made', async () => {
+    await expect(runCompare({ repo: folder({}), config: '.sdlc/replz/compare.yaml', base: 'b', shell: cli(false), worktrees: trees().worktrees })).rejects.toThrow(
+      /compare\.yaml does not exist in .*\. fix: .*--config$/,
+    );
+    const empty = folder({ '.sdlc/replz/compare.yaml': COMPARE_YAML, 'in/sub/x': 'nested, not an input' });
+    await expect(runCompare({ repo: empty, config: '.sdlc/replz/compare.yaml', base: 'b', shell: cli(false), worktrees: trees().worktrees })).rejects.toThrow(
+      'in holds no input. fix: add one file per input the command reads on stdin',
+    );
+    const { worktrees: wt, removed } = trees();
+    await expect(runCompare({ repo: repoWith(COMPARE_YAML), config: '.sdlc/replz/compare.yaml', base: 'v1', shell: brokenSetup, worktrees: wt })).rejects.toThrow(
+      'setup failed at v1 (exit 2): no package.json. fix: make the setup command run in a fresh checkout of v1',
+    );
+    expect(removed).toEqual(['v1']);
   });
 });

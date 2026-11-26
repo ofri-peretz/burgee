@@ -1,0 +1,10 @@
+# `replz compare`: each file in compare-inputs is one replz command line, run through the base and
+# the head's own build, so a change to replz's help or messages fails until it is approved below.
+setup: npm ci --ignore-scripts --no-audit --no-fund && npx turbo run build --filter=replz... --concurrency=2
+command: xargs node packages/replz/dist/bin.js
+inputs: .sdlc/replz/compare-inputs
+normalize:
+  # The version line moves on every release.
+  - 'replz \d+\.\d+\.\d+'
+approved:
+  - { input: help.txt, base: cd8f3d0cb3f9, head: 507f6837e3a7, reason: mine and compare join the command list }

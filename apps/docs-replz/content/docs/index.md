@@ -68,6 +68,8 @@ replz check                                    # the config and every case, and 
 replz run --set test                           # the score on the held-out cases
 replz run --set tune --max-findings 5 --record # a cheaper run, appended to the history
 replz scorecard                                # escapes, receipts, recall and false alarms, each with its next fix
+replz mine --write .sdlc/replz/rule-candidates.md # lint-rule candidates from findings reviewers keep writing
+replz compare                                  # the same inputs through origin/main and the working tree
 ```
 
 | Command | Exit 1 when |
@@ -75,9 +77,11 @@ replz scorecard                                # escapes, receipts, recall and f
 | `check` | the config or a case file is invalid, a case file is not named `<id>.yaml`, an answer is still the draft's `TODO`, or a set lacks a bug or a control, each with the `fix:` that repairs it |
 | `run` | a case could not be replayed |
 | `scorecard` | `--ratchet` names a band file and a measure has left its band, with the `fix:` the measure points at |
+| `compare` | an output changed and no `approved` entry names both its outputs, or the setup failed in a tree |
+| `mine` | `gh` is missing, signed out, or cannot read the repository's comments |
 
 `run` calls a model once per case and once per graded finding, so it is never a per-pull-request
-step: run it by hand or on a schedule. `check`, `propose` and `scorecard` cost nothing.
+step: run it by hand or on a schedule. `check`, `propose`, `scorecard`, `compare` and `mine` cost nothing.
 
 ### The scorecard
 
@@ -111,6 +115,42 @@ Every command in the config runs in the case's worktree with `REPLZ_BASE`, `REPL
 absolute path: name a reviewer script kept there as `bash "$REPLZ_REPO/review.sh"`, because a
 relative path is read in the worktree, at a head that may predate the script.
 
+### Mining rule candidates
+
+`replz mine` says which check is missing. A finding a reviewer keeps writing by hand is a lint rule
+or lock test nobody has written yet. It reads the last `--days` (30) of review comments through
+`gh`: every inline comment, and each line of a summary comment that opens with a severity tag
+(`[Important]`, `[Nit]`, `[Pre-existing]`). Replies are skipped, and so is every comment from a bot
+whose comments are a rule already firing (code scanning, Dependabot, deploy and coverage bots).
+
+Each finding is reduced to its content words, with paths, line numbers, links, code blocks and
+badges dropped. Every pair of neighbouring words seen in `--min-prs` (2) or more pull requests is
+a candidate, ranked by how many pull requests share it. A pair whose pull requests all sit under a
+candidate already drafted is the same pattern, so it is dropped. `--write <path>` saves the draft,
+with one finding from each pull request, and reports `changed: false` when the file already holds
+it. A person turns a candidate into a rule in a pull request or deletes it: nothing becomes a rule
+by itself.
+
+### Comparing the base and the head
+
+`replz compare` is differential testing: a pass/fail suite tolerates drift no test pinned, and
+old-versus-new on the same inputs does not. `.sdlc/replz/compare.yaml` names a `setup` (run first
+in each tree), a `command` (run once per input, the input on stdin) and an `inputs` folder (one
+file per input). The base is a worktree at `--base` (`origin/main`); the head is the working tree,
+or a worktree at `--head`.
+
+Each output is its exit code, stdout and stderr, with every match of a `normalize` pattern
+replaced, so timings, paths and versions do not count as changes. A changed output fails the run
+with its first changed line and the entry that approves it:
+
+```yaml
+approved:
+  - { input: help.txt, base: 3f1c0a9b2e4d, head: 9e2b7c41d0aa, reason: mine and compare added to the command list }
+```
+
+An approval holds for those two outputs only: when either moves, the difference fails again, and
+an approval no run matched is listed as stale.
+
 ## Migrating
 
 The switch is one command, `npx replz run`, where the review suite ran:
@@ -139,7 +179,7 @@ No suite is graded against this package yet, so there is no compatibility number
 
 ## For agents
 
-- **`replz check --json`**, **`run --json`**, **`propose --json`** and **`scorecard --json`** print burgee's `--json`
+- **`replz check --json`**, **`run --json`**, **`propose --json`**, **`scorecard --json`**, **`compare --json`** and **`mine --json`** print burgee's `--json`
   envelope; a failure carries its remedy as `error.fix`, and prose prints it on a `fix:` line.
 - **`--json`, `--schema` and an MCP server** come from one declaration on burgee:
   `replz --mcp` serves its commands as tools.
@@ -152,7 +192,7 @@ No suite is graded against this package yet, so there is no compatibility number
 
 | Import | What it gives you |
 | :-- | :-- |
-| `replz` | `parseLog()`, `propose()`, `parseCase()`, `selectCases()`, `parseConfig()`, `replayCase()`, `score()`, `scorecard()`, `traceFix()`, `breaches()` and `program` |
+| `replz` | `parseLog()`, `propose()`, `parseCase()`, `selectCases()`, `parseConfig()`, `replayCase()`, `score()`, `scorecard()`, `traceFix()`, `breaches()`, `mine()`, `findingsOf()`, `judge()`, `parseCompareConfig()` and `program` |
 
 The `replz` bin is that API, declared once on burgee.
 

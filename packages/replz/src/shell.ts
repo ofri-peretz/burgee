@@ -49,3 +49,14 @@ export const logOf = async (repo: string, args: readonly string[]): Promise<stri
   if (!result.ok) throw new Error(`git ${args.join(' ')} failed: ${result.stderr.trim()}. fix: run it inside a clone with history (not a shallow one)`);
   return result.stdout;
 };
+
+/** The words of a gh command an error names: `api`, a flag and the path, not the jq filter. */
+const GH_SHOWN = 3;
+
+/** `gh` in the repository, for `mine`: the review comments are on GitHub, not in git. */
+export const ghOf = async (repo: string, args: readonly string[]): Promise<string> => {
+  const result = await run('gh', args, { cwd: repo, runtime: ambientRuntime() });
+  if (!result.ok)
+    throw new Error(`gh ${args.slice(0, GH_SHOWN).join(' ')} failed: ${result.stderr.trim()}. fix: install gh and run \`gh auth login\`, or set GH_TOKEN`);
+  return result.stdout;
+};
