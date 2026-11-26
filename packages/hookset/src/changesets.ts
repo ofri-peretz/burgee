@@ -77,13 +77,8 @@ interface Config {
 
 /** A JSON file's value, or `undefined` when it is missing or is not JSON. */
 const readJson = (file: string): Record<string, unknown> | undefined => {
-  try {
-    // Stryker disable next-line StringLiteral: equivalent, JSON.parse reads a Buffer as its text
-    return JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>;
-    // Stryker disable next-line BlockStatement: equivalent, an empty catch also returns undefined
-  } catch {
-    return undefined;
-  }
+  // Stryker disable next-line StringLiteral,BlockStatement: equivalent, JSON.parse reads a Buffer as its text, and an empty catch also returns undefined
+  try { return JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>; } catch { return undefined; }
 };
 
 const configOf = (root: string): Config => {
