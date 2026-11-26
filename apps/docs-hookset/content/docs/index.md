@@ -59,6 +59,8 @@ hookset init --claude   # and the Claude Code hook pack under .claude/hooks/
 hookset check           # the CI gate: exit 1 on any error, warnings listed
 hookset check --json    # the problems as data, one fix line each
 hookset context         # exit 1 when what Claude loads every session outgrows the ceiling
+hookset worktrees --size   # every worktree agents left, its size, and why it stays or can go
+hookset worktrees --prune  # remove the clean ones whose commits are all on a remote, idle 3+ days
 ```
 
 | Command | Exit 1 when |
@@ -66,6 +68,7 @@ hookset context         # exit 1 when what Claude loads every session outgrows t
 | `init` | a `lefthook.yml` written by hand is already there and `--force` is not given |
 | `check` | a station is missing, a remote pins no `hookset@<version>` tag, a preset step is repeated, or a vendored hook drifts from the pack |
 | `context` | CLAUDE.md, its `@`-imports and every skill, command and subagent description (less the skills marked `disable-model-invocation: true`) come to more tokens than `context.tokens` in `.claude/hookset.json`; `--update` lowers that ceiling and never raises it |
+| `worktrees` | git refused to remove a worktree `--prune` chose. Only a worktree that is not the main or current one, not locked, has an empty `git status`, has every commit on a remote and is unchanged for `--older-than` days (default 3) is removed, with `git worktree remove` (never `--force`); branches are kept. `--include-local-commits` lets a commit that is only on this machine go too. `git worktree lock <path>` keeps any worktree out of every sweep |
 
 ## Migrating
 
@@ -120,7 +123,7 @@ Node 22.13 or later, git and lefthook.
 
 It hosts no plugin key of its own.
 
-Nothing in this family builds on it yet, and it builds on `burgee`.
+Nothing in this family builds on it yet, and it builds on `bellpull` and `burgee`.
 
 ## The family
 

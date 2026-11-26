@@ -3,11 +3,12 @@
  * projected from this declaration. Handlers return data; the text a person reads rides along under
  * burgee's text symbol. All logic is in `core.ts`.
  */
-import { defineCommand, defineProgram, ExitCode } from 'burgee';
+import { defineCommand, defineProgram, ExitCode, UsageError } from 'burgee';
 
 import { checkContext, contextText } from './context.js';
 import { checkRepo, checkText, initRepo, packageRoot, packageVersion } from './core.js';
 import { cwd } from './runtime.js';
+import { DEFAULT_OLDER_THAN_DAYS, sweepWorktrees, worktreesText } from './worktrees.js';
 
 const TEXT = Symbol.for('burgee.text');
 const PKG = packageRoot();
@@ -83,9 +84,36 @@ const contextCommand = defineCommand({
   },
 });
 
+const worktreesCommand = defineCommand({
+  name: 'worktrees',
+  description: 'List the git worktrees agents left behind and, with --prune, remove the ones that hold no work',
+  effects: 'idempotent',
+  examples: [
+    { command: 'hookset worktrees --size', description: 'every linked worktree, its size, and why it stays or can go' },
+    { command: 'hookset worktrees --prune', description: 'remove clean worktrees whose commits are all on a remote and untouched for 3 days' },
+    { command: 'hookset worktrees --prune --older-than 0 --include-local-commits', description: 'a disk emergency: drop every clean worktree, even one with commits only here' },
+  ],
+  options: {
+    prune: { type: 'boolean', description: 'remove the removable worktrees (git worktree remove, never --force), then git worktree prune' },
+    olderThan: { type: 'number', default: DEFAULT_OLDER_THAN_DAYS, description: 'days without a change before a clean worktree can go' },
+    includeLocalCommits: { type: 'boolean', description: 'a commit on no remote no longer keeps its worktree (the branch is kept either way)' },
+    size: { type: 'boolean', description: 'add each worktree\'s size on disk (walks every file, node_modules included)' },
+    cwd: { type: 'string', description: 'any directory in the clone (default: the current directory)' },
+  },
+  run: async ({ options }) => {
+    const o = options as Record<string, unknown>;
+    const days = o['olderThan'] as number;
+    if (days < 0) throw new UsageError(`--older-than takes a number of days, not ${String(days)}`, 'pass --older-than 7');
+    const result = await sweepWorktrees(repoOf(o), { prune: o['prune'] === true, olderThanDays: days, keepLocalCommits: o['includeLocalCommits'] !== true, size: o['size'] === true });
+    const data: Record<string | symbol, unknown> = { ...result, changed: result.removed > 0, ...(result.ok ? {} : { exitCode: ExitCode.RUNTIME }) };
+    data[TEXT] = () => worktreesText(result);
+    return data;
+  },
+});
+
 export const program = defineProgram({
   name: 'hookset',
   version: packageVersion(PKG),
   description: 'The verification stations as git and Claude hooks, the same in every repo',
-  commands: [initCommand, checkCommand, contextCommand],
+  commands: [initCommand, checkCommand, contextCommand, worktreesCommand],
 });

@@ -18,7 +18,7 @@
   <a href="https://app.codecov.io/gh/ofri-peretz/burgee/components"><img src="https://img.shields.io/codecov/c/github/ofri-peretz/burgee/main?component=hookset&style=flat-square" alt="hookset line coverage: its Codecov component" /></a>
   <a href="https://scorecard.dev/viewer/?uri=github.com/ofri-peretz/burgee"><img src="https://img.shields.io/ossf-scorecard/github.com/ofri-peretz/burgee?style=flat-square&label=OpenSSF%20Scorecard" alt="OpenSSF Scorecard for the repository" /></a>
   <a href="https://www.npmjs.com/package/hookset?activeTab=code"><img src="https://img.shields.io/npm/unpacked-size/hookset?style=flat-square" alt="Unpacked size of the latest hookset release on npm" /></a>
-  <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/hookset/package.json"><img src="https://img.shields.io/badge/dependencies-1%20in%20family%2C%200%20outside-0a6b47?style=flat-square" alt="One dependency, all in the burgee family (burgee), none outside it" /></a>
+  <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/hookset/package.json"><img src="https://img.shields.io/badge/dependencies-2%20in%20family%2C%200%20outside-0a6b47?style=flat-square" alt="Two dependencies, all in the burgee family (bellpull, burgee), none outside it" /></a>
   <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/hookset/package.json"><img src="https://img.shields.io/badge/types-included-blue?style=flat-square" alt="TypeScript types included for every entry point" /></a>
   <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/hookset/package.json"><img src="https://img.shields.io/badge/Node.js-22.13%2B-green?style=flat-square" alt="Node.js 22.13+" /></a>
   <a href="https://github.com/ofri-peretz/burgee/blob/main/packages/hookset/LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="License: MIT" /></a>
@@ -86,6 +86,8 @@ hookset init --claude   # and the Claude Code hook pack under .claude/hooks/
 hookset check           # the CI gate: exit 1 on any error, warnings listed
 hookset check --json    # the problems as data, one fix line each
 hookset context         # exit 1 when what Claude loads every session outgrows the ceiling
+hookset worktrees --size   # every worktree agents left, its size, and why it stays or can go
+hookset worktrees --prune  # remove the clean ones whose commits are all on a remote, idle 3+ days
 ```
 
 | Command | Exit 1 when |
@@ -93,6 +95,7 @@ hookset context         # exit 1 when what Claude loads every session outgrows t
 | `init` | a `lefthook.yml` written by hand is already there and `--force` is not given |
 | `check` | a station is missing, a remote pins no `hookset@<version>` tag, a preset step is repeated, or a vendored hook drifts from the pack |
 | `context` | CLAUDE.md, its `@`-imports and every skill, command and subagent description (less the skills marked `disable-model-invocation: true`) come to more tokens than `context.tokens` in `.claude/hookset.json`; `--update` lowers that ceiling and never raises it |
+| `worktrees` | git refused to remove a worktree `--prune` chose. Only a worktree that is not the main or current one, not locked, has an empty `git status`, has every commit on a remote and is unchanged for `--older-than` days (default 3) is removed, with `git worktree remove` (never `--force`); branches are kept. `--include-local-commits` lets a commit that is only on this machine go too. `git worktree lock <path>` keeps any worktree out of every sweep |
 
 ## Migrating
 
@@ -147,7 +150,7 @@ Node 22.13 or later, git and lefthook.
 
 It hosts no plugin key of its own.
 
-Nothing in this family builds on it yet, and it builds on `burgee`.
+Nothing in this family builds on it yet, and it builds on `bellpull` and `burgee`.
 
 ## The family
 

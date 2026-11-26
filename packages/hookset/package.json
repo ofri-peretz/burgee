@@ -57,6 +57,7 @@
     "lint": "cd ../.. && eslint packages/hookset/src --max-warnings 0"
   },
   "dependencies": {
+    "bellpull": "^2.0.3",
     "burgee": "^2.2.2"
   },
   "devDependencies": {
