@@ -3,6 +3,17 @@ title: Changelog
 description: "Every release of truepass, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 1.1.1
+
+### Patch Changes
+
+- [#1854](https://github.com/ofri-peretz/burgee/pull/1854) [`25a55c3`](https://github.com/ofri-peretz/burgee/commit/25a55c3c1bc48dc842489936afd99794a24c8b03) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The budget reporter imports nothing outside node until a case is over the budget. bellpull is
+  loaded only to measure a case alone, and CI is a non-empty `CI`, the same way roundel reads it. A
+  monorepo that contains truepass's own dependencies can now load the reporter from source in every
+  suite without building them first.
+- Updated dependencies [[`54403b9`](https://github.com/ofri-peretz/burgee/commit/54403b91c6a023db0c354c206e6d1c6c5bb40796), [`02f3ce0`](https://github.com/ofri-peretz/burgee/commit/02f3ce03b0075db5e0e99b991ad767dd2b396ccb)]:
+  - burgee@2.2.3
+
 ## 1.1.0
 
 ### Minor Changes

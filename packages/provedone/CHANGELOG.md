@@ -1,5 +1,24 @@
 # provedone
 
+## 1.1.0
+
+### Minor Changes
+
+- [#1869](https://github.com/ofri-peretz/burgee/pull/1869) [`95ed437`](https://github.com/ofri-peretz/burgee/commit/95ed4377123d68e5de9c86b79f5abb32baa2b025) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `intent check` and `intent new` read a repository's own design file name: `design.md` beside
+  `intent.md` counts as the spec, and `intent new` copies whichever of `spec.md` or `design.md` the
+  `_template/` holds. Each `fix:` now names that file and the `--dir` given, not always
+  `.sdlc/intents/<slug>/spec.md`. On eslint's `docs/intents` this turns 32 false "has no spec.md"
+  findings into 0.
+
+- [#1855](https://github.com/ofri-peretz/burgee/pull/1855) [`691c833`](https://github.com/ofri-peretz/burgee/commit/691c8331d6962b04f05988a58cc3c1c0426c82f7) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `intent check` reports `filter-count`: a shipped intent's evidence row whose command filters tests by name (`-t`, `--testNamePattern`, `--test-name-pattern`, `--grep`) must record an `N passed` count, because a filter that matches nothing exits 0 and the re-run would stay green after the test is renamed or deleted.
+
+- [#1858](https://github.com/ofri-peretz/burgee/pull/1858) [`8d9c41e`](https://github.com/ofri-peretz/burgee/commit/8d9c41ef7b9ac72e00bdd77db81f8422103cefde) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - replz: `replz scorecard` scores how well a repository's checks catch bugs from its history alone (escape rate by named and SZZ-traced fixes, provedone receipts, and recall and false alarms from the last recorded run), each with a `next:` fix, and `--ratchet` holds it to bands. provedone: a `provedone/receipt` entry point, so a caller reads a receipt's verdict without loading the CLI.
+
+### Patch Changes
+
+- Updated dependencies [[`54403b9`](https://github.com/ofri-peretz/burgee/commit/54403b91c6a023db0c354c206e6d1c6c5bb40796), [`02f3ce0`](https://github.com/ofri-peretz/burgee/commit/02f3ce03b0075db5e0e99b991ad767dd2b396ccb)]:
+  - burgee@2.2.3
+
 ## 1.0.1
 
 ### Patch Changes

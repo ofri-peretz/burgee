@@ -3,6 +3,14 @@ title: Changelog
 description: "Every release of burgee, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 2.2.3
+
+### Patch Changes
+
+- [#1867](https://github.com/ofri-peretz/burgee/pull/1867) [`54403b9`](https://github.com/ofri-peretz/burgee/commit/54403b91c6a023db0c354c206e6d1c6c5bb40796) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `ctx.exit(code)` with a code outside the exit contract (a child's 137) now leaves RUNTIME silently, as any exit does, instead of printing the command's usage under the program's own last line.
+
+- [#1870](https://github.com/ofri-peretz/burgee/pull/1870) [`02f3ce0`](https://github.com/ofri-peretz/burgee/commit/02f3ce03b0075db5e0e99b991ad767dd2b396ccb) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `burgee/yargs`: turning the version off with `.version(false)` after the manifest was first read now drops it from the manifest, so `--schema` and the MCP handshake stop reporting the old version.
+
 ## 2.2.2
 
 ### Patch Changes
