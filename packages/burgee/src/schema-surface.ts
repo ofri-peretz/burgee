@@ -17,10 +17,7 @@ import { completionNode } from './root-help.js';
 import { type CommandSchema } from './schema.js';
 import { UsageError } from './validate.js';
 
-/** A declaration rather than a `const` arrow, so Stryker switches its mutants per test (#1139's mutation lane). */
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
 
 export function fieldOf(doc: unknown, path: string, command: string): unknown {
   let at = doc;

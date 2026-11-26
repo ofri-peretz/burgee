@@ -360,15 +360,7 @@ export function helpModel(manifest: Manifest, node: CommandNode, opts: HelpOptio
     { title: 'Options:', rows: optionRows(node.options, opts.verbose === true) },
     { title: 'Global options:', rows: global },
     ...commands,
-    {
-      title: 'Examples:',
-      rows: (node.examples ?? []).map((e: Example) => ({
-        term: e.command,
-        text: e.description ?? '',
-        // Stryker disable next-line StringLiteral: exampleLines lays an example out with no painter, so its kind is never read
-        kind: 'value' as const,
-      })),
-    },
+    { title: 'Examples:', rows: (node.examples ?? []).map((e: Example) => ({ term: e.command, text: e.description ?? '', kind: 'value' as const })) },
     { title: 'Environment:', rows: environmentRows(node.options) },
   ].filter((s) => s.rows.length > 0);
   const trailer = [...(atRoot ? [say(FOR_AGENTS) + say(opts.forAgents ?? '')] : []), ...(node.epilogue === undefined ? [] : [node.epilogue])];
