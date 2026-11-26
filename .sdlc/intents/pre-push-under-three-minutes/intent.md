@@ -1,6 +1,6 @@
 # Intent — a push finishes before the connection carrying it times out
 
-**Status:** draft · **Opened:** 2026-11-26 · **Owner:** @ofri-peretz
+**Status:** approved · **Opened:** 2026-11-26 · **Owner:** @ofri-peretz
 
 ---
 

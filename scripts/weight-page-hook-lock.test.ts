@@ -5,53 +5,50 @@
  */
 
 /**
- * Lock — a stale weight page fails on the laptop, not only in CI.
+ * Lock — pre-push regenerates the weight page whenever the push could change it, and only then.
  *
- * `/docs/weight` is generated from the build's `dist/` and committed. Compat.yml's required
- * `ratchet` job runs `npm run weight:page -- --check` and fails when the page differs, which it
- * does whenever any package's build moves another's row. Until 2026-11-23 only CI ran the check,
- * and a stale page cost six CI cycles in one week. Pre-push builds every package already (the
- * battery), so the same check runs there after it.
+ * `weight-page` took 155 s alone on a warm tree (2026-11-26), the largest step of a pre-push that
+ * ran 383-675 s and once outlived the SSH connection carrying the push
+ * (`.sdlc/intents/pre-push-under-three-minutes/`). It now carries a lefthook `glob`, so a push
+ * that touches none of the page's inputs skips it. CI's ratchet runs it on every PR regardless.
  *
- * What fails here: pre-push dropping the check, running it before the battery has built, running
- * a different command from CI, or CI's check changing under it.
+ * What fails here: the glob dropping an input (a package change would then push a stale page and
+ * fail CI, the six-cycle week of 2026-11-23 again), or the step losing its glob entirely.
  */
-import { readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { readFileSync } from "node:fs";
+import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-import { load as loadYaml } from 'js-yaml';
-import { describe, expect, it } from 'vitest';
+import { load as loadYaml } from "js-yaml";
+import { describe, expect, it } from "vitest";
 
-const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const CHECK = 'npm run weight:page -- --check';
-const read = (file: string): string => readFileSync(join(ROOT, file), 'utf8');
+const ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
+const read = (file: string): string => readFileSync(join(ROOT, file), "utf8");
 
-describe('pre-push runs the weight-page check CI runs', () => {
-  const hook = (loadYaml(read('lefthook.yml')) as { 'pre-push': { parallel?: boolean; commands: Record<string, { run: string; priority?: number }> } })['pre-push'];
+type Command = { run: string; glob?: string | string[] };
 
-  it('CI runs this command, so a local pass means the Ratchet job passes', () => {
-    const steps = (loadYaml(read('.github/workflows/compat.yml')) as { jobs: Record<string, { steps: { run?: string }[] }> }).jobs;
-    const runs = Object.values(steps).flatMap((job) => job.steps.map((s) => s.run)).filter((r) => r === CHECK);
-    expect(runs).toHaveLength(1);
+describe("pre-push weight-page", () => {
+  const step = (
+    loadYaml(read("lefthook.yml")) as {
+      "pre-push": { commands: Record<string, Command> };
+    }
+  )["pre-push"].commands["weight-page"];
+
+  it("still runs the check CI runs", () => {
+    expect(step?.run).toBe("npm run weight:page -- --check");
   });
 
-  it('pre-push runs it once, sequentially', () => {
-    expect(hook.parallel ?? false).toBe(false);
-    expect(Object.values(hook.commands).filter((c) => c.run === CHECK)).toHaveLength(1);
-  });
-
-  it('after the battery, which builds every package the page measures', () => {
-    const battery = hook.commands['battery'];
-    expect(battery?.run).toContain('build');
-    const weight = Object.values(hook.commands).find((c) => c.run === CHECK);
-    // lefthook orders a sequential hook by `priority`, then by name, not by position in the file.
-    expect(battery?.priority ?? 0).toBeGreaterThan(0);
-    expect(weight?.priority ?? 0).toBeGreaterThan(battery?.priority ?? 0);
-  });
-
-  it('`weight:page` is the generator, which `--check` reads', () => {
-    const pkg = JSON.parse(read('package.json')) as { scripts: Record<string, string> };
-    expect(pkg.scripts['weight:page']).toBe('tsx scripts/subpath-weight.ts');
+  it("runs when the push changes any input of the page", () => {
+    // The inputs, read from scripts/subpath-weight.ts: every package's build, the page it writes,
+    // the script itself, and the dependency versions the bundles resolve.
+    expect(read("scripts/subpath-weight.ts")).toContain(
+      "'apps/docs/content/docs/weight.mdx'",
+    );
+    expect(step?.glob).toEqual([
+      "packages/*",
+      "apps/docs/content/docs/weight.mdx",
+      "scripts/subpath-weight.ts",
+      "package-lock.json",
+    ]);
   });
 });
