@@ -163,6 +163,19 @@ describe('a failure with nothing to run next says what the command takes', () =>
     expect(await run('fail', '--code', '1')).toEqual({ code: ExitCode.RUNTIME, stdout: '', stderr: '' });
   });
 
+  it('prints nothing for a ctx.exit outside the contract either, and leaves RUNTIME', async () => {
+    // A child killed for memory (137), or any code of the program's own: the program said so, and usage would teach nothing.
+    const silent = { code: ExitCode.RUNTIME, stdout: '', stderr: '' };
+    expect(await run('fail', '--code', '137')).toEqual(silent);
+    expect(await run('fail', '--code', '99')).toEqual(silent);
+    // An error that only carries a number as its code is still a failure, and says so.
+    const numbered = defineProgram({ name: 'tool', commands: [defineCommand({ name: 'numbered', effects: 'idempotent', run: () => { throw Object.assign(new Error('numbered 137'), { code: 137 }); } })] });
+    expect(await runCommand(numbered, ['numbered'])).toMatchObject({ code: ExitCode.RUNTIME, stderr: expect.stringContaining('error: numbered 137') });
+    // Only a number is an exit's code: an error worded like an exit, with a word for its code, still fails out loud.
+    const worded = defineProgram({ name: 'tool', commands: [defineCommand({ name: 'worded', effects: 'idempotent', run: () => { throw Object.assign(new Error('exit soon'), { code: 'soon' }); } })] });
+    expect(await runCommand(worded, ['worded'])).toMatchObject({ code: ExitCode.RUNTIME, stderr: expect.stringContaining('error: exit soon') });
+  });
+
   it('renders a usage the error carries itself, and ignores a field that only shares the name', async () => {
     expect((await run('carries')).stderr).toBe('error: its own\nusage: tool carries <thing>\n');
     expect((await run('odd')).stderr).toBe('error: a stray usage field\nusage: tool odd\n');
