@@ -164,8 +164,8 @@ function requireOf(w: Walk, i: number, host: string): number {
 function defaultImportOf(w: Walk, i: number, host: string): string | undefined {
   if (text(w, i) !== 'import') return undefined;
   // `import B, { a } from`: past the named imports. A namespace or a bare `import {` never reaches `from` here.
-  // Stryker disable next-line EqualityOperator: the token at `comma` is `,`, which is not `}`
-  const from = text(w, i + 2) === ',' ? w.tokens.findIndex((t, k) => k > i + 2 && t.text === '}') + 1 : i + 2;
+  // Stryker disable next-line EqualityOperator: the token at `i` is `import`, which is not `}`
+  const from = text(w, i + 2) === ',' ? w.tokens.findIndex((t, k) => k > i && t.text === '}') + 1 : i + 2;
   // `from` is the only token valid JavaScript can put there.
   return w.tokens[from + 1]?.value === host ? text(w, i + 1) : undefined;
 }

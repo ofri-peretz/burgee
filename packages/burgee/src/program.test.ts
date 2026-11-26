@@ -107,6 +107,12 @@ describe('burgee brand', () => {
     expect(() => readdirSync(out)).toThrow();
   });
 
+  it('refuses a single failing check as it refuses many', async () => {
+    const r = await runCommand(program, ['brand', '--lead', '#000080', '--follow', '#ffff00', '--on', '#808080']);
+    expect(r.code).toBe(ExitCode.RUNTIME);
+    expect(r.stderr).toContain('leading bar on its field');
+  });
+
   it('emits anyway under --allow-low-contrast, and the result says which checks failed', async () => {
     const r = await json(['brand', '--lead', '#101010', '--follow', '#141414', '--allow-low-contrast']);
     expect(r.code).toBe(ExitCode.OK);

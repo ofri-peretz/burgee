@@ -35,6 +35,29 @@ describe('the tables, entry by entry', () => {
     ]);
   });
 
+  it.each(['box', 'text', 'element', 'log', 'layout', 'list', 'listtable', 'listbar', 'textbox', 'textarea'])('makes an element of blessed.%s(), whose screen is followed', (factory) => {
+    expect(sites(`${blessed}const made = blessed.${factory}();\nmade.screen.key('q', f);`)).toContainEqual([3, 'key']);
+  });
+
+  it.each(['ScreenBuffer', 'ScreenBufferHD'])('makes a buffer of new termkit.%s(), whose draw is a render', (factory) => {
+    expect(sites(`const t = require('terminal-kit');\nconst b = new t.${factory}();\nb.draw();`)).toContainEqual([3, 'render']);
+  });
+
+  it('hands out the real terminal as a terminal when read off the module, too', () => {
+    expect(sites("const tk = require('terminal-kit');\nconst t = tk.realTerminal;\nt.fullscreen();")).toEqual([
+      [1, 'import'],
+      [3, 'alternate-screen'],
+    ]);
+  });
+
+  it('binds nothing from a type-only import, which erases at build, but a default import named type binds', () => {
+    expect(sites("import type B from 'blessed';\nB.box();\ntype.box();")).toEqual([[1, 'import']]);
+    expect(sites("import type from 'blessed';\ntype.box();")).toEqual([
+      [1, 'import'],
+      [2, 'box'],
+    ]);
+  });
+
   it('hands out the real terminal as a terminal', () => {
     expect(sites("const t = require('terminal-kit').realTerminal;\nt.fullscreen();")).toEqual([
       [1, 'import'],

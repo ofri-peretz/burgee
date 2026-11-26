@@ -175,6 +175,7 @@ function report(w: Walk, i: number, host: GuidedHost, pattern: GuidedPattern): v
 /** The index just past the `)` that closes the `(` at `open`, or the end of the stream. */
 function pastClose(w: Walk, open: number): number {
   let depth = 0;
+  // Stryker disable next-line EqualityOperator: one step past the end reads no token, which is neither `(` nor `)`
   for (let i = open; i < w.tokens.length; i += 1) {
     const t = text(w, i);
     if (t === '(') depth += 1;
@@ -312,7 +313,10 @@ function staticImport(w: Walk, i: number): void {
   if (host === undefined) return;
   report(w, j, host, 'import');
   const clause = w.tokens.slice(i + 1, j - 1).map((t) => t.text);
-  if (text(w, j - 1) !== 'from' || (clause[0] === 'type' && clause.length > 1)) return;
+  // Stryker disable next-line ConditionalExpression: a clause not ending in `from` is `import 'x'` itself, which is empty and binds nothing
+  if (text(w, j - 1) !== 'from') return;
+  // `import type X from`, which erases at build; `import type from` binds `type` itself.
+  if (clause[0] === 'type' && clause.length > 1) return;
   const module: Binding = { host, kind: 'module' };
   let at = 0;
   // `import from 'x'` is not JavaScript; `import from from 'x'` is, and binds `from`.
