@@ -274,6 +274,8 @@ interface ClaudeHook {
     event: string;
     matcher: string;
     file: string;
+    /** Seconds before Claude Code kills the hook. Required: a pack hook never runs unbounded. */
+    timeout: number;
 }
 ```
 

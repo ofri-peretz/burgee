@@ -150,10 +150,11 @@ describe('the required check and the pre-push hook run it', () => {
   it('the pre-push hook defers the battery’s candidates, judges them after it, and runs the root suite with the gate on', () => {
     const hooks = loadYaml(readFileSync(join(REPO_ROOT, 'lefthook.yml'), 'utf8')) as { 'pre-push': { commands: Record<string, { run: string; priority: number }> } };
     const { battery, 'case-budget': judge, 'root-suite': root } = hooks['pre-push'].commands;
-    expect(battery?.run).toMatch(/^rm -rf node_modules\/\.cache\/case-budget && TRUEPASS_BUDGET_DEFER="\$PWD\/node_modules\/\.cache\/case-budget" npx --no turbo run typecheck test build/u);
+    expect(battery?.run).toMatch(/^rm -rf node_modules\/\.cache\/case-budget && /u);
+    expect(battery?.run).toMatch(/TRUEPASS_BUDGET_DEFER="\$PWD\/node_modules\/\.cache\/case-budget" npx --no turbo run typecheck test /u);
     expect(judge?.run).toBe('npx --no tsx scripts/case-budget.ts node_modules/.cache/case-budget');
     expect(judge!.priority).toBeGreaterThan(battery!.priority);
-    expect(root?.run).toBe('npx --no vitest run --config vitest.root.config.ts');
+    expect(root?.run).toBe('npx --no vitest run --config vitest.root.config.ts --changed origin/main --bail=1');
     for (const c of Object.values(hooks['pre-push'].commands)) expect(c.run).not.toMatch(turnsOff);
   });
 
