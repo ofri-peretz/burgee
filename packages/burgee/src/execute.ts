@@ -292,7 +292,7 @@ const actionRequired = (spec: ActionRequiredSpec): never => {
 /** `ctx.exit(code)` unwinds through this when the injected exit returns instead of leaving. */
 class ExitSignal extends Error {
   constructor(readonly code: number) {
-    // Stryker disable next-line StringLiteral: the signal is caught by its class and code; its message is never printed
+    // Never printed, but read: failure.ts knows a ctx.exit outside the contract by this message.
     super(`exit ${code}`);
   }
 }
