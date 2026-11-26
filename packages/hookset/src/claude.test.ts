@@ -21,6 +21,21 @@ function hook(file: string, payload: unknown, env: Record<string, string> = {}):
 
 const decision = (out: string): string | undefined => (out ? (JSON.parse(out) as { hookSpecificOutput: { permissionDecision: string } }).hookSpecificOutput.permissionDecision : undefined);
 
+/** A repo with a commitlint config, a stand-in commitlint CLI (rejects scope zzz) and the provedone station. */
+const repo = (): string => {
+  const dir = scratch('hookset-commitmsg-');
+  mkdirSync(join(dir, 'node_modules/@commitlint/cli'), { recursive: true });
+  writeFileSync(
+    join(dir, 'node_modules/@commitlint/cli/cli.js'),
+    'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const bad=/^\\w+\\(zzz\\)/.test(s);if(bad)console.log("\\u2716 scope must be one of [ci] [scope-enum]");process.exit(bad?1:0)})',
+  );
+  writeFileSync(join(dir, 'commitlint.config.mjs'), 'export default {};\n');
+  writeFileSync(join(dir, 'package.json'), JSON.stringify({ scripts: { 'hook:provedone': 'provedone gate' } }));
+  return dir;
+};
+const ask = (command: string, dir: string): string =>
+  hook('guard-bash.mjs', { tool_name: 'Bash', tool_input: { command, run_in_background: true } }, { CLAUDE_PROJECT_DIR: dir });
+
 describe('guard-bash', () => {
   it('passes its own deny, allow and ask cases', () => {
     const r = spawnSync(process.execPath, [join(CLAUDE, 'guard-bash.mjs'), '--self-test'], { encoding: 'utf8' });
@@ -50,20 +65,6 @@ describe('guard-bash', () => {
   });
 
   describe('a commit message the commit-msg stations would reject', () => {
-    const repo = (): string => {
-      const dir = scratch('hookset-commitmsg-');
-      mkdirSync(join(dir, 'node_modules/@commitlint/cli'), { recursive: true });
-      writeFileSync(
-        join(dir, 'node_modules/@commitlint/cli/cli.js'),
-        'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const bad=/^\\w+\\(zzz\\)/.test(s);if(bad)console.log("\\u2716 scope must be one of [ci] [scope-enum]");process.exit(bad?1:0)})',
-      );
-      writeFileSync(join(dir, 'commitlint.config.mjs'), 'export default {};\n');
-      writeFileSync(join(dir, 'package.json'), JSON.stringify({ scripts: { 'hook:provedone': 'provedone gate' } }));
-      return dir;
-    };
-    const ask = (command: string, dir: string): string =>
-      hook('guard-bash.mjs', { tool_name: 'Bash', tool_input: { command, run_in_background: true } }, { CLAUDE_PROJECT_DIR: dir });
-
     it.each([
       ['git commit -m "feat(zzz): x\n\nVerified-by: t -> exit 0"', 'scope must be one of'],
       ['git commit -m "feat(ci): x"', 'Verified-by'],
