@@ -56,7 +56,12 @@ const MS_PER_S = 1000;
 const ISO_DATE = 10;
 
 const rootOf = (options: { root?: string | undefined }): string => resolve(options.root ?? '');
-const intentsOf = (top: string, options: { dir?: string | undefined }): string => join(top, options.dir ?? '.sdlc/intents');
+const DEFAULT_DIR = '.sdlc/intents';
+const intentsOf = (top: string, options: { dir?: string | undefined }): string => join(top, options.dir ?? DEFAULT_DIR);
+/** The names a design file beside `intent.md` takes: burgee's `spec.md`, eslint's `design.md`. */
+const SPEC_NAMES = ['spec.md', 'design.md'] as const;
+/** The design file name the repository's `_template/` holds, else `spec.md`. */
+const specNameOf = (intents: string): string => SPEC_NAMES.find((name) => existsSync(join(intents, '_template', name))) ?? 'spec.md';
 const timeoutOf = (options: { commandTimeout?: number | undefined }): number => (options.commandTimeout ?? DEFAULT_TIMEOUT_S) * MS_PER_S;
 const read = (file: string): string | undefined => (existsSync(file) ? readFileSync(file, 'utf8') : undefined);
 const kebab = (text: string): string =>
@@ -96,7 +101,7 @@ const newCommand = defineCommand({
     const intents = intentsOf(top, options);
     const target = join(intents, args.slug);
     if (existsSync(target)) throw new Failure(`${target} already exists`, `edit ${join(target, 'intent.md')}, or pick another slug`);
-    const templates = ['intent.md', 'spec.md'].map((name) => [name, read(join(intents, '_template', name))] as const);
+    const templates = ['intent.md', specNameOf(intents)].map((name) => [name, read(join(intents, '_template', name))] as const);
     const missing = templates.find(([, text]) => text === undefined);
     if (missing !== undefined) throw new Failure(`no template ${join(intents, '_template', missing[0])}`, `add _template/${missing[0]} under ${intents}`);
     const date = options.date ?? new Date().toISOString().slice(0, ISO_DATE);
@@ -183,8 +188,12 @@ const checkCommand = defineCommand({
       .map((e) => e.name)
       .sort();
     const texts = new Map(slugs.map((slug) => [slug, read(join(intents, slug, 'intent.md')) ?? ''] as const));
+    const fallback = specNameOf(intents);
     const findings: Finding[] = [
-      ...slugs.flatMap((slug) => checkIntent(slug, texts.get(slug) as string, read(join(intents, slug, 'spec.md')))),
+      ...slugs.flatMap((slug) => {
+        const spec = SPEC_NAMES.find((name) => existsSync(join(intents, slug, name))) ?? fallback;
+        return checkIntent(slug, texts.get(slug) as string, read(join(intents, slug, spec)), { dir: options.dir ?? DEFAULT_DIR, spec });
+      }),
       ...indexDrift(read(join(intents, 'README.md')) ?? '', new Map(slugs.map((slug) => [slug, statusOf(texts.get(slug) as string)]))),
     ];
     const noEvidence = slugs.filter((slug) => unevidenced(texts.get(slug) as string));

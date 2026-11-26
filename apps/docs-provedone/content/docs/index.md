@@ -67,7 +67,7 @@ provedone stamp --none "comment-only change"                     # Verified-by: 
 provedone gate .git/COMMIT_EDITMSG                               # observe: passes, logs what enforce would block
 provedone gate pr-body.md --mode enforce                         # blocks a body with no receipt
 provedone done faster-help                                       # every success criterion has a passing stamp?
-provedone intent new faster-help                                 # intent.md and spec.md from _template/
+provedone intent new faster-help                                 # intent.md and spec.md (or design.md) from _template/
 provedone intent check --evidence                                # the intent rules, and the shipped evidence re-run
 ```
 

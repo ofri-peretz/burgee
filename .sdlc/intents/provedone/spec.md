@@ -10,7 +10,8 @@ Intent: [`intent.md`](./intent.md). **Status:** draft.
   the date and owner, and refuses an existing slug.
 - **R2** `provedone intent check` enforces the rules of `scripts/intent-artifacts-lock.test.ts`
   (headings, statuses, `spec.md` for `approved`/`shipped`, index status agreement) so other repos
-  get them without copying the test.
+  get them without copying the test. The design file may be `design.md` (eslint's name), and each
+  `fix:` names the file and the `--dir` the repository uses.
 - **R3** For each `shipped` intent, `intent check --evidence` parses the evidence table
   (`| Criterion | Command… | Output |`), re-runs each row whose command is a plain shell command,
   and fails when the exit code differs or the recorded output no longer appears. Rows it cannot

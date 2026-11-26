@@ -21,8 +21,16 @@ export interface Finding {
 /** The status an intent's header declares, or undefined. */
 export const statusOf = (intent: string): string | undefined => /^\*\*Status:\*\*\s*([a-z]+)/mu.exec(intent)?.[1];
 
-/** Every finding for one intent: its `intent.md` text and, when it has one, its `spec.md` text. */
-export const checkIntent = (slug: string, intent: string, spec: string | undefined): Finding[] => {
+/** Where a repository keeps its intents, and what it calls the design file beside each `intent.md`. */
+export interface IntentLayout {
+  /** The intents directory as the fix lines show it (default `.sdlc/intents`). */
+  readonly dir?: string;
+  /** The design file's name: burgee's `spec.md` (the default), eslint's `design.md`. */
+  readonly spec?: string;
+}
+
+/** Every finding for one intent: its `intent.md` text and, when it has one, its design file's text. */
+export const checkIntent = (slug: string, intent: string, spec: string | undefined, { dir = '.sdlc/intents', spec: name = 'spec.md' }: IntentLayout = {}): Finding[] => {
   const found: Finding[] = [];
   const add = (rule: string, message: string, fix: string): void => {
     found.push({ intent: slug, rule, message, fix });
@@ -35,9 +43,9 @@ export const checkIntent = (slug: string, intent: string, spec: string | undefin
   for (const heading of INTENT_SECTIONS) if (!intent.includes(heading)) add('section', `lacks ${heading}`, `add a \`${heading}\` section`);
   if (section(intent, SUCCESS_HEADINGS) === undefined) add('success', 'no `## Success criteria`', 'add `## Success criteria`: each line checkable by a person or a command');
   if ((status === 'approved' || status === 'shipped') && spec === undefined) {
-    add('spec', `is "${String(status)}" but has no spec.md`, `write .sdlc/intents/${slug}/spec.md, or set the status back to review`);
+    add('spec', `is "${String(status)}" but has no ${name}`, `write ${dir}/${slug}/${name}, or set the status back to review`);
   }
-  if (spec !== undefined && !REJECTION.test(spec)) add('rejected', 'spec.md records nothing rejected', 'add `## Rejected alternatives` or `## Out of scope` to spec.md');
+  if (spec !== undefined && !REJECTION.test(spec)) add('rejected', `${name} records nothing rejected`, `add \`## Rejected alternatives\` or \`## Out of scope\` to ${name}`);
   if (status === 'shipped') {
     for (const row of countless(intent)) {
       add(
