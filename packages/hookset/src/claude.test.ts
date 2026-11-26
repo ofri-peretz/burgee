@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -188,14 +189,14 @@ describe('codegraph', () => {
 describe('worktree-sweep', () => {
   it('passes its own cases', () => {
     const r = spawnSync(process.execPath, [join(CLAUDE, 'worktree-sweep.mjs'), '--self-test'], { encoding: 'utf8' });
-    expect(r.stdout).toBe('ok: 12 cases\n');
+    expect(r.stdout).toBe('ok: 13 cases\n');
     expect(r.status).toBe(0);
   });
 
   it('starts nothing without hookset installed, when off, or on any other event, and sweeps at most once a day', () => {
     const dir = scratch('hookset-sweep-');
     const state = scratch('hookset-sweep-state-');
-    const stamp = join(state, 'hookset-worktree-sweep', `${dir.replace(/[^\w.-]/g, '_')}.json`);
+    const stamp = join(state, 'hookset-worktree-sweep', `${createHash('sha256').update(dir).digest('hex').slice(0, 16)}.json`);
     const env = { CLAUDE_PROJECT_DIR: dir, HOOKSET_WORKTREE_SWEEP_DIR: state };
     expect(hook('worktree-sweep.mjs', { hook_event_name: 'SessionStart' }, env)).toBe('');
     expect(existsSync(stamp)).toBe(false);
@@ -203,6 +204,8 @@ describe('worktree-sweep', () => {
     // A stand-in bin that records the arguments it was started with.
     const bin = join(dir, 'node_modules', '.bin', 'hookset');
     writeFileSync(bin, `#!/bin/sh\necho "$@" > "${join(dir, 'ran')}"\n`, { mode: 0o755 });
+    // What npm links on Windows, where the hook looks for hookset.cmd.
+    writeFileSync(`${bin}.cmd`, `@echo %* > "${join(dir, 'ran')}"\r\n`);
     expect(hook('worktree-sweep.mjs', { hook_event_name: 'PreToolUse' }, env)).toBe('');
     expect(hook('worktree-sweep.mjs', { hook_event_name: 'SessionStart' }, { ...env, HOOKSET_WORKTREES: '0' })).toBe('');
     expect(hook('worktree-sweep.mjs', 'not json', env)).toBe('');

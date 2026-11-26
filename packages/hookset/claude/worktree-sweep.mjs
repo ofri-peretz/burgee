@@ -16,6 +16,7 @@
 // `node worktree-sweep.mjs --self-test` runs the cases at the bottom.
 
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -35,11 +36,11 @@ export function sweepArgs(olderThan) {
   return ["worktrees", "--prune", "--json", ...(set ? ["--older-than", String(days)] : [])];
 }
 
-/** Where this clone's last sweep is stamped and reported. */
+/** Where this clone's last sweep is stamped and reported: named by a hash of the path, so no two clones share one. */
 export function stampFile(dir, base = tmpdir()) {
   const state = join(base, "hookset-worktree-sweep");
   mkdirSync(state, { recursive: true });
-  return join(state, `${dir.replace(/[^\w.-]/g, "_")}.json`);
+  return join(state, `${createHash("sha256").update(dir).digest("hex").slice(0, 16)}.json`);
 }
 
 /** Whether a sweep is due: no stamp yet, an unreadable one, or one older than EVERY_MS. */
@@ -56,7 +57,8 @@ function startSweep(dir, bin, args, stamp) {
   writeFileSync(stamp, JSON.stringify({ at: Date.now(), args }));
   const out = openSync(stamp.replace(/\.json$/, ".log"), "w");
   const windows = process.platform === "win32";
-  const child = spawn(bin, args, { cwd: dir, detached: true, stdio: ["ignore", out, out], shell: windows });
+  // A .cmd runs only through a shell on Windows, which splits an unquoted path at its spaces.
+  const child = spawn(windows ? `"${bin}"` : bin, args, { cwd: dir, detached: true, stdio: ["ignore", out, out], shell: windows });
   child.on("error", () => {});
   child.unref();
 }
@@ -74,7 +76,8 @@ function selfTest() {
   check("not a number", sweepArgs("soon"), ["worktrees", "--prune", "--json"]);
   const base = mkdtempSync(join(tmpdir(), "worktree-sweep-"));
   const stamp = stampFile("/repos/a b", base);
-  check("stamp path", stamp, join(base, "hookset-worktree-sweep", "_repos_a_b.json"));
+  check("stamp path", stamp, join(base, "hookset-worktree-sweep", `${createHash("sha256").update("/repos/a b").digest("hex").slice(0, 16)}.json`));
+  check("paths that differ only in punctuation get their own stamps", stampFile("/repos/ab", base) === stampFile("/repos_ab", base), false);
   check("due with no stamp", due(stamp, 1000), true);
   writeFileSync(stamp, JSON.stringify({ at: 1000 }));
   check("not due within a day", due(stamp, 1000 + EVERY_MS - 1), false);
@@ -82,7 +85,7 @@ function selfTest() {
   writeFileSync(stamp, "not json");
   check("due on a bad stamp", due(stamp, 1000), true);
   check("no bin", hooksetBin(base), null);
-  process.stdout.write(bad.length ? `${bad.join("\n")}\n${bad.length} failing\n` : "ok: 12 cases\n");
+  process.stdout.write(bad.length ? `${bad.join("\n")}\n${bad.length} failing\n` : "ok: 13 cases\n");
   process.exit(bad.length ? 1 : 0);
 }
 
