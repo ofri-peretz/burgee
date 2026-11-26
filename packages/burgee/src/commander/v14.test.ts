@@ -35,6 +35,11 @@ describe('burgee/commander/v14', () => {
     expect(failure(root, ['sub', 'excess'])).toBe("error: too many arguments for 'sub'. Expected 0 arguments but got 1.");
   });
 
+  it("fails with commander's own error code and exit code, so a caller's catch reads it as commander 14's", () => {
+    const cmd = new Command().exitOverride().configureOutput({ writeErr: () => undefined });
+    expect(() => cmd.parse(['excess'], { from: 'user' })).toThrow(expect.objectContaining({ code: 'commander.excessArguments', exitCode: 1 }));
+  });
+
   it('allows excess arguments when told to, as commander does', () => {
     expect(failure(new Command().allowExcessArguments(), ['excess'])).toBe('');
   });

@@ -38,13 +38,15 @@ const DEFAULT_BORDURE_WIDTH = '1.5';
 /** Every file the command writes, and what consumes it. */
 function surfaces(brand: BurgeeBrand, tagline: string): Array<{ file: string; svg: string }> {
   const burgee = defineBurgee(brand);
-  const subtitle = tagline === '' ? {} : { subtitle: tagline };
+  // An empty tagline draws as no subtitle at all (`brand.ts` reads a missing one as '').
+  const subtitle = { subtitle: tagline };
   return [
     { file: 'flag.svg', svg: burgee.flag(MASTER) },
     { file: 'icon.svg', svg: burgee.favicon() },
     { file: 'og.svg', svg: burgee.og(subtitle) },
     { file: 'cover.svg', svg: burgee.cover(subtitle) },
-    { file: 'lockup.svg', svg: burgee.lockup({ theme: 'dark' }) },
+    // Dark is the lockup's own default theme.
+    { file: 'lockup.svg', svg: burgee.lockup() },
     { file: 'lockup-light.svg', svg: burgee.lockup({ theme: 'light' }) },
   ];
 }

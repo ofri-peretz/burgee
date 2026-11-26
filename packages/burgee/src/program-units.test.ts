@@ -46,6 +46,8 @@ describe('brand, with an option left out', () => {
     const out = join(scratch(), 'a', 'b');
     expect((await brand(['--out', out])).files).toContain('og.svg');
     expect(readFileSync(join(out, 'og.svg'), 'utf8')).toBe(`${plain.og({})}\n`);
+    expect(readFileSync(join(out, 'lockup.svg'), 'utf8')).toBe(`${plain.lockup()}\n`);
+    expect(readFileSync(join(out, 'lockup-light.svg'), 'utf8')).toBe(`${plain.lockup({ theme: 'light' })}\n`);
   });
 
   it('takes a charge’s contents without its svg element', async () => {

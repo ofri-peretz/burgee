@@ -371,6 +371,13 @@ describe('help renders as Markdown, from the same sections (agent-skill R1)', ()
     expect(options).toEqual(['| `--far` | first line<br>second line |', '| `--near` | one |']);
   });
 
+  it('a description, an example with no text and an epilogue each sit in their own place', async () => {
+    const said = defineProgram({ name: 'app', commands: [defineCommand({ name: 'ping', description: 'Ping it', epilogue: 'See also: pong', effects: 'read_only', examples: [{ command: 'app ping' }], run: ok })] });
+    const md = await renderHelp(said, said.find(['app', 'ping']) as CommandNode, { format: 'markdown' });
+    expect(md.startsWith('# app ping\n\nPing it\n\n## Usage\n')).toBe(true);
+    expect(md.endsWith('## Examples\n\n```sh\napp ping\n```\n\nSee also: pong\n')).toBe(true);
+  });
+
   it('a node with nothing but a name is a heading and a usage block', async () => {
     const bare = defineProgram({ name: 'app', commands: [defineCommand({ name: 'ping', effects: 'read_only', run: ok })] });
     const ping = bare.find(['app', 'ping']) as CommandNode;

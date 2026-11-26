@@ -64,6 +64,9 @@ describe('renderHelp, line by line', () => {
     const help = renderHelp(program, node(['app', 'remote', 'add']));
     expect(lineOf(help, '--name')).toMatch(/the name \(requires --url\) \(conflicts with --mirror\)$/);
     expect(lineOf(help, '--tag')).toMatch(/a tag \(repeatable\)$/);
+    // Two flags in one note are a comma-separated list.
+    const both = defineProgram({ name: 'app', commands: [defineCommand({ name: 'go', effects: 'read_only', options: { only: { type: 'boolean', description: 'one', dependsOn: ['a', 'b'], exclusive: ['c', 'd'] }, a: { type: 'boolean' }, b: { type: 'boolean' }, c: { type: 'boolean' }, d: { type: 'boolean' } }, run: ok })] });
+    expect(lineOf(renderHelp(both, both.find(['app', 'go']) as NonNullable<ReturnType<typeof both.find>>), '--only')).toMatch(/one \(requires --a, --b\) \(conflicts with --c, --d\)$/);
     expect(lineOf(help, '--mirror')).toMatch(/mirror it$/);
   });
 

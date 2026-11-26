@@ -73,6 +73,7 @@ const TICK_CAP = 1000;
 /** Deterministic time for the harness. Starts at `start` (0 by default) and never moves on its own. */
 export function fakeClock(start = 0): FakeClock {
   let now = start;
+  // Stryker disable next-line NumericLiteral: an id only names its timer for `remove`, so where the count starts changes nothing
   let nextId = 0;
   const timers: Timer[] = [];
   const remove = (id: number): void => {
@@ -88,11 +89,12 @@ export function fakeClock(start = 0): FakeClock {
     },
     tick(ms) {
       const until = now + ms;
-      // Earliest due first; ties keep the order they were scheduled in (ids grow with time).
+      // Earliest due first; ties keep the order they were scheduled in, since `timers` holds them
+      // in that order and sort is stable.
       // Each pass removes the timer it runs, so the loop ends when nothing is due. A callback
       // that keeps rescheduling within the window would loop here forever (Node yields between
       // turns; this loop does not), so the cap turns a hang into a named failure.
-      const nextDue = (): Timer | undefined => timers.filter((t) => t.at <= until).sort((a, b) => a.at - b.at || a.id - b.id)[0];
+      const nextDue = (): Timer | undefined => timers.filter((t) => t.at <= until).sort((a, b) => a.at - b.at)[0];
       let ran = 0;
       for (let due = nextDue(); due !== undefined; due = nextDue()) {
         if (ran === TICK_CAP) throw new Error(`fakeClock.tick(${ms}) ran ${TICK_CAP} callbacks (TICK_CAP): a callback keeps rescheduling inside the window`);
@@ -109,7 +111,7 @@ export function fakeClock(start = 0): FakeClock {
 
 function ttyOf(tty: RunOptions['tty']): Runtime['isTTY'] {
   if (tty === true) return { stdin: true, stdout: true, stderr: true };
-  if (tty === false || tty === undefined) return { stdin: false, stdout: false, stderr: false };
+  // Spreading `false` or `undefined` adds nothing: every other value starts from no terminal.
   return { stdin: false, stdout: false, stderr: false, ...tty };
 }
 

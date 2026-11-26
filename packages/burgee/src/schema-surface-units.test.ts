@@ -56,6 +56,14 @@ describe('schemaSurface reads the command out of argv', () => {
   it('owns one token for --field=x and two for --field x', async () => {
     expect(await schemaSurface(program, ['--schema', '--field=name', 'go'])).toBe('go');
     expect(await schemaSurface(program, ['--schema', '--field', 'name', 'go'])).toBe('go');
+    // The flag typed first owns its tokens too.
+    expect(await schemaSurface(program, ['--field', 'name', 'go', '--schema'])).toBe('go');
+  });
+
+  it('refuses to drill below a value, a string or an array alike', () => {
+    for (const value of ['text', ['a']]) {
+      expect(() => fieldOf({ a: value }, 'a.length', 'go')).toThrow(expect.objectContaining({ message: '"a" has no field "length"', hint: 'fields here: none — it is a value' }));
+    }
   });
 
   it('refuses --field without a command, and names a nested one by its words', async () => {

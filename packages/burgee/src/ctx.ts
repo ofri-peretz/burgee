@@ -54,6 +54,7 @@ export const ctxOf = ({ env, stdin, out, teardown }: RunIo, global?: Globals): P
   return {
     env,
     onExit: (handler, label) => teardown.add(handler, label),
+    // Stryker disable next-line BooleanLiteral: the tty only feeds detectAgent's `interactive`, which the next property replaces
     ...detectAgent(env, false),
     interactive: interactive({ env, isTTY: { stdin: (stdin as { isTTY?: boolean }).isTTY === true } }),
     // `any` of none never aborts, of one follows it, and of both aborts with whichever came first.

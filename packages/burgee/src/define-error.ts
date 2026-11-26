@@ -88,7 +88,9 @@ export function defineError(definition: ErrorDefinition): DefinedErrorClass {
     constructor(message: string, options: DefinedErrorOptions = {}) {
       super(message);
       this.name = name;
+      // Stryker disable next-line ConditionalExpression: the class fields above already hold `hint` and `fix` as undefined keys, so assigning undefined reads the same
       if (options.hint !== undefined) this.hint = options.hint;
+      // Stryker disable next-line ConditionalExpression: as the line above, for `fix`
       if (options.fix !== undefined) this.fix = options.fix;
     }
   };
