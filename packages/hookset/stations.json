@@ -23,7 +23,9 @@
       { "event": "PreToolUse", "matcher": "Bash", "file": "guard-bash.mjs" },
       { "event": "PreToolUse", "matcher": "Edit|Write|MultiEdit|NotebookEdit", "file": "guard-bash.mjs" },
       { "event": "PostToolUse", "matcher": "Bash", "file": "stop-after-3.mjs" },
+      { "event": "PreToolUse", "matcher": "Bash", "file": "verify-before-stop.mjs" },
       { "event": "PostToolUse", "matcher": "Bash", "file": "verify-before-stop.mjs" },
+      { "event": "PostToolUse", "matcher": "Edit|Write|MultiEdit|NotebookEdit", "file": "verify-before-stop.mjs" },
       { "event": "Stop", "matcher": "", "file": "verify-before-stop.mjs" },
       { "event": "SessionStart", "matcher": "", "file": "codegraph.mjs" },
       { "event": "SessionStart", "matcher": "", "file": "worktree-sweep.mjs" }

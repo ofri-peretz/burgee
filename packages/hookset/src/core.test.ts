@@ -102,8 +102,11 @@ describe('the package', () => {
       { event: 'PreToolUse', matcher: 'Edit|Write|MultiEdit|NotebookEdit', file: 'guard-bash.mjs' },
       { event: 'PostToolUse', matcher: 'Bash', file: 'stop-after-3.mjs' },
       { event: 'PostToolUseFailure', matcher: 'Bash', file: 'stop-after-3.mjs' },
+      { event: 'PreToolUse', matcher: 'Bash', file: 'verify-before-stop.mjs' },
       { event: 'PostToolUse', matcher: 'Bash', file: 'verify-before-stop.mjs' },
       { event: 'PostToolUseFailure', matcher: 'Bash', file: 'verify-before-stop.mjs' },
+      { event: 'PostToolUse', matcher: 'Edit|Write|MultiEdit|NotebookEdit', file: 'verify-before-stop.mjs' },
+      { event: 'PostToolUseFailure', matcher: 'Edit|Write|MultiEdit|NotebookEdit', file: 'verify-before-stop.mjs' },
       { event: 'Stop', matcher: '', file: 'verify-before-stop.mjs' },
       { event: 'SessionStart', matcher: '', file: 'codegraph.mjs' },
       { event: 'SessionStart', matcher: '', file: 'worktree-sweep.mjs' },
@@ -345,8 +348,11 @@ describe('checkRepo', () => {
         unwired('guard-bash.mjs', 'PreToolUse', 'Edit|Write|MultiEdit|NotebookEdit'),
         unwired('stop-after-3.mjs', 'PostToolUse', 'Bash'),
         unwired('stop-after-3.mjs', 'PostToolUseFailure', 'Bash'),
+        unwired('verify-before-stop.mjs', 'PreToolUse', 'Bash'),
         unwired('verify-before-stop.mjs', 'PostToolUse', 'Bash'),
         unwired('verify-before-stop.mjs', 'PostToolUseFailure', 'Bash'),
+        unwired('verify-before-stop.mjs', 'PostToolUse', 'Edit|Write|MultiEdit|NotebookEdit'),
+        unwired('verify-before-stop.mjs', 'PostToolUseFailure', 'Edit|Write|MultiEdit|NotebookEdit'),
         unwired('verify-before-stop.mjs', 'Stop', ''),
         unwired('codegraph.mjs', 'SessionStart', ''),
         unwired('worktree-sweep.mjs', 'SessionStart', ''),
@@ -390,15 +396,18 @@ describe('checkRepo', () => {
       '.claude/settings.json does not run guard-bash.mjs on PreToolUse (Edit|Write|MultiEdit|NotebookEdit)',
       '.claude/settings.json does not run stop-after-3.mjs on PostToolUse (Bash)',
       '.claude/settings.json does not run stop-after-3.mjs on PostToolUseFailure (Bash)',
+      '.claude/settings.json does not run verify-before-stop.mjs on PreToolUse (Bash)',
       '.claude/settings.json does not run verify-before-stop.mjs on PostToolUse (Bash)',
       '.claude/settings.json does not run verify-before-stop.mjs on PostToolUseFailure (Bash)',
+      '.claude/settings.json does not run verify-before-stop.mjs on PostToolUse (Edit|Write|MultiEdit|NotebookEdit)',
+      '.claude/settings.json does not run verify-before-stop.mjs on PostToolUseFailure (Edit|Write|MultiEdit|NotebookEdit)',
       '.claude/settings.json does not run verify-before-stop.mjs on Stop ()',
       '.claude/settings.json does not run codegraph.mjs on SessionStart ()',
       '.claude/settings.json does not run worktree-sweep.mjs on SessionStart ()',
       '.claude/settings.json does not enable the codegraph server, so every session asks first',
     ]);
     writeFileSync(join(dir, '.claude/settings.json'), '{}');
-    expect(checkRepo(dir, PKG).problems).toHaveLength(10);
+    expect(checkRepo(dir, PKG).problems).toHaveLength(13);
   });
 
   it('wants the codegraph server pinned in .mcp.json, its index gitignored, and the server enabled', () => {
@@ -515,11 +524,17 @@ describe('initRepo', () => {
           $schema: 'https://json.schemastore.org/claude-code-settings.json',
           hooks: {
             PreToolUse: [
-              { matcher: 'Bash', hooks: command('guard-bash.mjs') },
+              { matcher: 'Bash', hooks: [...command('guard-bash.mjs'), ...command('verify-before-stop.mjs')] },
               { matcher: 'Edit|Write|MultiEdit|NotebookEdit', hooks: command('guard-bash.mjs') },
             ],
-            PostToolUse: [{ matcher: 'Bash', hooks: [...command('stop-after-3.mjs'), ...command('verify-before-stop.mjs')] }],
-            PostToolUseFailure: [{ matcher: 'Bash', hooks: [...command('stop-after-3.mjs'), ...command('verify-before-stop.mjs')] }],
+            PostToolUse: [
+              { matcher: 'Bash', hooks: [...command('stop-after-3.mjs'), ...command('verify-before-stop.mjs')] },
+              { matcher: 'Edit|Write|MultiEdit|NotebookEdit', hooks: command('verify-before-stop.mjs') },
+            ],
+            PostToolUseFailure: [
+              { matcher: 'Bash', hooks: [...command('stop-after-3.mjs'), ...command('verify-before-stop.mjs')] },
+              { matcher: 'Edit|Write|MultiEdit|NotebookEdit', hooks: command('verify-before-stop.mjs') },
+            ],
             Stop: [{ matcher: '', hooks: command('verify-before-stop.mjs') }],
             SessionStart: [{ matcher: '', hooks: [...command('codegraph.mjs'), ...command('worktree-sweep.mjs')] }],
           },
@@ -557,12 +572,13 @@ describe('initRepo', () => {
     expect(merged.permissions).toEqual({ allow: ['Bash(ls)', 'mcp__codegraph__codegraph_explore'] });
     expect(Object.keys(merged.hooks)).toEqual(['PreToolUse', 'PostToolUse', 'PostToolUseFailure', 'Stop', 'SessionStart']);
     expect(merged.hooks['PreToolUse']?.map((g) => [g.matcher, g.hooks.length])).toEqual([
-      ['Bash', 1],
+      ['Bash', 2],
       ['Edit|Write|MultiEdit|NotebookEdit', 1],
     ]);
     expect(merged.hooks['PostToolUse']?.map((g) => [g.matcher, g.hooks.map((h) => h.command)])).toEqual([
       ['Bash', ['node other.mjs', 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/stop-after-3.mjs"', 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/verify-before-stop.mjs"']],
       [undefined, ['node any.mjs']],
+      ['Edit|Write|MultiEdit|NotebookEdit', ['node "$CLAUDE_PROJECT_DIR/.claude/hooks/verify-before-stop.mjs"']],
     ]);
     expect(initRepo(dir, PKG, { claude: true })).toEqual({ changed: false, written: [] });
   });
@@ -574,6 +590,7 @@ describe('initRepo', () => {
     expect(merged.hooks['PostToolUseFailure']?.map((g) => [g.matcher, g.hooks.map((h) => h.command)])).toEqual([
       [undefined, ['node log.mjs']],
       ['Bash', ['node "$CLAUDE_PROJECT_DIR/.claude/hooks/stop-after-3.mjs"', 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/verify-before-stop.mjs"']],
+      ['Edit|Write|MultiEdit|NotebookEdit', ['node "$CLAUDE_PROJECT_DIR/.claude/hooks/verify-before-stop.mjs"']],
     ]);
   });
 });
@@ -647,8 +664,11 @@ describe('the checks, at their edges', () => {
     expect(checkRepo(dir, PKG).problems.map((p) => p.message)).toEqual([
       '.claude/settings.json does not run stop-after-3.mjs on PostToolUse (Bash)',
       '.claude/settings.json does not run stop-after-3.mjs on PostToolUseFailure (Bash)',
+      '.claude/settings.json does not run verify-before-stop.mjs on PreToolUse (Bash)',
       '.claude/settings.json does not run verify-before-stop.mjs on PostToolUse (Bash)',
       '.claude/settings.json does not run verify-before-stop.mjs on PostToolUseFailure (Bash)',
+      '.claude/settings.json does not run verify-before-stop.mjs on PostToolUse (Edit|Write|MultiEdit|NotebookEdit)',
+      '.claude/settings.json does not run verify-before-stop.mjs on PostToolUseFailure (Edit|Write|MultiEdit|NotebookEdit)',
       '.claude/settings.json does not run verify-before-stop.mjs on Stop ()',
       '.claude/settings.json does not run codegraph.mjs on SessionStart ()',
       '.claude/settings.json does not run worktree-sweep.mjs on SessionStart ()',

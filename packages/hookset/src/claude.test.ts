@@ -162,7 +162,7 @@ describe('stop-after-3', () => {
 describe('verify-before-stop', () => {
   it('passes its own cases', () => {
     const r = spawnSync(process.execPath, [join(CLAUDE, 'verify-before-stop.mjs'), '--self-test'], { encoding: 'utf8' });
-    expect(r.stdout).toBe('ok: 17 cases\n');
+    expect(r.stdout).toBe('ok: 19 cases\n');
   });
 
   it('sends a turn back once when code changed after the last passing test run, and lets it end after a pass', () => {
@@ -174,6 +174,9 @@ describe('verify-before-stop', () => {
     const stop = { session_id: session, hook_event_name: 'Stop', cwd: dir, stop_hook_active: false };
     expect(hook('verify-before-stop.mjs', stop)).toBe('');
     writeFileSync(join(dir, 'a.ts'), 'export const a = 1;\n');
+    // Written by another session or a generator: not this session's to verify.
+    expect(hook('verify-before-stop.mjs', stop)).toBe('');
+    hook('verify-before-stop.mjs', { session_id: session, hook_event_name: 'PostToolUse', cwd: dir, tool_name: 'Write', tool_input: { file_path: join(dir, 'a.ts') } });
     const back = JSON.parse(hook('verify-before-stop.mjs', stop)) as { decision: string; reason: string };
     expect(back.decision).toBe('block');
     expect(back.reason).toContain('a.ts');
