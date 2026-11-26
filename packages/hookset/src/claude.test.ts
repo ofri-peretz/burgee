@@ -37,6 +37,22 @@ const repo = (): string => {
 const ask = (command: string, dir: string): string =>
   hook('guard-bash.mjs', { tool_name: 'Bash', tool_input: { command, run_in_background: true } }, { CLAUDE_PROJECT_DIR: dir });
 
+describe('the pack as consumers lint it', () => {
+  // Consumers vendor these files byte for byte (`hookset check` fails on any change), so a lint error in one
+  // cannot be fixed where it is reported. agents' oxlint (unicorn/prefer-string-starts-ends-with) rejected
+  // `/^Merge /.test(…)` in guard-bash 1.4.1: a regex that is only an anchored literal is startsWith/endsWith.
+  const ANCHORED_LITERAL = /\/\^[\w :-]+\/[a-z]*\.test\(|\/[\w :-]+\$\/[a-z]*\.test\(/u;
+  it.each(['guard-bash.mjs', 'stop-after-3.mjs', 'verify-before-stop.mjs', 'codegraph.mjs', 'worktree-sweep.mjs'])(
+    '%s tests no anchored literal with a regex',
+    (file) => {
+      const hits = readFileSync(join(CLAUDE, file), 'utf8')
+        .split('\n')
+        .flatMap((line, i) => (ANCHORED_LITERAL.test(line) ? [`${file}:${String(i + 1)}: ${line.trim()}`] : []));
+      expect(hits).toEqual([]);
+    },
+  );
+});
+
 describe('guard-bash', () => {
   it('passes its own deny, allow and ask cases', () => {
     const r = spawnSync(process.execPath, [join(CLAUDE, 'guard-bash.mjs'), '--self-test'], { encoding: 'utf8' });
