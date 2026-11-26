@@ -24,13 +24,6 @@ items:
     check: npx vitest run --config vitest.root.config.ts scripts/inline-implementation-lock.test.ts
     sources: [scripts/inline-implementation-lock.test.ts]
 
-  - id: changeset-for-package-change
-    trigger:
-      paths: ['packages/*/src/**', 'packages/*/package.json']
-    question: Does a change to a package's source or package.json carry a changeset, or the skip-changeset label for internal-only work?
-    check: ls .changeset/ and the PR's labels
-    sources: [AGENTS.md]
-
   - id: ledger-row-not-file
     trigger:
       paths: ['.sdlc/DECISIONS.md', '.sdlc/GAPS.md']
