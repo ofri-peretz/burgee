@@ -29,12 +29,17 @@ describe('releasesOf', () => {
     expect(releasesOf('---\n"a": major\n\'@s/b\': minor\nc: patch\n  d :  none  \n---\n\ne: patch\n')).toEqual(['a', '@s/b', 'c', 'd']);
   });
 
+  it('reads an opening line with trailing spaces', () => {
+    expect(releasesOf('---  \n"a": patch\n---\n')).toEqual(['a']);
+  });
+
   it('reads CRLF front matter', () => {
     expect(releasesOf('---\r\n"a": patch\r\n---\r\n')).toEqual(['a']);
   });
 
   it('reads nothing without front matter, or when it never closes, or from a line with no bump', () => {
     expect(releasesOf('"a": patch\n')).toEqual([]);
+    expect(releasesOf('intro\n"a": patch\n---\n')).toEqual([]);
     expect(releasesOf('---\n"a": patch\n')).toEqual([]);
     expect(releasesOf('---\n"a": huge\n"b" patch\n"c": patch extra\n---\n')).toEqual([]);
     expect(releasesOf('')).toEqual([]);
@@ -94,7 +99,7 @@ describe('coverage', () => {
       [
         'changesets: 1 package(s) ship a change no changeset names:',
         '  @s/b (packages/b/src/y.ts, packages/b/src/z.ts)',
-        `fix: add "@s/b": patch (or the right bump) for each package above to a changeset, or add the 'skip-changeset' label for internal-only work`,
+        `fix: add "@s/b": patch (or the right bump) to a changeset, or add the 'skip-changeset' label for internal-only work`,
       ].join('\n'),
     );
   });
@@ -113,7 +118,7 @@ describe('coverage', () => {
   });
 
   it('needs nothing for tests, fixtures, mocks, snapshots or files outside the paths', () => {
-    const root = repo(two);
+    const root = repo({ ...two, 'apps/docs/package.json': manifest('site') });
     const changed = [
       'packages/a/src/x.test.ts',
       'packages/a/src/x.spec.mjs',
@@ -123,6 +128,7 @@ describe('coverage', () => {
       'packages/a/src/__snapshots__/x.snap',
       'packages/a/README.md',
       'apps/docs/src/page.ts',
+      
       'scripts/x.ts',
     ];
     const result = coverage({ root, changed, baseText: nothingAtBase });
@@ -132,7 +138,25 @@ describe('coverage', () => {
 
   it('counts a test-like name that is source', () => {
     const root = repo(two);
-    expect(coverage({ root, changed: ['packages/a/src/testing.ts', 'packages/a/src/contest.ts'], baseText: nothingAtBase }).needed).toHaveLength(1);
+    for (const path of ['packages/a/src/testing.ts', 'packages/a/src/my__tests__/x.ts', 'packages/a/src/x.test.ts.md', 'packages/a/src/x.snapshot.ts']) {
+      expect(coverage({ root, changed: [path], baseText: nothingAtBase }).needed, path).toHaveLength(1);
+    }
+  });
+
+  it('reads a source file that is JSON as source, even unchanged from the base', () => {
+    const root = repo({ ...two, 'packages/a/src/data.json': manifest('a') });
+    expect(coverage({ root, changed: ['packages/a/src/data.json'], baseText: () => manifest('a') }).needed).toHaveLength(1);
+  });
+
+  it('lists every changeset, and every package in each fix', () => {
+    const root = repo({ ...two, '.changeset/one.md': changeset('a'), '.changeset/two.md': changeset('@s/b') });
+    const both = ['packages/a/src/x.ts', 'packages/b/src/y.ts'];
+    expect(coverageText(coverage({ root, changed: ['.changeset/one.md', '.changeset/two.md', ...both], baseText: nothingAtBase }))).toBe(
+      'changesets: a, @s/b named in .changeset/one.md, .changeset/two.md',
+    );
+    const bare = repo({ ...two, 'packages/c/package.json': manifest('c'), '.changeset/c.md': changeset('c') });
+    expect(coverageText(coverage({ root: bare, changed: both, baseText: nothingAtBase }))).toContain("fix: run 'npx changeset' for a, @s/b, or");
+    expect(coverageText(coverage({ root: bare, changed: ['.changeset/c.md', ...both], baseText: nothingAtBase }))).toContain('fix: add "a": patch, "@s/b": patch (or');
   });
 
   it('needs nothing for a manifest whose only change is devDependencies, and something for any other', () => {
@@ -176,8 +200,14 @@ describe('coverage', () => {
   });
 
   it('escapes an ignore entry, so its dot is a dot', () => {
-    const root = repo({ '.changeset/config.json': JSON.stringify({ ignore: ['a.b'] }), 'packages/x/package.json': manifest('axb') });
-    expect(coverage({ root, changed: ['packages/x/src/i.ts'], baseText: nothingAtBase }).needed).toHaveLength(1);
+    const root = repo({
+      '.changeset/config.json': JSON.stringify({ ignore: ['a.b'] }),
+      'packages/x/package.json': manifest('axb'),
+      'packages/y/package.json': manifest('ab'),
+      'packages/z/package.json': manifest('a.b'),
+    });
+    const changed = ['x', 'y', 'z'].map((dir) => `packages/${dir}/src/i.ts`);
+    expect(coverage({ root, changed, baseText: nothingAtBase }).needed.map((one) => one.name)).toEqual(['axb', 'ab']);
   });
 
   it('reads only changesets the pull request still has, and not the README', () => {

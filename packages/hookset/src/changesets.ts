@@ -21,15 +21,15 @@ import { join } from 'node:path';
 export const DEFAULT_PATHS = String.raw`^packages/[^/]+/(src|package\.json)`;
 
 /** A test, a fixture or a snapshot: a consumer installs none of them. */
-const TEST = /(?:^|\/)__(?:tests|fixtures|mocks)__\/|\.(?:test|spec)\.[cm]?[jt]sx?$|\.snap$/u;
+const TEST = /\/__(?:tests|fixtures|mocks)__\/|\.(?:test|spec)\.[cm]?[jt]sx?$|\.snap$/u;
 
 const BUMPS: ReadonlySet<string> = new Set(['major', 'minor', 'patch', 'none']);
 
 /** A YAML key without its quotes; a quote left open leaves no name. */
-const unquoted = (key: string): string => {
+const unquoted = (key: string): string | undefined => {
   const quote = key[0];
   if (quote !== '"' && quote !== "'") return key;
-  return key.length > 1 && key.endsWith(quote) ? key.slice(1, -1) : '';
+  return key.endsWith(quote) ? key.slice(1, -1) : undefined;
 };
 
 /** The name one `name: bump` line of a changeset's front matter releases, the name quoted or bare. */
@@ -37,15 +37,19 @@ const releaseOf = (line: string): string | undefined => {
   const colon = line.lastIndexOf(':');
   if (!BUMPS.has(line.slice(colon + 1).trim())) return undefined;
   const name = unquoted(line.slice(0, colon).trim());
-  return name === '' || /["'\s]/u.test(name) ? undefined : name;
+  // Stryker disable next-line ConditionalExpression: equivalent, the pattern tests undefined as "undefined" and returns the same undefined
+  return name === undefined || name === '' || /["'\s]/u.test(name) ? undefined : name;
 };
 
 /** The package names a changeset's front matter releases. */
 export const releasesOf = (text: string): string[] => {
   const lines = text.replace(/\r\n/gu, '\n').split('\n');
+  // Stryker disable next-line OptionalChaining: equivalent, split always returns at least one line
   if (lines[0]?.trim() !== '---') return [];
   const end = lines.indexOf('---', 1);
-  return lines.slice(1, end === -1 ? 1 : end).flatMap((line) => releaseOf(line) ?? []);
+  if (end === -1) return [];
+  // Stryker disable next-line NumericLiteral: equivalent, line 0 is the opening `---`, which releases nothing
+  return lines.slice(1, end).flatMap((line) => releaseOf(line) ?? []);
 };
 
 /** A changeset file: a markdown file directly under .changeset/, other than its README. */
@@ -53,6 +57,7 @@ export const isChangeset = (path: string): boolean => /^\.changeset\/[^/]+\.md$/
 
 /** A manifest whose only change is `devDependencies`, given its text at the base and at the head. */
 export const devOnly = (base: string | undefined, head: string | undefined): boolean => {
+  // Stryker disable next-line ConditionalExpression,LogicalOperator: equivalent, JSON.parse throws on undefined and the catch answers false
   if (base === undefined || head === undefined) return false;
   try {
     const [a, b] = [base, head].map((text) => {
@@ -70,10 +75,12 @@ interface Config {
   readonly privateVersioned: boolean;
 }
 
+/** A JSON file's value, or `undefined` when it is missing or is not JSON. */
 const readJson = (file: string): Record<string, unknown> | undefined => {
-  if (!existsSync(file)) return undefined;
   try {
+    // Stryker disable next-line StringLiteral: equivalent, JSON.parse reads a Buffer as its text
     return JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>;
+    // Stryker disable next-line BlockStatement: equivalent, an empty catch also returns undefined
   } catch {
     return undefined;
   }
@@ -81,6 +88,7 @@ const readJson = (file: string): Record<string, unknown> | undefined => {
 
 const configOf = (root: string): Config => {
   const config = readJson(join(root, '.changeset', 'config.json')) ?? {};
+  // Stryker disable next-line ArrayDeclaration: equivalent, a one-entry list only ignores a package named "Stryker was here"
   const ignore = Array.isArray(config.ignore) ? config.ignore.filter((one): one is string => typeof one === 'string') : [];
   const privatePackages = config.privatePackages as { version?: unknown } | undefined;
   return { ignore, privateVersioned: privatePackages?.version !== false };
@@ -88,8 +96,8 @@ const configOf = (root: string): Config => {
 
 /** A changesets `ignore` entry as a test: `*` stands for any run of characters. */
 const globMatches = (glob: string, name: string): boolean =>
-  // eslint-disable-next-line secure-coding/detect-non-literal-regexp -- the repository's own changeset config, escaped
-  new RegExp(`^${glob.replace(/[.+?^${}()|[\]\\]/gu, String.raw`\$&`).replaceAll('*', '.*')}$`, 'u').test(name);
+  // Stryker disable next-line StringLiteral: equivalent, a package name is ASCII, which matches the same with or without the u flag
+  new RegExp(`^${glob.replace(/[.+?^${}()|[\]\\]/gu, String.raw`\$&`).replaceAll('*', '.*')}$`, 'u').test(name); // eslint-disable-line secure-coding/detect-non-literal-regexp -- the repository's own changeset config, escaped
 
 export interface Needed {
   readonly name: string;
@@ -121,14 +129,16 @@ export interface CoverageInput {
 
 /** The shipped files that changed, by package folder. */
 const shippedByDir = (input: CoverageInput): Map<string, string[]> => {
-  // eslint-disable-next-line secure-coding/detect-non-literal-regexp -- the calling workflow's own input
-  const paths = new RegExp(input.paths ?? DEFAULT_PATHS, 'u');
+  // Stryker disable next-line StringLiteral: equivalent, a path pattern from a workflow input is ASCII, the same with or without the u flag
+  const paths = new RegExp(input.paths ?? DEFAULT_PATHS, 'u'); // eslint-disable-line secure-coding/detect-non-literal-regexp -- the calling workflow's own input
   const byDir = new Map<string, string[]>();
   for (const path of input.changed) {
     if (!paths.test(path) || TEST.test(path)) continue;
     const dir = path.split('/').slice(0, 2).join('/');
     const head = join(input.root, path);
-    if (path === `${dir}/package.json` && devOnly(input.baseText(path), existsSync(head) ? readFileSync(head, 'utf8') : undefined)) continue;
+    // Stryker disable next-line StringLiteral: equivalent, JSON.parse reads a Buffer as its text
+    const headText = existsSync(head) ? readFileSync(head, 'utf8') : undefined;
+    if (path === `${dir}/package.json` && devOnly(input.baseText(path), headText)) continue;
     byDir.set(dir, [...(byDir.get(dir) ?? []), path]);
   }
   return byDir;
@@ -163,6 +173,6 @@ export const coverageText = (result: Coverage): string => {
   const fix =
     result.changesets.length === 0
       ? `fix: run 'npx changeset' for ${result.uncovered.map((one) => one.name).join(', ')}, or add the 'skip-changeset' label for internal-only work`
-      : `fix: add "${result.uncovered[0]?.name ?? ''}": patch (or the right bump) for each package above to a changeset, or add the 'skip-changeset' label for internal-only work`;
+      : `fix: add ${result.uncovered.map((one) => `"${one.name}": patch`).join(', ')} (or the right bump) to a changeset, or add the 'skip-changeset' label for internal-only work`;
   return [`changesets: ${String(result.uncovered.length)} package(s) ship a change no changeset names:`, ...lines, fix].join('\n');
 };
