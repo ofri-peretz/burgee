@@ -284,6 +284,8 @@ export const MIN_DISABLE_REASON = 15;
 const DIRECTIVE = /^\s*\/\/\s*Stryker\s+(?:disable|restore)\b/u;
 /** A line that starts by closing a bracket: a comment above it leads no node. */
 const CLOSES = /^\s*[}\])]/u;
+/** A Stryker directive inside a block comment, on its opening line or on a ` * ` line within it. */
+const BLOCK_DIRECTIVE = /(?:\/\*+|^\s*\*)\s*Stryker\s+(?:disable|restore)\b/u;
 
 /** Every `Stryker disable` comment in `source` without a reason, and every directive Stryker cannot see, as `file:line: why`. */
 export function disableProblems(file: string, source: string): string[] {
@@ -300,6 +302,10 @@ export function disableProblems(file: string, source: string): string[] {
     }
   });
   lines.forEach((text, i) => {
+    if (!DIRECTIVE.test(text) && BLOCK_DIRECTIVE.test(text)) {
+      problems.push(`${file}:${String(i + 1)}: this Stryker directive sits in a block comment, and oxmutate reads directives only from \`//\` comments, so it masks nothing. fix: write it as a \`// Stryker ...\` line comment`);
+      return;
+    }
     if (!DIRECTIVE.test(text)) return;
     const next = lines.slice(i + 1).find((l) => l.trim() !== '' && !/^\s*(?:\/\/|\/\*|\*)/u.test(l));
     if (next !== undefined && CLOSES.test(next)) {

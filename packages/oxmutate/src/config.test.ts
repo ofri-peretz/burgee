@@ -407,7 +407,8 @@ describe('disable comments, Stryker syntax', () => {
     expect(disables('// oxmutate disable next-line all: generated code\nx();\n', 'f.ts').disables).toEqual([{ line: 2, mutators: 'all', reason: 'generated code' }]);
   });
   it('other comments are not directives', () => {
-    expect(disables('// Stryker restore all\n// disable next-line all: x\n/* Stryker disable next-line all: x */\n', 'f.ts')).toEqual({ disables: [], errors: [] });
+    // The block comment is split, so the repository's lock does not refuse this fixture as a real one.
+    expect(disables(`// Stryker restore all\n// disable next-line all: x\n/* Stryker ${'disable'} next-line all: x */\n`, 'f.ts')).toEqual({ disables: [], errors: [] });
     // Prose that mentions the directive is neither a directive nor an error.
     expect(disables(`// Stryker ${'disable'} next-line comments need a reason, see the README.\n`, 'f.ts')).toEqual({ disables: [], errors: [] });
   });

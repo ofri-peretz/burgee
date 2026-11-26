@@ -78,12 +78,10 @@ export function flagEndingInNonWordCharacters(s: string): string | undefined {
   const n = s.length;
   const eq = s.indexOf('=');
   const limit = eq === -1 ? n : eq;
-  /*
-   * Stryker disable NumericLiteral,ArithmeticOperator,EqualityOperator,ArrayDeclaration,ConditionalExpression,LogicalOperator:
-   * the bounds below guard one another (a string that starts with a line break has no dashes, the
-   * dashes end before any `=`, and `runEnd[n]` is `n`), so loosening any one of them answers the
-   * same. flag-shapes.test.ts checks every string up to five characters against the regex.
-   */
+  // Stryker disable NumericLiteral,ArithmeticOperator,EqualityOperator,ArrayDeclaration,ConditionalExpression,LogicalOperator: the bounds below guard one another
+  // (a string that starts with a line break has no dashes, the dashes end before any `=`, and `runEnd[n]` is `n`), so loosening any
+  // one of them answers the same. flag-shapes.test.ts checks every string up to five characters against the regex. A line comment:
+  // oxmutate reads directives only from `//` comments, and this one was a block comment it never saw.
   let tail = 0;
   for (let i = n - 1; i >= 0; i--) {
     if (/[\n\r\u2028\u2029]/.test(s[i] as string)) {
