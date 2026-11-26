@@ -396,6 +396,10 @@ export function oxmutateConfig(o: RunOptions & { pkg: string; host?: boolean | u
     // In the lane's container unless `host`: the host builds nothing and starts no mutant. `false`
     // also overrides a machine-wide OXMUTATE_CONTAINER, whose container has no build of this checkout.
     container: o.host ? false : laneContainer(o.pkg),
+    // Dogfoods oxmutate's memory cleanup: a warm server holding more than a quarter of the memory
+    // (the container's limit in the lane) is recycled between units, so the two servers and the
+    // spare stay under three quarters and a long run gives memory back instead of being OOM-killed.
+    resources: { workerMemoryLimit: '25%' },
   };
 }
 
