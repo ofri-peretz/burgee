@@ -10,6 +10,8 @@ import { fileURLToPath } from 'node:url';
 
 const CODE = /\.(?:[cm]?[jt]sx?)$/;
 
+const vitest = (args) => spawnSync('npx', ['--no', 'vitest', 'run', '--config', 'vitest.root.config.ts', '--bail=1', ...args], { stdio: 'inherit' }).status ?? 1;
+
 /** Root test files whose source names a changed non-code file. Basename match: a superset, never fewer. */
 export function readersOf(changed, tests) {
   const names = [...new Set(changed.filter((f) => !CODE.test(f)).map((f) => basename(f)))];
@@ -30,7 +32,6 @@ if (process.argv[1] && realpathSync(fileURLToPath(import.meta.url)) === realpath
       .filter((f) => String(f).endsWith('.test.ts'))
       .map((f) => [join('scripts', String(f)), readFileSync(join('scripts', String(f)), 'utf8')]),
   );
-  const vitest = (args) => spawnSync('npx', ['--no', 'vitest', 'run', '--config', 'vitest.root.config.ts', '--bail=1', ...args], { stdio: 'inherit' }).status ?? 1;
   const first = vitest(['--changed', base]);
   if (first !== 0) process.exit(first);
   const readers = readersOf(changed, tests);
