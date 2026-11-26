@@ -22,10 +22,25 @@ function hook(file: string, payload: unknown, env: Record<string, string> = {}):
 
 const decision = (out: string): string | undefined => (out ? (JSON.parse(out) as { hookSpecificOutput: { permissionDecision: string } }).hookSpecificOutput.permissionDecision : undefined);
 
+/** A repo with a commitlint config, a stand-in commitlint CLI (rejects scope zzz) and the provedone station. */
+const repo = (): string => {
+  const dir = scratch('hookset-commitmsg-');
+  mkdirSync(join(dir, 'node_modules/@commitlint/cli'), { recursive: true });
+  writeFileSync(
+    join(dir, 'node_modules/@commitlint/cli/cli.js'),
+    'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const bad=/^\\w+\\(zzz\\)/.test(s);if(bad)console.log("\\u2716 scope must be one of [ci] [scope-enum]");process.exit(bad?1:0)})',
+  );
+  writeFileSync(join(dir, 'commitlint.config.mjs'), 'export default {};\n');
+  writeFileSync(join(dir, 'package.json'), JSON.stringify({ scripts: { 'hook:provedone': 'provedone gate' } }));
+  return dir;
+};
+const ask = (command: string, dir: string): string =>
+  hook('guard-bash.mjs', { tool_name: 'Bash', tool_input: { command, run_in_background: true } }, { CLAUDE_PROJECT_DIR: dir });
+
 describe('guard-bash', () => {
   it('passes its own deny, allow and ask cases', () => {
     const r = spawnSync(process.execPath, [join(CLAUDE, 'guard-bash.mjs'), '--self-test'], { encoding: 'utf8' });
-    expect(r.stdout).toMatch(/^ok: \d+ denied, \d+ allowed, \d+ asked, \d+ timed, \d+ edits\n$/);
+    expect(r.stdout).toMatch(/^ok: \d+ denied, \d+ allowed, \d+ asked, \d+ timed, \d+ edits, \d+ messages\n$/);
     expect(r.status).toBe(0);
   });
 
@@ -48,6 +63,24 @@ describe('guard-bash', () => {
     const out = hook('guard-bash.mjs', { tool_name: 'Bash', tool_input: { command: 'git push -u origin x', ...input } });
     expect(decision(out)).toBe(want);
     if (want) expect(out).toContain('timeout: 600000');
+  });
+
+  describe('a commit message the commit-msg stations would reject', () => {
+    it.each([
+      ['git commit -m "feat(zzz): x\n\nVerified-by: t -> exit 0"', 'scope must be one of'],
+      ['git commit -m "feat(ci): x"', 'Verified-by'],
+    ])('denies %s, naming the fix', (command, fix) => {
+      const out = ask(command, repo());
+      expect(decision(out)).toBe('deny');
+      expect(out).toContain(fix);
+    });
+
+    it('leaves a valid message, an interactive commit and a repo without commitlint alone', () => {
+      const dir = repo();
+      expect(ask('git commit -m "feat(ci): x\n\nVerified-by: t -> exit 0"', dir)).toBe('');
+      expect(ask('git commit', dir)).toBe('');
+      expect(ask('git commit -m "feat(zzz): x"', scratch('hookset-nolint-'))).toBe('');
+    });
   });
 
   it("asks before a command the repo lists and denies an edit under a frozen glob, from the repo's hookset.json", () => {
