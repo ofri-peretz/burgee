@@ -3,6 +3,16 @@ title: Changelog
 description: "Every release of hookset, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 1.4.1
+
+### Patch Changes
+
+- [#1884](https://github.com/ofri-peretz/burgee/pull/1884) [`51710bf`](https://github.com/ofri-peretz/burgee/commit/51710bfa31ec5bbd2da8e89bc032526fc68cd98b) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `hookset worktrees --size` sizes each worktree after every worktree's git has finished. A linked
+  worktree's index lives under the main one's `.git/worktrees/`, so sizing the main tree while
+  another worktree's `git status` rewrote that index read a size that was gone a moment later.
+- Updated dependencies [[`51710bf`](https://github.com/ofri-peretz/burgee/commit/51710bfa31ec5bbd2da8e89bc032526fc68cd98b)]:
+  - burgee@2.2.4
+
 ## 1.4.0
 
 ### Minor Changes
