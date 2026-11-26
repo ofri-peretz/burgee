@@ -297,7 +297,7 @@ describe('runCompare', () => {
   it('fails on a changed output with the entry that approves it, and passes once that entry is in the config', async () => {
     const repo = repoWith(COMPARE_YAML);
     const failure = runCompare({ repo, config: '.sdlc/replz/compare.yaml', base: 'origin/main', head: 'HEAD', shell: cli(true), worktrees: trees().worktrees });
-    await expect(failure).rejects.toThrow(/b\.txt: line 3 changed\n {2}- B in <0>\n {2}\+ b!\n {2}approve: \{ input: b\.txt, base: [0-9a-f]{12}, head: [0-9a-f]{12}, reason: <why> \}\n\nfix: repair the change/);
+    await expect(failure).rejects.toThrow(/b\.txt: line 3 changed\n {2}- B in <0>\n {2}\+ b!\n {2}approve: \{ input: "b\.txt", base: [0-9a-f]{12}, head: [0-9a-f]{12}, reason: <why> \}\n\nfix: repair the change/);
     const message = await failure.then(String, (error: unknown) => (error as Error).message);
     const entry = /approve: (\{.*\})/.exec(message)?.[1]?.replace('<why>', 'the new output is right') as string;
     writeFileSync(join(repo, '.sdlc/replz/compare.yaml'), `${COMPARE_YAML}approved:\n  - ${entry}\n`);

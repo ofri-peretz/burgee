@@ -163,7 +163,7 @@ export const compareText = (report: CompareReport, refs: { readonly base: string
     `${one.input}: line ${String(one.at.line)} changed`,
     `  - ${one.at.base}`,
     `  + ${one.at.head}`,
-    `  approve: { input: ${one.input}, base: ${one.base}, head: ${one.head}, reason: <why> }`,
+    `  approve: { input: ${JSON.stringify(one.input)}, base: ${one.base}, head: ${one.head}, reason: <why> }`,
   ]);
   const stale = report.stale.map((entry) => `stale approval for ${entry.input} (${entry.base} -> ${entry.head}): no run matched it, so it can go`);
   return [head, ...differs, ...(stale.length === 0 ? [] : ['', ...stale])].join('\n');

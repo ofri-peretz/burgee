@@ -143,7 +143,7 @@ describe('compareText', () => {
         'b.txt: line 2 changed',
         '  - x',
         '  + y',
-        '  approve: { input: b.txt, base: 0123456789ab, head: ba9876543210, reason: <why> }',
+        '  approve: { input: "b.txt", base: 0123456789ab, head: ba9876543210, reason: <why> }',
         '',
         'stale approval for c.txt (000000000000 -> 111111111111): no run matched it, so it can go',
       ].join('\n'),

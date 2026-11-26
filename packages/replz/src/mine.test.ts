@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { type Comment, candidatesMarkdown, type Finding, findingsOf, ghQueries, mine, parseComments, prose, RULE_BOTS, wordsOf } from './mine.js';
+import { type Comment, candidatesMarkdown, cut, type Finding, findingsOf, ghQueries, mine, parseComments, prose, RULE_BOTS, wordsOf } from './mine.js';
 
 const comment = (over: Partial<Comment>): Comment => ({
   pr: 1,
@@ -105,6 +105,33 @@ describe('findingsOf', () => {
       author: 'claude[bot]',
       text: '[Nit] `a.ts:3` plain tag',
     });
+  });
+});
+
+describe('cut', () => {
+  it('replaces each run from open to the first close after it with a space', () => {
+    expect(cut('a<!--x-->b<!--y-->c', '<!--', '-->')).toBe('a b c');
+    expect(cut('a```x```b```', '```', '```')).toBe('a b```');
+    expect(cut('a<!---->b', '<!--', '-->')).toBe('a b');
+  });
+
+  it('keeps an open with no close, and the text after it', () => {
+    expect(cut('a<!--b<!--c', '<!--', '-->')).toBe('a<!--b<!--c');
+    expect(cut('a<b>c<d', '<', '>')).toBe('a c<d');
+    expect(cut('plain', '<', '>')).toBe('plain');
+  });
+
+  it('looks for the close after the open, not inside it', () => {
+    expect(cut('a```b', '```', '```')).toBe('a```b');
+    expect(cut('a<!-->b-->c', '<!--', '-->')).toBe('a c');
+  });
+
+  it('stays linear on many opens with no close', () => {
+    const many = '<!--'.repeat(50_000);
+    const started = performance.now();
+    expect(cut(many, '<!--', '-->')).toBe(many);
+    expect(cut(`x${']('.repeat(50_000)}`, '](', ')')).toHaveLength(100_001);
+    expect(performance.now() - started).toBeLessThan(2_000);
   });
 });
 

@@ -93,15 +93,35 @@ export const findingsOf = (comment: Comment): Finding[] => {
 };
 
 /**
+ * `text` with every run from `open` to the first `close` after it replaced by a space, as a lazy
+ * `open[\s\S]*?close` would, in one pass: the regular expression is polynomial on a comment that
+ * repeats `open` with no `close` (CodeQL js/polynomial-redos), and review comments are anyone's.
+ */
+export const cut = (text: string, open: string, close: string): string => {
+  const parts: string[] = [];
+  let at = 0;
+  for (let start = text.indexOf(open); start !== -1; start = text.indexOf(open, at)) {
+    const end = text.indexOf(close, start + open.length);
+    if (end === -1) break;
+    parts.push(text.slice(at, start), ' ');
+    at = end + close.length;
+  }
+  parts.push(text.slice(at));
+  return parts.join('');
+};
+
+/**
  * What a reviewer wrote, without the machinery around it: HTML comments, folded `<details>` (a
  * bot's prompt for an agent), fenced code (a suggested patch), tags, badge lines and status lines.
  */
 export const prose = (body: string): string =>
-  body
-    .replace(/<!--[\s\S]*?-->/gu, ' ')
-    .replace(/<details>[\s\S]*?<\/details>/gu, ' ')
-    .replace(/```[\s\S]*?```/gu, ' ')
-    .replace(/<[^>]*>/gu, ' ')
+  [
+    ['<!--', '-->'],
+    ['<details>', '</details>'],
+    ['```', '```'],
+    ['<', '>'],
+  ]
+    .reduce((text, [open, close]) => cut(text, open as string, close as string), body)
     .split('\n')
     .filter((line) => !BADGES.test(line.trim()) && !line.trim().startsWith('✅'))
     .join('\n')
@@ -130,8 +150,7 @@ const STOP: ReadonlySet<string> = new Set(
  * wrong, not where.
  */
 export const wordsOf = (text: string): string[] =>
-  text
-    .replace(/\]\([^)]*\)/gu, ' ')
+  cut(text, '](', ')')
     // Stryker disable next-line StringLiteral: equivalent, a URL runs to whitespace, so its replacement always sits beside a separator
     .replace(/https?:\/\/\S+/gu, ' ')
     .toLowerCase()
