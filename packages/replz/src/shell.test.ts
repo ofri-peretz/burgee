@@ -5,7 +5,7 @@ import { ambientRuntime, run } from 'bellpull';
 import { describe, expect, it } from 'vitest';
 
 import { scratchDirs } from './__fixtures__/scratch-dir.js';
-import { logOf, sh, worktreesIn } from './shell.js';
+import { ghOf, logOf, sh, worktreesIn } from './shell.js';
 
 // From a worktree's pre-push, an inherited GIT_DIR would point `git init` at the real repository.
 const withoutGit = (): NodeJS.ProcessEnv => Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')));
@@ -64,5 +64,17 @@ describe('worktreesIn and logOf', () => {
     await git(repo, 'init', '-q', '--template=', '-b', 'main');
     await expect(worktreesIn(repo).add('nope')).rejects.toThrow(/^git worktree add --detach .+ nope failed: fatal: [^\n]+[^\s]\. fix: fetch the commit the case names$/);
     await expect(logOf(repo, ['log', 'nope'])).rejects.toThrow(/^git log nope failed: fatal: [\s\S]+[^\s]\. fix: run it inside a clone with history \(not a shallow one\)$/);
+  });
+});
+
+describe('ghOf', () => {
+  it('runs gh in the repository and returns what it printed', async () => {
+    expect(await ghOf(scratch('replay-gh-'), ['version'])).toMatch(/^gh version \d/);
+  });
+
+  it('names the command, not its jq filter, and says how to sign in when gh fails', async () => {
+    await expect(ghOf(scratch('replay-gh-'), ['not-a-command', '--x', 'path', 'filter-not-shown'])).rejects.toThrow(
+      /^gh not-a-command --x path failed: [^\n]*\S.*\. fix: install gh and run `gh auth login`, or set GH_TOKEN$/s,
+    );
   });
 });
