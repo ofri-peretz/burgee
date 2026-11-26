@@ -51,7 +51,9 @@ jobs:
           if echo ",$LABELS," | grep -q ',skip-changeset,'; then echo "status=skipped" >> "$GITHUB_OUTPUT"; exit 0; fi
           added=$(git diff --name-only --diff-filter=A "$BASE_SHA"..."$HEAD_SHA" \
             | grep -E '^\.changeset/[^/]+\.md$' | grep -vE '^\.changeset/README\.md$' || true)
-          src=$(git diff --name-only "$BASE_SHA"..."$HEAD_SHA" | grep -E "$PATHS" || true)
+          # A test, fixture or snapshot ships nothing, so a change to them alone needs no changeset.
+          src=$(git diff --name-only "$BASE_SHA"..."$HEAD_SHA" | grep -E "$PATHS" \
+            | grep -vE '(^|/)__(tests|fixtures|mocks)__/|\.(test|spec)\.[cm]?[jt]sx?$|\.snap$' || true)
           if [ -n "$added" ]; then echo "status=present" >> "$GITHUB_OUTPUT"
           elif [ -z "$src" ]; then echo "status=not-needed" >> "$GITHUB_OUTPUT"
           else echo "status=missing" >> "$GITHUB_OUTPUT"
@@ -72,6 +74,56 @@ jobs:
           $INSTALL
           git fetch --no-tags --quiet origin "$BASE_REF"
           npx changeset status --since="origin/$BASE_REF"
+
+      # Presence is not coverage: a changeset for package A passed a PR that also shipped package B.
+      # Every package whose shipped files changed is named in a changeset, read by hookset's
+      # changesets.ts at the tag lefthook.yml pins (no install, no build), as hookset-check does.
+      - name: The hookset tag lefthook.yml pins
+        id: pin
+        if: steps.check.outputs.status == 'present'
+        run: |
+          ref=$(grep -oE 'hookset@[0-9]+\.[0-9]+\.[0-9]+[^[:space:]"'"'"']*' lefthook.yml 2>/dev/null | head -1 || true)
+          echo "ref=${ref:-main}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.check.outputs.status == 'present'
+        with:
+          repository: ofri-peretz/burgee
+          ref: ${{ steps.pin.outputs.ref }}
+          path: .hookset
+          sparse-checkout: packages/hookset
+          persist-credentials: false
+
+      # changesets.ts runs by type stripping, which needs Node 22.18 or later whatever .nvmrc says.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
+        if: steps.check.outputs.status == 'present'
+        with:
+          node-version: 24
+
+      - name: Every package that ships a change is named in a changeset
+        if: steps.check.outputs.status == 'present'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PATHS: ${{ inputs.paths }}
+        run: |
+          if [ ! -f .hookset/packages/hookset/src/changesets.ts ]; then
+            echo "Per-package coverage needs a hookset tag with src/changesets.ts; this repo pins an older one."
+            exit 0
+          fi
+          node --input-type=module -e '
+            import { execFileSync } from "node:child_process";
+            const cs = await import(`${process.cwd()}/.hookset/packages/hookset/src/changesets.ts`);
+            const git = (...args) => execFileSync("git", args, { encoding: "utf8", maxBuffer: 1 << 26 });
+            const { BASE_SHA: base, HEAD_SHA: head, PATHS: paths } = process.env;
+            const changed = git("diff", "--name-only", `${base}...${head}`).split("\n").filter(Boolean);
+            const at = git("merge-base", base, head).trim();
+            const baseText = (path) => { try { return git("show", `${at}:${path}`); } catch { return undefined; } };
+            const result = cs.coverage({ root: process.cwd(), changed, baseText, paths });
+            console.log(cs.coverageText(result));
+            for (const one of result.uncovered) console.log(`::error::${one.name} ships a change (${one.files.join(", ")}) that no changeset names`);
+            process.exitCode = result.uncovered.length === 0 ? 0 : 1;
+          '
 
       - name: Fail when the changeset is missing
         if: steps.check.outputs.status == 'missing'

@@ -437,7 +437,8 @@ jobs:
           added=$(git diff --name-only --diff-filter=A "$BASE_SHA"..."$HEAD_SHA" \
             | grep -E '^\.changeset/[^/]+\.md$' | grep -vE '^\.changeset/(README|config)\.md$' || true)
           src=$(git diff --name-only "$BASE_SHA"..."$HEAD_SHA" \
-            | grep -E '^packages/[^/]+/(src|package\.json)' || true)
+            | grep -E '^packages/[^/]+/(src|package\.json)' \
+            | grep -vE '(^|/)__(tests|fixtures|mocks)__/|\.(test|spec)\.[cm]?[jt]sx?$|\.snap$' || true)
           # A Dependabot PR that moves only `devDependencies` in a package's manifest ships
           # nothing to that package's users. Without this, every grouped bump that touched a
           # package's test tooling went red here (#571), and no one owned the PR to add the
@@ -496,6 +497,31 @@ jobs:
           set -euo pipefail
           git fetch --no-tags --quiet origin main
           npx changeset status --since=origin/main
+
+      # Presence of a changeset is not coverage: one changeset for package A passed a PR that also
+      # shipped a change to package B, and a reviewer wrote the miss by hand in four PRs (#1839,
+      # #1854, #1861, #1870; `replz mine`, .sdlc/replz/rule-candidates.md). Every package whose
+      # shipped files changed (source that is not a test or fixture, a manifest beyond
+      # devDependencies) is named in a changeset here. packages/hookset/src/changesets.ts.
+      - name: Every package that ships a change is named in a changeset
+        if: steps.check.outputs.status == 'present'
+        env:
+          BASE_SHA: ${{ steps.pr.outputs.base }}
+          HEAD_SHA: ${{ steps.pr.outputs.head }}
+        run: |
+          node --input-type=module -e '
+            import { execFileSync } from "node:child_process";
+            const cs = await import(`${process.cwd()}/packages/hookset/src/changesets.ts`);
+            const git = (...args) => execFileSync("git", args, { encoding: "utf8", maxBuffer: 1 << 26 });
+            const { BASE_SHA: base, HEAD_SHA: head } = process.env;
+            const changed = git("diff", "--name-only", `${base}...${head}`).split("\n").filter(Boolean);
+            const at = git("merge-base", base, head).trim();
+            const baseText = (path) => { try { return git("show", `${at}:${path}`); } catch { return undefined; } };
+            const result = cs.coverage({ root: process.cwd(), changed, baseText });
+            console.log(cs.coverageText(result));
+            for (const one of result.uncovered) console.log(`::error::${one.name} ships a change (${one.files.join(", ")}) that no changeset names`);
+            process.exitCode = result.uncovered.length === 0 ? 0 : 1;
+          '
 
       # The changeset lock: burgee 1.5.0 refused surplus positionals and
       # flagstaff 1.2.0 threw on `#GGG`, both as minors, when commander 13 and boxen 9 had

@@ -70,6 +70,11 @@ hookset worktrees --prune  # remove the clean ones whose commits are all on a re
 | `context` | CLAUDE.md, its `@`-imports and every skill, command and subagent description (less the skills marked `disable-model-invocation: true`) come to more tokens than `context.tokens` in `.claude/hookset.json`; `--update` lowers that ceiling and never raises it |
 | `worktrees` | git refused to remove a worktree `--prune` chose. Only a worktree that is not the main or current one, not locked, has an empty `git status`, has every commit on a remote and is unchanged for `--older-than` days (default 3) is removed, with `git worktree remove` (never `--force`); branches are kept. `--include-local-commits` lets a commit that is only on this machine go too. `git worktree lock <path>` keeps any worktree out of every sweep |
 
+The shared `changeset-gate` workflow imports `src/changesets.ts` at the tag `lefthook.yml`
+pins: every package whose shipped files changed (source that is not a test, fixture or
+snapshot, or a manifest beyond `devDependencies`) must be named in one of the PR's changesets,
+or the PR carries the `skip-changeset` label. A test-only change needs no changeset.
+
 ## Migrating
 
 The switch is one command, `npx hookset init`, and husky's folder comes out:
@@ -111,7 +116,7 @@ No suite is graded against this package yet, so there is no compatibility number
 
 | Import | What it gives you |
 | :-- | :-- |
-| `hookset` | `parseRemotes()`, `checkRepo()`, `checkText()`, `initRepo()`, `lefthookTemplate()`, `loadStations()` and `program` |
+| `hookset` | `parseRemotes()`, `checkRepo()`, `checkText()`, `initRepo()`, `lefthookTemplate()`, `loadStations()`, `coverage()`, `coverageText()` and `program` |
 
 The `hookset` bin is that API, declared once on burgee.
 
