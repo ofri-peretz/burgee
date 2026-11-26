@@ -1,0 +1,72 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Differential (replz compare)
+
+# The same inputs through the PR's base and its head (.sdlc/intents/replz-compare/): every output
+# that changed fails the run, unless `approved` in .sdlc/replz/compare.yaml names that exact
+# change with a reason. A pass/fail suite tolerates drift no test pinned; this does not.
+#
+# The base is a git worktree with its own `npm ci` and build (the config's `setup`), so neither
+# tree borrows the other's node_modules or dist. Both installs read the one ~/.npm cache, and both
+# builds share one Turbo cache directory, saved per base commit: the base's build is a cache hit
+# from the second push on, and the head rebuilds only the packages it changed.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "packages/**"
+      - ".sdlc/replz/**"
+      - "package-lock.json"
+      - ".github/workflows/replz-compare.yml"
+
+concurrency:
+  group: replz-compare-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    name: replz compare
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      # Full history: the base commit is checked out as a worktree beside this one.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          turbo-cache: "false"
+
+      - name: Restore the shared Turbo cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
+        with:
+          path: ${{ runner.temp }}/turbo-compare
+          key: replz-compare-turbo-${{ github.event.pull_request.base.sha }}-${{ github.event.pull_request.head.sha }}
+          restore-keys: |
+            replz-compare-turbo-${{ github.event.pull_request.base.sha }}-
+            replz-compare-turbo-
+
+      - name: Build replz
+        env:
+          TURBO_CACHE_DIR: ${{ runner.temp }}/turbo-compare
+        run: npx turbo run build --filter=replz...
+
+      - name: Compare base and head
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          TURBO_CACHE_DIR: ${{ runner.temp }}/turbo-compare
+        # The checkout is the PR merged into the base's tip, so the base's tip is the right other
+        # side: whatever differs between them is this PR's change.
+        run: |
+          set -o pipefail
+          node packages/replz/dist/bin.js compare --base "$BASE_SHA" 2>&1 | tee "$RUNNER_TEMP/compare.log"
+
+      - name: Summary
+        if: always()
+        run: |
+          { echo '## replz compare'; echo; echo '```'; cat "$RUNNER_TEMP/compare.log" || echo '(no output)'; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
