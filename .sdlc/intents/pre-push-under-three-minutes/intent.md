@@ -56,8 +56,13 @@ checks after merge and is not changed by this intent.
 
 ## Open questions
 
-- Is the 163 s `weight-page` esbuild time, or regeneration of all 77 subpaths? Time
-  `npm run weight:page -- --check` alone on a warm tree first.
-- Should `battery` and `weight-page` share one build instead of each building? The lefthook
-  comment says `weight-page` runs "after the battery has built every package"; check whether it
-  rebuilds anyway.
+None open.
+
+## Measured first, at design
+
+Not unknowns about what is wanted; the design measures them before choosing a cut.
+
+- Whether the 163 s of `weight-page` is esbuild or regenerating all 77 subpaths: time
+  `npm run weight:page -- --check` alone on a warm tree.
+- Whether `weight-page` rebuilds what `battery` already built; the lefthook comment says it runs
+  "after the battery has built every package".
