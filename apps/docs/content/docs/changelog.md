@@ -3,6 +3,14 @@ title: Changelog
 description: "Every release of burgee, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 2.2.4
+
+### Patch Changes
+
+- [#1884](https://github.com/ofri-peretz/burgee/pull/1884) [`51710bf`](https://github.com/ofri-peretz/burgee/commit/51710bfa31ec5bbd2da8e89bc032526fc68cd98b) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Internal simplifications found while settling the full mutation run's survivors: a numeric
+  option's bounds, the usage tree's `within`, and `burgee migrate`'s project reads, release-age
+  floors and registry fetch. Behaviour is unchanged; the core entry is 25 bytes lighter.
+
 ## 2.2.3
 
 ### Patch Changes
