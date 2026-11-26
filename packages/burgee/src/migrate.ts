@@ -1494,7 +1494,7 @@ const CALLS: ReadonlyMap<string, ReadonlyMap<string, Call>> = new Map([
       ['doUnmock', 'refers'],
       // Stryker disable next-line StringLiteral: every kind but `refers` and `requires` is read alike, as `import()` loads
       ['importActual', 'imports'],
-      // Stryker disable next-line StringLiteral: as above
+      // Stryker disable next-line StringLiteral: every kind but `refers` and `requires` is read alike, as a mocked `import()` loads
       ['importMock', 'imports'],
     ]),
   ],
@@ -2381,10 +2381,10 @@ type Setting = Omit<ReleaseAge, 'pins' | 'note'> & { key: string };
  */
 export async function releaseAgeOf(dir: string): Promise<Setting | null> {
   for (const { file, key, exclude, separator } of RELEASE_AGE) {
-    // Stryker disable StringLiteral: a missing file is any text that names no key
+    // Stryker disable StringLiteral,ArrowFunction: a missing file is any text that names no key, `undefined` read as a string included
     // eslint-disable-next-line reliability/no-await-in-loop -- three small files, in the order a reader would look, and the first one that answers wins
     const text = String(await readFile(join(dir, file)).catch(() => ''));
-    // Stryker restore StringLiteral
+    // Stryker restore StringLiteral,ArrowFunction
     const lines = text.split('\n');
     for (const line of lines) {
       if (!line.startsWith(key)) continue;
@@ -2828,8 +2828,8 @@ async function writeAll(dir: string, changed: readonly { file: string; source: s
     // eslint-disable-next-line reliability/no-await-in-loop -- the await IS the bound (A10), as in the read loop
     await Promise.all(changed.slice(i, i + BATCH).map(async ({ file, source }) => await writeFile(join(dir, file), source)));
   }
-  // Stryker restore EqualityOperator,MethodExpression
 }
+// Stryker restore EqualityOperator,MethodExpression
 
 /* ------------------------------------------------------------------ the text surface */
 

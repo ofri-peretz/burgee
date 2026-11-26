@@ -14,6 +14,8 @@ import { scratchDirs } from './__fixtures__/scratch-dir.js';
 import { DirtyTreeError, exempted, familyVersions, INCUMBENTS, migrate, type MigrateOptions, type MigrationReport, releaseAgeOf, sourceFiles, textOf, UnknownIncumbentError, workingTree } from './migrate.js';
 
 const scratch = scratchDirs();
+/** The environment without the hook's GIT_* variables, so `git init` makes the scratch repository and not the caller's. */
+const withoutGit = (): NodeJS.ProcessEnv => Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')));
 
 function project(files: Record<string, string>): string {
   const dir = scratch('burgee-migrate-project-');
@@ -214,7 +216,7 @@ describe('the refusals', () => {
 
   it('reads the tree’s entries without the empty line after the last', async () => {
     const dir = project({ 'a.ts': '' });
-    spawnSync('git', ['init', '-q', dir]);
+    spawnSync('git', ['init', '-q', dir], { env: withoutGit() });
     expect(await workingTree(dir)).toEqual(['?? a.ts']);
   });
 });
