@@ -64,7 +64,7 @@ describe('Protect main', () => {
   const protect = declarations.filter((d) => d.ruleset.name === 'Protect main');
 
   it('covers every code repo once, never asking for an approving review Claude cannot give itself', () => {
-    expect(protect.flatMap((d) => d.repos).sort()).toEqual(['agents', 'blog', 'burgee', 'eslint', 'interlace', 'serverless', 'subagent-gateway']);
+    expect(protect.flatMap((d) => d.repos).sort()).toEqual(['agents', 'blog', 'burgee', 'eslint', 'impact-ingest', 'interlace', 'serverless', 'subagent-gateway']);
     for (const d of protect) {
       const pr = (d.ruleset.rules as { type: string; parameters?: { required_approving_review_count?: number } }[]).find((r) => r.type === 'pull_request');
       if (pr !== undefined) expect(pr.parameters?.required_approving_review_count).toBe(0);
