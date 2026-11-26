@@ -71,12 +71,17 @@
     },
     "burgee": {
       "status": "measured",
-      "floor": 90.9,
+      "floor": 96.7,
       "history": [
         {
           "floor": 90.9,
           "setOn": "2026-10-24",
           "why": "First full run, at 80c8eaa52b: 90.95% (12495 detected of 13738), rounded down to one decimal."
+        },
+        {
+          "floor": 96.7,
+          "setOn": "2026-11-26",
+          "why": "Weekly run at 95ed437712 measured 96.77%, above the 90.9% floor; the floor follows it up."
         }
       ],
       "observations": [
@@ -99,6 +104,16 @@
           "survived": 1765,
           "noCoverage": 73,
           "minutes": 922.28
+        },
+        {
+          "date": "2026-11-26",
+          "commit": "95ed437712",
+          "score": 96.77,
+          "killed": 15024,
+          "timeout": 120,
+          "survived": 505,
+          "noCoverage": 1,
+          "minutes": 290.28
         }
       ]
     },
