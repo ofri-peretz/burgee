@@ -78,7 +78,7 @@ export const childrenOf = (manifest: Manifest, node: CommandNode): CommandNode[]
   manifest.commands.filter((c) => c.hidden !== true && c.path.length === node.path.length + 1 && node.path.every((seg, i) => c.path[i] === seg));
 
 /** Whether `c` is `group` or sits anywhere below it. */
-const within = (c: CommandNode, group: CommandNode): boolean => group.path.length <= c.path.length && group.path.every((seg, i) => c.path[i] === seg);
+const within = (c: CommandNode, group: CommandNode): boolean => group.path.every((seg, i) => c.path[i] === seg);
 
 /** Every visible command that runs, at any depth below `node`, in declaration order; a hidden group hides what it holds. */
 export const runnableBelow = (manifest: Manifest, node: CommandNode): CommandNode[] =>

@@ -6,7 +6,6 @@ CI reads this file and the checklist from the base branch, so a pull request is 
 The reviewer is shown only the rules whose triggers fire on the diff (`triggerlist match <base>`), each with the check that answers it. Every rule:
 
 - `subprocess-through-bellpull` Does new code spawn a process directly instead of through bellpull, the package whose job that is? ([why](scripts/inline-implementation-lock.test.ts))
-- `changeset-for-package-change` Does a change to a package's source or package.json carry a changeset, or the skip-changeset label for internal-only work? ([why](AGENTS.md))
 - `ledger-row-not-file` Is a decision or gap being added as a row in the policy file instead of one new file from `npm run ledger -- new`? ([why](CLAUDE.md))
 - `hooks-bypassed` Does the change bypass or teach bypassing the git hooks, which are the gate? ([why](CLAUDE.md))
 - `readme-weight-band` Did a package README change without re-measuring the foundation weight band (`npm run weight:converge`)? ([why](AGENTS.md))

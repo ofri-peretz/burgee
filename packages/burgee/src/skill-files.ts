@@ -39,8 +39,9 @@ export function binDirOf(entry: string): string {
   const bin = pkg?.data['bin'];
   const bins: unknown[] = typeof bin === 'object' && bin !== null ? Object.values(bin as Record<string, unknown>) : [bin];
   const first = bins.find((v) => typeof v === 'string');
-  if (pkg === undefined || typeof first !== 'string') throw new Error(`${entry}: no "bin" in the package.json that owns it; pass --out <dir>`);
-  return dirname(resolve(dirname(pkg.path), first));
+  // A path among the bins means a package owns the entry: with none, `bin` was never read.
+  if (typeof first !== 'string') throw new Error(`${entry}: no "bin" in the package.json that owns it; pass --out <dir>`);
+  return dirname(resolve(dirname((pkg as NonNullable<typeof pkg>).path), first));
 }
 
 export async function writeSkill(entry: string, opts: { out?: string | undefined; check?: boolean | undefined } = {}): Promise<SkillWritten | SkillStale> {

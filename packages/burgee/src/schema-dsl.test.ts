@@ -87,6 +87,10 @@ describe('the command line is kebab-case, the key is camelCase (S5, yargs #1679)
     expect(() => checkDefinition('x', { a: { type: 'boolean', short: 'v' }, b: { type: 'boolean', short: 'v' } })).toThrow(/both use -v/);
     expect(() => checkDefinition('x', { a: { type: 'text' as 'string' } })).toThrow(/unknown type "text"/);
     expect(() => checkDefinition('x', { a: { type: 'string', minimum: 1 } })).toThrow(/numeric bound/);
+    expect(() => checkDefinition('x', { a: { type: 'string', maximum: 1 } })).toThrow(/numeric bound/);
+    expect(() => checkDefinition('x', { a: { type: 'string', integer: true } })).toThrow(/numeric bound/);
+    expect(() => checkDefinition('x', { a: { type: 'boolean', dependsOn: ['a'] } })).toThrow('burgee: option "a" of "x" declares dependsOn "a", which is itself');
+    expect(() => checkDefinition('x', { a: { type: 'boolean', exclusive: ['b'] } })).toThrow('burgee: option "a" of "x" declares exclusive "b", which is not an option of "x"');
   });
 });
 

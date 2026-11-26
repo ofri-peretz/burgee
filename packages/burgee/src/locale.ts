@@ -225,6 +225,7 @@ function patternOf(template: string): RegExp {
 const LONGEST = 2048;
 
 /** Literal characters in a template: the more it fixes, the earlier it is tried, so `pass --{option} <value>` wins over `pass {option} {value}`. */
+// Stryker disable next-line Regex,StringLiteral: `catalog()` caches the order on first use, so a mutant here shows only when it is the first to build it; applied alone, locale-units.test.ts kills each
 const fixed = (template: string): number => template.replaceAll(/\{\w+\}/gu, '').length;
 
 /** The catalog as patterns, most specific first. Built once per process, on the first localised line. */

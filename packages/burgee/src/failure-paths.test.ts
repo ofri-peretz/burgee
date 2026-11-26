@@ -5,6 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
+import { AuthError } from './errors.js';
 import { defineCommand, defineProgram, runCommand } from './execute.js';
 import { ExitCode } from './exit-code.js';
 import { handlerFailure } from './facade-failure.js';
@@ -71,5 +72,11 @@ describe('a façade handler that fails with no value (D-140)', () => {
   it('reports null and undefined as runtime failures, named as themselves', () => {
     expect(handlerFailure(null)).toEqual({ exit: ExitCode.RUNTIME, error: { code: 'runtime', message: 'null' } });
     expect(handlerFailure(undefined)).toEqual({ exit: ExitCode.RUNTIME, error: { code: 'runtime', message: 'undefined' } });
+  });
+
+  it('names an AuthError as auth, and carries a hint or a fix only when it is a string', () => {
+    expect(handlerFailure(new AuthError('no token'))).toStrictEqual({ exit: ExitCode.AUTH, error: { code: 'auth', message: 'no token' } });
+    expect(handlerFailure(Object.assign(new Error('x'), { hint: 1, fix: null }))).toStrictEqual({ exit: ExitCode.RUNTIME, error: { code: 'runtime', message: 'x' } });
+    expect(handlerFailure(Object.assign(new Error('x'), { hint: 'h', fix: 'f' }))).toStrictEqual({ exit: ExitCode.RUNTIME, error: { code: 'runtime', message: 'x', hint: 'h', fix: 'f' } });
   });
 });

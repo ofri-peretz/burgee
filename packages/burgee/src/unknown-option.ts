@@ -11,7 +11,7 @@
 import { host } from './runtime.js';
 import { suggestSimilar } from './suggest.js';
 
-const UNKNOWN_OPTION = /^Unknown option '(?<flag>[^']+)'/u;
+const UNKNOWN_OPTION = /^Unknown option '([^']+)'/u;
 const NEAREST = /--[\w-]+/u;
 
 /**
@@ -19,7 +19,7 @@ const NEAREST = /--[\w-]+/u;
  * which is the rarer reading, and they never mention the option the caller almost typed.
  * The command declared its options; the one thing worth saying is which was meant.
  */
-const SINGLE_DASH_WORD = /^-(?<word>[a-zA-Z][\w-]+)(?:=.*)?$/u;
+const SINGLE_DASH_WORD = /^-([a-zA-Z][\w-]+)(?:=.*)?$/u;
 
 /**
  * `-foo=bar` means three short flags to a parser and one long flag to a person
@@ -28,7 +28,7 @@ const SINGLE_DASH_WORD = /^-(?<word>[a-zA-Z][\w-]+)(?:=.*)?$/u;
 export function singleDashHint(argv: readonly string[]): string | undefined {
   for (const token of argv) {
     if (token === '--') return undefined;
-    const word = SINGLE_DASH_WORD.exec(token)?.groups?.['word'];
+    const word = SINGLE_DASH_WORD.exec(token)?.[1];
     if (word !== undefined) return `did you mean --${word}? a single dash introduces one-letter options`;
   }
   return undefined;
@@ -66,7 +66,7 @@ export const textSpelling = (words: readonly string[], at: number): number => sp
  */
 export class Again extends Error {
   constructor(readonly again: string[]) {
-    super('again');
+    super();
   }
 }
 
@@ -95,9 +95,9 @@ export function unknownOption(
   cause: unknown,
   declared: readonly string[],
   argv: readonly string[],
-): { message: string; hint: string; fix?: string; again?: string[] } | undefined {
+): { message: string; hint: string; fix?: string; again?: string[] | undefined } | undefined {
   if (!(cause instanceof Error)) return undefined;
-  const flag = UNKNOWN_OPTION.exec(cause.message)?.groups?.['flag'];
+  const flag = UNKNOWN_OPTION.exec(cause.message)?.[1];
   if (flag === undefined) return undefined;
   // `suggestSimilar` slices `--` off the word AND off every candidate, so bare names
   // arrive two characters short: `name` becomes `me`, and `--nmae` is nearer to that than
@@ -127,6 +127,6 @@ export function unknownOption(
     message: `unknown option ${flag}`,
     hint: `did you mean ${near}?`,
     ...(line === undefined ? {} : { fix: shellLine(line) }),
-    ...(again === undefined ? {} : { again }),
+    again,
   };
 }

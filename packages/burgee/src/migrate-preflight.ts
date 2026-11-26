@@ -55,6 +55,7 @@ export interface Interval {
 }
 
 /** Room for each of minor and patch: Node's are two digits, and four leaves every real range readable. */
+// Stryker disable next-line NumericLiteral: any room wider than every part keys versions in the same order
 const PLACE = 10_000;
 const key = (major: number, minor: number, patch: number): number => (major * PLACE + minor) * PLACE + patch;
 
@@ -73,13 +74,15 @@ const lowOf = ([major = 0, minor = 0, patch = 0]: readonly number[]): number => 
 
 /** The first version after everything a partial names: `16` is 17.0.0, `16.20` is 16.21.0, `[]` is none. */
 function nextOf(parts: readonly number[]): number {
-  const [major = 0, minor = 0, patch = 0] = parts;
+  // Each slot reads only the parts `parts.length` says are there.
+  const [major, minor, patch] = parts as [number, number, number];
   return [Infinity, key(major + 1, 0, 0), key(major, minor + 1, 0), key(major, minor, patch + 1)][parts.length] as number;
 }
 
 /** One comparator: `>=16`, `^20.19.0`, `~20.18`, `20.x`. */
 function comparator(text: string): Interval | undefined {
-  const [, op, rest] = /^(<=|>=|<|>|=|\^|~)?(.*)$/.exec(text) as RegExpExecArray;
+  // Unanchored: an optional operator and `.*` match from the start to the end of any comparator.
+  const [, op, rest] = /(<=|>=|<|>|=|\^|~)?(.*)/.exec(text) as RegExpExecArray;
   const parts = partsOf(rest as string);
   if (parts === undefined) return undefined;
   const low = lowOf(parts);

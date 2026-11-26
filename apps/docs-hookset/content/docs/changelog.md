@@ -3,6 +3,26 @@ title: Changelog
 description: "Every release of hookset, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 1.4.1
+
+### Patch Changes
+
+- [#1884](https://github.com/ofri-peretz/burgee/pull/1884) [`51710bf`](https://github.com/ofri-peretz/burgee/commit/51710bfa31ec5bbd2da8e89bc032526fc68cd98b) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `hookset worktrees --size` sizes each worktree after every worktree's git has finished. A linked
+  worktree's index lives under the main one's `.git/worktrees/`, so sizing the main tree while
+  another worktree's `git status` rewrote that index read a size that was gone a moment later.
+- Updated dependencies [[`51710bf`](https://github.com/ofri-peretz/burgee/commit/51710bfa31ec5bbd2da8e89bc032526fc68cd98b)]:
+  - burgee@2.2.4
+
+## 1.4.0
+
+### Minor Changes
+
+- [#1877](https://github.com/ofri-peretz/burgee/pull/1877) [`5c57753`](https://github.com/ofri-peretz/burgee/commit/5c5775332fc5a4fdf27cf975661d9be14f243bfb) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - Add `coverage()` and `coverageText()` (`src/changesets.ts`): every package a pull request ships a change to must be named in one of its changesets. Source that is not a test, fixture or snapshot counts, and so does a manifest change beyond `devDependencies`. The shared `changeset-gate` workflow runs it at the hookset tag `lefthook.yml` pins. Test-only changes no longer need a changeset or the `skip-changeset` label.
+
+### Patch Changes
+
+- [#1880](https://github.com/ofri-peretz/burgee/pull/1880) [`8c8563d`](https://github.com/ofri-peretz/burgee/commit/8c8563d593ec3bed9bfa98cbeec855de0b80cbb2) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `hookset context` in the shared `hookset-check.yml` workflow runs again. Since 1.2.0 `context.ts` imported `./core.js`, which does not exist where the workflow type-strips the source from the tag, so the step failed with ERR_MODULE_NOT_FOUND in every repo pinned to 1.2.0 or 1.3.0. It now imports nothing relative and reads `stations.json` itself, and a test loads it the way the workflow does.
+
 ## 1.3.0
 
 ### Minor Changes

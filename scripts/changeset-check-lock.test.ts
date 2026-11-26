@@ -120,6 +120,7 @@ const HEADS = {
   dev: { manifest: bumpDev(MANIFEST), extra: {} },
   runtime: { manifest: { ...MANIFEST, dependencies: { roundel: '^0.6.0' } }, extra: {} },
   src: { manifest: bumpDev(MANIFEST), extra: { 'packages/flagstaff/src/index.ts': 'export {};\n' } },
+  tests: { manifest: MANIFEST, extra: { 'packages/flagstaff/src/index.test.ts': 'export {};\n', 'packages/flagstaff/src/__fixtures__/f.ts': 'export {};\n' } },
 } satisfies Record<string, { manifest: object; extra: Record<string, string> }>;
 type Head = keyof typeof HEADS;
 
@@ -182,6 +183,7 @@ const DEPENDABOT = {
   'dependabot-runtime': { author: 'dependabot[bot]', head: 'runtime' },
   'dependabot-src': { author: 'dependabot[bot]', head: 'src' },
   'person-dev': { author: 'ofri-peretz', head: 'dev' },
+  'person-tests': { author: 'ofri-peretz', head: 'tests' },
 } satisfies Record<string, { author: string; head: Head }>;
 
 /**
@@ -272,6 +274,13 @@ describe('the changeset check and Dependabot', () => {
 
   it('does not extend the exemption to a person — the label is their signed decision', () => {
     expectStatusOf('missing', 'person-dev');
+  });
+
+  // A consumer installs no test or fixture, so a change to them alone ships nothing. Reviewers
+  // flagged test-only package changes in #1839, #1854 and #1870 as missing a changeset; the step
+  // and packages/hookset/src/changesets.ts now agree that they need none.
+  it('answers `not-needed` when only tests and fixtures under src/ change', () => {
+    expectStatusOf('not-needed', 'person-tests');
   });
 
   it('a case builds and runs nothing: every git and bash run above happened before the first case', () => {

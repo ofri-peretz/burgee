@@ -5,6 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
+import { warnDeprecated } from './deprecation.js';
 import { renderHelp } from './help.js';
 import { Manifest } from './manifest.js';
 
@@ -33,5 +34,18 @@ describe('a deprecation names its replacement (D1, M5)', () => {
     const root = manifest.find(['app']);
     if (root === undefined) throw new Error('fixture');
     expect(renderHelp(manifest, root)).toMatch(/old +Legacy \(deprecated\)/);
+  });
+});
+
+const node = (path: string[]): Parameters<typeof warnDeprecated>[0] => ({ path, options: {}, deprecated: 'new' }) as unknown as Parameters<typeof warnDeprecated>[0];
+
+describe('the warning a deprecated command writes (M5)', () => {
+  it('names the command as typed, its words spaced, and warns each command once', () => {
+    let err = '';
+    const io = { err: { write: (s: string) => (err += s) } };
+    warnDeprecated(node(['app', 'ab', 'c']), io);
+    warnDeprecated(node(['app', 'a', 'bc']), io);
+    warnDeprecated(node(['app', 'ab', 'c']), io);
+    expect(err).toBe("warning: 'ab c' is deprecated, use 'new'\nwarning: 'a bc' is deprecated, use 'new'\n");
   });
 });
