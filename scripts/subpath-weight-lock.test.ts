@@ -154,7 +154,9 @@ const OVER_INCUMBENT: Readonly<Record<string, { incumbent: string; bytes: number
   // D-20261112-upstream-issues-2026-11-12): 111,787 -> 111,879 on `/docs/weight`.
   // 111,959 on 2026-11-13 with `burgee/yargs`' +80 B for `argsert` parsing each usage string once
   // (D-20261113-yargs-argsert-usage-cache-bytes): 111,879 -> 111,959 on `/docs/weight`.
-  'burgee/yargs/v17': { incumbent: 'yargs@17.7.3', bytes: 84_475, ours: 111_959, gap: 'B-20261019-yargs-17-entry-bundles-heavier' },
+  // 111,972 on 2026-11-26 with `burgee/yargs`' +13 B for dropping the version a `.version(false)`
+  // turns off from the manifest (.changeset/burgee-yargs-version-off.md): 111,959 -> 111,972.
+  'burgee/yargs/v17': { incumbent: 'yargs@17.7.3', bytes: 84_475, ours: 111_972, gap: 'B-20261019-yargs-17-entry-bundles-heavier' },
 };
 
 /** The "Everything" cell of a subpath's row on the page, or `undefined` when it has no row. */
