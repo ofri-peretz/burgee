@@ -1,5 +1,13 @@
 # replz
 
+## 1.2.0
+
+### Minor Changes
+
+- [#1873](https://github.com/ofri-peretz/burgee/pull/1873) [`d585875`](https://github.com/ofri-peretz/burgee/commit/d5858751881c8b667824ff7f235cc38db9fda98e) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `replz compare` runs a folder of inputs through the base ref and the head and fails on every output that changed, after `normalize` patterns remove noise, unless a person approved that exact change (by both outputs' digests) with a reason in `approved`.
+
+- [#1873](https://github.com/ofri-peretz/burgee/pull/1873) [`d585875`](https://github.com/ofri-peretz/burgee/commit/d5858751881c8b667824ff7f235cc38db9fda98e) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `replz mine` drafts lint-rule candidates from review history: inline review comments and the tagged lines of summary reviews, read through `gh`, clustered by the pairs of content words two or more pull requests share. `--write` saves the draft for a person to accept or delete.
+
 ## 1.1.0
 
 ### Minor Changes
