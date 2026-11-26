@@ -10,6 +10,7 @@ import { defineCommand, defineProgram } from 'burgee';
 import { parse as parseYaml } from 'seniority/yaml';
 
 import { type Case, KINDS, parseCase, selectCases, SETS } from './cases.js';
+import { COMPARE, type CompareConfig, compareText, judge, type Output, parseCompareConfig } from './compare.js';
 import { CONFIG, type Config, parseConfig } from './config.js';
 import { candidatesMarkdown, findingsOf, ghQueries, mine, parseComments } from './mine.js';
 import { LOG_ARGS, parseLog, propose, toYaml } from './propose.js';
@@ -246,6 +247,84 @@ export const runMine = async (options: MineCommandOptions): Promise<Data> => {
   return data;
 };
 
+export interface CompareOptions {
+  readonly repo: string;
+  readonly config: string;
+  /** The ref the head is compared against. */
+  readonly base: string;
+  /** A ref for the head; left out, the repository as it stands, uncommitted changes included. */
+  readonly head?: string | undefined;
+  readonly shell: Shell;
+  readonly worktrees: Worktrees;
+}
+
+/** Every file in the inputs folder, sorted by name, with its text. */
+const readInputs = (repo: string, config: CompareConfig, source: string): { readonly name: string; readonly text: string }[] => {
+  const at = existing(repo, config.inputs, `the inputs field of ${source}`);
+  const names = readdirSync(at, { withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => entry.name)
+    .sort();
+  if (names.length === 0) throw new Error(`${config.inputs} holds no input. fix: add one file per input the command reads on stdin`);
+  return names.map((name) => ({ name, text: readFileSync(join(at, name), 'utf8') }));
+};
+
+/** The setup, then the command once per input, in one tree. */
+const outputsIn = async (tree: {
+  readonly shell: Shell;
+  readonly dir: string;
+  readonly ref: string;
+  readonly config: CompareConfig;
+  readonly inputs: readonly { readonly text: string }[];
+}): Promise<Output[]> => {
+  const { shell, dir, ref, config, inputs } = tree;
+  if (config.setup !== undefined) {
+    const setup = await shell(config.setup, { cwd: dir });
+    if (setup.code !== 0) throw new Error(`setup failed at ${ref} (exit ${String(setup.code)}): ${setup.stderr.trim()}. fix: make the setup command run in a fresh checkout of ${ref}`);
+  }
+  const outputs: Output[] = [];
+  for (const input of inputs) {
+    // eslint-disable-next-line reliability/no-await-in-loop -- one input at a time, so two runs never share the tree's build output
+    outputs.push(await shell(config.command, { cwd: dir, input: input.text }));
+  }
+  return outputs;
+};
+
+export const runCompare = async (options: CompareOptions): Promise<Data> => {
+  const config = parseCompareConfig(options.config, readFileSync(existing(options.repo, options.config, '--config'), 'utf8'));
+  const inputs = readInputs(options.repo, config, options.config);
+  const baseTree = await options.worktrees.add(options.base);
+  let base: Output[];
+  try {
+    base = await outputsIn({ shell: options.shell, dir: baseTree.dir, ref: options.base, config, inputs });
+  } finally {
+    await baseTree.remove();
+  }
+  const headRef = options.head ?? 'the working tree';
+  let head: Output[];
+  if (options.head === undefined) {
+    head = await outputsIn({ shell: options.shell, dir: resolve(options.repo), ref: headRef, config, inputs });
+  } else {
+    const headTree = await options.worktrees.add(options.head);
+    try {
+      head = await outputsIn({ shell: options.shell, dir: headTree.dir, ref: headRef, config, inputs });
+    } finally {
+      await headTree.remove();
+    }
+  }
+  const report = judge(
+    inputs.map((input, at) => ({ input: input.name, base: base[at] as Output, head: head[at] as Output })),
+    config,
+  );
+  const shown = compareText(report, { base: options.base, head: headRef });
+  if (report.differs.length > 0) {
+    throw new Error(`${shown}\n\nfix: repair the change, or add each approve entry above to approved in ${options.config} with the reason the new output is right`);
+  }
+  const data: Data = { base: options.base, head: headRef, ...report };
+  data[TEXT] = () => shown;
+  return data;
+};
+
 // No `(default: …)` in the description: burgee prints the default after it.
 const repoOption = { type: 'string', default: HERE, description: 'the repository', placeholder: 'dir' } as const;
 const configOption = { type: 'string', default: CONFIG, description: 'the replz config', placeholder: 'path' } as const;
@@ -332,6 +411,31 @@ export const program = defineProgram({
           ratchet: options.ratchet as string | undefined,
           git: (args) => logOf(options.repo as string, args),
           now: () => new Date(),
+        }),
+      ),
+    }),
+    defineCommand({
+      name: 'compare',
+      description: 'Run the same inputs through the base and the head and fail on any output that changed, unless a person approved that change',
+      effects: 'read_only',
+      examples: [
+        { command: 'replz compare', description: `every input in ${COMPARE} through origin/main and the working tree` },
+        { command: 'replz compare --base v1.0.0 --head HEAD', description: 'a release against the last commit' },
+      ],
+      options: {
+        repo: repoOption,
+        config: { type: 'string', default: COMPARE, description: 'the compare config: setup, command, inputs, normalize and approved', placeholder: 'path' },
+        base: { type: 'string', default: 'origin/main', description: 'the ref the head is compared against', placeholder: 'ref' },
+        head: { type: 'string', description: 'a ref for the head (default: the working tree, uncommitted changes included)', placeholder: 'ref' },
+      },
+      run: refusing(({ options }) =>
+        runCompare({
+          repo: options.repo as string,
+          config: options.config as string,
+          base: options.base as string,
+          head: options.head as string | undefined,
+          shell: sh,
+          worktrees: worktreesIn(options.repo as string),
         }),
       ),
     }),
