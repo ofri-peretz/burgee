@@ -27,6 +27,7 @@ describe('parseCompareConfig', () => {
     expect(() => parseCompareConfig('c.yaml', approval('{ input: x, base: z123456789ab, head: 0123456789ab, reason: r }'))).toThrow(/approved\/0\/base/);
     expect(() => parseCompareConfig('c.yaml', approval('{ input: x, base: 0123456789ab, head: 0123456789ab, reason: "" }'))).toThrow(/approved\/0\/reason/);
     expect(() => parseCompareConfig('c.yaml', approval(`${valid}, by: me }`))).toThrow(/approved\/0/);
+    expect(() => parseCompareConfig('c.yaml', 'command: ""\ninputs: ""\n')).toThrow(/\n {2}\/?command: [^\n]+\n {2}\/?inputs: /);
     expect(() => parseCompareConfig('c.yaml', 'just text')).toThrow(/^c\.yaml is not a valid replz compare config:\n {2}\/: \S/);
   });
 
