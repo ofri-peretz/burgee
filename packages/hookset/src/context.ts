@@ -10,12 +10,22 @@
  * Tokens are estimated as characters / 4. The ceiling is `context.tokens` in .claude/hookset.json
  * and may only go down: `hookset context --update` lowers it and refuses to raise it.
  *
- * Builtins only and erasable syntax only, like core.ts.
+ * Builtins only and erasable syntax only, like core.ts. The workflow runs this file straight from
+ * the tag with Node's type stripping, where `./core.js` does not exist: so it imports nothing
+ * relative and reads stations.json itself.
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, posix } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-import { loadStations, packageRoot } from './core.js';
+/** The part of stations.json (core.ts `Stations`) this file reads. */
+interface Stations {
+  claude: { mcp: { id: string; contextChars: number }[] };
+}
+
+/** The package directory, one up from this file in src/ or dist/. */
+const packageRoot = (): string => fileURLToPath(new URL('..', import.meta.url));
+const loadStations = (pkg: string): Stations => JSON.parse(readFileSync(join(pkg, 'stations.json')).toString()) as Stations;
 
 export interface ContextEntry {
   file: string;

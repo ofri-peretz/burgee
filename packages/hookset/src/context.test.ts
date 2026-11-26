@@ -1,5 +1,7 @@
+import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
@@ -275,5 +277,15 @@ describe('measureContext: MCP servers', () => {
     expect(measured.tokens).toBe(2163);
     expect(measured.unmeasured).toEqual(['figma']);
     expect(measureContext(repo({ '.mcp.json': '{}' })).unmeasured).toEqual([]);
+  });
+});
+
+describe('context.ts as hookset-check.yml runs it', () => {
+  it('loads from source with type stripping alone, as the workflow imports it from the tag', () => {
+    const src = pathToFileURL(join(dirname(fileURLToPath(import.meta.url)), 'context.ts')).href;
+    const code = `const c = await import(${JSON.stringify(src)}); console.log(typeof c.checkContext);`;
+    const run = spawnSync(process.execPath, ['--input-type=module', '-e', code], { encoding: 'utf8' });
+    expect(run.stderr).toBe('');
+    expect(run.stdout).toBe('function\n');
   });
 });
