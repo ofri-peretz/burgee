@@ -54,7 +54,7 @@ const at = (hook: string, run: string): string | undefined => duplicateOf({ hook
 const unwired = (file: string, event: string, matcher: string): Problem => ({ id: 'claude-unwired', severity: 'error', message: `.claude/settings.json does not run ${file} on ${event} (${matcher})`, fix: 'run `hookset init --claude`' });
 const cmd = (file: string): { type: string; command: string } => ({ type: 'command', command: `node .claude/hooks/${file}` });
 const TIMEOUT: Record<string, number> = { 'guard-bash.mjs': 10, 'stop-after-3.mjs': 10, 'verify-before-stop.mjs': 30, 'codegraph.mjs': 30, 'worktree-sweep.mjs': 30 };
-const command = (file: string): { type: string; command: string; timeout?: number }[] => [{ type: 'command', command: `node "$CLAUDE_PROJECT_DIR/.claude/hooks/${file}"`, timeout: TIMEOUT[file] }];
+const command = (file: string): { type: string; command: string; timeout?: number }[] => [{ type: 'command', command: `node "$CLAUDE_PROJECT_DIR/.claude/hooks/${file}"`, timeout: TIMEOUT[file] ?? 30 }];
 
 /** A verify skill a repo has filled in: the template's required lines, no placeholder left. */
 const FILLED_SKILL = '---\nname: verify\ndescription: run the CLI\n---\n\n## Feature map\n\n| Feature | Reach it by | Working means |\n| --- | --- | --- |\n| help | `x --help` | exit 0 |\n';
