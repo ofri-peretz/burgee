@@ -4,7 +4,9 @@
 # Commit-msg: enforce conventional-commits via commitlint.
 # Pre-push: the CI battery over what this push changed (turbo --affected, vitest --changed against
 #   origin/main), so a one-package push waits on that package, not on all of them. CI runs the
-#   whole battery on every PR; the build stays whole here because later steps read every dist.
+#   whole battery on every PR. The up-front build covers every package (later steps read every
+#   package's dist) but no docs site: a lockfile change on main misses the cache for all 19 sites,
+#   and that cold build alone overran the 4m cap. An affected site still builds, via test -> build.
 
 commit-msg:
   commands:
@@ -42,7 +44,7 @@ pre-push:
     battery:
       timeout: 4m
       priority: 1
-      run: rm -rf node_modules/.cache/case-budget && npx --no turbo run build --output-logs=errors-only --concurrency=2 && TURBO_SCM_BASE=origin/main TRUEPASS_BUDGET_DEFER="$PWD/node_modules/.cache/case-budget" npx --no turbo run typecheck test --affected --output-logs=errors-only --concurrency=2
+      run: rm -rf node_modules/.cache/case-budget && npx --no turbo run build --filter='./packages/*' --output-logs=errors-only --concurrency=2 && TURBO_SCM_BASE=origin/main TRUEPASS_BUDGET_DEFER="$PWD/node_modules/.cache/case-budget" npx --no turbo run typecheck test --affected --output-logs=errors-only --concurrency=2
     # `turbo run test` covers workspaces, and `scripts/` is not one — the root vitest config
     # is the only thing that runs `scripts/**/*.test.ts`. So the gate that is supposed to be
     # what CI runs was missing a whole directory of locks, and `plan-progress-lock.test.ts`
