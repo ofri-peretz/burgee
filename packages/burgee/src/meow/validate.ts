@@ -80,14 +80,15 @@ export function checkDefaultTypes(flags: Record<string, FlagSpec>, opts: Setting
     if (expected?.endsWith('-array') === true && Array.isArray(value) && value.length === 0) expected = 'array';
     const actual = Array.isArray(value) && value.length > 0 ? `${kindOf(value[0])}-array` : kindOf(value);
     if (expected !== undefined && expected !== actual) {
-      throw new TypeError(`Expected "${decamelize(name, '-')}" default value to be of type "${expected}", got "${actual}"`);
+      throw new TypeError(`Expected "${decamelize(name)}" default value to be of type "${expected}", got "${actual}"`);
     }
   }
 }
 
 /** meow refuses to guess where the caller's `package.json` is. */
 export function requireImportMeta(importMeta: ImportMeta | undefined): void {
-  if (importMeta === undefined || importMeta === null || typeof importMeta !== 'object' || typeof importMeta.url !== 'string') {
+  // `typeof` answers 'undefined' for an absent option; only null passes it as an object.
+  if (importMeta === null || typeof importMeta !== 'object' || typeof importMeta.url !== 'string') {
     throw new TypeError('The `importMeta` option is required. Its value must be `import.meta`.');
   }
   try {
@@ -114,7 +115,7 @@ export function checkChoices(specs: Record<string, FlagSpec>, flags: Record<stri
   const errors: string[] = [];
   for (const [name, spec] of Object.entries(specs)) {
     if (!Array.isArray(spec.choices)) continue;
-    const label = `--${decamelize(name, '-')}`;
+    const label = `--${decamelize(name)}`;
     const allowed = `Value must be one of: [${spec.choices.map((c) => `\`${String(c)}\``).join(', ')}]`;
     const value = flags[name];
     if (value === undefined) {
@@ -148,7 +149,7 @@ export function checkRequired(specs: Record<string, FlagSpec>, flags: Record<str
     const value = flags[name];
     if (value !== undefined && !(spec.isMultiple === true && Array.isArray(value) && value.length === 0)) continue;
     const short = typeof spec.shortFlag === 'string' ? `, -${spec.shortFlag}` : '';
-    missing.push(`--${decamelize(name, '-')}${short}`);
+    missing.push(`--${decamelize(name)}${short}`);
   }
   if (missing.length > 0) {
     // `is-required.js` spawns a fixture and asserts the message on output with exit 2, while

@@ -117,3 +117,25 @@ describe('checkSetOnce', () => {
     expect(() => checkSetOnce({ name: {} }, { name: ['a', 'b'] })).toThrow('The flag --name can only be set once.');
   });
 });
+
+describe('the names and edges the messages carry', () => {
+  it('lists two renamed flags comma-separated', () => {
+    expect(() => validateFlags({ a: { alias: 'x' } as never, b: { alias: 'y' } as never })).toThrow('The following flags need to be updated: `--a`, `--b`');
+  });
+
+  it('names a camelCase flag in kebab case, in a default, a choice and a missing flag', () => {
+    expect(() => checkDefaultTypes({ logLevel: { type: 'number', default: 'x' } } as never, {})).toThrow('Expected "log-level" default value');
+    expect(() => checkChoices({ logLevel: { choices: ['a'] } } as never, { logLevel: 'b' })).toThrow('flag `--log-level`');
+    expect(() => checkRequired({ logLevel: { isRequired: true } } as never, {}, [])).toThrow('exit 2');
+    expect(written).toContain('\t--log-level');
+  });
+
+  it('refuses what is not import.meta in its own words, a function or a URL object included', () => {
+    const refused = new TypeError('The `importMeta` option is required. Its value must be `import.meta`.');
+    for (const meta of [undefined, null, Object.assign(() => undefined, { url: 'file:///cli.js' }), { url: new URL('file:///cli.js') }]) expect(() => requireImportMeta(meta as never)).toThrow(refused);
+  });
+
+  it('reads a lone dash as standard input, not as an unknown flag', () => {
+    expect(() => checkUnknownFlags(['-'])).not.toThrow();
+  });
+});

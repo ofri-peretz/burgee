@@ -9,6 +9,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { runCommand } from './execute.js';
+import { refuse } from './parse-refusals.js';
 import { type Plugin } from './plugin.js';
 
 import { defineCommand, defineProgram, ExitCode } from './index.js';
@@ -137,5 +138,15 @@ describe('both refusals are catalog lines a locale pack translates (localised-hu
     expect((await runCommand(translated, ['greet', 'ada', 'extra'], { env })).stderr).toContain('zu viele Argumente: erwartet 1, erhalten 2 ("extra")');
     expect((await runCommand(translated, ['greet', 'ada', '--level', 'a', '--level', 'b'], { env })).stderr).toContain('--level wurde zweimal angegeben: "a" und "b"');
     expect(JSON.parse((await runCommand(translated, ['greet', 'ada', 'extra', '--json'], { env })).stdout)).toMatchObject({ error: { message: 'too many arguments: expected 1, got 2 ("extra")' } });
+  });
+});
+
+/** `--ghost=<value>` at `index`, as parseArgs reports it. */
+const ghost = (index: number, value: string): Parameters<typeof refuse>[2]['tokens'][number] => ({ kind: 'option', name: 'ghost', rawName: '--ghost', index, value, inlineValue: true });
+
+describe('refuse(), handed a token for an option the command does not declare', () => {
+  it('reads it as a single-valued option given twice, rather than failing on the missing spec', () => {
+    const node = { path: ['app'], options: {} };
+    expect(() => refuse(node, [], { tokens: [ghost(0, 'a'), ghost(1, 'b')] }, ['--ghost=a', '--ghost=b'], ['--ghost=a', '--ghost=b'])).toThrow('--ghost was given twice: "a" and "b"');
   });
 });
