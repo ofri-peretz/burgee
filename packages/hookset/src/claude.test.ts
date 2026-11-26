@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -182,5 +183,37 @@ describe('codegraph', () => {
     expect(hook('codegraph.mjs', { hook_event_name: 'PreToolUse', tool_name: 'Grep', tool_input: { pattern: 'fooBar' } }, { CLAUDE_PROJECT_DIR: dir })).toBe('');
     expect(hook('codegraph.mjs', { hook_event_name: 'SessionStart' }, { CLAUDE_PROJECT_DIR: dir, HOOKSET_CODEGRAPH: '0' })).toBe('');
     expect(hook('codegraph.mjs', 'not json')).toBe('');
+  });
+});
+
+describe('worktree-sweep', () => {
+  it('passes its own cases', () => {
+    const r = spawnSync(process.execPath, [join(CLAUDE, 'worktree-sweep.mjs'), '--self-test'], { encoding: 'utf8' });
+    expect(r.stdout).toBe('ok: 13 cases\n');
+    expect(r.status).toBe(0);
+  });
+
+  it('starts nothing without hookset installed, when off, or on any other event, and sweeps at most once a day', () => {
+    const dir = scratch('hookset-sweep-');
+    const state = scratch('hookset-sweep-state-');
+    const stamp = join(state, 'hookset-worktree-sweep', `${createHash('sha256').update(dir).digest('hex').slice(0, 16)}.json`);
+    const env = { CLAUDE_PROJECT_DIR: dir, HOOKSET_WORKTREE_SWEEP_DIR: state };
+    expect(hook('worktree-sweep.mjs', { hook_event_name: 'SessionStart' }, env)).toBe('');
+    expect(existsSync(stamp)).toBe(false);
+    mkdirSync(join(dir, 'node_modules', '.bin'), { recursive: true });
+    // A stand-in bin that records the arguments it was started with.
+    const bin = join(dir, 'node_modules', '.bin', 'hookset');
+    writeFileSync(bin, `#!/bin/sh\necho "$@" > "${join(dir, 'ran')}"\n`, { mode: 0o755 });
+    // What npm links on Windows, where the hook looks for hookset.cmd.
+    writeFileSync(`${bin}.cmd`, `@echo %* > "${join(dir, 'ran')}"\r\n`);
+    expect(hook('worktree-sweep.mjs', { hook_event_name: 'PreToolUse' }, env)).toBe('');
+    expect(hook('worktree-sweep.mjs', { hook_event_name: 'SessionStart' }, { ...env, HOOKSET_WORKTREES: '0' })).toBe('');
+    expect(hook('worktree-sweep.mjs', 'not json', env)).toBe('');
+    expect(existsSync(stamp)).toBe(false);
+    expect(hook('worktree-sweep.mjs', { hook_event_name: 'SessionStart' }, { ...env, HOOKSET_WORKTREES_OLDER_THAN: '7' })).toBe('');
+    expect(JSON.parse(readFileSync(stamp, 'utf8'))).toMatchObject({ args: ['worktrees', '--prune', '--json', '--older-than', '7'] });
+    const first = readFileSync(stamp, 'utf8');
+    expect(hook('worktree-sweep.mjs', { hook_event_name: 'SessionStart' }, env)).toBe('');
+    expect(readFileSync(stamp, 'utf8')).toBe(first);
   });
 });

@@ -109,7 +109,8 @@ describe('keepReason', () => {
     expect(keepReason({ ...base, dirty: 1 }, 3, true)).toBe('1 uncommitted file(s)');
     expect(keepReason({ ...base, localCommits: 1, idleDays: 0 }, 3, true)).toBe('1 commit(s) on no remote');
     expect(keepReason({ ...base, localCommits: 1 }, 3, false)).toBeUndefined();
-    expect(keepReason({ ...base, idleDays: 2.96 }, 3, true)).toBe('changed 3.0 day(s) ago');
+    expect(keepReason({ ...base, idleDays: 2.96 }, 3, true)).toBe('changed 2.9 day(s) ago');
+    expect(keepReason({ ...base, idleDays: 0.28 }, 3, true)).toBe('changed 0.2 day(s) ago');
     expect(keepReason({ ...base, idleDays: 3 }, 3, true)).toBeUndefined();
     expect(DEFAULT_OLDER_THAN_DAYS).toBe(3);
   });

@@ -23,6 +23,8 @@ import { ambientRuntime, run } from 'bellpull';
 const DAY_MS = 86_400_000;
 const MB = 1_048_576;
 const SHORT_SHA = 7;
+/** An age is shown in tenths of a day. */
+const TENTHS = 10;
 /** Days a clean worktree sits unchanged before a sweep removes it. */
 export const DEFAULT_OLDER_THAN_DAYS = 3;
 /** Directories the age walk does not enter: installs and build output change without an agent. */
@@ -155,7 +157,8 @@ export function keepReason(w: Omit<Worktree, 'keep' | 'removed'>, olderThanDays:
   if (w.locked) return 'locked';
   if (w.dirty > 0) return `${String(w.dirty)} uncommitted file(s)`;
   if (keepLocalCommits && w.localCommits > 0) return `${String(w.localCommits)} commit(s) on no remote`;
-  if (w.idleDays < olderThanDays) return `changed ${w.idleDays.toFixed(1)} day(s) ago`;
+  // Shown rounded down, so a kept worktree never reads as old enough to go ("3.0" with a limit of 3).
+  if (w.idleDays < olderThanDays) return `changed ${(Math.floor(w.idleDays * TENTHS) / TENTHS).toFixed(1)} day(s) ago`;
   return undefined;
 }
 
