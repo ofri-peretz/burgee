@@ -72,10 +72,16 @@ pre-push:
     # Ratchet job fails when it is stale. That cost six CI cycles in one week (2026-11-23): a change
     # to one package moved another's row, and nothing local said so. The same check as compat.yml's
     # `The published weight page is the one this build generates`, run after the battery has built
-    # every package (about 40 s of esbuild); fix a failure with `npm run weight:page`.
+    # every package; fix a failure with `npm run weight:page`. It took 155 s alone on a warm tree
+    # (2026-11-26, 89 s of it CPU), the largest single step of a 383-675 s push, so it runs only
+    # when the branch changes one of its inputs since origin/main: a package, the page, its script
+    # or the lockfile. Not a lefthook `glob`: on a branch's first push there is no upstream, and
+    # lefthook then inspects every tracked file, so the glob never skipped where agents push most.
+    # `git diff --quiet` exits 1 on a change and 128 when it cannot tell; both run the check.
+    # CI's ratchet still runs it on every PR (.sdlc/intents/pre-push-under-three-minutes/).
     weight-page:
       priority: 5
-      run: npm run weight:page -- --check
+      run: git diff --quiet origin/main...HEAD -- packages apps/docs/content/docs/weight.mdx scripts/subpath-weight.ts package-lock.json && echo 'weight-page - no input changed since origin/main' || npm run weight:page -- --check
     # `npm run lint` is CI's separate eslint job, and `ci:local` (the battery) does not run it, so a
     # lint finding used to surface only as a red CI run, and CLAUDE.md had to say "run lint too".
     # These run the same eslint and markdownlint over the files this push changes, after the
