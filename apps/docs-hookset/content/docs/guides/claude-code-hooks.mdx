@@ -8,11 +8,11 @@ bad commit; the Claude Code hooks stop an agent from getting around them. `hooks
 --claude` puts four of them, a verify skill to fill in, and a code graph server into a repository:
 
 ```text title="npx hookset init --claude"
-wrote lefthook.yml, .claude/hooks/guard-bash.mjs, .claude/hooks/stop-after-3.mjs, .claude/hooks/verify-before-stop.mjs, .claude/hooks/codegraph.mjs, .claude/settings.json, .mcp.json, .gitignore
+wrote lefthook.yml, .claude/hooks/guard-bash.mjs, .claude/hooks/stop-after-3.mjs, .claude/hooks/verify-before-stop.mjs, .claude/hooks/codegraph.mjs, .claude/hooks/worktree-sweep.mjs, .claude/settings.json, .mcp.json, .gitignore
 ```
 
-- **`.claude/hooks/guard-bash.mjs`**, **`stop-after-3.mjs`**, **`verify-before-stop.mjs`** and **`codegraph.mjs`** are copied byte
-  for byte from the package. `hookset check` fails when one differs (`claude-drift`): change
+- **`.claude/hooks/guard-bash.mjs`**, **`stop-after-3.mjs`**, **`verify-before-stop.mjs`**, **`codegraph.mjs`** and **`worktree-sweep.mjs`** are copied
+  byte for byte from the package. `hookset check` fails when one differs (`claude-drift`): change
   the canonical copy in burgee, never the vendored one.
 - **`.claude/hookset.json`** is the repository's own list of what to ask about and what not to
   edit. `init` writes `{ "ask": [], "frozen": [] }` only when the file is missing, and never
@@ -217,3 +217,14 @@ pins it (`codegraph-mcp-missing`, `codegraph-mcp-drift`), `.gitignore` does not 
 Why it is in the pack, measured on burgee: on tasks that trace a flow through the code it cut
 greps from 29 to 18 and file reads from 24 to 3. The numbers, the tasks and how to run them again
 are in [`packages/hookset/scripts/codegraph-bench`](https://github.com/ofri-peretz/burgee/tree/main/packages/hookset/scripts/codegraph-bench).
+
+## worktree-sweep
+
+Claude Code's `--worktree` and isolated subagents make a full checkout per task and never remove
+it. `worktree-sweep.mjs` runs on `SessionStart`, at most once a day per clone, and starts
+`hookset worktrees --prune` in the background, so the session is not held for it. The sweep
+removes only a linked worktree that is clean, unlocked, fully pushed and unchanged for 3 days,
+with `git worktree remove` and never `--force`; `git worktree lock` keeps one. Its last report is
+in a `.log` file beside the day stamp under the system temporary directory.
+
+`HOOKSET_WORKTREES=0` turns it off; `HOOKSET_WORKTREES_OLDER_THAN=<days>` changes the age.
