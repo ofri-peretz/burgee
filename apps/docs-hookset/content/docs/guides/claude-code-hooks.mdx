@@ -70,6 +70,7 @@ a heredoc that mentions `--no-verify` is data, not a match.
 | `hooks-path` | deny | `git config core.hooksPath …`, `git -c core.hooksPath=…` |
 | `ci-poll-loop` | deny | an `until` or `while` loop that runs `gh` and `sleep`; it names `gh pr checks <PR> --watch` instead |
 | `hooked-timeout` | deny | a foreground `git commit` or `git push` with a timeout under 5 minutes; their hooks outlive it |
+| `commit-message` | deny | a `git commit -m` or `-F` whose message the repo's `commit-msg` hook would reject: commitlint with the repo's own config, and a missing `Verified-by:` receipt where the repo runs the provedone station. It names the fix in under a second, before `pre-commit` has run the tests |
 | `publish` | ask | `npm publish`, `pnpm publish`, `yarn npm publish`, `changeset publish`, also with options before `publish` |
 | `repo-ask` | ask | a phrase the repository lists under `ask` in `.claude/hookset.json` |
 | `frozen`, `generated` | deny | an Edit or Write on a listed path ([Generated files](/docs/guides/generated-files)) |
@@ -90,7 +91,7 @@ import { spawnSync } from 'node:child_process';
 
 const calls = [
   { tool_name: 'Bash', tool_input: { command: 'git push --no-verify' } },
-  { tool_name: 'Bash', tool_input: { command: 'git commit -m "docs: never use --no-verify"', timeout: 600000 } },
+  { tool_name: 'Bash', tool_input: { command: 'git commit -m "docs: never use --no-verify\n\nVerified-by: none (docs example)"', timeout: 600000 } },
   { tool_name: 'Bash', tool_input: { command: 'git push' } },
   { tool_name: 'Bash', tool_input: { command: 'npm run deploy' } },
 ];
@@ -116,7 +117,7 @@ pre-push hook would outlive.
 The file carries its own cases. `--self-test` runs them:
 
 ```text title="node .claude/hooks/guard-bash.mjs --self-test"
-ok: 34 denied, 23 allowed, 24 asked, 10 timed, 5 edits
+ok: 34 denied, 23 allowed, 24 asked, 10 timed, 5 edits, 13 messages
 ```
 
 ## stop-after-3
