@@ -20,15 +20,15 @@
   "claude": {
     "files": ["guard-bash.mjs", "stop-after-3.mjs", "verify-before-stop.mjs", "codegraph.mjs", "worktree-sweep.mjs"],
     "hooks": [
-      { "event": "PreToolUse", "matcher": "Bash", "file": "guard-bash.mjs" },
-      { "event": "PreToolUse", "matcher": "Edit|Write|MultiEdit|NotebookEdit", "file": "guard-bash.mjs" },
-      { "event": "PostToolUse", "matcher": "Bash", "file": "stop-after-3.mjs" },
-      { "event": "PreToolUse", "matcher": "Bash", "file": "verify-before-stop.mjs" },
-      { "event": "PostToolUse", "matcher": "Bash", "file": "verify-before-stop.mjs" },
-      { "event": "PostToolUse", "matcher": "Edit|Write|MultiEdit|NotebookEdit", "file": "verify-before-stop.mjs" },
-      { "event": "Stop", "matcher": "", "file": "verify-before-stop.mjs" },
-      { "event": "SessionStart", "matcher": "", "file": "codegraph.mjs" },
-      { "event": "SessionStart", "matcher": "", "file": "worktree-sweep.mjs" }
+      { "event": "PreToolUse", "matcher": "Bash", "file": "guard-bash.mjs", "timeout": 10 },
+      { "event": "PreToolUse", "matcher": "Edit|Write|MultiEdit|NotebookEdit", "file": "guard-bash.mjs", "timeout": 10 },
+      { "event": "PostToolUse", "matcher": "Bash", "file": "stop-after-3.mjs", "timeout": 10 },
+      { "event": "PreToolUse", "matcher": "Bash", "file": "verify-before-stop.mjs", "timeout": 30 },
+      { "event": "PostToolUse", "matcher": "Bash", "file": "verify-before-stop.mjs", "timeout": 30 },
+      { "event": "PostToolUse", "matcher": "Edit|Write|MultiEdit|NotebookEdit", "file": "verify-before-stop.mjs", "timeout": 30 },
+      { "event": "Stop", "matcher": "", "file": "verify-before-stop.mjs", "timeout": 30 },
+      { "event": "SessionStart", "matcher": "", "file": "codegraph.mjs", "timeout": 30 },
+      { "event": "SessionStart", "matcher": "", "file": "worktree-sweep.mjs", "timeout": 30 }
     ],
     "mcp": [
       {

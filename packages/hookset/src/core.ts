@@ -28,6 +28,8 @@ export interface ClaudeHook {
   event: string;
   matcher: string;
   file: string;
+  /** Seconds Claude Code waits before killing the hook, so a stuck hook never holds a session. */
+  timeout?: number;
 }
 
 /** A skill every repo carries, such as `verify`: written from a template, then filled in by the repo. */
@@ -468,7 +470,7 @@ function repin(yaml: string, ref: string, remote: string): string {
   return lines.join(eol);
 }
 
-type HookGroup = { matcher?: string; hooks: { type: string; command: string }[] };
+type HookGroup = { matcher?: string; hooks: { type: string; command: string; timeout?: number }[] };
 type Settings = { hooks?: Record<string, HookGroup[]>; enabledMcpjsonServers?: string[]; permissions?: { allow?: string[] } & Record<string, unknown> } & Record<string, unknown>;
 
 /** .mcp.json with every pack server at its pinned entry; servers the repo added stay as they are. */
@@ -500,12 +502,18 @@ function mergeSettings(repo: string, stations: Stations): string {
   for (const h of expectedClaudeHooks(stations)) {
     const groups = events.get(h.event) ?? [];
     events.set(h.event, groups);
+    const entry = { type: 'command', command: hookCommand(h.file), ...(h.timeout ? { timeout: h.timeout } : {}) };
     // Stryker disable next-line StringLiteral: equivalent, no pack hook has an empty matcher
-    if (groups.some((g) => (g.matcher ?? '') === h.matcher && g.hooks.some((c) => c.command.includes(`.claude/hooks/${h.file}`)))) continue;
+    const wired = groups.filter((g) => (g.matcher ?? '') === h.matcher).flatMap((g) => g.hooks).find((c) => c.command.includes(`.claude/hooks/${h.file}`));
+    // An entry wired before the pack set a timeout gets one; a repo's own timeout stays.
+    if (wired) {
+      if (h.timeout && wired.timeout === undefined) wired.timeout = h.timeout;
+      continue;
+    }
     // Stryker disable next-line StringLiteral: equivalent, as above
     const group = groups.find((g) => (g.matcher ?? '') === h.matcher);
-    if (group) group.hooks.push({ type: 'command', command: hookCommand(h.file) });
-    else groups.push({ matcher: h.matcher, hooks: [{ type: 'command', command: hookCommand(h.file) }] });
+    if (group) group.hooks.push(entry);
+    else groups.push({ matcher: h.matcher, hooks: [entry] });
   }
   settings.hooks = Object.fromEntries(events);
   settings.enabledMcpjsonServers = union(settings.enabledMcpjsonServers, stations.claude.mcp.map((m) => m.id));

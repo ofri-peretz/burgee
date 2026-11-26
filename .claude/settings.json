@@ -7,11 +7,13 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-bash.mjs\""
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-bash.mjs\"",
+            "timeout": 10
           },
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/verify-before-stop.mjs\""
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/verify-before-stop.mjs\"",
+            "timeout": 30
           }
         ]
       },
@@ -20,7 +22,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-bash.mjs\""
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-bash.mjs\"",
+            "timeout": 10
           }
         ]
       }
@@ -31,11 +34,13 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/stop-after-3.mjs\""
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/stop-after-3.mjs\"",
+            "timeout": 10
           },
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/verify-before-stop.mjs\""
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/verify-before-stop.mjs\"",
+            "timeout": 30
           }
         ]
       },
@@ -44,7 +49,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/verify-before-stop.mjs\""
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/verify-before-stop.mjs\"",
+            "timeout": 30
           }
         ]
       }
@@ -55,11 +61,13 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/stop-after-3.mjs\""
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/stop-after-3.mjs\"",
+            "timeout": 10
           },
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/verify-before-stop.mjs\""
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/verify-before-stop.mjs\"",
+            "timeout": 30
           }
         ]
       },
@@ -68,7 +76,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/verify-before-stop.mjs\""
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/verify-before-stop.mjs\"",
+            "timeout": 30
           }
         ]
       }
@@ -79,7 +88,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/verify-before-stop.mjs\""
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/verify-before-stop.mjs\"",
+            "timeout": 30
           }
         ]
       }
@@ -90,11 +100,13 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/codegraph.mjs\""
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/codegraph.mjs\"",
+            "timeout": 30
           },
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/worktree-sweep.mjs\""
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/worktree-sweep.mjs\"",
+            "timeout": 30
           }
         ]
       }
