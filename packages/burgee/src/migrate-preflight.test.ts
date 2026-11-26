@@ -111,6 +111,7 @@ describe('R2 — the range reader', () => {
     expect(lowestIn('<10', from('10.0.0'))).toBeUndefined();
     expect(lowestIn('<=10', from('10.5.0'))).toBe('10.5.0');
     expect(lowestIn('<=10', from('11.0.0'))).toBeUndefined();
+    expect(lowestIn('<=1', from('0.0.0'))).toBe('0.0.0');
     // A bare version or `=` is every version the partial names.
     expect(lowestIn('16', from('16.9.9'))).toBe('16.9.9');
     expect(lowestIn('16', from('17.0.0'))).toBeUndefined();
@@ -120,6 +121,7 @@ describe('R2 — the range reader', () => {
     // `^` holds the leftmost non-zero part.
     expect(lowestIn('^20.19.0', from('20.99.0'))).toBe('20.99.0');
     expect(lowestIn('^20.19.0', from('21.0.0'))).toBeUndefined();
+    expect(lowestIn('^1.2.3', from('1.3.0'))).toBe('1.3.0');
     expect(lowestIn('^0.2.3', from('0.2.9'))).toBe('0.2.9');
     expect(lowestIn('^0.2.3', from('0.3.0'))).toBeUndefined();
     expect(lowestIn('^0.0.3', from('0.0.4'))).toBeUndefined();
