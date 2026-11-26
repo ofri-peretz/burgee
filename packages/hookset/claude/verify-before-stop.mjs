@@ -123,14 +123,15 @@ export function own(session, dir, paths) {
   const owned = new Set(state.owned ?? []);
   for (const p of paths) {
     const abs = resolve(dir, p);
-    // git prints the real root; a tool may name the file through a symlink (/var → /private/var).
+    // git prints the real root; a tool may name the file through a symlink (/var → /private/var)
+    // or, on Windows, an 8.3 short name (RUNNER~1). Only the native realpath expands both.
     let real = abs;
     try {
-      real = join(realpathSync(dirname(abs)), basename(abs));
+      real = join(realpathSync.native(dirname(abs)), basename(abs));
     } catch {
       // ponytail: the directory is gone; the path as given is the best we have.
     }
-    owned.add(relative(realpathSync(root), real).replaceAll("\\", "/"));
+    owned.add(relative(realpathSync.native(root), real).replaceAll("\\", "/"));
   }
   writeState(session, { ...state, owned: [...owned] });
 }
