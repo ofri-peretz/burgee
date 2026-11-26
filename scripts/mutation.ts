@@ -537,6 +537,41 @@ export function writeWrapper(packageDir: string, skipped: readonly string[]): Wr
 }
 
 /**
+ * Claim `<package>/.mutation/` for one run. Every run in a package writes the same vitest config,
+ * oxmutate config and report there, so a second run beside the first (two `--shard`s started in
+ * one checkout) overwrote them: on 2026-11-26 four contractdiff shards each mutated the same 19
+ * files and reported identical scores. The lock names its owner's pid; a lock whose owner has
+ * exited is stale and is taken over. Returns the owner's pid when the package is busy.
+ */
+export function claimRun(packageDir: string): { release: () => void } | { busy: number } {
+  const dir = path.join(packageDir, WRAPPER_DIR);
+  const lock = path.join(dir, 'run.lock');
+  mkdirSync(dir, { recursive: true });
+  for (;;) {
+    try {
+      writeFileSync(lock, String(process.pid), { flag: 'wx' });
+      return { release: () => rmSync(lock, { force: true }) };
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+    }
+    const owner = Number(readFileSync(lock, 'utf8'));
+    if (alive(owner)) return { busy: owner };
+    rmSync(lock, { force: true });
+  }
+}
+
+/** Whether a process with this pid is running (signal 0 only checks; EPERM means it exists). */
+export const alive = (pid: number): boolean => {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === 'EPERM';
+  }
+};
+
+/**
  * Remove what a run generated, and keep the verdict cache for the next run. Removing the whole
  * directory threw the cache away, so every lane run started cold and reused nothing. The cache
  * guards its own staleness (fingerprint, 1-in-20 audit, #1467); this only lets it be read.
@@ -578,6 +613,8 @@ export function runPackage(pkg: string, mutate: readonly string[], o: { concurre
   const engine = o.engine ?? 'stryker';
   const name = engine === 'oxmutate' ? 'oxmutate' : 'Stryker';
   const packageDir = path.join(REPO_ROOT, 'packages', pkg);
+  const claim = claimRun(packageDir);
+  if ('busy' in claim) return { pkg, ok: false, error: `another mutation run (pid ${String(claim.busy)}) is using packages/${pkg}/${WRAPPER_DIR}; run shards of one package one after another, or from separate clones`, minutes: 0 };
   const work = mkdtempSync(path.join(tmpdir(), `mutation-${pkg}-`));
   const wrapper = writeWrapper(packageDir, Object.keys(SKIPPED_TESTS[pkg] ?? {}));
   const { reportFile, configFile, argv } = writeRunConfig(engine, { pkg, packageDir, work, wrapper, mutate, o });
@@ -614,6 +651,7 @@ export function runPackage(pkg: string, mutate: readonly string[], o: { concurre
     rmSync(configFile, { force: true });
     rmSync(reportFile, { force: true });
     removeWrapper(wrapper);
+    claim.release();
   }
 }
 
