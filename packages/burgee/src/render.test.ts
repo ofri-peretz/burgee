@@ -18,6 +18,7 @@ describe('render', () => {
   it('prints a scalar as itself', () => {
     expect(render(42)).toBe('42');
     expect(render(false)).toBe('false');
+    expect(render(null)).toBe('null');
   });
 
   it("prints a result's own text when it carries one, and JSON never sees it", () => {

@@ -33,6 +33,8 @@ describe('markings', () => {
   it('sit inside the silhouette, clipped to it', () => {
     const b = defineBurgee({ ...BRAND, markings: '<circle id="m" r="3"/>' });
     expect(b.flag()).toContain(`<g clip-path="url(#${b.fieldId()}-c)"><circle id="m" r="3"/></g>`);
+    // The clip they are drawn in is drawn for them, with no sheen or bevel to ask for one.
+    expect(b.flag()).toContain(`<clipPath id="${b.fieldId()}-c">`);
     expect(defineBurgee(BRAND).flag()).not.toContain('clip-path="url(#');
   });
 });
