@@ -28,8 +28,8 @@ export interface ClaudeHook {
   event: string;
   matcher: string;
   file: string;
-  /** Seconds Claude Code waits before killing the hook, so a stuck hook never holds a session. */
-  timeout?: number;
+  /** Seconds before Claude Code kills the hook. Required: a pack hook never runs unbounded. */
+  timeout: number;
 }
 
 /** A skill every repo carries, such as `verify`: written from a template, then filled in by the repo. */
@@ -502,12 +502,12 @@ function mergeSettings(repo: string, stations: Stations): string {
   for (const h of expectedClaudeHooks(stations)) {
     const groups = events.get(h.event) ?? [];
     events.set(h.event, groups);
-    const entry = { type: 'command', command: hookCommand(h.file), ...(h.timeout ? { timeout: h.timeout } : {}) };
+    const entry = { type: 'command', command: hookCommand(h.file), timeout: h.timeout };
     // Stryker disable next-line StringLiteral: equivalent, no pack hook has an empty matcher
     const wired = groups.filter((g) => (g.matcher ?? '') === h.matcher).flatMap((g) => g.hooks).find((c) => c.command.includes(`.claude/hooks/${h.file}`));
     // An entry wired before the pack set a timeout gets one; a repo's own timeout stays.
     if (wired) {
-      if (h.timeout && wired.timeout === undefined) wired.timeout = h.timeout;
+      if (wired.timeout === undefined) wired.timeout = h.timeout;
       continue;
     }
     // Stryker disable next-line StringLiteral: equivalent, as above
