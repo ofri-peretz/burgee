@@ -149,11 +149,15 @@ from that fingerprint, or no run passed this session, it sends the turn back onc
 (`decision: "block"`) naming the changed files. The second stop of the same turn
 (`stop_hook_active`) always ends it, so an agent that has to ask a question first is never stuck.
 
+It judges only code this session changed: a path its Edit or Write tools wrote, or one whose
+content changed across one of its own Bash calls. A file another session or a generator rewrites
+in the same checkout does not send this session's turn back.
+
 Committed work is the commit and push hooks' to judge. `.md`, `.mdx` and `.txt` files do not
 count, and neither do the globs a repository lists under `verifyIgnore` in `.claude/hookset.json`.
 
 ```text title="node .claude/hooks/verify-before-stop.mjs --self-test"
-ok: 17 cases
+ok: 19 cases
 ```
 
 ## The verify skill

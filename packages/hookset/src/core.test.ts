@@ -53,7 +53,8 @@ const ALL_SCRIPTS = JSON.stringify({
 const at = (hook: string, run: string): string | undefined => duplicateOf({ hook, command: 'x', run }, STATIONS.stations)?.id;
 const unwired = (file: string, event: string, matcher: string): Problem => ({ id: 'claude-unwired', severity: 'error', message: `.claude/settings.json does not run ${file} on ${event} (${matcher})`, fix: 'run `hookset init --claude`' });
 const cmd = (file: string): { type: string; command: string } => ({ type: 'command', command: `node .claude/hooks/${file}` });
-const command = (file: string): { type: string; command: string }[] => [{ type: 'command', command: `node "$CLAUDE_PROJECT_DIR/.claude/hooks/${file}"` }];
+const TIMEOUT: Record<string, number> = { 'guard-bash.mjs': 10, 'stop-after-3.mjs': 10, 'verify-before-stop.mjs': 30, 'codegraph.mjs': 30, 'worktree-sweep.mjs': 30 };
+const command = (file: string): { type: string; command: string; timeout?: number }[] => [{ type: 'command', command: `node "$CLAUDE_PROJECT_DIR/.claude/hooks/${file}"`, timeout: TIMEOUT[file] ?? 30 }];
 
 /** A verify skill a repo has filled in: the template's required lines, no placeholder left. */
 const FILLED_SKILL = '---\nname: verify\ndescription: run the CLI\n---\n\n## Feature map\n\n| Feature | Reach it by | Working means |\n| --- | --- | --- |\n| help | `x --help` | exit 0 |\n';
@@ -73,6 +74,17 @@ const STATION_OFF: Problem[] = [
 ];
 
 describe('the package', () => {
+  it('ships presets that never hang and stop at the first failure', () => {
+    for (const f of ['pre-commit.yml', 'commit-msg.yml', 'pre-push.yml']) {
+      const yaml = readFileSync(join(PKG, 'presets/lefthook', f), 'utf8');
+      const steps = yaml.match(/^ {4}[a-z-]+:$/gm) ?? [];
+      const capped = yaml.match(/^ {6}timeout: \d+[sm]$/gm) ?? [];
+      expect(steps.length).toBeGreaterThan(0);
+      expect(capped.length, `${f}: every step needs a timeout`).toBe(steps.length);
+    }
+    expect(readFileSync(join(PKG, 'presets/lefthook/pre-push.yml'), 'utf8')).toMatch(/^ {2}piped: true$/m);
+  });
+
   it('finds its root from any file in src/ or dist/, and reads its version and stations from there', () => {
     expect(packageRoot(pathToFileURL(join(PKG, 'dist', 'cli.js')).href)).toBe(PKG);
     expect(VERSION).toMatch(/^\d+\.\d+\.\d+$/);
@@ -98,15 +110,18 @@ describe('the package', () => {
 
   it('puts stop-after-3 on PostToolUseFailure too, since a failed Bash call lands there', () => {
     expect(expectedClaudeHooks(STATIONS)).toEqual([
-      { event: 'PreToolUse', matcher: 'Bash', file: 'guard-bash.mjs' },
-      { event: 'PreToolUse', matcher: 'Edit|Write|MultiEdit|NotebookEdit', file: 'guard-bash.mjs' },
-      { event: 'PostToolUse', matcher: 'Bash', file: 'stop-after-3.mjs' },
-      { event: 'PostToolUseFailure', matcher: 'Bash', file: 'stop-after-3.mjs' },
-      { event: 'PostToolUse', matcher: 'Bash', file: 'verify-before-stop.mjs' },
-      { event: 'PostToolUseFailure', matcher: 'Bash', file: 'verify-before-stop.mjs' },
-      { event: 'Stop', matcher: '', file: 'verify-before-stop.mjs' },
-      { event: 'SessionStart', matcher: '', file: 'codegraph.mjs' },
-      { event: 'SessionStart', matcher: '', file: 'worktree-sweep.mjs' },
+      { event: 'PreToolUse', matcher: 'Bash', file: 'guard-bash.mjs', timeout: 10 },
+      { event: 'PreToolUse', matcher: 'Edit|Write|MultiEdit|NotebookEdit', file: 'guard-bash.mjs', timeout: 10 },
+      { event: 'PostToolUse', matcher: 'Bash', file: 'stop-after-3.mjs', timeout: 10 },
+      { event: 'PostToolUseFailure', matcher: 'Bash', file: 'stop-after-3.mjs', timeout: 10 },
+      { event: 'PreToolUse', matcher: 'Bash', file: 'verify-before-stop.mjs', timeout: 30 },
+      { event: 'PostToolUse', matcher: 'Bash', file: 'verify-before-stop.mjs', timeout: 30 },
+      { event: 'PostToolUseFailure', matcher: 'Bash', file: 'verify-before-stop.mjs', timeout: 30 },
+      { event: 'PostToolUse', matcher: 'Edit|Write|MultiEdit|NotebookEdit', file: 'verify-before-stop.mjs', timeout: 30 },
+      { event: 'PostToolUseFailure', matcher: 'Edit|Write|MultiEdit|NotebookEdit', file: 'verify-before-stop.mjs', timeout: 30 },
+      { event: 'Stop', matcher: '', file: 'verify-before-stop.mjs', timeout: 30 },
+      { event: 'SessionStart', matcher: '', file: 'codegraph.mjs', timeout: 30 },
+      { event: 'SessionStart', matcher: '', file: 'worktree-sweep.mjs', timeout: 30 },
     ]);
   });
 });
@@ -345,8 +360,11 @@ describe('checkRepo', () => {
         unwired('guard-bash.mjs', 'PreToolUse', 'Edit|Write|MultiEdit|NotebookEdit'),
         unwired('stop-after-3.mjs', 'PostToolUse', 'Bash'),
         unwired('stop-after-3.mjs', 'PostToolUseFailure', 'Bash'),
+        unwired('verify-before-stop.mjs', 'PreToolUse', 'Bash'),
         unwired('verify-before-stop.mjs', 'PostToolUse', 'Bash'),
         unwired('verify-before-stop.mjs', 'PostToolUseFailure', 'Bash'),
+        unwired('verify-before-stop.mjs', 'PostToolUse', 'Edit|Write|MultiEdit|NotebookEdit'),
+        unwired('verify-before-stop.mjs', 'PostToolUseFailure', 'Edit|Write|MultiEdit|NotebookEdit'),
         unwired('verify-before-stop.mjs', 'Stop', ''),
         unwired('codegraph.mjs', 'SessionStart', ''),
         unwired('worktree-sweep.mjs', 'SessionStart', ''),
@@ -390,15 +408,18 @@ describe('checkRepo', () => {
       '.claude/settings.json does not run guard-bash.mjs on PreToolUse (Edit|Write|MultiEdit|NotebookEdit)',
       '.claude/settings.json does not run stop-after-3.mjs on PostToolUse (Bash)',
       '.claude/settings.json does not run stop-after-3.mjs on PostToolUseFailure (Bash)',
+      '.claude/settings.json does not run verify-before-stop.mjs on PreToolUse (Bash)',
       '.claude/settings.json does not run verify-before-stop.mjs on PostToolUse (Bash)',
       '.claude/settings.json does not run verify-before-stop.mjs on PostToolUseFailure (Bash)',
+      '.claude/settings.json does not run verify-before-stop.mjs on PostToolUse (Edit|Write|MultiEdit|NotebookEdit)',
+      '.claude/settings.json does not run verify-before-stop.mjs on PostToolUseFailure (Edit|Write|MultiEdit|NotebookEdit)',
       '.claude/settings.json does not run verify-before-stop.mjs on Stop ()',
       '.claude/settings.json does not run codegraph.mjs on SessionStart ()',
       '.claude/settings.json does not run worktree-sweep.mjs on SessionStart ()',
       '.claude/settings.json does not enable the codegraph server, so every session asks first',
     ]);
     writeFileSync(join(dir, '.claude/settings.json'), '{}');
-    expect(checkRepo(dir, PKG).problems).toHaveLength(10);
+    expect(checkRepo(dir, PKG).problems).toHaveLength(13);
   });
 
   it('wants the codegraph server pinned in .mcp.json, its index gitignored, and the server enabled', () => {
@@ -515,11 +536,17 @@ describe('initRepo', () => {
           $schema: 'https://json.schemastore.org/claude-code-settings.json',
           hooks: {
             PreToolUse: [
-              { matcher: 'Bash', hooks: command('guard-bash.mjs') },
+              { matcher: 'Bash', hooks: [...command('guard-bash.mjs'), ...command('verify-before-stop.mjs')] },
               { matcher: 'Edit|Write|MultiEdit|NotebookEdit', hooks: command('guard-bash.mjs') },
             ],
-            PostToolUse: [{ matcher: 'Bash', hooks: [...command('stop-after-3.mjs'), ...command('verify-before-stop.mjs')] }],
-            PostToolUseFailure: [{ matcher: 'Bash', hooks: [...command('stop-after-3.mjs'), ...command('verify-before-stop.mjs')] }],
+            PostToolUse: [
+              { matcher: 'Bash', hooks: [...command('stop-after-3.mjs'), ...command('verify-before-stop.mjs')] },
+              { matcher: 'Edit|Write|MultiEdit|NotebookEdit', hooks: command('verify-before-stop.mjs') },
+            ],
+            PostToolUseFailure: [
+              { matcher: 'Bash', hooks: [...command('stop-after-3.mjs'), ...command('verify-before-stop.mjs')] },
+              { matcher: 'Edit|Write|MultiEdit|NotebookEdit', hooks: command('verify-before-stop.mjs') },
+            ],
             Stop: [{ matcher: '', hooks: command('verify-before-stop.mjs') }],
             SessionStart: [{ matcher: '', hooks: [...command('codegraph.mjs'), ...command('worktree-sweep.mjs')] }],
           },
@@ -557,12 +584,13 @@ describe('initRepo', () => {
     expect(merged.permissions).toEqual({ allow: ['Bash(ls)', 'mcp__codegraph__codegraph_explore'] });
     expect(Object.keys(merged.hooks)).toEqual(['PreToolUse', 'PostToolUse', 'PostToolUseFailure', 'Stop', 'SessionStart']);
     expect(merged.hooks['PreToolUse']?.map((g) => [g.matcher, g.hooks.length])).toEqual([
-      ['Bash', 1],
+      ['Bash', 2],
       ['Edit|Write|MultiEdit|NotebookEdit', 1],
     ]);
     expect(merged.hooks['PostToolUse']?.map((g) => [g.matcher, g.hooks.map((h) => h.command)])).toEqual([
       ['Bash', ['node other.mjs', 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/stop-after-3.mjs"', 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/verify-before-stop.mjs"']],
       [undefined, ['node any.mjs']],
+      ['Edit|Write|MultiEdit|NotebookEdit', ['node "$CLAUDE_PROJECT_DIR/.claude/hooks/verify-before-stop.mjs"']],
     ]);
     expect(initRepo(dir, PKG, { claude: true })).toEqual({ changed: false, written: [] });
   });
@@ -574,6 +602,7 @@ describe('initRepo', () => {
     expect(merged.hooks['PostToolUseFailure']?.map((g) => [g.matcher, g.hooks.map((h) => h.command)])).toEqual([
       [undefined, ['node log.mjs']],
       ['Bash', ['node "$CLAUDE_PROJECT_DIR/.claude/hooks/stop-after-3.mjs"', 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/verify-before-stop.mjs"']],
+      ['Edit|Write|MultiEdit|NotebookEdit', ['node "$CLAUDE_PROJECT_DIR/.claude/hooks/verify-before-stop.mjs"']],
     ]);
   });
 });
@@ -647,8 +676,11 @@ describe('the checks, at their edges', () => {
     expect(checkRepo(dir, PKG).problems.map((p) => p.message)).toEqual([
       '.claude/settings.json does not run stop-after-3.mjs on PostToolUse (Bash)',
       '.claude/settings.json does not run stop-after-3.mjs on PostToolUseFailure (Bash)',
+      '.claude/settings.json does not run verify-before-stop.mjs on PreToolUse (Bash)',
       '.claude/settings.json does not run verify-before-stop.mjs on PostToolUse (Bash)',
       '.claude/settings.json does not run verify-before-stop.mjs on PostToolUseFailure (Bash)',
+      '.claude/settings.json does not run verify-before-stop.mjs on PostToolUse (Edit|Write|MultiEdit|NotebookEdit)',
+      '.claude/settings.json does not run verify-before-stop.mjs on PostToolUseFailure (Edit|Write|MultiEdit|NotebookEdit)',
       '.claude/settings.json does not run verify-before-stop.mjs on Stop ()',
       '.claude/settings.json does not run codegraph.mjs on SessionStart ()',
       '.claude/settings.json does not run worktree-sweep.mjs on SessionStart ()',
@@ -687,9 +719,19 @@ describe('init, at its edges', () => {
     const merged = JSON.parse(read(dir, '.claude/settings.json')) as { hooks: { PostToolUse: { hooks: unknown[] }[] } };
     expect(merged.hooks.PostToolUse[0]?.hooks).toEqual([
       { type: 'command', command: 'node x.mjs' },
-      { type: 'command', command: 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/stop-after-3.mjs"' },
-      { type: 'command', command: 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/verify-before-stop.mjs"' },
+      { type: 'command', command: 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/stop-after-3.mjs"', timeout: 10 },
+      { type: 'command', command: 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/verify-before-stop.mjs"', timeout: 30 },
     ]);
+  });
+
+  it('caps a pack hook wired before the pack set timeouts, and keeps a timeout the repo chose', () => {
+    const own = 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/guard-bash.mjs"';
+    const settings = { hooks: { PreToolUse: [{ matcher: 'Bash', hooks: [{ type: 'command', command: own }] }, { matcher: 'Edit|Write|MultiEdit|NotebookEdit', hooks: [{ type: 'command', command: own, timeout: 3 }] }] } };
+    const dir = repo({ 'lefthook.yml': lefthookTemplate(STATIONS, REF), '.claude/settings.json': JSON.stringify(settings) });
+    initRepo(dir, PKG, { claude: true });
+    const merged = JSON.parse(read(dir, '.claude/settings.json')) as { hooks: { PreToolUse: { hooks: { command: string; timeout?: number }[] }[] } };
+    expect(merged.hooks.PreToolUse[0]?.hooks.find((h) => h.command === own)?.timeout).toBe(10);
+    expect(merged.hooks.PreToolUse[1]?.hooks.find((h) => h.command === own)?.timeout).toBe(3);
   });
 });
 
