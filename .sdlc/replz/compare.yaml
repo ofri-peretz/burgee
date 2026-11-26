@@ -6,5 +6,4 @@ inputs: .sdlc/replz/compare-inputs
 normalize:
   # The version line moves on every release.
   - 'replz \d+\.\d+\.\d+'
-approved:
-  - { input: help.txt, base: cd8f3d0cb3f9, head: 507f6837e3a7, reason: mine and compare join the command list }
+approved: []

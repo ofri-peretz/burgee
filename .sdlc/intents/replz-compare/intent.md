@@ -38,5 +38,7 @@ the drift, and the approved list is the record of each output change somebody me
 Built on 2026-11-26 (`packages/replz/src/compare.ts`). [`.sdlc/replz/compare.yaml`](../../replz/compare.yaml)
 runs three replz command lines through origin/main and the working tree. Its first run failed on
 `--help`, which gained `mine` and `compare`; that change is approved there with its reason, and the
-second run passed with 2 the same and 1 approved. Wiring it into a per-pull-request check is open:
-the base tree needs its own install, so it runs by hand for now.
+second run passed with 2 the same and 1 approved. Since 2026-11-26 it runs on every pull request
+that touches packages (`.github/workflows/replz-compare.yml`): the base is a worktree with its own
+`npm ci` and build, both trees share the ~/.npm cache and one Turbo cache directory saved per base
+commit. That approval went stale once #1873 merged and was dropped.
