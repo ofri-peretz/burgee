@@ -74,6 +74,17 @@ const STATION_OFF: Problem[] = [
 ];
 
 describe('the package', () => {
+  it('ships presets that never hang and stop at the first failure', () => {
+    for (const f of ['pre-commit.yml', 'commit-msg.yml', 'pre-push.yml']) {
+      const yaml = readFileSync(join(PKG, 'presets/lefthook', f), 'utf8');
+      const steps = yaml.match(/^ {4}[a-z-]+:$/gm) ?? [];
+      const capped = yaml.match(/^ {6}timeout: \d+[sm]$/gm) ?? [];
+      expect(steps.length).toBeGreaterThan(0);
+      expect(capped.length, `${f}: every step needs a timeout`).toBe(steps.length);
+    }
+    expect(readFileSync(join(PKG, 'presets/lefthook/pre-push.yml'), 'utf8')).toMatch(/^ {2}piped: true$/m);
+  });
+
   it('finds its root from any file in src/ or dist/, and reads its version and stations from there', () => {
     expect(packageRoot(pathToFileURL(join(PKG, 'dist', 'cli.js')).href)).toBe(PKG);
     expect(VERSION).toMatch(/^\d+\.\d+\.\d+$/);
