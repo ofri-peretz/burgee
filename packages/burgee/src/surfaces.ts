@@ -119,8 +119,9 @@ const AGENTS_LINE = ' AGENTS.md beside this program says how to drive it.';
  * the two places cli-agent-lint's SD-5 looks. Help never names a file that is not there.
  */
 function agentsBeside(pkg: Package | undefined): boolean {
-  const bin = pkg?.data['bin'];
-  if (pkg === undefined || bin === undefined || bin === null) return false;
+  if (pkg === undefined) return false;
+  const bin = pkg.data['bin'];
+  if (bin === undefined || bin === null) return false;
   const { existsSync } = builtin('node:fs');
   const bins = typeof bin === 'string' ? [bin] : Object.values(bin as Record<string, unknown>).filter((b): b is string => typeof b === 'string');
   return bins.some((b) => {
@@ -144,6 +145,7 @@ const renderHelp = async (manifest: Manifest, node: CommandNode, io: SurfaceIo, 
   const say = local && ((s: string): string => local.say(s, 'help.'));
   // agent-skill R4 — the root's line for agents names `AGENTS.md` when one is there to read.
   const agents = atRoot && agentsBeside(io.pkg) ? AGENTS_LINE : '';
+  // Stryker disable next-line ConditionalExpression: renderHelp reads a `say` holding undefined as none (`opts.say ?? String`)
   return help.renderHelp(manifest, shown, { width: io.width, color: help.colorFor(io.env, detectAgent(io.env, io.out.isTTY === true).interactive, argv), commands, globals, forAgents: agents, ...(say === undefined ? {} : { say }) });
 };
 
@@ -184,6 +186,7 @@ function authoredIn(c: CommandNode): boolean {
  */
 async function localised(manifest: Manifest, node: CommandNode, io: SurfaceIo): Promise<{ local?: import('./locale.js').Localiser | undefined; view: (c: CommandNode) => CommandNode }> {
   const authored = [node, ...manifest.commands].some(authoredIn);
+  // Stryker disable next-line ConditionalExpression: with nothing authored and no locale plugin the localiser leaves every command as it was; this only skips loading it
   if (!authored && !manifest.plugins.some((p) => 'locales' in p)) return { view: (c) => c };
   const { commandInLocale, localiserOf, resolveLocale } = await import('./locale.js');
   const locale = resolveLocale(io.locale, io.env);
@@ -255,6 +258,7 @@ export async function unresolved({ manifest, root, io }: Resolving, argv: string
   // Stryker disable next-line EqualityOperator,ConditionalExpression: with no globals the words are argv's own, which resolved nothing that runs, and there is no colour to add
   if (globals.length > 0) {
     const reached = manifest.resolve([...before, ...typed], root);
+    // Stryker disable next-line OptionalChaining: the program's root node is one of its commands and matches every argv, so resolve always reaches a node here
     if (reached.node?.run !== undefined) throw new Again(lineWords(reached.node.path, reached.rest, undefined, globals));
     argv = [...argv, ...globalsOf(globals, node).color];
   }
@@ -539,7 +543,7 @@ export async function serve(manifest: Manifest, argv: string[], io: SurfaceIo, e
       io.out.write((await import('./mcp-config.js')).clientConfig(manifest, io.pkg));
       return true;
     }
-    // Stryker disable StringLiteral,ArrayDeclaration,NumericLiteral: a tool call is a --json run, which ends through exit (0 included), prints its English envelope to stdout in one write, and so never leaves stdout empty for stderr to be read
+    // Stryker disable StringLiteral,ArrayDeclaration,NumericLiteral,ArrowFunction: a tool call is a --json run, which ends through exit (0 included), prints its English envelope to stdout in one write, and so never leaves stdout empty for stderr to be read
     const invoke = async (args: string[]): Promise<{ stdout: string; stderr: string; code: number }> => {
       const out: string[] = [];
       const err: string[] = [];

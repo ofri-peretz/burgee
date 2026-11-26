@@ -77,7 +77,9 @@ function repeated(node: CommandNode, tokens: readonly Token[], rest: readonly st
   let message: string | undefined;
   const kept = new Map<string, OptionToken>();
   for (const flag of tokens.toReversed()) {
-    if (flag.kind !== 'option' || flag.value === undefined || node.options[camel(flag.name)]?.multiple === true) continue;
+    if (flag.kind !== 'option' || node.options[camel(flag.name)]?.multiple === true) continue;
+    // Stryker disable next-line ConditionalExpression: a valueless flag kept here keeps `undefined`, which the next one reads as nothing kept
+    if (flag.value === undefined) continue;
     const later = kept.get(flag.name)?.value;
     if (later === undefined) {
       kept.set(flag.name, flag);

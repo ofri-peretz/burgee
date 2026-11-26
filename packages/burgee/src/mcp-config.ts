@@ -29,6 +29,7 @@ function real(path: string): string {
 /** `bin` as name to file: a string is the package's own name, without its scope. */
 function binsOf(pkg: Package): Record<string, string> {
   const { bin, name } = pkg.data;
+  // Stryker disable next-line Regex: an npm name holds `@` only as its scope's first character, so the anchor never decides a match
   return typeof bin === 'string' ? { [String(name).replace(/^@[^/]+\//, '')]: bin } : ((bin ?? {}) as Record<string, string>);
 }
 

@@ -123,7 +123,10 @@ export function projectManifest(manifest: Manifest, root: Snapshot): void {
   const contributed = manifest.commands.filter((c) => c.plugin !== undefined);
   manifest.commands.splice(0, manifest.commands.length, ...contributed);
   manifest.rootPath = [root.name];
-  if (root.version !== undefined) manifest.version = root.version;
+  // Projected on every access onto the same manifest: a version turned off since the last access goes too.
+  // Stryker disable next-line ConditionalExpression: assigning undefined instead reads the same, since every surface takes a version key holding undefined as absent
+  if (root.version === undefined) delete manifest.version;
+  else manifest.version = root.version;
   // The parent's entry for the command, so its description, deprecation and aliases (R6) come along.
   const visit = (s: Snapshot, at: string[], { description, deprecated, aliases }: Partial<Snapshot['commands'][number]>): void => {
     const args = argumentsOf(s);

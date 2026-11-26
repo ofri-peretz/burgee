@@ -93,6 +93,11 @@ describe('--mcp --print-config (R6)', () => {
     expect(Object.keys((JSON.parse(clientConfig(new Manifest(), undefined)) as { mcpServers: object }).mcpServers)).toEqual(['burgee']);
   });
 
+  it('keys a program mounted under a path by its words, space-separated', () => {
+    const nested = Object.assign(new Manifest(), { rootPath: ['tool', 'mcp'] });
+    expect(Object.keys((JSON.parse(clientConfig(nested, undefined)) as { mcpServers: object }).mcpServers)).toEqual(['tool mcp']);
+  });
+
   it('is read only before `--`, and `--mcp` without it still serves', async () => {
     const dir = packageWith('served', { name: 'tool-pkg' });
     expect(await printed(join(dir, 'bin.js'), join(dir, 'bin.js'), ['--mcp', '--', '--print-config'])).toBe('');

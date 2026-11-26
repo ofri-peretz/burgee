@@ -187,7 +187,9 @@ describe('scoring a report (R2)', () => {
 describe('`// Stryker disable` carries a reason (R4)', () => {
   it('accepts a mutator and a reason, and refuses one without', () => {
     expect(disableProblems('a.ts', '// Stryker disable next-line StringLiteral: the message is not part of the contract')).toEqual([]);
-    expect(disableProblems('a.ts', '/* Stryker disable all: generated table, checked by its generator */')).toEqual([]);
+    expect(disableProblems('a.ts', '/* Stryker disable all: generated table, checked by its generator */')).toEqual([expect.stringContaining('a.ts:1: this Stryker directive sits in a block comment')]);
+    expect(disableProblems('a.ts', '/**\n * Stryker disable all: generated table, checked by its generator\n */\nconst a = 1;')).toEqual([expect.stringContaining('a.ts:2: this Stryker directive sits in a block comment')]);
+    expect(disableProblems('a.ts', '/** Stryker reads these from the config below */\nconst a = 1;')).toEqual([]);
     expect(disableProblems('a.ts', '// Stryker restore all')).toEqual([]);
     for (const bad of ['// Stryker disable next-line StringLiteral', '// Stryker disable all', '// Stryker disable next-line Regex: flaky', '// Stryker disable next-line: no mutator named here at all']) {
       expect(disableProblems('a.ts', `const x = 1;\n${bad}`), bad).toEqual([expect.stringMatching(/^a\.ts:2: /u)]);

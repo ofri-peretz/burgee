@@ -65,6 +65,7 @@ function fit(rows: readonly unknown[], max: number, text: (k: number) => string)
  * and it stops at the first figure that is true of the text carrying it.
  */
 function settled(max: number, text: (over: number) => string): string {
+  // Stryker disable next-line NumericLiteral: from 1 the first pass measures 0 over and the next settles there, as starting at 0 does
   let over = 0;
   let out = text(over);
   while (bytes(out) - max !== over) {

@@ -8,6 +8,8 @@ import { describe, expect, it } from 'vitest';
 
 import { Manifest } from '../manifest.js';
 
+import yargs from '../yargs.js';
+
 import { optionSpecs, projectManifest, render, type Snapshot } from './burgee.js';
 
 const snapshot = (over: Partial<Snapshot> = {}): Snapshot => ({
@@ -170,5 +172,14 @@ describe('render — a handler’s return value on the injected stream', () => {
     expect(render({ name: 'ada', tags: ['x'] })).toBe('name: ada\ntags: ["x"]\n');
     expect(render([1, 2])).toBe('[1,2]\n');
     expect(render(7)).toBe('7\n');
+  });
+});
+
+describe('the version on a manifest projected again', () => {
+  it('drops a version turned off since the last access, as --version and --schema stop reporting it', () => {
+    const y = yargs([]).scriptName('app').version('1.2.3');
+    expect(y.manifest.version).toBe('1.2.3');
+    y.version(false);
+    expect(y.manifest.version).toBeUndefined();
   });
 });

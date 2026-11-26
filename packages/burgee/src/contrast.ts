@@ -70,8 +70,9 @@ export function report(findings: readonly ContrastFinding[]): string {
 export function fieldColorAt(stops: ReadonlyArray<{ offset: number; color: string }>, at: number): string {
   const ordered = [...stops].sort((x, y) => x.offset - y.offset);
   const first = ordered[0];
-  const last = ordered.at(-1);
-  if (first === undefined || last === undefined) throw new Error('burgee: a field needs at least one stop');
+  if (first === undefined) throw new Error('burgee: a field needs at least one stop');
+  // A list with a first stop has a last one; the cast only tells the type so, without a branch.
+  const last = ordered.at(-1) as typeof first;
   if (at <= first.offset) return first.color;
   if (at >= last.offset) return last.color;
   // Stryker disable next-line NumericLiteral: equivalent — from 0, the first pass's `hi` is the first stop, which the return above has already ruled out, so it never reads its `lo`
