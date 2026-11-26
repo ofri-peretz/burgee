@@ -132,8 +132,10 @@ const STOP: ReadonlySet<string> = new Set(
 export const wordsOf = (text: string): string[] =>
   text
     .replace(/\]\([^)]*\)/gu, ' ')
+    // Stryker disable next-line StringLiteral: equivalent, a URL runs to whitespace, so its replacement always sits beside a separator
     .replace(/https?:\/\/\S+/gu, ' ')
     .toLowerCase()
+    // Stryker disable next-line Regex: equivalent, splitting a run one character at a time leaves empty words, which the length filter drops
     .split(/[^a-z0-9_.:/-]+/u)
     .map((word) => word.replace(/^[.:/-]+|[.:/-]+$/gu, ''))
     .filter((word) => word.length > 2 && !STOP.has(word) && !/[/.:]/u.test(word) && !/\d/u.test(word));

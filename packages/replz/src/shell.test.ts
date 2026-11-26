@@ -74,7 +74,7 @@ describe('ghOf', () => {
 
   it('names the command, not its jq filter, and says how to sign in when gh fails', async () => {
     await expect(ghOf(scratch('replay-gh-'), ['not-a-command', '--x', 'path', 'filter-not-shown'])).rejects.toThrow(
-      /^gh not-a-command --x path failed: [^\n]*\S.*\. fix: install gh and run `gh auth login`, or set GH_TOKEN$/s,
+      /^gh not-a-command --x path failed: [^\n]*\S.*\S\. fix: install gh and run `gh auth login`, or set GH_TOKEN$/s,
     );
   });
 });

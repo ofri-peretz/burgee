@@ -87,6 +87,8 @@ describe('findingsOf', () => {
       '**[Pre-existing]** bold tag',
       '**`changeset-rule`** — [Nit] bold rule id then tag',
       '`rule` - [Nit] code id then hyphen',
+      '####[Nit] heading with no space',
+      '**`rule`**—[Nit] bold id, no space round the dash',
       'The [Nit] from the last round was answered.',
     ].join('\n');
     expect(findingsOf(comment({ pr: 2, body })).map((one) => one.text)).toEqual([
@@ -95,6 +97,8 @@ describe('findingsOf', () => {
       '**[Pre-existing]** bold tag',
       '**`changeset-rule`** — [Nit] bold rule id then tag',
       '`rule` - [Nit] code id then hyphen',
+      '####[Nit] heading with no space',
+      '**`rule`**—[Nit] bold id, no space round the dash',
     ]);
     expect(findingsOf(comment({ pr: 2, body }))[0]).toEqual({
       pr: 2,
@@ -121,6 +125,15 @@ describe('prose', () => {
   it('keeps a line with one bold mark, which is a sentence, not badges', () => {
     expect(prose('**Major** and more')).toBe('**Major** and more');
   });
+
+  it('drops a comment that holds a >, leaving a space, and a badge line however it is spaced', () => {
+    expect(prose('a<!-- x > y -->b')).toBe('a b');
+    expect(prose('**A**·**B**\n  **A** · **B**  \nkept')).toBe('kept');
+  });
+
+  it('keeps a line that only starts or only ends with badges', () => {
+    expect(prose('x **A** · **B**\n**A** · **B** tail')).toBe('x **A** · **B**\n**A** · **B** tail');
+  });
 });
 
 describe('wordsOf', () => {
@@ -137,7 +150,16 @@ describe('wordsOf', () => {
   });
 
   it('strips edge punctuation but keeps an inner hyphen and underscore', () => {
-    expect(wordsOf('-skip-changeset- my_flag. :tag:')).toEqual(['skip-changeset', 'my_flag', 'tag']);
+    expect(wordsOf('--skip-changeset-- my_flag.. ::tag::')).toEqual(['skip-changeset', 'my_flag', 'tag']);
+  });
+
+  it('drops a link target and a whole URL, even where their words would split out', () => {
+    expect(wordsOf('alpha[beta](gamma words)delta')).toEqual(['alpha', 'beta', 'delta']);
+    expect(wordsOf('see https://x.y/a?query=word and http://x.y/a?other=term')).toEqual(['see']);
+  });
+
+  it('drops filler from every part of the stop list', () => {
+    expect(wordsOf('these whose should having other')).toEqual([]);
   });
 });
 
@@ -241,6 +263,10 @@ describe('candidatesMarkdown', () => {
         '',
       ].join('\n'),
     );
+  });
+
+  it('trims a finding before it is listed', () => {
+    expect(candidatesMarkdown([{ phrase: 'p q', prs: [1], examples: [finding(1, '  padded  ')] }], { slug: 's', since: 'd', findings: 1 })).toContain('- #1: padded\n');
   });
 
   it('keeps a finding of exactly the limit whole', () => {

@@ -1,10 +1,40 @@
 import { describe, expect, it } from 'vitest';
 
-import { compareText, digest, firstDifference, judge, normalised, type Output, parseCompareConfig } from './compare.js';
+import { COMPARE, compareText, digest, firstDifference, judge, normalised, type Output, parseCompareConfig } from './compare.js';
 
 const out = (stdout: string, code: number | null = 0, stderr = ''): Output => ({ code, stdout, stderr });
 
+const approval = (entry: string) => `command: a\ninputs: b\napproved: [${entry}]\n`;
+const causeOf = (yaml: string): unknown => {
+  try {
+    parseCompareConfig('c.yaml', yaml);
+  } catch (error) {
+    return (error as Error).cause;
+  }
+  return undefined;
+};
+
 describe('parseCompareConfig', () => {
+  it('is read from .sdlc/replz/compare.yaml by default', () => {
+    expect(COMPARE).toBe('.sdlc/replz/compare.yaml');
+  });
+
+  it('refuses an empty command, a digest with a character too many or one that is not hex, an approval with no reason or a field it does not know, and a document that is not a mapping', () => {
+    const valid = '{ input: x, base: 0123456789ab, head: 0123456789ab, reason: r';
+    expect(() => parseCompareConfig('c.yaml', 'command: ""\ninputs: b\n')).toThrow(/command/);
+    expect(() => parseCompareConfig('c.yaml', approval(`${valid} }`))).not.toThrow();
+    expect(() => parseCompareConfig('c.yaml', approval('{ input: x, base: 0123456789abc, head: 0123456789ab, reason: r }'))).toThrow(/approved\/0\/base/);
+    expect(() => parseCompareConfig('c.yaml', approval('{ input: x, base: z123456789ab, head: 0123456789ab, reason: r }'))).toThrow(/approved\/0\/base/);
+    expect(() => parseCompareConfig('c.yaml', approval('{ input: x, base: 0123456789ab, head: 0123456789ab, reason: "" }'))).toThrow(/approved\/0\/reason/);
+    expect(() => parseCompareConfig('c.yaml', approval(`${valid}, by: me }`))).toThrow(/approved\/0/);
+    expect(() => parseCompareConfig('c.yaml', 'just text')).toThrow(/^c\.yaml is not a valid replz compare config:\n {2}\/: \S/);
+  });
+
+  it('keeps the parse error as the cause of a refusal', () => {
+    expect(causeOf('command: [')).toBeInstanceOf(Error);
+    expect(causeOf('command: a\ninputs: b\nnormalize: ["("]\n')).toBeInstanceOf(SyntaxError);
+  });
+
   it('reads the command and inputs, and defaults normalize and approved to empty', () => {
     expect(parseCompareConfig('c.yaml', 'command: node bin.js\ninputs: cases\n')).toEqual({ command: 'node bin.js', inputs: 'cases', normalize: [], approved: [] });
   });
@@ -56,6 +86,7 @@ describe('firstDifference', () => {
     expect(firstDifference('a\nb\nc', 'a\nB\nc')).toEqual({ line: 2, base: 'b', head: 'B' });
     expect(firstDifference('a', 'a\nmore')).toEqual({ line: 2, base: '(end)', head: 'more' });
     expect(firstDifference('a\nless', 'a')).toEqual({ line: 2, base: 'less', head: '(end)' });
+    expect(firstDifference('a', 'a')).toEqual({ line: 2, base: '(end)', head: '(end)' });
   });
 });
 
@@ -82,6 +113,12 @@ describe('judge', () => {
     const wrongHead = { input: 'broke.txt', base: moved.base, head: moved.head, reason: 'wrong input' };
     const report = judge(runs, { normalize: ['\\d+ms'], approved: [{ input: 'moved.txt', ...moved, reason: 'renamed' }, stale, wrongHead] });
     expect(report).toMatchObject({ same: 1, approved: ['moved.txt'], stale: [stale, wrongHead] });
+    const halves = [
+      { input: 'moved.txt', base: moved.base, head: moved.base, reason: 'right base, wrong head' },
+      { input: 'moved.txt', base: moved.head, head: moved.head, reason: 'wrong base, right head' },
+      { input: 'broke.txt', ...moved, reason: 'right outputs, wrong input' },
+    ];
+    expect(judge(runs, { normalize: ['\\d+ms'], approved: halves }).differs.map((one) => one.input)).toEqual(['moved.txt', 'broke.txt']);
     expect(report.differs.map((one) => one.input)).toEqual(['broke.txt']);
   });
 });

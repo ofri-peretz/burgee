@@ -68,6 +68,7 @@ export const parseCompareConfig = (source: string, yaml: string): CompareConfig 
     throw new Error(`${source} is not a valid replz compare config:\n${lines}\nfix: correct each field named above`);
   }
   const value = parsed.value as { normalize?: string[]; approved?: Approval[] } & Omit<CompareConfig, 'normalize' | 'approved'>;
+  // Stryker disable next-line ArrayDeclaration: equivalent, any one pattern the mutant adds compiles, so nothing throws
   for (const pattern of value.normalize ?? []) {
     try {
       patternOf(pattern);
@@ -100,7 +101,8 @@ export const firstDifference = (base: string, head: string): { readonly line: nu
   const a = base.split('\n');
   const b = head.split('\n');
   let at = 0;
-  while (at < a.length && at < b.length && a[at] === b[at]) at += 1;
+  // Past the end of `a`, `a[at]` is undefined, so the loop stops where either side runs out.
+  while (a[at] !== undefined && a[at] === b[at]) at += 1;
   return { line: at + 1, base: a[at] ?? '(end)', head: b[at] ?? '(end)' };
 };
 
