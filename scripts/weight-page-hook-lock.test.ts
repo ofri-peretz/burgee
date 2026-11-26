@@ -21,13 +21,15 @@
  * CI, the six-cycle week of 2026-11-23 again), or skipping when it cannot tell what changed.
  */
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { load as loadYaml } from 'js-yaml';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
+import { discard } from './scratch-dir.js';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const read = (file: string): string => readFileSync(join(ROOT, file), 'utf8');
@@ -59,7 +61,7 @@ beforeAll(() => {
   git('update-ref', 'refs/remotes/origin/main', 'HEAD');
 });
 afterAll(() => {
-  if (repo !== '') rmSync(repo, { recursive: true, force: true });
+  if (repo !== '') discard(repo);
 });
 
 /** A branch off `origin/main` that changes `file`. */
