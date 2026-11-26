@@ -1,5 +1,21 @@
 # hookset
 
+## 1.3.0
+
+### Minor Changes
+
+- [#1872](https://github.com/ofri-peretz/burgee/pull/1872) [`01a441f`](https://github.com/ofri-peretz/burgee/commit/01a441f266e5be55b798f09bf9e64436e1497896) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The Claude Code `guard-bash` hook now lints a `git commit -m …` / `-F …` message before the commit runs. It uses the repo's own commitlint config and, where the repo runs the provedone station, the `Verified-by:` receipt rule, and denies in about half a second with the fix (the valid scopes, "add `Verified-by: <command> -> exit 0`", the 100-character footer limit). Before, the same failures came from `commit-msg` only after the multi-minute `pre-commit` had run. A repo with no commitlint config or install, a commit that opens the editor, and any internal error get no opinion. Re-run `hookset init --claude` to vendor the new copy.
+
+- [#1868](https://github.com/ofri-peretz/burgee/pull/1868) [`a10c24d`](https://github.com/ofri-peretz/burgee/commit/a10c24d79a7f4bfe08f7c240b7010cb0ab676d13) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The Claude pack gains `worktree-sweep.mjs`, a SessionStart hook that runs the repo's own `hookset worktrees --prune` in the background at most once a day per clone, so the worktrees agents leave behind are cleaned up without anyone asking. It removes only worktrees that hold no work. `HOOKSET_WORKTREES=0` turns it off, `HOOKSET_WORKTREES_OLDER_THAN=<days>` sets the age, and `git worktree lock` keeps a worktree out of every sweep. `hookset check` now wants it vendored and wired like the rest of the pack; `hookset init --claude` does both.
+
+- [#1862](https://github.com/ofri-peretz/burgee/pull/1862) [`e966499`](https://github.com/ofri-peretz/burgee/commit/e966499fcf2368e4cb2a1c39a09df938380be8f8) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `hookset worktrees` lists every linked git worktree of a clone (the ones Claude Code's `--worktree`, subagent isolation and other agents leave behind), with `--size` its size on disk, and why each stays. `--prune` removes only those that hold no work: not the main or current one, not locked, an empty `git status`, every commit on a remote, and unchanged for `--older-than` days (default 3), through `git worktree remove` without `--force`, then `git worktree prune`. Branches are kept. `--include-local-commits` lets a commit that is only on this machine go too, and `git worktree lock` keeps a worktree out of every sweep.
+
+### Patch Changes
+
+- [#1859](https://github.com/ofri-peretz/burgee/pull/1859) [`0123ec6`](https://github.com/ofri-peretz/burgee/commit/0123ec663d1984f03ba442700963571e6bfac6ef) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The codegraph hook indexes `.` from the repo folder instead of passing the folder path, so on Windows, where npx runs through a shell, a path with a space in it no longer splits.
+- Updated dependencies [[`54403b9`](https://github.com/ofri-peretz/burgee/commit/54403b91c6a023db0c354c206e6d1c6c5bb40796), [`02f3ce0`](https://github.com/ofri-peretz/burgee/commit/02f3ce03b0075db5e0e99b991ad767dd2b396ccb)]:
+  - burgee@2.2.3
+
 ## 1.2.0
 
 ### Minor Changes

@@ -1,5 +1,17 @@
 # replz
 
+## 1.1.0
+
+### Minor Changes
+
+- [#1858](https://github.com/ofri-peretz/burgee/pull/1858) [`8d9c41e`](https://github.com/ofri-peretz/burgee/commit/8d9c41ef7b9ac72e00bdd77db81f8422103cefde) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - replz: `replz scorecard` scores how well a repository's checks catch bugs from its history alone (escape rate by named and SZZ-traced fixes, provedone receipts, and recall and false alarms from the last recorded run), each with a `next:` fix, and `--ratchet` holds it to bands. provedone: a `provedone/receipt` entry point, so a caller reads a receipt's verdict without loading the CLI.
+
+### Patch Changes
+
+- Updated dependencies [[`54403b9`](https://github.com/ofri-peretz/burgee/commit/54403b91c6a023db0c354c206e6d1c6c5bb40796), [`02f3ce0`](https://github.com/ofri-peretz/burgee/commit/02f3ce03b0075db5e0e99b991ad767dd2b396ccb), [`95ed437`](https://github.com/ofri-peretz/burgee/commit/95ed4377123d68e5de9c86b79f5abb32baa2b025), [`691c833`](https://github.com/ofri-peretz/burgee/commit/691c8331d6962b04f05988a58cc3c1c0426c82f7), [`8d9c41e`](https://github.com/ofri-peretz/burgee/commit/8d9c41ef7b9ac72e00bdd77db81f8422103cefde)]:
+  - burgee@2.2.3
+  - provedone@1.1.0
+
 ## 1.0.2
 
 ### Patch Changes

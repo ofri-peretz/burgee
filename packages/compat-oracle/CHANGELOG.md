@@ -1,5 +1,13 @@
 # compat-oracle
 
+## 0.3.23
+
+### Patch Changes
+
+- [#1861](https://github.com/ofri-peretz/burgee/pull/1861) [`5aa2329`](https://github.com/ofri-peretz/burgee/commit/5aa232997a1dc85c888c6783b3e531d8ac92b798) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `Host.links`: symlinks a suite reads are made per run beside the vendored suite (`writeLinks`), not committed. find-up's `fixture/directory-link -> .` loops, and a repository holding a loop cannot be downloaded as a GitHub action.
+- Updated dependencies [[`54403b9`](https://github.com/ofri-peretz/burgee/commit/54403b91c6a023db0c354c206e6d1c6c5bb40796), [`02f3ce0`](https://github.com/ofri-peretz/burgee/commit/02f3ce03b0075db5e0e99b991ad767dd2b396ccb)]:
+  - burgee@2.2.3
+
 ## 0.3.22
 
 ### Patch Changes
