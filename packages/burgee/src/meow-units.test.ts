@@ -128,6 +128,15 @@ describe('the result', () => {
     expect(cli.unnormalizedFlags).toMatchObject({ n: 'ada', name: 'ada' });
   });
 
+  it('camel-cases an undeclared flag of more than one character, and keeps a one-character one as typed', () => {
+    expect(run(['--log-level', 'x', '-F'], { flags: {} }).flags).toEqual({ logLevel: 'x', F: true });
+    expect(run(['--AB', '--foo_bar'], { flags: {} }).flags).toEqual({ ab: true, fooBar: true });
+  });
+
+  it('refuses a value outside a flag’s choices', () => {
+    expect(() => run(['--level', 'loud'], { flags: { level: { type: 'string', choices: ['quiet', 'normal'] } } })).toThrow('Unknown value for flag `--level`: `loud`.');
+  });
+
   it('carries a command only when one was named', () => {
     expect(run([])).not.toHaveProperty('command');
   });
