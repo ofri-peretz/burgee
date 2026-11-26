@@ -3,6 +3,16 @@ title: Changelog
 description: "Every release of hookset, newest first, from its CHANGELOG.md — what changed and the pull request it came from."
 ---
 
+## 1.4.2
+
+### Patch Changes
+
+- [#1890](https://github.com/ofri-peretz/burgee/pull/1890) [`9ff2264`](https://github.com/ofri-peretz/burgee/commit/9ff2264d2a1c9d01578fa045ad2e6399c9f42f5b) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - The vendored `guard-bash.mjs` checks for a merge commit with `startsWith("Merge ")` instead of
+  `/^Merge /.test(…)`. Consumers copy the pack byte for byte, so oxlint's
+  `unicorn/prefer-string-starts-ends-with` failed their lint on a line they could not edit (agents
+  had to keep the vendored hooks out of oxlint). A test now fails on any anchored-literal regex in
+  the pack.
+
 ## 1.4.1
 
 ### Patch Changes

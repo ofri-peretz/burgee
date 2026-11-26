@@ -1,6 +1,6 @@
 {
   "name": "hookset",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "private": false,
   "description": "Git hooks presets for AI coding agents: lefthook presets pulled by a pinned tag, a Claude Code hook pack that denies skipped hooks, and `hookset init` and `check`. No dependency outside the burgee family. A husky migration path.",
   "keywords": [
