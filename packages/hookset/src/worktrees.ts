@@ -166,7 +166,6 @@ interface Inspect {
   git: GitRunner;
   top: string;
   now: number;
-  size: boolean;
   olderThanDays: number;
   keepLocalCommits: boolean;
 }
@@ -182,8 +181,7 @@ async function inspect(l: Listed, main: boolean, o: Inspect): Promise<Worktree> 
     // The main and the current worktree are never removed: their age is not worth a walk.
     if (!main && !current) facts.idleDays = Math.max(0, (o.now - newestUnder(l.path)) / DAY_MS);
   }
-  const sized = o.size && !facts.missing ? { bytes: bytesUnder(l.path) } : {};
-  return { ...facts, ...sized, keep: keepReason(facts, o.olderThanDays, o.keepLocalCommits), removed: false };
+  return { ...facts, keep: keepReason(facts, o.olderThanDays, o.keepLocalCommits), removed: false };
 }
 
 /** `git worktree remove` on each removable worktree, one at a time, then `git worktree prune`; whether the prune ran. */
@@ -207,11 +205,14 @@ export async function sweepWorktrees(repo: string, options: WorktreeOptions = {}
     git,
     top: (await git(repo, ['rev-parse', '--show-toplevel'])).out.trim(),
     now: options.now ?? Date.now(),
-    size: options.size === true,
     olderThanDays: options.olderThanDays ?? DEFAULT_OLDER_THAN_DAYS,
     keepLocalCommits: options.keepLocalCommits ?? true,
   };
-  const worktrees = await Promise.all(parseWorktrees(listed.out).map((l, index) => inspect(l, index === 0, o)));
+  const inspected = await Promise.all(parseWorktrees(listed.out).map((l, index) => inspect(l, index === 0, o)));
+  // Sized only once every inspection's git has finished: a linked worktree's index lives under the
+  // main one's `.git/worktrees/`, so sizing the main tree while another worktree's `git status`
+  // rewrites that index read a size that was gone a moment later.
+  const worktrees = options.size === true ? inspected.map((w) => (w.missing ? w : { ...w, bytes: bytesUnder(w.path) })) : inspected;
   const pruned = options.prune === true && (await prune(repo, worktrees, git));
   const failed = worktrees.filter((w) => w.error !== undefined).map((w) => w.path);
   const result: WorktreeResult = {

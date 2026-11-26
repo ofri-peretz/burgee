@@ -13,6 +13,7 @@ export function aliasMap(flags: Record<string, FlagSpec>): Record<string, string
     const names: string[] = [];
     if (typeof spec.shortFlag === 'string') names.push(spec.shortFlag);
     for (const extra of spec.aliases ?? []) names.push(extra);
+    // Read-only by design: the parser copies it (`Object.assign` in yargs-parser.ts) and never writes back.
     Object.defineProperty(out, name, { value: names, enumerable: true });
   }
   return out;

@@ -23,6 +23,12 @@ describe('root help, piece by piece', () => {
     expect(completionNode(manifestOf())?.output).toEqual({ kind: 'opaque', mediaType: 'text/plain' });
   });
 
+  it('spells the completion example with every word of a two-word program', () => {
+    const m = manifestOf();
+    m.rootPath = ['my', 'app'];
+    expect(completionNode(m)?.examples).toEqual([{ command: 'my app completion bash' }]);
+  });
+
   it('takes one example per top-level command, the first one declared under it', () => {
     const m = manifestOf(cmd('remote add', ex('app remote add origin')), cmd('remote rm', ex('app remote rm origin')), cmd('push', ex('app push')));
     expect(rootExamples(m, m.find(['app']) as CommandNode).map((e) => e.command)).toEqual(['app remote add origin', 'app push']);
