@@ -142,6 +142,26 @@ describe('checkIntent', () => {
     expect(rules('f', intent('review', table))).toEqual([]);
   });
 
+  it('names the design file and the intents directory the repository uses', () => {
+    const where = { dir: 'docs/intents', spec: 'design.md' };
+    expect(checkIntent('d', intent('approved', '## Shipped'), undefined, where)).toEqual([
+      {
+        intent: 'd',
+        rule: 'spec',
+        message: 'is "approved" but has no design.md',
+        fix: 'write docs/intents/d/design.md, or set the status back to review',
+      },
+    ]);
+    expect(checkIntent('r', intent('review'), '# Design', where)).toEqual([
+      {
+        intent: 'r',
+        rule: 'rejected',
+        message: 'design.md records nothing rejected',
+        fix: 'add `## Rejected alternatives` or `## Out of scope` to design.md',
+      },
+    ]);
+  });
+
   it('refuses a spec that rejects nothing, even when the word appears mid-line', () => {
     expect(checkIntent('r', intent('review'), 'text ## Rejected\n### Rejected\n## Rejectedness')).toEqual([
       {

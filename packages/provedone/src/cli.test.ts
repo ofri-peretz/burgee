@@ -349,6 +349,13 @@ describe('intent new', () => {
     });
     expect(existsSync(join(bare, '.sdlc/intents/b'))).toBe(false);
   });
+  it('writes design.md where the templates name the design that way', async () => {
+    const dir = repo();
+    intents(dir, { '_template/intent.md': 'i\n', '_template/design.md': 'design <YYYY-MM-DD>\n' });
+    const r = await json(dir, ['intent', 'new', 'a', '--owner', 'me', '--date', '2026-01-02']);
+    expect(r.data['written']).toEqual([join(dir, '.sdlc/intents/a/intent.md'), join(dir, '.sdlc/intents/a/design.md')]);
+    expect(readFileSync(join(dir, '.sdlc/intents/a/design.md'), 'utf8')).toBe('design 2026-01-02\n');
+  });
 });
 
 describe('intent check', () => {
@@ -474,6 +481,28 @@ describe('intent check', () => {
     const r = await run(dir, ['intent', 'check', '--evidence']);
     expect(r.code).toBe(0);
     expect(r.stdout).toBe('1 intents, 0 problems, 0 shipped with no evidence, 1 re-run, 0 not re-run\n');
+  });
+
+  it('reads design.md as the spec, naming the file and the --dir it was given in each fix', async () => {
+    const dir = repo();
+    const put = (path: string, text: string): void => {
+      mkdirSync(join(dir, 'docs', 'intents', path, '..'), { recursive: true });
+      writeFileSync(join(dir, 'docs', 'intents', path), text);
+    };
+    put('_template/design.md', '# Design\n');
+    put('ok/intent.md', INTENT('shipped', '## Shipped\n'));
+    put('ok/design.md', '## Rejected alternatives\n');
+    put('bare/intent.md', INTENT('approved'));
+    put('loose/intent.md', INTENT('review'));
+    put('loose/design.md', '# Design\n');
+    const r = await run(dir, ['intent', 'check', '--dir', 'docs/intents']);
+    expect(r.code).toBe(1);
+    expect(r.stdout.split('\n')).toEqual([
+      'bare: is "approved" but has no design.md. fix: write docs/intents/bare/design.md, or set the status back to review',
+      'loose: design.md records nothing rejected. fix: add `## Rejected alternatives` or `## Out of scope` to design.md',
+      '3 intents, 2 problems, 0 shipped with no evidence',
+      '',
+    ]);
   });
 
   it('reads --dir, and refuses a directory that is not there', async () => {
