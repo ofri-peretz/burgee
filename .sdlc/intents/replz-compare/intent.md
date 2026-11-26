@@ -4,7 +4,7 @@
 > incumbents it replaces, and nothing else in any repo diffs a change against the code it changes.
 > A new command, so a minor of replz 1.x.
 
-**Status:** built · **Opened:** `2026-11-26` · **Owner:** `@ofri-peretz`
+**Status:** review · **Opened:** `2026-11-26` · **Owner:** `@ofri-peretz`
 
 ---
 

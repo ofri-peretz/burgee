@@ -4,7 +4,7 @@
 > ([`D-20261124-replz-1-0`](../../decisions/D-20261124-replz-1-0.md)). The case-drafting half of
 > R5 shipped as `replz propose`; this is the other half. A new command, so a minor of replz 1.x.
 
-**Status:** built · **Opened:** `2026-11-24` · **Owner:** `@ofri-peretz`
+**Status:** review · **Opened:** `2026-11-24` · **Owner:** `@ofri-peretz`
 
 ---
 
