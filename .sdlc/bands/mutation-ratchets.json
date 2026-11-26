@@ -357,12 +357,17 @@
     },
     "contractdiff": {
       "status": "measured",
-      "floor": 99.9,
+      "floor": 100,
       "history": [
         {
           "floor": 99.9,
           "setOn": "2026-11-24",
           "why": "First full run, at 78d014bade: 99.97% (25427 detected of 25434), rounded down to one decimal."
+        },
+        {
+          "floor": 100,
+          "setOn": "2026-11-26",
+          "why": "Weekly run at c06a5c12a9 measured 100%, above the 99.9% floor; the floor follows it up."
         }
       ],
       "observations": [
@@ -375,6 +380,16 @@
           "survived": 7,
           "noCoverage": 0,
           "minutes": 157.28
+        },
+        {
+          "date": "2026-11-26",
+          "commit": "c06a5c12a9",
+          "score": 100,
+          "killed": 25480,
+          "timeout": 215,
+          "survived": 0,
+          "noCoverage": 0,
+          "minutes": 108.07
         }
       ]
     },

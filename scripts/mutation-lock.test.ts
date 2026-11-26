@@ -25,7 +25,9 @@ import { describe, expect, it } from 'vitest';
 import { readDecisions } from './ledgers.js';
 import { widenTestNamePattern } from './mutation-vitest-setup.js';
 import {
+  alive,
   changedDiffArgs,
+  claimRun,
   changedReport,
   disableProblems,
   floorOf,
@@ -463,5 +465,43 @@ describe('the verdict cache outlives a lane run (roadmap 3.2)', () => {
     const second = writeWrapper(packageDir, []);
     expect(second.incrementalFile).toBe(first.incrementalFile);
     expect(readFileSync(second.incrementalFile, 'utf8')).toBe('{"version":1,"mutants":{}}');
+  });
+});
+
+describe('one mutation run at a time per package', () => {
+  const scratch = scratchDirs();
+
+  it('refuses a second run while the first holds the package, and frees it on release', () => {
+    const packageDir = scratch('mutation-claim-');
+    const first = claimRun(packageDir);
+    expect('release' in first).toBe(true);
+    // A run beside it would overwrite the first's configs and report.
+    expect(claimRun(packageDir)).toEqual({ busy: process.pid });
+    if ('release' in first) first.release();
+    const again = claimRun(packageDir);
+    expect('release' in again).toBe(true);
+    if ('release' in again) again.release();
+    expect(existsSync(join(packageDir, '.mutation', 'run.lock'))).toBe(false);
+  });
+
+  it('takes over a lock its owner left behind when it died', () => {
+    const packageDir = scratch('mutation-claim-');
+    const dead = spawnSync(process.execPath, ['-e', 'process.stdout.write(String(process.pid))'], { encoding: 'utf8' });
+    const pid = Number(dead.stdout);
+    expect(alive(pid)).toBe(false);
+    mkdirSync(join(packageDir, '.mutation'), { recursive: true });
+    writeFileSync(join(packageDir, '.mutation', 'run.lock'), String(pid));
+    const claim = claimRun(packageDir);
+    expect('release' in claim).toBe(true);
+    expect(readFileSync(join(packageDir, '.mutation', 'run.lock'), 'utf8')).toBe(String(process.pid));
+    if ('release' in claim) claim.release();
+  });
+
+  it('reads a pid only as a positive whole number', () => {
+    expect(alive(process.pid)).toBe(true);
+    expect(alive(0)).toBe(false);
+    expect(alive(-1)).toBe(false);
+    expect(alive(Number.NaN)).toBe(false);
+    expect(alive(1.5)).toBe(false);
   });
 });
