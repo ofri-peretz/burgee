@@ -22,6 +22,9 @@ const project = (files: Record<string, unknown> = {}): string => {
   return root;
 };
 
+/** `workerMemoryLimit` as a config with these `resources` reads it. */
+const limit = async (resources?: unknown): Promise<unknown> => (await loadOptions(project({ 'oxmutate.config.json': resources === undefined ? {} : { resources } }))).workerMemoryLimit;
+
 const defaults = (root: string): Options => ({
   root,
   mutate: ['src/**/*.{ts,tsx,js,jsx,mts,cts,mjs,cjs}', '!src/**/*.{test,spec}.*', '!src/**/*.d.ts'],
@@ -210,6 +213,16 @@ describe('options from a config file', () => {
     expect(fromStryker.unused).toEqual([]);
     expect(fromStryker.workers.warm).toBe(false);
     expect((await loadOptions(project({ 'oxmutate.config.json': { resources: null } }))).workers).toEqual({ warm: true, idleTimeoutMs: 30_000 });
+  });
+
+  it('resources.workerMemoryLimit: unset is auto (decided per run), else off, a share, or a size; anything else refuses with its fix', async () => {
+    expect(await limit()).toBeUndefined();
+    expect(await limit({ workerMemoryLimit: 'off' })).toBe('off');
+    expect(await limit({ workerMemoryLimit: '30%' })).toEqual({ share: 0.3 });
+    expect(await limit({ workerMemoryLimit: 1024 })).toEqual({ bytes: 1024 ** 3 });
+    await expect(limit({ workerMemoryLimit: 'plenty' })).rejects.toThrow("resources.workerMemoryLimit is 'auto', 'off'");
+    // From the command line, over the config.
+    expect((await loadOptions(project({ 'oxmutate.config.json': { resources: { workerMemoryLimit: 'off' } } }), { workerMemoryLimit: 'auto' })).workerMemoryLimit).toBe('auto');
   });
 
   it('static.budgetMs is a whole number of milliseconds of at least one; anything else is no budget', async () => {

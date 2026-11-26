@@ -20,6 +20,7 @@ import { checkSurvivors } from './checker.js';
 import type { Unit } from './child.js';
 import { runCommandMutants } from './command-runner.js';
 import { IGNORE_STATIC_REASON, STATIC_BUDGET_REASON, VITE_CONFIGS, disables, type Options } from './config.js';
+import { INSIDE } from './container.js';
 import { afterLoneRun, crashedRun, crashReason } from './crash.js';
 import { rangeDisables } from './directives.js';
 import { guardDisk, isClean, type DiskChange } from './diskguard.js';
@@ -31,6 +32,7 @@ import { freshIsCheaper, staticFreshIsCheaper } from './fresh-first.js';
 import type { FrozenOracle } from './frozen.js';
 import { createGovernor } from './governor.js';
 import { changedLines, parseMutateSpec, shardOf, touches, withinRange, type MutateRange } from './lanes.js';
+import { cgroupLimit, ceilingOf, memoryAvailable } from './memory.js';
 import { native, type NativeMutant } from './native.js';
 import { startProgress } from './progress.js';
 import { withoutSuspects } from './records.js';
@@ -161,6 +163,12 @@ export interface RunStats {
   serversSpawned: number;
   /** Servers closed for sitting idle past `resources.workerIdleTimeout`: memory given back before the run ended. */
   serversReleased: number;
+  /** Servers recycled after a unit for holding more than `workerMemoryCeiling`: memory given back while the run went on. */
+  serversRecycled: number;
+  /** The most memory one server held after a unit, its test processes included, in bytes. */
+  workerRssPeak: number;
+  /** `resources.workerMemoryLimit`, resolved to bytes per server; undefined when off. */
+  workerMemoryCeiling?: number | undefined;
   /** Warm runs past their budget, blocked rather than looping, given their 3x in place instead of a kill. */
   watchdogGraced: number;
   /** Milliseconds unit starts were held because the machine was past `resources.maxLoad` (`R18`). */
@@ -402,11 +410,11 @@ export async function run(options: Options): Promise<RunResult> {
   const work = mkdtempSync(path.join(tmpdir(), 'oxmutate-'));
   const stats: RunStats = {
     files: 0, mutants: 0, instrumentMs: 0, dryRunMs: 0, mutationMs: 0, staticMs: 0, staticRecollections: 0, staticGroupRuns: 0, staticGroupSplits: 0, staticAuditSampled: 0, staticAuditDisagreed: 0, isolatedMs: 0, wallMs: 0, testExecutions: 0, warmUnitMs: 0, warmArmedMs: 0, isolatedByCause: { static: 0, stopped: 0, unfinished: 0, rerun: 0, crashed: 0, confirm: 0, flaky: 0 }, confirmLive: 0, staleSurvivors: 0,
-    watchdogKills: 0, warmStopsMs: [], idleStalls: 0, deadlocks: 0, crashes: 0, canaryFiles: 0, pollutionRestarts: 0, pollutionRecovered: 0, pollutionRefused: {}, pollutionRefusedFirst: {}, diskWrites: 0, diskWritePaths: [], auditSampled: 0, auditDisagreed: 0, survivorsOverturned: 0, timeoutsOverturned: 0, compileErrors: 0, isolatedRuns: 0, reused: 0, flakyTests: 0, flakyMutants: 0, units: 0, serversSpawned: 0, serversReleased: 0, watchdogGraced: 0, heldByLoadMs: 0,
+    watchdogKills: 0, warmStopsMs: [], idleStalls: 0, deadlocks: 0, crashes: 0, canaryFiles: 0, pollutionRestarts: 0, pollutionRecovered: 0, pollutionRefused: {}, pollutionRefusedFirst: {}, diskWrites: 0, diskWritePaths: [], auditSampled: 0, auditDisagreed: 0, survivorsOverturned: 0, timeoutsOverturned: 0, compileErrors: 0, isolatedRuns: 0, reused: 0, flakyTests: 0, flakyMutants: 0, units: 0, serversSpawned: 0, serversReleased: 0, serversRecycled: 0, workerRssPeak: 0, watchdogGraced: 0, heldByLoadMs: 0,
   };
   let unitSeq = 0;
   const fileFor = (kind: string, ext: string): string => path.join(work, `${kind}-${String(unitSeq++)}.${ext}`);
-  const pools: { close(): void; stats: { spawned: number; released: number } }[] = [];
+  const pools: { close(): void; stats: { spawned: number; released: number; recycled: number; rssPeak: number } }[] = [];
   const progress = startProgress(options.reporters, stderr);
   try {
     progress.phase('instrumenting');
@@ -845,7 +853,11 @@ export async function run(options: Options): Promise<RunResult> {
     const aloneIds = new Set<string>();
     // Dependencies inlined here too, so the static phase (5b) reuses these servers instead of starting its own.
     const governor = createGovernor(options.maxLoad);
-    const pool = createPool({ root, vitestConfig: options.vitestConfig, workers: 1, instrumentedMap: mapFile, nodeArgs: options.testRunnerNodeArgs, inlineDeps: true }, options.concurrency, { workDir: work, tag: 'mutant', lifecycle: options.workers, governor, lowPriority: options.lowPriority });
+    // The slots and the warm spare share the memory the run has (memory.ts): past its share after a unit, a server is recycled.
+    // Inside the container oxmutate starts the run has a limit even without container.memory: the engine's VM, which an OOM kill takes whole.
+    const memoryCeiling = ceilingOf(options.workerMemoryLimit, { servers: options.concurrency + (options.workers.warm ? 1 : 0), available: memoryAvailable(), limited: cgroupLimit() !== undefined || env[INSIDE] === 'inside' });
+    stats.workerMemoryCeiling = memoryCeiling;
+    const pool = createPool({ root, vitestConfig: options.vitestConfig, workers: 1, instrumentedMap: mapFile, nodeArgs: options.testRunnerNodeArgs, inlineDeps: true }, options.concurrency, { workDir: work, tag: 'mutant', lifecycle: { ...options.workers, memoryCeiling }, governor, lowPriority: options.lowPriority });
     pools.push(pool);
     /** Mutants decided on one verdict track: the tests', or a spec oracle's replay tests'. */
     const killedSoFar = (spec: boolean): Set<string> => new Set([...runaways, ...crashedIds, ...records.filter((r) => r.type === 'mutant' && r.status !== 'Survived' && Boolean(r.spec) === spec).map((r) => r.id ?? '')]);
@@ -1543,6 +1555,8 @@ export async function run(options: Options): Promise<RunResult> {
     });
     stats.serversSpawned = pools.reduce((s, p) => s + p.stats.spawned, 0);
     stats.serversReleased = pools.reduce((s, p) => s + p.stats.released, 0);
+    stats.serversRecycled = pools.reduce((s, p) => s + p.stats.recycled, 0);
+    stats.workerRssPeak = pools.reduce((s, p) => Math.max(s, p.stats.rssPeak), 0);
     stats.wallMs = performance.now() - wall0;
     return {
       root,

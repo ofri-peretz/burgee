@@ -19,6 +19,7 @@ import { ExitCode } from 'burgee';
 import { declaredPool } from './declared-pool.js';
 import { VITEST_SAID } from './dry-failure.js';
 import { BEAT_ENV, beatFile, CPU_SAMPLE_MS } from './heartbeat.js';
+import { treeRss } from './memory.js';
 import { resolveEsm } from './resolve.js';
 import { ACTIVE_MUTANT_ENV, TRACK_READS_ENV, argv, env, exit, killGroup, pid, serverGroups, stderr } from './runtime.js';
 import { instrumentedSources } from './vite-plugin.js';
@@ -257,9 +258,10 @@ const CLOSE_GRACE_MS = 2000;
 
 process.on('message', (msg: { type: string; unit?: Unit }) => {
   if (msg.type === 'run' && msg.unit) {
+    // The memory the server holds once the unit is done, its test processes included: the pool recycles a server past `resources.workerMemoryLimit` (memory.ts).
     runUnit(msg.unit).then(
-      () => process.send?.({ type: 'done' }),
-      (error: unknown) => process.send?.({ type: 'done', error: error instanceof Error ? error.message : String(error) }),
+      () => process.send?.({ type: 'done', rss: treeRss(pid, process.memoryUsage.rss()) }),
+      (error: unknown) => process.send?.({ type: 'done', rss: treeRss(pid, process.memoryUsage.rss()), error: error instanceof Error ? error.message : String(error) }),
     );
   } else if (msg.type === 'close') {
     // A worker thread stuck in a runaway mutant never lets `vitest.close()` settle: exit anyway.

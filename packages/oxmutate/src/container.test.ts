@@ -10,7 +10,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vites
 
 import { discard } from './__fixtures__/scratch-dir.js';
 import { MAX_DELETES, planSync, PRUNE, readState, signatures, syncDir, type SyncPlan, writeState } from './container-sync.js';
-import { type Container, containerDefaults, containerOf, containerPlan, defaultInstall, engineOf, FULL, FULL_TRAP, fullDisk, fullHostDisk, installFailed, machineDefault, MIN_FREE_KIB, pruneContainers, RESYNC, runInContainer, tarFlags, VERSION, withFlags, withoutContainerFlags, withRuntime } from './container.js';
+import { type Container, cleanupOf, containerDefaults, containerOf, containerPlan, killedLine, RUN_LABEL, runName, type Signals, defaultInstall, engineOf, FULL, FULL_TRAP, fullDisk, fullHostDisk, installFailed, machineDefault, MIN_FREE_KIB, pruneContainers, RESYNC, runInContainer, tarFlags, VERSION, withFlags, withoutContainerFlags, withRuntime } from './container.js';
 import { nodeMajor } from './runtime.js';
 
 // The home directory a case may move (os.homedir() does not follow HOME inside every test runner).
@@ -65,7 +65,7 @@ afterEach(() => {
   home.dir = undefined;
 });
 
-const DEFAULTS: Container = { engine: 'docker', image: `node:${nodeMajor}-bookworm-slim`, network: 'none', source: 'copy', cache: 'oxmutate-cache', ephemeral: false, readOnly: false, env: [], installEnv: [], include: [], args: [], runArgs: [] };
+const DEFAULTS: Container = { engine: 'docker', image: `node:${nodeMajor}-bookworm-slim`, network: 'none', source: 'copy', cache: 'oxmutate-cache', ephemeral: false, cleanup: { volume: 'keep', failed: 'remove', interrupt: 'remove' }, readOnly: false, env: [], installEnv: [], include: [], args: [], runArgs: [] };
 /** The defaults with the project's own oxmutate as the command, so a script has no install of oxmutate in it. */
 const NPX: Container = { ...DEFAULTS, command: 'npx --no oxmutate' };
 /** The version the container installs when the command is unset: this package's. */
@@ -87,7 +87,7 @@ describe('the container setting', () => {
       context: 'box', host: 'ssh://u@box', platform: 'linux/amd64', user: '1000:1000', runtime: 'runsc', readOnly: true, pull: 'always', pidsLimit: 512, cpus: 4, memory: '6g',
       env: ['CI', 'A=1'], installEnv: ['NODE_AUTH_TOKEN'], registryAuth: false, include: ['.env.test'], args: ['--ulimit=nofile=1024'], runArgs: ['--shm-size=1g'], command: 'node dist/bin.js',
     };
-    expect(containerOf(full)).toEqual(full);
+    expect(containerOf(full)).toEqual({ ...full, cleanup: { volume: 'remove', failed: 'remove', interrupt: 'remove' } });
     expect(containerOf({ install: false, cache: false })).toEqual({ ...DEFAULTS, install: '', cache: false });
     expect(containerOf({})).toEqual(DEFAULTS);
     expect(containerOf({ cpus: '4', pidsLimit: '9', env: 'CI', engine: 5, image: false, readOnly: 'yes', ephemeral: 1, cache: 3, installEnv: 'X', include: '.env', registryAuth: 'yes' })).toEqual(DEFAULTS);
@@ -95,7 +95,7 @@ describe('the container setting', () => {
   });
 
   it('refuses a key it does not know, a source it does not know, and a value of the wrong kind, with the fix', () => {
-    expect(() => containerOf({ imgae: 'x', cpu: 1 })).toThrow('container has no key imgae, cpu. fix: use engine, image, network, remote, install, setup, volume, context, host, platform, user, runtime, pull, memory, command, source, cache, ephemeral, readOnly, pidsLimit, cpus, env, installEnv, registryAuth, include, args, runArgs; anything else goes in container.args');
+    expect(() => containerOf({ imgae: 'x', cpu: 1 })).toThrow('container has no key imgae, cpu. fix: use engine, image, network, remote, install, setup, volume, context, host, platform, user, runtime, pull, memory, tmpSize, command, source, cache, cleanup, ephemeral, readOnly, pidsLimit, cpus, env, installEnv, registryAuth, include, args, runArgs; anything else goes in container.args');
     expect(() => containerOf({ source: 'svn' })).toThrow(`container.source is 'copy' or 'git', not "svn"`);
     expect(() => containerOf(3)).toThrow('container must be true, an image name or an object, not 3. fix: container: true');
     expect(() => containerOf(['x'])).toThrow('not ["x"]');
@@ -471,6 +471,10 @@ interface Outcome {
   busy?: number;
   /** What prune's listings answer. */
   listed?: { containers: string; volumes: string };
+  /** What `inspect` answers for `.State.OOMKilled`. */
+  oom?: boolean;
+  /** Called as the run's container runs: where a test sends an interrupt. */
+  duringRun?: () => void;
 }
 type Answer = { code: number | null; stdout: string; stderr: string };
 const answer = (code: number | null, stdout = ''): Answer => ({ code, stdout, stderr: code === 0 ? '' : ' engine said no \n' });
@@ -536,7 +540,11 @@ function fake(result: Outcome) {
     // A container side is `<id>:<path>`; a Windows host path has a colon too (`C:\…`).
     cp: ([from = '', to = '']) => (/^c\d+:/u.test(from) ? copyOut(to) : copyIn(from, to)),
     start: (rest) => answer(isSync(rest.at(-1) ?? '') ? (syncCodes.shift() ?? 0) : 0),
-    run: () => answer('code' in result ? (result.code ?? null) : 0),
+    run: () => {
+      result.duringRun?.();
+      return answer('code' in result ? (result.code ?? null) : 0);
+    },
+    inspect: () => answer(0, result.oom ? 'true\n' : 'false\n'),
     'volume inspect': () => answer(result.volumeExists ? 0 : 1),
     info: () => answer(0, result.info ?? '{"runc":{}}'),
     // prune lists every container (`-aq`); a run asks which are running on its volume (`-q`).
@@ -581,7 +589,8 @@ describe('running in the container', () => {
     const top = repo({ 'package-lock.json': '{}', 'packages/a/src/x.ts': 'x', '.gitignore': 'dist\n', 'packages/a/dist/y.js': 'y' });
     const f = fake({ code: 3 });
     expect(await runInContainer(C, { root: path.join(top, 'packages/a'), keep: [] }, ['run', '--container'], { spawn: f.spawn })).toBe(3);
-    expect(f.verbs()).toEqual(['volume create', 'volume create', 'ps', 'volume inspect', 'create', 'cp', 'cp', 'start', 'run']);
+    // The run's container is named for the run and removed once oxmutate has read how it ended.
+    expect(f.verbs()).toEqual(['volume create', 'volume create', 'ps', 'volume inspect', 'create', 'cp', 'cp', 'start', 'run', 'rm']);
     expect(f.sent).toEqual([['.gitignore', 'package-lock.json', 'packages/a/src/x.ts']]);
     expect(f.copied.toSorted()).toEqual(['c1:/w/in.tar', 'c1:/w/listing']);
     expect(f.listings).toEqual(['.gitignore\0package-lock.json\0packages/a/src/x.ts']);
@@ -615,7 +624,7 @@ describe('running in the container', () => {
     expect(delta.scripts.get('c1')).toContain("rm -f -- 'b.ts'");
     const idle = fake({ volumeExists: true });
     await runInContainer(C, { root: top, keep: [] }, [], { spawn: idle.spawn });
-    expect(idle.verbs()).toEqual(['volume create', 'volume create', 'ps', 'volume inspect', 'run']);
+    expect(idle.verbs()).toEqual(['volume create', 'volume create', 'ps', 'volume inspect', 'run', 'rm']);
     // A volume removed since (or another machine's) gets everything again.
     const gone = fake({ volumeExists: false });
     await runInContainer(C, { root: top, keep: [] }, [], { spawn: gone.spawn });
@@ -707,7 +716,7 @@ describe('running in the container', () => {
     const head = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: top, env: withoutGit(), encoding: 'utf8' }).stdout.trim();
     const f = fake({});
     await runInContainer({ ...C, source: 'git' }, { root: top, keep: [] }, [], { spawn: f.spawn });
-    expect(f.verbs()).toEqual(['volume create', 'volume create', 'ps', 'create', 'start', 'run']);
+    expect(f.verbs()).toEqual(['volume create', 'volume create', 'ps', 'create', 'start', 'run', 'rm']);
     expect(f.ofEngine().find((c) => c.args[0] === 'start')!.o).toMatchObject({ stdio: 'inherit' });
     expect(f.calls.filter((c) => c.cmd === 'tar')).toEqual([]);
     expect(f.scripts.get('c1')).toContain(`git fetch -q --depth 1 'https://example.com/origin.git' '${head}'`);
@@ -777,7 +786,7 @@ describe('running in the container', () => {
     const from = repo({ 'inc.json': 'from the container' });
     const f = fake({ out: path.join(from, 'inc.json') });
     expect(await runInContainer({ ...C, install: '' }, { root: top, keep: [path.join(top, 'reports/inc.json'), path.join(top, 'reports/new/m.json')] }, [], { spawn: f.spawn })).toBe(0);
-    expect(f.verbs().slice(-5)).toEqual(['run', 'create', 'cp', 'cp', 'rm']);
+    expect(f.verbs().slice(-6)).toEqual(['run', 'rm', 'create', 'cp', 'cp', 'rm']);
     expect(f.sent[0]).toContain('reports/inc.json');
     expect(f.scripts.get('c1')).not.toContain('installed');
     const outs = f.ofEngine().filter((c) => c.args[0] === 'cp' && c.args[1]!.startsWith('c2:')).map((c) => c.args[1]);
@@ -815,7 +824,9 @@ describe('running in the container', () => {
     expect(existsSync(path.join(top, 'reports'))).toBe(false);
     const none = fake({});
     await runInContainer(C, { root: top, keep: [] }, [], { spawn: none.spawn });
-    expect(none.verbs()).not.toContain('rm');
+    // No copy-back container (one created to run `true`); the one rm is the run's container's.
+    expect(none.ofEngine().filter((c) => c.args[0] === 'create' && c.args.at(-1) === 'true')).toEqual([]);
+    expect(none.ofEngine().filter((c) => c.args[0] === 'rm').map((c) => c.args[2])).toEqual([expect.stringMatching(/^oxmutate-run-/u)]);
     const lost = fake({ backFails: true });
     await expect(runInContainer(C, { root: top, keep: [path.join(top, 'r.json')] }, [], { spawn: lost.spawn })).rejects.toThrow("the container could not be created: engine said no. fix: check container.image and the engine's own error");
   });
@@ -1217,5 +1228,275 @@ describe('prune', () => {
     const one = fake({ listed: { containers: 'c7\r\n', volumes: 'oxmutate-a\r\n' } });
     expect(await pruneContainers({ ...DEFAULTS, engine: 'engine' }, one.spawn)).toEqual({ containers: ['c7'], volumes: ['oxmutate-a'] });
     expect(one.ofEngine().map((c) => c.args)).toEqual([['ps', '-aq', '--filter', 'label=dev.oxmutate=1'], ['rm', '-f', 'c7'], ['volume', 'ls', '-q', '--filter', 'label=dev.oxmutate=1'], ['volume', 'rm', '-f', 'oxmutate-a']]);
+  });
+});
+
+/** Signals a test sends by hand: each listener the run added, and what it took away. */
+function signals() {
+  const listeners = new Map<string, () => void>();
+  const s: Signals = { on: (signal, l) => listeners.set(signal, l), off: (signal) => listeners.delete(signal) };
+  return { s, send: (signal: string) => listeners.get(signal)?.(), listening: () => [...listeners.keys()].toSorted() };
+}
+
+describe('cleaning up', () => {
+  const C = { ...NPX, engine: 'engine' };
+
+  it('reads cleanup: each key one of its values, ephemeral and volume remove as one setting', () => {
+    expect(cleanupOf(undefined, false)).toEqual({ volume: 'keep', failed: 'remove', interrupt: 'remove' });
+    expect(cleanupOf(undefined, true)).toEqual({ volume: 'remove', failed: 'remove', interrupt: 'remove' });
+    expect(containerOf({ cleanup: { volume: 'keep-on-failure', failed: 'keep', interrupt: 'keep' } })).toEqual({ ...DEFAULTS, cleanup: { volume: 'keep-on-failure', failed: 'keep', interrupt: 'keep' } });
+    expect(containerOf({ cleanup: { volume: 'remove' } })).toEqual({ ...DEFAULTS, ephemeral: true, cleanup: { ...DEFAULTS.cleanup, volume: 'remove' } });
+    expect(containerOf({ ephemeral: true, cleanup: { failed: 'keep' } })).toEqual({ ...DEFAULTS, ephemeral: true, cleanup: { volume: 'remove', failed: 'keep', interrupt: 'remove' } });
+    expect(containerOf({ tmpSize: '512m' })).toEqual({ ...DEFAULTS, tmpSize: '512m' });
+  });
+
+  it('refuses a cleanup that is not an object, a key it does not know, and a value it does not take, with the fix', () => {
+    expect(() => containerOf({ cleanup: 'all' })).toThrow('container.cleanup is an object, not "all". fix: container.cleanup: { "volume": "keep-on-failure" }');
+    expect(() => containerOf({ cleanup: { volumes: 'keep' } })).toThrow('container.cleanup has no key volumes. fix: use volume, failed, interrupt');
+    expect(() => containerOf({ cleanup: { volume: 'sometimes' } })).toThrow(`container.cleanup.volume is 'keep', 'remove', 'keep-on-failure', not "sometimes"`);
+    expect(() => containerOf({ cleanup: { failed: true } })).toThrow(`container.cleanup.failed is 'remove', 'keep', not true`);
+  });
+
+  it('takes cleanup from the command line over the config, and a cleanup flag alone turns nothing on', () => {
+    expect(withFlags(undefined, { keepFailedContainer: true })).toBeUndefined();
+    expect(withFlags(DEFAULTS, { containerVolume: 'keep-on-failure', keepFailedContainer: true, keepOnInterrupt: true })).toEqual({ ...DEFAULTS, cleanup: { volume: 'keep-on-failure', failed: 'keep', interrupt: 'keep' } });
+    expect(withFlags(undefined, { container: true, containerVolume: 'remove' })).toEqual({ ...DEFAULTS, ephemeral: true, cleanup: { ...DEFAULTS.cleanup, volume: 'remove' } });
+    expect(() => withFlags(DEFAULTS, { containerVolume: 'never' })).toThrow(`container.cleanup.volume is 'keep', 'remove', 'keep-on-failure', not "never"`);
+    // They are the host's: the oxmutate inside never gets them.
+    expect(withoutContainerFlags(['run', '--container-volume', 'remove', '--container-volume=keep', '--keep-failed-container', '--keep-on-interrupt', '--worker-memory-limit', '1g'])).toEqual(['run', '--worker-memory-limit', '1g']);
+  });
+
+  it('labels every container of a run with its id, names the run’s and keeps it to read how it ended, and caps /tmp when asked', () => {
+    const plan = containerPlan({ ...NPX, readOnly: true, tmpSize: '256m' }, { rel: '', argv: [], key: 'k', install: '', volume: 'vol', keep: [], run: 'r1' });
+    for (const step of [plan.sync, plan.run, plan.back]) expect(step.join(' ')).toContain(`--label ${RUN_LABEL}=r1`);
+    expect(plan.run.slice(0, 3)).toEqual(['run', '--name', runName('r1')]);
+    expect(plan.run).not.toContain('--rm');
+    expect(plan.run).toContain('/tmp:exec,size=256m');
+  });
+
+  it('with volume keep-on-failure, removes the volume after a run that reported, and keeps it after one that failed, saying so', async () => {
+    const top = repo({ 'package.json': '{}' });
+    const c = { ...C, volume: 'v', cleanup: { ...C.cleanup, volume: 'keep-on-failure' as const } };
+    const said = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    try {
+      for (const code of [0, 1]) {
+        const ok = fake({ code });
+        // eslint-disable-next-line reliability/no-await-in-loop -- one volume, two runs: each reads the sync record the one before wrote
+        await runInContainer(c, { root: top, keep: [] }, [], { spawn: ok.spawn });
+        expect(ok.ofEngine().at(-1)!.args).toEqual(['volume', 'rm', '-f', 'v']);
+      }
+      const failed = fake({ code: 3 });
+      await runInContainer(c, { root: top, keep: [] }, [], { spawn: failed.spawn });
+      expect(failed.verbs()).not.toContain('volume rm');
+      expect(said).toHaveBeenCalledWith('oxmutate: the volume v is kept for a look inside (container.cleanup.volume: keep-on-failure). fix: oxmutate prune removes it\n');
+    } finally {
+      said.mockRestore();
+    }
+  });
+
+  it('with failed keep, leaves a failed run’s container where it is and says how to read it; one that reported is removed all the same', async () => {
+    const top = repo({ 'package.json': '{}' });
+    const c = { ...C, cleanup: { ...C.cleanup, failed: 'keep' as const } };
+    const said = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    try {
+      const failed = fake({ code: 2 });
+      await runInContainer(c, { root: top, keep: [] }, [], { spawn: failed.spawn, runId: 'r2' });
+      expect(failed.verbs()).not.toContain('rm');
+      expect(said).toHaveBeenCalledWith(`oxmutate: the failed run's container is kept as ${runName('r2')} (container.cleanup.failed: keep). fix: \`engine logs ${runName('r2')}\` shows its output; oxmutate prune removes it\n`);
+      const ok = fake({ code: 0 });
+      await runInContainer(c, { root: top, keep: [] }, [], { spawn: ok.spawn, runId: 'r3' });
+      expect(ok.ofEngine().at(-1)!.args).toEqual(['rm', '-f', runName('r3')]);
+    } finally {
+      said.mockRestore();
+    }
+  });
+
+  it('reads a run that ended 137 for the kernel’s out-of-memory kill, and names the limit it hit', async () => {
+    const top = repo({ 'package.json': '{}' });
+    const said = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    try {
+      const oom = fake({ code: 137, oom: true });
+      expect(await runInContainer({ ...C, memory: '4g' }, { root: top, keep: [] }, [], { spawn: oom.spawn, runId: 'r4' })).toBe(137);
+      expect(oom.ofEngine().find((c) => c.args[0] === 'inspect')!.args).toEqual(['inspect', '--format', '{{.State.OOMKilled}}', runName('r4')]);
+      expect(said).toHaveBeenCalledWith(`${killedLine(true, '4g')}\n`);
+      const outside = fake({ code: 137, oom: false });
+      await runInContainer(C, { root: top, keep: [] }, [], { spawn: outside.spawn });
+      expect(said).toHaveBeenCalledWith(`${killedLine(false, undefined)}\n`);
+      // Read before it is removed: inspect needs the container.
+      expect(outside.verbs().slice(-2)).toEqual(['inspect', 'rm']);
+      // Any other ending is not read.
+      const three = fake({ code: 3 });
+      await runInContainer(C, { root: top, keep: [] }, [], { spawn: three.spawn });
+      expect(three.verbs()).not.toContain('inspect');
+    } finally {
+      said.mockRestore();
+    }
+    expect(killedLine(true, '4g')).toBe("oxmutate: the run ran out of memory: the kernel killed its container (exit 137) at container.memory (4g). fix: lower resources.workerMemoryLimit (or leave it 'auto') so servers are recycled before the limit, lower --concurrency, or raise container.memory");
+    expect(killedLine(true, undefined)).toContain("at the engine's memory (Docker Desktop's or the Podman machine's). fix:");
+    expect(killedLine(true, undefined)).toContain("or raise the engine's memory");
+    expect(killedLine(false, '4g')).toBe("oxmutate: the run's container was killed (exit 137) from outside it: `<engine> kill`, `<engine> stop` past its grace, or the engine going down. fix: see what stopped it; if it was the host running out of memory, set container.memory");
+  });
+
+  it('on SIGINT, SIGTERM or SIGHUP removes every container of the run, and the volume when it is not kept, then exits 128 + the signal', async () => {
+    const top = repo({ 'package.json': '{}' });
+    const said = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    try {
+      for (const [signal, code] of [['SIGINT', 130], ['SIGTERM', 143], ['SIGHUP', 129]] as const) {
+        const sig = signals();
+        const exit = vi.fn();
+        const f = fake({ duringRun: () => sig.send(signal), listed: { containers: 'c7\nc8\n', volumes: '' } });
+        // eslint-disable-next-line reliability/no-await-in-loop -- one signal at a time: each run takes the process's listeners for itself
+        await runInContainer({ ...C, volume: 'v', ephemeral: true }, { root: top, keep: [] }, [], { spawn: f.spawn, signals: sig.s, exit, runId: 'r5' });
+        // The run ends only after its cleanup did: the CLI exits as soon as it returns.
+        expect(exit).toHaveBeenCalledWith(code);
+        // Its container was removed under it: no reading of how it ended, no run-container rm of its own.
+        expect(f.verbs()).not.toContain('inspect');
+        const engineArgs = f.ofEngine().map((c) => c.args.join(' '));
+        expect(engineArgs).toContain(`ps -aq --filter label=${RUN_LABEL}=r5`);
+        expect(engineArgs).toContain('rm -f c7 c8');
+        expect(engineArgs.filter((a) => a === 'volume rm -f v').length).toBeGreaterThanOrEqual(1);
+        expect(said).toHaveBeenCalledWith(`oxmutate: ${signal}: removing this run's containers\n`);
+        // Listened for while the run went, and no longer after.
+        expect(sig.listening()).toEqual([]);
+      }
+    } finally {
+      said.mockRestore();
+    }
+  });
+
+  it('a second interrupt while the first cleans up does nothing more; interrupt keep leaves the containers for prune', async () => {
+    const top = repo({ 'package.json': '{}' });
+    const said = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    try {
+      const sig = signals();
+      const exit = vi.fn();
+      const twice = fake({ duringRun: () => { sig.send('SIGINT'); sig.send('SIGTERM'); } });
+      await runInContainer(C, { root: top, keep: [] }, [], { spawn: twice.spawn, signals: sig.s, exit });
+      expect(exit).toHaveBeenCalledTimes(1);
+      expect(exit).toHaveBeenCalledWith(130);
+      // A kept volume stays: only `remove` takes it.
+      expect(twice.verbs()).not.toContain('volume rm');
+
+      const keep = signals();
+      const leave = vi.fn();
+      const kept = fake({ duringRun: () => keep.send('SIGTERM') });
+      await runInContainer({ ...C, cleanup: { ...C.cleanup, interrupt: 'keep' } }, { root: top, keep: [] }, [], { spawn: kept.spawn, signals: keep.s, exit: leave });
+      expect(leave).toHaveBeenCalledWith(143);
+      expect(kept.ofEngine().some((c) => c.args[0] === 'ps' && c.args[1] === '-aq')).toBe(false);
+      expect(said).toHaveBeenCalledWith("oxmutate: SIGTERM: this run's containers are left as they are (container.cleanup.interrupt: keep). fix: oxmutate prune removes them\n");
+    } finally {
+      said.mockRestore();
+    }
+  });
+});
+
+describe('cleaning up, at the edges', () => {
+  const C = { ...NPX, engine: 'engine' };
+
+  it('names its label, every unknown key, and keeps flags that only start like its own', () => {
+    expect(RUN_LABEL).toBe('dev.oxmutate.run');
+    expect(() => containerOf({ cleanup: { volumes: 'keep', fail: 'keep' } })).toThrow('container.cleanup has no key volumes, fail. fix:');
+    expect(withoutContainerFlags(['--keep-failed-containers', '--keep-on-interrupt-x', '--container-volumes=x'])).toEqual(['--keep-failed-containers', '--keep-on-interrupt-x', '--container-volumes=x']);
+  });
+
+  it('gives each run an id of its own, 12 characters of a random UUID', async () => {
+    const top = repo({ 'package.json': '{}' });
+    const names = [fake({ code: 0 }), fake({ code: 0 })];
+    for (const f of names) {
+      // eslint-disable-next-line reliability/no-await-in-loop -- one volume, two runs in turn
+      await runInContainer(C, { root: top, keep: [] }, [], { spawn: f.spawn });
+    }
+    const [a, b] = names.map((f) => runArgs(f)[runArgs(f).indexOf('--name') + 1]);
+    expect(a).toMatch(/^oxmutate-run-[0-9a-f-]{12}$/u);
+    expect(a).not.toBe(b);
+  });
+
+  it('with volume keep-on-failure, keeps the volume when the run failed before it ran', async () => {
+    const top = repo({ 'package.json': '{}' });
+    const f = fake({ createFails: true });
+    const said = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    try {
+      await expect(runInContainer({ ...C, volume: 'v', cleanup: { ...C.cleanup, volume: 'keep-on-failure' } }, { root: top, keep: [] }, [], { spawn: f.spawn })).rejects.toThrow('could not be created');
+    } finally {
+      said.mockRestore();
+    }
+    expect(f.verbs()).not.toContain('volume rm');
+  });
+
+  it('removes the volume once after an interrupt, and the host staging before it exits', async () => {
+    const top = repo({ 'package.json': '{}' });
+    const sig = signals();
+    let staged = true;
+    const f = fake({ duringRun: () => sig.send('SIGINT') });
+    const exit = vi.fn(() => {
+      staged = existsSync(f.io());
+    });
+    const said = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    try {
+      await runInContainer({ ...C, volume: 'v', ephemeral: true }, { root: top, keep: [] }, [], { spawn: f.spawn, signals: sig.s, exit });
+    } finally {
+      said.mockRestore();
+    }
+    expect(exit).toHaveBeenCalledWith(130);
+    expect(f.io()).not.toBe('');
+    expect(staged).toBe(false);
+    expect(f.ofEngine().filter((c) => c.args.join(' ') === 'volume rm -f v')).toHaveLength(1);
+  });
+
+  it('removes no volume for an interrupt that came before the volume was named', async () => {
+    const top = repo({ 'package.json': '{}' });
+    commit(top);
+    const sig = signals();
+    const f = fake({ code: 0 });
+    const { promise: done, resolve: exited } = Promise.withResolvers<void>();
+    const exit = vi.fn(() => exited());
+    let calls = 0;
+    // The second call is the --since commit's lookup: after the guard listens, before the volume has a name. It waits for the cleanup to end.
+    const spawn: typeof f.spawn = async (cmd, args, o) => {
+      calls += 1;
+      if (calls === 2) {
+        sig.send('SIGTERM');
+        await done;
+      }
+      return f.spawn(cmd, args, o);
+    };
+    const said = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    try {
+      // The process would have ended at exit; here the run goes on into the staging the cleanup removed, and fails.
+      await runInContainer({ ...C, volume: 'v', ephemeral: true }, { root: top, keep: [], since: 'HEAD' }, [], { spawn, signals: sig.s, exit }).catch(() => undefined);
+    } finally {
+      said.mockRestore();
+    }
+    expect(exit).toHaveBeenCalledWith(143);
+    expect(f.verbs()).not.toContain('volume rm');
+  });
+
+  it('says a cleanup that failed, and exits all the same; an empty listing removes nothing', async () => {
+    const top = repo({ 'package.json': '{}' });
+    const said = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    try {
+      const sig = signals();
+      const exit = vi.fn();
+      const f = fake({ duringRun: () => sig.send('SIGHUP') });
+      const refusing: typeof f.spawn = async (cmd, args, o) => {
+        if (args[0] === 'ps' && args[1] === '-aq') throw new Error('engine went away');
+        return f.spawn(cmd, args, o);
+      };
+      await runInContainer(C, { root: top, keep: [] }, [], { spawn: refusing, signals: sig.s, exit });
+      expect(exit).toHaveBeenCalledWith(129);
+      expect(said).toHaveBeenCalledWith(expect.stringMatching(/^oxmutate: cleaning up after SIGHUP failed \(.*engine went away.*\)\. fix: oxmutate prune\n$/u));
+
+      const none = signals();
+      const g = fake({ listed: { containers: '\n', volumes: '' }, duringRun: () => none.send('SIGINT') });
+      await runInContainer(C, { root: top, keep: [] }, [], { spawn: g.spawn, signals: none.s, exit: vi.fn() });
+      expect(g.ofEngine().some((c) => c.args[0] === 'rm')).toBe(false);
+
+      const lone = signals();
+      const h = fake({ listed: { containers: 'c7\n', volumes: '' }, duringRun: () => lone.send('SIGINT') });
+      await runInContainer(C, { root: top, keep: [] }, [], { spawn: h.spawn, signals: lone.s, exit: vi.fn() });
+      expect(h.ofEngine().map((c) => c.args.join(' '))).toContain('rm -f c7');
+    } finally {
+      said.mockRestore();
+    }
   });
 });

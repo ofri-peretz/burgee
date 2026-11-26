@@ -71,9 +71,9 @@ describe('Protect main', () => {
     }
   });
 
-  it('lets admins and GitHub Actions bypass, so release pushes keep landing', () => {
-    for (const d of protect) {
-      expect(d.ruleset.bypass_actors).toEqual(expect.arrayContaining([expect.objectContaining({ actor_type: 'RepositoryRole', actor_id: 5 }), expect.objectContaining({ actor_type: 'Integration', actor_id: 15368 })]));
+  it('lets repository admins bypass, and names no integration, which a personal account repo refuses with 422', () => {
+    for (const d of declarations) {
+      expect(d.ruleset.bypass_actors).toEqual([{ actor_id: 5, actor_type: 'RepositoryRole', bypass_mode: 'always' }]);
     }
   });
 });
