@@ -3,7 +3,6 @@
   "owner": "ofri-peretz",
   "repos": [
     "eslint",
-    "agents",
     "subagent-gateway",
     "interlace",
     "blog",

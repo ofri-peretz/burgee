@@ -26,7 +26,7 @@ describe('the declarations in .github/rulesets', () => {
 
   it('require the provedone receipt in every code repo but burgee, whose Quality Gate already needs it', () => {
     const receipts = declarations.find((d) => d.ruleset.name === 'Require provedone receipts');
-    expect(receipts?.repos.sort()).toEqual(['agents', 'blog', 'eslint', 'interlace', 'serverless', 'subagent-gateway']);
+    expect(receipts?.repos.sort()).toEqual(['blog', 'eslint', 'interlace', 'serverless', 'subagent-gateway']);
     expect(JSON.stringify(receipts?.ruleset)).toContain('"context":"hookset / provedone receipts"');
     const quality = readFileSync(join(RULESETS_DIR, '..', 'workflows', 'quality.yml'), 'utf8');
     expect(quality).toMatch(/needs: \[[^\]]*receipts[^\]]*\]/);
@@ -63,8 +63,12 @@ describe('Protect main', () => {
   const { declarations } = loadDeclarations(RULESETS_DIR);
   const protect = declarations.filter((d) => d.ruleset.name === 'Protect main');
 
+  // agents is absent on purpose: it is private on a free plan, where GitHub offers no rulesets
+  // (GET /repos/ofri-peretz/agents/rulesets answers 403 "Upgrade to GitHub Pro"), so declaring it
+  // turned every rulesets.yml run on main red (2026-11-25 to 2026-11-26). Re-add it here and in
+  // .github/rulesets/ when the repo is public or the plan allows rulesets.
   it('covers every code repo once, never asking for an approving review Claude cannot give itself', () => {
-    expect(protect.flatMap((d) => d.repos).sort()).toEqual(['agents', 'blog', 'burgee', 'eslint', 'impact-ingest', 'interlace', 'serverless', 'subagent-gateway']);
+    expect(protect.flatMap((d) => d.repos).sort()).toEqual(['blog', 'burgee', 'eslint', 'impact-ingest', 'interlace', 'serverless', 'subagent-gateway']);
     for (const d of protect) {
       const pr = (d.ruleset.rules as { type: string; parameters?: { required_approving_review_count?: number } }[]).find((r) => r.type === 'pull_request');
       if (pr !== undefined) expect(pr.parameters?.required_approving_review_count).toBe(0);
