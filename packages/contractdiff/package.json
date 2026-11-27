@@ -1,6 +1,6 @@
 {
   "name": "contractdiff",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": false,
   "description": "Breaking-change diff, lint and code generation for API contracts (OpenAPI, JSON Schema, AsyncAPI, MCP), and the spec back from the code. No dependency outside the burgee family. An openapi-typescript migration path.",
   "license": "MIT",
