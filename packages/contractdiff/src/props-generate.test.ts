@@ -392,6 +392,10 @@ describe('merge, told apart', () => {
     const referred = draw({ $defs: { o: { type: 'object', additionalProperties: false } } });
     expect(merge(referred, [{ $ref: '#/$defs/o' }], '')).toEqual({ type: 'object', additionalProperties: false });
     expect(referred.reported.size).toBe(0);
+    // graphrbac's shape: the extra-properties rule sits behind a reference, beside a part naming its own properties.
+    const behind = draw({ $defs: { Base: { additionalProperties: { type: 'object' } } } });
+    merge(behind, [{ type: 'object', properties: { on: { type: 'boolean' } } }, { $ref: '#/$defs/Base' }], '/u');
+    expect([...behind.reported.keys()]).toEqual(['additionalProperties']);
   });
 
   it('picks a branch of a second any-of, and leaves a first one be', () => {

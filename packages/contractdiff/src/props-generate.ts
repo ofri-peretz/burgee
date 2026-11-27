@@ -178,7 +178,6 @@ const resolvePart = (draw: Draw, part: unknown, pointer: string, depth: number):
 
 /** The parts of an `allOf` as one schema, where that is exact; a keyword they disagree on is reported, `false` when no value can satisfy them. */
 export function merge(draw: Draw, parts: readonly unknown[], pointer: string, depth = 0): Dict | false {
-  if (parts.length > 1 && parts.some((part) => isDict(part) && has(part, 'additionalProperties'))) report(draw, 'additionalProperties', pointer);
   let out: Dict = {};
   let nulls = true;
   for (const raw of parts) {
@@ -188,6 +187,8 @@ export function merge(draw: Draw, parts: readonly unknown[], pointer: string, de
     const flat = Array.isArray(part.allOf) ? merge(draw, [without(part, ['allOf']), ...part.allOf], pointer, depth + 1) : part;
     if (flat === false) return false;
     nulls &&= letsNull(flat);
+    // A part's extra-properties rule also judges the names only the other parts declare; read after its reference is followed.
+    if (parts.length > 1 && has(flat, 'additionalProperties')) report(draw, 'additionalProperties', pointer);
     out = mergeTwo(draw, [out, without(flat, ['nullable'])], pointer, depth);
     // `type: false` is how a part says no value can satisfy it with the others.
     if (out.type === false) return false;
