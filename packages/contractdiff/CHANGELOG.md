@@ -1,5 +1,13 @@
 # contractdiff
 
+## 1.1.2
+
+### Patch Changes
+
+- [#1905](https://github.com/ofri-peretz/burgee/pull/1905) [`d0b349a`](https://github.com/ofri-peretz/burgee/commit/d0b349a1fb36be0e39c495f1ade379bf0c731dbf) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `props` reports `additionalProperties` inside an `allOf` when it sits behind a `$ref`, so values it makes there are kept only where the validator accepts them, instead of failing agreement.
+
+- [#1903](https://github.com/ofri-peretz/burgee/pull/1903) [`9e4dada`](https://github.com/ofri-peretz/burgee/commit/9e4dadafaa62bf04cddf526265447c24ba4a8a47) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `props` makes `null` under an OpenAPI 3.0 `allOf` only where every part lets it through: `nullable` belongs to its own part's `type`, so `nullable: true` beside a typed `$ref` no longer draws values the validator refuses.
+
 ## 1.1.1
 
 ### Patch Changes
