@@ -1,5 +1,14 @@
 # contractdiff
 
+## 1.1.1
+
+### Patch Changes
+
+- [#1898](https://github.com/ofri-peretz/burgee/pull/1898) [`dc65282`](https://github.com/ofri-peretz/burgee/commit/dc652822b99cc50840a31fe741207eb07a592b20) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `contractdiff props` breaks a `minimum` or `maximum` at 2^53 and above with a number that is
+  really past the bound. One past such a bound rounds back onto it, so the agreement property
+  reported the validator wrong for accepting a value that was in range (seen on the weekly corpus
+  run: jirafe, spectrocoin and three more documents).
+
 ## 1.1.0
 
 ### Minor Changes
