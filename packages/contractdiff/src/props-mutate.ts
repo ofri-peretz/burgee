@@ -82,8 +82,14 @@ const listBreaks = (schema: Dict, tokens: readonly string[]): Break[] => {
   return out;
 };
 
-/** How far past a bound a value must go to break it: none past an excluded one. */
-const past = (excluded: boolean): number => (excluded ? 0 : 1);
+/**
+ * A number one step further out than `bound`: one past it, or at least one representable double
+ * past it where adding one rounds back onto it (from 2^53 up, where `2 ** 53 + 1 === 2 ** 53`).
+ */
+const beyond = (bound: number, step: 1 | -1): number => bound + step * Math.max(1, Math.abs(bound) * Number.EPSILON);
+
+/** The nearest number a bound refuses: the bound itself when it is excluded, else one step past it. */
+const outside = (bound: number, excluded: boolean, step: 1 | -1): number => (excluded ? bound : beyond(bound, step));
 
 const numberBreaks = (draw: Draw, schema: Dict, value: number, tokens: readonly string[]): Break[] => {
   const out: Break[] = [];
@@ -91,8 +97,8 @@ const numberBreaks = (draw: Draw, schema: Dict, value: number, tokens: readonly 
   const whole = !typesOf(schema, draw.draft).includes('number');
   const [low, high] = wholeIn(range);
   // Just outside: the whole number past the last one inside, or the bound itself when it is excluded, else one past it.
-  const below = whole ? low - 1 : range.low - past(range.lowOut);
-  const above = whole ? high + 1 : range.high + past(range.highOut);
+  const below = whole ? beyond(low, -1) : outside(range.low, range.lowOut, -1);
+  const above = whole ? beyond(high, 1) : outside(range.high, range.highOut, 1);
   const lowKey = range.lowOut && has(schema, 'exclusiveMinimum') ? 'exclusiveMinimum' : 'minimum';
   const highKey = range.highOut && has(schema, 'exclusiveMaximum') ? 'exclusiveMaximum' : 'maximum';
   if (has(schema, lowKey)) out.push({ keyword: lowKey, tokens, replace: { value: below } });

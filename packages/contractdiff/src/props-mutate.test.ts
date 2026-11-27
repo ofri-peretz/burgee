@@ -134,6 +134,8 @@ describe('mutants', () => {
     ['a value list', { type: 'string', enum: ['a', 'bc'] }, 'a', [['type', '', null], ['enum', '', '"a""bc"x']]],
     ['integer bounds off whole numbers', { type: 'integer', minimum: 0.5, maximum: 3.5 }, 2, [['type', '', null], ['minimum', '', 0], ['maximum', '', 4]]],
     ['number bounds', { type: 'number', minimum: 0.5, maximum: 3.5 }, 2, [['type', '', null], ['minimum', '', -0.5], ['maximum', '', 4.5]]],
+    ['number bounds where one more rounds back onto them', { type: 'number', minimum: -(2 ** 53), maximum: 2 ** 53 }, 0, [['type', '', null], ['minimum', '', -(2 ** 53) - 2], ['maximum', '', 2 ** 53 + 2]]],
+    ['an int64 bound written as the double 2^63', { type: 'integer', minimum: 0, maximum: 2 ** 63 }, 1, [['type', '', null], ['minimum', '', -1], ['maximum', '', 2 ** 63 + 2048]]],
     ['excluded number bounds', { type: 'number', exclusiveMinimum: 0.5, exclusiveMaximum: 3.5 }, 2, [['type', '', null], ['exclusiveMinimum', '', 0.5], ['exclusiveMaximum', '', 3.5]]],
     ['a multiple at the top of its range', { type: 'integer', multipleOf: 3, minimum: 0, maximum: 6 }, 6, [['type', '', null], ['minimum', '', -1], ['maximum', '', 7], ['multipleOf', '', 5]]],
     ['a multiple at the bottom of its range', { type: 'integer', multipleOf: 3, minimum: 0, maximum: 6 }, 0, [['type', '', null], ['minimum', '', -1], ['maximum', '', 7], ['multipleOf', '', 1]]],
