@@ -258,11 +258,10 @@ export const PIPED_HOOKS = ['pre-push'];
 /** True when the repo's own `<hook>:` block sets `parallel: true`, which lefthook refuses beside `piped`. */
 export function setsParallel(yaml: string, hook: string): boolean {
   const lines = yaml.split('\n');
-  const start = lines.indexOf(`${hook}:`);
-  if (start === -1) return false;
-  for (const line of lines.slice(start + 1)) {
+  // A missing hook slices from line 0, and lefthook.yml's first line is never indented.
+  for (const line of lines.slice(lines.indexOf(`${hook}:`) + 1)) {
     if (/^\S/.test(line)) return false;
-    if (/^ {2}parallel:\s*true\s*(#.*)?$/.test(line)) return true;
+    if (/^ {2}parallel:\s+true\s*(#.*)?$/.test(line)) return true;
   }
   return false;
 }
@@ -515,6 +514,7 @@ function mergeIgnore(repo: string, stations: Stations): string {
  * four repos failed their format check on the 1.5.0 rollout (2026-11-26).
  */
 const PRINT_WIDTH = 80; // Prettier's default
+// Stryker disable next-line Regex: the anchors are equivalent, JSON.stringify puts each item on its own line
 const SCALAR_ITEM = /^(?:"(?:[^"\\]|\\.)*"|-?\d[\d.eE+-]*|true|false|null),?$/;
 
 export function prettyJson(value: unknown): string {
@@ -523,12 +523,19 @@ export function prettyJson(value: unknown): string {
   let skipTo = 0;
   for (const [i, open] of lines.entries()) {
     if (i < skipTo) continue;
-    // An array always ends on its own line, so `rest` holds its items and then its `]`.
-    const rest = open.endsWith('[') ? lines.slice(i + 1).map((l) => l.trim()) : [];
+    if (!open.endsWith('[')) {
+      out.push(open);
+      continue;
+    }
+    // Every array that is not `[]` ends on its own line, so `rest` holds its items, then its close.
+    const rest = lines.slice(i + 1).map((l) => l.trim());
     const count = rest.findIndex((l) => !SCALAR_ITEM.test(l));
-    const items = rest.slice(0, count).map((l) => l.replace(/,$/, ''));
-    const line = `${open}${items.join(', ')}${rest[count]}`;
-    if (items.length > 0 && rest[count]?.startsWith(']') && line.length <= PRINT_WIDTH) {
+    const close = rest[count] as string;
+    const line = `${open}${rest
+      .slice(0, count)
+      .map((l) => l.replace(/,$/, ''))
+      .join(', ')}${close}`;
+    if (close.startsWith(']') && line.length <= PRINT_WIDTH) {
       out.push(line);
       skipTo = i + count + 2;
     } else out.push(open);

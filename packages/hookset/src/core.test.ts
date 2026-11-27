@@ -262,7 +262,14 @@ describe('checkRepo', () => {
     const dir = repo({ 'package.json': ALL_SCRIPTS, 'lefthook.yml': `${lefthookTemplate(STATIONS, REF)}\npre-push:\n  parallel: true\n  commands: {}\n` });
     const result = checkRepo(dir, PKG);
     expect(result.ok).toBe(false);
-    expect(result.problems.map((p) => p.id)).toEqual(['parallel-with-piped']);
+    expect(result.problems).toEqual([
+      {
+        id: 'parallel-with-piped',
+        severity: 'error',
+        message: 'pre-push sets `parallel: true`, and the pre-push preset is `piped`: lefthook refuses both, so the hook cannot run',
+        fix: 'delete `parallel: true` from pre-push in lefthook.yml',
+      },
+    ]);
   });
 
   it('has nothing to say about a repo with every station declared', () => {
@@ -775,7 +782,10 @@ describe('prettyJson', () => {
       permissions: { allow: ['mcp__codegraph__codegraph_explore'], deny: [] },
       enabledMcpjsonServers: ['codegraph'],
       long: ['a fairly long entry number one', 'a fairly long entry number two', 'three'],
-      mixed: [1, true, null, 'q"uote', 'br[ack]et', 'ends ['],
+      mixed: [10, -2.5e3, true, null, 'q"uote', 'br[ack]et', 'ends [', 'a, b'],
+      // These two are 80 and 81 columns collapsed: Prettier keeps the first on one line, not the second.
+      fit: ['x'.repeat(66)],
+      over: ['x'.repeat(66)],
       withObject: [1, { a: 1 }],
       nested: { hooks: [{ type: 'command', command: 'node "$CLAUDE_PROJECT_DIR/x.mjs"', timeout: 30 }] },
       empty: {},
@@ -793,6 +803,8 @@ describe('parallel beside a piped preset', () => {
     expect(setsParallel('pre-commit:\n  parallel: true\npre-push:\n  commands: {}\n', 'pre-push')).toBe(false);
     expect(setsParallel('pre-push:\n  commands:\n    a:\n      parallel: true\n', 'pre-push')).toBe(false);
     expect(setsParallel('commit-msg:\n  parallel: true\n', 'pre-push')).toBe(false);
+    expect(setsParallel('pre-push:\n  parallel: trueish\n', 'pre-push')).toBe(false);
+    expect(setsParallel('pre-push:\n  parallel:  true\n', 'pre-push')).toBe(true);
     expect(setsParallel('pre-push:\n  commands: {}\npost-merge:\n  parallel: true\n', 'pre-push'), 'the next hook block is not pre-push').toBe(false);
   });
 
