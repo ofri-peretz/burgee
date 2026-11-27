@@ -36,9 +36,6 @@ export default defineConfig({
   test: {
     ...timeouts,
     setupFiles: ['./vitest-git-env-setup.ts', './vitest-colour-setup.ts'],
-    // Pre-push runs this suite with `--changed`, which follows imports. These locks read hook and
-    // CI config as text, so a change there reruns every lock (CI caught three that pre-push missed).
-    forceRerunTriggers: ['**/package.json/**', '**/vitest.config.*/**', '**/vite.config.*/**', '**/lefthook.yml', '**/turbo.json', '**/.github/**'],
     // One `vitest run`, two groups, as in `packages/burgee/vitest.config.ts`: `include` lives in
     // each project, since `extends: true` concatenates arrays.
     projects: [
