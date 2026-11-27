@@ -120,8 +120,9 @@ describe('make: the keywords it holds to', () => {
     const short = { allOf: [{ type: 'string', nullable: true }, { type: 'string', maxLength: 3 }] };
     agrees(short, options);
     expect(values(short, options)).not.toContain(null);
-    // A part with no type lets null through, and so do two that each say `nullable`.
-    for (const loose of [{ allOf: [{ type: 'string', nullable: true }, { maxLength: 3 }] }, { allOf: [{ type: 'string', nullable: true }, { type: 'string', nullable: true }] }]) {
+    // A part with no type lets null through, and so do parts that each say `nullable` or list `null`.
+    const both = { allOf: [{ type: 'string', nullable: true }, { type: 'string', nullable: true }] };
+    for (const loose of [{ allOf: [{ type: 'string', nullable: true }, { maxLength: 3 }] }, both, { allOf: [{ type: ['string', 'null'] }, { type: 'string', nullable: true }] }]) {
       agrees(loose, options);
       expect(values(loose, options)).toContain(null);
     }
