@@ -111,6 +111,22 @@ describe('make: the keywords it holds to', () => {
     expect(values({ type: 'null', nullable: true }, { draft: 'openapi-3.0', count: 3 })).toEqual([null, null, null]);
   });
 
+  it('holds to OpenAPI 3.0 inside an all-of: null only where every part lets it through', () => {
+    const root = { components: { schemas: { Job: { type: 'object', properties: { id: { type: 'string' } } } } } };
+    const options = { draft: 'openapi-3.0' as const, root };
+    // rev.ai's shape: `nullable` beside an all-of whose one part is a typed reference.
+    agrees({ allOf: [{ $ref: '#/components/schemas/Job' }], nullable: true }, options);
+    expect(values({ allOf: [{ $ref: '#/components/schemas/Job' }], nullable: true }, options)).not.toContain(null);
+    const short = { allOf: [{ type: 'string', nullable: true }, { type: 'string', maxLength: 3 }] };
+    agrees(short, options);
+    expect(values(short, options)).not.toContain(null);
+    // A part with no type lets null through, and so do two that each say `nullable`.
+    for (const loose of [{ allOf: [{ type: 'string', nullable: true }, { maxLength: 3 }] }, { allOf: [{ type: 'string', nullable: true }, { type: 'string', nullable: true }] }]) {
+      agrees(loose, options);
+      expect(values(loose, options)).toContain(null);
+    }
+  });
+
   it('draws the ends of a range, where off-by-ones live', () => {
     const drawn = new Set(values({ type: 'integer', minimum: 0, maximum: 1000 }, { count: 300 }));
     expect(drawn.has(0)).toBe(true);
