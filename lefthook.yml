@@ -51,9 +51,10 @@ pre-push:
     # went red on ubuntu and windows after a local `ci:local` reported 45/45 (2026-09-16).
     # This is the same line `npm test` already runs before its turbo half.
     # What --changed finds through imports, plus the locks that read a changed non-code file as
-    # text (scripts/root-suite-changed.mjs). Seconds for most pushes.
+    # text (scripts/root-suite-changed.mjs). Seconds for most pushes; a change to vitest's own
+    # config still reruns all 184 files (3-4 min), so the cap stays 5m.
     root-suite:
-      timeout: 3m
+      timeout: 5m
       priority: 2
       run: node scripts/root-suite-changed.mjs origin/main
     # The changed-lines mutation lane (scripts/mutation-changed.sh), against origin/main: the
