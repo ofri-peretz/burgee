@@ -1,5 +1,11 @@
 # hookset
 
+## 1.5.1
+
+### Patch Changes
+
+- [#1902](https://github.com/ofri-peretz/burgee/pull/1902) [`b00d085`](https://github.com/ofri-peretz/burgee/commit/b00d0855319c3c1bf4733871012a8caff7cc72a7) Thanks [@ofri-peretz](https://github.com/ofri-peretz)! - `hookset init` writes `.claude/settings.json`, `.mcp.json` and `.claude/hookset.json` the way Prettier prints them, so a repo whose format gate covers `.claude/` stays green after an upgrade (four repos failed it on the 1.5.0 rollout). `hookset check` now reports `parallel-with-piped` when a repo's own `pre-push` sets `parallel: true` beside the piped preset: lefthook refuses that pair, so the push could not start.
+
 ## 1.5.0
 
 ### Minor Changes
