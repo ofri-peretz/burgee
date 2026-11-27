@@ -154,7 +154,7 @@ describe('the required check and the pre-push hook run it', () => {
     expect(battery?.run).toMatch(/TRUEPASS_BUDGET_DEFER="\$PWD\/node_modules\/\.cache\/case-budget" npx --no turbo run typecheck test /u);
     expect(judge?.run).toBe('npx --no tsx scripts/case-budget.ts node_modules/.cache/case-budget');
     expect(judge!.priority).toBeGreaterThan(battery!.priority);
-    expect(root?.run).toBe('npx --no vitest run --config vitest.root.config.ts --changed origin/main --bail=1');
+    expect(root?.run).toBe('node scripts/root-suite-changed.mjs origin/main');
     for (const c of Object.values(hooks['pre-push'].commands)) expect(c.run).not.toMatch(turnsOff);
   });
 
