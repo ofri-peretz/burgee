@@ -18,6 +18,9 @@ import {
   packageVersion,
   parseRemotes,
   type Problem,
+  prettyJson,
+  PIPED_HOOKS,
+  setsParallel,
 } from './core.js';
 
 const PKG = packageRoot();
@@ -253,6 +256,20 @@ describe('checkRepo', () => {
     const dir = repo({ 'package.json': MANIFEST });
     expect(initRepo(dir, PKG)).toEqual({ changed: true, written: ['lefthook.yml'] });
     expect(checkRepo(dir, PKG)).toEqual({ ok: true, pinned: REF, expected: REF, problems: STATION_OFF });
+  });
+
+  it('fails a repo whose own pre-push sets parallel beside the piped preset, the way eslint did', () => {
+    const dir = repo({ 'package.json': ALL_SCRIPTS, 'lefthook.yml': `${lefthookTemplate(STATIONS, REF)}\npre-push:\n  parallel: true\n  commands: {}\n` });
+    const result = checkRepo(dir, PKG);
+    expect(result.ok).toBe(false);
+    expect(result.problems).toEqual([
+      {
+        id: 'parallel-with-piped',
+        severity: 'error',
+        message: 'pre-push sets `parallel: true`, and the pre-push preset is `piped`: lefthook refuses both, so the hook cannot run',
+        fix: 'delete `parallel: true` from pre-push in lefthook.yml',
+      },
+    ]);
   });
 
   it('has nothing to say about a repo with every station declared', () => {
@@ -531,7 +548,7 @@ describe('initRepo', () => {
     expect(read(dir, '.claude/hooks/stop-after-3.mjs')).toBe(readFileSync(join(PKG, 'claude/stop-after-3.mjs'), 'utf8'));
     expect(read(dir, '.claude/hookset.json')).toBe('{\n  "ask": [],\n  "frozen": []\n}\n');
     expect(read(dir, '.claude/settings.json')).toBe(
-      `${JSON.stringify(
+      prettyJson(
         {
           $schema: 'https://json.schemastore.org/claude-code-settings.json',
           hooks: {
@@ -553,9 +570,7 @@ describe('initRepo', () => {
           enabledMcpjsonServers: ['codegraph'],
           permissions: { allow: ['mcp__codegraph__codegraph_explore'] },
         },
-        undefined,
-        2,
-      )}\n`,
+      ),
     );
   });
 
@@ -756,5 +771,47 @@ describe('the readers, at the last edges', () => {
     const before = `remotes:\n  - git_url: ${REMOTE}\nref: top\n`;
     const dir = repo({ 'lefthook.yml': before });
     expect(initRepo(dir, PKG)).toEqual({ changed: false, written: [] });
+  });
+});
+
+describe('prettyJson', () => {
+  it('prints what Prettier prints, so a format gate over .claude/ passes after init', async () => {
+    const { format } = await import('prettier');
+    const sample = {
+      $schema: 'https://json.schemastore.org/claude-code-settings.json',
+      permissions: { allow: ['mcp__codegraph__codegraph_explore'], deny: [] },
+      enabledMcpjsonServers: ['codegraph'],
+      long: ['a fairly long entry number one', 'a fairly long entry number two', 'three'],
+      mixed: [10, -2.5e3, true, null, 'q"uote', 'br[ack]et', 'ends [', 'a, b'],
+      // These two are 80 and 81 columns collapsed: Prettier keeps the first on one line, not the second.
+      fit: ['x'.repeat(66)],
+      over: ['x'.repeat(66)],
+      withObject: [1, { a: 1 }],
+      nested: { hooks: [{ type: 'command', command: 'node "$CLAUDE_PROJECT_DIR/x.mjs"', timeout: 30 }] },
+      empty: {},
+    };
+    const ours = prettyJson(sample);
+    expect(ours).toBe(await format(ours, { parser: 'json' }));
+    expect(JSON.parse(ours)).toEqual(sample);
+  });
+});
+
+describe('parallel beside a piped preset', () => {
+  it('finds `parallel: true` only in the named hook block', () => {
+    const yaml = 'pre-commit:\n  parallel: true\npre-push:\n  # fast\n  parallel: true # yes\n  commands:\n    x:\n      run: y\n';
+    expect(setsParallel(yaml, 'pre-push')).toBe(true);
+    expect(setsParallel('pre-commit:\n  parallel: true\npre-push:\n  commands: {}\n', 'pre-push')).toBe(false);
+    expect(setsParallel('pre-push:\n  commands:\n    a:\n      parallel: true\n', 'pre-push')).toBe(false);
+    expect(setsParallel('commit-msg:\n  parallel: true\n', 'pre-push')).toBe(false);
+    expect(setsParallel('pre-push:\n  parallel: trueish\n', 'pre-push')).toBe(false);
+    expect(setsParallel('pre-push:\n  parallel:  true\n', 'pre-push')).toBe(true);
+    expect(setsParallel('pre-push:\n  commands: {}\npost-merge:\n  parallel: true\n', 'pre-push'), 'the next hook block is not pre-push').toBe(false);
+  });
+
+  it('PIPED_HOOKS is exactly the presets that set piped', () => {
+    const piped = Object.entries(STATIONS.presets)
+      .filter(([, preset]) => /^ {2}piped: true$/m.test(readFileSync(join(PKG, preset.replace(/^.*?presets\//, 'presets/')), 'utf8')))
+      .map(([hook]) => hook);
+    expect(piped.sort()).toEqual([...PIPED_HOOKS].sort());
   });
 });

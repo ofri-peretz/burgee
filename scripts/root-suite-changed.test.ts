@@ -14,6 +14,12 @@ describe('root-suite-changed', () => {
     expect(readersOf(['.github/workflows/ci.yml', 'lefthook.yml'], tests)).toEqual(['scripts/a-lock.test.ts', 'scripts/b-lock.test.ts']);
   });
 
+  it('runs the locks that read built declarations when a package source changes', () => {
+    const withDts = { ...tests, 'scripts/api-reference-lock.test.ts': "readFileSync(join(pkg, 'dist/index.d.ts'))" };
+    expect(readersOf(['packages/hookset/src/core.ts'], withDts)).toEqual(['scripts/api-reference-lock.test.ts']);
+    expect(readersOf(['packages/hookset/src/core.test.ts'], withDts)).toEqual([]);
+  });
+
   it('leaves code to --changed, which follows its imports', () => {
     expect(readersOf(['scripts/c.ts', 'packages/x/src/y.tsx'], tests)).toEqual([]);
   });

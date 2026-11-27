@@ -252,6 +252,20 @@ interface Reporter {
   warn: Report;
 }
 
+/** Hooks whose preset is `piped: true` (stop at the first failure). A lock keeps this equal to the presets. */
+export const PIPED_HOOKS = ['pre-push'];
+
+/** True when the repo's own `<hook>:` block sets `parallel: true`, which lefthook refuses beside `piped`. */
+export function setsParallel(yaml: string, hook: string): boolean {
+  const lines = yaml.split('\n');
+  // A missing hook slices from line 0, and lefthook.yml's first line is never indented.
+  for (const line of lines.slice(lines.indexOf(`${hook}:`) + 1)) {
+    if (/^\S/.test(line)) return false;
+    if (/^ {2}parallel:\s+true\s*(#.*)?$/.test(line)) return true;
+  }
+  return false;
+}
+
 /** The lefthook.yml half of the check; returns the pinned tag. */
 function checkLefthook(repo: string, stations: Stations, expected: string, { error, warn }: Reporter): string | undefined {
   const file = join(repo, 'lefthook.yml');
@@ -271,6 +285,9 @@ function checkLefthook(repo: string, stations: Stations, expected: string, { err
   }
   for (const [hook, preset] of Object.entries(stations.presets)) {
     if (!remote.configs.includes(preset)) error('missing-preset', `the ${hook} preset is not pulled (${preset})`, `add \`- ${preset}\` under the remote's configs`);
+  }
+  for (const hook of PIPED_HOOKS) {
+    if (setsParallel(yaml, hook)) error('parallel-with-piped', `${hook} sets \`parallel: true\`, and the ${hook} preset is \`piped\`: lefthook refuses both, so the hook cannot run`, `delete \`parallel: true\` from ${hook} in lefthook.yml`);
   }
   const ref = remote.ref ?? '';
   if (!ref.startsWith(stations.tagPrefix)) {
@@ -434,7 +451,7 @@ export function initRepo(repo: string, pkg: string, options: { force?: boolean; 
   write('lefthook.yml', lefthook.text);
   if (options.claude) {
     for (const file of stations.claude.files) write(`.claude/hooks/${file}`, readText(join(pkg, 'claude', file)));
-    if (!existsSync(join(repo, '.claude', 'hookset.json'))) write('.claude/hookset.json', `${JSON.stringify({ ask: [], frozen: [] }, undefined, 2)}\n`);
+    if (!existsSync(join(repo, '.claude', 'hookset.json'))) write('.claude/hookset.json', prettyJson({ ask: [], frozen: [] }));
     // A skill is the repo's to fill in: written once from the template, never overwritten.
     for (const skill of stations.claude.skills) if (!existsSync(join(repo, skill.path))) write(skill.path, readText(join(pkg, skill.template)));
     write('.claude/settings.json', mergeSettings(repo, stations));
@@ -477,7 +494,7 @@ type Settings = { hooks?: Record<string, HookGroup[]>; enabledMcpjsonServers?: s
 function mergeMcp(repo: string, stations: Stations): string {
   const mcp = readJson<McpJson>(join(repo, '.mcp.json'), {});
   mcp.mcpServers = { ...mcp.mcpServers, ...Object.fromEntries(stations.claude.mcp.map((m) => [m.id, m.server])) };
-  return `${JSON.stringify(mcp, undefined, 2)}\n`;
+  return prettyJson(mcp);
 }
 
 /** .gitignore with each pack server's index folder appended when it is not listed yet. */
@@ -489,6 +506,41 @@ function mergeIgnore(repo: string, stations: Stations): string {
   if (missing.length === 0) return text;
   const sep = text === '' || text.endsWith('\n') ? '' : '\n';
   return `${text}${sep}# MCP server indexes, rebuilt per session by .claude/hooks (hookset)\n${missing.join('\n')}\n`;
+}
+
+/**
+ * JSON as Prettier prints it, so a repo whose format gate covers .claude/ stays green after
+ * `hookset init`: an array of primitives that fits in 80 columns goes on one line. Without this,
+ * four repos failed their format check on the 1.5.0 rollout (2026-11-26).
+ */
+const PRINT_WIDTH = 80; // Prettier's default
+// Stryker disable next-line Regex: the anchors are equivalent, JSON.stringify puts each item on its own line
+const SCALAR_ITEM = /^(?:"(?:[^"\\]|\\.)*"|-?\d[\d.eE+-]*|true|false|null),?$/;
+
+export function prettyJson(value: unknown): string {
+  const lines = JSON.stringify(value, undefined, 2).split('\n');
+  const out: string[] = [];
+  let skipTo = 0;
+  for (const [i, open] of lines.entries()) {
+    if (i < skipTo) continue;
+    if (!open.endsWith('[')) {
+      out.push(open);
+      continue;
+    }
+    // Every array that is not `[]` ends on its own line, so `rest` holds its items, then its close.
+    const rest = lines.slice(i + 1).map((l) => l.trim());
+    const count = rest.findIndex((l) => !SCALAR_ITEM.test(l));
+    const close = rest[count] as string;
+    const line = `${open}${rest
+      .slice(0, count)
+      .map((l) => l.replace(/,$/, ''))
+      .join(', ')}${close}`;
+    if (close.startsWith(']') && line.length <= PRINT_WIDTH) {
+      out.push(line);
+      skipTo = i + count + 2;
+    } else out.push(open);
+  }
+  return `${out.join('\n')}\n`;
 }
 
 const union = (a: string[] | undefined, b: string[]): string[] => [...new Set([...(a ?? []), ...b])];
@@ -518,7 +570,7 @@ function mergeSettings(repo: string, stations: Stations): string {
   settings.hooks = Object.fromEntries(events);
   settings.enabledMcpjsonServers = union(settings.enabledMcpjsonServers, stations.claude.mcp.map((m) => m.id));
   settings.permissions = { ...settings.permissions, allow: union(settings.permissions?.allow, stations.claude.mcp.flatMap((m) => m.allow)) };
-  return `${JSON.stringify(settings, undefined, 2)}\n`;
+  return prettyJson(settings);
 }
 
 /** `1 error, 2 warnings`: every problem the lines below list, counted by severity; a severity with none is left out. */

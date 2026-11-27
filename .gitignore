@@ -61,3 +61,6 @@ stryker-setup-*.js
 
 # MCP server indexes, rebuilt per session by .claude/hooks (hookset)
 .codegraph/
+
+# subpath-weight.ts scratch: entry files it writes and deletes; untracked, it read as edits
+benchmarks/.subpaths/
