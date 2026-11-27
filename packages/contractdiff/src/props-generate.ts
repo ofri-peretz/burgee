@@ -180,18 +180,23 @@ const resolvePart = (draw: Draw, part: unknown, pointer: string, depth: number):
 export function merge(draw: Draw, parts: readonly unknown[], pointer: string, depth = 0): Dict | false {
   if (parts.length > 1 && parts.some((part) => isDict(part) && has(part, 'additionalProperties'))) report(draw, 'additionalProperties', pointer);
   let out: Dict = {};
+  let nulls = true;
   for (const raw of parts) {
     const part = resolvePart(draw, raw, pointer, depth);
     // Stryker disable next-line ConditionalExpression,BooleanLiteral: equivalent, a `false` part has no `allOf`, so the next line returns it
     if (part === false) return false;
     const flat = Array.isArray(part.allOf) ? merge(draw, [without(part, ['allOf']), ...part.allOf], pointer, depth + 1) : part;
     if (flat === false) return false;
-    out = mergeTwo(draw, [out, flat], pointer, depth);
+    nulls &&= letsNull(flat);
+    out = mergeTwo(draw, [out, without(flat, ['nullable'])], pointer, depth);
     // `type: false` is how a part says no value can satisfy it with the others.
     if (out.type === false) return false;
   }
-  return out;
+  return nulls && has(out, 'type') ? { ...out, nullable: true } : out;
 }
+
+/** OpenAPI 3.0's `nullable` is about its own part's `type`: a part lets `null` through when it declares no type, says `nullable`, or lists `null`. */
+const letsNull = (part: Dict): boolean => !has(part, 'type') || part.nullable === true || typeList(part.type).includes('null');
 
 const mergeTwo = (draw: Draw, [mine, theirs]: readonly [Dict, Dict], pointer: string, depth: number): Dict => {
   const entries = new Map(Object.entries(mine));
