@@ -15,7 +15,9 @@ const vitest = (args) => spawnSync('npx', ['--no', 'vitest', 'run', '--config', 
 /** Root test files whose source names a changed non-code file. Basename match: a superset, never fewer. */
 export function readersOf(changed, tests) {
   const names = [...new Set(changed.filter((f) => !CODE.test(f)).map((f) => basename(f)))];
-  if (names.length === 0) return [];
+  // A package's source change reaches the locks that read built declarations through dist/,
+  // which no import names (CI caught api-reference-lock that pre-push skipped, 2026-11-27).
+  if (changed.some((f) => /^packages\/[^/]+\/src\/.+\.ts$/.test(f) && !f.endsWith('.test.ts'))) names.push('.d.ts');
   return Object.entries(tests)
     .filter(([, src]) => names.some((n) => src.includes(n)))
     .map(([file]) => file)
